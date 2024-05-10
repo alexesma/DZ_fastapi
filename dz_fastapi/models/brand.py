@@ -8,14 +8,14 @@ from sqlalchemy import (
     Boolean,
     UniqueConstraint,
     CheckConstraint,
-    text
+    text,
 )
 from sqlalchemy.orm import relationship
 
 from dz_fastapi.core.constants import MAX_NAME_BRAND, MAX_LEN_WEBSITE
 from dz_fastapi.core.db import Base
 
-brand_synonyms_association = Table(
+brand_synonyms = Table(
     'brand_synonyms',
     Base.metadata,
     Column(
@@ -48,10 +48,10 @@ class Brand(Base):
     autoparts = relationship('AutoPart', back_populates='brand')
     synonyms = relationship(
         'Brand',
-        secondary=brand_synonyms_association,
-        primaryjoin=id == brand_synonyms_association.c.brand_id,
-        secondaryjoin=id == brand_synonyms_association.c.synonym_id,
-        backref='synonyms'
+        secondary='brand_synonyms',
+        primaryjoin='Brand.id == brand_synonyms.c.brand_id',
+        secondaryjoin='Brand.id == brand_synonyms.c.synonym_id',
+        backref='brand_synonyms'
     )
     __table_args__ = (
         CheckConstraint(

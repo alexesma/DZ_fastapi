@@ -30,6 +30,7 @@ from dz_fastapi.core.constants import (
 from dz_fastapi.core.db import Base
 
 
+
 def change_string(old_string: str) -> str:
     '''
     Функция для изменения строки преобразования
@@ -55,52 +56,6 @@ def preprocess_oem_number(oem_number):
     return re.sub(r'[^a-zA-Z0-9]', '', oem_number).upper()
 
 
-autopart_storage_association = Table(
-    'autopart_storage_association',
-    Base.metadata,
-    Column(
-        'autopart_id',
-        Integer,
-        ForeignKey('autopart.id'),
-        nullable=True,
-    ),
-    Column(
-        'storage_location_id',
-        Integer,
-        ForeignKey('storagelocation.id'),
-        nullable=True,
-    ),
-    UniqueConstraint(
-        'autopart_id',
-        'storage_location_id',
-        name='unique_autopart_storage_location'
-    )
-)
-
-autopart_category_association = Table(
-    'autopart_category_association',
-    Base.metadata,
-    Column(
-        'autopart_id',
-        Integer,
-        ForeignKey('autopart.id'),
-        nullable=True,
-    ),
-    Column(
-        'category_id',
-        Integer,
-        ForeignKey('category.id'),
-        nullable=True,
-    ),
-    PrimaryKeyConstraint('autopart_id', 'category_id'),
-    UniqueConstraint(
-        'autopart_id',
-        'category_id',
-        name='unique_autopart_category'
-    )
-)
-
-
 class AutoPart(Base):
     '''
     Модель Автозапчасть
@@ -118,21 +73,6 @@ class AutoPart(Base):
     )
     name = Column(String(MAX_LIGHT_OEM), nullable=False)
     description = Column(Text, nullable=True)
-    category = relationship(
-        'Category',
-        secondary='autopart_category_association',
-        back_populates='autoparts'
-    )
-    cars_model = relationship(
-        'CarModel',
-        secondary='car_model_autopart_association',
-        back_populates='autoparts'
-    )
-    standard_size = relationship(
-        'StandardSize',
-        secondary='standard_size_autopart_association',
-        back_populates='autoparts'
-    )
     width = Column(Float, nullable=True)
     height = Column(Float, nullable=True)
     length = Column(Float, nullable=True)
@@ -142,20 +82,10 @@ class AutoPart(Base):
     retail_price = Column(DECIMAL(10, 2),  default=0)
     wholesale_price = Column(DECIMAL(10, 2),  default=0)
     multiplicity = Column(Integer, default=1,  nullable=True)
-    storage_locations = relationship(
-        'StorageLocation',
-        secondary='autopart_storage_association',
-        back_populates='autoparts'
-    )
     minimum_balance = Column(Integer, default=0)
     min_balance_auto = Column(Boolean, default=False)
     min_balance_user = Column(Boolean, default=False)
     comment = Column(Text, nullable=True, default='')
-    price_lists = relationship(
-        'PriceList',
-        secondary='price_list_autopart_association',
-        back_populates='autoparts'
-    )
     __table_args__ = (
         UniqueConstraint(
             'brand_id',
@@ -193,62 +123,62 @@ def preprocess_auto_part_update(mapper, connection, target):
         target.barcode = f"{target.brand.name}{target.oem_number}"
 
 
-class Category(Base):
-    '''
-    Модель Категория запчасти или детали автомобиля.
-    '''
-    name = Column(
-        String(MAX_NAME_CATEGORY),
-        nullable=False,
-        unique=True
-    )
-    parent_id = Column(Integer, ForeignKey('category.id'), nullable=True)
-    children = relationship(
-        'Category',
-        backref='parent',
-        remote_side=[id]
-    )
-    comment = Column(Text, nullable=True, default='')
-    autoparts = relationship(
-        'AutoPart',
-        secondary='autopart_category_association',
-        back_populates='categories'
-    )
-    __table_args__ = (
-        UniqueConstraint(
-            'parent_id',
-            name='unique_parent_id'
-        ),
-    )
-
-
-@event.listens_for(Category, 'before_insert')
-def preprocess_category(mapper, connection, target):
-    # Преобразовать имя категории и удалить специальные символы
-    target.name = re.sub(r'[^\w-]', '', target.name).capitalize()
-
-
-class StorageLocation(Base):
-    '''
-    Модель Складское месторасположение запчасти.
-    '''
-    name = Column(
-        String(MAX_LIGHT_NAME_LOCATION),
-        nullable=False,
-        unique=True
-    )
-    autoparts = relationship(
-        'AutoPart',
-        secondary=autopart_storage_association,
-        back_populates='storage_locations',
-        cascade='all, delete'
-    )
-    __table_args__ = (
-        CheckConstraint(
-            "name ~ '^[A-Z0-9]+$'",
-            name='latin_characters_only'
-        ),
-    )
+# class Category(Base):
+#     '''
+#     Модель Категория запчасти или детали автомобиля.
+#     '''
+#     name = Column(
+#         String(MAX_NAME_CATEGORY),
+#         nullable=False,
+#         unique=True
+#     )
+#     parent_id = Column(Integer, ForeignKey('category.id'), nullable=True)
+#     children = relationship(
+#         'Category',
+#         backref='parent',
+#         remote_side=[id]
+#     )
+#     comment = Column(Text, nullable=True, default='')
+#     autoparts = relationship(
+#         'AutoPart',
+#         secondary='autopart_category_association',
+#         back_populates='categories'
+#     )
+#     __table_args__ = (
+#         UniqueConstraint(
+#             'parent_id',
+#             name='unique_parent_id'
+#         ),
+#     )
+#
+#
+# @event.listens_for(Category, 'before_insert')
+# def preprocess_category(mapper, connection, target):
+#     # Преобразовать имя категории и удалить специальные символы
+#     target.name = re.sub(r'[^\w-]', '', target.name).capitalize()
+#
+#
+# class StorageLocation(Base):
+#     '''
+#     Модель Складское месторасположение запчасти.
+#     '''
+#     name = Column(
+#         String(MAX_LIGHT_NAME_LOCATION),
+#         nullable=False,
+#         unique=True
+#     )
+#     autoparts = relationship(
+#         'AutoPart',
+#         secondary='autopart_storage_association',
+#         back_populates='storage_locations',
+#         cascade='all, delete'
+#     )
+#     __table_args__ = (
+#         CheckConstraint(
+#             "name ~ '^[A-Z0-9]+$'",
+#             name='latin_characters_only'
+#         ),
+#     )
 
 
 class Photo(Base):
@@ -269,3 +199,45 @@ class Photo(Base):
         ),
         {"extend_existing": True},
     )
+
+
+# autopart_storage_association = Table(
+#     'autopart_storage_association',
+#     Base.metadata,
+#     Column(
+#         'autopart_id',
+#         ForeignKey('autopart.id'),
+#         nullable=True,
+#     ),
+#     Column(
+#         'storage_location_id',
+#         ForeignKey('storagelocation.id'),
+#         nullable=True,
+#     ),
+#     UniqueConstraint(
+#         'autopart_id',
+#         'storage_location_id',
+#         name='unique_autopart_storage_location'
+#     )
+# )
+#
+# autopart_category_association = Table(
+#     'autopart_category_association',
+#     Base.metadata,
+#     Column(
+#         'autopart_id',
+#         ForeignKey('autopart.id'),
+#         nullable=True,
+#     ),
+#     Column(
+#         'category_id',
+#         ForeignKey('category.id'),
+#         nullable=True,
+#     ),
+#     PrimaryKeyConstraint('autopart_id', 'category_id'),
+#     UniqueConstraint(
+#         'autopart_id',
+#         'category_id',
+#         name='unique_autopart_category'
+#     )
+# )
