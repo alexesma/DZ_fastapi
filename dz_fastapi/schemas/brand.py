@@ -1,6 +1,6 @@
 from enum import StrEnum
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 
 class CountryEnum(StrEnum):
@@ -21,20 +21,21 @@ class BrandBase(BaseModel):
     website: Optional[str] = None
     description: Optional[str] = None
     logo: Optional[str] = None
-    main_brand: Optional[bool] = True
-
+    main_brand: Optional[bool] = False
 
 class BrandCreate(BrandBase):
-    pass
-
+    synonyms: Optional[List[str]] = None
+    synonym_name: Optional[str] = None
 
 class BrandUpdate(BrandBase):
     pass
 
-
 class BrandCreateInDB(BrandBase):
     id: int
+    synonyms: List[BrandBase] = []
 
+    class Config:
+        orm_mode = True
 
 class BrandUpdateInDB(BrandBase):
     pass

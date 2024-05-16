@@ -12,6 +12,7 @@ ERROR_MESSAGE_FORMAT_DATE ='{key} должен быть в формате "YYYY"
 ERROR_MESSAGE_RANGE_DATE='{key} не может быть меньше 1980 и больше текущей даты'
 FORMAT_YEAR_FOR_CAR_1 = '%Y'
 FORMAT_YEAR_FOR_CAR_2 = '%m.%Y'
+UPLOAD_DIR = 'uploads/logos'
 
 # Invoice name
 PRICELIST_DRAGONZAP = 'dragonzap.xlsx'
