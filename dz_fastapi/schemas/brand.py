@@ -33,7 +33,7 @@ class BrandUpdate(BrandBase):
 
 
 class BrandCreateInDB(BrandBase):
-    pass
+    id: int
 
 
 class BrandUpdateInDB(BrandBase):
