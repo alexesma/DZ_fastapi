@@ -45,11 +45,43 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
                 continue
             checked.add(current.id)
             all_synonyms.add(current)
-            await session.refresh(current)
-            for synonym in current.synonyms:
+            brand_with_synonyms = await self.get_with_synonyms(current.id, session)
+            for synonym in brand_with_synonyms.synonyms:
                 if synonym.id not in checked:
                     to_check.append(synonym)
 
         return list(all_synonyms)
+
+    async def get_all_synonyms_bi_directional(self, brand: Brand, session: AsyncSession) -> List[Brand]:
+        checked = set()
+        to_check = [brand]
+        all_synonyms = set()
+
+        while to_check:
+            current = to_check.pop()
+            if current.id in checked:
+                continue
+            checked.add(current.id)
+            all_synonyms.add(current)
+            brand_with_synonyms = await self.get_with_synonyms(current.id, session)
+            for synonym in brand_with_synonyms.synonyms:
+                if synonym.id not in checked:
+                    to_check.append(synonym)
+                    all_synonyms.add(synonym)
+
+        return list(all_synonyms)
+
+    async def add_synonym(self, brand: Brand, synonym: Brand, session: AsyncSession):
+        if synonym not in brand.synonyms:
+            brand.synonyms.append(synonym)
+        if brand not in synonym.synonyms:
+            synonym.synonyms.append(brand)
+        await session.commit()
+
+    async def get_with_synonyms(self, brand_id: int, session: AsyncSession) -> Optional[Brand]:
+        result = await session.execute(
+            select(Brand).options(selectinload(Brand.synonyms)).where(Brand.id == brand_id)
+        )
+        return result.scalars().first()
 
 brand_crud = CRUDBrand(Brand)

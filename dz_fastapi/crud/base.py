@@ -48,6 +48,8 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             commit: bool = True,
     ):
         obj_in_data = obj_in.dict()
+        if 'synonyms' not in obj_in_data or obj_in_data['synonyms'] is None:
+            obj_in_data['synonyms'] = []
         # if user is not None:
         #     obj_in_data['user_id'] = user.id
         db_obj = self.model(**obj_in_data)

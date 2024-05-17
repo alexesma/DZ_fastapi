@@ -23,12 +23,14 @@ class BrandBase(BaseModel):
     logo: Optional[str] = None
     main_brand: Optional[bool] = False
 
+
 class BrandCreate(BrandBase):
-    synonyms: Optional[List[str]] = None
-    synonym_name: Optional[str] = None
+    synonyms: Optional[List[str]] = []
+
 
 class BrandUpdate(BrandBase):
-    pass
+    synonym_name: Optional[str] = None
+
 
 class BrandCreateInDB(BrandBase):
     id: int
@@ -36,6 +38,7 @@ class BrandCreateInDB(BrandBase):
 
     class Config:
         orm_mode = True
+
 
 class BrandUpdateInDB(BrandBase):
     pass
