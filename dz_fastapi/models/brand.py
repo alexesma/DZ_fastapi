@@ -21,13 +21,13 @@ brand_synonyms = Table(
     Column(
         'brand_id',
         Integer,
-        ForeignKey('brand.id'),
+        ForeignKey('brand.id', ondelete='CASCADE'),
         primary_key=True
     ),
     Column(
         'synonym_id',
         Integer,
-        ForeignKey('brand.id'),
+        ForeignKey('brand.id', ondelete='CASCADE'),
         primary_key=True
     ),
     UniqueConstraint(
@@ -51,11 +51,12 @@ class Brand(Base):
         secondary='brand_synonyms',
         primaryjoin='Brand.id == brand_synonyms.c.brand_id',
         secondaryjoin='Brand.id == brand_synonyms.c.synonym_id',
+        cascade='save-update, merge',
         backref='brand_synonyms'
     )
     __table_args__ = (
         CheckConstraint(
-            text("name ~ '^[a-zA-Z0-9]+$'"),
+            text("name ~ '^[a-zA-Z0-9]+(?:[ -]?[a-zA-Z0-9]+)*$'"),
             name='check_name_brand'
         ),
     )
