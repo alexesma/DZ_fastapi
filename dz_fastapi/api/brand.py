@@ -9,14 +9,17 @@ from sqlalchemy.future import select
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from PIL import Image
 
 from dz_fastapi.core.db import get_async_session
 from dz_fastapi.crud.brand import brand_crud
-from dz_fastapi.core.constants import UPLOAD_DIR
+from dz_fastapi.core.constants import UPLOAD_DIR, MAX_FILE_SIZE
 from dz_fastapi.api.validators import duplicate_brand_name, brand_exists, change_string
 from dz_fastapi.models.brand import Brand, brand_synonyms
 from dz_fastapi.schemas.brand import BrandCreate, BrandResponse, BrandCreateInDB, BrandUpdate, SynonymCreate
 import os
+import io
+import aiofiles
 from pathlib import Path
 
 import logging
@@ -41,20 +44,58 @@ async def get_brand(session: AsyncSession = Depends(get_async_session)):
     return brands
 
 
-@router.post(
-    '/upload-logo',
-    tags=['brand'],
-    summary='Upload brand logo'
+@router.patch(
+    '/brand/{brand_id}/upload-logo',
+    response_model=BrandCreateInDB
 )
 async def upload_logo(
-    logo: UploadFile = File(...)
+        brand_id: int,
+        file: UploadFile = File(...),
+        session: AsyncSession = Depends(get_async_session)
 ):
-    logo_filename = f"{logo.filename}"
-    logo_path = UPLOAD_DIR / logo_filename
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-    with open(logo_path, "wb") as f:
-        f.write(logo.file.read())
-    return {"logo_path": os.path.abspath(logo_path)}
+    try:
+        brand_db = await brand_exists(brand_id, session)
+        if file.content_type not in ['image/jpeg', 'image/png']:
+            raise HTTPException(status_code=400, detail='Invalid file type. Only JPEG and PNG are allowed.')
+        contents = await file.read()
+        if len(contents) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=400, detail='File size exceeds the maximum allowed size.')
+
+        file_ext = Path(file.filename).suffix
+        logo_filename = f"brand_{brand_id}_logo{file_ext}"
+        file_path = Path(UPLOAD_DIR) / logo_filename
+
+        async with aiofiles.open(file_path, 'wb') as buffer:
+            await buffer.write(contents)
+
+        try:
+            with Image.open(io.BytesIO(contents)) as img:
+                img.verify()
+        except (IOError, SyntaxError) as e:
+            file_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=400, detail=f'Invalid image file. Error: {str(e)}')
+        brand_db.logo = str(file_path)
+
+        all_synonyms = await brand_crud.get_all_synonyms_bi_directional(brand_db, session)
+        brand_data = {
+            'id': brand_db.id,
+            'name': brand_db.name,
+            'country_of_origin': brand_db.country_of_origin,
+            'website': brand_db.website,
+            'description': brand_db.description,
+            'logo': brand_db.logo,
+            'synonyms': [{'id': syn.id, 'name': syn.name} for syn in all_synonyms if syn.id != brand_db.id]
+        }
+        await session.commit()
+        await session.refresh(brand_db)
+        return BrandCreateInDB(**brand_data)
+
+    except SQLAlchemyError as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=f'Database error occurred while uploading logo. Error: {e}')
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=f'Unexpected error occurred while uploading logo. Error: {e}')
 
 
 @router.post(
