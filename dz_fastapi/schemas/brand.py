@@ -1,5 +1,5 @@
 from enum import StrEnum
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List, Union
 
 
@@ -24,21 +24,45 @@ class BrandBase(BaseModel):
     main_brand: Optional[bool] = False
 
 
+class BrandSynonym(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        orm_mode = True
+
+
 class BrandCreate(BrandBase):
     synonyms: Optional[List[str]] = []
 
 
 class BrandUpdate(BrandBase):
+    name: Optional[str] = None
+    country_of_origin: Optional[CountryEnum] = None
     synonym_name: Optional[str] = None
 
 
-class BrandCreateInDB(BrandBase):
+class BrandCreateInDB(BaseModel):
     id: int
-    synonyms: List[BrandBase] = []
+    name: str
+    description: Optional[str] = None
+    main_brand: bool = False
+    website: Optional[str] = None
+    country_of_origin: Optional[str] = None
+    logo: Optional[str] = None
+    synonyms: List[BrandSynonym] = Field(default_factory=list)
 
     class Config:
         orm_mode = True
         from_attributes = True
+
+    @classmethod
+    def from_orm(cls, obj):
+        # Преобразуем SQLAlchemy объект в словарь
+        data = {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+        # Особая обработка для поля synonyms
+        data['synonyms'] = [BrandBase.from_orm(syn) for syn in obj.synonyms]
+        return cls(**data)
 
 
 class BrandUpdateInDB(BrandBase):

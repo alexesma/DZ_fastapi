@@ -1,6 +1,7 @@
 import traceback
 from typing import Optional, List
 
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy import delete
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.future import select
@@ -124,27 +125,39 @@ async def update_brand(
         brand: BrandUpdate = Body(...),
         session: AsyncSession = Depends(get_async_session)
 ):
-    async with session.begin():
-        brand_db = await brand_exists(brand_id, session)
-        logger.debug(f"Existing brand: {brand_db}")
-        brand.name = await change_string(brand.name)
-        if brand_db.name.lower() != brand.name.lower():
-            await duplicate_brand_name(brand_name=brand.name, session=session)
-        updated_brand = await brand_crud.update(brand_db, brand, session, commit=False)
-        logger.debug(f"Updated brand: {updated_brand}")
+    try:
+        async with session.begin():
+            brand_db = await brand_exists(brand_id, session)
+            logger.debug(f"Existing brand: {brand_db}")
+            if brand.name:
+                brand.name = await change_string(brand.name)
+                logger.debug(f"Updated brand name: {brand.name}")
+                if brand_db.name != brand.name:
+                    await duplicate_brand_name(brand_name=brand.name, session=session)
+            updated_brand = await brand_crud.update(brand_db, brand, session, commit=False)
+            if not updated_brand:
+                raise HTTPException(status_code=500, detail="Failed to update brand")
+            logger.debug(f"Updated brand: {updated_brand}")
 
-        if brand.synonym_name:
-            synonym_name = await change_string(brand.synonym_name)
-            synonym_brand = await brand_crud.get_brand_by_name(synonym_name, session)
-            logger.debug(f"Synonym brand: {synonym_brand}")
-            if synonym_brand:
-                await brand_crud.add_synonym(updated_brand, synonym_brand, session)
-        await session.commit()
+            all_synonyms = await brand_crud.get_all_synonyms_bi_directional(updated_brand, session)
+            brand_data = {
+                'id': updated_brand.id,
+                'name': updated_brand.name,
+                'country_of_origin':  updated_brand.country_of_origin,
+                'logo': updated_brand.logo,
+                'website': updated_brand.website,
+                'description': updated_brand.description,
+                'main_brand': updated_brand.main_brand,
+                'synonyms': [{'id': syn.id, 'name': syn.name} for syn in all_synonyms if syn.id != updated_brand.id]
+            }
 
-    async with session.begin():
-        await session.refresh(updated_brand, ['synonyms'])
-        logger.debug(f"Final updated brand with synonyms: {updated_brand}")
-    return updated_brand
+            return BrandCreateInDB(**brand_data)
+
+    except Exception as e:
+        logger.error(f"Error updating brand: {str(e)}")
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
 
 
 @router.post(
