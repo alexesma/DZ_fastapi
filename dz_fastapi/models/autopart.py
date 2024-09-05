@@ -86,12 +86,20 @@ class AutoPart(Base):
     min_balance_auto = Column(Boolean, default=False)
     min_balance_user = Column(Boolean, default=False)
     comment = Column(Text, nullable=True, default='')
+    barcode = Column(String(MAX_LIGHT_BARCODE), nullable=False, unique=True)
     __table_args__ = (
         UniqueConstraint(
             'brand_id',
             'oem_number',
             name='uq_brand_oem_number'
         ),
+        CheckConstraint('width > 0', name='check_width_positive'),
+        CheckConstraint('height > 0', name='check_height_positive'),
+        CheckConstraint('length > 0', name='check_length_positive'),
+        CheckConstraint('weight > 0', name='check_weight_positive'),
+        CheckConstraint('purchase_price >= 0', name='check_purchase_price_non_negative'),
+        CheckConstraint('retail_price >= 0', name='check_retail_price_non_negative'),
+        CheckConstraint('wholesale_price >= 0', name='check_wholesale_price_non_negative'),
     )
     __mapper_args__ = {'polymorphic_identity': 'autopart'}
 
@@ -108,7 +116,10 @@ def preprocess_auto_part(mapper, connection, target):
     if target.description:
         target.description = change_string(target.description)
 
-    target.barcode = f"{target.brand.name}{target.oem_number}"
+    if target.brand:
+        target.barcode = f"{target.brand.name}{target.oem_number}"
+    else:
+        raise ValueError("Cannot create AutoPart without a brand")
 
 
 @event.listens_for(AutoPart, 'before_update')
