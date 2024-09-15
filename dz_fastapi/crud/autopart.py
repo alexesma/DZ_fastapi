@@ -8,10 +8,11 @@ from sqlalchemy.exc import SQLAlchemyError
 
 class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
     async def create_autopart(
+            self,
             new_autopart: AutoPartCreate,
             brand:  Brand,
             session: AsyncSessionLocal
-        ) -> AutoPart:
+    ) -> AutoPart:
         """
         Создает новую автозапчасть в базе данных.
 
@@ -36,5 +37,31 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             return autopart
         except SQLAlchemyError as error:
             raise SQLAlchemyError("Failed to create autopart") from error
+
+    async def get_autopart_by_id(
+            self,
+            autopart_id: int,
+            session: AsyncSessionLocal
+    ) -> AutoPart:
+        """
+        Получает автозапчасть по ее идентификатору.
+
+        Args:
+            autopart_id (int): Идентификатор автозапчасти.
+            session (AsyncSessionLocal): Объект сессии базы данных.
+
+        Returns:
+            AutoPart: Автозапчасть с указанным идентификатором.
+
+        Raises:
+            Exception: Возникает при ошибке получения автозапчасти.
+        """
+        try:
+            async with session as session_1:
+                autopart = await session_1.get(AutoPart, autopart_id)
+            return autopart
+        except SQLAlchemyError as error:
+            raise SQLAlchemyError('Failed to get autopart') from error
+
 
 crud_autopart = CRUDAutopart(AutoPart)

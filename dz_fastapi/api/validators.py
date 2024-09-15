@@ -1,6 +1,7 @@
 from http import HTTPStatus
 
 from fastapi import HTTPException
+import string
 import unicodedata
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,7 +48,7 @@ async def change_string(old_string: str) -> str:
     old_string = old_string.capitalize()
     new_string = ''
     for char in old_string:
-        if unicodedata.category(char).startswith('L'):
+        if char in string.ascii_letters:
             char = char.upper()
         new_string += char
     return new_string

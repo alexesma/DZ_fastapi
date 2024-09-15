@@ -30,7 +30,9 @@ class AutoPartResponse(AutoPartBase):
 
 
 class AutoPartCreate(AutoPartBase):
-    pass
+    brand_id: Optional[int] = None
+    oem_number: Optional[str] = None
+    name: Optional[str] = None
 
 
 class AutoPartCreateInDB(AutoPartBase):

@@ -1,4 +1,5 @@
 import re
+import string
 import unicodedata
 from typing import Optional, Union, Type
 from decimal import Decimal
@@ -17,6 +18,7 @@ from sqlalchemy import (
     UniqueConstraint,
     CheckConstraint,
     PrimaryKeyConstraint,
+    inspect,
 )
 from sqlalchemy.orm import relationship
 
@@ -39,7 +41,7 @@ def change_string(old_string: str) -> str:
     old_string = old_string.capitalize()
     new_string = ''
     for char in old_string:
-        if unicodedata.category(char).startswith('L'):
+        if ('A' <= char <= 'Z') or ('a' <= char <= 'z'):
             char = char.upper()
         new_string += char
     return new_string
@@ -124,13 +126,20 @@ def preprocess_auto_part(mapper, connection, target):
 
 @event.listens_for(AutoPart, 'before_update')
 def preprocess_auto_part_update(mapper, connection, target):
-    target.oem_number = preprocess_oem_number(target.oem_number)
-    target.name = change_string(target.name)
-    if target.description:
+    state = inspect(target)
+
+    if state.attrs.oem_number.history.has_changes():
+        target.oem_number = preprocess_oem_number(target.oem_number)
+
+    if state.attrs.name.history.has_changes():
+        target.name = change_string(target.name)
+
+    if state.attrs.description.history.has_changes() and target.description:
         target.description = change_string(target.description)
-    if 'brand_id' in target.dirty or 'oem_number' in target.dirty:
+
+    if state.attrs.brand_id.history.has_changes() or state.attrs.oem_number.history.has_changes():
         if not target.brand:
-            raise Exception("Нельзя изменить автозапчасть без указания бренда.")
+            raise ValueError("Нельзя изменить автозапчасть без указания бренда.")
         target.barcode = f"{target.brand.name}{target.oem_number}"
 
 
