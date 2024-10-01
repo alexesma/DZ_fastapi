@@ -1,0 +1,18 @@
+2024-09-17 19:28:33,901 - dz_fastapi - ERROR - Database error occurred: (sqlalchemy.dialects.postgresql.asyncpg.IntegrityError) <class 'asyncpg.exceptions.UniqueViolationError'>: duplicate key value violates unique constraint "category_name_key"
+DETAIL:  Key (name)=(Haval) already exists.
+[SQL: INSERT INTO category (name, parent_id, comment) VALUES ($1::VARCHAR, $2::INTEGER, $3::VARCHAR) RETURNING category.id]
+[parameters: ('Haval', None, '')]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+2024-09-17 19:29:31,145 - dz_fastapi - DEBUG - Создание объекта: name='Haval' comment=None parent_id=None
+2024-09-17 19:29:31,180 - dz_fastapi - ERROR - Database error occurred: (sqlalchemy.dialects.postgresql.asyncpg.IntegrityError) <class 'asyncpg.exceptions.UniqueViolationError'>: duplicate key value violates unique constraint "category_name_key"
+DETAIL:  Key (name)=(Haval) already exists.
+[SQL: INSERT INTO category (name, parent_id, comment) VALUES ($1::VARCHAR, $2::INTEGER, $3::VARCHAR) RETURNING category.id]
+[parameters: ('Haval', None, '')]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+2024-09-17 19:31:14,377 - dz_fastapi - DEBUG - Создание объекта: name='Haval' comment=None parent_id=None
+2024-09-17 19:31:14,436 - dz_fastapi - ERROR - Database error occurred: (sqlalchemy.dialects.postgresql.asyncpg.IntegrityError) <class 'asyncpg.exceptions.UniqueViolationError'>: duplicate key value violates unique constraint "category_name_key"
+DETAIL:  Key (name)=(Haval) already exists.
+[SQL: INSERT INTO category (name, parent_id, comment) VALUES ($1::VARCHAR, $2::INTEGER, $3::VARCHAR) RETURNING category.id]
+[parameters: ('Haval', None, '')]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+2024-09-17 19:32:11,872 - dz_fastapi - DEBUG - Создание объекта: name='Haval' comment=None parent_id=None

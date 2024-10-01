@@ -1,10 +1,21 @@
-from fastapi import APIRouter, Depends, Body, HTTPException
+from fastapi import APIRouter, Depends, Body, HTTPException, status
+from sqlalchemy.orm import selectinload
 
 from dz_fastapi.api.validators import brand_exists, change_string
-from dz_fastapi.crud.autopart import crud_autopart
-from dz_fastapi.schemas.autopart import AutoPartCreate, AutoPartResponse
+from dz_fastapi.crud.autopart import crud_autopart, crud_category
+from dz_fastapi.schemas.autopart import (
+    AutoPartCreate,
+    AutoPartResponse,
+    CategoryResponse,
+    CategoryCreate,
+    StorageLocationCreate,
+    StorageLocationUpdate
+)
+from dz_fastapi.models.autopart import Category
 from dz_fastapi.core.db import get_async_session
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.exc import SQLAlchemyError
 
 router = APIRouter()
 
@@ -63,3 +74,91 @@ async def update_autopart(
         await brand_exists(autopart.brand_id, session)
     updated_autopart = await crud_autopart.update(db_obj=autopart_old, obj_in=autopart, session=session)
     return updated_autopart
+
+
+@router.post(
+    '/categories/',
+    response_model=CategoryResponse,
+    status_code=status.HTTP_201_CREATED
+)
+async def create_category(
+    category_in: CategoryCreate,
+    session: AsyncSession = Depends(get_async_session)
+):
+    try:
+        result = await session.execute(
+            select(Category).where(Category.name == category_in.name)
+        )
+        existing_category = result.scalar_one_or_none()
+
+        if existing_category:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Category with name '{category_in.name}' already exists.",
+            )
+        new_category = Category(**category_in.dict())
+        session.add(new_category)
+        await session.commit()
+        await session.refresh(new_category)
+        result = await session.execute(
+            select(Category)
+            .options(selectinload(Category.children))
+            .where(Category.id == new_category.id)
+        )
+        category = result.scalar_one()
+        return category
+    except SQLAlchemyError as error:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while creating the category.",
+        ) from error
+
+
+@router.get('/categories/', response_model=list[CategoryResponse])
+async def get_categories(
+        skip: int = 0,
+        limit: int = 100,
+        session: AsyncSession = Depends(get_async_session)
+):
+    categories = await crud_category.get_multi(session, skip=skip, limit=limit)
+    return categories
+
+
+@router.get('/categories/{category_id}/', response_model=CategoryResponse)
+async def get_category(
+    category_id: int,
+    session: AsyncSession = Depends(get_async_session)
+):
+    category = await crud_category.get(category_id, session)
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    return category
+
+
+@router.post('/storage/', response_model=StorageLocationUpdate)
+async def create_storage_location(
+    storage_in: StorageLocationCreate,
+    session: AsyncSession = Depends(get_async_session)
+):
+    storage = await crud_category.create_storage(storage_in, session)
+    return storage
+
+
+@router.get('/storage/', response_model=list[StorageLocationUpdate])
+async def get_storage_locations(
+    session: AsyncSession = Depends(get_async_session)
+):
+    storages = await crud_category.get_storage_multi(session)
+    return storages
+
+
+@router.get('/storage/{storage_id}/', response_model=StorageLocationUpdate)
+async def get_storage_location(
+    storage_id: int,
+    session: AsyncSession = Depends(get_async_session)
+):
+    storage = await crud_category.get_storage(storage_id, session)
+    if not storage:
+        raise HTTPException(status_code=404, detail="Storage location not found")
+    return storage

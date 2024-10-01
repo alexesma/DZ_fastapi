@@ -45,7 +45,11 @@ class Brand(Base):
     description = Column(Text, nullable=True)
     logo = Column(String(MAX_LEN_WEBSITE), nullable=True)
     main_brand = Column(Boolean, default=False)
-    autoparts = relationship('AutoPart', back_populates='brand')
+    autoparts = relationship(
+        'AutoPart',
+        back_populates='brand',
+        cascade='all, delete-orphan'
+    )
     synonyms = relationship(
         'Brand',
         secondary='brand_synonyms',
