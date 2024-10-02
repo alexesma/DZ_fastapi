@@ -1,18 +1,18 @@
-2024-09-17 19:28:33,901 - dz_fastapi - ERROR - Database error occurred: (sqlalchemy.dialects.postgresql.asyncpg.IntegrityError) <class 'asyncpg.exceptions.UniqueViolationError'>: duplicate key value violates unique constraint "category_name_key"
+2024-09-17 19:32:11,934 - dz_fastapi - ERROR - Database error occurred: (sqlalchemy.dialects.postgresql.asyncpg.IntegrityError) <class 'asyncpg.exceptions.UniqueViolationError'>: duplicate key value violates unique constraint "category_name_key"
 DETAIL:  Key (name)=(Haval) already exists.
 [SQL: INSERT INTO category (name, parent_id, comment) VALUES ($1::VARCHAR, $2::INTEGER, $3::VARCHAR) RETURNING category.id]
 [parameters: ('Haval', None, '')]
 (Background on this error at: https://sqlalche.me/e/20/gkpj)
-2024-09-17 19:29:31,145 - dz_fastapi - DEBUG - Создание объекта: name='Haval' comment=None parent_id=None
-2024-09-17 19:29:31,180 - dz_fastapi - ERROR - Database error occurred: (sqlalchemy.dialects.postgresql.asyncpg.IntegrityError) <class 'asyncpg.exceptions.UniqueViolationError'>: duplicate key value violates unique constraint "category_name_key"
-DETAIL:  Key (name)=(Haval) already exists.
-[SQL: INSERT INTO category (name, parent_id, comment) VALUES ($1::VARCHAR, $2::INTEGER, $3::VARCHAR) RETURNING category.id]
-[parameters: ('Haval', None, '')]
+2024-10-01 12:52:50,848 - dz_fastapi - DEBUG - Начало создания бренда api
+2024-10-01 12:52:50,853 - dz_fastapi - DEBUG - Изменённое имя бренда: HOT PARTS
+2024-10-01 12:52:50,853 - dz_fastapi - DEBUG - Зашли в get_brand_by_name
+2024-10-01 12:52:50,924 - dz_fastapi - DEBUG - Результат запроса: <sqlalchemy.engine.result.ChunkedIteratorResult object at 0xffff9f19f190>
+2024-10-01 12:52:50,924 - dz_fastapi - DEBUG - Первый результат запроса: <dz_fastapi.models.brand.Brand object at 0xffff9f3c35c0>
+2024-10-01 12:52:50,924 - dz_fastapi - ERROR - Unexpected error occurred: 409: Name's brand already exists
+2024-10-02 12:12:49,088 - dz_fastapi - DEBUG - Создание объекта: name='AA 1'
+2024-10-02 12:12:49,160 - dz_fastapi - ERROR - Database error occurred: (sqlalchemy.dialects.postgresql.asyncpg.IntegrityError) <class 'asyncpg.exceptions.CheckViolationError'>: new row for relation "storagelocation" violates check constraint "latin_characters_only"
+DETAIL:  Failing row contains (AA 1, 1).
+[SQL: INSERT INTO storagelocation (name) VALUES ($1::VARCHAR) RETURNING storagelocation.id]
+[parameters: ('AA 1',)]
 (Background on this error at: https://sqlalche.me/e/20/gkpj)
-2024-09-17 19:31:14,377 - dz_fastapi - DEBUG - Создание объекта: name='Haval' comment=None parent_id=None
-2024-09-17 19:31:14,436 - dz_fastapi - ERROR - Database error occurred: (sqlalchemy.dialects.postgresql.asyncpg.IntegrityError) <class 'asyncpg.exceptions.UniqueViolationError'>: duplicate key value violates unique constraint "category_name_key"
-DETAIL:  Key (name)=(Haval) already exists.
-[SQL: INSERT INTO category (name, parent_id, comment) VALUES ($1::VARCHAR, $2::INTEGER, $3::VARCHAR) RETURNING category.id]
-[parameters: ('Haval', None, '')]
-(Background on this error at: https://sqlalche.me/e/20/gkpj)
-2024-09-17 19:32:11,872 - dz_fastapi - DEBUG - Создание объекта: name='Haval' comment=None parent_id=None
+2024-10-02 12:14:22,762 - dz_fastapi - DEBUG - Создание объекта: name='AA 1'

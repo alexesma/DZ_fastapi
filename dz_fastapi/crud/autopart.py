@@ -135,8 +135,41 @@ class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
 
 
 class CRUDStorageLocation(CRUDBase[StorageLocation, StorageLocationCreate, StorageLocationUpdate]):
+    async def get_multi(
+            self, session: AsyncSession, *, skip: int = 0, limit: int = 100
+    ) -> List[StorageLocation]:
+        try:
+            stmt = (
+                select(StorageLocation)
+                .options(
+                    selectinload(StorageLocation.autoparts)
+                )
+                .offset(skip)
+                .limit(limit)
+            )
+            result = await session.execute(stmt)
+            storage_locations = result.scalars().unique().all()
+            return storage_locations
+        except SQLAlchemyError as error:
+            raise error
 
-    pass
+    async def get_storage_location_by_id(
+            self,
+            storage_location_id: int,
+            session: AsyncSession
+    ) -> StorageLocation:
+        try:
+            stmt = (
+                select(StorageLocation)
+                .where(StorageLocation.id == storage_location_id)
+                .options(
+                    selectinload(StorageLocation.autoparts)
+                )
+            )
+            result = await session.execute(stmt)
+            return result.scalars().unique().one_or_none()
+        except SQLAlchemyError as error:
+            raise error
 
 crud_category = CRUDCategory(Category)
-crud_storage_location = CRUDStorageLocation(StorageLocation)
+crud_storage = CRUDStorageLocation(StorageLocation)

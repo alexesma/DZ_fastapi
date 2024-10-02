@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Body, HTTPException, status
 from sqlalchemy.orm import selectinload
 
 from dz_fastapi.api.validators import brand_exists, change_string
-from dz_fastapi.crud.autopart import crud_autopart, crud_category
+from dz_fastapi.crud.autopart import crud_autopart, crud_category, crud_storage
 from dz_fastapi.schemas.autopart import (
     AutoPartCreate,
     AutoPartResponse,
@@ -10,7 +10,8 @@ from dz_fastapi.schemas.autopart import (
     CategoryCreate,
     CategoryUpdate,
     StorageLocationCreate,
-    StorageLocationUpdate
+    StorageLocationUpdate,
+    StorageLocationResponse
 )
 from dz_fastapi.models.autopart import Category
 from dz_fastapi.core.db import get_async_session
@@ -155,24 +156,38 @@ async def create_storage_location(
     storage_in: StorageLocationCreate,
     session: AsyncSession = Depends(get_async_session)
 ):
-    storage = await crud_category.create_storage(storage_in, session)
+    storage = await crud_storage.create(storage_in, session)
     return storage
 
 
-@router.get('/storage/', response_model=list[StorageLocationUpdate])
+@router.get('/storage/', response_model=list[StorageLocationResponse])
 async def get_storage_locations(
-    session: AsyncSession = Depends(get_async_session)
+        session: AsyncSession = Depends(get_async_session),
+        skip: int = 0,
+        limit: int = 100
 ):
-    storages = await crud_category.get_storage_multi(session)
+    storages = await crud_storage.get_multi(session, skip=skip, limit=limit)
     return storages
 
 
-@router.get('/storage/{storage_id}/', response_model=StorageLocationUpdate)
+@router.get('/storage/{storage_id}/', response_model=StorageLocationResponse)
 async def get_storage_location(
     storage_id: int,
     session: AsyncSession = Depends(get_async_session)
 ):
-    storage = await crud_category.get_storage(storage_id, session)
+    storage = await crud_storage.get_storage_location_by_id(storage_location_id=storage_id, session=session)
     if not storage:
         raise HTTPException(status_code=404, detail="Storage location not found")
     return storage
+
+@router.patch('/storage/{storage_id}/', response_model=StorageLocationResponse)
+async def update_storage_location(
+        storage_id: int,
+        storage_in: StorageLocationUpdate,
+        session: AsyncSession = Depends(get_async_session)
+):
+    storage_old = await crud_storage.get_storage_location_by_id(storage_location_id=storage_id, session=session)
+    if not storage_old:
+        raise HTTPException(status_code=404, detail="Storage location not found")
+    updated_storage = await crud_storage.update(db_obj=storage_old, obj_in=storage_in, session=session)
+    return updated_storage

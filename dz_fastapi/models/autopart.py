@@ -222,7 +222,7 @@ class StorageLocation(Base):
     )
     __table_args__ = (
         CheckConstraint(
-            "name ~ '^[A-Z0-9]+$'",
+            "name ~ '^[A-Z0-9 ]+$'",
             name='latin_characters_only'
         ),
     )

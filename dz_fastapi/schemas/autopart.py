@@ -90,7 +90,7 @@ CategoryResponse.model_rebuild()
 class StorageLocationBase(BaseModel):
     name:  Annotated[
         str,
-        StringConstraints(pattern='^[A-Z0-9]+$',max_length=MAX_LIGHT_NAME_LOCATION)
+        StringConstraints(pattern='^[A-Z0-9 ]+$',max_length=MAX_LIGHT_NAME_LOCATION)
     ]
 
 class StorageLocationCreate(StorageLocationBase):
@@ -99,12 +99,13 @@ class StorageLocationCreate(StorageLocationBase):
 class StorageLocationUpdate(BaseModel):
     name: Annotated[
         Optional[str],
-        StringConstraints(pattern='^[A-Z0-9]+$', max_length=MAX_LIGHT_NAME_LOCATION)
+        StringConstraints(pattern='^[A-Z0-9 ]+$', max_length=MAX_LIGHT_NAME_LOCATION)
     ] = None
 
 class StorageLocationResponse(StorageLocationBase):
     id: int
-    autoparts: List['AutoPartResponse'] = []
+    name: str
+    autoparts: List[AutoPartResponse] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
