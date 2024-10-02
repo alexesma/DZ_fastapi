@@ -8,6 +8,7 @@ from dz_fastapi.schemas.autopart import (
     AutoPartResponse,
     CategoryResponse,
     CategoryCreate,
+    CategoryUpdate,
     StorageLocationCreate,
     StorageLocationUpdate
 )
@@ -130,10 +131,23 @@ async def get_category(
     category_id: int,
     session: AsyncSession = Depends(get_async_session)
 ):
-    category = await crud_category.get(category_id, session)
+    category = await crud_category.get_category_by_id(category_id=category_id, session=session)
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
     return category
+
+
+@router.patch('/categories/{category_id}/', response_model=CategoryResponse)
+async def update_category(
+        category_id: int,
+        category_in: CategoryUpdate,
+        session: AsyncSession = Depends(get_async_session)
+):
+    category_old = await crud_category.get_category_by_id(category_id=category_id, session=session)
+    if not category_old:
+        raise HTTPException(status_code=404, detail="Category not found")
+    updated_category = await crud_category.update(db_obj=category_old, obj_in=category_in, session=session)
+    return updated_category
 
 
 @router.post('/storage/', response_model=StorageLocationUpdate)

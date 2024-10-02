@@ -115,6 +115,24 @@ class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
         categories = result.scalars().all()
         return categories
 
+    async def get_category_by_id(
+            self,
+            category_id: int,
+            session: AsyncSession
+    ) -> Category:
+        try:
+            stmt = (
+                select(Category)
+                .where(Category.id == category_id)
+                .options(
+                    get_recursive_selectinloads(5)
+                )
+            )
+            result = await session.execute(stmt)
+            return result.scalars().unique().one_or_none()
+        except SQLAlchemyError as error:
+            raise error
+
 
 class CRUDStorageLocation(CRUDBase[StorageLocation, StorageLocationCreate, StorageLocationUpdate]):
 
