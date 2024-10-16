@@ -46,6 +46,9 @@ async def get_brand(session: AsyncSession = Depends(get_session)):
 
 @router.patch(
     '/brand/{brand_id}/upload-logo',
+    tags=['brand'],
+    summary='Загрузка логотипа бренда',
+    response_model_exclude_none=True,
     response_model=BrandCreateInDB
 )
 async def upload_logo(
@@ -139,6 +142,8 @@ async def create_brand(
 
 @router.delete(
     '/brand/{brand_id}',
+    tags=['brand'],
+    summary='Удаление бренда',
     response_model=BrandCreateInDB,
 )
 async def remove_brand(
@@ -159,6 +164,9 @@ async def remove_brand(
 
 @router.patch(
     '/brand/{brand_id}',
+    tags=['brand'],
+    summary='Обновление бренда',
+    response_model_exclude_none=True,
     response_model=BrandCreateInDB,
 )
 async def update_brand(

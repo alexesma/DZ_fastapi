@@ -27,6 +27,8 @@ router = APIRouter()
 @router.post(
     '/autoparts/',
     tags=['autopart'],
+    status_code=status.HTTP_201_CREATED,
+    summary='Создание автозапчасти',
     response_model=AutoPartResponse
 )
 async def create_autopart_endpoint(
@@ -41,6 +43,7 @@ async def create_autopart_endpoint(
 @router.get(
     '/autoparts/{autopart_id}/',
     tags=['autopart'],
+    summary='Получение автозапчасти по ID',
     response_model=AutoPartResponse
 )
 async def get_autopart_endpoint(
@@ -53,6 +56,7 @@ async def get_autopart_endpoint(
 @router.get(
     '/autoparts/',
     tags=['autopart'],
+    summary='Получение всех автозапчастей',
     response_model=List[AutoPartResponse]
 )
 async def get_all_autoparts(
@@ -65,6 +69,7 @@ async def get_all_autoparts(
 @router.patch(
     '/autoparts/{autopart_id}',
     tags=['autopart'],
+    summary='Обновление автозапчасти',
     response_model=AutoPartResponse
 )
 async def update_autopart(
@@ -83,6 +88,8 @@ async def update_autopart(
 
 @router.post(
     '/categories/',
+    tags=['category'],
+    summary='Создание категории',
     response_model=CategoryResponse,
     status_code=status.HTTP_201_CREATED
 )
@@ -120,7 +127,12 @@ async def create_category(
         ) from error
 
 
-@router.get('/categories/', response_model=list[CategoryResponse])
+@router.get(
+    '/categories/',
+    tags=['category'],
+    summary='Получение всех категорий',
+    response_model=list[CategoryResponse]
+)
 async def get_categories(
         skip: int = 0,
         limit: int = 100,
@@ -130,7 +142,12 @@ async def get_categories(
     return categories
 
 
-@router.get('/categories/{category_id}/', response_model=CategoryResponse)
+@router.get(
+    '/categories/{category_id}/',
+    tags=['category'],
+    summary='Получение категории по ID',
+    response_model=CategoryResponse
+)
 async def get_category(
     category_id: int,
     session: AsyncSession = Depends(get_async_session)
@@ -141,7 +158,12 @@ async def get_category(
     return category
 
 
-@router.patch('/categories/{category_id}/', response_model=CategoryResponse)
+@router.patch(
+    '/categories/{category_id}/',
+    tags=['category'],
+    summary='Обновление категории',
+    response_model=CategoryResponse
+)
 async def update_category(
         category_id: int,
         category_in: CategoryUpdate,
@@ -154,7 +176,13 @@ async def update_category(
     return updated_category
 
 
-@router.post('/storage/', response_model=StorageLocationUpdate)
+@router.post(
+    '/storage/',
+    status_code=status.HTTP_201_CREATED,
+    summary='Создание местохранения',
+    tags=['storage'],
+    response_model=StorageLocationUpdate
+)
 async def create_storage_location(
     storage_in: StorageLocationCreate,
     session: AsyncSession = Depends(get_async_session)
@@ -163,7 +191,12 @@ async def create_storage_location(
     return storage
 
 
-@router.get('/storage/', response_model=list[StorageLocationResponse])
+@router.get(
+    '/storage/',
+    summary='Получение всех местохранений',
+    tags=['storage'],
+    response_model=list[StorageLocationResponse]
+)
 async def get_storage_locations(
         session: AsyncSession = Depends(get_async_session),
         skip: int = 0,
@@ -173,7 +206,12 @@ async def get_storage_locations(
     return storages
 
 
-@router.get('/storage/{storage_id}/', response_model=StorageLocationResponse)
+@router.get(
+    '/storage/{storage_id}/',
+    summary='Получение местохранения по ID',
+    tags=['storage'],
+    response_model=StorageLocationResponse
+)
 async def get_storage_location(
     storage_id: int,
     session: AsyncSession = Depends(get_async_session)
@@ -183,7 +221,13 @@ async def get_storage_location(
         raise HTTPException(status_code=404, detail="Storage location not found")
     return storage
 
-@router.patch('/storage/{storage_id}/', response_model=StorageLocationResponse)
+
+@router.patch(
+    '/storage/{storage_id}/',
+    summary='Обновление местохранения',
+    tags=['storage'],
+    response_model=StorageLocationResponse
+)
 async def update_storage_location(
         storage_id: int,
         storage_in: StorageLocationUpdate,
