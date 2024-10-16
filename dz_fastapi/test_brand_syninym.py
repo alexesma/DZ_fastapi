@@ -1,5 +1,6 @@
 import asyncio
 import socket
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 DATABASE_URL = "postgresql+asyncpg://admin:1qw2#ER$@dz_db_dev:5432/dz"
@@ -14,7 +15,7 @@ async def test_connection():
 
         engine = create_async_engine(DATABASE_URL, echo=True)
         async with engine.begin() as conn:
-            await conn.run_sync(lambda conn: conn.execute("SELECT 1"))
+            await conn.run_sync(lambda conn: conn.execute(text("SELECT 1")))
         print("Connection successful")
     except Exception as e:
         print(f"Error: {e}")

@@ -57,7 +57,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     ):
         try:
             logger.debug(f'Создание объекта: {obj_in}')
-            obj_in_data = obj_in.dict()
+            obj_in_data = obj_in.model_dump()
             # synonyms_data = obj_in_data.pop('synonyms', [])
             # logger.debug(f'Получение синонима: {synonyms_data}')
 

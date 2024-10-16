@@ -1,5 +1,5 @@
 from enum import StrEnum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Union
 
 
@@ -28,12 +28,12 @@ class BrandSynonym(BaseModel):
     id: int
     name: str
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BrandCreate(BrandBase):
     synonyms: Optional[List[str]] = []
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BrandUpdate(BrandBase):
@@ -52,9 +52,7 @@ class BrandCreateInDB(BaseModel):
     logo: Optional[str] = None
     synonyms: List[BrandSynonym] = Field(default_factory=list)
 
-    class Config:
-        orm_mode = True
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     @classmethod
     def from_orm(cls, obj):

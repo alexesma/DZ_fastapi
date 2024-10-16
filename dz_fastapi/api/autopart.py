@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, Body, HTTPException, status
 from sqlalchemy.orm import selectinload
 
@@ -32,8 +34,8 @@ async def create_autopart_endpoint(
         session: AsyncSession = Depends(get_async_session)
 ):
     brand_db = await brand_exists(autopart.brand_id, session)
-    # autopart.name = await change_string(autopart.name)
-    return await crud_autopart.create_autopart(autopart, brand_db, session)
+    autopart = await crud_autopart.create_autopart(autopart, brand_db, session)
+    return await crud_autopart.get_autopart_by_id(session=session, autopart_id=autopart.id)
 
 
 @router.get(
@@ -51,12 +53,13 @@ async def get_autopart_endpoint(
 @router.get(
     '/autoparts/',
     tags=['autopart'],
-    response_model=list[AutoPartResponse]
+    response_model=List[AutoPartResponse]
 )
 async def get_all_autoparts(
+        skip: int = 0, limit: int = 100,
         session: AsyncSession = Depends(get_async_session)
 ):
-    return await crud_autopart.get_multi(session)
+    return await crud_autopart.get_multi(session=session, skip=skip, limit=limit)
 
 
 @router.patch(

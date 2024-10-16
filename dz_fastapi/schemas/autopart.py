@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, StringConstraints, validator
+from pydantic import BaseModel, Field, StringConstraints, validator, field_validator, ConfigDict
 from typing import Optional, List, Annotated
 from dz_fastapi.core.constants import MAX_NAME_CATEGORY, MAX_LIGHT_NAME_LOCATION
 
@@ -23,25 +23,86 @@ class AutoPartBase(BaseModel):
     barcode: Optional[str] = None
 
 
-class AutoPartResponse(AutoPartBase):
+class AutoPartResponse(BaseModel):
     id: int
+    brand_id: int
+    oem_number: str
+    name: str
+    description: Optional[str] = None
+    width: Optional[float] = None
+    height: Optional[float] = None
+    length: Optional[float] = None
+    weight: Optional[float] = None
+    purchase_price: Optional[float] = None
+    retail_price: Optional[float] = None
+    wholesale_price: Optional[float] = None
+    multiplicity: Optional[int] = None
+    minimum_balance: Optional[int] = None
+    min_balance_auto: Optional[bool] = None
+    min_balance_user: Optional[bool] = None
+    comment: Optional[str] = None
+    barcode: Optional[str] = None
+    categories: List[str] = Field(default_factory=list)
+    storage_locations: List[str] = Field(default_factory=list)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_validator('categories', mode='before')
+    def get_category_names(cls, v):
+        if v:
+            return [category.name for category in v]
+        return []
+
+    @field_validator('storage_locations', mode='before')
+    def get_storage_location_names(cls, v):
+        if v:
+            return [storage_location.name for storage_location in v]
+        return []
 
 
-class AutoPartCreate(AutoPartBase):
-    brand_id: Optional[int] = None
-    oem_number: Optional[str] = None
-    name: Optional[str] = None
+class AutoPartCreate(BaseModel):
+    brand_id: int
+    oem_number: str
+    name: str
+    description: Optional[str] = None
+    width: Optional[float] = None
+    height: Optional[float] = None
+    length: Optional[float] = None
+    weight: Optional[float] = None
+    purchase_price: Optional[float] = None
+    retail_price: Optional[float] = None
+    wholesale_price: Optional[float] = None
+    multiplicity: Optional[int] = None
+    minimum_balance: Optional[int] = None
+    min_balance_auto: Optional[bool] = None
+    min_balance_user: Optional[bool] = None
+    comment: Optional[str] = None
+    barcode: Optional[str] = None
+    category_name: Optional[str] = None
+    storage_location_name: Optional[str] = None
 
 
 class AutoPartCreateInDB(AutoPartBase):
     pass
 
 
-class AutoPartUpdate(AutoPartBase):
-    pass
+class AutoPartUpdate(BaseModel):
+    description: Optional[str] = None
+    width: Optional[float] = None
+    height: Optional[float] = None
+    length: Optional[float] = None
+    weight: Optional[float] = None
+    purchase_price: Optional[float] = None
+    retail_price: Optional[float] = None
+    wholesale_price: Optional[float] = None
+    multiplicity: Optional[int] = None
+    minimum_balance: Optional[int] = None
+    min_balance_auto: Optional[bool] = None
+    min_balance_user: Optional[bool] = None
+    comment: Optional[str] = None
+    barcode: Optional[str] = None
+    category_name: Optional[str] = None
+    storage_location_name: Optional[str] = None
 
 
 class AutoPartUpdateInDB(AutoPartBase):
@@ -71,10 +132,9 @@ class CategoryResponse(CategoryBase):
     children: Optional[List['CategoryResponse']] = Field(default_factory=list)
     # autoparts: List['AutoPartResponse'] = Field(default_factory=list)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
-    @validator('children', pre=True, always=True)
+    @field_validator('children', mode='before')
     def set_children(cls, v):
         if v is None:
             return []
@@ -107,7 +167,7 @@ class StorageLocationResponse(StorageLocationBase):
     name: str
     autoparts: List[AutoPartResponse] = Field(default_factory=list)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 StorageLocationResponse.model_rebuild()
+AutoPartResponse.model_rebuild()

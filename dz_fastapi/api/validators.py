@@ -24,7 +24,7 @@ async def duplicate_brand_name(
     if brand is not None:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
-            detail="Name's brand already exists"
+            detail=f"Brand with name '{brand_name}' already exists"
         )
 
 

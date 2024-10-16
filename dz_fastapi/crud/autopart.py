@@ -1,4 +1,6 @@
-from typing import List
+from typing import List, Optional
+
+from fastapi import HTTPException
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
@@ -48,8 +50,23 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             Exception: Возникает при ошибке создания или сохранения автозапчасти.
         """
         try:
-            autopart = AutoPart(**new_autopart.dict())
+            autopart_data = new_autopart.dict(exclude_unset=True)
+            category_name = autopart_data.pop('category_name', None)
+            storage_location_name = autopart_data.pop('storage_location_name', None)
+            autopart = AutoPart(**autopart_data)
             autopart.brand = brand
+            autopart.categories = []
+            if category_name:
+                category = await crud_category.get_category_id_by_name(category_name, session)
+                if not category:
+                    raise HTTPException(status_code=400, detail="Category '{category_name}' does not exist.")
+                autopart.categories.append(category)
+            autopart.storage_locations = []
+            if storage_location_name:
+                storage_location = await crud_storage.get_storage_location_id_by_name(storage_location_name, session)
+                if not storage_location:
+                    raise HTTPException(status_code=400, detail="Storage location '{storage_location_name}' does not exist.")
+                autopart.storage_locations.append(storage_location)
             session.add(autopart)
             await session.commit()
             await session.refresh(autopart)
@@ -58,29 +75,38 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             await session.rollback()
             raise SQLAlchemyError("Failed to create autopart") from error
 
-    # async def get_autopart_by_id(
-    #         self,
-    #         autopart_id: int,
-    #         session: AsyncSession
-    # ) -> AutoPart:
-    #     """
-    #     Получает автозапчасть по ее идентификатору.
-    #
-    #     Args:
-    #         autopart_id (int): Идентификатор автозапчасти.
-    #         session (AsyncSessionLocal): Объект сессии базы данных.
-    #
-    #     Returns:
-    #         AutoPart: Автозапчасть с указанным идентификатором.
-    #
-    #     Raises:
-    #         Exception: Возникает при ошибке получения автозапчасти.
-    #     """
-    #     try:
-    #         autopart = await session.get(AutoPart, autopart_id)
-    #         return autopart
-    #     except SQLAlchemyError as error:
-    #         raise SQLAlchemyError('Failed to get autopart') from error
+    async def get_multi(
+            self, session: AsyncSession, *, skip: int = 0, limit: int = 100
+    ) -> List[AutoPart]:
+        stmt = (
+            select(AutoPart)
+            .options(
+                selectinload(AutoPart.categories),
+                selectinload(AutoPart.storage_locations)
+            )
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await session.execute(stmt)
+        autoparts = result.scalars().unique().all()
+        return autoparts
+
+    async def get_autopart_by_id(
+        self,
+        session: AsyncSession,
+        autopart_id: int
+    ) -> Optional[AutoPart]:
+        stmt = (
+            select(AutoPart)
+            .where(AutoPart.id == autopart_id)
+            .options(
+                selectinload(AutoPart.categories),
+                selectinload(AutoPart.storage_locations)
+            )
+        )
+        result = await session.execute(stmt)
+        autopart = result.scalars().unique().one_or_none()
+        return autopart
 
 
 crud_autopart = CRUDAutopart(AutoPart)
@@ -133,6 +159,21 @@ class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
         except SQLAlchemyError as error:
             raise error
 
+    async def get_category_id_by_name(
+            self,
+            category_name: str,
+            session: AsyncSession
+    ) -> Category:
+        try:
+            stmt = (
+                select(Category)
+                .where(Category.name == category_name)
+            )
+            result = await session.execute(stmt)
+            return result.scalars().first()
+        except SQLAlchemyError as error:
+            raise error
+
 
 class CRUDStorageLocation(CRUDBase[StorageLocation, StorageLocationCreate, StorageLocationUpdate]):
     async def get_multi(
@@ -142,7 +183,10 @@ class CRUDStorageLocation(CRUDBase[StorageLocation, StorageLocationCreate, Stora
             stmt = (
                 select(StorageLocation)
                 .options(
-                    selectinload(StorageLocation.autoparts)
+                    selectinload(StorageLocation.autoparts).options(
+                        selectinload(AutoPart.categories),
+                         selectinload(AutoPart.storage_locations)
+                    )
                 )
                 .offset(skip)
                 .limit(limit)
@@ -168,6 +212,21 @@ class CRUDStorageLocation(CRUDBase[StorageLocation, StorageLocationCreate, Stora
             )
             result = await session.execute(stmt)
             return result.scalars().unique().one_or_none()
+        except SQLAlchemyError as error:
+            raise error
+
+    async def get_storage_location_id_by_name(
+            self,
+            storage_location_name: str,
+            session: AsyncSession
+    ) -> StorageLocation:
+        try:
+            stmt = (
+                select(StorageLocation)
+                .where(StorageLocation.name == storage_location_name)
+            )
+            result = await session.execute(stmt)
+            return result.scalars().first()
         except SQLAlchemyError as error:
             raise error
 

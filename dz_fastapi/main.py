@@ -7,6 +7,8 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
+from dz_fastapi.core.db import get_engine
+
 # Настройка логгера
 logger = logging.getLogger("dz_fastapi")
 logger.setLevel(logging.DEBUG)

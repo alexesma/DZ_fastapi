@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from PIL import Image
 
-from dz_fastapi.core.db import get_async_session
+from dz_fastapi.core.db import get_async_session, get_session
 from dz_fastapi.crud.brand import brand_crud
 from dz_fastapi.core.constants import UPLOAD_DIR, MAX_FILE_SIZE
 from dz_fastapi.api.validators import duplicate_brand_name, brand_exists, change_string
@@ -37,7 +37,7 @@ UPLOAD_DIR = Path(UPLOAD_DIR)
     summary='Список брендов',
     response_model_exclude_none=True
 )
-async def get_brand(session: AsyncSession = Depends(get_async_session)):
+async def get_brand(session: AsyncSession = Depends(get_session)):
     brands = await brand_crud.get_multi_with_synonyms(session)
     for brand in brands:
         brand.synonyms = await brand_crud.get_all_synonyms_bi_directional(brand, session)
@@ -51,7 +51,7 @@ async def get_brand(session: AsyncSession = Depends(get_async_session)):
 async def upload_logo(
         brand_id: int,
         file: UploadFile = File(...),
-        session: AsyncSession = Depends(get_async_session)
+        session: AsyncSession = Depends(get_session)
 ):
     try:
         brand_db = await brand_exists(brand_id, session)
@@ -107,7 +107,7 @@ async def upload_logo(
 )
 async def create_brand(
         brand: BrandCreate,
-        session: AsyncSession = Depends(get_async_session)
+        session: AsyncSession = Depends(get_session)
 ):
     try:
         logger.debug('Начало создания бренда api')
@@ -126,15 +126,15 @@ async def create_brand(
     except IntegrityError as e:
         logger.error(f"Integrity error occurred: {e}")
         await session.rollback()
-        raise HTTPException(status_code=400, detail="Integrity error occurred")
+        raise HTTPException(status_code=409, detail=f"Brand with name '{brand.name}' already exists")
     except SQLAlchemyError as e:
         logger.error(f"Database error occurred: {e}")
         await session.rollback()
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        raise HTTPException(status_code=500, detail=f"Database error occurred: {str(e)}")
     except Exception as e:
         logger.error(f"Unexpected error occurred: {e}")
         await session.rollback()
-        raise HTTPException(status_code=500, detail="Unexpected error occurred")
+        raise HTTPException(status_code=500, detail=f"Unexpected error occurred: {str(e)}")
 
 
 @router.delete(
@@ -143,7 +143,7 @@ async def create_brand(
 )
 async def remove_brand(
         brand_id: int,
-        session: AsyncSession = Depends(get_async_session)
+        session: AsyncSession = Depends(get_session)
 ):
     brand = await brand_exists(brand_id, session)
 
@@ -164,7 +164,7 @@ async def remove_brand(
 async def update_brand(
         brand_id: int,
         brand: BrandUpdate = Body(...),
-        session: AsyncSession = Depends(get_async_session)
+        session: AsyncSession = Depends(get_session)
 ):
     try:
         async with session.begin():
@@ -211,7 +211,7 @@ async def update_brand(
 async def add_synonyms(
         brand_id: int,
         synonyms: SynonymCreate,
-        session: AsyncSession = Depends(get_async_session)
+        session: AsyncSession = Depends(get_session)
 ):
     try:
         async with session.begin():
