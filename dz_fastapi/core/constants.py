@@ -1,3 +1,4 @@
+import os
 MAX_NAME_BRAND = 256
 MAX_NAME_PARTNER = 256
 MAX_LIGHT_OEM = 256
@@ -8,7 +9,7 @@ MAX_LIGHT_NAME_CAR_MODEL = 56
 MAX_LIGHT_NAME_BODY = 256
 MAX_LIGHT_NAME_ENGINE = 256
 MAX_LEN_WEBSITE = 1056
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 МБ
+MAX_FILE_SIZE = int(os.getenv('MAX_FILE_SIZE', 5 * 1024 * 1024))  # 5 МБ
 ERROR_MESSAGE_FORMAT_DATE ='{key} должен быть в формате "YYYY" или "MM.YYYY"'
 ERROR_MESSAGE_RANGE_DATE='{key} не может быть меньше 1980 и больше текущей даты'
 FORMAT_YEAR_FOR_CAR_1 = '%Y'
@@ -133,3 +134,11 @@ SUPPLIER_PARAM = {
     'autopiter': create_supplier_params('xls', 'piter.xls', 'TDSheet', 24, 0, [1, 5, 9, 26, 57]),
 }
 
+
+def get_max_file_size():
+    return int(os.getenv('MAX_FILE_SIZE', 5 * 1024 * 1024))
+
+def get_upload_dir():
+    upload_dir = os.getenv('UPLOAD_DIR', 'uploads')
+    os.makedirs(upload_dir, exist_ok=True)
+    return upload_dir

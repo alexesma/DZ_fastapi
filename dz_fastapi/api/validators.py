@@ -1,4 +1,5 @@
 from http import HTTPStatus
+import re
 
 from fastapi import HTTPException
 import string
@@ -52,3 +53,19 @@ async def change_string(old_string: str) -> str:
             char = char.upper()
         new_string += char
     return new_string
+
+
+async def change_brand_name(brand_name: str) -> str:
+    '''
+    Функция для изменения имени бренда
+    "АВТОЗАПЧАСТ�� ДЛЯ Haval f7" в "Автозапчасть для HAVAL F7"
+    '''
+    # Приведение к верхнему регистру для ASCII символов
+    brand_name = ''.join([char.upper() if char in string.ascii_letters else char for char in brand_name])
+    # Удаление всех символов, кроме a-z, A-Z, 0-9, пробелов и дефисов
+    brand_name = re.sub(r'[^a-zA-Z0-9 -]', '', brand_name)
+    # Замена нескольких пробелов или дефисов на один
+    brand_name = re.sub(r'[ -]{2,}', '-', brand_name)
+    # Удаление начальных и конечных пробелов или дефисов
+    brand_name = brand_name.strip(' -')
+    return brand_name
