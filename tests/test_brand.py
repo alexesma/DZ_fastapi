@@ -1,3 +1,5 @@
+import json
+
 import pytest
 import os
 from io import BytesIO
@@ -6,6 +8,8 @@ from pathlib import Path
 import tempfile
 from httpx import AsyncClient, ASGITransport
 import logging
+
+from dz_fastapi.schemas.brand import SynonymCreate
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -235,3 +239,75 @@ async def test_delete_brand(test_session, created_brand:Brand):
     assert data['main_brand'] is False
     assert data['country_of_origin'] == 'USA'
     assert 'id' in data
+
+
+@pytest.mark.asyncio
+async def test_add_synonyms(test_session, created_brand:Brand):
+    brand_synonym = {
+        'name': 'TEST BRAND 2',
+        'country_of_origin': 'China'
+    }
+    brand_id = created_brand.id
+    from dz_fastapi.main import app
+
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+        response_create = await ac.post('/brand', json=brand_synonym)
+        assert response_create.status_code == 201, response_create.text
+        created_synonym = response_create.json()
+        assert created_synonym['name'] == 'TEST BRAND 2'
+        assert created_synonym['country_of_origin'] == 'China'
+        synonym_id = created_synonym['id']
+
+    synonym_payload = {
+        'names': [brand_synonym['name']]
+    }
+
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+        response = await ac.post(f'/brand/{brand_id}/synonyms', json=synonym_payload)
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data['name'] == created_brand.name
+    assert 'id' in data
+    assert any(
+        synonym['id'] == synonym_id and synonym['name'] == brand_synonym['name']
+        for synonym in data['synonyms']
+    )
+
+
+@pytest.mark.asyncio
+async def test_delete_synonyms(test_session, created_brand:Brand):
+    brand_synonym = {
+        'name': 'TEST BRAND 2',
+        'country_of_origin': 'China'
+    }
+    brand_id = created_brand.id
+    from dz_fastapi.main import app
+
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+        response_create = await ac.post('/brand', json=brand_synonym)
+        assert response_create.status_code == 201, response_create.text
+        created_synonym = response_create.json()
+        assert created_synonym['name'] == 'TEST BRAND 2'
+        assert created_synonym['country_of_origin'] == 'China'
+
+    synonym_payload = {
+        'names': [brand_synonym['name']]
+    }
+
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+        response = await ac.post(f'/brand/{brand_id}/synonyms', json=synonym_payload)
+    assert response.status_code == 200
+
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+        response = await ac.request('DELETE', f'/brand/{brand_id}/synonyms', json=synonym_payload)
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data['name'] == created_brand.name
+    assert 'id' in data
+    assert data.get('synonyms') == [], "Synonyms list should be empty after deletion"

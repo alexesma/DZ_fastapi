@@ -171,5 +171,54 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
             logger.exception(f"Ошибка в add_synonyms: {str(e)}")
             raise
 
+    async def remove_synonyms(self,
+                              session: AsyncSession,
+                              brand_id: int,
+                              synonym_names: List[str]
+                              ) -> Brand:
+        try:
+            brand = await self.get_brand_by_id(
+                brand_id=brand_id,
+                session=session
+            )
+            if brand is None:
+                raise Exception("Failed to add synonym, returned None")
+            logger.debug(f'Исходные синонимы бренда: {[s.name for s in brand.synonyms]}')
+
+            for synonym_name in synonym_names:
+                synonym = await self.get_brand_by_name(
+                    brand_name=synonym_name,
+                    session=session
+                )
+                if not synonym:
+                    raise ValueError(f"Synonym brand '{synonym_name}' not found")
+                logger.debug(f'Удаление синонима {synonym_name}')
+                if synonym in brand.synonyms:
+                    brand.synonyms.remove(synonym)
+                    logger.debug(f'Synonym {synonym_name} removed from brand {brand.name}')
+                else:
+                    logger.debug(f'Synonym {synonym_name} not found in brand {brand.name}')
+
+                if brand in synonym.synonyms:
+                    synonym.synonyms.remove(brand)
+                    logger.debug(f'Brand {brand.name} removed from synonym {synonym.name}')
+                else:
+                    logger.debug(f'Brand {brand.name} not found in synonym {synonym.name}')
+
+            await session.flush()
+            logger.debug("Successfully flushed session after removing synonyms")
+
+            await session.refresh(brand, attribute_names=['synonyms'])
+            logger.debug("Brand refreshed after removing synonyms")
+            logger.debug(f'Final synonyms of the brand: {[s.name for s in brand.synonyms]}')
+
+            return brand
+        except ValueError as ve:
+            logger.error(f"ValueError in remove_synonyms: {str(ve)}")
+            raise
+        except Exception as e:
+            logger.exception(f"Error in remove_synonyms: {str(e)}")
+            raise
+
 
 brand_crud = CRUDBrand(Brand)

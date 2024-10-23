@@ -245,7 +245,6 @@ async def update_brand(
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 
-
 @router.post(
     '/brand/{brand_id}/synonyms',
     response_model=BrandResponse,
@@ -262,8 +261,16 @@ async def add_synonyms(
     try:
         async with session.begin():
             change_synonyms = [await change_string(synonym) for synonym in synonyms.names]
-            updated_brand = await brand_crud.add_synonyms(session=session, brand_id=brand_id, synonym_names=change_synonyms)
-            await session.refresh(updated_brand, attribute_names=['id', 'name', 'synonyms'])
+            await brand_crud.add_synonyms(
+                session=session,
+                brand_id=brand_id,
+                synonym_names=change_synonyms
+            )
+            updated_brand = await session.get(Brand, brand_id)
+            await session.refresh(
+                updated_brand,
+                attribute_names=['id', 'name', 'synonyms']
+            )
             response_data = {
                 "id": updated_brand.id,
                 "name": updated_brand.name,
@@ -276,4 +283,39 @@ async def add_synonyms(
     except Exception as e:
         await session.rollback()
         logger.error(f"Ошибка добаление синонимов: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+@router.delete(
+'/brand/{brand_id}/synonyms',
+    response_model=BrandResponse,
+    tags=['brand'],
+    summary='Удаление синонимов к бренду',
+    status_code=status.HTTP_200_OK,
+    response_model_exclude_none=True
+)
+async def delete_synonyms(
+        brand_id: int,
+        synonyms: SynonymCreate,
+        session: AsyncSession = Depends(get_session)
+):
+    try:
+        async with session.begin():
+            change_synonyms = [await change_string(synonym) for synonym in synonyms.names]
+            updated_brand = await brand_crud.remove_synonyms(
+                session=session,
+                brand_id=brand_id,
+                synonym_names=change_synonyms
+            )
+            response_data = {
+                "id": updated_brand.id,
+                "name": updated_brand.name,
+                "synonyms": [{"id": s.id, "name": s.name} for s in updated_brand.synonyms]
+            }
+            return response_data
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Ошибка удаления синонимов: {str(e)}")
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")

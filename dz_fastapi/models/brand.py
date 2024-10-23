@@ -8,7 +8,7 @@ from sqlalchemy import (
     Boolean,
     UniqueConstraint,
     CheckConstraint,
-    text,
+    text, Index,
 )
 from sqlalchemy.orm import relationship
 
@@ -57,6 +57,9 @@ class Brand(Base):
         secondaryjoin='Brand.id == brand_synonyms.c.synonym_id',
         cascade='save-update, merge',
         backref='brand_synonyms'
+        # lazy='subquery',
+        # back_populates='synonyms',
+        # viewonly=False
     )
     __table_args__ = (
         CheckConstraint(
