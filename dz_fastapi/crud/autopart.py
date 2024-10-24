@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
+from dz_fastapi.api.validators import change_brand_name
 from dz_fastapi.core.db import AsyncSession
 from dz_fastapi.models.autopart import AutoPart, Category, StorageLocation
 from dz_fastapi.crud.base import CRUDBase
@@ -17,6 +18,9 @@ from dz_fastapi.schemas.autopart import (
     StorageLocationUpdate
 )
 from sqlalchemy.exc import SQLAlchemyError
+import logging
+
+logger = logging.getLogger('dz_fastapi')
 
 def get_recursive_selectinloads(depth: int):
     def recursive_load(level):
@@ -50,9 +54,10 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             Exception: Возникает при ошибке создания или сохранения автозапчасти.
         """
         try:
-            autopart_data = new_autopart.dict(exclude_unset=True)
+            autopart_data = new_autopart.model_dump(exclude_unset=True)
             category_name = autopart_data.pop('category_name', None)
             storage_location_name = autopart_data.pop('storage_location_name', None)
+            # autopart_data['name'] = await change_brand_name(autopart_data['name'])
             autopart = AutoPart(**autopart_data)
             autopart.brand = brand
             autopart.categories = []
@@ -96,18 +101,21 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         session: AsyncSession,
         autopart_id: int
     ) -> Optional[AutoPart]:
-        stmt = (
-            select(AutoPart)
-            .where(AutoPart.id == autopart_id)
-            .options(
-                selectinload(AutoPart.categories),
-                selectinload(AutoPart.storage_locations)
+        try:
+            stmt = (
+                select(AutoPart)
+                .where(AutoPart.id == autopart_id)
+                .options(
+                    selectinload(AutoPart.categories),
+                    selectinload(AutoPart.storage_locations)
+                )
             )
-        )
-        result = await session.execute(stmt)
-        autopart = result.scalars().unique().one_or_none()
-        return autopart
-
+            result = await session.execute(stmt)
+            autopart = result.scalars().unique().one_or_none()
+            return autopart
+        except SQLAlchemyError as e:
+            logger.error(f"Database error when fetching autopart {autopart_id}: {e}")
+            raise
 
 crud_autopart = CRUDAutopart(AutoPart)
 

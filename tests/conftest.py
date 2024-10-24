@@ -5,13 +5,13 @@ import logging
 logger = logging.getLogger('dz_fastapi')
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from dz_fastapi.core.db import Base
+from dz_fastapi.core.db import Base, get_async_session, get_session
 from dz_fastapi.core.config import settings
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.main import app
 from pathlib import Path
 from dz_fastapi.core.constants import get_max_file_size, get_upload_dir
-from dz_fastapi.core.db import get_session
 from logging.handlers import RotatingFileHandler
 
 
@@ -65,12 +65,26 @@ async def created_brand(test_session: AsyncSession) -> Brand:
     await test_session.refresh(brand)
     return brand
 
+@pytest.fixture
+async def created_autopart(test_session: AsyncSession, created_brand: Brand) -> AutoPart:
+    autopart = AutoPart(
+        name='TEST AUTOPART',
+        brand_id=created_brand.id,
+        oem_number='E4G163611091',
+        description='A test autopart'
+    )
+    test_session.add(autopart)
+    await test_session.commit()
+    await test_session.refresh(autopart)
+    return autopart
+
 
 @pytest.fixture(scope='function', autouse=True)
 async def override_dependencies(test_engine):
     """
     Fixture that automatically overrides dependencies for all tests.
     """
+
     # Logger setup
     logger = logging.getLogger("dz_fastapi")
     if not logger.handlers:
@@ -109,6 +123,7 @@ async def override_dependencies(test_engine):
     app.dependency_overrides[get_upload_dir] = override_get_upload_dir
     app.dependency_overrides[get_max_file_size] = override_get_max_file_size
     app.dependency_overrides[get_session] = override_get_session
+    app.dependency_overrides[get_async_session] = override_get_session
 
     logger.debug("Dependencies overridden for the test")
 

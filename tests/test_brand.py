@@ -1,5 +1,3 @@
-import json
-
 import pytest
 import os
 from io import BytesIO
@@ -9,19 +7,16 @@ import tempfile
 from httpx import AsyncClient, ASGITransport
 import logging
 
-from dz_fastapi.schemas.brand import SynonymCreate
-
 logger = logging.getLogger('dz_fastapi')
 
-# from dz_fastapi.main import app
 from dz_fastapi.core.db import get_session
+from dz_fastapi.main import app
 from dz_fastapi.models.brand import Brand
 from tests.test_constants import TEST_BRAND
 
 
 @pytest.mark.asyncio
 async def test_create_brand(test_session):
-    from dz_fastapi.main import app
 
     payload = TEST_BRAND
     transport = ASGITransport(app=app)
@@ -39,12 +34,7 @@ async def test_create_brand(test_session):
 
 
 @pytest.mark.asyncio
-async def test_upload_logo(test_session, created_brand:Brand):
-    async def override_get_session():
-        yield test_session
-
-    from dz_fastapi.main import app
-    app.dependency_overrides[get_session] = override_get_session
+async def test_upload_logo(test_session, created_brand: Brand):
 
     with tempfile.TemporaryDirectory() as temp_upload_dir:
         os.environ['UPLOAD_DIR'] = temp_upload_dir
@@ -79,8 +69,6 @@ async def test_upload_logo(test_session, created_brand:Brand):
 @pytest.mark.asyncio
 async def test_upload_logo_invalid_file_type(test_session, created_brand: Brand):
 
-    from dz_fastapi.main import app
-
     brand_id = created_brand.id
     # Подготавливаем не-изображение
     file_content = b"This is not an image."
@@ -114,7 +102,7 @@ async def test_upload_logo_file_size_exceeds(test_session, created_brand: Brand)
     assert file_size > 1 * 50 * 1024, f"File size is {file_size} bytes, which is not greater than 1 MB."
 
     # Импортируем приложение после настройки зависимостей
-    from dz_fastapi.main import app
+    # from dz_fastapi.main import app
     transport = ASGITransport(app=app)
 
     async with AsyncClient(transport=transport, base_url='http://test') as ac:
@@ -144,8 +132,7 @@ async def test_upload_logo_invalid_image(test_session, created_brand:Brand):
 
 
 @pytest.mark.asyncio
-async def test_get_brands(test_session, created_brand:Brand):
-    from dz_fastapi.main import app
+async def test_get_brands(test_session, created_brand: Brand):
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url='http://test') as ac:
@@ -167,8 +154,7 @@ async def test_get_brands(test_session, created_brand:Brand):
     assert 'id' in data
 
 
-async def test_get_brand(test_session, created_brand:Brand):
-    from dz_fastapi.main import app
+async def test_get_brand(test_session, created_brand: Brand):
     brand_id = created_brand.id
 
     transport = ASGITransport(app=app)
@@ -194,7 +180,6 @@ async def test_get_brand(test_session, created_brand:Brand):
 @pytest.mark.asyncio
 async def test_update_brand(test_session, created_brand: Brand):
     brand_id = created_brand.id
-    from dz_fastapi.main import app
     new_data = {
         'name': 'new brand',
         'country_of_origin': 'Germany',
@@ -225,7 +210,6 @@ async def test_update_brand(test_session, created_brand: Brand):
 @pytest.mark.asyncio
 async def test_delete_brand(test_session, created_brand:Brand):
     brand_id = created_brand.id
-    from dz_fastapi.main import app
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url='http://test') as ac:
@@ -248,7 +232,6 @@ async def test_add_synonyms(test_session, created_brand:Brand):
         'country_of_origin': 'China'
     }
     brand_id = created_brand.id
-    from dz_fastapi.main import app
 
     transport = ASGITransport(app=app)
 
@@ -284,7 +267,6 @@ async def test_delete_synonyms(test_session, created_brand:Brand):
         'country_of_origin': 'China'
     }
     brand_id = created_brand.id
-    from dz_fastapi.main import app
 
     transport = ASGITransport(app=app)
 

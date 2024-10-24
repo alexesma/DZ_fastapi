@@ -87,6 +87,9 @@ class AutoPartCreateInDB(AutoPartBase):
 
 
 class AutoPartUpdate(BaseModel):
+    brand_id: Optional[int] = None
+    name: Optional[str] = None
+    oem_number: Optional[str] = None
     description: Optional[str] = None
     width: Optional[float] = None
     height: Optional[float] = None

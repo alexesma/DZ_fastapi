@@ -7,6 +7,7 @@ from dz_fastapi.api.validators import brand_exists, change_string
 from dz_fastapi.crud.autopart import crud_autopart, crud_category, crud_storage
 from dz_fastapi.schemas.autopart import (
     AutoPartCreate,
+    AutoPartUpdate,
     AutoPartResponse,
     CategoryResponse,
     CategoryCreate,
@@ -16,7 +17,7 @@ from dz_fastapi.schemas.autopart import (
     StorageLocationResponse
 )
 from dz_fastapi.models.autopart import Category
-from dz_fastapi.core.db import get_async_session
+from dz_fastapi.core.db import get_async_session, get_session
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -33,7 +34,7 @@ router = APIRouter()
 )
 async def create_autopart_endpoint(
         autopart: AutoPartCreate,
-        session: AsyncSession = Depends(get_async_session)
+        session: AsyncSession = Depends(get_session)
 ):
     brand_db = await brand_exists(autopart.brand_id, session)
     autopart = await crud_autopart.create_autopart(autopart, brand_db, session)
@@ -48,9 +49,12 @@ async def create_autopart_endpoint(
 )
 async def get_autopart_endpoint(
         autopart_id: int,
-        session: AsyncSession = Depends(get_async_session)
+        session: AsyncSession = Depends(get_session)
 ):
-    return await crud_autopart.get(obj_id=autopart_id, session=session)
+    autopart = await crud_autopart.get_autopart_by_id(autopart_id=autopart_id, session=session)
+    if not autopart:
+        raise HTTPException(status_code=404, detail='Autopart not found')
+    return autopart
 
 
 @router.get(
@@ -60,29 +64,45 @@ async def get_autopart_endpoint(
     response_model=List[AutoPartResponse]
 )
 async def get_all_autoparts(
-        skip: int = 0, limit: int = 100,
-        session: AsyncSession = Depends(get_async_session)
+        skip: int = 0,
+        limit: int = 100,
+        session: AsyncSession = Depends(get_session)
 ):
     return await crud_autopart.get_multi(session=session, skip=skip, limit=limit)
 
 
 @router.patch(
-    '/autoparts/{autopart_id}',
+    '/autoparts/{autopart_id}/',
     tags=['autopart'],
     summary='Обновление автозапчасти',
     response_model=AutoPartResponse
 )
 async def update_autopart(
         autopart_id: int,
-        autopart: AutoPartCreate = Body(...),
-        session: AsyncSession = Depends(get_async_session)
+        autopart: AutoPartUpdate = Body(...),
+        session: AsyncSession = Depends(get_session)
 ):
-    autopart_old = await crud_autopart.get(obj_id=autopart_id, session=session)
-    if autopart_old is None:
+    autopart_db = await crud_autopart.get_autopart_by_id(
+        autopart_id=autopart_id,
+        session=session
+    )
+    update_data = autopart.model_dump(exclude_unset=True)
+    if autopart_db is None:
         raise HTTPException(status_code=404, detail="AutoPart not found")
-    if autopart.brand_id is not None:
-        await brand_exists(autopart.brand_id, session)
-    updated_autopart = await crud_autopart.update(db_obj=autopart_old, obj_in=autopart, session=session)
+    if 'brand_id' not in update_data or update_data['brand_id'] is None:
+        update_data['brand_id'] = autopart_db.brand_id
+    else:
+        await brand_exists(update_data['brand_id'], session)
+    if 'name' not in update_data or update_data['name'] is None:
+        update_data['name'] = autopart_db.name
+
+    if 'oem_number' not in update_data or update_data['oem_number'] is None:
+        update_data['oem_number'] = autopart_db.oem_number
+    updated_autopart = await crud_autopart.update(
+        db_obj=autopart_db,
+        obj_in=autopart,
+        session=session
+    )
     return updated_autopart
 
 
