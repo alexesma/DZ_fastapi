@@ -1,9 +1,10 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, Body, HTTPException, status
+from pydantic import conint
 from sqlalchemy.orm import selectinload
 
-from dz_fastapi.api.validators import brand_exists, change_string
+from dz_fastapi.api.validators import brand_exists, change_string, change_storage_name
 from dz_fastapi.crud.autopart import crud_autopart, crud_category, crud_storage
 from dz_fastapi.schemas.autopart import (
     AutoPartCreate,
@@ -16,11 +17,15 @@ from dz_fastapi.schemas.autopart import (
     StorageLocationUpdate,
     StorageLocationResponse
 )
-from dz_fastapi.models.autopart import Category
-from dz_fastapi.core.db import get_async_session, get_session
+from dz_fastapi.models.autopart import Category, StorageLocation
+from dz_fastapi.core.db import get_session
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -115,7 +120,7 @@ async def update_autopart(
 )
 async def create_category(
     category_in: CategoryCreate,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_session)
 ):
     try:
         result = await session.execute(
@@ -128,7 +133,7 @@ async def create_category(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Category with name '{category_in.name}' already exists.",
             )
-        new_category = Category(**category_in.dict())
+        new_category = Category(**category_in.model_dump())
         session.add(new_category)
         await session.commit()
         await session.refresh(new_category)
@@ -154,11 +159,15 @@ async def create_category(
     response_model=list[CategoryResponse]
 )
 async def get_categories(
-        skip: int = 0,
-        limit: int = 100,
-        session: AsyncSession = Depends(get_async_session)
+        skip: conint(ge=0) = 0,
+        limit: conint(ge=1) = 100,
+        session: AsyncSession = Depends(get_session)
 ):
-    categories = await crud_category.get_multi(session, skip=skip, limit=limit)
+    categories = await crud_category.get_multi(
+        session,
+        skip=skip,
+        limit=limit
+    )
     return categories
 
 
@@ -170,11 +179,14 @@ async def get_categories(
 )
 async def get_category(
     category_id: int,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_session)
 ):
-    category = await crud_category.get_category_by_id(category_id=category_id, session=session)
+    category = await crud_category.get_category_by_id(
+        category_id=category_id,
+        session=session
+    )
     if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
+        raise HTTPException(status_code=404, detail='Category not found')
     return category
 
 
@@ -187,12 +199,26 @@ async def get_category(
 async def update_category(
         category_id: int,
         category_in: CategoryUpdate,
-        session: AsyncSession = Depends(get_async_session)
+        session: AsyncSession = Depends(get_session)
 ):
-    category_old = await crud_category.get_category_by_id(category_id=category_id, session=session)
+    category_old = await crud_category.get_category_by_id(
+        category_id=category_id,
+        session=session
+    )
     if not category_old:
         raise HTTPException(status_code=404, detail="Category not found")
-    updated_category = await crud_category.update(db_obj=category_old, obj_in=category_in, session=session)
+    try:
+        updated_category = await crud_category.update(
+            db_obj=category_old,
+            obj_in=category_in,
+            session=session
+        )
+    except IntegrityError as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail=f"Category with name '{category_in.name}' already exists."
+        ) from e
     return updated_category
 
 
@@ -205,10 +231,45 @@ async def update_category(
 )
 async def create_storage_location(
     storage_in: StorageLocationCreate,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_session)
 ):
-    storage = await crud_storage.create(storage_in, session)
-    return storage
+    storage_in.name = await change_storage_name(storage_in.name)
+    logger.debug(f'Processed storage name: {storage_in.name}')
+    if len(storage_in.name) <= 2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f'Storage\'s name ({storage_in.name}) is short',
+        )
+    try:
+        result = await session.execute(
+            select(StorageLocation).where(StorageLocation.name == storage_in.name)
+        )
+        existing_storage = result.scalar_one_or_none()
+
+        if existing_storage:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f'Storage with name {storage_in.name} already exists.',
+            )
+        storage = await crud_storage.create(storage_in, session)
+        return storage
+    except IntegrityError as error:
+        await session.rollback()
+        if 'unique constraint' in str(error):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f'Storage with name {storage_in.name} already exists.',
+            ) from error
+        elif 'check constraint' in str(error):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Storage name violates database constraints.'
+            ) from error
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="An error occurred while creating the storage.",
+            ) from error
 
 
 @router.get(
@@ -218,7 +279,7 @@ async def create_storage_location(
     response_model=list[StorageLocationResponse]
 )
 async def get_storage_locations(
-        session: AsyncSession = Depends(get_async_session),
+        session: AsyncSession = Depends(get_session),
         skip: int = 0,
         limit: int = 100
 ):
@@ -234,11 +295,17 @@ async def get_storage_locations(
 )
 async def get_storage_location(
     storage_id: int,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_session)
 ):
-    storage = await crud_storage.get_storage_location_by_id(storage_location_id=storage_id, session=session)
+    storage = await crud_storage.get_storage_location_by_id(
+        storage_location_id=storage_id,
+        session=session
+    )
     if not storage:
-        raise HTTPException(status_code=404, detail="Storage location not found")
+        raise HTTPException(
+            status_code=404,
+            detail='Storage location not found'
+        )
     return storage
 
 
@@ -251,10 +318,32 @@ async def get_storage_location(
 async def update_storage_location(
         storage_id: int,
         storage_in: StorageLocationUpdate,
-        session: AsyncSession = Depends(get_async_session)
+        session: AsyncSession = Depends(get_session)
 ):
-    storage_old = await crud_storage.get_storage_location_by_id(storage_location_id=storage_id, session=session)
+    storage_old = await crud_storage.get_storage_location_by_id(
+        storage_location_id=storage_id,
+        session=session
+    )
     if not storage_old:
-        raise HTTPException(status_code=404, detail="Storage location not found")
-    updated_storage = await crud_storage.update(db_obj=storage_old, obj_in=storage_in, session=session)
+        raise HTTPException(
+            status_code=404,
+            detail='Storage location not found'
+        )
+    try:
+        if len(storage_in.name) <= 2:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f'Storage\'s name ({storage_in.name}) is short',
+            )
+        updated_storage = await crud_storage.update(
+            db_obj=storage_old,
+            obj_in=storage_in,
+            session=session
+        )
+    except IntegrityError as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail=f"Storage with name '{storage_in.name}' already exists."
+        ) from e
     return updated_storage

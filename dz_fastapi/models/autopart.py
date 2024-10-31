@@ -202,7 +202,7 @@ def preprocess_category(mapper, connection, target):
     :param target:
     :return:
     '''
-    target.name = re.sub(r'[^\w-]', '', target.name).capitalize()
+    target.name = re.sub(r'[^\w\s\-\*\(\)""]', '', target.name)
 
 
 class StorageLocation(Base):

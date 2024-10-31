@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from dz_fastapi.core.db import Base, get_async_session, get_session
 from dz_fastapi.core.config import settings
 from dz_fastapi.models.brand import Brand
-from dz_fastapi.models.autopart import AutoPart
+from dz_fastapi.models.autopart import AutoPart, Category, StorageLocation
 from dz_fastapi.main import app
 from pathlib import Path
 from dz_fastapi.core.constants import get_max_file_size, get_upload_dir
@@ -77,6 +77,28 @@ async def created_autopart(test_session: AsyncSession, created_brand: Brand) -> 
     await test_session.commit()
     await test_session.refresh(autopart)
     return autopart
+
+
+@pytest.fixture
+async def created_category(test_session: AsyncSession) -> Category:
+    category = Category(
+        name='Test Category'
+    )
+    test_session.add(category)
+    await test_session.commit()
+    await test_session.refresh(category)
+    return category
+
+
+@pytest.fixture
+async def created_storage(test_session: AsyncSession) -> StorageLocation:
+    storage = StorageLocation(
+        name='AA 8'
+    )
+    test_session.add(storage)
+    await test_session.commit()
+    await test_session.refresh(storage)
+    return storage
 
 
 @pytest.fixture(scope='function', autouse=True)

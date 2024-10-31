@@ -69,3 +69,10 @@ async def change_brand_name(brand_name: str) -> str:
     # Удаление начальных и конечных пробелов или дефисов
     brand_name = brand_name.strip(' -')
     return brand_name
+
+async def change_storage_name(storage_name: str) -> str:
+    storage_name = ''.join([char.upper() if char in string.ascii_letters else char for char in storage_name])
+    storage_name = re.sub(r'[^A-Z0-9 -]', '', storage_name)
+    storage_name = re.sub(r'[ -]{2,}', '-', storage_name)
+    storage_name = storage_name.strip(' -')
+    return storage_name

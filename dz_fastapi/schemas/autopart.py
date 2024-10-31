@@ -123,7 +123,7 @@ class CategoryCreate(CategoryBase):
 
 # Schema for updating an existing category
 class CategoryUpdate(BaseModel):
-    name: Optional[str] = Field(None, max_length=MAX_NAME_CATEGORY)
+    name: Optional[str] = Field(None, min_length=1, max_length=MAX_NAME_CATEGORY)
     comment: Optional[str] = None
     parent_id: Optional[int] = None
 
