@@ -20,6 +20,7 @@ logger.addHandler(handler)
 from fastapi.staticfiles import StaticFiles
 from dz_fastapi.api.autopart import router as autopart_router
 from dz_fastapi.api.brand import router as brand_router
+from dz_fastapi.api.partner import router as partner_router
 from dz_fastapi.core.config import settings
 from dz_fastapi.core.db import get_engine
 
@@ -28,3 +29,4 @@ app = FastAPI(title=settings.app_title, description=settings.app_description)
 app.mount("/uploads", StaticFiles(directory=os.path.join(os.getcwd(), "uploads")), name="uploads")
 app.include_router(autopart_router)
 app.include_router(brand_router)
+app.include_router(partner_router)

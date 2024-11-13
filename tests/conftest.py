@@ -3,12 +3,14 @@ import pytest
 import logging
 
 logger = logging.getLogger('dz_fastapi')
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from dz_fastapi.core.db import Base, get_async_session, get_session
 from dz_fastapi.core.config import settings
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.autopart import AutoPart, Category, StorageLocation
+from dz_fastapi.models.partner import Provider, PriceList, Customer
 from dz_fastapi.main import app
 from pathlib import Path
 from dz_fastapi.core.constants import get_max_file_size, get_upload_dir
@@ -88,6 +90,70 @@ async def created_category(test_session: AsyncSession) -> Category:
     await test_session.commit()
     await test_session.refresh(category)
     return category
+
+
+@pytest.fixture
+async def created_providers(test_session: AsyncSession) -> list[Provider]:
+    providers_data = [
+        {
+            'name': 'Test Provider 1',
+            'email_contact': 'test1@test.com',
+            'email_incoming_price': 'prices1@test.com',
+            'description': 'First test provider',
+            'comment': 'No comment',
+            'type_prices': 'Wholesale'
+        },
+        {
+            'name': 'Test Provider 2',
+            'email_contact': 'test2@test.com',
+            'email_incoming_price': 'prices2@test.com',
+            'description': 'Second test provider',
+            'comment': 'No comment',
+            'type_prices': 'Retail'
+        }
+    ]
+
+    providers = []
+    for data in providers_data:
+        provider = Provider(**data)
+        test_session.add(provider)
+        providers.append(provider)
+    await test_session.commit()
+    for provider in providers:
+        await test_session.refresh(provider)
+    return providers
+
+
+@pytest.fixture
+async def created_customers(test_session: AsyncSession) -> list[Customer]:
+    customers_data = [
+        {
+            'name': 'Test Customer 1',
+            'email_contact': 'test1@customer.com',
+            'email_outgoing_price': 'prices1@costomer.com',
+            'description': 'First test customer',
+            'comment': 'No comment',
+            'type_prices': 'Wholesale'
+        },
+        {
+            'name': 'Test Customer 2',
+            'email_contact': 'test2@customer.com',
+            'email_outgoing_price': 'prices2@customer.com',
+            'description': 'Second test customer',
+            'comment': 'No comment',
+            'type_prices': 'Retail'
+        }
+    ]
+
+    customers = []
+    for data in customers_data:
+        customer = Customer(**data)
+        test_session.add(customer)
+        customers.append(customer)
+    await test_session.commit()
+    for customer in customers:
+        await test_session.refresh(customer)
+    return customers
 
 
 @pytest.fixture

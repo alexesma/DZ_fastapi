@@ -112,6 +112,18 @@ class AutoPartUpdateInDB(AutoPartBase):
     pass
 
 
+class AutoPartPricelist(BaseModel):
+    brand: Optional[str] = None
+    oem_number: str
+    name: str
+    multiplicity: Optional[int] = None
+    purchase_price: Optional[float] = None
+    retail_price: Optional[float] = None
+    wholesale_price: Optional[float] = None
+    comment: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
 # Base schema with shared fields
 class CategoryBase(BaseModel):
     name: str = Field(..., max_length=MAX_NAME_CATEGORY)

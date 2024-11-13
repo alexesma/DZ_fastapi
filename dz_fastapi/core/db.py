@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine,async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base, declared_attr
+from typing import AsyncGenerator
 
 from dz_fastapi.core.config import settings
 
@@ -40,7 +41,7 @@ def get_async_session(test=False):
         autocommit=False,
     )
 
-async def get_session():
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Dependency-injected session generator for FastAPI routes.
     """

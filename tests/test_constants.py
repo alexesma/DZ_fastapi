@@ -27,3 +27,20 @@ TEST_AUTOPART = {
     "comment": "Test autopart comment"
 }
 
+TEST_PROVIDER = {
+    'name': 'Test-Provider_*?/\\|<>,.()[]{};:!@#$%^&àáâãäåçèéêëìíîðñòôõöö[|]\'~<!--@/*$%^&#*/()?>,.*/\\',
+    'type_prices': 'Retail',
+    'email_contact': 'test2@test2.ru',
+    'comment': 'Test comment',
+    'description': 'A test provider',
+    'email_incoming_price': 'test3@test2.ru'
+}
+
+TEST_CUSTOMER = {
+    'name': 'Test-Customer_*?/\\|<>,.()[]{};:!@#$%^&àáâãäåçèéêëìíîðñòôõöö[|]\'~<!--@/*$%^&#*/()?>,.*/\\',
+    'type_prices': 'Retail',
+    'email_contact': 'testcustomer@customer.ru',
+    'comment': 'Test comment',
+    'description': 'A test customer',
+    'email_outgoing_price': 'testcustomer@customer.ru'
+}

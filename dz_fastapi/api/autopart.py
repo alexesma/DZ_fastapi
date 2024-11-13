@@ -276,6 +276,7 @@ async def create_storage_location(
     '/storage/',
     summary='Получение всех местохранений',
     tags=['storage'],
+    status_code=status.HTTP_200_OK,
     response_model=list[StorageLocationResponse]
 )
 async def get_storage_locations(
@@ -290,6 +291,7 @@ async def get_storage_locations(
 @router.get(
     '/storage/{storage_id}/',
     summary='Получение местохранения по ID',
+    status_code=status.HTTP_200_OK,
     tags=['storage'],
     response_model=StorageLocationResponse
 )
@@ -313,6 +315,7 @@ async def get_storage_location(
     '/storage/{storage_id}/',
     summary='Обновление местохранения',
     tags=['storage'],
+    status_code=status.HTTP_200_OK,
     response_model=StorageLocationResponse
 )
 async def update_storage_location(

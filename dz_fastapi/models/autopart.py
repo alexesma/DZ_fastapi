@@ -33,6 +33,15 @@ from dz_fastapi.core.constants import (
 from dz_fastapi.core.db import Base
 
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.partner import (
+    Client,
+    Customer,
+    PriceList,
+    Provider,
+    price_list_autopart_association,
+    CustomerPriceList,
+    customer_price_list_autopart_association
+)
 
 
 def change_string(old_string: str) -> str:
@@ -113,6 +122,16 @@ class AutoPart(Base):
     storage_locations = relationship(
         'StorageLocation',
         secondary='autopart_storage_association',
+        back_populates='autoparts'
+    )
+    price_lists = relationship(
+        'PriceList',
+        secondary='price_list_autopart_association',
+        back_populates='autoparts'
+    )
+    customer_price_lists = relationship(
+        'CustomerPriceList',
+        secondary='customer_price_list_autopart_association',
         back_populates='autoparts'
     )
     __mapper_args__ = {'polymorphic_identity': 'autopart'}

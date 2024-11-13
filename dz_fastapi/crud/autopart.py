@@ -8,10 +8,12 @@ from dz_fastapi.api.validators import change_brand_name
 from dz_fastapi.core.db import AsyncSession
 from dz_fastapi.models.autopart import AutoPart, Category, StorageLocation
 from dz_fastapi.crud.base import CRUDBase
+from dz_fastapi.crud.brand import brand_crud
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.schemas.autopart import (
     AutoPartCreate,
     AutoPartUpdate,
+    AutoPartPricelist,
     CategoryCreate,
     CategoryUpdate,
     StorageLocationCreate,
@@ -116,6 +118,41 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         except SQLAlchemyError as e:
             logger.error(f"Database error when fetching autopart {autopart_id}: {e}")
             raise
+
+    async def create_autoparts_from_price(
+            self,
+            new_autopart: AutoPartPricelist,
+            session: AsyncSession,
+            default_brand: Optional[Brand] = None
+    ):
+        autopart_data = new_autopart.model_dump(exclude_unset=True)
+        brand_name = autopart_data.pop('brand', None)
+        if brand_name:
+            brand_name = change_brand_name(brand_name)
+            brand = await brand_crud.get_brand_by_name_or_none(
+                brand_name=brand_name,
+                session=session
+            )
+            if not brand:
+                logger.warning(
+                    f'Brand {brand_name} not found. Skipping autopart creation.'
+                )
+                return None
+        elif default_brand:
+            brand = default_brand
+        else:
+            logger.warning('No brand specified and no default brand provided. Skipping autopart creation.')
+            return None
+
+        autopart_create_data = AutoPartCreate(**autopart_data)
+
+        autopart = await self.create_autopart(
+            new_autopart=autopart_create_data,
+            brand=brand,
+            session=session
+        )
+
+        return autopart
 
 crud_autopart = CRUDAutopart(AutoPart)
 

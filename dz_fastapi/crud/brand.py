@@ -7,7 +7,7 @@ from fastapi import HTTPException
 
 from dz_fastapi.crud.base import CRUDBase
 from dz_fastapi.models.brand import Brand
-from dz_fastapi.schemas.brand import BrandCreate, BrandUpdate
+from dz_fastapi.schemas.brand import BrandCreate, BrandUpdate, BrandSynonym
 import logging
 
 logger = logging.getLogger('dz_fastapi')
@@ -46,12 +46,32 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
             logger.debug(f'Результат запроса: {db_brand}')
             brand = db_brand.scalars().first()
             logger.debug(f'Первый результат запроса: {brand}')
-            # if brand:
-            #     await session.refresh(brand)  # Без использования options
             return brand
         except Exception as e:
             logger.error(f'Ошибка в get_brand_by_name: {e}')
             raise
+
+    async def get_brand_by_name_or_none(
+            self,
+            brand_name: str,
+            session: AsyncSession
+    ) -> Optional[Brand]:
+        result = await session.execute(
+            select(Brand).options(selectinload(Brand.synonyms)).where(Brand.name == brand_name)
+        )
+        brand = result.scalar_one_or_none()
+
+        if not brand:
+            return None
+
+        if brand.main_brand or not brand.synonyms:
+            return brand
+
+        for synonym in brand.synonyms:
+            if synonym.main_brand:
+                return synonym
+
+        return brand
 
     async def get_multi_with_synonyms(
             self,
