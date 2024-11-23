@@ -1,24 +1,48 @@
+from datetime import date
+from decimal import Decimal
+
 import pytest
 from httpx import AsyncClient, ASGITransport
 import logging
-
+import io
+import pandas as pd
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from dz_fastapi.crud.partner import crud_pricelist, crud_customer_pricelist
+from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.autopart import AutoPart
+from dz_fastapi.schemas.autopart import AutoPartPricelist
 
 logger = logging.getLogger('dz_fastapi')
 
 from dz_fastapi.main import app
-from dz_fastapi.models.partner import Provider, Customer
-from dz_fastapi.schemas.partner import ProviderResponse, CustomerResponse
-from tests.test_constants import TEST_PROVIDER, TEST_CUSTOMER
+from dz_fastapi.models.partner import (
+    Provider,
+    Customer,
+    PriceList,
+    PriceListAutoPartAssociation,
+    CustomerPriceListConfig,
+    CustomerPriceList,
+    CustomerPriceListAutoPartAssociation
+)
+from dz_fastapi.schemas.partner import (
+    ProviderResponse,
+    CustomerResponse,
+    PriceListAutoPartAssociationCreate,
+    PriceListCreate
+)
+from tests.test_constants import TEST_PROVIDER, TEST_CUSTOMER, CONFIG_DATA
 
 
 @pytest.mark.asyncio
-async def test_create_provider(test_session: AsyncSession):
+async def test_create_provider(
+        test_session: AsyncSession,
+        async_client: AsyncClient
+):
 
     payload = TEST_PROVIDER
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.post('/providers/', json=payload)
+
+    response = await async_client.post('/providers/', json=payload)
 
     assert response.status_code == 201, response.text
     data = response.json()
@@ -34,18 +58,18 @@ async def test_create_provider(test_session: AsyncSession):
 @pytest.mark.asyncio
 async def test_get_providers(
         test_session: AsyncSession,
-        created_providers: list[Provider]
+        created_providers: list[Provider],
+        async_client: AsyncClient
 ):
-
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.get('/providers/')
+    response = await async_client.get('/providers/')
 
     data = response.json()
     assert isinstance(data, list)
     assert len(data) >= len(created_providers)
 
-    response_providers = [ProviderResponse.model_validate(item) for item in data]
+    response_providers = [
+        ProviderResponse.model_validate(item) for item in data
+    ]
 
     for created_provider in created_providers:
         provider_in_response = next(
@@ -65,14 +89,12 @@ async def test_get_providers(
 @pytest.mark.asyncio
 async def test_get_provider_success(
         test_session: AsyncSession,
-        created_providers: list[Provider]
+        created_providers: list[Provider],
+        async_client: AsyncClient
 ):
     created_provider = created_providers[0]
 
-    transport = ASGITransport(app=app)
-
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.get(f'/providers/{created_provider.id}/')
+    response = await async_client.get(f'/providers/{created_provider.id}/')
 
     assert response.status_code == 200, response.text
     data = response.json()
@@ -89,28 +111,34 @@ async def test_get_provider_success(
 
 
 @pytest.mark.asyncio
-async def test_get_provider_not_found(test_session):
-    transport = ASGITransport(app=app)
+async def test_get_provider_not_found(
+        test_session: AsyncSession,
+        async_client: AsyncClient
+):
     invalid_provider_id = 99999
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.get(f'/providers/{invalid_provider_id}/')
+    response = await async_client.get(
+        f'/providers/{invalid_provider_id}/'
+    )
 
     assert response.status_code == 404, response.text
     data = response.json()
+
     assert data['detail'] == 'Provider not found'
 
 
 @pytest.mark.asyncio
 async def test_delete_provider_success(
         test_session: AsyncSession,
+        async_client: AsyncClient,
         created_providers: list[Provider]
 ):
-    transport = ASGITransport(app=app)
+
     provider_to_delete = created_providers[0]
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.delete(f'/providers/{provider_to_delete.id}/')
+    response = await async_client.delete(
+        f'/providers/{provider_to_delete.id}/'
+    )
 
     assert response.status_code == 200, response.text
     data = response.json()
@@ -118,30 +146,34 @@ async def test_delete_provider_success(
     assert deleted_provider.id == provider_to_delete.id
     assert deleted_provider.name == provider_to_delete.name
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-            response = await ac.get(f'/providers/{provider_to_delete.id}/')
+    response = await async_client.get(
+        f'/providers/{provider_to_delete.id}/'
+    )
+
     assert response.status_code == 404, response.text
     data = response.json()
     assert data['detail'] == 'Provider not found'
 
 
 @pytest.mark.asyncio
-async def test_delete_provider_not_found(test_session: AsyncSession):
-
-    transport = ASGITransport(app=app)
+async def test_delete_provider_not_found(
+        test_session: AsyncSession,
+        async_client: AsyncClient
+):
     invalid_provider_id = 99999
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.delete(f'/providers/{invalid_provider_id}/')
-
+    response = await async_client.delete(
+        f'/providers/{invalid_provider_id}/'
+    )
     assert response.status_code == 404, response.text
     data = response.json()
-    assert data['detail'] == "Provider not found"
+    assert data['detail'] == 'Provider not found'
 
 
 @pytest.mark.asyncio
 async def test_update_provider_success(
         test_session: AsyncSession,
+        async_client: AsyncClient,
         created_providers: list[Provider]
 ):
     provider_to_update = created_providers[0]
@@ -151,13 +183,10 @@ async def test_update_provider_success(
         'description': 'Updated description'
     }
 
-    transport = ASGITransport(app=app)
-
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.patch(
-            f'/providers/{provider_to_update.id}/',
-            json=update_data
-        )
+    response = await async_client.patch(
+        f'/providers/{provider_to_update.id}/',
+        json=update_data
+    )
 
     assert response.status_code == 200, response.text
     data = response.json()
@@ -172,50 +201,60 @@ async def test_update_provider_success(
 @pytest.mark.asyncio
 async def test_update_provider_no_data(
         test_session: AsyncSession,
+        async_client: AsyncClient,
         created_providers: list[Provider]
 ):
-    transport = ASGITransport(app=app)
     provider_to_update = created_providers[0]
     update_data = {}
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.patch(
-            f'/providers/{provider_to_update.id}/',
-            json=update_data
-        )
+    response = await async_client.patch(
+        f'/providers/{provider_to_update.id}/',
+        json=update_data
+    )
 
     assert response.status_code == 422, response.text
     data = response.json()
-    assert isinstance(data, dict), f'Expected response to be a dict, got {type(data)}'
+    assert isinstance(
+        data,
+        dict
+    ), f'Expected response to be a dict, got {type(data)}'
     assert data['detail'][0]['msg'] == 'Field required'
 
 
 @pytest.mark.asyncio
-async def test_update_provider_not_found(test_session: AsyncSession):
-    transport = ASGITransport(app=app)
+async def test_update_provider_not_found(
+        test_session: AsyncSession,
+        async_client: AsyncClient
+):
     invalid_provider_id = 99999
     update_data = {
         'name': 'Updated Provider Name'
     }
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.patch(f'/providers/{invalid_provider_id}/', json=update_data)
+    response = await async_client.patch(
+        f'/providers/{invalid_provider_id}/',
+        json=update_data
+    )
 
     assert response.status_code == 404, response.text
     data = response.json()
-    assert data['detail'] == "Provider not found"
+    assert data['detail'] == 'Provider not found'
 
 
 @pytest.mark.asyncio
-async def test_create_customer(test_session: AsyncSession):
-
+async def test_create_customer(
+        test_session: AsyncSession,
+        async_client: AsyncClient
+):
     payload = TEST_CUSTOMER
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.post('/customers/', json=payload)
 
+    response = await async_client.post(
+        '/customers/',
+        json=payload
+    )
     assert response.status_code == 201, response.text
     data = response.json()
+
     assert data['name'] == 'TEST-CUSTOMER'
     assert data['description'] == 'A test customer'
     assert data['email_contact'] == 'testcustomer@customer.ru'
@@ -228,18 +267,20 @@ async def test_create_customer(test_session: AsyncSession):
 @pytest.mark.asyncio
 async def test_get_customers(
         test_session: AsyncSession,
+        async_client: AsyncClient,
         created_customers: list[Customer]
 ):
-
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.get('/customers/')
+    response = await async_client.get(
+        '/customers/'
+    )
 
     data = response.json()
     assert isinstance(data, list)
     assert len(data) >= len(created_customers)
 
-    response_providers = [CustomerResponse.model_validate(item) for item in data]
+    response_providers = [
+        CustomerResponse.model_validate(item) for item in data
+    ]
 
     for created_customer in created_customers:
         customer_in_response = next(
@@ -259,18 +300,17 @@ async def test_get_customers(
 @pytest.mark.asyncio
 async def test_get_customer_success(
         test_session: AsyncSession,
+        async_client: AsyncClient,
         created_customers: list[Customer]
 ):
     created_customer = created_customers[0]
 
-    transport = ASGITransport(app=app)
-
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.get(f'/customers/{created_customer.id}/')
+    response = await async_client.get(
+        f'/customers/{created_customer.id}/'
+    )
 
     assert response.status_code == 200, response.text
     data = response.json()
-
     customer_response = CustomerResponse.model_validate(data)
 
     assert customer_response.id == created_customer.id
@@ -283,13 +323,15 @@ async def test_get_customer_success(
 
 
 @pytest.mark.asyncio
-async def test_get_customer_not_found(test_session):
-    transport = ASGITransport(app=app)
+async def test_get_customer_not_found(
+        test_session: AsyncSession,
+        async_client: AsyncClient
+):
     invalid_customer_id = 99999
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.get(f'/customers/{invalid_customer_id}/')
-
+    response = await async_client.get(
+        f'/customers/{invalid_customer_id}/'
+    )
     assert response.status_code == 404, response.text
     data = response.json()
     assert data['detail'] == 'Customer not found'
@@ -298,44 +340,49 @@ async def test_get_customer_not_found(test_session):
 @pytest.mark.asyncio
 async def test_delete_customer_success(
         test_session: AsyncSession,
+        async_client: AsyncClient,
         created_customers: list[Customer]
 ):
-    transport = ASGITransport(app=app)
     customer_to_delete = created_customers[0]
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.delete(f'/customers/{customer_to_delete.id}/')
-
+    response = await async_client.delete(
+        f'/customers/{customer_to_delete.id}/'
+    )
     assert response.status_code == 200, response.text
     data = response.json()
     deleted_customer = CustomerResponse.model_validate(data)
     assert deleted_customer.id == customer_to_delete.id
     assert deleted_customer.name == customer_to_delete.name
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-            response = await ac.get(f'/customers/{customer_to_delete.id}/')
+
+    response = await async_client.get(
+        f'/customers/{customer_to_delete.id}/'
+    )
+
     assert response.status_code == 404, response.text
     data = response.json()
     assert data['detail'] == 'Customer not found'
 
 
 @pytest.mark.asyncio
-async def test_delete_customer_not_found(test_session: AsyncSession):
-
-    transport = ASGITransport(app=app)
+async def test_delete_customer_not_found(
+        test_session: AsyncSession,
+        async_client: AsyncClient
+):
     invalid_customer_id = 99999
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.delete(f'/customers/{invalid_customer_id}/')
-
+    response = await async_client.delete(
+        f'/customers/{invalid_customer_id}/'
+    )
     assert response.status_code == 404, response.text
     data = response.json()
-    assert data['detail'] == "Customer not found"
+    assert data['detail'] == 'Customer not found'
 
 
 @pytest.mark.asyncio
 async def test_update_customer_success(
         test_session: AsyncSession,
+        async_client: AsyncClient,
         created_customers: list[Customer]
 ):
     customer_to_update = created_customers[0]
@@ -345,13 +392,10 @@ async def test_update_customer_success(
         'description': 'Updated description'
     }
 
-    transport = ASGITransport(app=app)
-
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.patch(
-            f'/customers/{customer_to_update.id}/',
-            json=update_data
-        )
+    response = await async_client.patch(
+        f'/customers/{customer_to_update.id}/',
+        json=update_data
+    )
 
     assert response.status_code == 200, response.text
     data = response.json()
@@ -366,38 +410,624 @@ async def test_update_customer_success(
 @pytest.mark.asyncio
 async def test_update_customer_no_data(
         test_session: AsyncSession,
+        async_client: AsyncClient,
         created_customers: list[Customer]
 ):
-    transport = ASGITransport(app=app)
     customer_to_update = created_customers[0]
     update_data = {}
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.patch(
-            f'/customers/{customer_to_update.id}/',
-            json=update_data
-        )
-
+    response = await async_client.patch(
+        f'/customers/{customer_to_update.id}/',
+        json=update_data
+    )
     assert response.status_code == 422, response.text
     data = response.json()
-    assert isinstance(data, dict), f'Expected response to be a dict, got {type(data)}'
+    assert isinstance(
+        data, dict
+    ), f'Expected response to be a dict, got {type(data)}'
     assert data['detail'][0]['msg'] == 'Field required'
 
 
 @pytest.mark.asyncio
-async def test_update_customer_not_found(test_session: AsyncSession):
-    transport = ASGITransport(app=app)
+async def test_update_customer_not_found(
+        test_session: AsyncSession,
+        async_client: AsyncClient,
+):
     invalid_customer_id = 99999
     update_data = {
         'name': 'Updated Provider Name'
     }
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.patch(
-            f'/customers/{invalid_customer_id}/',
-            json=update_data
-        )
-
+    response = await async_client.patch(
+        f'/customers/{invalid_customer_id}/',
+        json=update_data
+    )
     assert response.status_code == 404, response.text
     data = response.json()
-    assert data['detail'] == "Customer not found"
+    assert data['detail'] == 'Customer not found'
+
+
+@pytest.mark.asyncio
+async def test_set_provider_pricelist_config_create(
+        created_providers: list[Provider],
+        async_client: AsyncClient,
+        test_session: AsyncSession
+):
+    provider = created_providers[0]
+
+    response = await async_client.post(
+        f'/providers/{provider.id}/pricelist-config/',
+        json=CONFIG_DATA
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data['start_row'] == CONFIG_DATA['start_row']
+    assert data['oem_col'] == CONFIG_DATA['oem_col']
+    assert data['provider_id'] == provider.id
+
+
+@pytest.mark.asyncio
+async def test_set_provider_pricelist_config_provider_not_found(
+        test_session: AsyncSession,
+        async_client: AsyncClient
+):
+    invalid_customer_id = 99999
+
+    response = await async_client.post(
+        f'/providers/{invalid_customer_id}/pricelist-config/',
+        json=CONFIG_DATA
+    )
+    assert response.status_code == 404
+    data = response.json()
+    assert data['detail'] == 'Provider not found'
+
+
+@pytest.mark.asyncio
+async def test_create_provider_pricelist_success(
+        created_providers: list[Provider],
+        created_brand: Brand,
+        async_client: AsyncClient,
+        test_session: AsyncSession
+):
+    provider = created_providers[0]
+    pricelist_data = {
+        'autoparts': [
+            {
+                'autopart': {
+                    'oem_number': 'SE3841',
+                    'brand': f'{created_brand.name}',
+                    'name': 'Наконечник рулевой тяги'
+                },
+                'quantity': 2,
+                'price': 1200.00
+            }
+        ]
+    }
+
+    response = await async_client.post(
+        f'/providers/{provider.id}/pricelists/',
+        json=pricelist_data
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data['provider']['id'] == provider.id
+    assert len(data['autoparts']) == 1
+    assert data['autoparts'][0]['quantity'] == 2
+
+
+@pytest.mark.asyncio
+async def test_create_provider_pricelist_validation_error(
+        created_providers: list[Provider],
+        async_client: AsyncClient,
+        test_session: AsyncSession
+):
+    provider = created_providers[0]
+    pricelist_data = {
+        'autoparts': [
+            {
+                'quantity': 2,
+                'price': 1200.00
+            }
+        ]
+    }
+
+    response = await async_client.post(
+        f'/providers/{provider.id}/pricelists/',
+        json=pricelist_data
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_upload_provider_pricelist_success(
+        created_providers: list[Provider],
+        created_brand: Brand,
+        async_client: AsyncClient,
+        test_session: AsyncSession
+):
+    provider = created_providers[0]
+    config_data = {
+        'start_row': 0,
+        'oem_col': 0,
+        'brand_col': 1,
+        'name_col': 2,
+        'qty_col': 3,
+        'price_col': 4
+    }
+
+    await async_client.post(
+        f'/providers/{provider.id}/pricelist-config/',
+        json=config_data
+    )
+
+    df = pd.DataFrame({
+        0: ['SE3841'],
+        1: [f'{created_brand.name}'],
+        2: ['Наконечник рулевой тяги'],
+        3: [2],
+        4: [1200.00]
+    })
+    csv_bytes = df.to_csv(header=False, index=False).encode('utf-8')
+    file = io.BytesIO(csv_bytes)
+    file.name = 'test.csv'
+
+    response = await async_client.post(
+        f'/providers/{provider.id}/pricelists/upload/',
+        files={'file': ('test.csv', file, 'text/csv')}
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+
+    assert data['provider']['id'] == provider.id
+    assert len(data['autoparts']) == 1
+    assert data['autoparts'][0]['quantity'] == 2
+
+
+@pytest.mark.asyncio
+async def test_upload_provider_pricelist_no_config(
+        created_providers: list[Provider],
+        created_brand: Brand,
+        async_client: AsyncClient,
+        test_session: AsyncSession
+):
+    provider = created_providers[0]
+    df = pd.DataFrame({
+        0: ['SE3841'],
+        1: [f'{created_brand.name}'],
+        2: ['Наконечник рулевой тяги'],
+        3: [2],
+        4: [1200.00]
+    })
+    csv_bytes = df.to_csv(header=False, index=False).encode('utf-8')
+    file = io.BytesIO(csv_bytes)
+    file.name = 'test.csv'
+
+    response = await async_client.post(
+        f'/providers/{provider.id}/pricelists/upload/',
+        files={'file': ('test.csv', file, 'text/csv')}
+    )
+    assert response.status_code == 400
+    data = response.json()
+
+    assert data['detail'] == 'No stored parameters found for this provider.'
+
+
+@pytest.mark.asyncio
+async def test_upload_provider_pricelist_invalid_file(
+        created_providers: list[Provider],
+        created_brand: Brand,
+        async_client: AsyncClient,
+        test_session: AsyncSession
+):
+    provider = created_providers[0]
+    config_data = {
+        'start_row': 0,
+        'oem_col': 0,
+        'qty_col': 3,
+        'price_col': 4
+    }
+    await async_client.post(
+        f'/providers/{provider.id}/pricelist-config/',
+        json=config_data
+    )
+    file = io.BytesIO(b"Invalid content")
+    file.name = 'test.txt'
+
+    response = await async_client.post(
+        f'/providers/{provider.id}/pricelists/upload/',
+        files={'file': ('test.csv', file, 'text/csv')}
+    )
+    assert response.status_code == 400
+    data = response.json()
+
+    assert data['detail'] == "Invalid column indices provided: '[3, 4] not in index'"
+
+
+@pytest.mark.asyncio
+async def test_crud_pricelist_create(
+        created_providers: list[Provider],
+        created_brand: Brand,
+        test_session: AsyncSession
+):
+    provider = created_providers[0]
+
+    autopart_data = AutoPartPricelist(
+        oem_number='SE3841',
+        brand=f'{created_brand.name}',
+        name='Наконечник рулевой тяги'
+    )
+    autopart_assoc = PriceListAutoPartAssociationCreate(
+        autopart=autopart_data,
+        quantity=2,
+        price=1200.00
+    )
+
+    pricelist_in = PriceListCreate(
+        provider_id=provider.id,
+        autoparts=[autopart_assoc]
+    )
+    pricelist = await crud_pricelist.create(
+        obj_in=pricelist_in,
+        session=test_session
+    )
+    assert pricelist.provider.id == provider.id
+    assert len(pricelist.autoparts) == 1
+    assert pricelist.autoparts[0].quantity == 2
+
+
+@pytest.mark.asyncio
+async def test_crud_pricelist_create_no_autoparts(
+        created_providers: list[Provider],
+        created_brand: Brand,
+        test_session: AsyncSession
+):
+    provider = created_providers[0]
+    pricelist_in = PriceListCreate(
+        provider_id=provider.id,
+        autoparts=[]
+    )
+
+    pricelist = await crud_pricelist.create(
+        obj_in=pricelist_in,
+        session=test_session
+    )
+
+    assert pricelist.provider.id == provider.id
+    assert len(pricelist.autoparts) == 0
+
+
+@pytest.mark.asyncio
+async def test_create_customer_pricelist_config(
+        created_customers: Customer,
+        async_client: AsyncClient,
+        test_session: AsyncSession
+):
+    customer = created_customers[0]
+    config_data = {
+        'name': 'Test Config',
+        'own_price_list_markup': 10.0
+    }
+
+    response = await async_client.post(
+        f'/customers/{customer.id}/pricelist-configs/',
+        json=config_data
+    )
+
+    assert response.status_code == 201
+    config = response.json()
+
+    assert config['name'] == "Test Config"
+    assert config['general_markup'] == 1.0
+    assert config['own_price_list_markup'] == 10.0
+    assert config['customer_id'] == customer.id
+
+
+@pytest.mark.asyncio
+async def test_update_customer_pricelist_config(
+        created_customers: Customer,
+        async_client: AsyncClient,
+        test_session: AsyncSession
+):
+    customer = created_customers[0]
+    config_data = {
+        'name': 'Test Config',
+        'general_markup': 10.0
+    }
+    response = await async_client.post(
+        f'/customers/{customer.id}/pricelist-configs/',
+        json=config_data
+    )
+
+    config = response.json()
+    config_id = config['id']
+    update_data = {
+        'general_markup': 15.0
+    }
+
+    response = await async_client.patch(
+        f'/customers/{customer.id}/pricelist-configs/{config_id}',
+        json=update_data
+    )
+
+    assert response.status_code == 200
+    updated_config = response.json()
+    assert updated_config['general_markup'] == 15.0
+
+
+@pytest.mark.asyncio
+async def test_get_customer_pricelist_configs(
+        created_customers: Customer,
+        async_client: AsyncClient,
+        test_session: AsyncSession
+):
+    customer = created_customers[0]
+    transport = ASGITransport(app=app)
+    for i in range(3):
+        config_data = {
+            'name': f'Config {i}',
+            'general_markup': 10.0 + i
+        }
+
+        response = await async_client.post(
+            f'/customers/{customer.id}/pricelist-configs/',
+            json=config_data
+        )
+
+        assert response.status_code == 201
+
+    response = await async_client.get(
+        f'/customers/{customer.id}/pricelist-configs/'
+    )
+
+    assert response.status_code == 200
+    configs = response.json()
+    assert len(configs) == 3
+    for i, config in enumerate(configs):
+        assert config['name'] == f'Config {i}'
+        assert config['general_markup'] == 10.0 + i
+
+
+@pytest.mark.asyncio
+async def test_create_customer_pricelist(
+        test_session: AsyncSession,
+        async_client: AsyncClient,
+        created_brand: Brand,
+        created_autopart: AutoPart,
+        created_providers: list[Provider],
+        created_customers: list[Customer]
+):
+    customer = created_customers[0]
+    provider = created_providers[0]
+
+    pricelist = PriceList(
+        date=date.today(),
+        provider_id=provider.id,
+        is_active=True
+    )
+    test_session.add(pricelist)
+    await test_session.flush()
+
+    pricelist_assoc = PriceListAutoPartAssociation(
+        pricelist_id=pricelist.id,
+        autopart_id=created_autopart.id,
+        quantity=10,
+        price=100.0
+    )
+    test_session.add(pricelist_assoc)
+    await test_session.commit()
+    await test_session.refresh(pricelist)
+
+
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name="Test Config",
+        general_markup=10.0,  # 10% markup
+        own_price_list_markup=5.0,
+        third_party_markup=15.0,
+        individual_markups={str(provider.id): 20.0},  # 20% markup for this provider
+        brand_filters=[created_brand.id],
+        category_filter=[],
+        price_intervals=[],
+        position_filters=[],
+        supplier_quantity_filters=[],
+        additional_filters={}
+    )
+    test_session.add(config)
+    await test_session.commit()
+    await test_session.refresh(config)
+
+    request_data = {
+        "date": str(date.today()),
+        "customer_id": customer.id,
+        "config_id": config.id,
+        "items": [pricelist.id],
+        "excluded_own_positions": [],
+        "excluded_supplier_positions": []
+    }
+
+    response = await async_client.post(
+        f'/customers/{customer.id}/pricelists/',
+        json=request_data
+    )
+    assert response.status_code == 201, response.text
+
+    response_data = response.json()
+
+    expected_price = 100.0 * 1.20 * 1.10 # 10% markup + # 20% markup for this provider
+
+    assert response_data['customer_id'] == customer.id
+    assert response_data['date'] == str(date.today())
+    assert len(response_data['autoparts']) == 1
+    autopart_data = response_data['autoparts'][0]
+    assert autopart_data['autopart_id'] == created_autopart.id
+    assert autopart_data['quantity'] == 10
+    assert abs(float(autopart_data['price']) - expected_price) < 0.01  # Allowing for floating point errors
+
+
+@pytest.mark.asyncio
+async def test_create_customer_pricelist_no_items(
+    test_session: AsyncSession,
+    async_client: AsyncClient,
+    created_customers: list[Customer]
+):
+    customer = created_customers[0]
+
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name='Test Config',
+        general_markup=10.0,
+    )
+    test_session.add(config)
+    await test_session.commit()
+    await test_session.refresh(config)
+
+    request_data = {
+        'date': str(date.today()),
+        'customer_id': customer.id,
+        'config_id': config.id,
+        'items': [],
+        'excluded_own_positions': [],
+        'excluded_supplier_positions': []
+    }
+
+    response = await async_client.post(
+        f'/customers/{customer.id}/pricelists/',
+        json=request_data
+    )
+
+    assert response.status_code == 400, f'Unexpected status code: {response.status_code}'
+
+    response_data = response.json()
+    assert response_data['detail'] == 'No autoparts to include in the pricelist'
+
+
+@pytest.mark.asyncio
+async def test_create_customer_pricelist_invalid_customer(
+        test_session: AsyncSession,
+        async_client: AsyncClient,
+        created_customers: list[Customer]
+):
+    invalid_customer_id = 99999
+    request_data = {
+        'date': str(date.today()),
+        'customer_id': invalid_customer_id,
+        'config_id': 1,
+        'items': [],
+        'excluded_own_positions': [],
+        'excluded_supplier_positions': []
+    }
+
+    response = await async_client.post(
+        f'/customers/{invalid_customer_id}/pricelists/',
+        json=request_data
+    )
+
+    assert response.status_code == 404, f'Unexpected status code: {response.status_code}'
+
+    response_data = response.json()
+    assert response_data['detail'] == 'Customer not found'
+
+
+@pytest.mark.asyncio
+async def test_get_customer_pricelists(
+        test_session: AsyncSession,
+        created_brand: Brand,
+        created_autopart: AutoPart,
+        created_providers: list[Provider],
+        created_customers: list[Customer],
+        async_client: AsyncClient,
+):
+
+    customer = created_customers[0]
+
+    customer_pricelist = CustomerPriceList(
+        customer_id=customer.id,
+        date=date.today(),
+        is_active=True
+    )
+    test_session.add(customer_pricelist)
+    await test_session.flush()
+
+    association = CustomerPriceListAutoPartAssociation(
+        customerpricelist_id=customer_pricelist.id,
+        autopart_id=created_autopart.id,
+        quantity=5,
+        price=Decimal('110.00')
+    )
+    test_session.add(association)
+    await test_session.commit()
+
+    response = await async_client.get(f'/customers/{customer.id}/pricelists/')
+
+    assert response.status_code == 200, f'Unexpected status code: {response.status_code}'
+
+    response_data = response.json()
+    assert isinstance(response_data, list)
+    assert len(response_data) >= 1
+
+    found = False
+    for pricelist in response_data:
+        if pricelist['id'] == customer_pricelist.id:
+            found = True
+            assert pricelist['customer_id'] == customer.id
+            assert pricelist['date'] == str(customer_pricelist.date)
+            assert 'items' in pricelist
+            assert len(pricelist['items']) == 1
+            item = pricelist['items'][0]
+            assert item['quantity'] == 5
+            assert item['price'] == 110.00
+            assert 'autopart' in item
+            autopart = item['autopart']
+            assert autopart['id'] == created_autopart.id
+            assert autopart['brand_id'] == created_autopart.brand_id
+            break
+    assert found, 'CustomerPricelist not found in response'
+
+
+@pytest.mark.asyncio
+async def test_delete_customer_pricelist(
+        test_session: AsyncSession,
+        async_client: AsyncClient,
+        created_brand: Brand,
+        created_autopart: AutoPart,
+        created_providers: list[Provider],
+        created_customers: list[Customer]
+):
+    customer = created_customers[0]
+
+    customer_pricelist = CustomerPriceList(
+        customer_id=customer.id,
+        date=date.today(),
+        is_active=True
+    )
+    test_session.add(customer_pricelist)
+    await test_session.flush()
+
+    association = CustomerPriceListAutoPartAssociation(
+        customerpricelist_id=customer_pricelist.id,
+        autopart_id=created_autopart.id,
+        quantity=5,
+        price=Decimal('110.00')
+    )
+    test_session.add(association)
+    await test_session.commit()
+
+    response = await async_client.delete(
+        f'/customers/{customer.id}/pricelists/{customer_pricelist.id}'
+    )
+
+    assert response.status_code == 200, f'Unexpected status code: {response.status_code}'
+
+    response_data = response.json()
+    expected_detail = f'Deleted {customer_pricelist.id} pricelist for customer {customer.id}'
+    assert response_data['detail'] == expected_detail
+
+    deleted_pricelist = await crud_customer_pricelist.get_by_id(
+        session=test_session,
+        customer_id=customer.id,
+        pricelist_id=customer_pricelist.id
+    )
+    assert deleted_pricelist is None

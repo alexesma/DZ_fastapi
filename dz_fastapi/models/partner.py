@@ -9,12 +9,13 @@ from sqlalchemy import (
     Integer,
     Boolean,
     ForeignKey,
-    Table,
     DECIMAL,
-    TIMESTAMP,
     Index,
-    event
+    event,
+    Float,
+    JSON
 )
+from datetime import date
 from email_validator import validate_email, EmailNotValidError
 from sqlalchemy.orm import relationship, validates
 from dz_fastapi.core.constants import MAX_NAME_PARTNER
@@ -68,7 +69,12 @@ def set_date(mapper, connection, target):
 class Client(Base):
     name = Column(String(MAX_NAME_PARTNER), nullable=False, unique=True)
     type_prices = Column(Enum(TYPE_PRICES), default=TYPE_PRICES.WHOLESALE)
-    email_contact = Column(String(255), unique=True, index=True, nullable=True)
+    email_contact = Column(
+        String(255),
+        unique=True,
+        index=True,
+        nullable=True
+    )
     description = Column(Text, nullable=True)
     comment = Column(Text, default='')
 
@@ -83,7 +89,7 @@ class Client(Base):
     @validates('email_contact')
     def validate_email_contact(self, key, email):
         if email and not self.is_valid_email(email):
-            raise ValueError("Invalid email address")
+            raise ValueError('Invalid email address')
         return email
 
 
@@ -104,11 +110,16 @@ class Provider(Client):
         'PriceList',
         back_populates='provider'
     )
+    pricelist_config = relationship(
+        'ProviderPriceListConfig',
+        uselist=False, back_populates='provider'
+    )
+
 
     @validates('email_incoming_price')
     def validate_email_incoming_price(self, key, email):
         if email and not self.is_valid_email(email):
-            raise ValueError("Invalid email address for incoming price")
+            raise ValueError('Invalid email address for incoming price')
         return email
 
 
@@ -129,6 +140,11 @@ class Customer(Client):
         'CustomerPriceList',
         back_populates='customer'
     )
+    pricelist_configs = relationship(
+        'CustomerPriceListConfig',
+        back_populates='customer',
+        cascade='all, delete-orphan'
+    )
 
     @validates('email_outgoing_price')
     def validate_email_outgoing_price(self, key, email):
@@ -137,17 +153,43 @@ class Customer(Client):
         return email
 
 
-# Ассоциативная таблица для связи прайс-листа с автозапчастями
-price_list_autopart_association = Table(
-    'price_list_autopart_association',
-    Base.metadata,
-    Column('pricelist_id', ForeignKey('pricelist.id'), primary_key=True),
-    Column('autopart_id', ForeignKey('autopart.id'), primary_key=True),
-    Column('quantity', Integer, nullable=False),
-    Column('price', DECIMAL(10, 2)),
-    Index('ix_price_list_autopart_id', 'autopart_id', unique=False),
-    Index('ix_price_list_pricelist_id', 'pricelist_id', unique=False)
-)
+class PriceListAutoPartAssociation(Base):
+    id = None
+
+    pricelist_id = Column(
+        Integer,
+        ForeignKey('pricelist.id'),
+        primary_key=True
+    )
+    autopart_id = Column(
+        Integer,
+        ForeignKey('autopart.id'),
+        primary_key=True
+    )
+    quantity = Column(Integer, nullable=False)
+    price = Column(DECIMAL(10, 2), nullable=False)
+
+    pricelist = relationship(
+        'PriceList',
+        back_populates='autopart_associations'
+    )
+    autopart = relationship(
+        'AutoPart',
+        back_populates='price_list_associations'
+    )
+
+    __table_args__ = (
+        Index(
+            'ix_price_list_autopart_id',
+            'autopart_id',
+            unique=False
+        ),
+        Index(
+            'ix_price_list_pricelist_id',
+            'pricelist_id',
+            unique=False
+        ),
+    )
 
 
 class PriceList(Base):
@@ -161,10 +203,47 @@ class PriceList(Base):
     )
     provider = relationship('Provider', back_populates='price_lists')
     is_active = Column(Boolean, default=DEFAULT_IS_ACTIVE)
-    autoparts = relationship(
-        'AutoPart',
-        secondary='price_list_autopart_association',
-        back_populates='price_lists'
+    autopart_associations = relationship(
+        'PriceListAutoPartAssociation',
+        back_populates='pricelist',
+        cascade='all, delete-orphan'
+    )
+
+
+class CustomerPriceListAutoPartAssociation(Base):
+    id = None
+    customerpricelist_id = Column(
+        Integer,
+        ForeignKey('customerpricelist.id'),
+        primary_key=True
+    )
+    autopart_id = Column(
+        Integer,
+        ForeignKey('autopart.id'),
+        primary_key=True
+    )
+    quantity = Column(Integer, nullable=False)
+    price = Column(DECIMAL(10, 2))
+
+    customerpricelist = relationship(
+        "CustomerPriceList",
+        back_populates="autopart_associations"
+    )
+    autopart = relationship(
+        "AutoPart",
+        back_populates="customer_price_list_associations"
+    )
+
+    __table_args__ = (
+        Index('ix_customer_price_list_autopart_id',
+              'autopart_id',
+              unique=False
+              ),
+        Index(
+            'ix_customer_price_list_customerpricelist_id',
+            'customerpricelist_id',
+            unique=False
+        ),
     )
 
 
@@ -172,18 +251,20 @@ class CustomerPriceList(Base):
     '''
     Модель Прайс-листа для клиента.
     '''
-    date = Column(Date)
+    date = Column(Date, default=date.today)
     customer_id = Column(
         Integer,
         ForeignKey('customer.id')
     )
-    customer = relationship('Customer',
-                            back_populates='customer_price_lists'
-                            )
-    autoparts = relationship(
-        'AutoPart',
-        secondary='customer_price_list_autopart_association',
+    customer = relationship(
+        'Customer',
         back_populates='customer_price_lists'
+    )
+    autopart_associations = relationship(
+        'CustomerPriceListAutoPartAssociation',
+        back_populates='customerpricelist',
+        cascade='all, delete-orphan',
+        lazy='selectin'
     )
     is_active = Column(Boolean, default=DEFAULT_IS_ACTIVE)
 
@@ -191,13 +272,41 @@ class CustomerPriceList(Base):
 event.listen(PriceList, 'before_insert', set_date)
 event.listen(CustomerPriceList, 'before_insert', set_date)
 
-customer_price_list_autopart_association = Table(
-    'customer_price_list_autopart_association',
-    Base.metadata,
-    Column('customerpricelist_id', ForeignKey('customerpricelist.id'), primary_key=True),
-    Column('autopart_id', ForeignKey('autopart.id'), primary_key=True),
-    Column('quantity', Integer, nullable=False),
-    Column('price', DECIMAL(10, 2)),
-    Index('ix_customer_price_list_autopart_id', 'autopart_id', unique=False),
-    Index('ix_customer_price_list_customerpricelist_id', 'customerpricelist_id', unique=False)
-)
+
+class ProviderPriceListConfig(Base):
+    provider_id = Column(Integer, ForeignKey('provider.id'), unique=True)
+    start_row = Column(Integer, nullable=False)
+    oem_col = Column(Integer, nullable=False)
+    name_col = Column(Integer, nullable=True)
+    brand_col = Column(Integer, nullable=True)
+    qty_col = Column(Integer, nullable=False)
+    price_col = Column(Integer, nullable=False)
+
+    provider = relationship('Provider', back_populates='pricelist_config')
+
+
+class CustomerPriceListConfig(Base):
+    id = Column(Integer, primary_key=True)
+
+    customer_id = Column(
+        Integer,
+        ForeignKey('customer.id'),
+        nullable=False
+    )
+
+    name = Column(String(255), nullable=False, unique=True)
+    general_markup = Column(Float, default=0.0)  # Общая наценка
+    own_price_list_markup = Column(Float, default=0.0)  # Наценка на наш прайс-лист
+    third_party_markup = Column(Float, default=0.0)  # Наценка на стороние прайс-листы общая
+    individual_markups = Column(JSON, default={})  # Индивидуальная наценка (provider_id: markup)
+    brand_filters = Column(JSON, default=[])  # Список брендов для фильтра(include/exclude)
+    category_filter = Column(JSON, default=[])  # Список категорий для фильтра(include/exclude)
+    price_intervals = Column(JSON, default=[])  # Price intervals with coefficients
+    position_filters = Column(JSON, default=[])  # List of position IDs to include/exclude
+    supplier_quantity_filters = Column(JSON, default=[])  # Supplier-specific quantity filters
+    additional_filters = Column(JSON, default={})  # Other custom filters
+
+    customer = relationship(
+        'Customer',
+        back_populates='pricelist_configs'
+    )

@@ -26,8 +26,8 @@ class AutoPartBase(BaseModel):
 class AutoPartResponse(BaseModel):
     id: int
     brand_id: int
-    oem_number: str
-    name: str
+    oem_number: Optional[str]
+    name: Optional[str]
     description: Optional[str] = None
     width: Optional[float] = None
     height: Optional[float] = None
@@ -82,6 +82,18 @@ class AutoPartCreate(BaseModel):
     storage_location_name: Optional[str] = None
 
 
+class AutoPartCreatePriceList(BaseModel):
+    oem_number: str
+    brand: Optional[str] = None
+    name: Optional[str] = None
+    multiplicity: Optional[int] = None
+    purchase_price: Optional[float] = None
+    retail_price: Optional[float] = None
+    wholesale_price: Optional[float] = None
+    comment: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
 class AutoPartCreateInDB(AutoPartBase):
     pass
 
@@ -115,7 +127,7 @@ class AutoPartUpdateInDB(AutoPartBase):
 class AutoPartPricelist(BaseModel):
     brand: Optional[str] = None
     oem_number: str
-    name: str
+    name: Optional[str] = None
     multiplicity: Optional[int] = None
     purchase_price: Optional[float] = None
     retail_price: Optional[float] = None

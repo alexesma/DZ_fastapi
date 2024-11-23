@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from dz_fastapi.api.validators import change_brand_name
+from dz_fastapi.api.validators import change_brand_name, change_string
 from dz_fastapi.core.db import AsyncSession
 from dz_fastapi.models.autopart import AutoPart, Category, StorageLocation
 from dz_fastapi.crud.base import CRUDBase
@@ -13,7 +13,7 @@ from dz_fastapi.models.brand import Brand
 from dz_fastapi.schemas.autopart import (
     AutoPartCreate,
     AutoPartUpdate,
-    AutoPartPricelist,
+    AutoPartCreatePriceList,
     CategoryCreate,
     CategoryUpdate,
     StorageLocationCreate,
@@ -59,24 +59,35 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             autopart_data = new_autopart.model_dump(exclude_unset=True)
             category_name = autopart_data.pop('category_name', None)
             storage_location_name = autopart_data.pop('storage_location_name', None)
-            # autopart_data['name'] = await change_brand_name(autopart_data['name'])
+            autopart_data['name'] = await change_string(autopart_data['name'])
             autopart = AutoPart(**autopart_data)
             autopart.brand = brand
             autopart.categories = []
             if category_name:
-                category = await crud_category.get_category_id_by_name(category_name, session)
+                category = await crud_category.get_category_id_by_name(
+                    category_name,
+                    session
+                )
                 if not category:
-                    raise HTTPException(status_code=400, detail="Category '{category_name}' does not exist.")
+                    raise HTTPException(status_code=400,
+                                        detail=f'Category {
+                                        category_name
+                                        } does not exist.'
+                                        )
                 autopart.categories.append(category)
             autopart.storage_locations = []
             if storage_location_name:
                 storage_location = await crud_storage.get_storage_location_id_by_name(storage_location_name, session)
                 if not storage_location:
-                    raise HTTPException(status_code=400, detail="Storage location '{storage_location_name}' does not exist.")
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f'Storage location {storage_location_name} does not exist.'
+                    )
                 autopart.storage_locations.append(storage_location)
             session.add(autopart)
             await session.commit()
             await session.refresh(autopart)
+            logger.debug(f"Created new AutoPart: ID={autopart.id}")
             return autopart
         except SQLAlchemyError as error:
             await session.rollback()
@@ -97,6 +108,19 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         result = await session.execute(stmt)
         autoparts = result.scalars().unique().all()
         return autoparts
+
+    async def get_autopart_by_oem_brand_or_none(
+            self,
+            oem_number: str,
+            brand_id: int,
+            session: AsyncSession,
+    ) -> AutoPart:
+        stmt = select(AutoPart).where(
+            AutoPart.brand_id == brand_id,
+            AutoPart.oem_number == oem_number
+        )
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def get_autopart_by_id(
         self,
@@ -119,16 +143,16 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             logger.error(f"Database error when fetching autopart {autopart_id}: {e}")
             raise
 
-    async def create_autoparts_from_price(
+    async def create_autopart_from_price(
             self,
-            new_autopart: AutoPartPricelist,
+            new_autopart: AutoPartCreatePriceList,
             session: AsyncSession,
             default_brand: Optional[Brand] = None
-    ):
+    ) -> Optional[AutoPart]:
         autopart_data = new_autopart.model_dump(exclude_unset=True)
         brand_name = autopart_data.pop('brand', None)
         if brand_name:
-            brand_name = change_brand_name(brand_name)
+            brand_name = await change_brand_name(brand_name=brand_name)
             brand = await brand_crud.get_brand_by_name_or_none(
                 brand_name=brand_name,
                 session=session
@@ -144,7 +168,17 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             logger.warning('No brand specified and no default brand provided. Skipping autopart creation.')
             return None
 
-        autopart_create_data = AutoPartCreate(**autopart_data)
+        existing_autopart = await self.get_autopart_by_oem_brand_or_none(
+            oem_number=autopart_data['oem_number'],
+            brand_id=brand.id,
+            session=session
+        )
+
+        if existing_autopart:
+            logger.debug(f"Autopart already exists: ID {existing_autopart.id}")
+            return existing_autopart
+
+        autopart_create_data = AutoPartCreate(**autopart_data, brand_id=brand.id)
 
         autopart = await self.create_autopart(
             new_autopart=autopart_create_data,

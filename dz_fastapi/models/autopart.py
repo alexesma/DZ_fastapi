@@ -38,9 +38,9 @@ from dz_fastapi.models.partner import (
     Customer,
     PriceList,
     Provider,
-    price_list_autopart_association,
+    PriceListAutoPartAssociation,
     CustomerPriceList,
-    customer_price_list_autopart_association
+    CustomerPriceListAutoPartAssociation
 )
 
 
@@ -106,33 +106,56 @@ class AutoPart(Base):
             'oem_number',
             name='uq_brand_oem_number'
         ),
-        CheckConstraint('width > 0', name='check_width_positive'),
-        CheckConstraint('height > 0', name='check_height_positive'),
-        CheckConstraint('length > 0', name='check_length_positive'),
-        CheckConstraint('weight > 0', name='check_weight_positive'),
-        CheckConstraint('purchase_price >= 0', name='check_purchase_price_non_negative'),
-        CheckConstraint('retail_price >= 0', name='check_retail_price_non_negative'),
-        CheckConstraint('wholesale_price >= 0', name='check_wholesale_price_non_negative'),
+        CheckConstraint(
+            'width > 0',
+            name='check_width_positive'
+        ),
+        CheckConstraint(
+            'height > 0',
+            name='check_height_positive'
+        ),
+        CheckConstraint(
+            'length > 0',
+            name='check_length_positive'
+        ),
+        CheckConstraint(
+            'weight > 0',
+            name='check_weight_positive'
+        ),
+        CheckConstraint(
+            'purchase_price >= 0',
+            name='check_purchase_price_non_negative'
+        ),
+        CheckConstraint(
+            'retail_price >= 0',
+            name='check_retail_price_non_negative'
+        ),
+        CheckConstraint(
+            'wholesale_price >= 0',
+            name='check_wholesale_price_non_negative'
+        ),
     )
     categories = relationship(
         'Category',
         secondary='autopart_category_association',
-        back_populates='autoparts'
+        back_populates='autoparts',
+        lazy='selectin'
     )
     storage_locations = relationship(
         'StorageLocation',
         secondary='autopart_storage_association',
-        back_populates='autoparts'
+        back_populates='autoparts',
+        lazy='selectin'
     )
-    price_lists = relationship(
-        'PriceList',
-        secondary='price_list_autopart_association',
-        back_populates='autoparts'
+    price_list_associations = relationship(
+        'PriceListAutoPartAssociation',
+        back_populates='autopart',
+        cascade='all, delete-orphan'
     )
-    customer_price_lists = relationship(
-        'CustomerPriceList',
-        secondary='customer_price_list_autopart_association',
-        back_populates='autoparts'
+    customer_price_list_associations = relationship(
+        'CustomerPriceListAutoPartAssociation',
+        back_populates='autopart',
+        cascade='all, delete-orphan'
     )
     __mapper_args__ = {'polymorphic_identity': 'autopart'}
 
@@ -155,11 +178,11 @@ def preprocess_auto_part(mapper, connection, target):
         ).fetchone()
         if brand_name_result:
             brand_name = brand_name_result[0]
-            target.barcode = f"{brand_name}{target.oem_number}"
+            target.barcode = f'{brand_name}{target.oem_number}'
         else:
-            raise ValueError("Brand not found")
+            raise ValueError('Brand not found')
     else:
-        raise ValueError("Cannot create AutoPart without a brand")
+        raise ValueError('Cannot create AutoPart without a brand')
 
 
 @event.listens_for(AutoPart, 'before_update')
@@ -177,8 +200,8 @@ def preprocess_auto_part_update(mapper, connection, target):
 
     if state.attrs.brand_id.history.has_changes() or state.attrs.oem_number.history.has_changes():
         if not target.brand:
-            raise ValueError("Нельзя изменить автозапчасть без указания бренда.")
-        target.barcode = f"{target.brand.name}{target.oem_number}"
+            raise ValueError('Нельзя изменить автозапчасть без указания бренда.')
+        target.barcode = f'{target.brand.name}{target.oem_number}'
 
 
 class Category(Base):
@@ -206,8 +229,7 @@ class Category(Base):
     autoparts = relationship(
         'AutoPart',
         secondary='autopart_category_association',
-        # cascade='save-update',
-        # lazy='selectin',
+        lazy='selectin',
         back_populates='categories'
     )
 
@@ -237,6 +259,7 @@ class StorageLocation(Base):
         'AutoPart',
         secondary='autopart_storage_association',
         back_populates='storage_locations',
+        lazy='selectin',
         cascade='all, delete'
     )
     __table_args__ = (

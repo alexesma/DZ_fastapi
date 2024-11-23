@@ -2,6 +2,8 @@ import tempfile
 import pytest
 import logging
 
+from httpx import AsyncClient, ASGITransport
+
 logger = logging.getLogger('dz_fastapi')
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -68,7 +70,10 @@ async def created_brand(test_session: AsyncSession) -> Brand:
     return brand
 
 @pytest.fixture
-async def created_autopart(test_session: AsyncSession, created_brand: Brand) -> AutoPart:
+async def created_autopart(
+        test_session: AsyncSession,
+        created_brand: Brand
+) -> AutoPart:
     autopart = AutoPart(
         name='TEST AUTOPART',
         brand_id=created_brand.id,
@@ -165,6 +170,13 @@ async def created_storage(test_session: AsyncSession) -> StorageLocation:
     await test_session.commit()
     await test_session.refresh(storage)
     return storage
+
+
+@pytest.fixture(scope="function")
+async def async_client(test_session: AsyncSession):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url='http://test') as client:
+        yield client
 
 
 @pytest.fixture(scope='function', autouse=True)

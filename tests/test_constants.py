@@ -44,3 +44,12 @@ TEST_CUSTOMER = {
     'description': 'A test customer',
     'email_outgoing_price': 'testcustomer@customer.ru'
 }
+
+CONFIG_DATA = {
+        'start_row': 1,
+        'oem_col': 0,
+        'brand_col': 1,
+        'name_col': 2,
+        'qty_col': 3,
+        'price_col': 4
+}

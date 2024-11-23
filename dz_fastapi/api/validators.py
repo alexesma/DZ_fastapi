@@ -76,3 +76,42 @@ async def change_storage_name(storage_name: str) -> str:
     storage_name = re.sub(r'[ -]{2,}', '-', storage_name)
     storage_name = storage_name.strip(' -')
     return storage_name
+
+
+async def apply_filters(autopart_associations, config):
+    # Filter by brands
+    if config.brand_filters:
+        autopart_associations = [
+            assoc for assoc in autopart_associations
+            if assoc.autopart.brand.name in config.brand_filters
+        ]
+
+    # Filter by price range
+    min_price = config.price_filters.get('min_price')
+    max_price = config.price_filters.get('max_price')
+    if min_price is not None:
+        autopart_associations = [
+            assoc for assoc in autopart_associations if float(assoc.price) >= min_price
+        ]
+    if max_price is not None:
+        autopart_associations = [
+            assoc for assoc in autopart_associations if float(assoc.price) <= max_price
+        ]
+
+    # Apply additional filters if any
+    # Implement your logic based on config.additional_filters
+
+    return autopart_associations
+
+async def calculate_price(assoc, config):
+    # Check if there's an individual markup for this supplier price list
+    supplier_pricelist_id = assoc.pricelist_id
+    individual_markup = config.individual_markups.get(str(supplier_pricelist_id))
+
+    if individual_markup is not None:
+        markup = individual_markup
+    else:
+        markup = config.general_markup
+
+    new_price = float(assoc.price) * (1 + markup / 100)
+    return round(new_price, 2)

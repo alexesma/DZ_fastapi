@@ -13,9 +13,9 @@ from dz_fastapi.models.partner import (
     Customer,
     PriceList,
     Provider,
-    price_list_autopart_association,
+    PriceListAutoPartAssociation,
     CustomerPriceList,
-    customer_price_list_autopart_association
+    CustomerPriceListAutoPartAssociation
 )
 
 __all__ = [
@@ -32,7 +32,7 @@ __all__ = [
     'Customer',
     'PriceList',
     'Provider',
-    'price_list_autopart_association',
+    'PriceListAutoPartAssociation',
     'CustomerPriceList',
-    'customer_price_list_autopart_association'
+    'CustomerPriceListAutoPartAssociation'
 ]
