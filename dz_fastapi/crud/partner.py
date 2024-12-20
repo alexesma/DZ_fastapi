@@ -1,9 +1,11 @@
+from datetime import date
 from typing import Any, Dict, Optional, Union, List
+import io
 
 import pandas as pd
 from fastapi import HTTPException
 from pydantic import ValidationError
-from sqlalchemy import insert
+from sqlalchemy import insert, func
 from sqlalchemy.future import select
 from sqlalchemy.sql import and_
 from sqlalchemy.orm import selectinload, joinedload
@@ -19,9 +21,12 @@ from dz_fastapi.models.partner import (
     ProviderPriceListConfig,
     PriceListAutoPartAssociation,
     CustomerPriceListAutoPartAssociation,
-    CustomerPriceListConfig,
+    CustomerPriceListConfig, ProviderLastEmailUID,
 )
-from dz_fastapi.schemas.autopart import AutoPartPricelist
+from dz_fastapi.schemas.autopart import (
+    AutoPartPricelist,
+    AutoPartCreatePriceList, AutoPartResponse
+)
 from dz_fastapi.schemas.partner import (
     ProviderCreate,
     ProviderUpdate,
@@ -36,10 +41,19 @@ from dz_fastapi.schemas.partner import (
     ProviderPriceListConfigUpdate,
     PriceListResponse,
     CustomerPriceListConfigCreate,
-    CustomerPriceListConfigUpdate
+    CustomerPriceListConfigUpdate,
+
 )
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 import logging
+
+from dz_fastapi.services.utils import (
+    individual_markups,
+    price_intervals,
+    brand_filters,
+    position_filters,
+    supplier_quantity_filters
+)
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -280,11 +294,11 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                     if hasattr(assoc, 'autopart'):
                         logger.debug(
                             f"AutoPart - ID: {
-                            autopart.id
+                            assoc.autopart.id
                             }, OEM Number: {
-                            autopart.oem_number
+                            assoc.autopart.oem_number
                             }, Name: {
-                            autopart.name
+                            assoc.autopart.name
                             }")
 
             try:
@@ -329,6 +343,58 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                 status_code=500,
                 detail='Unexpected error during creation'
             )
+
+    async def count_by_provider_id(
+            self,
+            provider_id: int,
+            session: AsyncSession
+    ) -> int:
+        total_count_stmt = select(func.count(PriceList.id)).where(
+            PriceList.provider_id == provider_id
+        )
+        total_result = await session.execute(total_count_stmt)
+        return total_result.scalar_one()
+
+    async def get_by_provider_paginated(
+            self,
+            provider_id: int,
+            skip: int,
+            limit: int,
+            session: AsyncSession
+    ):
+        # Подзапрос для получения ограниченного списка прайс-листов
+        pricelist_subquery = (
+            select(
+                PriceList.id.label('id'),
+                PriceList.date.label('date')
+            )
+            .where(PriceList.provider_id == provider_id)
+            .order_by(PriceList.date.desc())
+            .offset(skip)
+            .limit(limit)
+            .subquery()
+        )
+
+        # Основной запрос с агрегацией
+        stmt = (
+            select(
+                pricelist_subquery.c.id,
+                pricelist_subquery.c.date,
+                func.count(PriceListAutoPartAssociation.autopart_id).label('num_positions')
+            )
+            .outerjoin(
+                PriceListAutoPartAssociation,
+                PriceListAutoPartAssociation.pricelist_id == pricelist_subquery.c.id
+            )
+            .group_by(
+                pricelist_subquery.c.id,
+                pricelist_subquery.c.date
+            )
+            .order_by(pricelist_subquery.c.date.desc())
+        )
+
+        result = await session.execute(stmt)
+        return result.all()
 
     async def get(
             self,
@@ -395,6 +461,17 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                 'price': float(assoc.price),
             })
         return pd.DataFrame(data)
+
+    async def get_pricelist_ids_by_provider(
+            self,
+            session: AsyncSession,
+            provider_id: int
+    ) -> List[int]:
+        stmt = select(PriceList.id).where(PriceList.provider_id == provider_id)
+        result = await session.execute(stmt)
+        rows = result.all()  # вернёт список кортежей (id,)
+        pricelist_ids = [row.id for row in rows]
+        return pricelist_ids
 
 
 crud_pricelist = CRUDPriceList(PriceList)
@@ -554,7 +631,9 @@ class CRUDCustomerPriceList(
                 CustomerPriceListAutoPartAssociation.c.quantity,
                 CustomerPriceListAutoPartAssociation.c.price,
                 AutoPart,
-            ).join(AutoPart, AutoPart.id == CustomerPriceListAutoPartAssociation.c.autopart_id
+            ).join(
+                AutoPart,
+                AutoPart.id == CustomerPriceListAutoPartAssociation.c.autopart_id
             ).where(CustomerPriceListAutoPartAssociation.c.customerpricelist_id == obj_id)
         )
         autoparts = result.all()
@@ -564,47 +643,55 @@ class CRUDCustomerPriceList(
     def apply_coefficient(
             self,
             df: pd.DataFrame,
-            config
+            config: CustomerPriceListConfig,
     ) -> pd.DataFrame:
+        logger.debug(f'Into apply_coefficient data df:{df}, cofig: {config.__dict__}')
+        individualmarkups = config.individual_markups
+        priceintervals = config.price_intervals
+        brandfilters = config.brand_filters
+        positionfilters = config.position_filters
+        supplierquantityfilters = config.supplier_quantity_filters
 
         # Ensure 'price' column is numeric
         df['price'] = pd.to_numeric(df['price'], errors='coerce')
 
-        # Apply general markup
-        df['price'] *= (config.general_markup / 100 + 1)
-
         # Apply individual markups per supplier
-        if config.individual_markups:
-            for provider_id, markup in config.individual_markups.items():
-                multiplier = markup / 100 + 1
-                df.loc[df['provider_id'] == int(provider_id), 'price'] *= multiplier
+        if individual_markups:
+            df = individual_markups(
+                individual_markups=individualmarkups,
+                df=df
+            )
 
         # Apply price intervals with coefficients
-        if config.price_intervals:
-            for interval in config.price_intervals:
-                min_price = float(interval.min_price)
-                max_price = float(interval.max_price)
-                coefficient = interval.coefficient
-                mask = (df['price'] >= min_price) & (df['price'] <= max_price)
-                df.loc[mask, 'price'] *= coefficient
+        if priceintervals:
+            df = price_intervals(
+                price_intervals=priceintervals,
+                df=df
+            )
 
         # Apply brand filters
-        if config.brand_filters:
-            df = df[df['brand_id'].isin(config.brand_filters)]
+        if brandfilters:
+            df = brand_filters(
+                brand_filters=brandfilters,
+                df=df
+            )
 
         # Apply position filters
-        if config.position_filters:
-            df = df[df['autopart_id'].isin(config.position_filters)]
+        if positionfilters:
+            df = position_filters(
+                position_filters=positionfilters,
+                df=df
+            )
 
         # Apply supplier quantity filters
-        if config.supplier_quantity_filters:
-            for supplier_filter in config.supplier_quantity_filters:
-                provider_id = supplier_filter.provider_id
-                min_qty = supplier_filter.min_quantity
-                max_qty = supplier_filter.max_quantity
-                mask = (df['provider_id'] == provider_id) & \
-                       (df['quantity'] >= min_qty) & (df['quantity'] <= max_qty)
-                df = df[mask]
+        if supplierquantityfilters:
+            df = supplier_quantity_filters(
+                supplier_quantity_filters=supplierquantityfilters,
+                df=df
+            )
+
+        # Apply general markup
+        df['price'] *= (config.general_markup / 100 + 1)
 
         return df
 
@@ -635,6 +722,40 @@ class CRUDCustomerPriceList(
                    CustomerPriceList.id == pricelist_id)
         )
         return result.scalars().first()
+
+    async def create_associations(
+            self,
+            customer_pricelist_id: int,
+            autoparts_data: list[dict],
+            session: AsyncSession
+    ) -> list[CustomerPriceListAutoPartAssociation]:
+        associations = []
+        for entry in autoparts_data:
+            if 'autopart_id' in entry and entry['autopart_id']:
+                association = CustomerPriceListAutoPartAssociation(
+                    customerpricelist_id=customer_pricelist_id,
+                    autopart_id=entry['autopart_id'],
+                    quantity=entry['quantity'],
+                    price=entry['price']
+                )
+                associations.append(association)
+                session.add(association)
+            else:
+                # Handle items without autopart_id (log)
+                logger.debug(
+                    f'Skipping association for item without autopart_id: {entry}'
+                )
+        await session.commit()
+        result = await session.execute(
+            select(CustomerPriceListAutoPartAssociation)
+            .options(selectinload(CustomerPriceListAutoPartAssociation.autopart)
+                     .selectinload(AutoPart.brand)
+                     )
+            .where(
+                CustomerPriceListAutoPartAssociation.customerpricelist_id == customer_pricelist_id
+            )
+        )
+        return result.scalars().all()
 
 
 crud_customer_pricelist = CRUDCustomerPriceList(CustomerPriceList)
@@ -675,7 +796,8 @@ class CRUDProviderPriceListConfig(CRUDBase[
             self,
             provider_id: int,
             config_in: ProviderPriceListConfigCreate,
-            session: AsyncSession
+            session: AsyncSession,
+            **kwargs
     ) -> ProviderPriceListConfig:
         new_config = ProviderPriceListConfig(
             provider_id=provider_id,
@@ -740,11 +862,98 @@ class CRUDCustomerPriceListConfig(
             customer_id: int
     ) -> List[CustomerPriceListConfig]:
         result = await session.execute(
-            select(CustomerPriceListConfig).where(CustomerPriceListConfig.customer_id == customer_id)
+            select(CustomerPriceListConfig).where(
+                CustomerPriceListConfig.customer_id == customer_id
+            )
         )
         return result.scalars().all()
 
 
+    async def get_by_name(
+            self,
+            customer_id: int,
+            name: str,
+            session: AsyncSession
+    ):
+        result = await session.execute(
+            select(CustomerPriceListConfig).where(
+                and_(
+                    CustomerPriceListConfig.name == name,
+                    CustomerPriceListConfig.customer_id == customer_id
+                )
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def create_config(
+            self,
+            customer_id: int,
+            config_in: CustomerPriceListConfigCreate,
+            session: AsyncSession
+    ) -> CustomerPriceListConfig:
+        # Проверяем, есть ли уже конфигурация с таким именем
+        existing_config = await self.get_by_name(
+            customer_id=customer_id,
+            name=config_in.name,
+            session=session
+        )
+        if existing_config:
+            raise ValueError(
+                f'A configuration with the name {
+                config_in.name
+                } already exists.'
+            )
+
+        # Создаем новую конфигурацию
+        new_config = CustomerPriceListConfig(
+            customer_id=customer_id,
+            **config_in.model_dump()
+        )
+        session.add(new_config)
+        await session.commit()
+        await session.refresh(new_config)
+        return new_config
+
 crud_customer_pricelist_config = CRUDCustomerPriceListConfig(
     CustomerPriceListConfig
 )
+
+
+async def get_last_uid(
+        provider_id: int,
+        session: AsyncSession
+) -> int:
+    result = await session.execute(
+        select(
+            ProviderLastEmailUID
+        ).where(
+            ProviderLastEmailUID.provider_id == provider_id
+        )
+    )
+    record = result.scalar_one_or_none()
+    if record:
+        return record.last_uid
+    return 0
+
+
+async def set_last_uid(
+        provider_id: int,
+        last_uid: int,
+        session: AsyncSession
+):
+    result = await session.execute(
+        select(
+            ProviderLastEmailUID
+        ).where(
+            ProviderLastEmailUID.provider_id == provider_id
+        )
+    )
+    record = result.scalar_one_or_none()
+
+    if record:
+        record.last_uid = last_uid
+    else:
+        record = ProviderLastEmailUID(provider_id=provider_id, last_uid=last_uid)
+        session.add(record)
+
+    await session.commit()

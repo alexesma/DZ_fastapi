@@ -132,6 +132,25 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
 
         return list(all_synonyms)
 
+    async def get_brands_by_names(
+            self,
+            brand_names: List[str],
+            session: AsyncSession
+    ) -> List[Brand]:
+        try:
+            logger.debug('Получение брендов по названиям')
+            db_brands = await session.execute(
+                select(Brand)
+                .options(selectinload(Brand.synonyms))
+                .where(Brand.name.in_(brand_names))
+            )
+            brands = db_brands.scalars().all()
+            logger.debug(f'Найденные бренды: {brands}')
+            return brands
+        except Exception as e:
+            logger.error(f'Ошибка в get_brands_by_names: {e}')
+            raise
+
     async def add_synonym(self, brand: Brand, synonym: Brand, session: AsyncSession) -> Brand:
         logger.debug(f'Добавление синонима: бренд={brand.name}, синоним={synonym.name}')
         logger.debug(f'Атрибуты и методы бренда: {dir(brand)}')

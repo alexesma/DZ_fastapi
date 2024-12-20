@@ -13,7 +13,8 @@ from sqlalchemy import (
     Index,
     event,
     Float,
-    JSON
+    JSON,
+    DateTime
 )
 from datetime import date
 from email_validator import validate_email, EmailNotValidError
@@ -113,6 +114,11 @@ class Provider(Client):
     pricelist_config = relationship(
         'ProviderPriceListConfig',
         uselist=False, back_populates='provider'
+    )
+    provider_last_uid = relationship(
+        'ProviderLastEmailUID',
+        back_populates='provider',
+        uselist=False
     )
 
 
@@ -281,6 +287,8 @@ class ProviderPriceListConfig(Base):
     brand_col = Column(Integer, nullable=True)
     qty_col = Column(Integer, nullable=False)
     price_col = Column(Integer, nullable=False)
+    name_price = Column(String, nullable=True)
+    name_mail = Column(String, nullable=True)
 
     provider = relationship('Provider', back_populates='pricelist_config')
 
@@ -310,3 +318,15 @@ class CustomerPriceListConfig(Base):
         'Customer',
         back_populates='pricelist_configs'
     )
+
+
+class ProviderLastEmailUID(Base):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    provider_id = Column(Integer, ForeignKey('provider.id'), primary_key=True, unique=True)
+    last_uid = Column(Integer, nullable=False, default=0)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=datetime.now,
+        onupdate=datetime.now
+    )
+    provider = relationship('Provider', back_populates='provider_last_uid')

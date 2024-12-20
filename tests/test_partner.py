@@ -828,7 +828,7 @@ async def test_create_customer_pricelist(
         own_price_list_markup=5.0,
         third_party_markup=15.0,
         individual_markups={str(provider.id): 20.0},  # 20% markup for this provider
-        brand_filters=[created_brand.id],
+        brand_filters={'include': [created_brand.id]},
         category_filter=[],
         price_intervals=[],
         position_filters=[],

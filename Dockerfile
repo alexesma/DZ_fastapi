@@ -9,7 +9,8 @@ RUN apt-get update && apt-get install -y \
     nano \
     libjpeg-dev \
     libpng-dev \
-    libfreetype6-dev
+    libfreetype6-dev \
+  && rm -rf /var/lib/apt/lists/*
 
 # Обновите pip до последней версии
 RUN pip install --upgrade pip

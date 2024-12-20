@@ -13,6 +13,10 @@ class CountryEnum(StrEnum):
     JAPAN = 'Japan'
     RUSSIA = 'Russia'
     SPAIN = 'Spain'
+    BELGIUM = 'Belgium'
+    SOUTH_KOREA = 'South Korea'
+    POLAND = 'Poland'
+    TAIWAN = 'Taiwan'
 
 
 class BrandBase(BaseModel):

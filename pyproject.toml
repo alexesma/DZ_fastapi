@@ -29,6 +29,8 @@ psycopg2-binary = "^2.9.9"
 email-validator = "^2.2.0"
 pandas = "^2.2.3"
 openpyxl = "^3.1.5"
+imap-tools = "^1.7.4"
+apscheduler = "^3.11.0"
 
 [build-system]
 requires = ["poetry-core"]

@@ -23,8 +23,15 @@ from dz_fastapi.api.brand import router as brand_router
 from dz_fastapi.api.partner import router as partner_router
 from dz_fastapi.core.config import settings
 from dz_fastapi.core.db import get_engine
+from contextlib import asynccontextmanager
+from dz_fastapi.services.scheduler import start_scheduler
 
-app = FastAPI(title=settings.app_title, description=settings.app_description)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    start_scheduler(app)
+    yield
+
+app = FastAPI(title=settings.app_title, description=settings.app_description, lifespan=lifespan)
 
 app.mount("/uploads", StaticFiles(directory=os.path.join(os.getcwd(), "uploads")), name="uploads")
 app.include_router(autopart_router)

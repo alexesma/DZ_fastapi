@@ -59,7 +59,7 @@ async def get_brand(
     brand = await brand_crud.get_brand_by_id(brand_id=brand_id,session=session)
 
     if not brand:
-        raise HTTPException(status_code=404, detail="Brand not found")
+        raise HTTPException(status_code=404, detail='Brand not found')
 
     brand.synonyms = await brand_crud.get_all_synonyms_bi_directional(brand=brand, session=session)
     return brand

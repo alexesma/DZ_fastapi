@@ -164,6 +164,7 @@ class CustomerPriceListResponse(CustomerPriceListBase):
     date: date
     customer_id: int
     autoparts: List['AutoPartInPricelist']
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProviderResponse(ProviderBase):
@@ -185,6 +186,8 @@ class ProviderPriceListConfigBase(BaseModel):
     brand_col: Optional[int] = None
     qty_col: int
     price_col: int
+    name_price: Optional[str] = None
+    name_mail: Optional[str] = None
 
 
 class ProviderPriceListConfigCreate(ProviderPriceListConfigBase):
@@ -324,6 +327,8 @@ class AutoPartInPricelist(BaseModel):
     autopart_id: int
     quantity: int
     price: float
+    autopart: Optional[AutoPartResponse]
+    model_config = ConfigDict(from_attributes=True)
 
 class CustomerAllPriceListResponse(BaseModel):
     id: int
