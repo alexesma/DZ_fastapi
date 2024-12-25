@@ -13,7 +13,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from dz_fastapi.core.constants import MAX_NAME_BRAND, MAX_LEN_WEBSITE
-from dz_fastapi.core.db import Base
+from dz_fastapi.core.base import Base
 
 brand_synonyms = Table(
     'brand_synonyms',

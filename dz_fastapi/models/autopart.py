@@ -1,3 +1,4 @@
+import logging
 import re
 import string
 import unicodedata
@@ -30,18 +31,9 @@ from dz_fastapi.core.constants import (
     MAX_LIGHT_NAME_LOCATION,
     MAX_LEN_WEBSITE
 )
-from dz_fastapi.core.db import Base
+from dz_fastapi.core.base import Base
 
-from dz_fastapi.models.brand import Brand
-from dz_fastapi.models.partner import (
-    Client,
-    Customer,
-    PriceList,
-    Provider,
-    PriceListAutoPartAssociation,
-    CustomerPriceList,
-    CustomerPriceListAutoPartAssociation
-)
+logger = logging.getLogger('dz_fastapi')
 
 
 def change_string(old_string: str) -> str:
@@ -162,27 +154,32 @@ class AutoPart(Base):
 
 @event.listens_for(AutoPart, 'before_insert')
 def preprocess_auto_part(mapper, connection, target):
-    # Преобразовать oem_number в верхний регистр и удалить специальные символы
-    target.oem_number = preprocess_oem_number(target.oem_number)
+    try:
+        from dz_fastapi.models.brand import Brand
+        # Преобразовать oem_number в верхний регистр и удалить специальные символы
+        target.oem_number = preprocess_oem_number(target.oem_number)
 
-    # Обработка имени
-    target.name = change_string(target.name)
+        # Обработка имени
+        target.name = change_string(target.name)
 
-    # Обработка описания
-    if target.description:
-        target.description = change_string(target.description)
+        # Обработка описания
+        if target.description:
+            target.description = change_string(target.description)
 
-    if target.brand_id:
-        brand_name_result = connection.execute(
-            select(Brand.name).where(Brand.id == target.brand_id)
-        ).fetchone()
-        if brand_name_result:
-            brand_name = brand_name_result[0]
-            target.barcode = f'{brand_name}{target.oem_number}'
+        if target.brand_id:
+            brand_name_result = connection.execute(
+                select(Brand.name).where(Brand.id == target.brand_id)
+            ).fetchone()
+            if brand_name_result:
+                brand_name = brand_name_result[0]
+                target.barcode = f'{brand_name}{target.oem_number}'
+            else:
+                raise ValueError('Brand not found')
         else:
-            raise ValueError('Brand not found')
-    else:
-        raise ValueError('Cannot create AutoPart without a brand')
+            raise ValueError('Cannot create AutoPart without a brand')
+    except Exception as e:
+            logger.exception(f"Error in preprocess_auto_part: {e}")
+            raise
 
 
 @event.listens_for(AutoPart, 'before_update')

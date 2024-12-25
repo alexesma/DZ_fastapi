@@ -68,7 +68,7 @@ async def download_price_provider_task(app: FastAPI):
         try:
             provider_in_model = ProviderCreate(**PROVIDER_IN)
             provider = await crud_provider.get_provider_or_none(
-                provider=PROVIDER,
+                provider=PROVIDER_IN['name'],
                 session=session
             )
             if not provider:
@@ -126,6 +126,7 @@ async def send_price_list_task(app: FastAPI):
     async with async_session_factory() as session:
         try:
             customer_in_model = CustomerCreate(**CUSTOMER_IN)
+
             customer = await crud_customer.get_customer_or_none(
                 customer=CUSTOMER,
                 session=session
@@ -149,14 +150,20 @@ async def send_price_list_task(app: FastAPI):
             config = configs[-1]
 
             provider = await crud_provider.get_provider_or_none(
-                provider=PROVIDER,
+                provider=PROVIDER_IN['name'],
                 session=session
             )
+            if not provider:
+                logger.error(f'Provider "{PROVIDER_IN['name']}" not found.')
+                raise ValueError(f'Provider "{PROVIDER_IN['name']}" not found.')
             pricelist_ids = await crud_pricelist.get_pricelist_ids_by_provider(
                 provider_id=provider.id,
                 session=session
             )
-
+            if not pricelist_ids:
+                logger.error(f'No pricelists found for provider {provider.name}.')
+                raise ValueError(f'No pricelists found for provider {provider.name}.')
+            logger.debug(f'Using pricelist_ids[-1]: {pricelist_ids[-1]}')
             # Создаем или получаем объект запроса
             request = CustomerPriceListCreate(
                 customer_id=customer.id,

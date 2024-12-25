@@ -86,6 +86,7 @@ async def download_price_provider(
             f'need name_price = {provider_conf.name_price}'
         )
         last_uid = await get_last_uid(provider_id, session)
+        logger.debug(f'Last UID: {last_uid}')
 
         with MailBox(IMAP_SERVER).login(EMAIL_ACCOUNT, EMAIL_PASSWORD) as mailbox:
             criteria = AND(
@@ -93,10 +94,12 @@ async def download_price_provider(
                 date_gte=since_date,
                 seen=False
             )
+            logger.debug(f'Using criteria: {criteria}')
 
             email_list = list(mailbox.fetch(criteria, charset='utf-8', limit=max_emails))
             logger.debug(f'Found {len(email_list)} emails matching criteria.')
             emails = [msg for msg in email_list if int(msg.uid) > last_uid]
+            logger.debug(f'{len(emails)} emails have UID greater than {last_uid}.')
 
             for msg in emails:
                 subject = msg.subject

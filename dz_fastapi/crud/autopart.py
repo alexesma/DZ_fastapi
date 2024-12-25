@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from dz_fastapi.api.validators import change_brand_name, change_string
 from dz_fastapi.core.db import AsyncSession
-from dz_fastapi.models.autopart import AutoPart, Category, StorageLocation
+from dz_fastapi.models.autopart import AutoPart, Category, StorageLocation, preprocess_oem_number
 from dz_fastapi.crud.base import CRUDBase
 from dz_fastapi.crud.brand import brand_crud
 from dz_fastapi.models.brand import Brand
@@ -114,7 +114,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             oem_number: str,
             brand_id: int,
             session: AsyncSession,
-    ) -> AutoPart:
+    ) -> Optional[AutoPart]:
         stmt = select(AutoPart).where(
             AutoPart.brand_id == brand_id,
             AutoPart.oem_number == oem_number
@@ -149,44 +149,65 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             session: AsyncSession,
             default_brand: Optional[Brand] = None
     ) -> Optional[AutoPart]:
-        autopart_data = new_autopart.model_dump(exclude_unset=True)
-        brand_name = autopart_data.pop('brand', None)
-        if brand_name:
-            brand_name = await change_brand_name(brand_name=brand_name)
-            brand = await brand_crud.get_brand_by_name_or_none(
-                brand_name=brand_name,
+        try:
+            logger.debug(f'Starting create_autopart_from_price with data: {new_autopart}')
+            autopart_data = new_autopart.model_dump(exclude_unset=True)
+            logger.debug(f'Extracted autopart_data: {autopart_data}')
+            brand_name = autopart_data.pop('brand', None)
+            logger.debug(f'Extracted brand_name: {brand_name}')
+            if brand_name:
+                brand_name = await change_brand_name(brand_name=brand_name)
+                logger.debug(f'Changed brand_name: {brand_name}')
+                brand = await brand_crud.get_brand_by_name_or_none(
+                    brand_name=brand_name,
+                    session=session
+                )
+                logger.debug(f'Retrieved brand: {brand}')
+                if not brand:
+                    logger.warning(
+                        f'Brand {brand_name} not found. Skipping autopart creation.'
+                    )
+                    return None
+            elif default_brand:
+                brand = default_brand
+                logger.debug(f'Using default_brand: {brand}')
+            else:
+                logger.warning('No brand specified and no default brand provided. Skipping autopart creation.')
+                return None
+
+            if 'oem_number' in autopart_data and autopart_data['oem_number']:
+                normalized_oem = preprocess_oem_number(autopart_data['oem_number'])
+                autopart_data['oem_number'] = normalized_oem
+            else:
+                logger.error('oem_number is missing in autopart_data')
+                raise ValueError('oem_number is required')
+
+            existing_autopart = await self.get_autopart_by_oem_brand_or_none(
+                oem_number=autopart_data['oem_number'],
+                brand_id=brand.id,
                 session=session
             )
-            if not brand:
-                logger.warning(
-                    f'Brand {brand_name} not found. Skipping autopart creation.'
-                )
-                return None
-        elif default_brand:
-            brand = default_brand
-        else:
-            logger.warning('No brand specified and no default brand provided. Skipping autopart creation.')
-            return None
+            logger.debug(f'Existing autopart: {existing_autopart}')
 
-        existing_autopart = await self.get_autopart_by_oem_brand_or_none(
-            oem_number=autopart_data['oem_number'],
-            brand_id=brand.id,
-            session=session
-        )
+            if existing_autopart:
+                logger.debug(f"Autopart already exists: ID {existing_autopart.id}")
+                return existing_autopart
 
-        if existing_autopart:
-            logger.debug(f"Autopart already exists: ID {existing_autopart.id}")
-            return existing_autopart
+            autopart_create_data = AutoPartCreate(**autopart_data, brand_id=brand.id)
+            logger.debug(f'AutopartCreate data: {autopart_create_data}')
 
-        autopart_create_data = AutoPartCreate(**autopart_data, brand_id=brand.id)
+            autopart = await self.create_autopart(
+                new_autopart=autopart_create_data,
+                brand=brand,
+                session=session
+            )
+            logger.debug(f"Created autopart: {autopart}")
 
-        autopart = await self.create_autopart(
-            new_autopart=autopart_create_data,
-            brand=brand,
-            session=session
-        )
+            return autopart
+        except Exception as e:
+            logger.exception(f"Error in create_autopart_from_price: {e}")
+            raise
 
-        return autopart
 
 crud_autopart = CRUDAutopart(AutoPart)
 

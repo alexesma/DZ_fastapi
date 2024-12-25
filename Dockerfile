@@ -51,5 +51,8 @@ COPY . .
 # Установите uvicorn внутри контейнера
 RUN pip install uvicorn
 
-# Команда для запуска приложения
-CMD ["uvicorn", "dz_fastapi.main:app", "--host", "0.0.0.0", "--reload"]
+## Команда для запуска приложения
+#CMD ["uvicorn", "dz_fastapi.main:app", "--host", "0.0.0.0", "--reload"]
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+CMD ["/entrypoint.sh"]

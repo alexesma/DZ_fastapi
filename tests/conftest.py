@@ -10,9 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from dz_fastapi.core.db import Base, get_async_session, get_session
 from dz_fastapi.core.config import settings
-from dz_fastapi.models.brand import Brand
-from dz_fastapi.models.autopart import AutoPart, Category, StorageLocation
-from dz_fastapi.models.partner import Provider, PriceList, Customer
+from dz_fastapi.core.base import (
+    Brand,
+    AutoPart,
+    Category,
+    StorageLocation,
+    Provider,
+    Customer
+)
 from dz_fastapi.main import app
 from pathlib import Path
 from dz_fastapi.core.constants import get_max_file_size, get_upload_dir

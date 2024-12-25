@@ -87,6 +87,11 @@ async def process_provider_pricelist(
         price_col: Optional[int],
         session: AsyncSession
 ):
+    logger.debug(f'Зашли в process_provider_pricelist '
+                 f'provider_id = {provider_id} '
+                 f'file_extension = {file_extension} '
+                 f'use_stored_params = {use_stored_params}'
+                 )
     provider = await crud_provider.get_by_id(
         provider_id=provider_id,
         session=session
@@ -94,7 +99,7 @@ async def process_provider_pricelist(
     if not provider:
         raise HTTPException(
             status_code=404,
-            detail='Provider not found'
+            detail='Provider not found in process_provider_pricelist'
         )
 
     if use_stored_params:
@@ -155,6 +160,7 @@ async def process_provider_pricelist(
 
         data_df = data_df.loc[:, list(required_columns.values())]
         data_df.columns = list(required_columns.keys())
+        logger.debug(f'file df = {data_df}')
     except KeyError as e:
         raise HTTPException(
             status_code=400,
@@ -186,7 +192,7 @@ async def process_provider_pricelist(
     )
 
     for item in autoparts_data:
-        logger.debug(f"Processing item: {item}")
+        logger.debug(f'Processing item: {item}')
 
         try:
             autopart_data = AutoPartCreatePriceList(
@@ -216,7 +222,7 @@ async def process_provider_pricelist(
     except HTTPException as e:
         raise e
     except Exception as e:
-        logger.error(
+        logger.exception(
             f'Unexpected error occurred while creating PriceList: {e}'
         )
         raise HTTPException(

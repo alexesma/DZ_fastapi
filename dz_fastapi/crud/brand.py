@@ -6,7 +6,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from fastapi import HTTPException
 
 from dz_fastapi.crud.base import CRUDBase
-from dz_fastapi.models.brand import Brand
+from dz_fastapi.core.base import Brand
 from dz_fastapi.schemas.brand import BrandCreate, BrandUpdate, BrandSynonym
 import logging
 

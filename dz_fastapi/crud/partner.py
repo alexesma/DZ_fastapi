@@ -213,7 +213,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             obj_in: PriceListCreate,
             session: AsyncSession,
             **kwargs
-    ) -> PriceList:
+    ) -> PriceListResponse:
         try:
             obj_in_data = obj_in.model_dump()
             autoparts_data = obj_in_data.pop('autoparts', [])
