@@ -1,0 +1,1207 @@
+2024-12-25 10:15:15,159 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '6073118000', 'name': 'РАСШИРИТЕЛЬ КОЛЕСА ЗАДНИЙ ЛЕВЫЙ ЗАДНЯЯ ЧАСТЬ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,169 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,169 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,170 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e30e0>
+2024-12-25 10:15:15,171 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2ea0>
+2024-12-25 10:15:15,171 - dz_fastapi - DEBUG - Autopart already exists: ID 2820
+2024-12-25 10:15:15,171 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '6073118200', 'name': 'РАСШИРИТЕЛЬ КОЛЕСА ПЕРЕДНИЙ ЛЕВЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,172 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='6073118200' name='РАСШИРИТЕЛЬ КОЛЕСА ПЕРЕДНИЙ ЛЕВЫЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,172 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '6073118200', 'name': 'РАСШИРИТЕЛЬ КОЛЕСА ПЕРЕДНИЙ ЛЕВЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,172 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,172 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,173 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2480>
+2024-12-25 10:15:15,173 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2630>
+2024-12-25 10:15:15,173 - dz_fastapi - DEBUG - Autopart already exists: ID 2821
+2024-12-25 10:15:15,173 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '6073056500', 'name': 'РАСШИРИТЕЛЬ ПЕРЕДНЕГО КРЫЛА ПРАВЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,174 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='6073056500' name='РАСШИРИТЕЛЬ ПЕРЕДНЕГО КРЫЛА ПРАВЫЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,174 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '6073056500', 'name': 'РАСШИРИТЕЛЬ ПЕРЕДНЕГО КРЫЛА ПРАВЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,174 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,174 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,174 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3320>
+2024-12-25 10:15:15,175 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2030>
+2024-12-25 10:15:15,175 - dz_fastapi - DEBUG - Autopart already exists: ID 2822
+2024-12-25 10:15:15,176 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1046023700', 'name': 'РЕМЕНЬ ГРМ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,176 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1046023700' name='РЕМЕНЬ ГРМ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,176 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1046023700', 'name': 'РЕМЕНЬ ГРМ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,176 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,176 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,177 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2900>
+2024-12-25 10:15:15,178 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2690>
+2024-12-25 10:15:15,178 - dz_fastapi - DEBUG - Autopart already exists: ID 2823
+2024-12-25 10:15:15,178 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1046531800', 'name': 'Ремень ГРМ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,178 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1046531800' name='Ремень ГРМ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,178 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1046531800', 'name': 'Ремень ГРМ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,179 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,179 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,180 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3470>
+2024-12-25 10:15:15,181 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2990>
+2024-12-25 10:15:15,181 - dz_fastapi - DEBUG - Autopart already exists: ID 2824
+2024-12-25 10:15:15,181 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1018002985', 'name': 'Решетка бампера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,181 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1018002985' name='Решетка бампера' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,181 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1018002985', 'name': 'Решетка бампера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,181 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,181 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,182 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3e60>
+2024-12-25 10:15:15,183 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2630>
+2024-12-25 10:15:15,183 - dz_fastapi - DEBUG - Autopart already exists: ID 2825
+2024-12-25 10:15:15,183 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '101800611501', 'name': 'Решетка бампера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,183 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='101800611501' name='Решетка бампера' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,183 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '101800611501', 'name': 'Решетка бампера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,183 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,184 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,185 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2750>
+2024-12-25 10:15:15,186 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3860>
+2024-12-25 10:15:15,186 - dz_fastapi - DEBUG - Autopart already exists: ID 2826
+2024-12-25 10:15:15,186 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '101800611401', 'name': 'Решетка противотуманной фары правая (птф)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,186 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='101800611401' name='Решетка противотуманной фары правая (птф)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,186 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '101800611401', 'name': 'Решетка противотуманной фары правая (птф)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,186 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,186 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,187 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1ee0>
+2024-12-25 10:15:15,188 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2390>
+2024-12-25 10:15:15,188 - dz_fastapi - DEBUG - Autopart already exists: ID 2827
+2024-12-25 10:15:15,188 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '6010178800', 'name': 'РЕШЕТКА РАДИАТОРА-ПЕРЕДНИЙ БАМПЕР НИЖНЯЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,188 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='6010178800' name='РЕШЕТКА РАДИАТОРА-ПЕРЕДНИЙ БАМПЕР НИЖНЯЯ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,188 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '6010178800', 'name': 'РЕШЕТКА РАДИАТОРА-ПЕРЕДНИЙ БАМПЕР НИЖНЯЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,188 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,189 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,189 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2a20>
+2024-12-25 10:15:15,190 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3680>
+2024-12-25 10:15:15,190 - dz_fastapi - DEBUG - Autopart already exists: ID 2828
+2024-12-25 10:15:15,190 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1046531900', 'name': 'РОЛИК РЕМНЯ ГРМ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,190 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1046531900' name='РОЛИК РЕМНЯ ГРМ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,191 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1046531900', 'name': 'РОЛИК РЕМНЯ ГРМ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,191 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,191 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,192 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1ca0>
+2024-12-25 10:15:15,193 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e27b0>
+2024-12-25 10:15:15,193 - dz_fastapi - DEBUG - Autopart already exists: ID 2829
+2024-12-25 10:15:15,193 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1046023600', 'name': 'РОЛИК РЕМНЯ ГРМ(ОБВОДНОЙ)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,193 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1046023600' name='РОЛИК РЕМНЯ ГРМ(ОБВОДНОЙ)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,193 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1046023600', 'name': 'РОЛИК РЕМНЯ ГРМ(ОБВОДНОЙ)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,193 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,193 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,194 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3fb0>
+2024-12-25 10:15:15,195 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e0500>
+2024-12-25 10:15:15,195 - dz_fastapi - DEBUG - Autopart already exists: ID 2830
+2024-12-25 10:15:15,195 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '101800524300603', 'name': 'РУЧКА БАРДАЧКА(СЕРАЯ)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,195 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='101800524300603' name='РУЧКА БАРДАЧКА(СЕРАЯ)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,195 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '101800524300603', 'name': 'РУЧКА БАРДАЧКА(СЕРАЯ)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,196 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,196 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,197 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e24b0>
+2024-12-25 10:15:15,197 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3020>
+2024-12-25 10:15:15,198 - dz_fastapi - DEBUG - Autopart already exists: ID 2831
+2024-12-25 10:15:15,198 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1018005282', 'name': 'РУЧКА БАРДАЧКА(СЕРАЯ)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,198 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1018005282' name='РУЧКА БАРДАЧКА(СЕРАЯ)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,198 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1018005282', 'name': 'РУЧКА БАРДАЧКА(СЕРАЯ)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,198 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,198 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,199 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e23f0>
+2024-12-25 10:15:15,200 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3530>
+2024-12-25 10:15:15,200 - dz_fastapi - DEBUG - Autopart already exists: ID 2832
+2024-12-25 10:15:15,200 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '101800529300601', 'name': 'РУЧКА ДВЕРНАЯ ВНУТРЕННЯЯ ЛЕВАЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,200 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='101800529300601' name='РУЧКА ДВЕРНАЯ ВНУТРЕННЯЯ ЛЕВАЯ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,200 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '101800529300601', 'name': 'РУЧКА ДВЕРНАЯ ВНУТРЕННЯЯ ЛЕВАЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,200 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,200 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,201 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e26f0>
+2024-12-25 10:15:15,202 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3740>
+2024-12-25 10:15:15,202 - dz_fastapi - DEBUG - Autopart already exists: ID 2833
+2024-12-25 10:15:15,202 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '5083004000', 'name': 'РУЧКА ЗАДНЕЙ ДВЕРИ НАРУЖНАЯ ЛЕВАЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,202 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='5083004000' name='РУЧКА ЗАДНЕЙ ДВЕРИ НАРУЖНАЯ ЛЕВАЯ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,202 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '5083004000', 'name': 'РУЧКА ЗАДНЕЙ ДВЕРИ НАРУЖНАЯ ЛЕВАЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,202 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,203 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,203 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2d20>
+2024-12-25 10:15:15,204 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2c90>
+2024-12-25 10:15:15,204 - dz_fastapi - DEBUG - Autopart already exists: ID 2834
+2024-12-25 10:15:15,205 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1018005040', 'name': 'РУЧКА НАРУЖНАЯ ПРАВОЙ ПЕРЕДНЕЙ ДВЕРИ (MK)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,205 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1018005040' name='РУЧКА НАРУЖНАЯ ПРАВОЙ ПЕРЕДНЕЙ ДВЕРИ (MK)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,205 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1018005040', 'name': 'РУЧКА НАРУЖНАЯ ПРАВОЙ ПЕРЕДНЕЙ ДВЕРИ (MK)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,205 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,205 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,206 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3cb0>
+2024-12-25 10:15:15,207 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e0fe0>
+2024-12-25 10:15:15,207 - dz_fastapi - DEBUG - Autopart already exists: ID 2835
+2024-12-25 10:15:15,207 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '4017005500', 'name': 'РЫЧАГ ПЕРЕДНЕЙ ПОДВЕСКИ ЛЕВЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,208 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='4017005500' name='РЫЧАГ ПЕРЕДНЕЙ ПОДВЕСКИ ЛЕВЫЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,208 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '4017005500', 'name': 'РЫЧАГ ПЕРЕДНЕЙ ПОДВЕСКИ ЛЕВЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,208 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,208 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,209 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2ba0>
+2024-12-25 10:15:15,210 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e36e0>
+2024-12-25 10:15:15,210 - dz_fastapi - DEBUG - Autopart already exists: ID 2836
+2024-12-25 10:15:15,210 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '4017031900', 'name': 'РЫЧАГ ПЕРЕДНЕЙ ПОДВЕСКИ НИЖНИЙ ЛЕВЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,210 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='4017031900' name='РЫЧАГ ПЕРЕДНЕЙ ПОДВЕСКИ НИЖНИЙ ЛЕВЫЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,210 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '4017031900', 'name': 'РЫЧАГ ПЕРЕДНЕЙ ПОДВЕСКИ НИЖНИЙ ЛЕВЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,210 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,210 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,211 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e20c0>
+2024-12-25 10:15:15,212 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1ca0>
+2024-12-25 10:15:15,212 - dz_fastapi - DEBUG - Autopart already exists: ID 2837
+2024-12-25 10:15:15,212 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1033006600', 'name': 'САЛЬНИК ЗАДНИЙ КОЛЕНВАЛА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,212 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1033006600' name='САЛЬНИК ЗАДНИЙ КОЛЕНВАЛА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,212 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1033006600', 'name': 'САЛЬНИК ЗАДНИЙ КОЛЕНВАЛА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,213 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,213 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,214 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2090>
+2024-12-25 10:15:15,215 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2630>
+2024-12-25 10:15:15,215 - dz_fastapi - DEBUG - Autopart already exists: ID 2838
+2024-12-25 10:15:15,215 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1033025200', 'name': 'САЛЬНИК КОЛЕНВАЛА ЗАДНИЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,215 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1033025200' name='САЛЬНИК КОЛЕНВАЛА ЗАДНИЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,215 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1033025200', 'name': 'САЛЬНИК КОЛЕНВАЛА ЗАДНИЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,215 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,215 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,216 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e20f0>
+2024-12-25 10:15:15,217 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3e60>
+2024-12-25 10:15:15,217 - dz_fastapi - DEBUG - Autopart already exists: ID 2839
+2024-12-25 10:15:15,217 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1136000031', 'name': 'Сальник коленвала задний Emgrand EC7, Emgrand X7, SC7, Vision', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,217 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1136000031' name='Сальник коленвала задний Emgrand EC7, Emgrand X7, SC7, Vision' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,217 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1136000031', 'name': 'Сальник коленвала задний Emgrand EC7, Emgrand X7, SC7, Vision', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,217 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,218 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,218 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1ca0>
+2024-12-25 10:15:15,219 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e27b0>
+2024-12-25 10:15:15,219 - dz_fastapi - DEBUG - Autopart already exists: ID 2840
+2024-12-25 10:15:15,219 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '3380209001', 'name': 'САЛЬНИК ОДОМЕТРА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,220 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='3380209001' name='САЛЬНИК ОДОМЕТРА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,220 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '3380209001', 'name': 'САЛЬНИК ОДОМЕТРА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,220 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,220 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,221 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e35f0>
+2024-12-25 10:15:15,222 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2630>
+2024-12-25 10:15:15,222 - dz_fastapi - DEBUG - Autopart already exists: ID 2841
+2024-12-25 10:15:15,222 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '3016007552', 'name': 'Сальник первичного вала EMGRAND X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,222 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='3016007552' name='Сальник первичного вала EMGRAND X7' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,222 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '3016007552', 'name': 'Сальник первичного вала EMGRAND X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,222 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,222 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,223 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1fa0>
+2024-12-25 10:15:15,224 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3e60>
+2024-12-25 10:15:15,224 - dz_fastapi - DEBUG - Autopart already exists: ID 2842
+2024-12-25 10:15:15,224 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '4082580600', 'name': 'САЛЬНИК ПОЛУОСИ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,224 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='4082580600' name='САЛЬНИК ПОЛУОСИ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,224 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '4082580600', 'name': 'САЛЬНИК ПОЛУОСИ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,225 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,225 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,225 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2a80>
+2024-12-25 10:15:15,226 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2990>
+2024-12-25 10:15:15,226 - dz_fastapi - DEBUG - Autopart already exists: ID 2843
+2024-12-25 10:15:15,226 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1046024300', 'name': 'САЛЬНИК РАСПРЕДВАЛА ЗАДНИЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,227 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1046024300' name='САЛЬНИК РАСПРЕДВАЛА ЗАДНИЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,227 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1046024300', 'name': 'САЛЬНИК РАСПРЕДВАЛА ЗАДНИЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,227 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,227 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,228 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e23f0>
+2024-12-25 10:15:15,229 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2570>
+2024-12-25 10:15:15,229 - dz_fastapi - DEBUG - Autopart already exists: ID 2844
+2024-12-25 10:15:15,229 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1046024400', 'name': 'САЛЬНИК РАСПРЕДВАЛА ПЕРЕДНИЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,229 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1046024400' name='САЛЬНИК РАСПРЕДВАЛА ПЕРЕДНИЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,229 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1046024400', 'name': 'САЛЬНИК РАСПРЕДВАЛА ПЕРЕДНИЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,229 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,229 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,230 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e20f0>
+2024-12-25 10:15:15,231 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2ea0>
+2024-12-25 10:15:15,231 - dz_fastapi - DEBUG - Autopart already exists: ID 2845
+2024-12-25 10:15:15,231 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '3170103601', 'name': 'Сальник рычага выбора передач Geely: Emgrand EC7, Emgrand X7, MK', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,231 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='3170103601' name='Сальник рычага выбора передач Geely: Emgrand EC7, Emgrand X7, MK' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,231 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '3170103601', 'name': 'Сальник рычага выбора передач Geely: Emgrand EC7, Emgrand X7, MK', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,231 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,231 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,232 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2c90>
+2024-12-25 10:15:15,233 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1e80>
+2024-12-25 10:15:15,233 - dz_fastapi - DEBUG - Autopart already exists: ID 2846
+2024-12-25 10:15:15,233 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '7060000500', 'name': 'СВЕТООТРАЖАТЕЛЬ ЗАДНИЙ ЛЕВЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,233 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='7060000500' name='СВЕТООТРАЖАТЕЛЬ ЗАДНИЙ ЛЕВЫЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,233 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '7060000500', 'name': 'СВЕТООТРАЖАТЕЛЬ ЗАДНИЙ ЛЕВЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,234 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,234 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,234 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e30e0>
+2024-12-25 10:15:15,235 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3080>
+2024-12-25 10:15:15,235 - dz_fastapi - DEBUG - Autopart already exists: ID 2847
+2024-12-25 10:15:15,235 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '7060000600', 'name': 'СВЕТООТРАЖАТЕЛЬ ЗАДНИЙ ПРАВЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,236 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='7060000600' name='СВЕТООТРАЖАТЕЛЬ ЗАДНИЙ ПРАВЫЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,236 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '7060000600', 'name': 'СВЕТООТРАЖАТЕЛЬ ЗАДНИЙ ПРАВЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,236 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,236 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,237 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3920>
+2024-12-25 10:15:15,238 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1d60>
+2024-12-25 10:15:15,238 - dz_fastapi - DEBUG - Autopart already exists: ID 2848
+2024-12-25 10:15:15,238 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '2036513100', 'name': 'СВЕЧА ЗАЖИГАНИЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,238 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='2036513100' name='СВЕЧА ЗАЖИГАНИЯ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,238 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '2036513100', 'name': 'СВЕЧА ЗАЖИГАНИЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,238 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,238 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,239 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e38c0>
+2024-12-25 10:15:15,240 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e35c0>
+2024-12-25 10:15:15,240 - dz_fastapi - DEBUG - Autopart already exists: ID 2850
+2024-12-25 10:15:15,240 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '2036000500', 'name': 'Свеча зажигания GEELY ATLAS NL-3 2.0L 2.4L / EMGRAND X7 NL-4 2.0 / KC-1 2.4L', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,240 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='2036000500' name='Свеча зажигания GEELY ATLAS NL-3 2.0L 2.4L / EMGRAND X7 NL-4 2.0 / KC-1 2.4L' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,241 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '2036000500', 'name': 'Свеча зажигания GEELY ATLAS NL-3 2.0L 2.4L / EMGRAND X7 NL-4 2.0 / KC-1 2.4L', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,241 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,241 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,242 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2ab0>
+2024-12-25 10:15:15,243 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2d20>
+2024-12-25 10:15:15,243 - dz_fastapi - DEBUG - Autopart already exists: ID 2851
+2024-12-25 10:15:15,243 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '2036512100', 'name': 'СВЕЧА ЗАЖИГАНИЯ Geely COOLRAY SX11LA 1.5T', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,243 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='2036512100' name='СВЕЧА ЗАЖИГАНИЯ Geely COOLRAY SX11LA 1.5T' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,243 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '2036512100', 'name': 'СВЕЧА ЗАЖИГАНИЯ Geely COOLRAY SX11LA 1.5T', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,243 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,243 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,244 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3b00>
+2024-12-25 10:15:15,245 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2ed0>
+2024-12-25 10:15:15,245 - dz_fastapi - DEBUG - Autopart already exists: ID 2852
+2024-12-25 10:15:15,245 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1016050983', 'name': 'СВЕЧА ЗАЖИГАНИЯ GEELY EMGRAND 7 FE-3JC 1.5L/1.8L /EMGRAND X7 NL-4 2.0', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,245 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1016050983' name='СВЕЧА ЗАЖИГАНИЯ GEELY EMGRAND 7 FE-3JC 1.5L/1.8L /EMGRAND X7 NL-4 2.0' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,246 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1016050983', 'name': 'СВЕЧА ЗАЖИГАНИЯ GEELY EMGRAND 7 FE-3JC 1.5L/1.8L /EMGRAND X7 NL-4 2.0', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,246 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,246 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,246 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1eb0>
+2024-12-25 10:15:15,247 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1370>
+2024-12-25 10:15:15,247 - dz_fastapi - DEBUG - Autopart already exists: ID 2853
+2024-12-25 10:15:15,247 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1030022400', 'name': 'СЕДЛО ПРУЖИНЫ КЛАПАНА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,248 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1030022400' name='СЕДЛО ПРУЖИНЫ КЛАПАНА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,248 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1030022400', 'name': 'СЕДЛО ПРУЖИНЫ КЛАПАНА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,248 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,248 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,249 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3020>
+2024-12-25 10:15:15,249 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e26c0>
+2024-12-25 10:15:15,250 - dz_fastapi - DEBUG - Autopart already exists: ID 2854
+2024-12-25 10:15:15,250 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '3170106011', 'name': 'Синхронизатор 3-4 передачи', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,250 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='3170106011' name='Синхронизатор 3-4 передачи' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,250 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '3170106011', 'name': 'Синхронизатор 3-4 передачи', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,250 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,250 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,251 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3dd0>
+2024-12-25 10:15:15,252 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1e20>
+2024-12-25 10:15:15,252 - dz_fastapi - DEBUG - Autopart already exists: ID 2855
+2024-12-25 10:15:15,252 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1014001762', 'name': 'Скоба крепления троса МКПП', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,252 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1014001762' name='Скоба крепления троса МКПП' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,252 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1014001762', 'name': 'Скоба крепления троса МКПП', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,252 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,252 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,253 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e04a0>
+2024-12-25 10:15:15,254 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2690>
+2024-12-25 10:15:15,254 - dz_fastapi - DEBUG - Autopart already exists: ID 2856
+2024-12-25 10:15:15,254 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1086001194556', 'name': 'СТАКАН РЕГУЛИРОВОЧНЫЙ 5.56', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,254 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1086001194556' name='СТАКАН РЕГУЛИРОВОЧНЫЙ 5.56' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,255 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1086001194556', 'name': 'СТАКАН РЕГУЛИРОВОЧНЫЙ 5.56', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,255 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,255 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,255 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3770>
+2024-12-25 10:15:15,256 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2d50>
+2024-12-25 10:15:15,256 - dz_fastapi - DEBUG - Autopart already exists: ID 2857
+2024-12-25 10:15:15,257 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1086001194560', 'name': 'СТАКАН РЕГУЛИРОВОЧНЫЙ 5.60', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,257 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1086001194560' name='СТАКАН РЕГУЛИРОВОЧНЫЙ 5.60' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,257 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1086001194560', 'name': 'СТАКАН РЕГУЛИРОВОЧНЫЙ 5.60', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,257 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,257 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,258 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3500>
+2024-12-25 10:15:15,259 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2900>
+2024-12-25 10:15:15,259 - dz_fastapi - DEBUG - Autopart already exists: ID 2858
+2024-12-25 10:15:15,259 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1086001194564', 'name': 'СТАКАН РЕГУЛИРОВОЧНЫЙ 5.64', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,259 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1086001194564' name='СТАКАН РЕГУЛИРОВОЧНЫЙ 5.64' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,259 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1086001194564', 'name': 'СТАКАН РЕГУЛИРОВОЧНЫЙ 5.64', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,259 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,260 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,260 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3200>
+2024-12-25 10:15:15,261 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e20f0>
+2024-12-25 10:15:15,261 - dz_fastapi - DEBUG - Autopart already exists: ID 2859
+2024-12-25 10:15:15,262 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1018005131', 'name': 'СТЕКЛО ЗАДНЕЙ ДВЕРИ ЛЕВОЕ (АТЕРМАЛЬНОЕ)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,262 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1018005131' name='СТЕКЛО ЗАДНЕЙ ДВЕРИ ЛЕВОЕ (АТЕРМАЛЬНОЕ)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,262 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1018005131', 'name': 'СТЕКЛО ЗАДНЕЙ ДВЕРИ ЛЕВОЕ (АТЕРМАЛЬНОЕ)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,262 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,262 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,263 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2db0>
+2024-12-25 10:15:15,264 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1cd0>
+2024-12-25 10:15:15,264 - dz_fastapi - DEBUG - Autopart already exists: ID 2861
+2024-12-25 10:15:15,264 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1018022869', 'name': 'СТЕКЛОПОДЪЕМНИК  ЗАДНИЙ (ЭЛЕКТРО) ЛЕВЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,264 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1018022869' name='СТЕКЛОПОДЪЕМНИК  ЗАДНИЙ (ЭЛЕКТРО) ЛЕВЫЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,264 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1018022869', 'name': 'СТЕКЛОПОДЪЕМНИК  ЗАДНИЙ (ЭЛЕКТРО) ЛЕВЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,264 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,264 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,265 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3890>
+2024-12-25 10:15:15,266 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3b30>
+2024-12-25 10:15:15,266 - dz_fastapi - DEBUG - Autopart already exists: ID 2862
+2024-12-25 10:15:15,266 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '101400167051', 'name': 'СТОЙКА СТАБИЛИЗАТОРА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,266 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='101400167051' name='СТОЙКА СТАБИЛИЗАТОРА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,266 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '101400167051', 'name': 'СТОЙКА СТАБИЛИЗАТОРА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,266 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,267 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,267 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3b00>
+2024-12-25 10:15:15,268 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2900>
+2024-12-25 10:15:15,268 - dz_fastapi - DEBUG - Autopart already exists: ID 2863
+2024-12-25 10:15:15,268 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1014000640', 'name': 'Стойка стабилизатора задняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,269 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1014000640' name='Стойка стабилизатора задняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,269 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1014000640', 'name': 'Стойка стабилизатора задняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,269 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,269 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,270 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e22d0>
+2024-12-25 10:15:15,270 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1cd0>
+2024-12-25 10:15:15,271 - dz_fastapi - DEBUG - Autopart already exists: ID 2864
+2024-12-25 10:15:15,271 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '6608116493', 'name': 'СТОЙКА СТАБИЛИЗАТОРА ПЕРЕДНЕГО', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,271 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='6608116493' name='СТОЙКА СТАБИЛИЗАТОРА ПЕРЕДНЕГО' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,271 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '6608116493', 'name': 'СТОЙКА СТАБИЛИЗАТОРА ПЕРЕДНЕГО', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,271 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,271 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,272 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e26c0>
+2024-12-25 10:15:15,273 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3890>
+2024-12-25 10:15:15,273 - dz_fastapi - DEBUG - Autopart already exists: ID 2865
+2024-12-25 10:15:15,273 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '4015011100', 'name': 'СТОЙКА СТАБИЛИЗАТОРА ПЕРЕДНЕЙ ПОДВЕСКИ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,273 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='4015011100' name='СТОЙКА СТАБИЛИЗАТОРА ПЕРЕДНЕЙ ПОДВЕСКИ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,273 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '4015011100', 'name': 'СТОЙКА СТАБИЛИЗАТОРА ПЕРЕДНЕЙ ПОДВЕСКИ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,273 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,274 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,274 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e0ef0>
+2024-12-25 10:15:15,276 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e33e0>
+2024-12-25 10:15:15,276 - dz_fastapi - DEBUG - Autopart already exists: ID 2866
+2024-12-25 10:15:15,276 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1014003148', 'name': 'Ступица передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,276 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1014003148' name='Ступица передняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,276 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1014003148', 'name': 'Ступица передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,276 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,276 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,277 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e28a0>
+2024-12-25 10:15:15,278 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e28d0>
+2024-12-25 10:15:15,278 - dz_fastapi - DEBUG - Autopart already exists: ID 2867
+2024-12-25 10:15:15,278 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': 'E010001001', 'name': 'Сухарь клапана', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,278 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='E010001001' name='Сухарь клапана' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,278 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': 'E010001001', 'name': 'Сухарь клапана', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,278 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,279 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,279 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1ca0>
+2024-12-25 10:15:15,280 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e30e0>
+2024-12-25 10:15:15,281 - dz_fastapi - DEBUG - Autopart already exists: ID 2868
+2024-12-25 10:15:15,281 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1066007500', 'name': 'ТЕРМОСТАТ GEELY ATLAS NL-3 2.4/2.0L', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,281 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1066007500' name='ТЕРМОСТАТ GEELY ATLAS NL-3 2.4/2.0L' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,281 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1066007500', 'name': 'ТЕРМОСТАТ GEELY ATLAS NL-3 2.4/2.0L', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,281 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,281 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,282 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3c80>
+2024-12-25 10:15:15,283 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3530>
+2024-12-25 10:15:15,283 - dz_fastapi - DEBUG - Autopart already exists: ID 2869
+2024-12-25 10:15:15,283 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '7045102000', 'name': 'ТОЛКАТЕЛЬ В СБОРЕ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,283 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='7045102000' name='ТОЛКАТЕЛЬ В СБОРЕ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,283 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '7045102000', 'name': 'ТОЛКАТЕЛЬ В СБОРЕ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,283 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,283 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,284 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1940>
+2024-12-25 10:15:15,285 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e29f0>
+2024-12-25 10:15:15,285 - dz_fastapi - DEBUG - Autopart already exists: ID 2870
+2024-12-25 10:15:15,285 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': 'E010001101', 'name': 'ТОЛКАТЕЛЬ КЛАПАНА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,285 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='E010001101' name='ТОЛКАТЕЛЬ КЛАПАНА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,285 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': 'E010001101', 'name': 'ТОЛКАТЕЛЬ КЛАПАНА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,286 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,286 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,287 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e35c0>
+2024-12-25 10:15:15,287 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e31d0>
+2024-12-25 10:15:15,288 - dz_fastapi - DEBUG - Autopart already exists: ID 2871
+2024-12-25 10:15:15,288 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '5032036400', 'name': 'ТРОС ОТКРЫВАНИЯ КАПОТА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,288 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='5032036400' name='ТРОС ОТКРЫВАНИЯ КАПОТА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,288 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '5032036400', 'name': 'ТРОС ОТКРЫВАНИЯ КАПОТА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,288 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,288 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,289 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2d80>
+2024-12-25 10:15:15,290 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1a30>
+2024-12-25 10:15:15,290 - dz_fastapi - DEBUG - Autopart already exists: ID 2872
+2024-12-25 10:15:15,290 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1056024600', 'name': 'ТРУБА ВЫХОДНАЯ МАСЛЯНОГО РАДИАТОРА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,290 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1056024600' name='ТРУБА ВЫХОДНАЯ МАСЛЯНОГО РАДИАТОРА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,290 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1056024600', 'name': 'ТРУБА ВЫХОДНАЯ МАСЛЯНОГО РАДИАТОРА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,290 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,291 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,291 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3380>
+2024-12-25 10:15:15,292 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1910>
+2024-12-25 10:15:15,292 - dz_fastapi - DEBUG - Autopart already exists: ID 2873
+2024-12-25 10:15:15,292 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1042006100', 'name': 'ТРУБКА КАРТЕРНЫХ ГАЗОВ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,293 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1042006100' name='ТРУБКА КАРТЕРНЫХ ГАЗОВ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,293 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1042006100', 'name': 'ТРУБКА КАРТЕРНЫХ ГАЗОВ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,293 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,293 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,294 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3800>
+2024-12-25 10:15:15,295 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e0a40>
+2024-12-25 10:15:15,295 - dz_fastapi - DEBUG - Autopart already exists: ID 2874
+2024-12-25 10:15:15,295 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1018002699', 'name': 'Трубка кондиционера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,295 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1018002699' name='Трубка кондиционера' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,295 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1018002699', 'name': 'Трубка кондиционера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,295 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,296 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,296 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2e40>
+2024-12-25 10:15:15,297 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1f10>
+2024-12-25 10:15:15,297 - dz_fastapi - DEBUG - Autopart already exists: ID 2875
+2024-12-25 10:15:15,297 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '101800270201', 'name': 'Трубка кондиционера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,298 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='101800270201' name='Трубка кондиционера' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,298 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '101800270201', 'name': 'Трубка кондиционера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,298 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,298 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,299 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1af0>
+2024-12-25 10:15:15,300 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2ff0>
+2024-12-25 10:15:15,300 - dz_fastapi - DEBUG - Autopart already exists: ID 2876
+2024-12-25 10:15:15,300 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '101402005259', 'name': 'ТРУБКА МАСЛЯНАЯ СОЕДИНИТЕЛЬНАЯ НИЗКОГО ДАВЛЕНИЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,300 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='101402005259' name='ТРУБКА МАСЛЯНАЯ СОЕДИНИТЕЛЬНАЯ НИЗКОГО ДАВЛЕНИЯ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,300 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '101402005259', 'name': 'ТРУБКА МАСЛЯНАЯ СОЕДИНИТЕЛЬНАЯ НИЗКОГО ДАВЛЕНИЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,300 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,300 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,302 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2210>
+2024-12-25 10:15:15,302 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e26c0>
+2024-12-25 10:15:15,303 - dz_fastapi - DEBUG - Autopart already exists: ID 2877
+2024-12-25 10:15:15,303 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1056020100', 'name': 'ТРУБКА ОХЛАДИТЕЛЯ МАСЛА АКПП', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,303 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1056020100' name='ТРУБКА ОХЛАДИТЕЛЯ МАСЛА АКПП' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,303 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1056020100', 'name': 'ТРУБКА ОХЛАДИТЕЛЯ МАСЛА АКПП', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,303 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,303 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,304 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2ea0>
+2024-12-25 10:15:15,305 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1eb0>
+2024-12-25 10:15:15,305 - dz_fastapi - DEBUG - Autopart already exists: ID 2878
+2024-12-25 10:15:15,305 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1056021200', 'name': 'ТРУБКА ОХЛАДИТЕЛЯ МАСЛА АКПП', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,305 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1056021200' name='ТРУБКА ОХЛАДИТЕЛЯ МАСЛА АКПП' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,305 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1056021200', 'name': 'ТРУБКА ОХЛАДИТЕЛЯ МАСЛА АКПП', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,305 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,306 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,307 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2690>
+2024-12-25 10:15:15,307 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e39e0>
+2024-12-25 10:15:15,308 - dz_fastapi - DEBUG - Autopart already exists: ID 2879
+2024-12-25 10:15:15,308 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1014001773', 'name': 'Трубка сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,308 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1014001773' name='Трубка сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,308 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1014001773', 'name': 'Трубка сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,308 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,308 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,309 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e27b0>
+2024-12-25 10:15:15,310 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3d10>
+2024-12-25 10:15:15,310 - dz_fastapi - DEBUG - Autopart already exists: ID 2880
+2024-12-25 10:15:15,310 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '2019041100', 'name': 'ТРУБКА ТОПЛИВНАЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,310 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='2019041100' name='ТРУБКА ТОПЛИВНАЯ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,310 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '2019041100', 'name': 'ТРУБКА ТОПЛИВНАЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,311 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,311 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,312 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e28d0>
+2024-12-25 10:15:15,313 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3080>
+2024-12-25 10:15:15,313 - dz_fastapi - DEBUG - Autopart already exists: ID 2881
+2024-12-25 10:15:15,313 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1014006374', 'name': 'ТРУБКА ТОРМОЗНАЯ №1 ГЛАВНОГО ТОРМОЗНОГО', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,313 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1014006374' name='ТРУБКА ТОРМОЗНАЯ №1 ГЛАВНОГО ТОРМОЗНОГО' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,313 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1014006374', 'name': 'ТРУБКА ТОРМОЗНАЯ №1 ГЛАВНОГО ТОРМОЗНОГО', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,313 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,313 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,314 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e28a0>
+2024-12-25 10:15:15,315 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e39e0>
+2024-12-25 10:15:15,315 - dz_fastapi - DEBUG - Autopart already exists: ID 2882
+2024-12-25 10:15:15,315 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1014006370', 'name': 'ТРУБКА ТОРМОЗНАЯ ПЕРЕДНЯЯ ЛЕВАЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,315 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1014006370' name='ТРУБКА ТОРМОЗНАЯ ПЕРЕДНЯЯ ЛЕВАЯ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,315 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1014006370', 'name': 'ТРУБКА ТОРМОЗНАЯ ПЕРЕДНЯЯ ЛЕВАЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,315 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,316 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,316 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e19a0>
+2024-12-25 10:15:15,317 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3d10>
+2024-12-25 10:15:15,317 - dz_fastapi - DEBUG - Autopart already exists: ID 2883
+2024-12-25 10:15:15,317 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1014026125', 'name': 'Тяга рулевая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,317 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1014026125' name='Тяга рулевая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,318 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1014026125', 'name': 'Тяга рулевая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,318 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,318 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,319 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e0a40>
+2024-12-25 10:15:15,319 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e28d0>
+2024-12-25 10:15:15,320 - dz_fastapi - DEBUG - Autopart already exists: ID 2884
+2024-12-25 10:15:15,320 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '4036028500', 'name': 'ТЯГА РУЛЕВАЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,320 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='4036028500' name='ТЯГА РУЛЕВАЯ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,320 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '4036028500', 'name': 'ТЯГА РУЛЕВАЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,320 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,320 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,321 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2900>
+2024-12-25 10:15:15,322 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3110>
+2024-12-25 10:15:15,322 - dz_fastapi - DEBUG - Autopart already exists: ID 2885
+2024-12-25 10:15:15,322 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '4036036200', 'name': 'ТЯГА РУЛЕВАЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,322 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='4036036200' name='ТЯГА РУЛЕВАЯ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,322 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '4036036200', 'name': 'ТЯГА РУЛЕВАЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,323 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,323 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,323 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1d30>
+2024-12-25 10:15:15,324 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e0290>
+2024-12-25 10:15:15,324 - dz_fastapi - DEBUG - Autopart already exists: ID 2886
+2024-12-25 10:15:15,325 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '5032547600', 'name': 'УПЛОТНИТЕЛЬ  КАПОТА ПЕРЕДНИЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,325 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='5032547600' name='УПЛОТНИТЕЛЬ  КАПОТА ПЕРЕДНИЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,325 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '5032547600', 'name': 'УПЛОТНИТЕЛЬ  КАПОТА ПЕРЕДНИЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,325 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,325 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,326 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1c40>
+2024-12-25 10:15:15,327 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e30e0>
+2024-12-25 10:15:15,327 - dz_fastapi - DEBUG - Autopart already exists: ID 2887
+2024-12-25 10:15:15,327 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1018005751', 'name': 'Уплотнитель cтекла переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,327 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1018005751' name='Уплотнитель cтекла переднего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,327 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1018005751', 'name': 'Уплотнитель cтекла переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,327 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,327 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,328 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e34d0>
+2024-12-25 10:15:15,329 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3e60>
+2024-12-25 10:15:15,329 - dz_fastapi - DEBUG - Autopart already exists: ID 2888
+2024-12-25 10:15:15,329 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1018005689', 'name': 'Уплотнитель капота', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,329 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1018005689' name='Уплотнитель капота' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,329 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1018005689', 'name': 'Уплотнитель капота', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,329 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,330 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,330 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2990>
+2024-12-25 10:15:15,331 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1d00>
+2024-12-25 10:15:15,331 - dz_fastapi - DEBUG - Autopart already exists: ID 2889
+2024-12-25 10:15:15,331 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '5027009800', 'name': 'УСИЛИТЕЛЬ ПЕРЕДНЕГО БАМПЕРА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,332 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='5027009800' name='УСИЛИТЕЛЬ ПЕРЕДНЕГО БАМПЕРА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,332 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '5027009800', 'name': 'УСИЛИТЕЛЬ ПЕРЕДНЕГО БАМПЕРА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,332 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,332 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,332 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2450>
+2024-12-25 10:15:15,334 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1d30>
+2024-12-25 10:15:15,334 - dz_fastapi - DEBUG - Autopart already exists: ID 2890
+2024-12-25 10:15:15,334 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '7054015600', 'name': 'ФАРА ПРОТИВОТУМАННАЯ СРЕДНЯЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,334 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='7054015600' name='ФАРА ПРОТИВОТУМАННАЯ СРЕДНЯЯ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,334 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '7054015600', 'name': 'ФАРА ПРОТИВОТУМАННАЯ СРЕДНЯЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,334 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,334 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,335 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3860>
+2024-12-25 10:15:15,336 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1c40>
+2024-12-25 10:15:15,336 - dz_fastapi - DEBUG - Autopart already exists: ID 2891
+2024-12-25 10:15:15,336 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': 'E020500005', 'name': 'ФИКСАТОР УПЛОТНЕНИЯ КОЛЕНЧАТОГО ВАЛА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,336 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='E020500005' name='ФИКСАТОР УПЛОТНЕНИЯ КОЛЕНЧАТОГО ВАЛА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,336 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': 'E020500005', 'name': 'ФИКСАТОР УПЛОТНЕНИЯ КОЛЕНЧАТОГО ВАЛА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,336 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,337 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,337 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2fc0>
+2024-12-25 10:15:15,338 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2270>
+2024-12-25 10:15:15,338 - dz_fastapi - DEBUG - Autopart already exists: ID 2892
+2024-12-25 10:15:15,338 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1016012148', 'name': 'Фильтр воздушный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,339 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1016012148' name='Фильтр воздушный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,339 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1016012148', 'name': 'Фильтр воздушный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,339 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,339 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,340 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3260>
+2024-12-25 10:15:15,340 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2060>
+2024-12-25 10:15:15,341 - dz_fastapi - DEBUG - Autopart already exists: ID 2893
+2024-12-25 10:15:15,341 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1016014772', 'name': 'Фильтр воздушный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,341 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1016014772' name='Фильтр воздушный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,341 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1016014772', 'name': 'Фильтр воздушный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,341 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,341 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,342 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2390>
+2024-12-25 10:15:15,343 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e25a0>
+2024-12-25 10:15:15,343 - dz_fastapi - DEBUG - Autopart already exists: ID 2894
+2024-12-25 10:15:15,343 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1016014789', 'name': 'Фильтр воздушный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,343 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1016014789' name='Фильтр воздушный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,343 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1016014789', 'name': 'Фильтр воздушный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,343 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,343 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,344 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3ad0>
+2024-12-25 10:15:15,345 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1a90>
+2024-12-25 10:15:15,345 - dz_fastapi - DEBUG - Autopart already exists: ID 2895
+2024-12-25 10:15:15,345 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '2032069500', 'name': 'ФИЛЬТР ВОЗДУШНЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,345 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='2032069500' name='ФИЛЬТР ВОЗДУШНЫЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,345 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '2032069500', 'name': 'ФИЛЬТР ВОЗДУШНЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,346 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,346 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,347 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2ab0>
+2024-12-25 10:15:15,348 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e0500>
+2024-12-25 10:15:15,348 - dz_fastapi - DEBUG - Autopart already exists: ID 2896
+2024-12-25 10:15:15,348 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '2032007600', 'name': 'Фильтр воздушный GEELY ATLAS NL-3 18>', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,348 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='2032007600' name='Фильтр воздушный GEELY ATLAS NL-3 18>' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,348 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '2032007600', 'name': 'Фильтр воздушный GEELY ATLAS NL-3 18>', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,348 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,348 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,349 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2390>
+2024-12-25 10:15:15,350 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e38f0>
+2024-12-25 10:15:15,350 - dz_fastapi - DEBUG - Autopart already exists: ID 2897
+2024-12-25 10:15:15,350 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '2032040500', 'name': 'ФИЛЬТР ВОЗДУШНЫЙ Geely COOLRAY SX11LA 1.5T', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,350 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='2032040500' name='ФИЛЬТР ВОЗДУШНЫЙ Geely COOLRAY SX11LA 1.5T' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,351 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '2032040500', 'name': 'ФИЛЬТР ВОЗДУШНЫЙ Geely COOLRAY SX11LA 1.5T', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,351 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,351 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,352 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3500>
+2024-12-25 10:15:15,352 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1970>
+2024-12-25 10:15:15,353 - dz_fastapi - DEBUG - Autopart already exists: ID 2898
+2024-12-25 10:15:15,353 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '2032076800', 'name': 'ФИЛЬТР ВОЗДУШНЫЙ В СБОРЕ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,353 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='2032076800' name='ФИЛЬТР ВОЗДУШНЫЙ В СБОРЕ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,353 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '2032076800', 'name': 'ФИЛЬТР ВОЗДУШНЫЙ В СБОРЕ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,353 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,353 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,354 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e0500>
+2024-12-25 10:15:15,355 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e31d0>
+2024-12-25 10:15:15,355 - dz_fastapi - DEBUG - Autopart already exists: ID 2899
+2024-12-25 10:15:15,355 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1033006300', 'name': 'Фильтр клапана', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,355 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1033006300' name='Фильтр клапана' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,355 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1033006300', 'name': 'Фильтр клапана', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,355 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,355 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,356 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2870>
+2024-12-25 10:15:15,357 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3230>
+2024-12-25 10:15:15,357 - dz_fastapi - DEBUG - Autopart already exists: ID 2900
+2024-12-25 10:15:15,357 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1136000121', 'name': 'Фильтр клапана регулировки фаз ГРМ Geely Emgrand EC7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,357 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1136000121' name='Фильтр клапана регулировки фаз ГРМ Geely Emgrand EC7' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,358 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1136000121', 'name': 'Фильтр клапана регулировки фаз ГРМ Geely Emgrand EC7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,358 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,358 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,359 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3560>
+2024-12-25 10:15:15,359 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1970>
+2024-12-25 10:15:15,360 - dz_fastapi - DEBUG - Autopart already exists: ID 2901
+2024-12-25 10:15:15,360 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '8022040400', 'name': 'ФИЛЬТР КОНДИЦИОНЕРА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,360 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='8022040400' name='ФИЛЬТР КОНДИЦИОНЕРА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,360 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '8022040400', 'name': 'ФИЛЬТР КОНДИЦИОНЕРА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,360 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,360 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,361 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e0bf0>
+2024-12-25 10:15:15,362 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e31d0>
+2024-12-25 10:15:15,362 - dz_fastapi - DEBUG - Autopart already exists: ID 2902
+2024-12-25 10:15:15,362 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '8025530200', 'name': 'ФИЛЬТР КОНДИЦИОНЕРА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,362 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='8025530200' name='ФИЛЬТР КОНДИЦИОНЕРА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,362 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '8025530200', 'name': 'ФИЛЬТР КОНДИЦИОНЕРА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,362 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,362 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,363 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3920>
+2024-12-25 10:15:15,364 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2870>
+2024-12-25 10:15:15,364 - dz_fastapi - DEBUG - Autopart already exists: ID 2903
+2024-12-25 10:15:15,364 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1056006100', 'name': 'Фильтр масляный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,364 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1056006100' name='Фильтр масляный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,364 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1056006100', 'name': 'Фильтр масляный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,364 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,365 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,365 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3fe0>
+2024-12-25 10:15:15,366 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3a70>
+2024-12-25 10:15:15,366 - dz_fastapi - DEBUG - Autopart already exists: ID 2904
+2024-12-25 10:15:15,366 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '6608194519', 'name': 'ФИЛЬТР МАСЛЯНЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,366 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='6608194519' name='ФИЛЬТР МАСЛЯНЫЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,367 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '6608194519', 'name': 'ФИЛЬТР МАСЛЯНЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,367 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,367 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,368 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3110>
+2024-12-25 10:15:15,368 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2060>
+2024-12-25 10:15:15,369 - dz_fastapi - DEBUG - Autopart already exists: ID 2905
+2024-12-25 10:15:15,369 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1136000118', 'name': 'Фильтр масляный EC7/Vision', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,369 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1136000118' name='Фильтр масляный EC7/Vision' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,369 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1136000118', 'name': 'Фильтр масляный EC7/Vision', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,369 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,369 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,370 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2270>
+2024-12-25 10:15:15,371 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3b30>
+2024-12-25 10:15:15,371 - dz_fastapi - DEBUG - Autopart already exists: ID 2906
+2024-12-25 10:15:15,371 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1056004100', 'name': 'Фильтр масляный GEELY EMGRAND GT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,371 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1056004100' name='Фильтр масляный GEELY EMGRAND GT' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,371 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1056004100', 'name': 'Фильтр масляный GEELY EMGRAND GT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,371 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,371 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,372 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3da0>
+2024-12-25 10:15:15,373 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e23f0>
+2024-12-25 10:15:15,373 - dz_fastapi - DEBUG - Autopart already exists: ID 2907
+2024-12-25 10:15:15,373 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '3088001600', 'name': 'ФИЛЬТР МАСЛЯНЫЙ АКПП GEELY ATLAS NL-3', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,373 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='3088001600' name='ФИЛЬТР МАСЛЯНЫЙ АКПП GEELY ATLAS NL-3' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,373 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '3088001600', 'name': 'ФИЛЬТР МАСЛЯНЫЙ АКПП GEELY ATLAS NL-3', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,374 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,374 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,374 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2690>
+2024-12-25 10:15:15,375 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3aa0>
+2024-12-25 10:15:15,375 - dz_fastapi - DEBUG - Autopart already exists: ID 2908
+2024-12-25 10:15:15,375 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1056027400', 'name': 'ФИЛЬТР МАСЛЯНЫЙ В СБОРЕ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,375 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1056027400' name='ФИЛЬТР МАСЛЯНЫЙ В СБОРЕ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,376 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1056027400', 'name': 'ФИЛЬТР МАСЛЯНЫЙ В СБОРЕ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,376 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,376 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,377 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3f80>
+2024-12-25 10:15:15,378 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e38f0>
+2024-12-25 10:15:15,378 - dz_fastapi - DEBUG - Autopart already exists: ID 2909
+2024-12-25 10:15:15,378 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '8025530000', 'name': 'ФИЛЬТР САЛОНА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,378 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='8025530000' name='ФИЛЬТР САЛОНА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,378 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '8025530000', 'name': 'ФИЛЬТР САЛОНА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,378 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,378 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,379 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2390>
+2024-12-25 10:15:15,380 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e11c0>
+2024-12-25 10:15:15,380 - dz_fastapi - DEBUG - Autopart already exists: ID 2910
+2024-12-25 10:15:15,380 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1017015060', 'name': 'ФИЛЬТР САЛОННЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,380 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1017015060' name='ФИЛЬТР САЛОННЫЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,380 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1017015060', 'name': 'ФИЛЬТР САЛОННЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,381 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,381 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,382 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3b90>
+2024-12-25 10:15:15,383 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e33b0>
+2024-12-25 10:15:15,383 - dz_fastapi - DEBUG - Autopart already exists: ID 2911
+2024-12-25 10:15:15,383 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1018002773', 'name': 'Фильтр салонный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,383 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1018002773' name='Фильтр салонный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,383 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1018002773', 'name': 'Фильтр салонный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,383 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,383 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,384 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3b60>
+2024-12-25 10:15:15,385 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1eb0>
+2024-12-25 10:15:15,385 - dz_fastapi - DEBUG - Autopart already exists: ID 2912
+2024-12-25 10:15:15,385 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1016020001', 'name': 'ФИЛЬТР САЛОННЫЙ GEELY FE-3JC EMGRAND 7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,385 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1016020001' name='ФИЛЬТР САЛОННЫЙ GEELY FE-3JC EMGRAND 7' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,385 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1016020001', 'name': 'ФИЛЬТР САЛОННЫЙ GEELY FE-3JC EMGRAND 7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,385 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,385 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,386 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2990>
+2024-12-25 10:15:15,387 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1d30>
+2024-12-25 10:15:15,387 - dz_fastapi - DEBUG - Autopart already exists: ID 2913
+2024-12-25 10:15:15,387 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1066002596', 'name': 'ФИЛЬТР ТОПЛИВНОГО НАСОСА (НОВЫЙ ТИП)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,387 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1066002596' name='ФИЛЬТР ТОПЛИВНОГО НАСОСА (НОВЫЙ ТИП)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,387 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1066002596', 'name': 'ФИЛЬТР ТОПЛИВНОГО НАСОСА (НОВЫЙ ТИП)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,388 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,388 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,388 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3ad0>
+2024-12-25 10:15:15,389 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2270>
+2024-12-25 10:15:15,389 - dz_fastapi - DEBUG - Autopart already exists: ID 2914
+2024-12-25 10:15:15,390 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1066002593', 'name': 'ФИЛЬТР ТОПЛИВНОГО НАСОСА (СТАРЫЙ ТИП)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,390 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1066002593' name='ФИЛЬТР ТОПЛИВНОГО НАСОСА (СТАРЫЙ ТИП)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,390 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1066002593', 'name': 'ФИЛЬТР ТОПЛИВНОГО НАСОСА (СТАРЫЙ ТИП)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,390 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,390 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,391 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2210>
+2024-12-25 10:15:15,392 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3920>
+2024-12-25 10:15:15,392 - dz_fastapi - DEBUG - Autopart already exists: ID 2915
+2024-12-25 10:15:15,392 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '2013021700', 'name': 'ФИЛЬТР ТОПЛИВНЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,392 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='2013021700' name='ФИЛЬТР ТОПЛИВНЫЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,392 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '2013021700', 'name': 'ФИЛЬТР ТОПЛИВНЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,392 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,392 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,393 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2ff0>
+2024-12-25 10:15:15,394 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e0bf0>
+2024-12-25 10:15:15,394 - dz_fastapi - DEBUG - Autopart already exists: ID 2916
+2024-12-25 10:15:15,394 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '2013037300', 'name': 'ФИЛЬТР ТОПЛИВНЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,394 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='2013037300' name='ФИЛЬТР ТОПЛИВНЫЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,394 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '2013037300', 'name': 'ФИЛЬТР ТОПЛИВНЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,395 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,395 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,395 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1d00>
+2024-12-25 10:15:15,396 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3d70>
+2024-12-25 10:15:15,396 - dz_fastapi - DEBUG - Autopart already exists: ID 2917
+2024-12-25 10:15:15,397 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '8025530500', 'name': 'ФИЛЬТРУЮЩИЙ ЭЛЕМЕНТ КОНДИЦИОНЕРА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,397 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='8025530500' name='ФИЛЬТРУЮЩИЙ ЭЛЕМЕНТ КОНДИЦИОНЕРА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,397 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '8025530500', 'name': 'ФИЛЬТРУЮЩИЙ ЭЛЕМЕНТ КОНДИЦИОНЕРА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,397 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,397 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,398 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3920>
+2024-12-25 10:15:15,399 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2c00>
+2024-12-25 10:15:15,400 - dz_fastapi - DEBUG - Autopart already exists: ID 2918
+2024-12-25 10:15:15,400 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1136000081', 'name': 'Цепь', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,400 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1136000081' name='Цепь' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,400 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1136000081', 'name': 'Цепь', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,400 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,400 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,401 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2450>
+2024-12-25 10:15:15,402 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3410>
+2024-12-25 10:15:15,402 - dz_fastapi - DEBUG - Autopart already exists: ID 2919
+2024-12-25 10:15:15,402 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1046006000', 'name': 'ЦЕПЬ МАСЛЯНОГО НАСОСА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,402 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1046006000' name='ЦЕПЬ МАСЛЯНОГО НАСОСА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,402 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1046006000', 'name': 'ЦЕПЬ МАСЛЯНОГО НАСОСА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,402 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,402 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,403 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1eb0>
+2024-12-25 10:15:15,404 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2480>
+2024-12-25 10:15:15,404 - dz_fastapi - DEBUG - Autopart already exists: ID 2920
+2024-12-25 10:15:15,404 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1046029800', 'name': 'ЦЕПЬ МАСЛЯНОГО НАСОСА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,404 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1046029800' name='ЦЕПЬ МАСЛЯНОГО НАСОСА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,404 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1046029800', 'name': 'ЦЕПЬ МАСЛЯНОГО НАСОСА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,404 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,404 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,405 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3f50>
+2024-12-25 10:15:15,406 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2450>
+2024-12-25 10:15:15,406 - dz_fastapi - DEBUG - Autopart already exists: ID 2921
+2024-12-25 10:15:15,406 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1046033100', 'name': 'ЦЕПЬ МАСЛЯНОГО НАСОСА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,406 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1046033100' name='ЦЕПЬ МАСЛЯНОГО НАСОСА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,407 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1046033100', 'name': 'ЦЕПЬ МАСЛЯНОГО НАСОСА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,407 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,407 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,407 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2690>
+2024-12-25 10:15:15,408 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3230>
+2024-12-25 10:15:15,408 - dz_fastapi - DEBUG - Autopart already exists: ID 2922
+2024-12-25 10:15:15,408 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '3170206301', 'name': 'ЦИЛИНДР ТРАНСМИСИИ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,409 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='3170206301' name='ЦИЛИНДР ТРАНСМИСИИ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,409 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '3170206301', 'name': 'ЦИЛИНДР ТРАНСМИСИИ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,409 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,409 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,410 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2030>
+2024-12-25 10:15:15,411 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3380>
+2024-12-25 10:15:15,411 - dz_fastapi - DEBUG - Autopart already exists: ID 2923
+2024-12-25 10:15:15,411 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '3170209201', 'name': 'ЦИЛИНДР ТРАНСМИССИИ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,411 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='3170209201' name='ЦИЛИНДР ТРАНСМИССИИ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,411 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '3170209201', 'name': 'ЦИЛИНДР ТРАНСМИССИИ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,411 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,411 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,412 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2870>
+2024-12-25 10:15:15,413 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1f70>
+2024-12-25 10:15:15,413 - dz_fastapi - DEBUG - Autopart already exists: ID 2924
+2024-12-25 10:15:15,413 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '101400174700601', 'name': 'Чехол рычага КПП', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,413 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='101400174700601' name='Чехол рычага КПП' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,413 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '101400174700601', 'name': 'Чехол рычага КПП', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,413 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,414 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,414 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2db0>
+2024-12-25 10:15:15,415 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3da0>
+2024-12-25 10:15:15,415 - dz_fastapi - DEBUG - Autopart already exists: ID 2925
+2024-12-25 10:15:15,415 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1022004500', 'name': 'ШАЙБА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,415 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1022004500' name='ШАЙБА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,416 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1022004500', 'name': 'ШАЙБА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,416 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,416 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,417 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2000>
+2024-12-25 10:15:15,418 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2d20>
+2024-12-25 10:15:15,418 - dz_fastapi - DEBUG - Autopart already exists: ID 2926
+2024-12-25 10:15:15,418 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1025001200', 'name': 'ШАЙБА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,418 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1025001200' name='ШАЙБА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,418 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1025001200', 'name': 'ШАЙБА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,418 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,418 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,419 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1970>
+2024-12-25 10:15:15,420 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1910>
+2024-12-25 10:15:15,420 - dz_fastapi - DEBUG - Autopart already exists: ID 2927
+2024-12-25 10:15:15,420 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '3170102901', 'name': 'Шайба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,420 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='3170102901' name='Шайба' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,421 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '3170102901', 'name': 'Шайба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,421 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,421 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,422 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3380>
+2024-12-25 10:15:15,423 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2240>
+2024-12-25 10:15:15,423 - dz_fastapi - DEBUG - Autopart already exists: ID 2928
+2024-12-25 10:15:15,423 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '3230330601', 'name': 'Шайба дифференциала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,423 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='3230330601' name='Шайба дифференциала' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,424 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '3230330601', 'name': 'Шайба дифференциала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,424 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,424 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,425 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1f10>
+2024-12-25 10:15:15,426 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e23f0>
+2024-12-25 10:15:15,426 - dz_fastapi - DEBUG - Autopart already exists: ID 2929
+2024-12-25 10:15:15,426 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '3230330702', 'name': 'Шайба дифференциала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,426 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='3230330702' name='Шайба дифференциала' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,426 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '3230330702', 'name': 'Шайба дифференциала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,426 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,427 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,427 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e26c0>
+2024-12-25 10:15:15,428 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2270>
+2024-12-25 10:15:15,428 - dz_fastapi - DEBUG - Autopart already exists: ID 2930
+2024-12-25 10:15:15,428 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '3088001900R', 'name': 'ШАЙБА ПРОБКИ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,428 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='3088001900R' name='ШАЙБА ПРОБКИ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,429 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '3088001900R', 'name': 'ШАЙБА ПРОБКИ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,429 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,429 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,430 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2c30>
+2024-12-25 10:15:15,430 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3f50>
+2024-12-25 10:15:15,430 - dz_fastapi - DEBUG - Autopart already exists: ID 2931
+2024-12-25 10:15:15,430 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': 'E010001201313', 'name': 'ШАЙБА РЕГУЛИРОВОЧНАЯ 3.13', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,431 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='E010001201313' name='ШАЙБА РЕГУЛИРОВОЧНАЯ 3.13' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,431 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': 'E010001201313', 'name': 'ШАЙБА РЕГУЛИРОВОЧНАЯ 3.13', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,431 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,431 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,432 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e35f0>
+2024-12-25 10:15:15,432 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3a10>
+2024-12-25 10:15:15,433 - dz_fastapi - DEBUG - Autopart already exists: ID 2932
+2024-12-25 10:15:15,433 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '3170114601', 'name': 'Шайба торцевая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,433 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='3170114601' name='Шайба торцевая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,433 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '3170114601', 'name': 'Шайба торцевая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,433 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,433 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,434 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2de0>
+2024-12-25 10:15:15,435 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1fa0>
+2024-12-25 10:15:15,435 - dz_fastapi - DEBUG - Autopart already exists: ID 2933
+2024-12-25 10:15:15,435 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1044023900', 'name': 'ШАТУН В СБОРЕ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,435 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1044023900' name='ШАТУН В СБОРЕ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,435 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1044023900', 'name': 'ШАТУН В СБОРЕ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,435 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,435 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,436 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3b30>
+2024-12-25 10:15:15,437 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3c50>
+2024-12-25 10:15:15,437 - dz_fastapi - DEBUG - Autopart already exists: ID 2934
+2024-12-25 10:15:15,437 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '3230330201', 'name': 'Шестерня', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,437 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='3230330201' name='Шестерня' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,437 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '3230330201', 'name': 'Шестерня', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,437 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,437 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,438 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e34a0>
+2024-12-25 10:15:15,439 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1eb0>
+2024-12-25 10:15:15,439 - dz_fastapi - DEBUG - Autopart already exists: ID 2935
+2024-12-25 10:15:15,439 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '3230330301', 'name': 'Шестерня', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,439 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='3230330301' name='Шестерня' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,439 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '3230330301', 'name': 'Шестерня', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,439 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,439 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,440 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3140>
+2024-12-25 10:15:15,441 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3350>
+2024-12-25 10:15:15,441 - dz_fastapi - DEBUG - Autopart already exists: ID 2936
+2024-12-25 10:15:15,441 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': 'E010120301', 'name': 'ШЕСТЕРНЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,441 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='E010120301' name='ШЕСТЕРНЯ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,441 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': 'E010120301', 'name': 'ШЕСТЕРНЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,441 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,442 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,442 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3c50>
+2024-12-25 10:15:15,443 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3fe0>
+2024-12-25 10:15:15,444 - dz_fastapi - DEBUG - Autopart already exists: ID 2937
+2024-12-25 10:15:15,444 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '3230330801', 'name': 'ШЕСТЕРНЯ ДИФФЕРЕНЦИАЛА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,444 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='3230330801' name='ШЕСТЕРНЯ ДИФФЕРЕНЦИАЛА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,444 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '3230330801', 'name': 'ШЕСТЕРНЯ ДИФФЕРЕНЦИАЛА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,444 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,444 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,445 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2030>
+2024-12-25 10:15:15,446 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3680>
+2024-12-25 10:15:15,446 - dz_fastapi - DEBUG - Autopart already exists: ID 2938
+2024-12-25 10:15:15,446 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '317011361101', 'name': 'Шестерня КПП GEELY MK 3 передачи вторичного вала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,446 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='317011361101' name='Шестерня КПП GEELY MK 3 передачи вторичного вала' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,446 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '317011361101', 'name': 'Шестерня КПП GEELY MK 3 передачи вторичного вала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,446 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,446 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,447 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3f50>
+2024-12-25 10:15:15,448 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1a90>
+2024-12-25 10:15:15,448 - dz_fastapi - DEBUG - Autopart already exists: ID 2939
+2024-12-25 10:15:15,448 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '3170114001', 'name': 'ШЕСТЕРНЯ ПЯТОЙ ПЕРЕДАЧИ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,449 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='3170114001' name='ШЕСТЕРНЯ ПЯТОЙ ПЕРЕДАЧИ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,449 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '3170114001', 'name': 'ШЕСТЕРНЯ ПЯТОЙ ПЕРЕДАЧИ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,449 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,449 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,450 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2450>
+2024-12-25 10:15:15,451 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2030>
+2024-12-25 10:15:15,451 - dz_fastapi - DEBUG - Autopart already exists: ID 2940
+2024-12-25 10:15:15,451 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': 'E010110301', 'name': 'ШЕСТЕРНЯ РАСПРЕДВАЛА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,451 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='E010110301' name='ШЕСТЕРНЯ РАСПРЕДВАЛА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,451 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': 'E010110301', 'name': 'ШЕСТЕРНЯ РАСПРЕДВАЛА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,451 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,451 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,452 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3b90>
+2024-12-25 10:15:15,453 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3d70>
+2024-12-25 10:15:15,453 - dz_fastapi - DEBUG - Autopart already exists: ID 2941
+2024-12-25 10:15:15,453 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '3170121005', 'name': 'Шестерня спидометра', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,454 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='3170121005' name='Шестерня спидометра' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,454 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '3170121005', 'name': 'Шестерня спидометра', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,454 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,454 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,455 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e25a0>
+2024-12-25 10:15:15,456 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3bc0>
+2024-12-25 10:15:15,456 - dz_fastapi - DEBUG - Autopart already exists: ID 2942
+2024-12-25 10:15:15,456 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '3230330901', 'name': 'Шестерня спидометра', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,456 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='3230330901' name='Шестерня спидометра' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,456 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '3230330901', 'name': 'Шестерня спидометра', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,456 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,456 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,457 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3470>
+2024-12-25 10:15:15,458 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e21b0>
+2024-12-25 10:15:15,458 - dz_fastapi - DEBUG - Autopart already exists: ID 2943
+2024-12-25 10:15:15,458 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1046030200', 'name': 'ШКИВ КОЛЕНВАЛА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,458 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1046030200' name='ШКИВ КОЛЕНВАЛА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,458 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1046030200', 'name': 'ШКИВ КОЛЕНВАЛА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,459 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,459 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,459 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2900>
+2024-12-25 10:15:15,460 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e0290>
+2024-12-25 10:15:15,460 - dz_fastapi - DEBUG - Autopart already exists: ID 2944
+2024-12-25 10:15:15,461 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1016002046', 'name': 'Шланг бачка расширительного GEELY ОТАКА, MK', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,461 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1016002046' name='Шланг бачка расширительного GEELY ОТАКА, MK' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,461 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1016002046', 'name': 'Шланг бачка расширительного GEELY ОТАКА, MK', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,461 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,461 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,462 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2ea0>
+2024-12-25 10:15:15,463 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3560>
+2024-12-25 10:15:15,463 - dz_fastapi - DEBUG - Autopart already exists: ID 2945
+2024-12-25 10:15:15,463 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1014001775', 'name': 'Шланг рабочего цилиндра сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,463 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1014001775' name='Шланг рабочего цилиндра сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,463 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1014001775', 'name': 'Шланг рабочего цилиндра сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,463 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,463 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,464 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3260>
+2024-12-25 10:15:15,465 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2930>
+2024-12-25 10:15:15,465 - dz_fastapi - DEBUG - Autopart already exists: ID 2946
+2024-12-25 10:15:15,465 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '2074007800', 'name': 'ШЛАНГ СОСТЕМЫ ОХЛАЖДЕНИЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,465 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='2074007800' name='ШЛАНГ СОСТЕМЫ ОХЛАЖДЕНИЯ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,465 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '2074007800', 'name': 'ШЛАНГ СОСТЕМЫ ОХЛАЖДЕНИЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,465 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,465 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,466 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e22d0>
+2024-12-25 10:15:15,467 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2d80>
+2024-12-25 10:15:15,467 - dz_fastapi - DEBUG - Autopart already exists: ID 2947
+2024-12-25 10:15:15,467 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1014001650', 'name': 'Шланг тормозной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,467 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1014001650' name='Шланг тормозной' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,467 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1014001650', 'name': 'Шланг тормозной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,467 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,468 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,468 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2a20>
+2024-12-25 10:15:15,469 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e21e0>
+2024-12-25 10:15:15,469 - dz_fastapi - DEBUG - Autopart already exists: ID 2948
+2024-12-25 10:15:15,469 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '4066076400', 'name': 'ШЛАНГ ТОРМОЗНОЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,469 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='4066076400' name='ШЛАНГ ТОРМОЗНОЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,470 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '4066076400', 'name': 'ШЛАНГ ТОРМОЗНОЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,470 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,470 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,471 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2000>
+2024-12-25 10:15:15,471 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3950>
+2024-12-25 10:15:15,472 - dz_fastapi - DEBUG - Autopart already exists: ID 2949
+2024-12-25 10:15:15,472 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '4066076500', 'name': 'ШЛАНГ ТОРМОЗНОЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,472 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='4066076500' name='ШЛАНГ ТОРМОЗНОЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,472 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '4066076500', 'name': 'ШЛАНГ ТОРМОЗНОЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,472 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,472 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,473 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1fa0>
+2024-12-25 10:15:15,474 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e08c0>
+2024-12-25 10:15:15,474 - dz_fastapi - DEBUG - Autopart already exists: ID 2950
+2024-12-25 10:15:15,474 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '140611518001', 'name': 'ШЛАНГ ТОРМОЗНОЙ ЗАДНИЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,474 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='140611518001' name='ШЛАНГ ТОРМОЗНОЙ ЗАДНИЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,474 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '140611518001', 'name': 'ШЛАНГ ТОРМОЗНОЙ ЗАДНИЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,474 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,474 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,475 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e28d0>
+2024-12-25 10:15:15,476 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e36e0>
+2024-12-25 10:15:15,476 - dz_fastapi - DEBUG - Autopart already exists: ID 2951
+2024-12-25 10:15:15,476 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': 'Q5500416', 'name': 'Шпонка коленвала EMGRAND, VISION', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,477 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='Q5500416' name='Шпонка коленвала EMGRAND, VISION' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,477 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': 'Q5500416', 'name': 'Шпонка коленвала EMGRAND, VISION', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,477 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,477 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,478 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2de0>
+2024-12-25 10:15:15,478 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3170>
+2024-12-25 10:15:15,478 - dz_fastapi - DEBUG - Autopart already exists: ID 2952
+2024-12-25 10:15:15,478 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '101400335401', 'name': 'ШРУС наружный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,479 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='101400335401' name='ШРУС наружный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,479 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '101400335401', 'name': 'ШРУС наружный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,479 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,479 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,480 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3d40>
+2024-12-25 10:15:15,480 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e30e0>
+2024-12-25 10:15:15,481 - dz_fastapi - DEBUG - Autopart already exists: ID 2954
+2024-12-25 10:15:15,481 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1406141180', 'name': 'ШТУЦЕР ТОРМОЗНОЙ ТРУБКИ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,481 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1406141180' name='ШТУЦЕР ТОРМОЗНОЙ ТРУБКИ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,481 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1406141180', 'name': 'ШТУЦЕР ТОРМОЗНОЙ ТРУБКИ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,481 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,481 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,482 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2570>
+2024-12-25 10:15:15,483 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3020>
+2024-12-25 10:15:15,483 - dz_fastapi - DEBUG - Autopart already exists: ID 2955
+2024-12-25 10:15:15,483 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '6022004500', 'name': 'ЩЕТКА ЗАДНЕГО СТЕКЛООЧИСТИТЕЛЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,483 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='6022004500' name='ЩЕТКА ЗАДНЕГО СТЕКЛООЧИСТИТЕЛЯ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,483 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '6022004500', 'name': 'ЩЕТКА ЗАДНЕГО СТЕКЛООЧИСТИТЕЛЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,483 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,483 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,484 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2480>
+2024-12-25 10:15:15,485 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1fa0>
+2024-12-25 10:15:15,485 - dz_fastapi - DEBUG - Autopart already exists: ID 2956
+2024-12-25 10:15:15,485 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1017019881', 'name': 'ЩЕТКА СТЕКЛООЧИСТИТЕЛЯ ЗАДНЯЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,485 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1017019881' name='ЩЕТКА СТЕКЛООЧИСТИТЕЛЯ ЗАДНЯЯ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,485 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1017019881', 'name': 'ЩЕТКА СТЕКЛООЧИСТИТЕЛЯ ЗАДНЯЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,486 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,486 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,486 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e30e0>
+2024-12-25 10:15:15,487 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e35c0>
+2024-12-25 10:15:15,488 - dz_fastapi - DEBUG - Autopart already exists: ID 2957
+2024-12-25 10:15:15,488 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '6020021800', 'name': 'ЩЕТКА СТЕКЛООЧИСТИТЕЛЯ ЛЕВАЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,488 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='6020021800' name='ЩЕТКА СТЕКЛООЧИСТИТЕЛЯ ЛЕВАЯ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,488 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '6020021800', 'name': 'ЩЕТКА СТЕКЛООЧИСТИТЕЛЯ ЛЕВАЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,488 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,488 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,489 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1940>
+2024-12-25 10:15:15,490 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3890>
+2024-12-25 10:15:15,490 - dz_fastapi - DEBUG - Autopart already exists: ID 2958
+2024-12-25 10:15:15,490 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '1056021600', 'name': 'ЩУП МАСЛЯНЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,490 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='1056021600' name='ЩУП МАСЛЯНЫЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,490 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '1056021600', 'name': 'ЩУП МАСЛЯНЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,490 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,490 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,491 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e33b0>
+2024-12-25 10:15:15,492 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3410>
+2024-12-25 10:15:15,492 - dz_fastapi - DEBUG - Autopart already exists: ID 2959
+2024-12-25 10:15:15,492 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '2000100006', 'name': 'ЩУП МАСЛЯНЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,492 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='2000100006' name='ЩУП МАСЛЯНЫЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,493 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '2000100006', 'name': 'ЩУП МАСЛЯНЫЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,493 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,493 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,494 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2030>
+2024-12-25 10:15:15,495 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1940>
+2024-12-25 10:15:15,495 - dz_fastapi - DEBUG - Autopart already exists: ID 2960
+2024-12-25 10:15:15,495 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '2032045400', 'name': 'ЭЛЕМЕНТ ВОЗДУШНОГО ФИЛЬТРА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,495 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='2032045400' name='ЭЛЕМЕНТ ВОЗДУШНОГО ФИЛЬТРА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,495 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '2032045400', 'name': 'ЭЛЕМЕНТ ВОЗДУШНОГО ФИЛЬТРА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,495 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,495 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,496 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2ea0>
+2024-12-25 10:15:15,497 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3680>
+2024-12-25 10:15:15,497 - dz_fastapi - DEBUG - Autopart already exists: ID 2961
+2024-12-25 10:15:15,497 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GEELY', 'oem_number': '2032061800', 'name': 'ЭЛЕМЕНТ ВОЗДУШНОГО ФИЛЬТРА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,497 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GEELY' oem_number='2032061800' name='ЭЛЕМЕНТ ВОЗДУШНОГО ФИЛЬТРА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,497 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GEELY', 'oem_number': '2032061800', 'name': 'ЭЛЕМЕНТ ВОЗДУШНОГО ФИЛЬТРА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,497 - dz_fastapi - DEBUG - Extracted brand_name: GEELY
+2024-12-25 10:15:15,498 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2024-12-25 10:15:15,498 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3bf0>
+2024-12-25 10:15:15,499 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3ad0>
+2024-12-25 10:15:15,499 - dz_fastapi - DEBUG - Autopart already exists: ID 2962
+2024-12-25 10:15:15,499 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GENERAL MOTORS', 'oem_number': '12855284', 'name': 'Пробка картера распредвала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,500 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GENERAL MOTORS' oem_number='12855284' name='Пробка картера распредвала' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,500 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GENERAL MOTORS', 'oem_number': '12855284', 'name': 'Пробка картера распредвала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,500 - dz_fastapi - DEBUG - Extracted brand_name: GENERAL MOTORS
+2024-12-25 10:15:15,500 - dz_fastapi - DEBUG - Changed brand_name: GENERAL MOTORS
+2024-12-25 10:15:15,501 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2120>
+2024-12-25 10:15:15,502 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1af0>
+2024-12-25 10:15:15,502 - dz_fastapi - DEBUG - Autopart already exists: ID 2963
+2024-12-25 10:15:15,502 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GENERAL MOTORS', 'oem_number': '24100002', 'name': 'Прокладка маслозаливной крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,502 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GENERAL MOTORS' oem_number='24100002' name='Прокладка маслозаливной крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,502 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GENERAL MOTORS', 'oem_number': '24100002', 'name': 'Прокладка маслозаливной крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,502 - dz_fastapi - DEBUG - Extracted brand_name: GENERAL MOTORS
+2024-12-25 10:15:15,502 - dz_fastapi - DEBUG - Changed brand_name: GENERAL MOTORS
+2024-12-25 10:15:15,503 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e31d0>
+2024-12-25 10:15:15,504 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2ff0>
+2024-12-25 10:15:15,504 - dz_fastapi - DEBUG - Autopart already exists: ID 2964
+2024-12-25 10:15:15,504 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GENERAL MOTORS', 'oem_number': 'SP0138', 'name': 'СТЕКЛО ЗЕРКАЛА ЗАДНЕГО ВИДА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,504 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GENERAL MOTORS' oem_number='SP0138' name='СТЕКЛО ЗЕРКАЛА ЗАДНЕГО ВИДА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,504 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GENERAL MOTORS', 'oem_number': 'SP0138', 'name': 'СТЕКЛО ЗЕРКАЛА ЗАДНЕГО ВИДА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,505 - dz_fastapi - DEBUG - Extracted brand_name: GENERAL MOTORS
+2024-12-25 10:15:15,505 - dz_fastapi - DEBUG - Changed brand_name: GENERAL MOTORS
+2024-12-25 10:15:15,506 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1d00>
+2024-12-25 10:15:15,506 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2ed0>
+2024-12-25 10:15:15,507 - dz_fastapi - DEBUG - Autopart already exists: ID 2965
+2024-12-25 10:15:15,507 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GENERAL MOTORS', 'oem_number': '96626425', 'name': 'Тяга задней подв', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,507 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GENERAL MOTORS' oem_number='96626425' name='Тяга задней подв' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,507 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GENERAL MOTORS', 'oem_number': '96626425', 'name': 'Тяга задней подв', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,507 - dz_fastapi - DEBUG - Extracted brand_name: GENERAL MOTORS
+2024-12-25 10:15:15,507 - dz_fastapi - DEBUG - Changed brand_name: GENERAL MOTORS
+2024-12-25 10:15:15,508 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3800>
+2024-12-25 10:15:15,509 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3590>
+2024-12-25 10:15:15,509 - dz_fastapi - DEBUG - Autopart already exists: ID 2966
+2024-12-25 10:15:15,509 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GENERAL MOTORS', 'oem_number': '96537170', 'name': 'Фильтр топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,509 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GENERAL MOTORS' oem_number='96537170' name='Фильтр топливный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,509 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GENERAL MOTORS', 'oem_number': '96537170', 'name': 'Фильтр топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,509 - dz_fastapi - DEBUG - Extracted brand_name: GENERAL MOTORS
+2024-12-25 10:15:15,509 - dz_fastapi - DEBUG - Changed brand_name: GENERAL MOTORS
+2024-12-25 10:15:15,510 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1e20>
+2024-12-25 10:15:15,511 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e38c0>
+2024-12-25 10:15:15,511 - dz_fastapi - DEBUG - Autopart already exists: ID 2967
+2024-12-25 10:15:15,511 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GENERAL MOTORS', 'oem_number': '24261685', 'name': 'Шайба диам.22 мм', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,511 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GENERAL MOTORS' oem_number='24261685' name='Шайба диам.22 мм' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,511 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GENERAL MOTORS', 'oem_number': '24261685', 'name': 'Шайба диам.22 мм', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,512 - dz_fastapi - DEBUG - Extracted brand_name: GENERAL MOTORS
+2024-12-25 10:15:15,512 - dz_fastapi - DEBUG - Changed brand_name: GENERAL MOTORS
+2024-12-25 10:15:15,512 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2ba0>
+2024-12-25 10:15:15,513 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e0ef0>
+2024-12-25 10:15:15,513 - dz_fastapi - DEBUG - Autopart already exists: ID 2968
+2024-12-25 10:15:15,513 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GMB', 'oem_number': 'GWT83A', 'name': 'Водянная помпа', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,513 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GMB' oem_number='GWT83A' name='Водянная помпа' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,514 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GMB', 'oem_number': 'GWT83A', 'name': 'Водянная помпа', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,514 - dz_fastapi - DEBUG - Extracted brand_name: GMB
+2024-12-25 10:15:15,514 - dz_fastapi - DEBUG - Changed brand_name: GMB
+2024-12-25 10:15:15,515 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e20c0>
+2024-12-25 10:15:15,516 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e28a0>
+2024-12-25 10:15:15,516 - dz_fastapi - DEBUG - Autopart already exists: ID 2969
+2024-12-25 10:15:15,516 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GMB', 'oem_number': 'GWT84A', 'name': 'Водянная помпа', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,516 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GMB' oem_number='GWT84A' name='Водянная помпа' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,516 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GMB', 'oem_number': 'GWT84A', 'name': 'Водянная помпа', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,516 - dz_fastapi - DEBUG - Extracted brand_name: GMB
+2024-12-25 10:15:15,516 - dz_fastapi - DEBUG - Changed brand_name: GMB
+2024-12-25 10:15:15,517 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e34a0>
+2024-12-25 10:15:15,518 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3c80>
+2024-12-25 10:15:15,518 - dz_fastapi - DEBUG - Autopart already exists: ID 2970
+2024-12-25 10:15:15,518 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GMB', 'oem_number': 'GUT21', 'name': 'Крестовина заднего кардана', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,518 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GMB' oem_number='GUT21' name='Крестовина заднего кардана' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,518 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GMB', 'oem_number': 'GUT21', 'name': 'Крестовина заднего кардана', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,518 - dz_fastapi - DEBUG - Extracted brand_name: GMB
+2024-12-25 10:15:15,518 - dz_fastapi - DEBUG - Changed brand_name: GMB
+2024-12-25 10:15:15,519 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2b10>
+2024-12-25 10:15:15,520 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e38c0>
+2024-12-25 10:15:15,520 - dz_fastapi - DEBUG - Autopart already exists: ID 2971
+2024-12-25 10:15:15,520 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GMB', 'oem_number': 'ST1640', 'name': 'Крестовина карданчиков рулевого вала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,520 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GMB' oem_number='ST1640' name='Крестовина карданчиков рулевого вала' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,521 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GMB', 'oem_number': 'ST1640', 'name': 'Крестовина карданчиков рулевого вала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,521 - dz_fastapi - DEBUG - Extracted brand_name: GMB
+2024-12-25 10:15:15,521 - dz_fastapi - DEBUG - Changed brand_name: GMB
+2024-12-25 10:15:15,521 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e21e0>
+2024-12-25 10:15:15,522 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2d20>
+2024-12-25 10:15:15,522 - dz_fastapi - DEBUG - Autopart already exists: ID 2972
+2024-12-25 10:15:15,523 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GMB', 'oem_number': '30304', 'name': 'Подшипник GMB', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,523 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GMB' oem_number='30304' name='Подшипник GMB' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:15,523 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GMB', 'oem_number': '30304', 'name': 'Подшипник GMB', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:15,523 - dz_fastapi - DEBUG - Extracted brand_name: GMB
+2024-12-25 10:15:15,523 - dz_fastapi - DEBUG - Changed brand_name: GMB
+2024-12-25 10:15:15,524 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2b10>
+2024-12-25 10:15:15,525 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2ed0>
+2024-12-25 10:15:15,525 - dz_fastapi - DEBUG - Autopart already exists: ID 2973
+2024-12-25 10:15:15,525 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GMB', 'oem_number': 'GH23610', 'name': 'ПОДШИПНИК ПЕРЕДНЕЙ СТУПИЦЫ TOYOTA LAND CRUISER 200 (2008-)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}

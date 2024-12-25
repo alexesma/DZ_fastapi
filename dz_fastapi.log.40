@@ -1,0 +1,1185 @@
+2024-12-25 10:15:12,613 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1205011XKZ16A' name='Прокладка приемной трубы кольцо' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,622 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1205011XKZ16A', 'name': 'Прокладка приемной трубы кольцо', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,623 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,623 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,624 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2690>
+2024-12-25 10:15:12,625 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e22d0>
+2024-12-25 10:15:12,625 - dz_fastapi - DEBUG - Autopart already exists: ID 1779
+2024-12-25 10:15:12,625 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ4013012800', 'name': 'ПРОКЛАДКА ПРУЖИНЫ ВЕРХНЯЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,625 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ4013012800' name='ПРОКЛАДКА ПРУЖИНЫ ВЕРХНЯЯ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,625 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ4013012800', 'name': 'ПРОКЛАДКА ПРУЖИНЫ ВЕРХНЯЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,625 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,625 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,626 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e0290>
+2024-12-25 10:15:12,627 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3800>
+2024-12-25 10:15:12,627 - dz_fastapi - DEBUG - Autopart already exists: ID 1780
+2024-12-25 10:15:12,627 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1016057088', 'name': 'ПРОКЛАДКА СЛИВНОЙ ПРОБКИ NL-4, FY11', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,627 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1016057088' name='ПРОКЛАДКА СЛИВНОЙ ПРОБКИ NL-4, FY11' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,627 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1016057088', 'name': 'ПРОКЛАДКА СЛИВНОЙ ПРОБКИ NL-4, FY11', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,627 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,627 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,628 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3410>
+2024-12-25 10:15:12,629 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e0500>
+2024-12-25 10:15:12,629 - dz_fastapi - DEBUG - Autopart already exists: ID 1781
+2024-12-25 10:15:12,629 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSMW251359', 'name': 'Прокладка турбины', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,629 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZSMW251359' name='Прокладка турбины' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,629 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSMW251359', 'name': 'Прокладка турбины', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,629 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,630 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,630 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1df0>
+2024-12-25 10:15:12,632 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3dd0>
+2024-12-25 10:15:12,632 - dz_fastapi - DEBUG - Autopart already exists: ID 1782
+2024-12-25 10:15:12,632 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1118018XEC01', 'name': 'Прокладка турбокомпрессора H9, H6 Coupe, F7 2,0 4C20', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,632 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1118018XEC01' name='Прокладка турбокомпрессора H9, H6 Coupe, F7 2,0 4C20' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,632 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1118018XEC01', 'name': 'Прокладка турбокомпрессора H9, H6 Coupe, F7 2,0 4C20', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,632 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,632 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,633 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1400>
+2024-12-25 10:15:12,634 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3290>
+2024-12-25 10:15:12,634 - dz_fastapi - DEBUG - Autopart already exists: ID 1783
+2024-12-25 10:15:12,634 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ5255313', 'name': 'ПРОКЛАДКА ФОРСУНКИ CUMMINS 2,8L', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,635 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ5255313' name='ПРОКЛАДКА ФОРСУНКИ CUMMINS 2,8L' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,635 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ5255313', 'name': 'ПРОКЛАДКА ФОРСУНКИ CUMMINS 2,8L', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,635 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,635 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,636 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3d70>
+2024-12-25 10:15:12,637 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3680>
+2024-12-25 10:15:12,637 - dz_fastapi - DEBUG - Autopart already exists: ID 1784
+2024-12-25 10:15:12,637 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS2915531', 'name': 'Проставка пружины задней', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,637 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZS2915531' name='Проставка пружины задней' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,637 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS2915531', 'name': 'Проставка пружины задней', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,637 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,637 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,638 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3350>
+2024-12-25 10:15:12,639 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e0080>
+2024-12-25 10:15:12,639 - dz_fastapi - DEBUG - Autopart already exists: ID 1785
+2024-12-25 10:15:12,639 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA112911031', 'name': 'ПРОСТАВКА ПРУЖИНЫ ЗАДНЕЙ CH Amulet, Bonus, Very', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,639 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA112911031' name='ПРОСТАВКА ПРУЖИНЫ ЗАДНЕЙ CH Amulet, Bonus, Very' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,639 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA112911031', 'name': 'ПРОСТАВКА ПРУЖИНЫ ЗАДНЕЙ CH Amulet, Bonus, Very', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,639 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,639 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,640 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e22d0>
+2024-12-25 10:15:12,641 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e34d0>
+2024-12-25 10:15:12,641 - dz_fastapi - DEBUG - Autopart already exists: ID 1786
+2024-12-25 10:15:12,641 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT112911031', 'name': 'Проставка пружины задней резиновая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,641 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZT112911031' name='Проставка пружины задней резиновая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,641 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT112911031', 'name': 'Проставка пружины задней резиновая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,642 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,642 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,643 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2de0>
+2024-12-25 10:15:12,644 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1400>
+2024-12-25 10:15:12,644 - dz_fastapi - DEBUG - Autopart already exists: ID 1787
+2024-12-25 10:15:12,644 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA212901023', 'name': 'Проставка пружины передней', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,644 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA212901023' name='Проставка пружины передней' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,644 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA212901023', 'name': 'Проставка пружины передней', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,644 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,644 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,645 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e0fe0>
+2024-12-25 10:15:12,646 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e34a0>
+2024-12-25 10:15:12,646 - dz_fastapi - DEBUG - Autopart already exists: ID 1788
+2024-12-25 10:15:12,646 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT112901035', 'name': 'Проставка пружины передней TIGGO резиновая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,646 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZT112901035' name='Проставка пружины передней TIGGO резиновая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,646 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT112901035', 'name': 'Проставка пружины передней TIGGO резиновая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,647 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,647 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,647 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1e80>
+2024-12-25 10:15:12,649 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1be0>
+2024-12-25 10:15:12,649 - dz_fastapi - DEBUG - Autopart already exists: ID 1789
+2024-12-25 10:15:12,649 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1064001259', 'name': 'Проставка пружины передней резиновая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,649 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1064001259' name='Проставка пружины передней резиновая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,649 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1064001259', 'name': 'Проставка пружины передней резиновая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,649 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,649 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,650 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2090>
+2024-12-25 10:15:12,651 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3f50>
+2024-12-25 10:15:12,651 - dz_fastapi - DEBUG - Autopart already exists: ID 1790
+2024-12-25 10:15:12,651 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS2905412', 'name': 'Проставка пружины передней резиновая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,651 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZS2905412' name='Проставка пружины передней резиновая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,651 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS2905412', 'name': 'Проставка пружины передней резиновая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,651 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,651 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,652 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3710>
+2024-12-25 10:15:12,653 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3320>
+2024-12-25 10:15:12,653 - dz_fastapi - DEBUG - Autopart already exists: ID 1791
+2024-12-25 10:15:12,653 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1067002015', 'name': 'Противотуманка GEELY EMGRAND', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,653 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1067002015' name='Противотуманка GEELY EMGRAND' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,654 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1067002015', 'name': 'Противотуманка GEELY EMGRAND', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,654 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,654 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,655 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3cb0>
+2024-12-25 10:15:12,655 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3d10>
+2024-12-25 10:15:12,656 - dz_fastapi - DEBUG - Autopart already exists: ID 1792
+2024-12-25 10:15:12,656 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1017001037', 'name': 'Противотуманка GEELY EMGRAND X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,656 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1017001037' name='Противотуманка GEELY EMGRAND X7' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,656 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1017001037', 'name': 'Противотуманка GEELY EMGRAND X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,656 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,656 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,657 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3260>
+2024-12-25 10:15:12,658 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2db0>
+2024-12-25 10:15:12,658 - dz_fastapi - DEBUG - Autopart already exists: ID 1793
+2024-12-25 10:15:12,658 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ4116110K00', 'name': 'Противотуманка LH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,658 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ4116110K00' name='Противотуманка LH' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,658 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ4116110K00', 'name': 'Противотуманка LH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,658 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,659 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,660 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2270>
+2024-12-25 10:15:12,661 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2c60>
+2024-12-25 10:15:12,661 - dz_fastapi - DEBUG - Autopart already exists: ID 1794
+2024-12-25 10:15:12,661 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1024567800', 'name': 'Противотуманка RH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,661 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1024567800' name='Противотуманка RH' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,661 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1024567800', 'name': 'Противотуманка RH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,661 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,662 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,662 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2570>
+2024-12-25 10:15:12,663 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3b60>
+2024-12-25 10:15:12,663 - dz_fastapi - DEBUG - Autopart already exists: ID 1795
+2024-12-25 10:15:12,663 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZB4116200', 'name': 'Противотуманка RH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,664 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZB4116200' name='Противотуманка RH' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,664 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZB4116200', 'name': 'Противотуманка RH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,664 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,664 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,665 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3890>
+2024-12-25 10:15:12,666 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e30e0>
+2024-12-25 10:15:12,666 - dz_fastapi - DEBUG - Autopart already exists: ID 1796
+2024-12-25 10:15:12,666 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS123732020', 'name': 'Противотуманка RH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,666 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZS123732020' name='Противотуманка RH' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,666 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS123732020', 'name': 'Противотуманка RH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,667 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,667 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,667 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3b00>
+2024-12-25 10:15:12,668 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2a20>
+2024-12-25 10:15:12,669 - dz_fastapi - DEBUG - Autopart already exists: ID 1797
+2024-12-25 10:15:12,669 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ4116200XK24XA', 'name': 'Противотуманка RH оригинал!', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,669 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ4116200XK24XA' name='Противотуманка RH оригинал!' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,669 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ4116200XK24XA', 'name': 'Противотуманка RH оригинал!', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,669 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,669 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,670 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2ba0>
+2024-12-25 10:15:12,671 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2bd0>
+2024-12-25 10:15:12,671 - dz_fastapi - DEBUG - Autopart already exists: ID 1798
+2024-12-25 10:15:12,671 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ2912011K00', 'name': 'Пружина', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,671 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ2912011K00' name='Пружина' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,671 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ2912011K00', 'name': 'Пружина', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,671 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,671 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,672 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3da0>
+2024-12-25 10:15:12,673 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1d60>
+2024-12-25 10:15:12,673 - dz_fastapi - DEBUG - Autopart already exists: ID 1799
+2024-12-25 10:15:12,673 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ2912011XKZ16A', 'name': 'Пружина', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,673 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ2912011XKZ16A' name='Пружина' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,674 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ2912011XKZ16A', 'name': 'Пружина', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,674 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,674 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,675 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e05c0>
+2024-12-25 10:15:12,676 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1af0>
+2024-12-25 10:15:12,676 - dz_fastapi - DEBUG - Autopart already exists: ID 1800
+2024-12-25 10:15:12,676 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZF2915511', 'name': 'Пружина', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,676 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZF2915511' name='Пружина' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,676 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZF2915511', 'name': 'Пружина', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,676 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,676 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,677 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3560>
+2024-12-25 10:15:12,678 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e0500>
+2024-12-25 10:15:12,678 - dz_fastapi - DEBUG - Autopart already exists: ID 1801
+2024-12-25 10:15:12,678 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1014014024', 'name': 'Пружина GEELY MK CROSS задняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,678 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1014014024' name='Пружина GEELY MK CROSS задняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,678 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1014014024', 'name': 'Пружина GEELY MK CROSS задняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,679 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,679 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,680 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2c00>
+2024-12-25 10:15:12,680 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e34a0>
+2024-12-25 10:15:12,681 - dz_fastapi - DEBUG - Autopart already exists: ID 1802
+2024-12-25 10:15:12,681 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA113502027', 'name': 'Пружина барабана нижняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,681 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA113502027' name='Пружина барабана нижняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,681 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA113502027', 'name': 'Пружина барабана нижняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,681 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,681 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,682 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3110>
+2024-12-25 10:15:12,683 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3350>
+2024-12-25 10:15:12,683 - dz_fastapi - DEBUG - Autopart already exists: ID 1803
+2024-12-25 10:15:12,683 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1602028E00', 'name': 'ПРУЖИНА ВЫЖИМНОГО ПОДШИПНИКА GW DEER, SAFE -11-1602015', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,683 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1602028E00' name='ПРУЖИНА ВЫЖИМНОГО ПОДШИПНИКА GW DEER, SAFE -11-1602015' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,683 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1602028E00', 'name': 'ПРУЖИНА ВЫЖИМНОГО ПОДШИПНИКА GW DEER, SAFE -11-1602015', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,684 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,684 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,685 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e0a40>
+2024-12-25 10:15:12,686 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1ca0>
+2024-12-25 10:15:12,686 - dz_fastapi - DEBUG - Autopart already exists: ID 1804
+2024-12-25 10:15:12,686 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSC1602031', 'name': 'Пружина выжимного подшипника сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,686 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZSC1602031' name='Пружина выжимного подшипника сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,686 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSC1602031', 'name': 'Пружина выжимного подшипника сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,686 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,686 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,687 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2bd0>
+2024-12-25 10:15:12,688 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3560>
+2024-12-25 10:15:12,688 - dz_fastapi - DEBUG - Autopart already exists: ID 1805
+2024-12-25 10:15:12,688 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA113502019', 'name': 'ПРУЖИНА ЗАДНЕГО ТОРМОЗНОГО МЕХАНИЗМА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,688 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA113502019' name='ПРУЖИНА ЗАДНЕГО ТОРМОЗНОГО МЕХАНИЗМА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,688 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA113502019', 'name': 'ПРУЖИНА ЗАДНЕГО ТОРМОЗНОГО МЕХАНИЗМА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,688 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,688 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,689 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1d60>
+2024-12-25 10:15:12,690 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e37a0>
+2024-12-25 10:15:12,690 - dz_fastapi - DEBUG - Autopart already exists: ID 1806
+2024-12-25 10:15:12,690 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA113502025', 'name': 'ПРУЖИНА ЗАДНЕГО ТОРМОЗНОГО МЕХАНИЗМА CH Amulet', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,690 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA113502025' name='ПРУЖИНА ЗАДНЕГО ТОРМОЗНОГО МЕХАНИЗМА CH Amulet' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,690 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA113502025', 'name': 'ПРУЖИНА ЗАДНЕГО ТОРМОЗНОГО МЕХАНИЗМА CH Amulet', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,691 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,691 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,691 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e05c0>
+2024-12-25 10:15:12,692 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e0b90>
+2024-12-25 10:15:12,692 - dz_fastapi - DEBUG - Autopart already exists: ID 1807
+2024-12-25 10:15:12,693 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1014013916', 'name': 'Пружина задняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,693 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1014013916' name='Пружина задняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,693 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1014013916', 'name': 'Пружина задняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,693 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,693 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,694 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2ea0>
+2024-12-25 10:15:12,695 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1a90>
+2024-12-25 10:15:12,695 - dz_fastapi - DEBUG - Autopart already exists: ID 1808
+2024-12-25 10:15:12,695 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA21BJ2912011AC', 'name': 'Пружина задняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,695 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA21BJ2912011AC' name='Пружина задняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,695 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA21BJ2912011AC', 'name': 'Пружина задняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,695 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,695 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,696 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e32c0>
+2024-12-25 10:15:12,697 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e36e0>
+2024-12-25 10:15:12,697 - dz_fastapi - DEBUG - Autopart already exists: ID 1809
+2024-12-25 10:15:12,697 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT212912011', 'name': 'Пружина задняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,697 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZT212912011' name='Пружина задняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,697 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT212912011', 'name': 'Пружина задняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,698 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,698 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,699 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3620>
+2024-12-25 10:15:12,700 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2ff0>
+2024-12-25 10:15:12,700 - dz_fastapi - DEBUG - Autopart already exists: ID 1810
+2024-12-25 10:15:12,700 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSMN137333', 'name': 'ПРУЖИНА КЛАПАНА GW HOVER H3 4G63', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,700 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZSMN137333' name='ПРУЖИНА КЛАПАНА GW HOVER H3 4G63' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,700 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSMN137333', 'name': 'ПРУЖИНА КЛАПАНА GW HOVER H3 4G63', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,700 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,700 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,701 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2f30>
+2024-12-25 10:15:12,702 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e0ef0>
+2024-12-25 10:15:12,702 - dz_fastapi - DEBUG - Autopart already exists: ID 1811
+2024-12-25 10:15:12,702 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1014001707', 'name': 'Пружина передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,703 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1014001707' name='Пружина передняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,703 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1014001707', 'name': 'Пружина передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,703 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,703 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,704 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2000>
+2024-12-25 10:15:12,705 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2de0>
+2024-12-25 10:15:12,705 - dz_fastapi - DEBUG - Autopart already exists: ID 1812
+2024-12-25 10:15:12,705 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA112902011', 'name': 'Пружина передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,705 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA112902011' name='Пружина передняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,705 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA112902011', 'name': 'Пружина передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,705 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,705 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,706 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2270>
+2024-12-25 10:15:12,707 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3f50>
+2024-12-25 10:15:12,707 - dz_fastapi - DEBUG - Autopart already exists: ID 1813
+2024-12-25 10:15:12,707 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA21BJ2902011AC', 'name': 'Пружина передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,707 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA21BJ2902011AC' name='Пружина передняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,707 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA21BJ2902011AC', 'name': 'Пружина передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,708 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,708 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,709 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e0290>
+2024-12-25 10:15:12,709 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e33e0>
+2024-12-25 10:15:12,710 - dz_fastapi - DEBUG - Autopart already exists: ID 1814
+2024-12-25 10:15:12,710 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZB2905181C1', 'name': 'Пружина передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,710 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZB2905181C1' name='Пружина передняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,710 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZB2905181C1', 'name': 'Пружина передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,710 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,710 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,711 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1eb0>
+2024-12-25 10:15:12,712 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3f20>
+2024-12-25 10:15:12,712 - dz_fastapi - DEBUG - Autopart already exists: ID 1815
+2024-12-25 10:15:12,712 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS2905511', 'name': 'Пружина передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,712 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZS2905511' name='Пружина передняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,712 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS2905511', 'name': 'Пружина передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,712 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,712 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,713 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1c40>
+2024-12-25 10:15:12,714 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3440>
+2024-12-25 10:15:12,714 - dz_fastapi - DEBUG - Autopart already exists: ID 1816
+2024-12-25 10:15:12,714 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZE010000801', 'name': 'ПРУЖИНА ПОРШНЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,714 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZE010000801' name='ПРУЖИНА ПОРШНЯ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,714 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZE010000801', 'name': 'ПРУЖИНА ПОРШНЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,714 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,714 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,715 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e34d0>
+2024-12-25 10:15:12,716 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e21b0>
+2024-12-25 10:15:12,716 - dz_fastapi - DEBUG - Autopart already exists: ID 1817
+2024-12-25 10:15:12,716 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZLF479Q11025025A', 'name': 'Пружина ролика ГРМ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,716 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZLF479Q11025025A' name='Пружина ролика ГРМ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,716 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZLF479Q11025025A', 'name': 'Пружина ролика ГРМ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,717 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,717 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,717 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3680>
+2024-12-25 10:15:12,718 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e29f0>
+2024-12-25 10:15:12,718 - dz_fastapi - DEBUG - Autopart already exists: ID 1818
+2024-12-25 10:15:12,719 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA113502023', 'name': 'Пружина средняя левая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,719 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA113502023' name='Пружина средняя левая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,719 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA113502023', 'name': 'Пружина средняя левая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,719 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,719 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,720 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3b90>
+2024-12-25 10:15:12,721 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e23f0>
+2024-12-25 10:15:12,721 - dz_fastapi - DEBUG - Autopart already exists: ID 1819
+2024-12-25 10:15:12,721 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSS22004', 'name': 'Пыльник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,721 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZSS22004' name='Пыльник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,721 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSS22004', 'name': 'Пыльник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,721 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,721 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,722 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3140>
+2024-12-25 10:15:12,723 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1af0>
+2024-12-25 10:15:12,723 - dz_fastapi - DEBUG - Autopart already exists: ID 1820
+2024-12-25 10:15:12,723 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZM112915024', 'name': 'ПЫЛЬНИК АМОРТИЗАТОРА CH  IndiS, M11, M12', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,723 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZM112915024' name='ПЫЛЬНИК АМОРТИЗАТОРА CH  IndiS, M11, M12' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,723 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZM112915024', 'name': 'ПЫЛЬНИК АМОРТИЗАТОРА CH  IndiS, M11, M12', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,724 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,724 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,725 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3890>
+2024-12-25 10:15:12,725 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2390>
+2024-12-25 10:15:12,725 - dz_fastapi - DEBUG - Autopart already exists: ID 1821
+2024-12-25 10:15:12,726 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1064001387', 'name': 'Пыльник амортизатора EMGRAND переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,726 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1064001387' name='Пыльник амортизатора EMGRAND переднего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,726 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1064001387', 'name': 'Пыльник амортизатора EMGRAND переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,726 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,726 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,727 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2900>
+2024-12-25 10:15:12,728 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e39e0>
+2024-12-25 10:15:12,728 - dz_fastapi - DEBUG - Autopart already exists: ID 1822
+2024-12-25 10:15:12,728 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS112901021', 'name': 'Пыльник амортизатора QQ переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,728 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZS112901021' name='Пыльник амортизатора QQ переднего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,728 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS112901021', 'name': 'Пыльник амортизатора QQ переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,728 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,728 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,729 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e36e0>
+2024-12-25 10:15:12,730 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2270>
+2024-12-25 10:15:12,730 - dz_fastapi - DEBUG - Autopart already exists: ID 1823
+2024-12-25 10:15:12,730 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA112911037', 'name': 'Пыльник амортизатора заднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,730 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA112911037' name='Пыльник амортизатора заднего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,730 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA112911037', 'name': 'Пыльник амортизатора заднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,730 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,731 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,731 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1ac0>
+2024-12-25 10:15:12,732 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e0500>
+2024-12-25 10:15:12,732 - dz_fastapi - DEBUG - Autopart already exists: ID 1824
+2024-12-25 10:15:12,732 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA212911033', 'name': 'Пыльник амортизатора заднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,733 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA212911033' name='Пыльник амортизатора заднего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,733 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA212911033', 'name': 'Пыльник амортизатора заднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,733 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,733 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,734 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e37d0>
+2024-12-25 10:15:12,735 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3650>
+2024-12-25 10:15:12,735 - dz_fastapi - DEBUG - Autopart already exists: ID 1825
+2024-12-25 10:15:12,735 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZF2905541', 'name': 'Пыльник амортизатора заднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,735 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZF2905541' name='Пыльник амортизатора заднего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,735 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZF2905541', 'name': 'Пыльник амортизатора заднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,735 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,735 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,736 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3230>
+2024-12-25 10:15:12,737 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3f80>
+2024-12-25 10:15:12,737 - dz_fastapi - DEBUG - Autopart already exists: ID 1826
+2024-12-25 10:15:12,737 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZF2915541', 'name': 'Пыльник амортизатора заднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,738 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZF2915541' name='Пыльник амортизатора заднего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,738 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZF2915541', 'name': 'Пыльник амортизатора заднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,738 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,738 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,739 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2c30>
+2024-12-25 10:15:12,740 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2420>
+2024-12-25 10:15:12,740 - dz_fastapi - DEBUG - Autopart already exists: ID 1827
+2024-12-25 10:15:12,740 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1014001710', 'name': 'Пыльник амортизатора переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,740 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1014001710' name='Пыльник амортизатора переднего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,740 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1014001710', 'name': 'Пыльник амортизатора переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,740 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,740 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,741 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2360>
+2024-12-25 10:15:12,742 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e24b0>
+2024-12-25 10:15:12,742 - dz_fastapi - DEBUG - Autopart already exists: ID 1828
+2024-12-25 10:15:12,742 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1400621180', 'name': 'Пыльник амортизатора переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,742 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1400621180' name='Пыльник амортизатора переднего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,742 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1400621180', 'name': 'Пыльник амортизатора переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,742 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,742 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,743 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e0b90>
+2024-12-25 10:15:12,744 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3cb0>
+2024-12-25 10:15:12,744 - dz_fastapi - DEBUG - Autopart already exists: ID 1829
+2024-12-25 10:15:12,744 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZB2905184', 'name': 'Пыльник амортизатора переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,744 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZB2905184' name='Пыльник амортизатора переднего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,745 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZB2905184', 'name': 'Пыльник амортизатора переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,745 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,745 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,746 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3b30>
+2024-12-25 10:15:12,747 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2c00>
+2024-12-25 10:15:12,747 - dz_fastapi - DEBUG - Autopart already exists: ID 1830
+2024-12-25 10:15:12,747 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS2905541', 'name': 'Пыльник амортизатора переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,747 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZS2905541' name='Пыльник амортизатора переднего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,747 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS2905541', 'name': 'Пыльник амортизатора переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,747 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,747 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,748 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1370>
+2024-12-25 10:15:12,750 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2390>
+2024-12-25 10:15:12,750 - dz_fastapi - DEBUG - Autopart already exists: ID 1831
+2024-12-25 10:15:12,750 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA112901021AB', 'name': 'ПЫЛЬНИК АМОРТИЗАТОРА ПЕРЕДНЕГО CH AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,751 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA112901021AB' name='ПЫЛЬНИК АМОРТИЗАТОРА ПЕРЕДНЕГО CH AMULET' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,751 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA112901021AB', 'name': 'ПЫЛЬНИК АМОРТИЗАТОРА ПЕРЕДНЕГО CH AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,751 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,751 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,752 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1d00>
+2024-12-25 10:15:12,753 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e37a0>
+2024-12-25 10:15:12,753 - dz_fastapi - DEBUG - Autopart already exists: ID 1832
+2024-12-25 10:15:12,753 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1014022247', 'name': 'ПЫЛЬНИК АМОРТИЗАТОРА ПЕРЕДНЕГО GL МК, MK CROSS, GC6 (неоригинал)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,753 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1014022247' name='ПЫЛЬНИК АМОРТИЗАТОРА ПЕРЕДНЕГО GL МК, MK CROSS, GC6 (неоригинал)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,753 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1014022247', 'name': 'ПЫЛЬНИК АМОРТИЗАТОРА ПЕРЕДНЕГО GL МК, MK CROSS, GC6 (неоригинал)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,753 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,753 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,754 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3020>
+2024-12-25 10:15:12,755 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3500>
+2024-12-25 10:15:12,755 - dz_fastapi - DEBUG - Autopart already exists: ID 1833
+2024-12-25 10:15:12,755 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ3170212501', 'name': 'Пыльник вала переключения передач', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,755 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ3170212501' name='Пыльник вала переключения передач' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,755 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ3170212501', 'name': 'Пыльник вала переключения передач', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,756 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,756 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,756 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3830>
+2024-12-25 10:15:12,757 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2bd0>
+2024-12-25 10:15:12,757 - dz_fastapi - DEBUG - Autopart already exists: ID 1834
+2024-12-25 10:15:12,757 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZLF481Q11702105A', 'name': 'Пыльник вала переключения передач', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,758 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZLF481Q11702105A' name='Пыльник вала переключения передач' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,758 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZLF481Q11702105A', 'name': 'Пыльник вала переключения передач', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,758 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,758 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,759 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3bf0>
+2024-12-25 10:15:12,760 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3800>
+2024-12-25 10:15:12,760 - dz_fastapi - DEBUG - Autopart already exists: ID 1835
+2024-12-25 10:15:12,760 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ3160133005', 'name': 'Пыльник вилки сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,760 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ3160133005' name='Пыльник вилки сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,760 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ3160133005', 'name': 'Пыльник вилки сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,760 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,760 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,761 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2ea0>
+2024-12-25 10:15:12,762 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e19a0>
+2024-12-25 10:15:12,762 - dz_fastapi - DEBUG - Autopart already exists: ID 1836
+2024-12-25 10:15:12,762 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZLF481Q11701331A', 'name': 'Пыльник вилки сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,762 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZLF481Q11701331A' name='Пыльник вилки сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,762 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZLF481Q11701331A', 'name': 'Пыльник вилки сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,762 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,763 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,763 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e05c0>
+2024-12-25 10:15:12,764 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e33e0>
+2024-12-25 10:15:12,764 - dz_fastapi - DEBUG - Autopart already exists: ID 1837
+2024-12-25 10:15:12,764 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZZM001D1601013', 'name': 'Пыльник вилки сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,764 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZZM001D1601013' name='Пыльник вилки сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,765 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZZM001D1601013', 'name': 'Пыльник вилки сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,765 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,765 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,766 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e20f0>
+2024-12-25 10:15:12,766 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2a80>
+2024-12-25 10:15:12,766 - dz_fastapi - DEBUG - Autopart already exists: ID 1838
+2024-12-25 10:15:12,767 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ5174201BKY48C', 'name': 'Пыльник двигателя Haval F7 1 2019-2022', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,767 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ5174201BKY48C' name='Пыльник двигателя Haval F7 1 2019-2022' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,767 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ5174201BKY48C', 'name': 'Пыльник двигателя Haval F7 1 2019-2022', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,767 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,767 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,768 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3110>
+2024-12-25 10:15:12,769 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2de0>
+2024-12-25 10:15:12,769 - dz_fastapi - DEBUG - Autopart already exists: ID 1839
+2024-12-25 10:15:12,769 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1014002432', 'name': 'Пыльник заднего амортизатора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,769 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1014002432' name='Пыльник заднего амортизатора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,769 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1014002432', 'name': 'Пыльник заднего амортизатора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,769 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,769 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,770 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e32c0>
+2024-12-25 10:15:12,771 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1f10>
+2024-12-25 10:15:12,771 - dz_fastapi - DEBUG - Autopart already exists: ID 1840
+2024-12-25 10:15:12,771 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZF3501446', 'name': 'Пыльник пальца суппорта', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,771 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZF3501446' name='Пыльник пальца суппорта' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,772 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZF3501446', 'name': 'Пыльник пальца суппорта', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,772 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,772 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,773 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3650>
+2024-12-25 10:15:12,774 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3da0>
+2024-12-25 10:15:12,774 - dz_fastapi - DEBUG - Autopart already exists: ID 1841
+2024-12-25 10:15:12,774 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ3502107XK02XA', 'name': 'Пыльник пальца суппорта заднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,774 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ3502107XK02XA' name='Пыльник пальца суппорта заднего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,774 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ3502107XK02XA', 'name': 'Пыльник пальца суппорта заднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,774 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,775 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,775 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1eb0>
+2024-12-25 10:15:12,776 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e08c0>
+2024-12-25 10:15:12,776 - dz_fastapi - DEBUG - Autopart already exists: ID 1842
+2024-12-25 10:15:12,776 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ3502117K00', 'name': 'Пыльник пальца суппорта заднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,776 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ3502117K00' name='Пыльник пальца суппорта заднего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,777 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ3502117K00', 'name': 'Пыльник пальца суппорта заднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,777 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,777 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,778 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e37a0>
+2024-12-25 10:15:12,779 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e25a0>
+2024-12-25 10:15:12,779 - dz_fastapi - DEBUG - Autopart already exists: ID 1843
+2024-12-25 10:15:12,779 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1014012773', 'name': 'ПЫЛЬНИК ПЕРЕДНЕГО АМОРТИЗАТОРА GL X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,779 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1014012773' name='ПЫЛЬНИК ПЕРЕДНЕГО АМОРТИЗАТОРА GL X7' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,779 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1014012773', 'name': 'ПЫЛЬНИК ПЕРЕДНЕГО АМОРТИЗАТОРА GL X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,779 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,779 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,780 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e24b0>
+2024-12-25 10:15:12,781 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1f70>
+2024-12-25 10:15:12,781 - dz_fastapi - DEBUG - Autopart already exists: ID 1844
+2024-12-25 10:15:12,781 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1702092SJ', 'name': 'Пыльник рулевой рейки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,781 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1702092SJ' name='Пыльник рулевой рейки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,781 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1702092SJ', 'name': 'Пыльник рулевой рейки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,782 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,782 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,783 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2240>
+2024-12-25 10:15:12,784 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3fe0>
+2024-12-25 10:15:12,784 - dz_fastapi - DEBUG - Autopart already exists: ID 1845
+2024-12-25 10:15:12,784 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ9100723', 'name': 'ПЫЛЬНИК РУЛЕВОЙ РЕЙКИ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,784 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ9100723' name='ПЫЛЬНИК РУЛЕВОЙ РЕЙКИ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,785 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ9100723', 'name': 'ПЫЛЬНИК РУЛЕВОЙ РЕЙКИ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,785 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,785 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,786 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2de0>
+2024-12-25 10:15:12,786 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3710>
+2024-12-25 10:15:12,787 - dz_fastapi - DEBUG - Autopart already exists: ID 1846
+2024-12-25 10:15:12,787 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA113400107AB', 'name': 'Пыльник рулевой рейки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,787 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA113400107AB' name='Пыльник рулевой рейки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,787 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA113400107AB', 'name': 'Пыльник рулевой рейки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,787 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,787 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,788 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e0080>
+2024-12-25 10:15:12,789 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1970>
+2024-12-25 10:15:12,789 - dz_fastapi - DEBUG - Autopart already exists: ID 1847
+2024-12-25 10:15:12,789 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZB3401811', 'name': 'Пыльник рулевой рейки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,789 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZB3401811' name='Пыльник рулевой рейки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,789 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZB3401811', 'name': 'Пыльник рулевой рейки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,789 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,789 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,790 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3110>
+2024-12-25 10:15:12,791 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e0bf0>
+2024-12-25 10:15:12,791 - dz_fastapi - DEBUG - Autopart already exists: ID 1848
+2024-12-25 10:15:12,791 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZF3401811', 'name': 'Пыльник рулевой рейки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,791 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZF3401811' name='Пыльник рулевой рейки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,791 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZF3401811', 'name': 'Пыльник рулевой рейки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,791 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,791 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,792 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3530>
+2024-12-25 10:15:12,793 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3410>
+2024-12-25 10:15:12,793 - dz_fastapi - DEBUG - Autopart already exists: ID 1849
+2024-12-25 10:15:12,793 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT113401021', 'name': 'Пыльник рулевой рейки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,793 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZT113401021' name='Пыльник рулевой рейки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,794 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT113401021', 'name': 'Пыльник рулевой рейки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,794 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,794 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,795 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e0a40>
+2024-12-25 10:15:12,796 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1f10>
+2024-12-25 10:15:12,796 - dz_fastapi - DEBUG - Autopart already exists: ID 1850
+2024-12-25 10:15:12,796 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS3401811', 'name': 'ПЫЛЬНИК РУЛЕВОЙ ТЯГИ LF X60', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,796 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZS3401811' name='ПЫЛЬНИК РУЛЕВОЙ ТЯГИ LF X60' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,796 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS3401811', 'name': 'ПЫЛЬНИК РУЛЕВОЙ ТЯГИ LF X60', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,796 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,796 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,797 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2480>
+2024-12-25 10:15:12,798 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e0830>
+2024-12-25 10:15:12,798 - dz_fastapi - DEBUG - Autopart already exists: ID 1851
+2024-12-25 10:15:12,798 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ2904136WSL', 'name': 'Пыльник шаровой верхней', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,798 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ2904136WSL' name='Пыльник шаровой верхней' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,798 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ2904136WSL', 'name': 'Пыльник шаровой верхней', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,798 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,799 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,799 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3050>
+2024-12-25 10:15:12,800 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e05c0>
+2024-12-25 10:15:12,800 - dz_fastapi - DEBUG - Autopart already exists: ID 1852
+2024-12-25 10:15:12,800 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1014003360', 'name': 'Пыльник ШРУСА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,801 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1014003360' name='Пыльник ШРУСА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,801 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1014003360', 'name': 'Пыльник ШРУСА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,801 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,801 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,802 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e30b0>
+2024-12-25 10:15:12,803 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e0e60>
+2024-12-25 10:15:12,803 - dz_fastapi - DEBUG - Autopart already exists: ID 1853
+2024-12-25 10:15:12,803 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1064001800', 'name': 'Пыльник ШРУСА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,803 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1064001800' name='Пыльник ШРУСА' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,803 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1064001800', 'name': 'Пыльник ШРУСА', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,803 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,803 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,804 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2ed0>
+2024-12-25 10:15:12,805 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3a70>
+2024-12-25 10:15:12,805 - dz_fastapi - DEBUG - Autopart already exists: ID 1854
+2024-12-25 10:15:12,805 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1401106180', 'name': 'Пыльник ШРУСа', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,805 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1401106180' name='Пыльник ШРУСа' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,805 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1401106180', 'name': 'Пыльник ШРУСа', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,805 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,806 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,806 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e25a0>
+2024-12-25 10:15:12,807 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e39e0>
+2024-12-25 10:15:12,807 - dz_fastapi - DEBUG - Autopart already exists: ID 1855
+2024-12-25 10:15:12,807 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ2300430K01J', 'name': 'Пыльник ШРУСа', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,808 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ2300430K01J' name='Пыльник ШРУСа' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,808 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ2300430K01J', 'name': 'Пыльник ШРУСа', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,808 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,808 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,809 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3260>
+2024-12-25 10:15:12,810 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3ec0>
+2024-12-25 10:15:12,810 - dz_fastapi - DEBUG - Autopart already exists: ID 1856
+2024-12-25 10:15:12,810 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS21XLB3AH2203111A', 'name': 'Пыльник ШРУСа', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,810 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZS21XLB3AH2203111A' name='Пыльник ШРУСа' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,810 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS21XLB3AH2203111A', 'name': 'Пыльник ШРУСа', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,810 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,810 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,811 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3320>
+2024-12-25 10:15:12,812 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e18e0>
+2024-12-25 10:15:12,812 - dz_fastapi - DEBUG - Autopart already exists: ID 1857
+2024-12-25 10:15:12,812 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSBAC22004', 'name': 'Пыльник Шруса', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,812 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZSBAC22004' name='Пыльник Шруса' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,812 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSBAC22004', 'name': 'Пыльник Шруса', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,813 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,813 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,814 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e21b0>
+2024-12-25 10:15:12,814 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1be0>
+2024-12-25 10:15:12,814 - dz_fastapi - DEBUG - Autopart already exists: ID 1858
+2024-12-25 10:15:12,815 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSLAL22002', 'name': 'Пыльник ШРУСа', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,815 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZSLAL22002' name='Пыльник ШРУСа' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,815 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSLAL22002', 'name': 'Пыльник ШРУСа', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,815 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,815 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,816 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3ad0>
+2024-12-25 10:15:12,817 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3d10>
+2024-12-25 10:15:12,817 - dz_fastapi - DEBUG - Autopart already exists: ID 1859
+2024-12-25 10:15:12,817 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT11XLB3AH2203041C', 'name': 'Пыльник ШРУСа', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,817 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZT11XLB3AH2203041C' name='Пыльник ШРУСа' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,817 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT11XLB3AH2203041C', 'name': 'Пыльник ШРУСа', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,817 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,817 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,818 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2f60>
+2024-12-25 10:15:12,819 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3b30>
+2024-12-25 10:15:12,819 - dz_fastapi - DEBUG - Autopart already exists: ID 1860
+2024-12-25 10:15:12,819 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA21XLB3AF2203040C', 'name': 'Пыльник ШРУСа внутреннего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,819 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA21XLB3AF2203040C' name='Пыльник ШРУСа внутреннего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,819 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA21XLB3AF2203040C', 'name': 'Пыльник ШРУСа внутреннего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,819 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,819 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,820 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1a30>
+2024-12-25 10:15:12,821 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3950>
+2024-12-25 10:15:12,821 - dz_fastapi - DEBUG - Autopart already exists: ID 1861
+2024-12-25 10:15:12,821 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA11XLB3AH2203040E', 'name': 'Пыльник ШРУСа внутренний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,822 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA11XLB3AH2203040E' name='Пыльник ШРУСа внутренний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,822 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA11XLB3AH2203040E', 'name': 'Пыльник ШРУСа внутренний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,822 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,822 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,823 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e31d0>
+2024-12-25 10:15:12,824 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3920>
+2024-12-25 10:15:12,824 - dz_fastapi - DEBUG - Autopart already exists: ID 1862
+2024-12-25 10:15:12,824 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT11XLB3AH2201111C', 'name': 'Пыльник ШРУСа заднего наружного 4x4', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,824 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZT11XLB3AH2201111C' name='Пыльник ШРУСа заднего наружного 4x4' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,824 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT11XLB3AH2201111C', 'name': 'Пыльник ШРУСа заднего наружного 4x4', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,825 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,825 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,825 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e05c0>
+2024-12-25 10:15:12,826 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e33b0>
+2024-12-25 10:15:12,826 - dz_fastapi - DEBUG - Autopart already exists: ID 1863
+2024-12-25 10:15:12,827 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZBFA0122530', 'name': 'Пыльник ШРУСа нар МКПП', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,827 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZBFA0122530' name='Пыльник ШРУСа нар МКПП' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,827 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZBFA0122530', 'name': 'Пыльник ШРУСа нар МКПП', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,827 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,827 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,828 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2480>
+2024-12-25 10:15:12,829 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3a10>
+2024-12-25 10:15:12,829 - dz_fastapi - DEBUG - Autopart already exists: ID 1864
+2024-12-25 10:15:12,829 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA21XLB3AF2203111C', 'name': 'Пыльник ШРУСа наружный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,829 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA21XLB3AF2203111C' name='Пыльник ШРУСа наружный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,829 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA21XLB3AF2203111C', 'name': 'Пыльник ШРУСа наружный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,829 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,829 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,830 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3770>
+2024-12-25 10:15:12,831 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2000>
+2024-12-25 10:15:12,831 - dz_fastapi - DEBUG - Autopart already exists: ID 1865
+2024-12-25 10:15:12,831 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZFA5022530AW2', 'name': 'Пыльник Шруса наружный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,831 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZFA5022530AW2' name='Пыльник Шруса наружный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,831 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZFA5022530AW2', 'name': 'Пыльник Шруса наружный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,832 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,832 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,833 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2990>
+2024-12-25 10:15:12,833 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e38c0>
+2024-12-25 10:15:12,834 - dz_fastapi - DEBUG - Autopart already exists: ID 1866
+2024-12-25 10:15:12,834 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1503100XK02XA', 'name': 'Радиатор АКПП HOVER H5', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,834 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1503100XK02XA' name='Радиатор АКПП HOVER H5' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,834 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1503100XK02XA', 'name': 'Радиатор АКПП HOVER H5', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,834 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,834 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,835 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e21b0>
+2024-12-25 10:15:12,836 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e31d0>
+2024-12-25 10:15:12,836 - dz_fastapi - DEBUG - Autopart already exists: ID 1867
+2024-12-25 10:15:12,836 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1018002713', 'name': 'Радиатор кондиционера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,836 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1018002713' name='Радиатор кондиционера' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,836 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1018002713', 'name': 'Радиатор кондиционера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,836 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,836 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,837 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e0e60>
+2024-12-25 10:15:12,838 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2480>
+2024-12-25 10:15:12,838 - dz_fastapi - DEBUG - Autopart already exists: ID 1868
+2024-12-25 10:15:12,838 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA158105010', 'name': 'Радиатор кондиционера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,838 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA158105010' name='Радиатор кондиционера' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,838 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA158105010', 'name': 'Радиатор кондиционера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,839 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,839 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,839 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e36e0>
+2024-12-25 10:15:12,840 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3d10>
+2024-12-25 10:15:12,840 - dz_fastapi - DEBUG - Autopart already exists: ID 1869
+2024-12-25 10:15:12,840 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT218105010', 'name': 'Радиатор кондиционера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,841 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZT218105010' name='Радиатор кондиционера' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,841 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT218105010', 'name': 'Радиатор кондиционера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,841 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,841 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,842 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1cd0>
+2024-12-25 10:15:12,843 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3ad0>
+2024-12-25 10:15:12,843 - dz_fastapi - DEBUG - Autopart already exists: ID 1870
+2024-12-25 10:15:12,843 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ8010054000', 'name': 'РАДИАТОР КОНДИЦИОНЕРА GEELY COOLRAY', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,843 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ8010054000' name='РАДИАТОР КОНДИЦИОНЕРА GEELY COOLRAY' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,843 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ8010054000', 'name': 'РАДИАТОР КОНДИЦИОНЕРА GEELY COOLRAY', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,843 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,843 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,844 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3da0>
+2024-12-25 10:15:12,845 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3260>
+2024-12-25 10:15:12,845 - dz_fastapi - DEBUG - Autopart already exists: ID 1871
+2024-12-25 10:15:12,845 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA8107160', 'name': 'Радиатор отопителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,846 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA8107160' name='Радиатор отопителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,846 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA8107160', 'name': 'Радиатор отопителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,846 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,846 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,847 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2360>
+2024-12-25 10:15:12,848 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e28a0>
+2024-12-25 10:15:12,848 - dz_fastapi - DEBUG - Autopart already exists: ID 1872
+2024-12-25 10:15:12,848 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT118107130', 'name': 'Радиатор отопителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,848 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZT118107130' name='Радиатор отопителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,848 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT118107130', 'name': 'Радиатор отопителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,848 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,848 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,849 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1d30>
+2024-12-25 10:15:12,850 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2870>
+2024-12-25 10:15:12,850 - dz_fastapi - DEBUG - Autopart already exists: ID 1873
+2024-12-25 10:15:12,850 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1301100K00', 'name': 'Радиатор охлаждения', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,850 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1301100K00' name='Радиатор охлаждения' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,851 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1301100K00', 'name': 'Радиатор охлаждения', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,851 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,851 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,851 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3290>
+2024-12-25 10:15:12,852 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3500>
+2024-12-25 10:15:12,852 - dz_fastapi - DEBUG - Autopart already exists: ID 1874
+2024-12-25 10:15:12,852 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1301100XKQ00A', 'name': 'РАДИАТОР ОХЛАЖДЕНИЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,853 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1301100XKQ00A' name='РАДИАТОР ОХЛАЖДЕНИЯ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,853 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1301100XKQ00A', 'name': 'РАДИАТОР ОХЛАЖДЕНИЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,853 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,853 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,854 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1a60>
+2024-12-25 10:15:12,855 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e0a40>
+2024-12-25 10:15:12,855 - dz_fastapi - DEBUG - Autopart already exists: ID 1875
+2024-12-25 10:15:12,855 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1301110F00', 'name': 'Радиатор охлаждения', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,855 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1301110F00' name='Радиатор охлаждения' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,855 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1301110F00', 'name': 'Радиатор охлаждения', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,855 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,855 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,856 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3fb0>
+2024-12-25 10:15:12,857 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3f20>
+2024-12-25 10:15:12,857 - dz_fastapi - DEBUG - Autopart already exists: ID 1876
+2024-12-25 10:15:12,857 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ2069033100', 'name': 'Радиатор охлаждения', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,857 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ2069033100' name='Радиатор охлаждения' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,857 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ2069033100', 'name': 'Радиатор охлаждения', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,858 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,858 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,859 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3cb0>
+2024-12-25 10:15:12,859 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3110>
+2024-12-25 10:15:12,860 - dz_fastapi - DEBUG - Autopart already exists: ID 1877
+2024-12-25 10:15:12,860 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA131301110', 'name': 'Радиатор охлаждения', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,860 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA131301110' name='Радиатор охлаждения' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,860 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA131301110', 'name': 'Радиатор охлаждения', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,860 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,860 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,861 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2630>
+2024-12-25 10:15:12,862 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1ca0>
+2024-12-25 10:15:12,862 - dz_fastapi - DEBUG - Autopart already exists: ID 1878
+2024-12-25 10:15:12,862 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS111301110CA', 'name': 'РАДИАТОР ОХЛАЖДЕНИЯ CH QQ 372 engine (0.8)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,862 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZS111301110CA' name='РАДИАТОР ОХЛАЖДЕНИЯ CH QQ 372 engine (0.8)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,862 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS111301110CA', 'name': 'РАДИАТОР ОХЛАЖДЕНИЯ CH QQ 372 engine (0.8)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,863 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,863 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,864 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e20f0>
+2024-12-25 10:15:12,864 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2a80>
+2024-12-25 10:15:12,864 - dz_fastapi - DEBUG - Autopart already exists: ID 1879
+2024-12-25 10:15:12,865 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ2069017200', 'name': 'РАДИАТОР ОХЛАЖДЕНИЯ ДВИГАТЕЛЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,865 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ2069017200' name='РАДИАТОР ОХЛАЖДЕНИЯ ДВИГАТЕЛЯ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,865 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ2069017200', 'name': 'РАДИАТОР ОХЛАЖДЕНИЯ ДВИГАТЕЛЯ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,865 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,865 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,866 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e37a0>
+2024-12-25 10:15:12,867 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2ba0>
+2024-12-25 10:15:12,867 - dz_fastapi - DEBUG - Autopart already exists: ID 1880
+2024-12-25 10:15:12,867 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1301100XK45XA', 'name': 'РАДИАТОР ОХЛАЖДЕНИЯ ДВИГАТЕЛЯ GW HOVER H3 NEW', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,867 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1301100XK45XA' name='РАДИАТОР ОХЛАЖДЕНИЯ ДВИГАТЕЛЯ GW HOVER H3 NEW' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,867 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1301100XK45XA', 'name': 'РАДИАТОР ОХЛАЖДЕНИЯ ДВИГАТЕЛЯ GW HOVER H3 NEW', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,867 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,867 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,868 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3ad0>
+2024-12-25 10:15:12,869 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3cb0>
+2024-12-25 10:15:12,869 - dz_fastapi - DEBUG - Autopart already exists: ID 1881
+2024-12-25 10:15:12,869 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1301100XKV08A', 'name': 'РАДИАТОР ОХЛАЖДЕНИЯ ДВИГАТЕЛЯ HAVAL H9', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,869 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1301100XKV08A' name='РАДИАТОР ОХЛАЖДЕНИЯ ДВИГАТЕЛЯ HAVAL H9' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,870 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1301100XKV08A', 'name': 'РАДИАТОР ОХЛАЖДЕНИЯ ДВИГАТЕЛЯ HAVAL H9', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,870 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,870 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,871 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3650>
+2024-12-25 10:15:12,871 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3f20>
+2024-12-25 10:15:12,872 - dz_fastapi - DEBUG - Autopart already exists: ID 1882
+2024-12-25 10:15:12,872 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ2807100XKQ04A', 'name': 'Рамка номерного знака передняя HAVAL F7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,872 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ2807100XKQ04A' name='Рамка номерного знака передняя HAVAL F7' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,872 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ2807100XKQ04A', 'name': 'Рамка номерного знака передняя HAVAL F7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,872 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,872 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,873 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3230>
+2024-12-25 10:15:12,874 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1400>
+2024-12-25 10:15:12,874 - dz_fastapi - DEBUG - Autopart already exists: ID 1883
+2024-12-25 10:15:12,874 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ6010084100', 'name': 'Рамка противотуманной фары Geely Coolray LH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,874 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ6010084100' name='Рамка противотуманной фары Geely Coolray LH' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,874 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ6010084100', 'name': 'Рамка противотуманной фары Geely Coolray LH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,874 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,874 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,875 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1370>
+2024-12-25 10:15:12,876 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2b10>
+2024-12-25 10:15:12,876 - dz_fastapi - DEBUG - Autopart already exists: ID 1884
+2024-12-25 10:15:12,876 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ602001607AA', 'name': 'РАМКА ПТФ ЛЕВОЙ T1D/T1A', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,877 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ602001607AA' name='РАМКА ПТФ ЛЕВОЙ T1D/T1A' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,877 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ602001607AA', 'name': 'РАМКА ПТФ ЛЕВОЙ T1D/T1A', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,877 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,877 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,878 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e35f0>
+2024-12-25 10:15:12,879 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2060>
+2024-12-25 10:15:12,879 - dz_fastapi - DEBUG - Autopart already exists: ID 1885
+2024-12-25 10:15:12,879 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ602001608AA', 'name': 'РАМКА ПТФ ПРАВОЙ T1D/T1A', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,879 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ602001608AA' name='РАМКА ПТФ ПРАВОЙ T1D/T1A' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,879 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ602001608AA', 'name': 'РАМКА ПТФ ПРАВОЙ T1D/T1A', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,880 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,880 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,880 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e28a0>
+2024-12-25 10:15:12,881 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3f20>
+2024-12-25 10:15:12,881 - dz_fastapi - DEBUG - Autopart already exists: ID 1886
+2024-12-25 10:15:12,881 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ481FB1006010', 'name': 'Распредвал IN FOR A, TINGO, TIGGO, M11, B14,', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,881 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ481FB1006010' name='Распредвал IN FOR A, TINGO, TIGGO, M11, B14,' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,882 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ481FB1006010', 'name': 'Распредвал IN FOR A, TINGO, TIGGO, M11, B14,', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,882 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,882 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,883 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2450>
+2024-12-25 10:15:12,884 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e38c0>
+2024-12-25 10:15:12,884 - dz_fastapi - DEBUG - Autopart already exists: ID 1887
+2024-12-25 10:15:12,884 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZE010110005', 'name': 'РАСПРЕДВАЛ ВХОДНОЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,884 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZE010110005' name='РАСПРЕДВАЛ ВХОДНОЙ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,884 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZE010110005', 'name': 'РАСПРЕДВАЛ ВХОДНОЙ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,884 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,884 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,885 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2000>
+2024-12-25 10:15:12,886 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1ca0>
+2024-12-25 10:15:12,886 - dz_fastapi - DEBUG - Autopart already exists: ID 1888
+2024-12-25 10:15:12,886 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZE010120101', 'name': 'Распредвал выпускной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,886 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZE010120101' name='Распредвал выпускной' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,886 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZE010120101', 'name': 'Распредвал выпускной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,886 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,886 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,887 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e30e0>
+2024-12-25 10:15:12,888 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2630>
+2024-12-25 10:15:12,888 - dz_fastapi - DEBUG - Autopart already exists: ID 1889
+2024-12-25 10:15:12,888 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZFQ402D1235T28F62', 'name': 'Регулировочная шайба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,888 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZFQ402D1235T28F62' name='Регулировочная шайба' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,888 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZFQ402D1235T28F62', 'name': 'Регулировочная шайба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,888 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,889 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,889 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1d60>
+2024-12-25 10:15:12,890 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e08c0>
+2024-12-25 10:15:12,890 - dz_fastapi - DEBUG - Autopart already exists: ID 1890
+2024-12-25 10:15:12,890 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZFQ140D12100TF62K', 'name': 'Регулировочный болт с эксцентриком T1A/T19/T1E/T1D/T18', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,891 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZFQ140D12100TF62K' name='Регулировочный болт с эксцентриком T1A/T19/T1E/T1D/T18' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,891 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZFQ140D12100TF62K', 'name': 'Регулировочный болт с эксцентриком T1A/T19/T1E/T1D/T18', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,891 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,891 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,892 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2fc0>
+2024-12-25 10:15:12,893 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e33b0>
+2024-12-25 10:15:12,893 - dz_fastapi - DEBUG - Autopart already exists: ID 1891
+2024-12-25 10:15:12,893 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1086001194514', 'name': 'РЕГУЛИРОВОЧНЫЙ СТАКАН 5.14', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,893 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1086001194514' name='РЕГУЛИРОВОЧНЫЙ СТАКАН 5.14' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,893 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1086001194514', 'name': 'РЕГУЛИРОВОЧНЫЙ СТАКАН 5.14', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,893 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,893 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,894 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3aa0>
+2024-12-25 10:15:12,895 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1cd0>
+2024-12-25 10:15:12,895 - dz_fastapi - DEBUG - Autopart already exists: ID 1892
+2024-12-25 10:15:12,895 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZHC0020660BM1', 'name': 'Регулятор холостого хода', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,895 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZHC0020660BM1' name='Регулятор холостого хода' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,896 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZHC0020660BM1', 'name': 'Регулятор холостого хода', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,896 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,896 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,897 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e0290>
+2024-12-25 10:15:12,898 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e18e0>
+2024-12-25 10:15:12,898 - dz_fastapi - DEBUG - Autopart already exists: ID 1894
+2024-12-25 10:15:12,898 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSMW299933', 'name': 'Регулятор холостого хода', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,898 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZSMW299933' name='Регулятор холостого хода' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,898 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSMW299933', 'name': 'Регулятор холостого хода', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,898 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,898 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,899 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3380>
+2024-12-25 10:15:12,900 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2090>
+2024-12-25 10:15:12,900 - dz_fastapi - DEBUG - Autopart already exists: ID 1895
+2024-12-25 10:15:12,900 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1136000170', 'name': 'Регулятор холостого хода GEELY VISION EMGRAND 1,6', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,900 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1136000170' name='Регулятор холостого хода GEELY VISION EMGRAND 1,6' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,900 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1136000170', 'name': 'Регулятор холостого хода GEELY VISION EMGRAND 1,6', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,900 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,901 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,902 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3ec0>
+2024-12-25 10:15:12,903 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e33e0>
+2024-12-25 10:15:12,903 - dz_fastapi - DEBUG - Autopart already exists: ID 1896
+2024-12-25 10:15:12,903 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1064001332', 'name': 'Резинка глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,903 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1064001332' name='Резинка глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,903 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1064001332', 'name': 'Резинка глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,903 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,903 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,904 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3320>
+2024-12-25 10:15:12,905 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e38c0>
+2024-12-25 10:15:12,905 - dz_fastapi - DEBUG - Autopart already exists: ID 1897
+2024-12-25 10:15:12,905 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZB1211522', 'name': 'Резинка глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,906 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZB1211522' name='Резинка глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,906 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZB1211522', 'name': 'Резинка глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,906 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,906 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,907 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1970>
+2024-12-25 10:15:12,907 - dz_fastapi - DEBUG - Existing autopart: None
+2024-12-25 10:15:12,907 - dz_fastapi - DEBUG - AutopartCreate data: brand_id=54 oem_number='DZB1211522' name='Резинка глушителя' description=None width=None height=None length=None weight=None purchase_price=None retail_price=None wholesale_price=None multiplicity=None minimum_balance=None min_balance_auto=None min_balance_user=None comment=None barcode=None category_name=None storage_location_name=None
+2024-12-25 10:15:12,910 - dz_fastapi - DEBUG - Created new AutoPart: ID=6705
+2024-12-25 10:15:12,910 - dz_fastapi - DEBUG - Created autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f29a1e0>
+2024-12-25 10:15:12,910 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT111203281', 'name': 'Резинка глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,910 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZT111203281' name='Резинка глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,910 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT111203281', 'name': 'Резинка глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,910 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,910 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,911 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3020>
+2024-12-25 10:15:12,912 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e21e0>
+2024-12-25 10:15:12,912 - dz_fastapi - DEBUG - Autopart already exists: ID 1898
+2024-12-25 10:15:12,912 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA211200017', 'name': 'Резинка глушителя FORA', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,912 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA211200017' name='Резинка глушителя FORA' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,912 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA211200017', 'name': 'Резинка глушителя FORA', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,912 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,912 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,913 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3110>
+2024-12-25 10:15:12,914 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2420>
+2024-12-25 10:15:12,914 - dz_fastapi - DEBUG - Autopart already exists: ID 1899
+2024-12-25 10:15:12,914 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1014001633', 'name': 'Рейка рулевая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,914 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1014001633' name='Рейка рулевая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,915 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1014001633', 'name': 'Рейка рулевая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,915 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,915 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,916 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3bf0>
+2024-12-25 10:15:12,917 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3410>
+2024-12-25 10:15:12,917 - dz_fastapi - DEBUG - Autopart already exists: ID 1901
+2024-12-25 10:15:12,917 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZB3401100', 'name': 'Рейка рулевая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,917 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZB3401100' name='Рейка рулевая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,917 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZB3401100', 'name': 'Рейка рулевая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,917 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,917 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,918 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2a80>
+2024-12-25 10:15:12,919 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3140>
+2024-12-25 10:15:12,919 - dz_fastapi - DEBUG - Autopart already exists: ID 1902
+2024-12-25 10:15:12,919 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT113401010BB', 'name': 'Рейка рулевая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,919 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZT113401010BB' name='Рейка рулевая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,920 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT113401010BB', 'name': 'Рейка рулевая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,920 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,920 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,921 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e28d0>
+2024-12-25 10:15:12,922 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2db0>
+2024-12-25 10:15:12,922 - dz_fastapi - DEBUG - Autopart already exists: ID 1903
+2024-12-25 10:15:12,922 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA113400010BB', 'name': 'Рейка рулевая AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,922 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA113400010BB' name='Рейка рулевая AMULET' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,922 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA113400010BB', 'name': 'Рейка рулевая AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,922 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,922 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,923 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1cd0>
+2024-12-25 10:15:12,924 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1ee0>
+2024-12-25 10:15:12,924 - dz_fastapi - DEBUG - Autopart already exists: ID 1904
+2024-12-25 10:15:12,924 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA113735011BA', 'name': 'Реле', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,924 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA113735011BA' name='Реле' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,924 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA113735011BA', 'name': 'Реле', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,924 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,925 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,925 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3800>
+2024-12-25 10:15:12,926 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3500>
+2024-12-25 10:15:12,927 - dz_fastapi - DEBUG - Autopart already exists: ID 1905
+2024-12-25 10:15:12,927 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ3741015V01', 'name': 'РЕЛЕ СТЕКЛООЧИСТИТЕЛЯ  1010,6350,6371,1020V,1020VR', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,927 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ3741015V01' name='РЕЛЕ СТЕКЛООЧИСТИТЕЛЯ  1010,6350,6371,1020V,1020VR' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,927 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ3741015V01', 'name': 'РЕЛЕ СТЕКЛООЧИСТИТЕЛЯ  1010,6350,6371,1020V,1020VR', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,927 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,927 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,928 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1ca0>
+2024-12-25 10:15:12,929 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2630>
+2024-12-25 10:15:12,929 - dz_fastapi - DEBUG - Autopart already exists: ID 1906
+2024-12-25 10:15:12,929 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1800183180', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,929 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1800183180' name='Ремень' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,929 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1800183180', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,929 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,929 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,930 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e0fe0>
+2024-12-25 10:15:12,931 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3200>
+2024-12-25 10:15:12,931 - dz_fastapi - DEBUG - Autopart already exists: ID 1907
+2024-12-25 10:15:12,931 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ3412011K00', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,931 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ3412011K00' name='Ремень' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,931 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ3412011K00', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,931 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,932 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,932 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1be0>
+2024-12-25 10:15:12,933 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2930>
+2024-12-25 10:15:12,933 - dz_fastapi - DEBUG - Autopart already exists: ID 1908
+2024-12-25 10:15:12,933 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ3701011EG01', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,934 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ3701011EG01' name='Ремень' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,934 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ3701011EG01', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,934 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,934 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,935 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e0e60>
+2024-12-25 10:15:12,936 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2690>
+2024-12-25 10:15:12,936 - dz_fastapi - DEBUG - Autopart already exists: ID 1909
+2024-12-25 10:15:12,936 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ3PK610', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,936 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ3PK610' name='Ремень' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,936 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ3PK610', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,936 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,936 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,937 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1e20>
+2024-12-25 10:15:12,939 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3560>
+2024-12-25 10:15:12,939 - dz_fastapi - DEBUG - Autopart already exists: ID 1910
+2024-12-25 10:15:12,939 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZE030000401', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,939 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZE030000401' name='Ремень' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,939 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZE030000401', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,939 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,939 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,940 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2ff0>
+2024-12-25 10:15:12,941 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e32f0>
+2024-12-25 10:15:12,941 - dz_fastapi - DEBUG - Autopart already exists: ID 1911
+2024-12-25 10:15:12,941 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZE4G161025051BA', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,941 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZE4G161025051BA' name='Ремень' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,941 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZE4G161025051BA', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,941 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,941 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,942 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2ed0>
+2024-12-25 10:15:12,943 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1c40>
+2024-12-25 10:15:12,943 - dz_fastapi - DEBUG - Autopart already exists: ID 1912
+2024-12-25 10:15:12,943 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZF3407810', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,943 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZF3407810' name='Ремень' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,943 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZF3407810', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,943 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,944 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,944 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e0ef0>
+2024-12-25 10:15:12,945 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1f10>
+2024-12-25 10:15:12,945 - dz_fastapi - DEBUG - Autopart already exists: ID 1913
+2024-12-25 10:15:12,945 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS118104051BA', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,945 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZS118104051BA' name='Ремень' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,945 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS118104051BA', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,945 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,946 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,946 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e0b90>
+2024-12-25 10:15:12,947 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3a40>
+2024-12-25 10:15:12,947 - dz_fastapi - DEBUG - Autopart already exists: ID 1914
+2024-12-25 10:15:12,947 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSMD186125', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,948 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZSMD186125' name='Ремень' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,948 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSMD186125', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,948 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,948 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,949 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2060>
+2024-12-25 10:15:12,950 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2900>
+2024-12-25 10:15:12,950 - dz_fastapi - DEBUG - Autopart already exists: ID 1915
+2024-12-25 10:15:12,950 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT113701315', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,950 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZT113701315' name='Ремень' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,951 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT113701315', 'name': 'Ремень', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,951 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,951 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,951 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3fb0>
+2024-12-25 10:15:12,952 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2d80>
+2024-12-25 10:15:12,952 - dz_fastapi - DEBUG - Autopart already exists: ID 1916
+2024-12-25 10:15:12,952 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA113701315CA', 'name': 'Ремень 6РК1440', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,953 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZA113701315CA' name='Ремень 6РК1440' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,953 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA113701315CA', 'name': 'Ремень 6РК1440', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,953 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,953 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,954 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3140>
+2024-12-25 10:15:12,954 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1cd0>
+2024-12-25 10:15:12,955 - dz_fastapi - DEBUG - Autopart already exists: ID 1917
+2024-12-25 10:15:12,955 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1025011XEC06', 'name': 'Ремень генератора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,955 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1025011XEC06' name='Ремень генератора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,955 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1025011XEC06', 'name': 'Ремень генератора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,955 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,955 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,956 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e0a40>
+2024-12-25 10:15:12,957 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e08c0>
+2024-12-25 10:15:12,957 - dz_fastapi - DEBUG - Autopart already exists: ID 1918
+2024-12-25 10:15:12,957 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSMD326780', 'name': 'Ремень генератора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,957 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZSMD326780' name='Ремень генератора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,957 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSMD326780', 'name': 'Ремень генератора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,957 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,957 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,958 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2240>
+2024-12-25 10:15:12,959 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e37a0>
+2024-12-25 10:15:12,959 - dz_fastapi - DEBUG - Autopart already exists: ID 1919
+2024-12-25 10:15:12,959 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ3701011ED01A', 'name': 'РЕМЕНЬ ГЕНЕРАТОРА GW HOVER H5 - 4D20', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,959 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ3701011ED01A' name='РЕМЕНЬ ГЕНЕРАТОРА GW HOVER H5 - 4D20' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,960 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ3701011ED01A', 'name': 'РЕМЕНЬ ГЕНЕРАТОРА GW HOVER H5 - 4D20', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,960 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,960 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,961 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1d30>
+2024-12-25 10:15:12,962 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1e20>
+2024-12-25 10:15:12,962 - dz_fastapi - DEBUG - Autopart already exists: ID 1920
+2024-12-25 10:15:12,962 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZE4T151025051AB', 'name': 'Ремень генератора t15/t18/j42/t1a/t19/t1e', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,962 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZE4T151025051AB' name='Ремень генератора t15/t18/j42/t1a/t19/t1e' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,962 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZE4T151025051AB', 'name': 'Ремень генератора t15/t18/j42/t1a/t19/t1e', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,962 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,962 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,963 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3e30>
+2024-12-25 10:15:12,964 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3b60>
+2024-12-25 10:15:12,964 - dz_fastapi - DEBUG - Autopart already exists: ID 1921
+2024-12-25 10:15:12,964 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1307012E02', 'name': 'Ремень генератора и помпы', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,964 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ1307012E02' name='Ремень генератора и помпы' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,964 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1307012E02', 'name': 'Ремень генератора и помпы', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,964 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,965 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,965 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e2420>
+2024-12-25 10:15:12,966 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e2090>
+2024-12-25 10:15:12,966 - dz_fastapi - DEBUG - Autopart already exists: ID 1922
+2024-12-25 10:15:12,966 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZLF479Q11025015A', 'name': 'РЕМЕНЬ ГЕНЕРАТОРА И ПОМПЫ LF SOLANO, BREEZ, SMILY, CELLIYA, X50', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,966 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZLF479Q11025015A' name='РЕМЕНЬ ГЕНЕРАТОРА И ПОМПЫ LF SOLANO, BREEZ, SMILY, CELLIYA, X50' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,967 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZLF479Q11025015A', 'name': 'РЕМЕНЬ ГЕНЕРАТОРА И ПОМПЫ LF SOLANO, BREEZ, SMILY, CELLIYA, X50', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,967 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,967 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,968 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3f50>
+2024-12-25 10:15:12,968 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1a90>
+2024-12-25 10:15:12,969 - dz_fastapi - DEBUG - Autopart already exists: ID 1923
+2024-12-25 10:15:12,969 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZF4J161025011AC', 'name': 'РЕМЕНЬ ГРМ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,969 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZF4J161025011AC' name='РЕМЕНЬ ГРМ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,969 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZF4J161025011AC', 'name': 'РЕМЕНЬ ГРМ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,969 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,969 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,970 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1970>
+2024-12-25 10:15:12,971 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e1e80>
+2024-12-25 10:15:12,971 - dz_fastapi - DEBUG - Autopart already exists: ID 1924
+2024-12-25 10:15:12,971 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZLBA3407103', 'name': 'РЕМЕНЬ ГУР LF SOLANO, BREEZ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,971 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZLBA3407103' name='РЕМЕНЬ ГУР LF SOLANO, BREEZ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,971 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZLBA3407103', 'name': 'РЕМЕНЬ ГУР LF SOLANO, BREEZ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,971 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,971 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,972 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e0080>
+2024-12-25 10:15:12,973 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e37d0>
+2024-12-25 10:15:12,973 - dz_fastapi - DEBUG - Autopart already exists: ID 1925
+2024-12-25 10:15:12,973 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ8103012K00', 'name': 'РЕМЕНЬ КОНДИЦИОНЕРА (ОН ЖЕ ГЕНЕРАТОРА) GW HOVER, H3', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,973 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZ8103012K00' name='РЕМЕНЬ КОНДИЦИОНЕРА (ОН ЖЕ ГЕНЕРАТОРА) GW HOVER, H3' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,974 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ8103012K00', 'name': 'РЕМЕНЬ КОНДИЦИОНЕРА (ОН ЖЕ ГЕНЕРАТОРА) GW HOVER, H3', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,974 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,974 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,975 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e3680>
+2024-12-25 10:15:12,975 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e24b0>
+2024-12-25 10:15:12,975 - dz_fastapi - DEBUG - Autopart already exists: ID 1926
+2024-12-25 10:15:12,976 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS118104051BC', 'name': 'РЕМЕНЬ КОНДИЦИОНЕРА CH QQ, QQ6', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,976 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DRAGONZAP' oem_number='DZS118104051BC' name='РЕМЕНЬ КОНДИЦИОНЕРА CH QQ, QQ6' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2024-12-25 10:15:12,976 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS118104051BC', 'name': 'РЕМЕНЬ КОНДИЦИОНЕРА CH QQ, QQ6', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2024-12-25 10:15:12,976 - dz_fastapi - DEBUG - Extracted brand_name: DRAGONZAP
+2024-12-25 10:15:12,976 - dz_fastapi - DEBUG - Changed brand_name: DRAGONZAP
+2024-12-25 10:15:12,977 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff9f2e1d30>
+2024-12-25 10:15:12,978 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff9f2e3c20>
+2024-12-25 10:15:12,978 - dz_fastapi - DEBUG - Autopart already exists: ID 1927
