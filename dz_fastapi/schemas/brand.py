@@ -1,6 +1,7 @@
 from enum import StrEnum
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, List, Union
+from typing import List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CountryEnum(StrEnum):
@@ -74,14 +75,17 @@ class BrandUpdateInDB(BrandBase):
 class SynonymCreate(BaseModel):
     names: List[str]
 
+
 class SynonymResponse(BaseModel):
     id: int
     name: str
+
 
 class BrandResponse(BaseModel):
     id: int
     name: str
     synonyms: List[SynonymResponse]
+
 
 class Engine(BaseModel):
     name: str

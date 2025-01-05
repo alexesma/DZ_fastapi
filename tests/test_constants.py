@@ -1,8 +1,8 @@
-#test/test_constants.py
-from dz_fastapi.models.brand import Brand
+# test/test_constants.py
 
 TEST_BRAND = {
-    'name': r'Test-Brand_*?/\\|<>,.()[]{};:!@#$%^&àáâãäåçèéêëìíîðñòôõöö[|]\'~<!--@/*$%^&#*/()?>,.*/\\',
+    'name': r'Test-Brand_*?/\\|<>,.()[]{};:!@#$%^&àáâãäåçèéê'
+            r'ëìíîðñòôõöö[|]\'~<!--@/*$%^&#*/()?>,.*/\\',
     'country_of_origin': 'USA',
     'description': 'A test brand',
     'website': 'https://example.com',
@@ -10,25 +10,26 @@ TEST_BRAND = {
 MAX_FILE_SIZE = 1024 * 1024  # 1 МБ
 
 TEST_AUTOPART = {
-    "oem_number": "1205011xkz16a",
-    "name": "test autopart name ТЕСТ",
-    "description": "this is a test auto part.",
-    "width": 10.0,
-    "height": 5.0,
-    "length": 15.0,
-    "weight": 2.5,
-    "purchase_price": 100.00,
-    "retail_price": 150.00,
-    "wholesale_price": 120.00,
-    "multiplicity": 1,
-    "minimum_balance": 5,
-    "min_balance_auto": True,
-    "min_balance_user": False,
-    "comment": "Test autopart comment"
+    'oem_number': '1205011xkz16a',
+    'name': 'test autopart name ТЕСТ',
+    'description': 'this is a test auto part.',
+    'width': 10.0,
+    'height': 5.0,
+    'length': 15.0,
+    'weight': 2.5,
+    'purchase_price': 100.00,
+    'retail_price': 150.00,
+    'wholesale_price': 120.00,
+    'multiplicity': 1,
+    'minimum_balance': 5,
+    'min_balance_auto': True,
+    'min_balance_user': False,
+    'comment': 'Test autopart comment'
 }
 
 TEST_PROVIDER = {
-    'name': 'Test-Provider_*?/\\|<>,.()[]{};:!@#$%^&àáâãäåçèéêëìíîðñòôõöö[|]\'~<!--@/*$%^&#*/()?>,.*/\\',
+    'name': 'Test-Provider_*?/\\|<>,.()[]{};:!@#$%^&à'
+            'áâãäåçèéêëìíîðñòôõöö[|]\'~<!--@/*$%^&#*/()?>,.*/\\',
     'type_prices': 'Retail',
     'email_contact': 'test2@test2.ru',
     'comment': 'Test comment',
@@ -37,7 +38,8 @@ TEST_PROVIDER = {
 }
 
 TEST_CUSTOMER = {
-    'name': 'Test-Customer_*?/\\|<>,.()[]{};:!@#$%^&àáâãäåçèéêëìíîðñòôõöö[|]\'~<!--@/*$%^&#*/()?>,.*/\\',
+    'name': 'Test-Customer_*?/\\|<>,.()[]{};:!@#$%^&'
+            'àáâãäåçèéêëìíîðñòôõöö[|]\'~<!--@/*$%^&#*/()?>,.*/\\',
     'type_prices': 'Retail',
     'email_contact': 'testcustomer@customer.ru',
     'comment': 'Test comment',

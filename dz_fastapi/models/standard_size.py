@@ -70,9 +70,20 @@
 #         ForeignKey('standardsize.id'),
 #         primary_key=True
 #     )
-#     inner_diameter = Column(Integer, doc='Внутренний диаметр', nullable=False)
-#     external_diameter = Column(Integer, doc='Внешний диаметр', nullable=False)
-#     width: int = Column(Integer, doc='Высота основной части', nullable=False)
+#     inner_diameter = Column(
+#     Integer,
+#     doc='Внутренний диаметр', nullable=False
+#     )
+#     external_diameter = Column(
+#     Integer,
+#     doc='Внешний диаметр',
+#     nullable=False
+#     )
+#     width: int = Column(
+#     Integer,
+#     doc='Высота основной части',
+#     nullable=False
+#     )
 #     width_with_projection = Column(
 #         Integer,
 #         doc='Высота общая с выступом',

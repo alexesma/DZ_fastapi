@@ -1,8 +1,11 @@
-from pydantic import BaseModel, EmailStr, field_validator, ConfigDict, Field, root_validator, model_validator
-from typing import List, Optional, Dict, Any
 from datetime import date
 from decimal import Decimal
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
+from pydantic import (BaseModel, ConfigDict, EmailStr, Field, field_validator,
+                      model_validator)
+
 from dz_fastapi.schemas.autopart import AutoPartPricelist, AutoPartResponse
 
 
@@ -329,6 +332,7 @@ class AutoPartInPricelist(BaseModel):
     price: float
     autopart: Optional[AutoPartResponse]
     model_config = ConfigDict(from_attributes=True)
+
 
 class CustomerAllPriceListResponse(BaseModel):
     id: int

@@ -43,7 +43,9 @@
 #         'Engine',
 #         secondary='car_model_engine_association',
 #         backref='carmodels',
-#         secondaryjoin="and_(Engine.id == car_model_engine_association.c.engine_id)",
+#         secondaryjoin="and_(
+#         Engine.id == car_model_engine_association.c.engine_id
+#         )",
 #         viewonly=True
 #     )
 #     year_start = Column(String, nullable=True)
@@ -79,10 +81,16 @@
 #                 except ValueError:
 #                     continue
 #             else:
-#                 raise ValueError(ERROR_MESSAGE_FORMAT_DATE.format(key=key, expected_formats=valid_formats))
+#                 raise ValueError(
+#                 ERROR_MESSAGE_FORMAT_DATE.format(
+#                 key=key, expected_formats=valid_formats
+#                 )
+#                 )
 #             current_year = datetime.now().year
 #             if year < 1980 or year > current_year:
-#                 raise ValueError(ERROR_MESSAGE_RANGE_DATE.format(key=key, year=year))
+#                 raise ValueError(
+#                 ERROR_MESSAGE_RANGE_DATE.format(key=key, year=year)
+#                 )
 #         return year_str
 #
 #
@@ -92,13 +100,18 @@
 #         nullable=False,
 #         unique=True
 #     )
-#     fuel_type = Column(Enum(FuelType), nullable=False, default=FuelType.PETROL)
+#     fuel_type = Column(
+#     Enum(FuelType),
+#     nullable=False, default=FuelType.PETROL
+#     )
 #     power = Column(Integer,  nullable=True)
 #     car_models = relationship(
 #         'CarModel',
 #         secondary='car_model_engine_association',
 #         back_populates='engines',
-#         secondaryjoin="and_(CarModel.id == car_model_engine_association.c.carmodel_id)",
+#         secondaryjoin="and_(
+#         CarModel.id == car_model_engine_association.c.carmodel_id
+#         )",
 #         viewonly=True
 #     )
 #     __table_args__ = (

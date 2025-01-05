@@ -31,6 +31,9 @@ pandas = "^2.2.3"
 openpyxl = "^3.1.5"
 imap-tools = "^1.7.4"
 apscheduler = "^3.11.0"
+flake8 = "^7.1.1"
+flake8-isort = "^6.1.1"
+black = "^24.10.0"
 
 [build-system]
 requires = ["poetry-core"]

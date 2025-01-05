@@ -1,6 +1,10 @@
-from pydantic import BaseModel, Field, StringConstraints, validator, field_validator, ConfigDict
-from typing import Optional, List, Annotated
-from dz_fastapi.core.constants import MAX_NAME_CATEGORY, MAX_LIGHT_NAME_LOCATION
+from typing import Annotated, List, Optional
+
+from pydantic import (BaseModel, ConfigDict, Field, StringConstraints,
+                      field_validator)
+
+from dz_fastapi.core.constants import (MAX_LIGHT_NAME_LOCATION,
+                                       MAX_NAME_CATEGORY)
 
 
 class AutoPartBase(BaseModel):
@@ -141,15 +145,20 @@ class CategoryBase(BaseModel):
     name: str = Field(..., max_length=MAX_NAME_CATEGORY)
     comment: Optional[str] = None
 
+
 # Schema for creating a new category
 class CategoryCreate(CategoryBase):
     parent_id: Optional[int] = None
 
+
 # Schema for updating an existing category
 class CategoryUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=MAX_NAME_CATEGORY)
+    name: Optional[str] = Field(
+        None, min_length=1, max_length=MAX_NAME_CATEGORY
+    )
     comment: Optional[str] = None
     parent_id: Optional[int] = None
+
 
 # Response schema
 class CategoryResponse(CategoryBase):
@@ -170,24 +179,33 @@ class CategoryResponse(CategoryBase):
         else:
             return [v]
 
+
 CategoryResponse.model_rebuild()
 
 # StorageLocation Schemas
 
+
 class StorageLocationBase(BaseModel):
-    name:  Annotated[
+    name: Annotated[
         str,
-        StringConstraints(pattern='^[A-Z0-9 ]+$',max_length=MAX_LIGHT_NAME_LOCATION)
+        StringConstraints(
+            pattern='^[A-Z0-9 ]+$', max_length=MAX_LIGHT_NAME_LOCATION
+        ),
     ]
+
 
 class StorageLocationCreate(StorageLocationBase):
     pass
 
+
 class StorageLocationUpdate(BaseModel):
     name: Annotated[
         Optional[str],
-        StringConstraints(pattern='^[A-Z0-9 ]+$', max_length=MAX_LIGHT_NAME_LOCATION)
+        StringConstraints(
+            pattern='^[A-Z0-9 ]+$', max_length=MAX_LIGHT_NAME_LOCATION
+        ),
     ] = None
+
 
 class StorageLocationResponse(StorageLocationBase):
     id: int
@@ -195,6 +213,7 @@ class StorageLocationResponse(StorageLocationBase):
     autoparts: List[AutoPartResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
+
 
 StorageLocationResponse.model_rebuild()
 AutoPartResponse.model_rebuild()

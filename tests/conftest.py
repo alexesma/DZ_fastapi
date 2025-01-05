@@ -1,32 +1,30 @@
-import tempfile
-import pytest
 import logging
+import tempfile
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
-from httpx import AsyncClient, ASGITransport
-
-logger = logging.getLogger('dz_fastapi')
-from sqlalchemy import delete
+import pytest
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from dz_fastapi.core.db import Base, get_async_session, get_session
+
+from dz_fastapi.core.base import (AutoPart, Brand, Category, Customer,
+                                  Provider, StorageLocation)
 from dz_fastapi.core.config import settings
-from dz_fastapi.core.base import (
-    Brand,
-    AutoPart,
-    Category,
-    StorageLocation,
-    Provider,
-    Customer
-)
-from dz_fastapi.main import app
-from pathlib import Path
 from dz_fastapi.core.constants import get_max_file_size, get_upload_dir
-from logging.handlers import RotatingFileHandler
+from dz_fastapi.core.db import Base, get_async_session, get_session
+from dz_fastapi.main import app
+
+logger = logging.getLogger('dz_fastapi')
 
 
 @pytest.fixture(scope="function")
 async def test_engine():
-    engine = create_async_engine(settings.get_database_url(test=True), echo=True, future=True)
+    engine = create_async_engine(
+        settings.get_database_url(test=True),
+        echo=True,
+        future=True
+    )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -61,6 +59,7 @@ async def test_session(test_db, test_engine) -> AsyncSession:
         yield session
         await session.rollback()
 
+
 @pytest.fixture
 async def created_brand(test_session: AsyncSession) -> Brand:
     brand = Brand(
@@ -73,6 +72,7 @@ async def created_brand(test_session: AsyncSession) -> Brand:
     await test_session.commit()
     await test_session.refresh(brand)
     return brand
+
 
 @pytest.fixture
 async def created_autopart(
@@ -177,10 +177,13 @@ async def created_storage(test_session: AsyncSession) -> StorageLocation:
     return storage
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope='function')
 async def async_client(test_session: AsyncSession):
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url='http://test') as client:
+    async with AsyncClient(
+            transport=transport,
+            base_url='http://test'
+    ) as client:
         yield client
 
 
@@ -194,15 +197,23 @@ async def override_dependencies(test_engine):
     logger = logging.getLogger("dz_fastapi")
     if not logger.handlers:
         logger.setLevel(logging.DEBUG)
-        handler = RotatingFileHandler("test_dz_fastapi.log", maxBytes=2000, backupCount=100)
+        handler = RotatingFileHandler(
+            "test_dz_fastapi.log",
+            maxBytes=2000,
+            backupCount=100
+        )
         handler.setLevel(logging.DEBUG)
-        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
     # Use a temporary directory
     temp_upload_dir = tempfile.TemporaryDirectory()
-    logger.debug(f"Temporary upload directory: {temp_upload_dir.name}")
+    logger.debug(
+        f'Temporary upload directory: {temp_upload_dir.name}'
+    )
 
     # Override UPLOAD_DIR
     async def override_get_upload_dir():

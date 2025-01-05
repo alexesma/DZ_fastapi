@@ -1,28 +1,26 @@
+import logging
 from typing import List, Optional
 
 from fastapi import HTTPException
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from dz_fastapi.api.validators import change_brand_name, change_string
 from dz_fastapi.core.db import AsyncSession
-from dz_fastapi.models.autopart import AutoPart, Category, StorageLocation, preprocess_oem_number
 from dz_fastapi.crud.base import CRUDBase
 from dz_fastapi.crud.brand import brand_crud
+from dz_fastapi.models.autopart import (AutoPart, Category, StorageLocation,
+                                        preprocess_oem_number)
 from dz_fastapi.models.brand import Brand
-from dz_fastapi.schemas.autopart import (
-    AutoPartCreate,
-    AutoPartUpdate,
-    AutoPartCreatePriceList,
-    CategoryCreate,
-    CategoryUpdate,
-    StorageLocationCreate,
-    StorageLocationUpdate
-)
-from sqlalchemy.exc import SQLAlchemyError
-import logging
+from dz_fastapi.schemas.autopart import (AutoPartCreate,
+                                         AutoPartCreatePriceList,
+                                         AutoPartUpdate, CategoryCreate,
+                                         CategoryUpdate, StorageLocationCreate,
+                                         StorageLocationUpdate)
 
 logger = logging.getLogger('dz_fastapi')
+
 
 def get_recursive_selectinloads(depth: int):
     def recursive_load(level):
@@ -33,6 +31,7 @@ def get_recursive_selectinloads(depth: int):
                 recursive_load(level - 1)
             )
     return recursive_load(depth - 1)
+
 
 class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
     async def create_autopart(
@@ -45,7 +44,8 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         Создает новую автозапчасть в базе данных.
 
         Args:
-            new_autopart (AutoPartCreate): Данные для создания новой автозапчасти.
+            new_autopart (AutoPartCreate):
+            Данные для создания новой автозапчасти.
             brand (Brand): Бренд, к которому принадлежит автозапчасть.
             session (AsyncSessionLocal): Объект сессии базы данных.
 
@@ -53,13 +53,19 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             AutoPart: Созданная автозапчасть.
 
         Raises:
-            Exception: Возникает при ошибке создания или сохранения автозапчасти.
+            Exception:
+            Возникает при ошибке создания или сохранения автозапчасти.
         """
         try:
             autopart_data = new_autopart.model_dump(exclude_unset=True)
             category_name = autopart_data.pop('category_name', None)
-            storage_location_name = autopart_data.pop('storage_location_name', None)
-            autopart_data['name'] = await change_string(autopart_data['name'])
+            storage_location_name = autopart_data.pop(
+                'storage_location_name',
+                None
+            )
+            autopart_data['name'] = await change_string(
+                autopart_data['name']
+            )
             autopart = AutoPart(**autopart_data)
             autopart.brand = brand
             autopart.categories = []
@@ -69,19 +75,28 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                     session
                 )
                 if not category:
-                    raise HTTPException(status_code=400,
-                                        detail=f'Category {
-                                        category_name
-                                        } does not exist.'
-                                        )
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            f'Category {category_name} does not exist.'
+                        )
+                    )
                 autopart.categories.append(category)
             autopart.storage_locations = []
             if storage_location_name:
-                storage_location = await crud_storage.get_storage_location_id_by_name(storage_location_name, session)
+                storage_location = await (
+                    crud_storage.get_storage_location_id_by_name(
+                        storage_location_name,
+                        session
+                    )
+                )
                 if not storage_location:
                     raise HTTPException(
                         status_code=400,
-                        detail=f'Storage location {storage_location_name} does not exist.'
+                        detail=(
+                            f'Storage location '
+                            f'{storage_location_name} does not exist.'
+                        )
                     )
                 autopart.storage_locations.append(storage_location)
             session.add(autopart)
@@ -140,7 +155,9 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             autopart = result.scalars().unique().one_or_none()
             return autopart
         except SQLAlchemyError as e:
-            logger.error(f"Database error when fetching autopart {autopart_id}: {e}")
+            logger.error(
+                f'Database error when fetching autopart {autopart_id}: {e}'
+            )
             raise
 
     async def create_autopart_from_price(
@@ -150,7 +167,10 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             default_brand: Optional[Brand] = None
     ) -> Optional[AutoPart]:
         try:
-            logger.debug(f'Starting create_autopart_from_price with data: {new_autopart}')
+            logger.debug(
+                f'Starting create_autopart_from_price '
+                f'with data: {new_autopart}'
+            )
             autopart_data = new_autopart.model_dump(exclude_unset=True)
             logger.debug(f'Extracted autopart_data: {autopart_data}')
             brand_name = autopart_data.pop('brand', None)
@@ -165,18 +185,24 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                 logger.debug(f'Retrieved brand: {brand}')
                 if not brand:
                     logger.warning(
-                        f'Brand {brand_name} not found. Skipping autopart creation.'
+                        f'Brand {brand_name} not found. '
+                        f'Skipping autopart creation.'
                     )
                     return None
             elif default_brand:
                 brand = default_brand
                 logger.debug(f'Using default_brand: {brand}')
             else:
-                logger.warning('No brand specified and no default brand provided. Skipping autopart creation.')
+                logger.warning(
+                    'No brand specified and no default brand provided. '
+                    'Skipping autopart creation.'
+                )
                 return None
 
             if 'oem_number' in autopart_data and autopart_data['oem_number']:
-                normalized_oem = preprocess_oem_number(autopart_data['oem_number'])
+                normalized_oem = preprocess_oem_number(
+                    autopart_data['oem_number']
+                )
                 autopart_data['oem_number'] = normalized_oem
             else:
                 logger.error('oem_number is missing in autopart_data')
@@ -190,10 +216,15 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             logger.debug(f'Existing autopart: {existing_autopart}')
 
             if existing_autopart:
-                logger.debug(f"Autopart already exists: ID {existing_autopart.id}")
+                logger.debug(
+                    f'Autopart already exists: ID {existing_autopart.id}'
+                )
                 return existing_autopart
 
-            autopart_create_data = AutoPartCreate(**autopart_data, brand_id=brand.id)
+            autopart_create_data = AutoPartCreate(
+                **autopart_data,
+                brand_id=brand.id
+            )
             logger.debug(f'AutopartCreate data: {autopart_create_data}')
 
             autopart = await self.create_autopart(
@@ -201,15 +232,16 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                 brand=brand,
                 session=session
             )
-            logger.debug(f"Created autopart: {autopart}")
+            logger.debug(f'Created autopart: {autopart}')
 
             return autopart
         except Exception as e:
-            logger.exception(f"Error in create_autopart_from_price: {e}")
+            logger.exception(f'Error in create_autopart_from_price: {e}')
             raise
 
 
 crud_autopart = CRUDAutopart(AutoPart)
+
 
 class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
     async def get_multi(
@@ -218,7 +250,7 @@ class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
         try:
             stmt = (
                 select(Category)
-                .filter(Category.parent_id == None)
+                .filter(Category.parent_id == None)    # noqa: E711
                 .options(
                     get_recursive_selectinloads(5)
                 )
@@ -275,7 +307,11 @@ class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
             raise error
 
 
-class CRUDStorageLocation(CRUDBase[StorageLocation, StorageLocationCreate, StorageLocationUpdate]):
+class CRUDStorageLocation(CRUDBase[
+                              StorageLocation,
+                              StorageLocationCreate,
+                              StorageLocationUpdate
+                          ]):
     async def get_multi(
             self, session: AsyncSession, *, skip: int = 0, limit: int = 100
     ) -> List[StorageLocation]:
@@ -285,7 +321,7 @@ class CRUDStorageLocation(CRUDBase[StorageLocation, StorageLocationCreate, Stora
                 .options(
                     selectinload(StorageLocation.autoparts).options(
                         selectinload(AutoPart.categories),
-                         selectinload(AutoPart.storage_locations)
+                        selectinload(AutoPart.storage_locations)
                     )
                 )
                 .offset(skip)
@@ -329,6 +365,7 @@ class CRUDStorageLocation(CRUDBase[StorageLocation, StorageLocationCreate, Stora
             return result.scalars().first()
         except SQLAlchemyError as error:
             raise error
+
 
 crud_category = CRUDCategory(Category)
 crud_storage = CRUDStorageLocation(StorageLocation)

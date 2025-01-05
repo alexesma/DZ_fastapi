@@ -1,7 +1,9 @@
-from sqlalchemy import Column, Integer
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.orm import declarative_base, declared_attr
 from typing import AsyncGenerator
+
+from sqlalchemy import Column, Integer
+from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
+                                    create_async_engine)
+from sqlalchemy.orm import declarative_base, declared_attr
 
 from dz_fastapi.core.config import settings
 
@@ -14,6 +16,7 @@ class PreBase:
 
 
 Base = declarative_base(cls=PreBase)
+
 
 def get_engine(test=False):
     """
@@ -40,6 +43,7 @@ def get_async_session(test=False):
         autoflush=False,
         autocommit=False,
     )
+
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """

@@ -1,19 +1,9 @@
-from sqlalchemy import (
-    Column,
-    String,
-    Text,
-    Integer,
-    ForeignKey,
-    Table,
-    Boolean,
-    UniqueConstraint,
-    CheckConstraint,
-    text, Index,
-)
+from sqlalchemy import (Boolean, CheckConstraint, Column, ForeignKey, Integer,
+                        String, Table, Text, UniqueConstraint, text)
 from sqlalchemy.orm import relationship
 
-from dz_fastapi.core.constants import MAX_NAME_BRAND, MAX_LEN_WEBSITE
 from dz_fastapi.core.base import Base
+from dz_fastapi.core.constants import MAX_LEN_WEBSITE, MAX_NAME_BRAND
 
 brand_synonyms = Table(
     'brand_synonyms',

@@ -1,28 +1,23 @@
+import logging
 from typing import List
 
-from fastapi import APIRouter, Depends, Body, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from pydantic import conint
-from sqlalchemy.orm import selectinload
-
-from dz_fastapi.api.validators import brand_exists, change_string, change_storage_name
-from dz_fastapi.crud.autopart import crud_autopart, crud_category, crud_storage
-from dz_fastapi.schemas.autopart import (
-    AutoPartCreate,
-    AutoPartUpdate,
-    AutoPartResponse,
-    CategoryResponse,
-    CategoryCreate,
-    CategoryUpdate,
-    StorageLocationCreate,
-    StorageLocationUpdate,
-    StorageLocationResponse
-)
-from dz_fastapi.models.autopart import Category, StorageLocation
-from dz_fastapi.core.db import get_session
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-import logging
+from sqlalchemy.orm import selectinload
+
+from dz_fastapi.api.validators import brand_exists, change_storage_name
+from dz_fastapi.core.db import get_session
+from dz_fastapi.crud.autopart import crud_autopart, crud_category, crud_storage
+from dz_fastapi.models.autopart import Category, StorageLocation
+from dz_fastapi.schemas.autopart import (AutoPartCreate, AutoPartResponse,
+                                         AutoPartUpdate, CategoryCreate,
+                                         CategoryResponse, CategoryUpdate,
+                                         StorageLocationCreate,
+                                         StorageLocationResponse,
+                                         StorageLocationUpdate)
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -42,8 +37,15 @@ async def create_autopart_endpoint(
         session: AsyncSession = Depends(get_session)
 ):
     brand_db = await brand_exists(autopart.brand_id, session)
-    autopart = await crud_autopart.create_autopart(autopart, brand_db, session)
-    return await crud_autopart.get_autopart_by_id(session=session, autopart_id=autopart.id)
+    autopart = await crud_autopart.create_autopart(
+        autopart,
+        brand_db,
+        session
+    )
+    return await crud_autopart.get_autopart_by_id(
+        session=session,
+        autopart_id=autopart.id
+    )
 
 
 @router.get(
@@ -56,7 +58,10 @@ async def get_autopart_endpoint(
         autopart_id: int,
         session: AsyncSession = Depends(get_session)
 ):
-    autopart = await crud_autopart.get_autopart_by_id(autopart_id=autopart_id, session=session)
+    autopart = await crud_autopart.get_autopart_by_id(
+        autopart_id=autopart_id,
+        session=session
+    )
     if not autopart:
         raise HTTPException(status_code=404, detail='Autopart not found')
     return autopart
@@ -73,7 +78,11 @@ async def get_all_autoparts(
         limit: int = 100,
         session: AsyncSession = Depends(get_session)
 ):
-    return await crud_autopart.get_multi(session=session, skip=skip, limit=limit)
+    return await crud_autopart.get_multi(
+        session=session,
+        skip=skip,
+        limit=limit
+    )
 
 
 @router.patch(
@@ -93,7 +102,7 @@ async def update_autopart(
     )
     update_data = autopart.model_dump(exclude_unset=True)
     if autopart_db is None:
-        raise HTTPException(status_code=404, detail="AutoPart not found")
+        raise HTTPException(status_code=404, detail='AutoPart not found')
     if 'brand_id' not in update_data or update_data['brand_id'] is None:
         update_data['brand_id'] = autopart_db.brand_id
     else:
@@ -131,7 +140,9 @@ async def create_category(
         if existing_category:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Category with name '{category_in.name}' already exists.",
+                detail=(
+                    f'Category with name {category_in.name} already exists.'
+                ),
             )
         new_category = Category(**category_in.model_dump())
         session.add(new_category)
@@ -148,7 +159,7 @@ async def create_category(
         await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while creating the category.",
+            detail='An error occurred while creating the category.',
         ) from error
 
 
@@ -206,7 +217,7 @@ async def update_category(
         session=session
     )
     if not category_old:
-        raise HTTPException(status_code=404, detail="Category not found")
+        raise HTTPException(status_code=404, detail='Category not found')
     try:
         updated_category = await crud_category.update(
             db_obj=category_old,
@@ -217,7 +228,7 @@ async def update_category(
         await session.rollback()
         raise HTTPException(
             status_code=400,
-            detail=f"Category with name '{category_in.name}' already exists."
+            detail=f'Category with name {category_in.name} already exists.'
         ) from e
     return updated_category
 
@@ -242,14 +253,18 @@ async def create_storage_location(
         )
     try:
         result = await session.execute(
-            select(StorageLocation).where(StorageLocation.name == storage_in.name)
+            select(StorageLocation).where(
+                StorageLocation.name == storage_in.name
+            )
         )
         existing_storage = result.scalar_one_or_none()
 
         if existing_storage:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Storage with name {storage_in.name} already exists.',
+                detail=(
+                    f'Storage with name {storage_in.name} already exists.'
+                ),
             )
         storage = await crud_storage.create(storage_in, session)
         return storage
@@ -258,7 +273,9 @@ async def create_storage_location(
         if 'unique constraint' in str(error):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Storage with name {storage_in.name} already exists.',
+                detail=(
+                    f'Storage with name {storage_in.name} already exists.'
+                ),
             ) from error
         elif 'check constraint' in str(error):
             raise HTTPException(
@@ -268,7 +285,7 @@ async def create_storage_location(
         else:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="An error occurred while creating the storage.",
+                detail='An error occurred while creating the storage.',
             ) from error
 
 
@@ -347,6 +364,6 @@ async def update_storage_location(
         await session.rollback()
         raise HTTPException(
             status_code=400,
-            detail=f"Storage with name '{storage_in.name}' already exists."
+            detail=f'Storage with name {storage_in.name} already exists.'
         ) from e
     return updated_storage

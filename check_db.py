@@ -1,9 +1,10 @@
-import os
 import asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.exc import OperationalError
-from sqlalchemy.sql import text
+import os
+
 from dotenv import load_dotenv
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.sql import text
 
 load_dotenv()
 
@@ -16,9 +17,9 @@ async def check_database_connection():
         async with AsyncSession(engine) as session:
             async with session.begin():
                 await session.execute(text("SELECT 1"))
-        print("Соединение с базой данных успешно установлено")
+        print('Соединение с базой данных успешно установлено')
     except OperationalError as e:
-        print("Ошибка при соединении с базой данных:", e)
+        print('Ошибка при соединении с базой данных:', e)
 
 if __name__ == "__main__":
     asyncio.run(check_database_connection())

@@ -1,78 +1,45 @@
-import asyncio
 import logging
-from io import BytesIO
-from datetime import date
-from functools import partial
 from typing import List, Optional
 
-from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
-    status,
-    Body,
-    UploadFile,
-    File,
-    Query,
-    Form
-)
-import io
-import pandas as pd
+from fastapi import (APIRouter, Body, Depends, File, Form, HTTPException,
+                     Query, UploadFile, status)
 from httpx import Response
-from sqlalchemy import func
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-from sqlalchemy.future import select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from dz_fastapi.services.process import process_customer_pricelist
-from dz_fastapi.schemas.autopart import AutoPartCreatePriceList, AutoPartPricelist, AutoPartResponse
-from dz_fastapi.schemas.partner import (
-    ProviderCreate,
-    ProviderUpdate,
-    ProviderResponse,
-    PriceListResponse,
-    PriceListCreate,
-    CustomerResponse,
-    CustomerCreate,
-    CustomerUpdate,
-    PriceListAutoPartAssociationCreate,
-    ProviderPriceListConfigResponse,
-    PriceListDeleteRequest,
-    ProviderPriceListConfigCreate,
-    PriceListUpdate,
-    PriceListSummary,
-    PriceListPaginationResponse,
-    CustomerPriceListConfigResponse,
-    CustomerPriceListConfigUpdate,
-    CustomerPriceListConfigCreate,
-    CustomerPriceListResponse,
-    CustomerPriceListCreate,
-    AutoPartInPricelist,
-    CustomerPriceListItem,
-    CustomerAllPriceListResponse,
-)
-from dz_fastapi.models.partner import (
-    PriceList,
-    CustomerPriceListConfig,
-    PriceListAutoPartAssociation,
-    CustomerPriceListAutoPartAssociation,
-    CustomerPriceList, Customer
-)
-from dz_fastapi.services.email import download_price_provider, send_email_with_attachment
-from dz_fastapi.services.process import process_provider_pricelist, send_pricelist
-from dz_fastapi.models.autopart import AutoPart
-from dz_fastapi.services.utils import position_exclude, prepare_excel_data
-from dz_fastapi.crud.partner import (
-    crud_pricelist,
-    crud_provider,
-    crud_customer,
-    crud_provider_pricelist_config,
-    crud_customer_pricelist_config,
-    crud_customer_pricelist
-)
-from dz_fastapi.core.db import get_session
 from dz_fastapi.api.validators import change_brand_name
+from dz_fastapi.core.db import get_session
+from dz_fastapi.crud.partner import (crud_customer, crud_customer_pricelist,
+                                     crud_customer_pricelist_config,
+                                     crud_pricelist, crud_provider,
+                                     crud_provider_pricelist_config)
+from dz_fastapi.models.partner import (Customer, CustomerPriceList,
+                                       CustomerPriceListAutoPartAssociation,
+                                       PriceList)
+from dz_fastapi.schemas.autopart import AutoPartResponse
+from dz_fastapi.schemas.partner import (AutoPartInPricelist,
+                                        CustomerAllPriceListResponse,
+                                        CustomerCreate,
+                                        CustomerPriceListConfigCreate,
+                                        CustomerPriceListConfigResponse,
+                                        CustomerPriceListConfigUpdate,
+                                        CustomerPriceListCreate,
+                                        CustomerPriceListItem,
+                                        CustomerPriceListResponse,
+                                        CustomerResponse, CustomerUpdate,
+                                        PriceListCreate,
+                                        PriceListDeleteRequest,
+                                        PriceListPaginationResponse,
+                                        PriceListResponse, PriceListSummary,
+                                        PriceListUpdate, ProviderCreate,
+                                        ProviderPriceListConfigCreate,
+                                        ProviderPriceListConfigResponse,
+                                        ProviderResponse, ProviderUpdate)
+from dz_fastapi.services.email import download_price_provider
+from dz_fastapi.services.process import (process_customer_pricelist,
+                                         process_provider_pricelist)
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -160,7 +127,7 @@ async def delete_provider(
         session=session
     )
     if not provider:
-        raise HTTPException(status_code=404, detail="Provider not found")
+        raise HTTPException(status_code=404, detail='Provider not found')
 
     return await crud_provider.remove(provider, session, commit=True)
 
@@ -182,7 +149,7 @@ async def update_provider(
         session=session
     )
     if not provider_db:
-        raise HTTPException(status_code=404, detail="Provider not found")
+        raise HTTPException(status_code=404, detail='Provider not found')
 
     update_data = provider_in.model_dump(exclude_unset=True)
 
@@ -228,15 +195,26 @@ async def create_customer(
         )
     except IntegrityError as e:
         error_message = str(e.orig)
-        if 'duplicate key value violates unique constraint "client_name_key"' in error_message:
+        if (
+                'duplicate key value violates '
+                'unique constraint "client_name_key"'
+        ) in error_message:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Customer with name {customer_in.name} already exists.'
+                detail=(
+                    f'Customer with name {customer_in.name} already exists.'
+                )
             )
-        elif 'duplicate key value violates unique constraint "ix_client_email_contact"' in error_message:
+        elif (
+                'duplicate key value violates '
+                'unique constraint "ix_client_email_contact"'
+        ) in error_message:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Customer with email {customer_in.email_contact} already exists.'
+                detail=(
+                    f'Customer with email '
+                    f'{customer_in.email_contact} already exists.'
+                )
             )
         else:
             raise HTTPException(
@@ -256,8 +234,6 @@ async def create_customer(
 async def get_all_customer(
         session: AsyncSession = Depends(get_session)
 ):
-    # customers = await crud_customer.get_multi(session=session)
-    # return [CustomerResponse.model_validate(customer) for customer in customers]
     result = await session.execute(
         select(Customer).options(
             selectinload(Customer.customer_price_lists)
@@ -395,7 +371,7 @@ async def delete_customer(
         session=session
     )
     if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
+        raise HTTPException(status_code=404, detail='Customer not found')
 
     return await crud_customer.remove(customer, session, commit=True)
 
@@ -529,13 +505,13 @@ async def create_provider_pricelist(
         provider_id=provider_id
     )
     try:
-        #Get id provider
+        # Get id provider
         provider = await crud_provider.get_by_id(
             provider_id=provider_id,
             session=session
         )
         if not provider:
-            raise HTTPException(status_code=404, detail="Provider not found")
+            raise HTTPException(status_code=404, detail='Provider not found')
 
         pricelist = await crud_pricelist.create(
             obj_in=pricelist_in,
@@ -553,6 +529,7 @@ async def create_provider_pricelist(
             detail='Unexpected error during PriceList creation'
         )
 
+
 @router.post(
     '/providers/{provider_id}/pricelists/upload/',
     tags=['providers', 'pricelists'],
@@ -564,12 +541,30 @@ async def upload_provider_pricelist(
         provider_id: int,
         file: UploadFile = File(...),
         use_stored_params: bool = Form(True),
-        start_row: Optional[int] = Form(None, description="Row number where data starts (0-indexed)"),
-        oem_col: Optional[int] = Form(None, description="Column number for OEM number (0-indexed)"),
-        brand_col: Optional[int] = Form(None, description="Column number for brand (0-indexed)"),
-        name_col: Optional[int] = Form(None, description="Column number for brand (0-indexed)"),
-        qty_col: Optional[int] = Form(None, description="Column number for quantity (0-indexed)"),
-        price_col: Optional[int] = Form(None, description="Column number for price (0-indexed)"),
+        start_row: Optional[int] = Form(
+            None,
+            description='Row number where data starts (0-indexed)'
+        ),
+        oem_col: Optional[int] = Form(
+            None,
+            description='Column number for OEM number (0-indexed)'
+        ),
+        brand_col: Optional[int] = Form(
+            None,
+            description='Column number for brand (0-indexed)'
+        ),
+        name_col: Optional[int] = Form(
+            None,
+            description='Column number for brand (0-indexed)'
+        ),
+        qty_col: Optional[int] = Form(
+            None,
+            description='Column number for quantity (0-indexed)'
+        ),
+        price_col: Optional[int] = Form(
+            None,
+            description='Column number for price (0-indexed)'
+        ),
         session: AsyncSession = Depends(get_session)
 ):
     # Read the file content
@@ -622,7 +617,10 @@ async def get_provider_pricelists(
             session=session
         )
         if not provider:
-            raise HTTPException(status_code=404, detail="Поставщик не найден")
+            raise HTTPException(
+                status_code=404,
+                detail='Поставщик не найден'
+            )
 
         # # Получаем общее количество прайс-листов
         # total_count_stmt = select(func.count(PriceList.id)).where(
@@ -669,7 +667,8 @@ async def get_provider_pricelists(
         #     ).label('num_positions')
         # ).outerjoin(
         #     PriceListAutoPartAssociation,
-        #     PriceListAutoPartAssociation.pricelist_id == pricelist_subquery.c.id
+        #     PriceListAutoPartAssociation.pricelist_id ==
+        #     pricelist_subquery.c.id
         # ).group_by(
         #     pricelist_subquery.c.id,
         #     pricelist_subquery.c.date
@@ -728,9 +727,13 @@ async def delete_provider_pricelists(
         pricelist_ids = request.pricelist_ids
 
         if not pricelist_ids:
-            raise HTTPException(status_code=400, detail='No PriceList IDs provided')
+            raise HTTPException(
+                status_code=400,
+                detail='No PriceList IDs provided'
+            )
 
-        # Получаем прайс-листы, которые нужно удалить, и проверяем принадлежность поставщику
+        # Получаем прайс-листы, которые нужно удалить,
+        # и проверяем принадлежность поставщику
         stmt = select(PriceList).where(
             PriceList.id.in_(pricelist_ids),
             PriceList.provider_id == provider_id
@@ -739,7 +742,10 @@ async def delete_provider_pricelists(
         pricelists_to_delete = result.scalars().all()
 
         if not pricelists_to_delete:
-            raise HTTPException(status_code=404, detail='No PriceLists found for deletion')
+            raise HTTPException(
+                status_code=404,
+                detail='No PriceLists found for deletion'
+            )
 
         # Удаляем прайс-листы
         for pricelist in pricelists_to_delete:
@@ -750,18 +756,22 @@ async def delete_provider_pricelists(
     except HTTPException as e:
         raise e
     except SQLAlchemyError as e:
-        logger.error(f'Database error occurred while deleting PriceLists: {e}')
+        logger.error(
+            f'Database error occurred while deleting PriceLists: {e}'
+        )
         await session.rollback()
         raise HTTPException(
             status_code=500,
             detail='Database error during PriceList deletion'
         )
     except Exception as e:
-        logger.error(f"Unexpected error occurred while deleting PriceLists: {e}")
+        logger.error(
+            f'Unexpected error occurred while deleting PriceLists: {e}'
+        )
         await session.rollback()
         raise HTTPException(
             status_code=500,
-            detail="Unexpected error during PriceList deletion"
+            detail='Unexpected error during PriceList deletion'
         )
 
 
@@ -868,7 +878,11 @@ async def get_customer_pricelist_configs(
         session=session,
         customer_id=customer_id
     )
-    return [CustomerPriceListConfigResponse.model_validate(config) for config in configs]
+    return [
+        CustomerPriceListConfigResponse.model_validate(
+            config
+        ) for config in configs
+    ]
 
 
 @router.post(
@@ -884,11 +898,9 @@ async def create_customer_pricelist(
         session: AsyncSession = Depends(get_session)
 ):
     logger.info(
-        f'Incoming request: customer_id={
-        customer_id
-        }, body={
-        request.model_dump()
-        }')
+        f'Incoming request: customer_id={customer_id}'
+        f', body={request.model_dump()}'
+    )
 
     # customer = await crud_customer.get_by_id(
     #     customer_id=customer_id,
@@ -941,12 +953,16 @@ async def create_customer_pricelist(
     # else:
     #     final_df = pd.DataFrame()
     #
-    # logger.debug(f'Final DataFrame before creating associations:\n{final_df}')
+    # logger.debug(
+    # f'Final DataFrame before creating associations:\n{final_df}'
+    # )
     # # Apply exclusions
     #
     # if not final_df.empty:
     #     if request.excluded_supplier_positions:
-    #         for provider_id, excluded_autoparts in request.excluded_supplier_positions.items():
+    #         for provider_id,
+    #         excluded_autoparts
+    #         in request.excluded_supplier_positions.items():
     #             final_df = position_exclude(
     #                 provider_id=provider_id,
     #                 excluded_autoparts=excluded_autoparts,
@@ -978,7 +994,8 @@ async def create_customer_pricelist(
     #
     # if config.additional_filters.get('ZZAP'):
     #     logger.debug(f'Зашел в get additional_filters')
-    #     df_excel = await dz_fastapi.services.process.add_origin_brand_from_dz(
+    #     df_excel =
+    #     await dz_fastapi.services.process.add_origin_brand_from_dz(
     #         price_zzap=df_excel,
     #         session=session
     #     )
@@ -995,7 +1012,10 @@ async def create_customer_pricelist(
     #
     # autoparts_response = []
     # for assoc in associations:
-    #     autopart = AutoPartResponse.model_validate(assoc.autopart, from_attributes=True)
+    #     autopart = AutoPartResponse.model_validate(
+    #     assoc.autopart,
+    #     from_attributes=True
+    #     )
     #     autopart_in_pricelist = AutoPartInPricelist(
     #         autopart_id=assoc.autopart_id,
     #         quantity=assoc.quantity,
@@ -1118,7 +1138,9 @@ async def delete_customer_pricelists(
         )
     await session.delete(pricelist)
     await session.commit()
-    return {'detail': f'Deleted {pricelist_id} pricelist for customer {customer_id}'}
+    return {'detail': (
+        f'Deleted {pricelist_id} pricelist for customer {customer_id}'
+    )}
 
 
 @router.post(
@@ -1158,12 +1180,15 @@ async def download_provider_pricelist(
             price_col=None,
             session=session
         )
-        return {'detail': f'Downloaded and processed provider price list for provider_id: {provider_id}'}
+        return {'detail': (
+            f'Downloaded and processed '
+            f'provider price list for provider_id: {provider_id}'
+        )}
     except HTTPException as e:
         raise e
     except Exception as e:
         logger.exception(
-            'Error during download and processing of provider price list'
+            f'Error during download and processing of provider price list {e}'
         )
         raise HTTPException(
             status_code=500,

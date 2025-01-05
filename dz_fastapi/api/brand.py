@@ -1,28 +1,27 @@
-import traceback
-from typing import Optional, List
+import io
+import logging
+from pathlib import Path
 
-from fastapi.encoders import jsonable_encoder
-from sqlalchemy import delete
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-from sqlalchemy.future import select
-
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Body
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+import aiofiles
+from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 from PIL import Image
+from sqlalchemy import delete
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 from starlette import status
 
-from dz_fastapi.core.db import get_async_session, get_session
+from dz_fastapi.api.validators import (brand_exists, change_brand_name,
+                                       change_string, duplicate_brand_name)
+from dz_fastapi.core.constants import (UPLOAD_DIR, get_max_file_size,
+                                       get_upload_dir)
+from dz_fastapi.core.db import get_session
 from dz_fastapi.crud.brand import brand_crud
-from dz_fastapi.core.constants import UPLOAD_DIR, get_max_file_size, get_upload_dir
-from dz_fastapi.api.validators import duplicate_brand_name, brand_exists, change_string, change_brand_name
 from dz_fastapi.models.brand import Brand, brand_synonyms
-from dz_fastapi.schemas.brand import BrandCreate, BrandResponse, BrandCreateInDB, BrandUpdate, SynonymCreate
-import os
-import io
-import aiofiles
-from pathlib import Path
-import logging
+from dz_fastapi.schemas.brand import (BrandCreate, BrandCreateInDB,
+                                      BrandResponse, BrandUpdate,
+                                      SynonymCreate)
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -40,7 +39,10 @@ UPLOAD_DIR = Path(UPLOAD_DIR)
 async def get_brands(session: AsyncSession = Depends(get_session)):
     brands = await brand_crud.get_multi_with_synonyms(session)
     for brand in brands:
-        brand.synonyms = await brand_crud.get_all_synonyms_bi_directional(brand, session)
+        brand.synonyms = await brand_crud.get_all_synonyms_bi_directional(
+            brand,
+            session
+        )
     return brands
 
 
@@ -56,12 +58,18 @@ async def get_brand(
         brand_id: int,
         session: AsyncSession = Depends(get_session)
 ):
-    brand = await brand_crud.get_brand_by_id(brand_id=brand_id,session=session)
+    brand = await brand_crud.get_brand_by_id(
+        brand_id=brand_id,
+        session=session
+    )
 
     if not brand:
         raise HTTPException(status_code=404, detail='Brand not found')
 
-    brand.synonyms = await brand_crud.get_all_synonyms_bi_directional(brand=brand, session=session)
+    brand.synonyms = await brand_crud.get_all_synonyms_bi_directional(
+        brand=brand,
+        session=session
+    )
     return brand
 
 
@@ -84,13 +92,24 @@ async def upload_logo(
         brand_db = await brand_exists(brand_id, session)
         if file.content_type not in ['image/jpeg', 'image/png']:
             logger.debug(f'File for brand id {brand_id} is not jpeg or png')
-            raise HTTPException(status_code=400, detail='Invalid file type. Only JPEG and PNG are allowed.')
+            raise HTTPException(
+                status_code=400,
+                detail='Invalid file type. Only JPEG and PNG are allowed.'
+            )
         contents = await file.read()
         if len(contents) > max_file_size:
-            logger.debug(f'File size exceeds limit: {len(contents)} > {max_file_size} for brand id {brand_id}')
-            raise HTTPException(status_code=400, detail='File size exceeds the maximum allowed size.')
+            logger.debug(
+                f'File size exceeds limit: {len(contents)} '
+                f'> {max_file_size} for brand id {brand_id}'
+            )
+            raise HTTPException(
+                status_code=400,
+                detail='File size exceeds the maximum allowed size.'
+            )
 
-        logger.info(f'File size = {len(contents)} and max size = {max_file_size}')
+        logger.info(
+            f'File size = {len(contents)} and max size = {max_file_size}'
+        )
         file_ext = Path(file.filename).suffix
         logo_filename = f"brand_{brand_id}_logo{file_ext}"
         file_path = Path(upload_dir) / logo_filename
@@ -105,10 +124,16 @@ async def upload_logo(
         except (IOError, SyntaxError) as e:
             file_path.unlink(missing_ok=True)
             logger.debug(f'FIle for brand id {brand_id} is invalid')
-            raise HTTPException(status_code=400, detail=f'Invalid image file. Error: {str(e)}')
+            raise HTTPException(
+                status_code=400,
+                detail=f'Invalid image file. Error: {str(e)}'
+            )
         brand_db.logo = str(file_path)
 
-        all_synonyms = await brand_crud.get_all_synonyms_bi_directional(brand_db, session)
+        all_synonyms = await brand_crud.get_all_synonyms_bi_directional(
+            brand_db,
+            session
+        )
         brand_data = {
             'id': brand_db.id,
             'name': brand_db.name,
@@ -116,7 +141,10 @@ async def upload_logo(
             'website': brand_db.website,
             'description': brand_db.description,
             'logo': brand_db.logo,
-            'synonyms': [{'id': syn.id, 'name': syn.name} for syn in all_synonyms if syn.id != brand_db.id]
+            'synonyms': [{
+                'id': syn.id,
+                'name': syn.name
+            } for syn in all_synonyms if syn.id != brand_db.id]
         }
         await session.commit()
         await session.refresh(brand_db)
@@ -124,14 +152,24 @@ async def upload_logo(
 
     except SQLAlchemyError as e:
         await session.rollback()
-        logger.exception("Database error occurred while uploading logo")
-        raise HTTPException(status_code=500, detail=f'Database error occurred while uploading logo. Error: {e}')
+        logger.exception('Database error occurred while uploading logo')
+        raise HTTPException(
+            status_code=500,
+            detail=f'Database error occurred while uploading logo. Error: {e}'
+        )
     except HTTPException:
         raise
     except Exception as e:
         await session.rollback()
-        logger.exception("Unexpected error occurred while uploading logo")
-        raise HTTPException(status_code=500, detail=f'Unexpected error occurred while uploading logo. Error: {e}')
+        logger.exception(
+            'Unexpected error occurred while uploading logo'
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f'Unexpected error occurred while uploading logo. Error: {e}'
+            )
+        )
 
 
 @router.post(
@@ -154,24 +192,35 @@ async def create_brand(
         logger.debug('Проверка дубликата имени бренда завершена')
         new_brand = await brand_crud.create(brand, session, commit=True)
         logger.debug(f'Бренд создан и добавлен в сессию: {new_brand}')
-        stmt = select(Brand).options(selectinload(Brand.synonyms)).filter_by(id=new_brand.id)
+        stmt = select(Brand).options(
+            selectinload(Brand.synonyms)
+        ).filter_by(id=new_brand.id)
         result = await session.execute(stmt)
         new_brand = result.scalar_one()
         logger.debug(f'Создан новый бренд: {new_brand}')
         return new_brand
 
     except IntegrityError as e:
-        logger.error(f"Integrity error occurred: {e}")
+        logger.error(f'Integrity error occurred: {e}')
         await session.rollback()
-        raise HTTPException(status_code=409, detail=f"Brand with name '{brand.name}' already exists")
+        raise HTTPException(
+            status_code=409,
+            detail=f'Brand with name {brand.name} already exists'
+        )
     except SQLAlchemyError as e:
-        logger.error(f"Database error occurred: {e}")
+        logger.error(f'Database error occurred: {e}')
         await session.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error occurred: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f'Database error occurred: {str(e)}'
+        )
     except Exception as e:
-        logger.error(f"Unexpected error occurred: {e}")
+        logger.error(f'Unexpected error occurred: {e}')
         await session.rollback()
-        raise HTTPException(status_code=500, detail=f"Unexpected error occurred: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f'Unexpected error occurred: {str(e)}'
+        )
 
 
 @router.delete(
@@ -217,13 +266,27 @@ async def update_brand(
                 brand.name = await change_string(brand.name)
                 logger.debug(f'Updated brand name: {brand.name}')
                 if brand_db.name != brand.name:
-                    await duplicate_brand_name(brand_name=brand.name, session=session)
-            updated_brand = await brand_crud.update(brand_db, brand, session, commit=False)
+                    await duplicate_brand_name(
+                        brand_name=brand.name,
+                        session=session
+                    )
+            updated_brand = await brand_crud.update(
+                brand_db,
+                brand,
+                session,
+                commit=False
+            )
             if not updated_brand:
-                raise HTTPException(status_code=500, detail="Failed to update brand")
-            logger.debug(f"Updated brand: {updated_brand}")
+                raise HTTPException(
+                    status_code=500,
+                    detail='Failed to update brand'
+                )
+            logger.debug(f'Updated brand: {updated_brand}')
 
-            all_synonyms = await brand_crud.get_all_synonyms_bi_directional(updated_brand, session)
+            await brand_crud.get_all_synonyms_bi_directional(
+                updated_brand,
+                session
+            )
             # brand_data = {
             #     'id': updated_brand.id,
             #     'name': updated_brand.name,
@@ -232,7 +295,10 @@ async def update_brand(
             #     'website': updated_brand.website,
             #     'description': updated_brand.description,
             #     'main_brand': updated_brand.main_brand,
-            #     'synonyms': [{'id': syn.id, 'name': syn.name} for syn in all_synonyms if syn.id != updated_brand.id]
+            #     'synonyms': [{
+            #     'id': syn.id,
+            #     'name': syn.name
+            #     } for syn in all_synonyms if syn.id != updated_brand.id]
             # }
             #
             # return BrandCreateInDB(**brand_data)
@@ -240,9 +306,12 @@ async def update_brand(
             return brand_in_db
 
     except Exception as e:
-        logger.error(f"Error updating brand: {str(e)}")
+        logger.error(f'Error updating brand: {str(e)}')
         await session.rollback()
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f'An error occurred: {str(e)}'
+        )
 
 
 @router.post(
@@ -260,7 +329,9 @@ async def add_synonyms(
 ):
     try:
         async with session.begin():
-            change_synonyms = [await change_string(synonym) for synonym in synonyms.names]
+            change_synonyms = [
+                await change_string(synonym) for synonym in synonyms.names
+            ]
             await brand_crud.add_synonyms(
                 session=session,
                 brand_id=brand_id,
@@ -272,9 +343,14 @@ async def add_synonyms(
                 attribute_names=['id', 'name', 'synonyms']
             )
             response_data = {
-                "id": updated_brand.id,
-                "name": updated_brand.name,
-                "synonyms": [{"id": s.id, "name": s.name} for s in updated_brand.synonyms]
+                'id': updated_brand.id,
+                'name': updated_brand.name,
+                'synonyms': [
+                    {
+                        'id': s.id,
+                        'name': s.name
+                    } for s in updated_brand.synonyms
+                ]
             }
 
         return response_data
@@ -282,12 +358,15 @@ async def add_synonyms(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         await session.rollback()
-        logger.error(f"Ошибка добаление синонимов: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+        logger.error(f'Ошибка добаление синонимов: {str(e)}')
+        raise HTTPException(
+            status_code=500,
+            detail=f'An error occurred: {str(e)}'
+        )
 
 
 @router.delete(
-'/brand/{brand_id}/synonyms',
+    '/brand/{brand_id}/synonyms',
     response_model=BrandResponse,
     tags=['brand'],
     summary='Удаление синонимов к бренду',
@@ -301,21 +380,31 @@ async def delete_synonyms(
 ):
     try:
         async with session.begin():
-            change_synonyms = [await change_string(synonym) for synonym in synonyms.names]
+            change_synonyms = [
+                await change_string(synonym) for synonym in synonyms.names
+            ]
             updated_brand = await brand_crud.remove_synonyms(
                 session=session,
                 brand_id=brand_id,
                 synonym_names=change_synonyms
             )
             response_data = {
-                "id": updated_brand.id,
-                "name": updated_brand.name,
-                "synonyms": [{"id": s.id, "name": s.name} for s in updated_brand.synonyms]
+                'id': updated_brand.id,
+                'name': updated_brand.name,
+                'synonyms': [
+                    {
+                        'id': s.id,
+                        'name': s.name
+                    } for s in updated_brand.synonyms
+                ]
             }
             return response_data
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         await session.rollback()
-        logger.error(f"Ошибка удаления синонимов: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+        logger.error(f'Ошибка удаления синонимов: {str(e)}')
+        raise HTTPException(
+            status_code=500,
+            detail=f'An error occurred: {str(e)}'
+        )

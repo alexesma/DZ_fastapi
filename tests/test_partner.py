@@ -1,37 +1,28 @@
+import io
+import logging
 from datetime import date
 from decimal import Decimal
 
-import pytest
-from httpx import AsyncClient, ASGITransport
-import logging
-import io
 import pandas as pd
+import pytest
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.crud.partner import crud_pricelist, crud_customer_pricelist
-from dz_fastapi.models.brand import Brand
+from dz_fastapi.crud.partner import crud_customer_pricelist, crud_pricelist
+from dz_fastapi.main import app
 from dz_fastapi.models.autopart import AutoPart
+from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.partner import (Customer, CustomerPriceList,
+                                       CustomerPriceListAutoPartAssociation,
+                                       CustomerPriceListConfig, PriceList,
+                                       PriceListAutoPartAssociation, Provider)
 from dz_fastapi.schemas.autopart import AutoPartPricelist
+from dz_fastapi.schemas.partner import (CustomerResponse,
+                                        PriceListAutoPartAssociationCreate,
+                                        PriceListCreate, ProviderResponse)
+from tests.test_constants import CONFIG_DATA, TEST_CUSTOMER, TEST_PROVIDER
 
 logger = logging.getLogger('dz_fastapi')
-
-from dz_fastapi.main import app
-from dz_fastapi.models.partner import (
-    Provider,
-    Customer,
-    PriceList,
-    PriceListAutoPartAssociation,
-    CustomerPriceListConfig,
-    CustomerPriceList,
-    CustomerPriceListAutoPartAssociation
-)
-from dz_fastapi.schemas.partner import (
-    ProviderResponse,
-    CustomerResponse,
-    PriceListAutoPartAssociationCreate,
-    PriceListCreate
-)
-from tests.test_constants import TEST_PROVIDER, TEST_CUSTOMER, CONFIG_DATA
 
 
 @pytest.mark.asyncio
@@ -76,14 +67,26 @@ async def test_get_providers(
             (p for p in response_providers if p.id == created_provider.id),
             None
         )
-        assert provider_in_response is not None, f'Provider with ID {created_provider.id} not found in response'
+        assert provider_in_response is not None, (
+            f'Provider with ID {created_provider.id} not found in response'
+        )
 
         assert provider_in_response.name == created_provider.name
-        assert provider_in_response.description == created_provider.description
-        assert provider_in_response.email_contact == created_provider.email_contact
-        assert provider_in_response.comment == created_provider.comment
-        assert provider_in_response.email_incoming_price == created_provider.email_incoming_price
-        assert provider_in_response.type_prices == created_provider.type_prices
+        assert provider_in_response.description == (
+            created_provider.description
+        )
+        assert provider_in_response.email_contact == (
+            created_provider.email_contact
+        )
+        assert provider_in_response.comment == (
+            created_provider.comment
+        )
+        assert provider_in_response.email_incoming_price == (
+            created_provider.email_incoming_price
+        )
+        assert provider_in_response.type_prices == (
+            created_provider.type_prices
+        )
 
 
 @pytest.mark.asyncio
@@ -104,7 +107,9 @@ async def test_get_provider_success(
     assert provider_response.id == created_provider.id
     assert provider_response.name == created_provider.name
     assert provider_response.email_contact == created_provider.email_contact
-    assert provider_response.email_incoming_price == created_provider.email_incoming_price
+    assert provider_response.email_incoming_price == (
+        created_provider.email_incoming_price
+    )
     assert provider_response.description == created_provider.description
     assert provider_response.comment == created_provider.comment
     assert provider_response.type_prices == created_provider.type_prices
@@ -287,14 +292,24 @@ async def test_get_customers(
             (p for p in response_providers if p.id == created_customer.id),
             None
         )
-        assert customer_in_response is not None, f'Customer with ID {created_customer.id} not found in response'
+        assert customer_in_response is not None, (
+            f'Customer with ID {created_customer.id} not found in response'
+        )
 
         assert customer_in_response.name == created_customer.name
-        assert customer_in_response.description == created_customer.description
-        assert customer_in_response.email_contact == created_customer.email_contact
+        assert customer_in_response.description == (
+            created_customer.description
+        )
+        assert customer_in_response.email_contact == (
+            created_customer.email_contact
+        )
         assert customer_in_response.comment == created_customer.comment
-        assert customer_in_response.email_outgoing_price == created_customer.email_outgoing_price
-        assert customer_in_response.type_prices == created_customer.type_prices
+        assert customer_in_response.email_outgoing_price == (
+            created_customer.email_outgoing_price
+        )
+        assert customer_in_response.type_prices == (
+            created_customer.type_prices
+        )
 
 
 @pytest.mark.asyncio
@@ -316,7 +331,9 @@ async def test_get_customer_success(
     assert customer_response.id == created_customer.id
     assert customer_response.name == created_customer.name
     assert customer_response.email_contact == created_customer.email_contact
-    assert customer_response.email_outgoing_price == created_customer.email_outgoing_price
+    assert customer_response.email_outgoing_price == (
+        created_customer.email_outgoing_price
+    )
     assert customer_response.description == created_customer.description
     assert customer_response.comment == created_customer.comment
     assert customer_response.type_prices == created_customer.type_prices
@@ -353,7 +370,6 @@ async def test_delete_customer_success(
     deleted_customer = CustomerResponse.model_validate(data)
     assert deleted_customer.id == customer_to_delete.id
     assert deleted_customer.name == customer_to_delete.name
-
 
     response = await async_client.get(
         f'/customers/{customer_to_delete.id}/'
@@ -643,7 +659,9 @@ async def test_upload_provider_pricelist_invalid_file(
     assert response.status_code == 400
     data = response.json()
 
-    assert data['detail'] == "Invalid column indices provided: '[3, 4] not in index'"
+    assert data['detail'] == (
+        "Invalid column indices provided: '[3, 4] not in index'"
+    )
 
 
 @pytest.mark.asyncio
@@ -764,7 +782,7 @@ async def test_get_customer_pricelist_configs(
         test_session: AsyncSession
 ):
     customer = created_customers[0]
-    transport = ASGITransport(app=app)
+    ASGITransport(app=app)
     for i in range(3):
         config_data = {
             'name': f'Config {i}',
@@ -820,14 +838,14 @@ async def test_create_customer_pricelist(
     await test_session.commit()
     await test_session.refresh(pricelist)
 
-
     config = CustomerPriceListConfig(
         customer_id=customer.id,
         name="Test Config",
         general_markup=10.0,  # 10% markup
         own_price_list_markup=5.0,
         third_party_markup=15.0,
-        individual_markups={str(provider.id): 20.0},  # 20% markup for this provider
+        # 20% markup for this provider
+        individual_markups={str(provider.id): 20.0},
         brand_filters={'include': [created_brand.id]},
         category_filter=[],
         price_intervals=[],
@@ -855,8 +873,8 @@ async def test_create_customer_pricelist(
     assert response.status_code == 201, response.text
 
     response_data = response.json()
-
-    expected_price = 100.0 * 1.20 * 1.10 # 10% markup + # 20% markup for this provider
+    # 10% markup + # 20% markup for this provider
+    expected_price = 100.0 * 1.20 * 1.10
 
     assert response_data['customer_id'] == customer.id
     assert response_data['date'] == str(date.today())
@@ -864,7 +882,8 @@ async def test_create_customer_pricelist(
     autopart_data = response_data['autoparts'][0]
     assert autopart_data['autopart_id'] == created_autopart.id
     assert autopart_data['quantity'] == 10
-    assert abs(float(autopart_data['price']) - expected_price) < 0.01  # Allowing for floating point errors
+    # Allowing for floating point errors
+    assert abs(float(autopart_data['price']) - expected_price) < 0.01
 
 
 @pytest.mark.asyncio
@@ -898,10 +917,14 @@ async def test_create_customer_pricelist_no_items(
         json=request_data
     )
 
-    assert response.status_code == 400, f'Unexpected status code: {response.status_code}'
+    assert response.status_code == 400, (
+        f'Unexpected status code: {response.status_code}'
+    )
 
     response_data = response.json()
-    assert response_data['detail'] == 'No autoparts to include in the pricelist'
+    assert response_data['detail'] == (
+        'No autoparts to include in the pricelist'
+    )
 
 
 @pytest.mark.asyncio
@@ -925,7 +948,9 @@ async def test_create_customer_pricelist_invalid_customer(
         json=request_data
     )
 
-    assert response.status_code == 404, f'Unexpected status code: {response.status_code}'
+    assert response.status_code == 404, (
+        f'Unexpected status code: {response.status_code}'
+    )
 
     response_data = response.json()
     assert response_data['detail'] == 'Customer not found'
@@ -960,9 +985,13 @@ async def test_get_customer_pricelists(
     test_session.add(association)
     await test_session.commit()
 
-    response = await async_client.get(f'/customers/{customer.id}/pricelists/')
+    response = await async_client.get(
+        f'/customers/{customer.id}/pricelists/'
+    )
 
-    assert response.status_code == 200, f'Unexpected status code: {response.status_code}'
+    assert response.status_code == 200, (
+        f'Unexpected status code: {response.status_code}'
+    )
 
     response_data = response.json()
     assert isinstance(response_data, list)
@@ -1019,10 +1048,15 @@ async def test_delete_customer_pricelist(
         f'/customers/{customer.id}/pricelists/{customer_pricelist.id}'
     )
 
-    assert response.status_code == 200, f'Unexpected status code: {response.status_code}'
+    assert response.status_code == 200, (
+        f'Unexpected status code: {response.status_code}'
+    )
 
     response_data = response.json()
-    expected_detail = f'Deleted {customer_pricelist.id} pricelist for customer {customer.id}'
+    expected_detail = (
+        f'Deleted {customer_pricelist.id} '
+        f'pricelist for customer {customer.id}'
+    )
     assert response_data['detail'] == expected_detail
 
     deleted_pricelist = await crud_customer_pricelist.get_by_id(

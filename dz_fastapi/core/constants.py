@@ -1,4 +1,5 @@
 import os
+
 MAX_NAME_BRAND = 256
 MAX_NAME_PARTNER = 256
 MAX_LIGHT_OEM = 256
@@ -10,8 +11,9 @@ MAX_LIGHT_NAME_BODY = 256
 MAX_LIGHT_NAME_ENGINE = 256
 MAX_LEN_WEBSITE = 1056
 MAX_FILE_SIZE = int(os.getenv('MAX_FILE_SIZE', 5 * 1024 * 1024))  # 5 МБ
-ERROR_MESSAGE_FORMAT_DATE ='{key} должен быть в формате "YYYY" или "MM.YYYY"'
-ERROR_MESSAGE_RANGE_DATE='{key} не может быть меньше 1980 и больше текущей даты'
+ERROR_MESSAGE_FORMAT_DATE = '{key} должен быть в формате "YYYY" или "MM.YYYY"'
+ERROR_MESSAGE_RANGE_DATE = ('{key} не может быть меньше '
+                            '1980 и больше текущей даты')
 FORMAT_YEAR_FOR_CAR_1 = '%Y'
 FORMAT_YEAR_FOR_CAR_2 = '%m.%Y'
 UPLOAD_DIR = 'uploads/logos'
@@ -51,7 +53,7 @@ CONFIG_DATA_CUSTOMER = {
 PRICELIST_DRAGONZAP = 'dragonzap.xlsx'
 PRICELIST_HOT_PARTS = 'Прайс Хотпартс.xls'
 
-#Brand indicators
+# Brand indicators
 INDICATOR_BYD_FIRST_FIVE = [
     '10237', '10242', '10259', '10375'
 ]
@@ -59,7 +61,8 @@ INDICATOR_DONGFENG_FULL = [
     '4151700', '3502500VD01', '4151200', '8226006'
 ]
 INDICATOR_CHANGAN_FIRST_THREE = [
-    'C20', 'H15', 'H16', 'PA0', 'S10', 'S20', 'S30', 'YA0', 'YJ0', 'CD1', 'PA1', 'CD5'
+    'C20', 'H15', 'H16', 'PA0', 'S10',
+    'S20', 'S30', 'YA0', 'YJ0', 'CD1', 'PA1', 'CD5'
 ]
 INDICATOR_LIFAN_FIRST_THREE_2 = [
     'S10'
@@ -81,16 +84,24 @@ INDICATOR_CHANGAN_FIRST_TWO = [
     'K0'
 ]
 INDICATOR_CHERY_FIRST_THREE = [
-    '473', '475', '480', '481', '484', '513', '525', 'A11', 'A13', 'A15', 'A18', 'A21', 'B11', 'B13', 'B14', 'E4G',
-    'F4J', 'FQ1', 'J42', 'J43', 'J52', 'J60', 'J68', 'J69', 'M11', 'M31', 'P11', 'Q18', 'Q32', 'Q33', 'QR5', 'S11',
-    'S12', 'S18', 'S21', 'SND', 'T11', 'T15', 'T19', 'T1E', 'T21', '015', '372', '477', '020', '519', '019', '018',
-    '0CF', '025', '30V', '351', 'M12', '372', '371', '416', '515', '5MF', '7A1', 'D4G', 'D4T', 'E4T', 'FJ1', 'FQ3',
-    'FQ2', 'FQ4', 'FQ6', 'J15', 'J26', 'J51', 'M1D', 'M1E', 'M36', 'Q14', 'Q21', '465', '472', 'J11', 'T1C', 'T22'
+    '473', '475', '480', '481', '484', '513', '525', 'A11',
+    'A13', 'A15', 'A18', 'A21', 'B11', 'B13', 'B14', 'E4G',
+    'F4J', 'FQ1', 'J42', 'J43', 'J52', 'J60', 'J68', 'J69',
+    'M11', 'M31', 'P11', 'Q18', 'Q32', 'Q33', 'QR5', 'S11',
+    'S12', 'S18', 'S21', 'SND', 'T11', 'T15', 'T19', 'T1E',
+    'T21', '015', '372', '477', '020', '519', '019', '018',
+    '0CF', '025', '30V', '351', 'M12', '372', '371', '416',
+    '515', '5MF', '7A1', 'D4G', 'D4T', 'E4T', 'FJ1', 'FQ3',
+    'FQ2', 'FQ4', 'FQ6', 'J15', 'J26', 'J51', 'M1D', 'M1E',
+    'M36', 'Q14', 'Q21', '465', '472', 'J11', 'T1C', 'T22'
 ]
 INDICATOR_CHERY_FULL = [
-    'Q320B12', '10010242', '10016312', '10021773', '10049491', '10051410', '10051421', '10051425', '10051430',
-    '10051436', '101904', '10350305', '10350306', '10393684', '1040052001Z', '10405053', '1080111', '1080121',
-    '1080131', '1080311', '1080311H', '1080411', '1080421', '109026', '10940301', '110010', '110057', '2030044001J',
+    'Q320B12', '10010242', '10016312', '10021773', '10049491',
+    '10051410', '10051421', '10051425', '10051430',
+    '10051436', '101904', '10350305', '10350306', '10393684',
+    '1040052001Z', '10405053', '1080111', '1080121',
+    '1080131', '1080311', '1080311H', '1080411', '1080421',
+    '109026', '10940301', '110010', '110057', '2030044001J',
     '20522', '20524', '20527', '20528', '20533', '47700000', 'Q330C10'
 ]
 INDICATOR_CHERY_10_11_POSITION = [
@@ -100,7 +111,8 @@ INDICATOR_CHERY_FIRST_THREE_LEN_10 = [
     '120', '251', '130',
 ]
 INDICATOR_LIFAN_FIRST_THREE = [
-    'AAB', 'B61', 'BAC', 'LAL', 'LAX', 'LBA', 'LBU', 'LBV', 'LCA', 'LF4', 'LFB', 'PBA', 'Q15', 'Q55', 'L5M', 'SB3'
+    'AAB', 'B61', 'BAC', 'LAL', 'LAX', 'LBA', 'LBU', 'LBV',
+    'LCA', 'LF4', 'LFB', 'PBA', 'Q15', 'Q55', 'L5M', 'SB3'
 ]
 INDICATOR_HAIMA_FULL = [
     'HC0020660BM1', 'SA0034156M1', 'B25D67482AL1'
@@ -205,27 +217,93 @@ def create_supplier_params(
         'doc_type': doc_type,
         'name_invoice': name_invoice,
         'name_sheet': name_sheet,
-        'title_line': title_line if title_line is not None else default_title_line,
-        'start_line': start_line if start_line is not None else default_start_line,
+        'title_line': title_line if title_line is not None
+        else default_title_line,
+        'start_line': start_line if start_line is not None
+        else default_start_line,
         'column_ids': column_ids
     }
 
 
 SUPPLIER_PARAM = {
-    '1c': create_supplier_params('xlsx', '1c_invoice.xlsx', 'Sheet1', 0, 0, [0, 1, 2, 3, 4]),
-    'reline': create_supplier_params('csv', 'relines.csv', None, 0, 17, [1, 5, 9, 26, 57]),
-    'autotorg': create_supplier_params('xls', 'партс.xls', 'TDSheet', 13, 17, [1, 5, 9, 26, 57]),
-    'apex': create_supplier_params('xls', 'apex.xls', 'TDSheet', 20, 0, [3, 20, 5, 33, 49]),
-    'hot-parts': create_supplier_params('xls', '71977.xls', 'Report', 27, 0, [0, 1, 22, 58]),
-    'redline': create_supplier_params('xls', 'redline.xls', 'TDSheet', 18, 0, [1, 9, 13, 35, 64]),
-    'techo': create_supplier_params('xls', 'nk2023111600027.xls', 'Лист1', 20, 0, [1, 5, 6, 10, 18]),
-    'froza': create_supplier_params('xls', 'froza.xls', 'TDSheet', 18, 0, [1, 9, 13, 35, 67, 88]),
-    'autopiter': create_supplier_params('xls', 'piter.xls', 'TDSheet', 24, 0, [1, 5, 9, 26, 57]),
+    '1c': create_supplier_params(
+        'xlsx',
+        '1c_invoice.xlsx',
+        'Sheet1',
+        0,
+        0,
+        [0, 1, 2, 3, 4]
+    ),
+    'reline': create_supplier_params(
+        'csv',
+        'relines.csv',
+        None,
+        0,
+        17,
+        [1, 5, 9, 26, 57]
+    ),
+    'autotorg': create_supplier_params(
+        'xls',
+        'партс.xls',
+        'TDSheet',
+        13,
+        17,
+        [1, 5, 9, 26, 57]
+    ),
+    'apex': create_supplier_params(
+        'xls',
+        'apex.xls',
+        'TDSheet',
+        20,
+        0,
+        [3, 20, 5, 33, 49]
+    ),
+    'hot-parts': create_supplier_params(
+        'xls',
+        '71977.xls',
+        'Report',
+        27,
+        0,
+        [0, 1, 22, 58]
+    ),
+    'redline': create_supplier_params(
+        'xls',
+        'redline.xls',
+        'TDSheet',
+        18,
+        0,
+        [1, 9, 13, 35, 64]
+    ),
+    'techo': create_supplier_params(
+        'xls',
+        'nk2023111600027.xls',
+        'Лист1',
+        20,
+        0,
+        [1, 5, 6, 10, 18]
+    ),
+    'froza': create_supplier_params(
+        'xls',
+        'froza.xls',
+        'TDSheet',
+        18,
+        0,
+        [1, 9, 13, 35, 67, 88]
+    ),
+    'autopiter': create_supplier_params(
+        'xls',
+        'piter.xls',
+        'TDSheet',
+        24,
+        0,
+        [1, 5, 9, 26, 57]
+    ),
 }
 
 
 def get_max_file_size():
     return int(os.getenv('MAX_FILE_SIZE', 5 * 1024 * 1024))
+
 
 def get_upload_dir():
     upload_dir = os.getenv('UPLOAD_DIR', 'uploads')
@@ -255,7 +333,7 @@ BRANDS = [
     'MITSUBOSHI', 'MIYACO', 'MOLY-GREEN', 'MOSKVICH', 'MUSASHI', 'NACHI',
     'NAKAMOTO', 'NARICHIN', 'NDC', 'NIPPON MOTORS', 'NISSAN', 'NITTO',
     'NK', 'NOK', 'NORDFIL', 'NPW', 'NSK', 'NTN', 'NTY', 'OBK', 'OEM',
-    'OPTIMAL', 'PARTS-MALL', 'PASCAL', 'PATRON', 'PAYEN', 'PILENGA','PULLMAN',
+    'OPTIMAL', 'PARTS-MALL', 'PASCAL', 'PATRON', 'PAYEN', 'PILENGA', 'PULLMAN',
     'QUARTZ', 'QUATTRO FRENI', 'R8', 'RBI', 'RENAULT',
     'ROADRUNNER', 'ROCKY', 'ROSTECO', 'SAILING', 'SAKURA', 'SANGSIN',
     'SAT', 'SCT GERMANY', 'SEIKEN', 'SEIWA', 'SH', 'SSANGYONG', 'STARMANN',
@@ -268,7 +346,7 @@ BRANDS = [
 
 JANAP_BRAND = [
     '555', 'ADVICS', 'AISAN', 'AISIN', 'AKEBONO', 'DENSO', 'GMB', 'HONDA',
-    'JNBK', 'KASHIYAMA', 'KOYO' , 'KYB', 'LIQUI MOLY', 'MAHLE', 'MAZDA',
+    'JNBK', 'KASHIYAMA', 'KOYO', 'KYB', 'LIQUI MOLY', 'MAHLE', 'MAZDA',
     'MITSUBISHI', 'MITSUBOSHI', 'MIYACO', 'MOLY-GREEN', 'MUSASHI', 'NACHI',
     'NIPPON MOTORS', 'NISSAN', 'NITTO', 'NOK', 'NPW', 'NSK', 'NTN', 'OBK',
     'ROCKY', 'SEIKEN', 'SEIWA', 'SUN', 'TAIHO', 'TCL', 'TEIKIN', 'TOKICO',
@@ -311,61 +389,115 @@ RUSSIA = [
 ITALY = [
     'METELLI'
 ]
+
+
 def create_brands(brands: list) -> list:
     brands_for_create = []
     for brand in brands:
         if brand in JANAP_BRAND:
             brands_for_create.append(
-                {'name': brand, 'main_brand': True, 'country_of_origin': 'Japan'}
+                {
+                    'name': brand,
+                    'main_brand': True,
+                    'country_of_origin': 'Japan'
+                }
             )
         elif brand in GERMANY_BRAND:
             brands_for_create.append(
-                {'name': brand, 'main_brand': True, 'country_of_origin': 'Germany'}
+                {
+                    'name': brand,
+                    'main_brand': True,
+                    'country_of_origin': 'Germany'
+                }
             )
         elif brand in SPANISH_BRAND:
             brands_for_create.append(
-                {'name': brand, 'main_brand': True, 'country_of_origin': 'Spain'}
+                {
+                    'name': brand,
+                    'main_brand': True,
+                    'country_of_origin': 'Spain'
+                }
             )
         elif brand in SOUTH_KOREA:
             brands_for_create.append(
-                {'name': brand, 'main_brand': True, 'country_of_origin': 'South Korea'}
+                {
+                    'name': brand,
+                    'main_brand': True,
+                    'country_of_origin': 'South Korea'
+                }
             )
         elif brand in BELGIUM:
             brands_for_create.append(
-                {'name': brand, 'main_brand': True, 'country_of_origin': 'Belgium'}
+                {
+                    'name': brand,
+                    'main_brand': True,
+                    'country_of_origin': 'Belgium'
+                }
             )
         elif brand in UK:
             brands_for_create.append(
-                {'name': brand, 'main_brand': True, 'country_of_origin': 'UK'}
+                {
+                    'name': brand,
+                    'main_brand': True,
+                    'country_of_origin': 'UK'
+                }
             )
         elif brand in FRANCE:
             brands_for_create.append(
-                {'name': brand, 'main_brand': True, 'country_of_origin': 'France'}
+                {
+                    'name': brand,
+                    'main_brand': True,
+                    'country_of_origin': 'France'
+                }
             )
         elif brand in USA:
             brands_for_create.append(
-                {'name': brand, 'main_brand': True, 'country_of_origin': 'USA'}
+                {
+                    'name': brand,
+                    'main_brand': True,
+                    'country_of_origin': 'USA'
+                }
             )
         elif brand in TAIWAN:
             brands_for_create.append(
-                {'name': brand, 'main_brand': True, 'country_of_origin': 'Taiwan'}
+                {
+                    'name': brand,
+                    'main_brand': True,
+                    'country_of_origin': 'Taiwan'
+                }
             )
         elif brand in POLAND:
             brands_for_create.append(
-                {'name': brand, 'main_brand': True, 'country_of_origin': 'Poland'}
+                {
+                    'name': brand,
+                    'main_brand': True,
+                    'country_of_origin': 'Poland'
+                }
             )
         elif brand in RUSSIA:
             brands_for_create.append(
-                {'name': brand, 'main_brand': True, 'country_of_origin': 'Russia'}
+                {
+                    'name': brand,
+                    'main_brand': True,
+                    'country_of_origin': 'Russia'
+                }
             )
         elif brand in ITALY:
             brands_for_create.append(
-                {'name': brand, 'main_brand': True, 'country_of_origin': 'Italy'}
+                {
+                    'name': brand,
+                    'main_brand': True,
+                    'country_of_origin': 'Italy'
+                }
             )
         else:
             # Default case for brands not in any specific country list
             brands_for_create.append(
-                {'name': brand, 'main_brand': True, 'country_of_origin': 'China'}
+                {
+                    'name': brand,
+                    'main_brand': True,
+                    'country_of_origin': 'China'
+                }
             )
 
     return brands_for_create

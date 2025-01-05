@@ -1,4 +1,5 @@
 import pytest
+
 from dz_fastapi.services.process import assign_brand
 
 BRAND_TEST_CASES = {
@@ -102,4 +103,7 @@ for brand, cases in BRAND_TEST_CASES.items():
 
 @pytest.mark.parametrize('oem_code, expected_brand', ALL_TESTS)
 def test_assign_brand(oem_code, expected_brand):
-    assert assign_brand(oem_code) == expected_brand, f'OEM: {oem_code} | Expected: {expected_brand} | Got: {assign_brand(oem_code)}'
+    assert assign_brand(oem_code) == expected_brand, (
+        f'OEM: {oem_code} | Expected: {expected_brand} '
+        f'| Got: {assign_brand(oem_code)}'
+    )

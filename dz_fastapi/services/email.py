@@ -1,20 +1,18 @@
+import logging
 import os
 import re
 import smtplib
-import traceback
 import unicodedata
 from datetime import date, timedelta
 from email.message import EmailMessage
-from email.header import decode_header
-
 
 from fastapi import HTTPException
-from imap_tools import MailBox, AND
-import pandas as pd
+from imap_tools import AND, MailBox
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.crud.partner import crud_provider_pricelist_config, crud_provider, get_last_uid, set_last_uid
-import logging
+from dz_fastapi.crud.partner import (crud_provider,
+                                     crud_provider_pricelist_config,
+                                     get_last_uid, set_last_uid)
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -35,8 +33,13 @@ PROCESSED_FOLDER = 'processed'
 
 def safe_filename(filename: str) -> str:
     # Normalize Unicode characters
-    value = unicodedata.normalize('NFKD', filename).encode('ascii', 'ignore').decode('ascii')
-    # Remove any remaining non-alphanumeric characters except dot and underscore
+    value = (
+        unicodedata.normalize('NFKD', filename)
+        .encode('ascii', 'ignore')
+        .decode('ascii')
+    )
+    # Remove any remaining non-alphanumeric
+    # characters except dot and underscore
     value = re.sub(r'[^\w\s\.-]', '', value)
     # Replace spaces with underscores
     value = re.sub(r'\s+', '_', value).strip()
@@ -44,38 +47,30 @@ def safe_filename(filename: str) -> str:
 
 
 async def download_price_provider(
-        provider_id: int,
-        session: AsyncSession,
-        max_emails: int = 50,
+    provider_id: int,
+    session: AsyncSession,
+    max_emails: int = 50,
 ):
     if not os.path.exists(DOWNLOAD_FOLDER):
         os.makedirs(DOWNLOAD_FOLDER)
         logger.info(f'Created directory: {DOWNLOAD_FOLDER}')
 
     provider = await crud_provider.get_by_id(
-        provider_id=provider_id,
-        session=session
+        provider_id=provider_id, session=session
     )
     if not provider:
-        logger.error(
-            f'Не нашли поставщика по provider_id : {provider_id}'
-        )
-        raise HTTPException(
-            status_code=404,
-            detail='Provider not found'
-        )
+        logger.error(f'Не нашли поставщика по provider_id : {provider_id}')
+        raise HTTPException(status_code=404, detail='Provider not found')
 
     provider_conf = await crud_provider_pricelist_config.get_config_or_none(
-        provider_id=provider_id,
-        session=session
+        provider_id=provider_id, session=session
     )
     if not provider_conf:
         logger.error(
             f'Не нашли настройку прайса по provider_id : {provider_id}'
         )
         raise HTTPException(
-            status_code=404,
-            detail='Provider config not found'
+            status_code=404, detail='Provider config not found'
         )
 
     try:
@@ -88,18 +83,24 @@ async def download_price_provider(
         last_uid = await get_last_uid(provider_id, session)
         logger.debug(f'Last UID: {last_uid}')
 
-        with MailBox(IMAP_SERVER).login(EMAIL_ACCOUNT, EMAIL_PASSWORD) as mailbox:
+        with MailBox(IMAP_SERVER).login(
+            EMAIL_ACCOUNT, EMAIL_PASSWORD
+        ) as mailbox:
             criteria = AND(
                 from_=provider.email_incoming_price,
                 date_gte=since_date,
-                seen=False
+                seen=False,
             )
             logger.debug(f'Using criteria: {criteria}')
 
-            email_list = list(mailbox.fetch(criteria, charset='utf-8', limit=max_emails))
+            email_list = list(
+                mailbox.fetch(criteria, charset='utf-8', limit=max_emails)
+            )
             logger.debug(f'Found {len(email_list)} emails matching criteria.')
             emails = [msg for msg in email_list if int(msg.uid) > last_uid]
-            logger.debug(f'{len(emails)} emails have UID greater than {last_uid}.')
+            logger.debug(
+                f'{len(emails)} emails have UID greater than {last_uid}.'
+            )
 
             for msg in emails:
                 subject = msg.subject
@@ -111,11 +112,13 @@ async def download_price_provider(
                     logger.debug("No Subject found for this email.")
 
                 # logger.debug(f'all data {msg.__dict__}')
-                # logger.debug(f'Subject: {msg.subject}, From: {msg.from_}, To: {msg.to}, Date: {msg.date}')
+                # logger.debug(f'Subject: {msg.subject},
+                # From: {msg.from_}, To: {msg.to}, Date: {msg.date}')
                 # logger.debug(f'Processing email with subject: {subject}')
                 if not provider_conf.name_mail.lower() in subject.lower():
                     logger.debug(
-                        f'Subject {subject} does not contain {provider_conf.name_mail.lower()}, skipping.'
+                        f'Subject {subject} does not '
+                        f'contain {provider_conf.name_mail.lower()}, skipping.'
                     )
                     continue
 
@@ -131,7 +134,9 @@ async def download_price_provider(
                         mailbox.flag(msg.uid, [r'\Seen'], True)
                         current_uid = int(msg.uid)
                         if current_uid > last_uid:
-                            await set_last_uid(provider_id, current_uid, session)
+                            await set_last_uid(
+                                provider_id, current_uid, session
+                            )
                         return filepath
             mailbox.flag([msg.uid for msg in emails], ['SEEN'], True)
             logger.debug('No matching attachments found.')
@@ -146,17 +151,12 @@ async def download_price_provider(
     except Exception as e:
         logger.exception(f'Unexpected error while processing emails: {e}')
         raise HTTPException(
-            status_code=500,
-            detail='Error fetching provider emails'
+            status_code=500, detail='Error fetching provider emails'
         )
 
 
 def send_email_with_attachment(
-        to_email,
-        subject,
-        body,
-        attachment_bytes,
-        attachment_filename
+    to_email, subject, body, attachment_bytes, attachment_filename
 ):
     if not EMAIL_ACCOUNT or not EMAIL_PASSWORD:
         logger.error('Email credentials are not set.')
@@ -173,7 +173,7 @@ def send_email_with_attachment(
         attachment_bytes,
         maintype='application',
         subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        filename=attachment_filename
+        filename=attachment_filename,
     )
 
     try:
