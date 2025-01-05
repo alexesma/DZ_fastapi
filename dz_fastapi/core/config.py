@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 load_dotenv()
 
@@ -7,9 +8,9 @@ load_dotenv()
 class Settings(BaseSettings):
     app_title: str = 'Приложения для работы DragonZap'
     app_description: str = 'Проект DragonZap на FastAPI'
-    database_url: str
-    test_database_url: str
-    asyncpg_dsn: str
+    database_url: str = Field(..., env='DATABASE_URL')
+    test_database_url: str = Field(..., env='TEST_DATABASE_URL')
+    asyncpg_dsn: str = Field(..., env='ASYNC_PG_DSN')
     use_test_db: bool = False
     database_echo: bool = False
 
