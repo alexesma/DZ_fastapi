@@ -62,10 +62,11 @@ jobs:
       run: |
         curl -sSL https://install.python-poetry.org | python3 -
         export PATH="$HOME/.local/bin:$PATH"
+
     - name: Install dependencies
       run: |
         export PATH="$HOME/.local/bin:$PATH"
-        poetry install --no-root
+        poetry install
 
     - name: Wait for PostgreSQL to be ready
       run: |
@@ -94,4 +95,5 @@ jobs:
     - name: Run pytest
       run: |
         export PATH="$HOME/.local/bin:$PATH"
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
         poetry run pytest
