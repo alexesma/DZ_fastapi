@@ -13,6 +13,25 @@ jobs:
   tests:
     # Разворачиваем окружение:
     runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:13.10
+        # Указываем имя тестовой базы, имя и пароль пользователя в открытом виде,
+        # ведь эта база будет работать только во время прогона тестов
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        # Эта конструкция описывает проверку готовности сервиса postgres
+        # Если её не будет, то тесты могут запуститься раньше, чем сервер PostgreSQL
+        # В результате тесты опять решат, что базы нет, — и упадут
+        options: >-
+          --health-cmd="pg_isready -U testuser"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     steps:
     # Копируем код проекта
@@ -24,6 +43,13 @@ jobs:
     # В action setup-python@v4 передаём параметр — версию Python
       with:
         python-version: 3.12
+    - name: Cache Poetry dependencies
+      uses: actions/cache@v3
+      with:
+          path: ~/.cache/pypoetry
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
     # Обновляем pip, устанавливаем flake8 и flake8-isort,
     # устанавливаем зависимости проекта
     - name: Install Poetry
@@ -32,8 +58,21 @@ jobs:
         export PATH="$HOME/.local/bin:$PATH"
     - name: Install dependencies
       run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          poetry install --no-root
+        export PATH="$HOME/.local/bin:$PATH"
+        poetry install --no-root
+    - name: Wait for PostgreSQL to be ready
+      run: |
+        until pg_isready -h 127.0.0.1 -p 5432 -U testuser; do
+          echo "Waiting for PostgreSQL...";
+          sleep 5;
+        done
+    - name: Run database migrations
+      env:
+        TEST_DATABASE_URL: postgresql+asyncpg://testuser:testpassword@127.0.0.1:5432/testdb
+      run: |
+        export PATH="$HOME/.local/bin:$PATH"
+        poetry run alembic upgrade head
+
     # Запускаем flake8
     - name: Test with flake8
       # Вызываем flake8 и указываем ему,
@@ -41,3 +80,11 @@ jobs:
       run:  |
         export PATH="$HOME/.local/bin:$PATH"
         poetry run flake8 dz_fastapi/ tests/ check_db.py seed.py
+
+    # Запускаем pytest
+    - name: Run pytest
+      env:
+        TEST_DATABASE_URL: postgresql+asyncpg://testuser:testpassword@127.0.0.1:5432/testdb
+      run: |
+        export PATH="$HOME/.local/bin:$PATH"
+        poetry run pytest
