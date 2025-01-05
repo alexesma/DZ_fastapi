@@ -85,6 +85,8 @@ jobs:
     - name: Run pytest
       env:
         TEST_DATABASE_URL: postgresql+asyncpg://testuser:testpassword@127.0.0.1:5432/testdb
+        DATABASE_URL: postgresql+asyncpg://testuser:testpassword@127.0.0.1:5432/testdb
+        ASYNC_PG_DSN: postgresql+asyncpg://testuser:testpassword@127.0.0.1:5432/testdb
       run: |
         export PATH="$HOME/.local/bin:$PATH"
         poetry run pytest
