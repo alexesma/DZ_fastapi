@@ -43,6 +43,7 @@ jobs:
     # В action setup-python@v4 передаём параметр — версию Python
       with:
         python-version: 3.12
+
     - name: Cache Poetry dependencies
       uses: actions/cache@v3
       with:
@@ -60,12 +61,17 @@ jobs:
       run: |
         export PATH="$HOME/.local/bin:$PATH"
         poetry install --no-root
+
     - name: Wait for PostgreSQL to be ready
       run: |
         until pg_isready -h 127.0.0.1 -p 5432 -U testuser; do
           echo "Waiting for PostgreSQL...";
           sleep 5;
         done
+
+    - name: Debug Environment Variables
+      run: env
+
     - name: Run database migrations
       env:
         DATABASE_URL: postgresql+asyncpg://testuser:testpassword@127.0.0.1:5432/testdb
