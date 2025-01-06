@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "Project Dragonzap backend"
 authors = ["Alexander Ermolenko <alex.ermolenko@gmail.com>"]
 readme = "README.md"
+packages = [
+    { include = "dz_fastapi" }
+]
 
 [tool.poetry.dependencies]
 python = "^3.12"

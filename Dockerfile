@@ -19,19 +19,19 @@ RUN pip install --upgrade pip
 RUN pip install poetry
 
 # Копируйте только файлы, необходимые для установки зависимостей
-COPY pyproject.toml poetry.lock* ./
+COPY . .
 
 # Настройте Poetry для установки зависимостей в систему, а не в виртуальное окружение
 RUN poetry config virtualenvs.create false
 
 # Установите зависимости проекта
-RUN poetry install --no-dev --no-interaction --no-ansi
+RUN poetry install --no-interaction --no-ansi
 
 # Явно установите Pillow, чтобы убедиться, что он доступен
 RUN pip install Pillow
 
 # Копируйте файлы проекта в контейнер
-COPY . .
+#COPY . .
 
 ## Установите необходимые пакеты
 #RUN apt-get update && apt-get install -y nano
