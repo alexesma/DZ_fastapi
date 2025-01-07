@@ -165,7 +165,7 @@ jobs:
         # которые нужно выполнить на сервере,
         # с которым установлено соединение
         script: |
-          cd infra/dev/init-db/
+          cd infra/dev/
           # Выполняет pull образов с Docker Hub
           sudo docker compose -f docker-compose.dev.yaml pull
           # Перезапускает все контейнеры в Docker Compose
