@@ -41,11 +41,11 @@ CUSTOMER_IN = {
     'name': 'Zzap',
     'type_prices': 'Retail',
     'email_contact': 'support@zzap.ru',
-    'email_outgoing_price': 'info@dragonzap.ru'
+    'email_outgoing_price': 'price@zzap.ru'
 }
 CONFIG_DATA_CUSTOMER = {
     'name': 'Price Dragonzap for zzap',
-    'general_markup': 1,
+    'general_markup': 0,
     'additional_filters': {'ZZAP': True},
 }
 

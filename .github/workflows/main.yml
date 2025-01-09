@@ -153,7 +153,7 @@ jobs:
         key: ${{ secrets.SSH_KEY }}
         passphrase: ${{ secrets.SSH_PASSPHRASE }}
         source: "infra/dev/docker-compose.dev.yaml"
-        target: "/root/DZ_fastapi/infra/dev/"
+        target: "/root/DZ_fastapi/infra/dev/docker-compose.dev.yaml"
     - name: Executing remote ssh commands to deploy
       uses: appleboy/ssh-action@master
       with:
