@@ -153,8 +153,8 @@ jobs:
         username: ${{ secrets.USER }}
         key: ${{ secrets.SSH_KEY }}
         passphrase: ${{ secrets.SSH_PASSPHRASE }}
-        source: "infra/dev/docker-compose.dev.yaml"
-        target: "/root/DZ_fastapi/infra/dev/"
+        source: "./" # старый "infra/dev/docker-compose.dev.yaml"
+        target: "/root/DZ_fastapi" # старый "/root/DZ_fastapi/infra/dev/"
         strip_components: 2
         overwrite: true
     - name: Executing remote ssh commands to deploy
