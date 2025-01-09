@@ -134,6 +134,7 @@ jobs:
           # устанавливаем тег latest, чтобы потом
           # на сервере и в docker-compose.yml не указывать версию
           tags: alexesma/dz_fastapi:latest
+          no-cache: true
 
   deploy:
     runs-on: ubuntu-latest
