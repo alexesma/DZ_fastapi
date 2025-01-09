@@ -44,6 +44,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
 app.mount(
     "/uploads",
     StaticFiles(directory=os.path.join(os.getcwd(), "uploads")),
