@@ -20,6 +20,7 @@ services:
 
   web:
     image: alexesma/dz_fastapi:latest
+    # Для локальной загрузки образа
 #    build:
 #      context: ../..
 #      dockerfile: Dockerfile

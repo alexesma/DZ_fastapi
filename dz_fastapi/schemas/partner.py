@@ -182,6 +182,44 @@ class CustomerResponse(CustomerBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CustomerPriceListResponseShort(BaseModel):
+    id: int
+    date: date
+    autoparts_count: int
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CustomerResponseShort(BaseModel):
+    id: int
+    name: str
+    email_outgoing_price: Optional[EmailStr] = None
+    type_prices: TypePrices = TypePrices.WHOLESALE
+    email_contact: Optional[EmailStr] = None
+    description: Optional[str] = None
+    comment: Optional[str] = None
+    customer_price_lists: List[CustomerPriceListResponseShort] = []
+
+    @field_validator('name', mode='before')
+    def name_must_not_be_empty(cls, v):
+        if not v.strip():
+            raise ValueError('Name must not be empty')
+        return v
+
+    @field_validator('email_contact', mode='before')
+    def validate_email_contact(cls, v):
+        if v == '':
+            return None
+        return v
+
+    @field_validator('email_outgoing_price', mode='before')
+    def validate_email_outgoing_price(cls, v):
+        if v == '':
+            return None
+        return v
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ProviderPriceListConfigBase(BaseModel):
     start_row: int
     oem_col: int
