@@ -190,6 +190,7 @@ jobs:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
           message: "✅ *Деплой успешно выполнен!* 🎉"
+          debug: true
 
   send_failure_message:
     runs-on: ubuntu-latest
@@ -202,3 +203,4 @@ jobs:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
           message: "❌ *Деплой завершился с ошибкой!* ⚠️"
+          debug: true

@@ -45,7 +45,7 @@ from dz_fastapi.core.constants import (BRILLIANCE_OEM, CUMMINS_OEM, FAW_OEM,
                                        INDICATOR_LIFAN_LEN_TEN,
                                        INDICATOR_LIFAN_WHISOUT,
                                        INDICATOR_LIFAN_WHISOUT_FIRST,
-                                       ORIGINAL_BRANDS)
+                                       MAX_PRICE_LISTS, ORIGINAL_BRANDS)
 from dz_fastapi.crud.partner import (crud_customer_pricelist,
                                      crud_customer_pricelist_config,
                                      crud_pricelist, crud_provider,
@@ -330,9 +330,7 @@ def is_lifan(oem_original):
         and oem_original[:3] in INDICATOR_LIFAN_LEN_SEVEN
     )  # Исправлено [:2] на [:3]
     cond5 = (
-        len(
-            oem_original
-        ) == 9 and oem_original[:4] in INDICATOR_LIFAN_LEN_NINE
+        len(oem_original) == 9 and oem_original[:4] in INDICATOR_LIFAN_LEN_NINE
     )
     cond6 = oem_original[:3] in INDICATOR_LIFAN_FIRST_THREE
     cond7 = (
@@ -348,9 +346,7 @@ def is_lifan(oem_original):
         and oem_original[-5:] in INDICATOR_LIFAN_END_FIVE
     )
     cond10 = (
-        len(
-            oem_original
-        ) == 10 and oem_original[:3] in INDICATOR_LIFAN_LEN_TEN
+        len(oem_original) == 10 and oem_original[:3] in INDICATOR_LIFAN_LEN_TEN
     )  # Исправил на [:3] для единообразия,
     # хотя можно [:2], но в списке по 3 символа.
     return (
@@ -738,6 +734,16 @@ async def process_customer_pricelist(
         raise HTTPException(
             status_code=400,
             detail='No pricelist configuration found for the customer',
+        )
+    # Получаю все прайс листы клиента
+    all_prices = await crud_customer_pricelist.get_all_pricelist(
+        session=session, customer_id=customer.id
+    )
+    # Проверяю превышает ли кол-во прайсов MAX_PRICE_LISTS,
+    # и если да то удаляем излишек
+    if len(all_prices) > MAX_PRICE_LISTS:
+        await crud_customer_pricelist.delete_older_pricelists(
+            session=session, customer_id=customer.id, max_count=MAX_PRICE_LISTS
         )
 
     combined_data = []

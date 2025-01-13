@@ -40,7 +40,7 @@ def start_scheduler(app: FastAPI):
     )
 
     # scheduler.add_job(
-    #     func=send_price_list_task,
+    #     func=download_all_price_providers_task,
     #     trigger='cron',
     #     args=[app],
     #     id='send_price_list',
@@ -109,7 +109,7 @@ async def download_price_provider_task(app: FastAPI):
             await send_price_list_task(app)
             return {
                 'detail': f'Downloaded and processed '
-                          f'provider price list for provider_id: {provider.id}'
+                f'provider price list for provider_id: {provider.id}'
             }
         except Exception as e:
             logger.error(f'Error in download_price_provider_task: {e}')
@@ -180,3 +180,13 @@ async def send_price_list_task(app: FastAPI):
             logger.error(
                 f'Error processing pricelist for customer {customer.name}: {e}'
             )
+
+
+# async def download_all_price_providers_task(app: FastAPI):
+#     logger.info('Starting download_price_provider_task')
+#     async_session_factory = get_async_session()
+#     async with async_session_factory() as session:
+#         try:
+#             providers = await crud_provider.get_multi(session=session)
+#         except Exception as e:
+#             logger.error(f'Error in download_all_price_providers_task: {e}')

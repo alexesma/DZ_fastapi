@@ -702,6 +702,88 @@ class CRUDCustomerPriceList(
         )
         return result.scalars().all()
 
+    async def delete_by_id(
+        self, session: AsyncSession, customer_id: int, pricelist_id: int
+    ) -> None:
+        """
+        Удаляет один прайс-лист конкретного клиента по его ID.
+        """
+        try:
+            # Проверяем, что прайс-лист действительно
+            # принадлежит этому customer_id
+            result = await session.execute(
+                select(self.model).where(
+                    self.model.id == pricelist_id,
+                    self.model.customer_id == customer_id,
+                )
+            )
+            db_obj = result.scalar_one_or_none()
+            if not db_obj:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f'PriceList {pricelist_id} not '
+                           f'found for customer {customer_id}',
+                )
+
+            # Удаляем сам прайс-лист
+            await session.delete(db_obj)
+            await session.commit()
+        except SQLAlchemyError as e:
+            logger.error(f'Database error occurred: {e}')
+            await session.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail='Database error during pricelist delete',
+            )
+        except Exception as e:
+            logger.error(f'Unexpected error occurred: {e}')
+            await session.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail='Unexpected error during pricelist delete',
+            )
+
+    async def delete_older_pricelists(
+        self, session: AsyncSession, customer_id: int, max_count: int = 10
+    ) -> None:
+        """
+        Удаляет самые старые прайс-листы (по дате, потом по id),
+        если общее количество у клиента превышает max_count.
+        """
+        try:
+            # Получаем все прайс-листы (сортируем по дате по возрастанию,
+            # чтобы первые в списке были самые старые)
+            result = await session.execute(
+                select(self.model)
+                .where(self.model.customer_id == customer_id)
+                .order_by(self.model.date.asc(), self.model.id.asc())
+            )
+            all_pricelists = result.scalars().all()
+
+            if len(all_pricelists) > max_count:
+                # Те, что нужно удалить, это "лишние" в начале списка
+                num_to_delete = len(all_pricelists) - max_count
+                pricelists_to_delete = all_pricelists[:num_to_delete]
+
+                for pl in pricelists_to_delete:
+                    await session.delete(pl)
+
+                await session.commit()
+        except SQLAlchemyError as e:
+            logger.error(f'Database error occurred during cleanup: {e}')
+            await session.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail='Database error during pricelist cleanup',
+            )
+        except Exception as e:
+            logger.error(f'Unexpected error occurred during cleanup: {e}')
+            await session.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail='Unexpected error during pricelist cleanup',
+            )
+
 
 crud_customer_pricelist = CRUDCustomerPriceList(CustomerPriceList)
 
