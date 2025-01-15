@@ -5,6 +5,7 @@ from functools import partial
 from io import BytesIO, StringIO
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 from fastapi import HTTPException
 from openpyxl import Workbook
@@ -169,6 +170,18 @@ async def process_provider_pricelist(
         )
         data_df['price'] = pd.to_numeric(data_df['price'], errors='coerce')
         data_df.dropna(subset=['quantity', 'price'], inplace=True)
+        # Удаляем (или игнорируем) записи со слишком большой ценой
+        MAX_PRICE = 99999999.99
+        before_count = len(data_df)
+        data_df = data_df[data_df['price'] <= MAX_PRICE]
+        after_count = len(data_df)
+        logger.debug(
+            f'Removed {before_count - after_count} '
+            f'rows due to exceeding price {MAX_PRICE}'
+        )
+
+        # и отрицательные цены:
+        data_df = data_df[data_df['price'] >= 0]
     except Exception as e:
         logger.error(f"Error during data cleaning: {e}")
         raise HTTPException(
@@ -679,6 +692,7 @@ async def send_pricelist(
     )
 
     # Write headers on the second row
+    logger.debug('Write headers on the second row')
     for col_num, column_title in enumerate(df_excel.columns, start=1):
         cell = ws.cell(row=2, column=col_num)
         cell.value = column_title
@@ -689,6 +703,7 @@ async def send_pricelist(
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
     # Write data rows starting from the third row
+    logger.debug('Write data rows starting from the third row')
     for row_num, row_data in enumerate(
         df_excel.itertuples(index=False), start=3
     ):
@@ -698,9 +713,14 @@ async def send_pricelist(
             cell.font = Font(name="Arial", size=10)
 
     wb.save(output)
+    logger.debug(
+        'Workbook saved successfully. '
+        'Size: %s bytes', len(output.getvalue())
+    )
     output.seek(0)
 
     # Send email with the Excel attachment
+    logger.debug('Send email with the Excel attachment')
     to_email = customer.email_outgoing_price
     subject = subject
     body = body
@@ -709,6 +729,7 @@ async def send_pricelist(
     attachment_filename = attachment_filename
 
     # Send the email asynchronously
+    logger.debug('Send the email asynchronously')
     loop = asyncio.get_running_loop()
     await loop.run_in_executor(
         None,
@@ -721,6 +742,7 @@ async def send_pricelist(
             attachment_filename=attachment_filename,
         ),
     )
+    logger.debug('Final send email')
 
 
 async def process_customer_pricelist(
@@ -810,12 +832,80 @@ async def process_customer_pricelist(
 
     if config.additional_filters.get('ZZAP'):
         logger.debug('Зашел в get additional_filters')
+        provider_diller = await crud_provider.get_provider_or_none(
+            provider='AVTODIN KAMA', session=session
+        )
+        if not provider_diller:
+            logger.error('Provider AVTODIN KAMA not found.')
+            raise ValueError('Provider AVTODIN KAMA not found.')
+        pricelist_ids = await crud_pricelist.get_pricelist_ids_by_provider(
+            provider_id=provider_diller.id, session=session
+        )
+        if not pricelist_ids:
+            logger.error(
+                f'No pricelists found for provider {provider_diller.name}.'
+            )
+            raise ValueError(
+                f'No pricelists found for provider {provider_diller.name}.'
+            )
+        associations = await crud_pricelist.fetch_pricelist_data(
+            pricelist_ids[-1], session
+        )
+        df_diller = await crud_pricelist.transform_to_dataframe(
+            associations=associations, session=session
+        )
+        logger.debug(f'Transform file to dataframe {df_diller}')
+        df_diller_rename = df_diller.rename(
+            columns={
+                'brand': 'Производитель',
+                'name': 'Наименование',
+                'oem_number': 'Артикул',
+                'quantity': 'Количество',
+                'price': 'Цена',
+            }
+        )
+        # 1. Предположим, что и df_excel, и
+        # df_diller имеют колонку "brand_id" и "price".
+        #    Если у вас "brand" (строка), замените ниже 'brand_id' на 'brand'.
+
+        # 2. Соединяем df_excel и df_diller по "brand_id".
+        #    how='left' чтобы к df_excel присоединить цены диллера (если есть).
+        df_merged = pd.merge(
+            df_excel,
+            df_diller_rename,
+            on=['Производитель', 'Артикул'],
+            how='left',
+            suffixes=('', '_diller'),  # Чтобы колонки не конфликтовали
+        )
+
+        # Теперь в df_merged есть колонки:
+        # "price" (из df_excel) и "price_diller" (из df_diller)
+        # Проверяем условие: если df_excel['price'] < df_diller['price'] * 1.2
+        # и brand_id совпадает, тогда повышаем цену.
+
+        # 3. Формируем маску (true, где нужно повысить)
+        mask = (df_merged['Цена_diller'].notna()) & (
+            df_merged['Цена'] < df_merged['Цена_diller'] * 1.2
+        )
+        # 4. Применяем
+        df_merged.loc[mask, 'Цена'] = (
+            np.ceil(df_merged.loc[mask, 'Цена_diller'] * 1.2 / 10) * 10
+        )
+
+        # 5. Возвращаем df_merged к исходному набору колонок df_excel,
+        #    например если в df_excel были колонки:
+        #    ['brand_id','price','name','...']
+        #    или же просто присваиваем обратно df_excel = df_merged
+        #    (учтите, что df_merged может иметь лишние колонки, напр.
+        #    'price_diller').
+        df_excel = df_merged[df_excel.columns]
+
         df_excel = await add_origin_brand_from_dz(
             price_zzap=df_excel, session=session
         )
-        logger.debug(f'Измененный файл для ZZAP: {df}')
+        logger.debug(f'Измененный файл для ZZAP: {df_excel}')
     await session.commit()
-
+    logger.debug('Calling send_pricelist')
     await send_pricelist(
         customer=customer,
         df_excel=df_excel,
@@ -823,6 +913,7 @@ async def process_customer_pricelist(
         body='Добрый день, высылаем Вам наш прайс-лист',
         attachment_filename='zzap_kross.xlsx',
     )
+    logger.debug('Finished send_pricelist')
 
     autoparts_response = []
     for assoc in associations:

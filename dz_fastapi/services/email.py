@@ -50,6 +50,9 @@ async def download_price_provider(
     provider_id: int,
     session: AsyncSession,
     max_emails: int = 50,
+    server_mail: str = IMAP_SERVER,
+    email_account: str = EMAIL_ACCOUNT,
+    email_password: str = EMAIL_PASSWORD,
 ):
     if not os.path.exists(DOWNLOAD_FOLDER):
         os.makedirs(DOWNLOAD_FOLDER)
@@ -74,7 +77,7 @@ async def download_price_provider(
         )
 
     try:
-        since_date = date.today() - timedelta(days=2)
+        since_date = date.today() - timedelta(days=10)
         logger.debug(
             f'Email criteria: from = {provider.email_incoming_price}, '
             f'need name_mail = {provider_conf.name_mail}, '
@@ -83,8 +86,8 @@ async def download_price_provider(
         last_uid = await get_last_uid(provider_id, session)
         logger.debug(f'Last UID: {last_uid}')
 
-        with MailBox(IMAP_SERVER).login(
-            EMAIL_ACCOUNT, EMAIL_PASSWORD
+        with MailBox(server_mail, 993).login(
+            email_account, email_password
         ) as mailbox:
             criteria = AND(
                 from_=provider.email_incoming_price,
@@ -158,6 +161,11 @@ async def download_price_provider(
 def send_email_with_attachment(
     to_email, subject, body, attachment_bytes, attachment_filename
 ):
+    logger.debug(
+        "Inside send_email_with_attachment with len(attachment_bytes)=%d",
+        len(attachment_bytes),
+    )
+
     if not EMAIL_ACCOUNT or not EMAIL_PASSWORD:
         logger.error('Email credentials are not set.')
         return

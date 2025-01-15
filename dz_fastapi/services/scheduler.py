@@ -1,5 +1,6 @@
 # scheduler.py
 import logging
+import os
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
@@ -21,6 +22,11 @@ from dz_fastapi.services.email import download_price_provider
 from dz_fastapi.services.process import (process_customer_pricelist,
                                          process_provider_pricelist)
 
+EMAIL_NAME_PRICE = os.getenv('EMAIL_NAME_PRICE')
+EMAIL_PASSWORD_PRICE = os.getenv('EMAIL_PASSWORD_PRICE')
+EMAIL_HOST_PRICE = os.getenv('EMAIL_HOST_PRICE')
+
+
 logger = logging.getLogger('dz_fastapi')
 
 
@@ -39,15 +45,15 @@ def start_scheduler(app: FastAPI):
         # hour='9',
     )
 
-    # scheduler.add_job(
-    #     func=download_all_price_providers_task,
-    #     trigger='cron',
-    #     args=[app],
-    #     id='send_price_list',
-    #     name='Send price list to customers',
-    #     # minute='*/5'  # каждые 5 минут
-    #     hour='9',  # каждый день в 9 утра
-    # )
+    scheduler.add_job(
+        func=download_all_price_providers_task,
+        trigger='cron',
+        args=[app],
+        id='download_all_price_providers',
+        name='Download prices over providers',
+        minute='*/5',  # каждые 5 минут
+        # hour='9',  # каждый день в 9 утра
+    )
 
     scheduler.start()
     logger.info('Scheduler started.')
@@ -147,10 +153,8 @@ async def send_price_list_task(app: FastAPI):
                 provider=PROVIDER_IN['name'], session=session
             )
             if not provider:
-                logger.error(f'Provider "{PROVIDER_IN['name']}" not found.')
-                raise ValueError(
-                    f'Provider "{PROVIDER_IN['name']}" not found.'
-                )
+                logger.error(f'Provider {PROVIDER_IN['name']} not found.')
+                raise ValueError(f'Provider {PROVIDER_IN['name']} not found.')
             pricelist_ids = await crud_pricelist.get_pricelist_ids_by_provider(
                 provider_id=provider.id, session=session
             )
@@ -182,11 +186,52 @@ async def send_price_list_task(app: FastAPI):
             )
 
 
-# async def download_all_price_providers_task(app: FastAPI):
-#     logger.info('Starting download_price_provider_task')
-#     async_session_factory = get_async_session()
-#     async with async_session_factory() as session:
-#         try:
-#             providers = await crud_provider.get_multi(session=session)
-#         except Exception as e:
-#             logger.error(f'Error in download_all_price_providers_task: {e}')
+async def download_all_price_providers_task(app: FastAPI):
+    logger.debug('Starting download_price_provider_task')
+    async_session_factory = get_async_session()
+    async with async_session_factory() as session:
+        try:
+            providers = await crud_provider.get_multi(session=session)
+            logger.debug(f'Providers = {providers}')
+            for provider in providers:
+                # Пропускаем "Dragonzap Provider"
+                if provider.name.lower() == PROVIDER_IN["name"].lower():
+                    logger.debug(f'Skipping default provider: {provider.name}')
+                    continue
+
+                filepath = await download_price_provider(
+                    provider_id=provider.id,
+                    session=session,
+                    max_emails=1000,
+                    server_mail=EMAIL_HOST_PRICE,
+                    email_account=EMAIL_NAME_PRICE,
+                    email_password=EMAIL_PASSWORD_PRICE,
+                )
+                if not filepath:
+                    logger.error(
+                        f'Failed to download file '
+                        f'for provider_id: {provider.id}'
+                    )
+                    raise ValueError('download_price_provider returned None')
+                file_extension = filepath.split('.')[-1].lower()
+                with open(filepath, "rb") as f:
+                    file_content = f.read()
+                logger.info(
+                    f'Successfully downloaded price for provider {provider.id}'
+                )
+                await process_provider_pricelist(
+                    provider_id=provider.id,
+                    file_content=file_content,
+                    file_extension=file_extension,
+                    use_stored_params=True,
+                    start_row=None,
+                    oem_col=None,
+                    brand_col=None,
+                    name_col=None,
+                    qty_col=None,
+                    price_col=None,
+                    session=session,
+                )
+
+        except Exception as e:
+            logger.error(f'Error in download_all_price_providers_task: {e}')
