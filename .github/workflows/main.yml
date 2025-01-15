@@ -172,7 +172,7 @@ jobs:
           # Выполняет pull образов с Docker Hub
           sudo docker compose -f docker-compose.dev.yaml pull
           # Перезапускает все контейнеры в Docker Compose
-          sudo docker compose -f docker-compose.dev.yaml build --no-cache
+          # sudo docker compose -f docker-compose.dev.yaml build --no-cache
           sudo docker compose -f docker-compose.dev.yaml up -d --no-deps --build web
           # sudo docker compose -f docker-compose.dev.yaml down
           # sudo docker compose -f docker-compose.dev.yaml up -d
