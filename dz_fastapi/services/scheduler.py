@@ -64,29 +64,29 @@ async def download_price_provider_task(app: FastAPI):
     async_session_factory = get_async_session()
     async with async_session_factory() as session:
         try:
-            provider_in_model = ProviderCreate(**PROVIDER_IN)
             provider = await crud_provider.get_provider_or_none(
                 provider=PROVIDER_IN['name'], session=session
             )
             if not provider:
+                provider_in_model = ProviderCreate(**PROVIDER_IN)
                 provider = await crud_provider.create(
                     obj_in=provider_in_model, session=session
                 )
-            config_in_model = ProviderPriceListConfigCreate(
-                **CONFIG_DATA_PROVIDER
-            )
             config = await crud_provider_pricelist_config.get_config_or_none(
                 provider_id=provider.id, session=session
             )
             if not config:
-                config = await crud_provider_pricelist_config.create(
+                config_in_model = ProviderPriceListConfigCreate(
+                    **CONFIG_DATA_PROVIDER
+                )
+                await crud_provider_pricelist_config.create(
                     provider_id=provider.id,
                     config_in=config_in_model,
                     session=session,
                 )
 
             filepath = await download_price_provider(
-                provider_id=provider.id, session=session
+                provider=provider, provider_conf=config, session=session
             )
             if not filepath:
                 logger.error(

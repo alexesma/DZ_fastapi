@@ -10,18 +10,18 @@ from fastapi import HTTPException
 from imap_tools import AND, MailBox
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.crud.partner import (crud_provider,
-                                     crud_provider_pricelist_config,
-                                     get_last_uid, set_last_uid)
+from dz_fastapi.core.constants import DEPTH_DAY_EMAIL, IMAP_SERVER
+from dz_fastapi.crud.partner import get_last_uid, set_last_uid
+from dz_fastapi.models.partner import Provider, ProviderPriceListConfig
 
 logger = logging.getLogger('dz_fastapi')
 
 # Email account credentials
-IMAP_SERVER = os.getenv('EMAIL_HOST')
+EMAIL_HOST = os.getenv('EMAIL_HOST')
 EMAIL_ACCOUNT = os.getenv('EMAIL_NAME')
 EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD')
 
-SMTP_SERVER = 'smtp.yandex.ru'
+SMTP_SERVER = os.getenv('SMTP_SERVER')
 SMTP_PORT = int(os.getenv('SMTP_PORT', 465))
 SMTP_USERNAME = os.getenv('EMAIL_NAME')
 SMTP_PASSWORD = os.getenv('EMAIL_PASSWORD')
@@ -47,46 +47,44 @@ def safe_filename(filename: str) -> str:
 
 
 async def download_price_provider(
-    provider_id: int,
+    provider: Provider,
+    provider_conf: ProviderPriceListConfig,
     session: AsyncSession,
     max_emails: int = 50,
-    server_mail: str = IMAP_SERVER,
+    server_mail: str = EMAIL_HOST,
     email_account: str = EMAIL_ACCOUNT,
     email_password: str = EMAIL_PASSWORD,
 ):
+    """
+    Загружает данные провайдера из почты.
+
+    Args:
+        provider (Provider): Поставщик.
+        provider_conf (ProviderPriceListConfig): Конфигурация поставщика.
+        session (AsyncSession): Сессия для взаимодействия с базой данных.
+        max_emails (int): Максимальное количество писем для обработки.
+        server_mail (str): Адрес IMAP-сервера.
+        email_account (str): Учетная запись электронной почты.
+        email_password (str): Пароль от учетной записи.
+
+    Raises:
+        HTTPException: Если провайдер не найден.
+    """
     if not os.path.exists(DOWNLOAD_FOLDER):
         os.makedirs(DOWNLOAD_FOLDER)
         logger.info(f'Created directory: {DOWNLOAD_FOLDER}')
 
-    provider = await crud_provider.get_by_id(
-        provider_id=provider_id, session=session
-    )
-    if not provider:
-        logger.error(f'Не нашли поставщика по provider_id : {provider_id}')
-        raise HTTPException(status_code=404, detail='Provider not found')
-
-    provider_conf = await crud_provider_pricelist_config.get_config_or_none(
-        provider_id=provider_id, session=session
-    )
-    if not provider_conf:
-        logger.error(
-            f'Не нашли настройку прайса по provider_id : {provider_id}'
-        )
-        raise HTTPException(
-            status_code=404, detail='Provider config not found'
-        )
-
     try:
-        since_date = date.today() - timedelta(days=10)
+        since_date = date.today() - timedelta(days=DEPTH_DAY_EMAIL)
         logger.debug(
             f'Email criteria: from = {provider.email_incoming_price}, '
             f'need name_mail = {provider_conf.name_mail}, '
             f'need name_price = {provider_conf.name_price}'
         )
-        last_uid = await get_last_uid(provider_id, session)
+        last_uid = await get_last_uid(provider.id, session)
         logger.debug(f'Last UID: {last_uid}')
 
-        with MailBox(server_mail, 993).login(
+        with MailBox(server_mail, IMAP_SERVER).login(
             email_account, email_password
         ) as mailbox:
             criteria = AND(
@@ -138,7 +136,7 @@ async def download_price_provider(
                         current_uid = int(msg.uid)
                         if current_uid > last_uid:
                             await set_last_uid(
-                                provider_id, current_uid, session
+                                provider.id, current_uid, session
                             )
                         return filepath
             mailbox.flag([msg.uid for msg in emails], ['SEEN'], True)
@@ -146,7 +144,7 @@ async def download_price_provider(
             if emails:
                 max_uid = max(int(msg.uid) for msg in emails)
                 if max_uid > last_uid:
-                    await set_last_uid(provider_id, max_uid, session)
+                    await set_last_uid(provider.id, max_uid, session)
             return None
     except ValueError as e:
         logger.error(f'Ошибка обработки писем: {e}')
