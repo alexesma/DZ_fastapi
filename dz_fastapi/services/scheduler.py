@@ -208,7 +208,7 @@ async def download_all_price_providers_task(app: FastAPI):
                     provider=provider,
                     provider_conf=config,
                     session=session,
-                    max_emails=1000,
+                    max_emails=100,
                     server_mail=EMAIL_HOST_PRICE,
                     email_account=EMAIL_NAME_PRICE,
                     email_password=EMAIL_PASSWORD_PRICE,

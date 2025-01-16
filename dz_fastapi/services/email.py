@@ -90,7 +90,6 @@ async def download_price_provider(
             criteria = AND(
                 from_=provider.email_incoming_price,
                 date_gte=since_date,
-                seen=False,
             )
             logger.debug(f'Using criteria: {criteria}')
 
