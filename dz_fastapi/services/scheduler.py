@@ -198,9 +198,13 @@ async def download_all_price_providers_task(app: FastAPI):
                 if provider.name.lower() == PROVIDER_IN["name"].lower():
                     logger.debug(f'Skipping default provider: {provider.name}')
                     continue
+                config = await crud_provider_pricelist_config.get_config_or_none(
+                    provider_id=provider.id, session=session
+                )
 
                 filepath = await download_price_provider(
-                    provider_id=provider.id,
+                    provider=provider,
+                    provider_conf=config,
                     session=session,
                     max_emails=1000,
                     server_mail=EMAIL_HOST_PRICE,
