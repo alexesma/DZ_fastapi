@@ -17,9 +17,9 @@ from dz_fastapi.models.partner import Provider, ProviderPriceListConfig
 logger = logging.getLogger('dz_fastapi')
 
 # Email account credentials
-EMAIL_NAME_PRICE = os.getenv('EMAIL_NAME_PRICE')
-EMAIL_PASSWORD_PRICE = os.getenv('EMAIL_PASSWORD_PRICE')
-EMAIL_HOST_PRICE = os.getenv('EMAIL_HOST_PRICE')
+EMAIL_NAME = os.getenv('EMAIL_NAME_PRICE')
+EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD_PRICE')
+EMAIL_HOST = os.getenv('EMAIL_HOST_PRICE')
 
 SMTP_SERVER = os.getenv('SMTP_SERVER')
 SMTP_PORT = int(os.getenv('SMTP_PORT', 465))
@@ -51,9 +51,9 @@ async def download_price_provider(
     provider_conf: ProviderPriceListConfig,
     session: AsyncSession,
     max_emails: int = 50,
-    server_mail: str = EMAIL_HOST_PRICE,
-    email_account: str = EMAIL_NAME_PRICE,
-    email_password: str = EMAIL_PASSWORD_PRICE,
+    server_mail: str = EMAIL_HOST,
+    email_account: str = EMAIL_NAME,
+    email_password: str = EMAIL_PASSWORD,
 ):
     """
     Загружает данные провайдера из почты.
@@ -164,13 +164,13 @@ def send_email_with_attachment(
         len(attachment_bytes),
     )
 
-    if not EMAIL_ACCOUNT or not EMAIL_PASSWORD:
+    if not EMAIL_NAME or not EMAIL_PASSWORD:
         logger.error('Email credentials are not set.')
         return
 
     msg = EmailMessage()
     msg['Subject'] = subject
-    msg['From'] = EMAIL_ACCOUNT
+    msg['From'] = EMAIL_NAME
     msg['To'] = to_email
     msg.set_content(body)
 
@@ -184,7 +184,7 @@ def send_email_with_attachment(
 
     try:
         with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as smtp:
-            smtp.login(EMAIL_ACCOUNT, EMAIL_PASSWORD)
+            smtp.login(EMAIL_NAME, EMAIL_PASSWORD)
             smtp.send_message(msg)
         logger.info(f'Email sent to {to_email}')
     except Exception as e:

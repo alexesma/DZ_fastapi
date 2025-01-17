@@ -1,6 +1,5 @@
 # scheduler.py
 import logging
-import os
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
@@ -21,7 +20,6 @@ from dz_fastapi.schemas.partner import (CustomerCreate,
 from dz_fastapi.services.email import download_price_provider
 from dz_fastapi.services.process import (process_customer_pricelist,
                                          process_provider_pricelist)
-
 
 logger = logging.getLogger('dz_fastapi')
 
