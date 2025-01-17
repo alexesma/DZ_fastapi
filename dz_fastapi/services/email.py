@@ -88,6 +88,14 @@ async def download_price_provider(
             email_account, email_password
         ) as mailbox:
             mailbox.folder.set('INBOX')
+            all_emails = list(mailbox.fetch(AND(
+                date_gte=date.today(), all=True
+            )))
+            for msg in all_emails:
+                logger.debug(
+                    f'Uid: {msg.uid}, from: {msg.from_}, '
+                    f'date: {msg.date}, subject: {msg.subject}, all: {msg}'
+                )
             criteria = AND(
                 from_=provider.email_incoming_price,
                 date_gte=since_date,
