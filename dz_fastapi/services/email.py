@@ -87,6 +87,7 @@ async def download_price_provider(
         with MailBox(server_mail, IMAP_SERVER).login(
             email_account, email_password
         ) as mailbox:
+            mailbox.folder.set('INBOX')
             criteria = AND(
                 from_=provider.email_incoming_price,
                 date_gte=since_date,
@@ -139,7 +140,6 @@ async def download_price_provider(
                                 provider.id, current_uid, session
                             )
                         return filepath
-            mailbox.flag([msg.uid for msg in emails], ['SEEN'], True)
             logger.debug('No matching attachments found.')
             if emails:
                 max_uid = max(int(msg.uid) for msg in emails)

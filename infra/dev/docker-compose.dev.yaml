@@ -19,11 +19,11 @@ services:
       start_period: 60s
 
   web:
-    image: alexesma/dz_fastapi:latest
+#    image: alexesma/dz_fastapi:latest
 #     Для локальной загрузки образа
-#    build:
-#      context: ../..
-#      dockerfile: Dockerfile
+    build:
+      context: ../..
+      dockerfile: Dockerfile
     container_name: dz_fastapi_dev
     restart: always
 #    volumes:
