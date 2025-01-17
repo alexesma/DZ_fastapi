@@ -17,9 +17,9 @@ from dz_fastapi.models.partner import Provider, ProviderPriceListConfig
 logger = logging.getLogger('dz_fastapi')
 
 # Email account credentials
-EMAIL_HOST = os.getenv('EMAIL_HOST')
-EMAIL_ACCOUNT = os.getenv('EMAIL_NAME')
-EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD')
+EMAIL_NAME_PRICE = os.getenv('EMAIL_NAME_PRICE')
+EMAIL_PASSWORD_PRICE = os.getenv('EMAIL_PASSWORD_PRICE')
+EMAIL_HOST_PRICE = os.getenv('EMAIL_HOST_PRICE')
 
 SMTP_SERVER = os.getenv('SMTP_SERVER')
 SMTP_PORT = int(os.getenv('SMTP_PORT', 465))
@@ -51,9 +51,9 @@ async def download_price_provider(
     provider_conf: ProviderPriceListConfig,
     session: AsyncSession,
     max_emails: int = 50,
-    server_mail: str = EMAIL_HOST,
-    email_account: str = EMAIL_ACCOUNT,
-    email_password: str = EMAIL_PASSWORD,
+    server_mail: str = EMAIL_HOST_PRICE,
+    email_account: str = EMAIL_NAME_PRICE,
+    email_password: str = EMAIL_PASSWORD_PRICE,
 ):
     """
     Загружает данные провайдера из почты.
@@ -90,6 +90,7 @@ async def download_price_provider(
             criteria = AND(
                 from_=provider.email_incoming_price,
                 date_gte=since_date,
+                seen=False,
             )
             logger.debug(f'Using criteria: {criteria}')
 

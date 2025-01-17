@@ -22,10 +22,6 @@ from dz_fastapi.services.email import download_price_provider
 from dz_fastapi.services.process import (process_customer_pricelist,
                                          process_provider_pricelist)
 
-EMAIL_NAME_PRICE = os.getenv('EMAIL_NAME_PRICE')
-EMAIL_PASSWORD_PRICE = os.getenv('EMAIL_PASSWORD_PRICE')
-EMAIL_HOST_PRICE = os.getenv('EMAIL_HOST_PRICE')
-
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -208,10 +204,7 @@ async def download_all_price_providers_task(app: FastAPI):
                     provider=provider,
                     provider_conf=config,
                     session=session,
-                    max_emails=100,
-                    server_mail=EMAIL_HOST_PRICE,
-                    email_account=EMAIL_NAME_PRICE,
-                    email_password=EMAIL_PASSWORD_PRICE,
+                    max_emails=100
                 )
                 if not filepath:
                     logger.error(
