@@ -8,9 +8,18 @@ load_dotenv()
 class Settings(BaseSettings):
     app_title: str = 'Приложения для работы DragonZap'
     app_description: str = 'Проект DragonZap на FastAPI'
-    database_url: str = Field(..., env='DATABASE_URL')
-    test_database_url: str = Field(..., env='TEST_DATABASE_URL')
-    asyncpg_dsn: str = Field(..., env='ASYNC_PG_DSN')
+    database_url: str = Field(
+        ...,
+        json_schema_extra={'env': 'DATABASE_URL'}
+    )
+    test_database_url: str = Field(
+        ...,
+        json_schema_extra={'env': 'TEST_DATABASE_URL'}
+    )
+    asyncpg_dsn: str = Field(
+        ...,
+        json_schema_extra={'env': 'ASYNC_PG_DSN'}
+    )
     use_test_db: bool = False
     database_echo: bool = False
 

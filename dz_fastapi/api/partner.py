@@ -524,9 +524,12 @@ async def upload_provider_pricelist(
     content = await file.read()
     # Get the file extension
     file_extension = file.filename.split('.')[-1].lower()
-
-    pricelist = await process_provider_pricelist(
+    provider = await crud_provider.get_by_id(
         provider_id=provider_id,
+        session=session
+    )
+    pricelist = await process_provider_pricelist(
+        provider=provider,
         file_content=content,
         file_extension=file_extension,
         use_stored_params=use_stored_params,
