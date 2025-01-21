@@ -71,13 +71,13 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             logger.exception('Полный стек ошибки:')
             raise
 
-    async def get_by_email_contact(
+    async def get_by_email_incoming_price(
         self, session: AsyncSession, email: str
     ) -> Optional[Provider]:
         result = await session.execute(
-            select(self.model).where(self.model.email_contact == email)
+            select(self.model).where(self.model.email_incoming_price == email)
         )
-        return result.scalars().first()
+        return result.scalar_one_or_none()
 
     async def create(
         self, obj_in: ProviderCreate, session: AsyncSession, **kwargs

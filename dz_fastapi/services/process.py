@@ -51,7 +51,7 @@ from dz_fastapi.crud.partner import (crud_customer_pricelist,
                                      crud_customer_pricelist_config,
                                      crud_pricelist, crud_provider,
                                      crud_provider_pricelist_config)
-from dz_fastapi.models.partner import Customer, CustomerPriceList
+from dz_fastapi.models.partner import Customer, CustomerPriceList, Provider
 from dz_fastapi.schemas.autopart import (AutoPartCreatePriceList,
                                          AutoPartResponse)
 from dz_fastapi.schemas.partner import (AutoPartInPricelist,
@@ -66,7 +66,7 @@ logger = logging.getLogger('dz_fastapi')
 
 
 async def process_provider_pricelist(
-    provider_id: int,
+    provider: Provider,
     file_content: bytes,
     file_extension: str,
     use_stored_params: bool,
@@ -80,23 +80,15 @@ async def process_provider_pricelist(
 ):
     logger.debug(
         f'Зашли в process_provider_pricelist '
-        f'provider_id = {provider_id} '
+        f'provider name = {provider.name} '
         f'file_extension = {file_extension} '
         f'use_stored_params = {use_stored_params}'
     )
-    provider = await crud_provider.get_by_id(
-        provider_id=provider_id, session=session
-    )
-    if not provider:
-        raise HTTPException(
-            status_code=404,
-            detail='Provider not found in process_provider_pricelist',
-        )
 
     if use_stored_params:
         existing_config = (
             await crud_provider_pricelist_config.get_config_or_none(
-                provider_id=provider_id, session=session
+                provider_id=provider.id, session=session
             )
         )
         if not existing_config:
@@ -190,7 +182,7 @@ async def process_provider_pricelist(
 
     autoparts_data = data_df.to_dict(orient='records')
 
-    pricelist_in = PriceListCreate(provider_id=provider_id, autoparts=[])
+    pricelist_in = PriceListCreate(provider_id=provider.id, autoparts=[])
 
     for item in autoparts_data:
         logger.debug(f'Processing item: {item}')
@@ -714,8 +706,8 @@ async def send_pricelist(
 
     wb.save(output)
     logger.debug(
-        'Workbook saved successfully. '
-        'Size: %s bytes', len(output.getvalue())
+        'Workbook saved successfully. ' 'Size: %s bytes',
+        len(output.getvalue()),
     )
     output.seek(0)
 

@@ -5,13 +5,16 @@ import smtplib
 import unicodedata
 from datetime import date, timedelta
 from email.message import EmailMessage
+from typing import Optional
 
 from fastapi import HTTPException
 from imap_tools import AND, MailBox
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.constants import DEPTH_DAY_EMAIL, IMAP_SERVER
-from dz_fastapi.crud.partner import get_last_uid, set_last_uid
+from dz_fastapi.crud.partner import (crud_provider,
+                                     crud_provider_pricelist_config,
+                                     get_last_uid, set_last_uid)
 from dz_fastapi.models.partner import Provider, ProviderPriceListConfig
 
 logger = logging.getLogger('dz_fastapi')
@@ -28,6 +31,8 @@ SMTP_PASSWORD = os.getenv('EMAIL_PASSWORD')
 
 DOWNLOAD_FOLDER = 'uploads/pricelistprovider'
 PROCESSED_FOLDER = 'processed'
+
+
 # os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 
 
@@ -88,9 +93,9 @@ async def download_price_provider(
             email_account, email_password
         ) as mailbox:
             mailbox.folder.set('INBOX')
-            all_emails = list(mailbox.fetch(AND(
-                date_gte=date.today(), all=True
-            )))
+            all_emails = list(
+                mailbox.fetch(AND(date_gte=date.today(), all=True))
+            )
             for msg in all_emails:
                 logger.debug(
                     f'Uid: {msg.uid}, from: {msg.from_}, '
@@ -99,12 +104,15 @@ async def download_price_provider(
             criteria = AND(
                 from_=provider.email_incoming_price,
                 date_gte=since_date,
-                seen=False,
             )
             logger.debug(f'Using criteria: {criteria}')
 
             email_list = list(
-                mailbox.fetch(criteria, charset='utf-8', limit=max_emails)
+                mailbox.fetch(
+                    criteria,
+                    charset='utf-8',
+                    # limit=max_emails
+                )
             )
             logger.debug(f'Found {len(email_list)} emails matching criteria.')
             emails = [msg for msg in email_list if int(msg.uid) > last_uid]
@@ -114,12 +122,12 @@ async def download_price_provider(
 
             for msg in emails:
                 subject = msg.subject
-                logger.debug("All headers:")
+                logger.debug('All headers:')
                 for k, v in msg.headers.items():
-                    logger.debug(f"{k}: {v}")
+                    logger.debug(f'{k}: {v}')
                 raw_subject = msg.obj.get('Subject')
                 if raw_subject is None:
-                    logger.debug("No Subject found for this email.")
+                    logger.debug('No Subject found for this email.')
 
                 # logger.debug(f'all data {msg.__dict__}')
                 # logger.debug(f'Subject: {msg.subject},
@@ -149,10 +157,10 @@ async def download_price_provider(
                             )
                         return filepath
             logger.debug('No matching attachments found.')
-            if emails:
-                max_uid = max(int(msg.uid) for msg in emails)
-                if max_uid > last_uid:
-                    await set_last_uid(provider.id, max_uid, session)
+            # if emails:
+            #     max_uid = max(int(msg.uid) for msg in emails)
+            #     if max_uid > last_uid:
+            #         await set_last_uid(provider.id, max_uid, session)
             return None
     except ValueError as e:
         logger.error(f'Ошибка обработки писем: {e}')
@@ -197,3 +205,119 @@ def send_email_with_attachment(
         logger.info(f'Email sent to {to_email}')
     except Exception as e:
         logger.error(f'Failed to send email: {e}')
+
+
+async def download_new_price_provider(
+    msg: MailBox.email_message_class,
+    provider: Provider,
+    provider_conf: ProviderPriceListConfig,
+    session: AsyncSession,
+) -> Optional[str]:
+    subject = msg.subject
+    logger.debug('Письмо uid=%s, subject=%s', msg.uid, subject)
+    # Если тема не соответствует критерию, пропускаем письмо
+    if provider_conf.name_mail.lower() not in subject.lower():
+        logger.debug(
+            "Тема '%s' не содержит '%s', пропускаем",
+            subject,
+            provider_conf.name_mail.lower(),
+        )
+        return None
+    for att in msg.attachments:
+        logger.debug(f'Found attachment: {att.filename}')
+        filename = safe_filename(att.filename)
+
+        if filename.lower() in provider_conf.name_price.lower():
+            filepath = os.path.join(DOWNLOAD_FOLDER, filename)
+            try:
+                with open(filepath, 'wb') as f:
+                    f.write(att.payload)
+                logger.debug('Скачано вложение: %s', filepath)
+            except Exception as e:
+                logger.exception('Ошибка записи файла %s: %s', filepath, e)
+                continue
+            logger.debug(f'Downloaded attachment: {filepath}')
+            current_uid = int(msg.uid)
+            last_uid = await get_last_uid(provider.id, session)
+            logger.debug(f'Last UID: {last_uid}')
+            if current_uid > last_uid:
+                await set_last_uid(provider.id, current_uid, session)
+            return filepath
+    logger.debug(
+        "В письме uid=%s нет вложений, соответствующих критерию", msg.uid
+    )
+    return None
+
+
+async def get_emails(
+    session: AsyncSession,
+    server_mail: str = EMAIL_HOST,
+    email_account: str = EMAIL_NAME,
+    email_password: str = EMAIL_PASSWORD,
+):
+    downloaded_files = []
+    with MailBox(server_mail, IMAP_SERVER).login(
+        email_account, email_password
+    ) as mailbox:
+        mailbox.folder.set('INBOX')
+        all_emails = list(
+            mailbox.fetch(
+                AND(date_gte=date.today(), all=True),
+                charset='utf-8',
+            )
+        )
+        logger.debug('Получено %s писем за сегодня', len(all_emails))
+        for msg in all_emails:
+            logger.debug(
+                'Письмо: uid=%s, from=%s, date=%s, subject=%s',
+                msg.uid,
+                msg.from_,
+                msg.date,
+                msg.subject,
+            )
+            provider = await crud_provider.get_by_email_incoming_price(
+                session=session, email=msg.from_
+            )
+            if not provider:
+                logger.debug(
+                    'Провайдер для email %s '
+                    'не найден, пропускаем письмо uid=%s',
+                    msg.from_,
+                    msg.uid,
+                )
+                continue  # Если провайдера нет, пропускаем письмо
+            provider_conf = (
+                await crud_provider_pricelist_config.get_config_or_none(
+                    provider_id=provider.id, session=session
+                )
+            )
+            if not provider_conf:
+                logger.debug(
+                    'Конфигурация для провайдера %s не найдена, '
+                    'пропускаем письмо uid=%s',
+                    provider.id,
+                    msg.uid,
+                )
+                continue
+            last_uid = await get_last_uid(
+                provider_id=provider.id, session=session
+            )
+            if last_uid >= int(msg.uid):
+                logger.debug(f'Старое UID = {msg.uid}, пропускаем письмо')
+                continue  # Если UID записанное равно или больше,
+                # пропускаем письмо
+            filepath = await download_new_price_provider(
+                msg=msg,
+                provider=provider,
+                provider_conf=provider_conf,
+                session=session,
+            )
+            if filepath:
+                # Если файл успешно скачан, помечаем письмо как прочитанное
+                mailbox.flag(msg.uid, [r'\Seen'], True)
+                downloaded_files.append((provider, filepath))
+            else:
+                logger.debug(
+                    'Письмо uid=%s не удовлетворило условиям загрузки', msg.uid
+                )
+        return downloaded_files
