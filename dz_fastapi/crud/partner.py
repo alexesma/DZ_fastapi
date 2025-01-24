@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 from fastapi import HTTPException
 from pydantic import ValidationError
-from sqlalchemy import delete, func, insert, text
+from sqlalchemy import delete, func, insert
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload, selectinload
@@ -231,19 +231,6 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                 await session.execute(
                     insert(PriceListAutoPartAssociation), bulk_insert_data
                 )
-                # --- ИСПОЛЬЗУЕМ ON CONFLICT DO UPDATE ---
-                # constraint='pricelistautopartassociation_pkey' указывает на PK (pricelist_id, autopart_id)
-                # stmt = insert(PriceListAutoPartAssociation).values(bulk_insert_data)
-                # stmt = stmt.on_conflict_do_update(
-                #     constraint='pricelistautopartassociation_pkey',
-                #     set_={
-                #         # price => берём LEAST(старое, новое)
-                #         'price': func.LEAST(PriceListAutoPartAssociation.price, text('excluded.price')),
-                #         # quantity => берём новое (или тоже можно LEAST/GREATEST, ваша логика)
-                #         'quantity': text('excluded.quantity')
-                #     }
-                # )
-                # await session.execute(stmt)
 
             if bulk_insert_data_history:
                 logger.debug(
