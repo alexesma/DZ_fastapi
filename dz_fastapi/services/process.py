@@ -113,7 +113,18 @@ async def process_provider_pricelist(
     # Load the file into a DataFrame
     if file_extension in ['xlsx', 'xls']:
         try:
-            df = pd.read_excel(BytesIO(file_content), header=None)
+            if file_extension == 'xls':
+                df = pd.read_excel(
+                    BytesIO(file_content),
+                    header=None,
+                    engine='xlrd'
+                )
+            else:  # xlsx
+                df = pd.read_excel(
+                    BytesIO(file_content),
+                    header=None,
+                    engine='openpyxl'
+                )
         except Exception as e:
             logger.error(f"Error reading Excel file: {e}")
             raise HTTPException(status_code=400, detail='Invalid Excel file.')
