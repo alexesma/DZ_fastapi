@@ -244,7 +244,7 @@ async def download_new_price_provider(
                 await set_last_uid(provider.id, current_uid, session)
             return filepath
     logger.debug(
-        "В письме uid=%s нет вложений, соответствующих критерию", msg.uid
+        f'В письме uid={msg.uid} нет вложений, соответствующих критерию'
     )
     return None
 
