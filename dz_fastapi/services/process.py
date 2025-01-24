@@ -113,7 +113,7 @@ async def process_provider_pricelist(
     # Load the file into a DataFrame
     if file_extension in ['xlsx', 'xls']:
         try:
-            if file_extension == 'xls':
+            if file_extension in 'xls':
                 df = pd.read_excel(
                     BytesIO(file_content),
                     header=None,
