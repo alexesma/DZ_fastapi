@@ -528,6 +528,8 @@ async def upload_provider_pricelist(
         provider_id=provider_id,
         session=session
     )
+    logger.debug(f'Filename={file.filename}, size={len(content)} bytes')
+    logger.debug(f"Extension={file_extension}")
     pricelist = await process_provider_pricelist(
         provider=provider,
         file_content=content,
