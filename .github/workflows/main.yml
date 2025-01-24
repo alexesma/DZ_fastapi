@@ -139,7 +139,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs:
-      # Дождёмся билда всех образов Taski
+      # Дождёмся билда всех образов
       - build_and_push_to_docker_hub
     steps:
     - name: Checkout repo

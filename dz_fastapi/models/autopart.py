@@ -1,9 +1,11 @@
 import logging
 import re
+from datetime import datetime
 
-from sqlalchemy import (DECIMAL, Boolean, CheckConstraint, Column, Float,
-                        ForeignKey, Integer, PrimaryKeyConstraint, String,
-                        Table, Text, UniqueConstraint, event, inspect, select)
+from sqlalchemy import (DECIMAL, Boolean, CheckConstraint, Column, DateTime,
+                        Float, ForeignKey, Index, Integer,
+                        PrimaryKeyConstraint, String, Table, Text,
+                        UniqueConstraint, event, inspect, select)
 from sqlalchemy.orm import relationship
 
 from dz_fastapi.core.base import Base
@@ -269,3 +271,30 @@ autopart_category_association = Table(
         'autopart_id', 'category_id', name='unique_autopart_category'
     ),
 )
+
+
+class AutoPartPriceHistory(Base):
+    '''
+    Модель для хранения истории по запчасти.
+    '''
+
+    autopart_id = Column(Integer, ForeignKey('autopart.id'), nullable=False)
+    provider_id = Column(Integer, ForeignKey('provider.id'), nullable=False)
+    pricelist_id = Column(Integer, ForeignKey('pricelist.id'), nullable=False)
+
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    price = Column(DECIMAL(10, 2), nullable=False)
+    quantity = Column(Integer, nullable=False)
+
+    autopart = relationship("AutoPart")
+    provider = relationship("Provider")
+    pricelist = relationship("PriceList")
+
+    __table_args__ = (
+        Index(
+            'idx_autopart_price_history_autopart_provider_created_at',
+            'autopart_id',
+            'provider_id',
+            'created_at',
+        ),
+    )

@@ -13,7 +13,7 @@ from sqlalchemy.sql import and_
 from dz_fastapi.core.db import AsyncSession
 from dz_fastapi.crud.autopart import crud_autopart
 from dz_fastapi.crud.base import CRUDBase
-from dz_fastapi.models.autopart import AutoPart
+from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
 from dz_fastapi.models.partner import (Customer, CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
                                        CustomerPriceListConfig, PriceList,
@@ -178,6 +178,9 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
 
             bulk_insert_data = []
 
+            provider_id = db_obj.provider_id
+            bulk_insert_data_history = []
+
             for autopart_assoc_data in autoparts_data:
                 autopart_data_dict = autopart_assoc_data['autopart']
                 quantity = autopart_assoc_data['quantity']
@@ -209,6 +212,16 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                         'price': price,
                     }
                 )
+                bulk_insert_data_history.append(
+                    {
+                        'autopart_id': autopart.id,
+                        'provider_id': provider_id,
+                        'pricelist_id': db_obj.id,
+                        'created_at': db_obj.date,
+                        'price': price,
+                        'quantity': quantity,
+                    }
+                )
 
             # Шаг 4: Выполнение массовой вставки ассоциаций, если есть данные
             if bulk_insert_data:
@@ -217,6 +230,17 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                 )
                 await session.execute(
                     insert(PriceListAutoPartAssociation), bulk_insert_data
+                )
+
+            if bulk_insert_data_history:
+                logger.debug(
+                    f'Bulk inserting '
+                    f'{len(bulk_insert_data_history)} '
+                    f'records into AutoPartPriceHistory.'
+                )
+                await session.execute(
+                    insert(AutoPartPriceHistory),
+                    bulk_insert_data_history
                 )
 
             await session.commit()
@@ -407,7 +431,24 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         result = await session.execute(stmt)
         rows = result.all()  # вернёт список кортежей (id,)
         pricelist_ids = [row.id for row in rows]
-        return pricelist_ids
+        return sorted(pricelist_ids)
+
+    async def get_pricelists_by_provider(
+            self, session: AsyncSession, provider_id: int
+    ) -> List[PriceList]:
+        """
+        Возвращает ВСЕ прайс-листы провайдера,
+        отсортированные по дате (или id).
+        """
+        stmt = (
+            select(PriceList)
+            .where(PriceList.provider_id == provider_id)
+            .order_by(PriceList.date)
+            .options(selectinload(PriceList.autopart_associations))
+        )
+        result = await session.execute(stmt)
+        pricelists = result.scalars().all()
+        return pricelists
 
 
 crud_pricelist = CRUDPriceList(PriceList)

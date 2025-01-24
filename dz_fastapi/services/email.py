@@ -176,7 +176,7 @@ def send_email_with_attachment(
     to_email, subject, body, attachment_bytes, attachment_filename
 ):
     logger.debug(
-        "Inside send_email_with_attachment with len(attachment_bytes)=%d",
+        'Inside send_email_with_attachment with len(attachment_bytes)=%d',
         len(attachment_bytes),
     )
 
@@ -254,36 +254,32 @@ async def get_emails(
     server_mail: str = EMAIL_HOST,
     email_account: str = EMAIL_NAME,
     email_password: str = EMAIL_PASSWORD,
-):
+    main_box: str = 'INBOX'
+) -> list[tuple[Provider, str]]:
     downloaded_files = []
     with MailBox(server_mail, IMAP_SERVER).login(
         email_account, email_password
     ) as mailbox:
-        mailbox.folder.set('INBOX')
+        mailbox.folder.set(main_box)
         all_emails = list(
             mailbox.fetch(
                 AND(date_gte=date.today(), all=True),
                 charset='utf-8',
             )
         )
-        logger.debug('Получено %s писем за сегодня', len(all_emails))
+        logger.debug(f'Получено {len(all_emails)} писем за сегодня')
         for msg in all_emails:
             logger.debug(
-                'Письмо: uid=%s, from=%s, date=%s, subject=%s',
-                msg.uid,
-                msg.from_,
-                msg.date,
-                msg.subject,
+                f'Письмо: uid={msg.uid}, from={msg.from_}, '
+                f'date={msg.date}, subject={msg.subject}'
             )
             provider = await crud_provider.get_by_email_incoming_price(
                 session=session, email=msg.from_
             )
             if not provider:
                 logger.debug(
-                    'Провайдер для email %s '
-                    'не найден, пропускаем письмо uid=%s',
-                    msg.from_,
-                    msg.uid,
+                    f'Провайдер для email {msg.from_} '
+                    f'не найден, пропускаем письмо uid={msg.uid}'
                 )
                 continue  # Если провайдера нет, пропускаем письмо
             provider_conf = (
@@ -293,10 +289,8 @@ async def get_emails(
             )
             if not provider_conf:
                 logger.debug(
-                    'Конфигурация для провайдера %s не найдена, '
-                    'пропускаем письмо uid=%s',
-                    provider.id,
-                    msg.uid,
+                    f'Конфигурация для провайдера {provider.id} не найдена, '
+                    f'пропускаем письмо uid={msg.uid}'
                 )
                 continue
             last_uid = await get_last_uid(
@@ -314,10 +308,10 @@ async def get_emails(
             )
             if filepath:
                 # Если файл успешно скачан, помечаем письмо как прочитанное
-                mailbox.flag(msg.uid, [r'\Seen'], True)
+                # mailbox.flag(msg.uid, [r'\Seen'], True)
                 downloaded_files.append((provider, filepath))
             else:
                 logger.debug(
-                    'Письмо uid=%s не удовлетворило условиям загрузки', msg.uid
+                    f'Письмо uid={msg.uid} не удовлетворило условиям загрузки'
                 )
         return downloaded_files

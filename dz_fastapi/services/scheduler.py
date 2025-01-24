@@ -18,7 +18,7 @@ from dz_fastapi.schemas.partner import (CustomerCreate,
                                         CustomerPriceListCreate,
                                         ProviderCreate,
                                         ProviderPriceListConfigCreate)
-from dz_fastapi.services.email import download_price_provider, get_emails
+from dz_fastapi.services.email import get_emails
 from dz_fastapi.services.process import (process_customer_pricelist,
                                          process_provider_pricelist)
 
@@ -41,7 +41,7 @@ def start_scheduler(app: FastAPI):
     )
 
     # scheduler.add_job(
-    #     func=download_all_price_providers_task,
+    #     func=,
     #     trigger='cron',
     #     args=[app],
     #     id='download_all_price_providers',
@@ -183,100 +183,6 @@ async def download_price_provider_task(app: FastAPI):
                 )
                 logger.info(f'Created initial provider with id: {provider.id}')
             await process_new_provider_emails(session, app)
-
-            # providers = await crud_provider.get_multi(session=session)
-            # for provider in providers:
-            #     logger.debug(f'Provider = {provider.name}')
-            #     config = (
-            #         await crud_provider_pricelist_config.get_config_or_none(
-            #             provider_id=provider.id, session=session
-            #         )
-            #     )
-            #
-            #     filepath = await download_price_provider(
-            #         provider=provider, provider_conf=config, session=session
-            #     )
-            #     if not filepath:
-            #         logger.error(
-            #             (f'Failed to download file for '
-            #              f'provider_id: {provider.id}')
-            #         )
-            #         raise ValueError('download_price_provider returned None')
-            #     file_extension = filepath.split('.')[-1].lower()
-            #     with open(filepath, "rb") as f:
-            #         file_content = f.read()
-            #     logger.info(
-            #         (f'Successfully downloaded '
-            #          f'price for provider {provider.id}')
-            #     )
-            #     await process_provider_pricelist(
-            #         provider_id=provider.id,
-            #         file_content=file_content,
-            #         file_extension=file_extension,
-            #         use_stored_params=True,
-            #         start_row=None,
-            #         oem_col=None,
-            #         brand_col=None,
-            #         name_col=None,
-            #         qty_col=None,
-            #         price_col=None,
-            #         session=session,
-            #     )
-            #     await send_price_list_task(app)
-            #     return {
-            #         'detail': f'Downloaded and processed '
-            #         f'provider price list for provider_id: {provider.id}'
-            #     }
             logger.info('Completed download_price_provider_task')
         except Exception as e:
             logger.error(f'Error in download_price_provider_task: {e}')
-
-
-async def download_all_price_providers_task(app: FastAPI):
-    logger.debug('Starting download_price_provider_task')
-    async_session_factory = get_async_session()
-    async with async_session_factory() as session:
-        try:
-            providers = await crud_provider.get_multi(session=session)
-            for provider in providers:
-                logger.debug(f'Provider = {provider.name}')
-                config = (
-                    await crud_provider_pricelist_config.get_config_or_none(
-                        provider_id=provider.id, session=session
-                    )
-                )
-
-                filepath = await download_price_provider(
-                    provider=provider,
-                    provider_conf=config,
-                    session=session,
-                    max_emails=100,
-                )
-                if not filepath:
-                    logger.error(
-                        f'Failed to download file '
-                        f'for provider_id: {provider.id}'
-                    )
-                    raise ValueError('download_price_provider returned None')
-                file_extension = filepath.split('.')[-1].lower()
-                with open(filepath, "rb") as f:
-                    file_content = f.read()
-                logger.info(
-                    f'Successfully downloaded price for provider {provider.id}'
-                )
-                await process_provider_pricelist(
-                    provider_id=provider,
-                    file_content=file_content,
-                    file_extension=file_extension,
-                    use_stored_params=True,
-                    start_row=None,
-                    oem_col=None,
-                    brand_col=None,
-                    name_col=None,
-                    qty_col=None,
-                    price_col=None,
-                    session=session,
-                )
-
-        except Exception as e:
-            logger.error(f'Error in download_all_price_providers_task: {e}')

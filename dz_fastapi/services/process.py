@@ -12,6 +12,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dz_fastapi.analytics.price_history import analyze_new_pricelist
 from dz_fastapi.core.constants import (BRILLIANCE_OEM, CUMMINS_OEM, FAW_OEM,
                                        GEELY_NOT_OEM, INDICATOR_BYD,
                                        INDICATOR_BYD_FIRST_FIVE,
@@ -212,6 +213,12 @@ async def process_provider_pricelist(
         pricelist = await crud_pricelist.create(
             obj_in=pricelist_in, session=session
         )
+        # Получили Pydantic-ответ с .id
+        created_id = pricelist.id
+        # А теперь достаём полноценный ORM-объект (со всеми relationships)
+        pl_orm = await crud_pricelist.get(session=session, obj_id=created_id)
+
+        await analyze_new_pricelist(pl_orm, session=session)
         return pricelist
     except HTTPException as e:
         raise e
