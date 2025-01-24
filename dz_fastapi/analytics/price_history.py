@@ -144,7 +144,7 @@ async def analyze_new_pricelist(new_pl: PriceList, session: AsyncSession):
     changes_list = []
     for autopart_id in new_positions:
         (new_price, new_qty) = new_map[autopart_id]
-        autopart = crud_autopart.get_autopart_by_id(
+        autopart = await crud_autopart.get_autopart_by_id(
             session=session, autopart_id=autopart_id
         )
         logger.info(
@@ -168,7 +168,7 @@ async def analyze_new_pricelist(new_pl: PriceList, session: AsyncSession):
     for autopart_id in common_positions:
         (old_price, old_qty) = old_map[autopart_id]
         (new_price, new_qty) = new_map[autopart_id]
-        autopart = crud_autopart.get_autopart_by_id(
+        autopart = await crud_autopart.get_autopart_by_id(
             session=session, autopart_id=autopart_id
         )
         price_diff = new_price - old_price
