@@ -185,9 +185,9 @@ async def process_provider_pricelist(
         data_df.dropna(
             subset=['oem_number', 'quantity', 'price'], inplace=True
         )
-        data_df['oem_number'] = preprocess_oem_number(
-            data_df['oem_number'].astype(str).str.strip()
-        )
+        data_df['oem_number'] = data_df[
+            'oem_number'
+        ].astype(str).str.strip().apply(preprocess_oem_number)
         if 'name' in data_df.columns:
             data_df['name'] = data_df['name'].astype(str).str.strip()
         if 'brand' in data_df.columns:
