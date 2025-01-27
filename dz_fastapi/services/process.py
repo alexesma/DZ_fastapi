@@ -4,7 +4,7 @@ import logging
 from datetime import date, datetime
 from functools import partial
 from io import BytesIO, StringIO
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -72,7 +72,10 @@ def deduplicate_autoparts_data(
 ) -> List[Dict[str, Any]]:
     unique_map = {}
     for row in autoparts_data:
-        key = (row.get('brand', '').strip().lower(), row['oem_number'].strip().lower())
+        key = (
+            row.get('brand', '').strip().lower(),
+            row['oem_number'].strip().lower()
+        )
         if key not in unique_map:
             unique_map[key] = copy.deepcopy(row)
         else:
