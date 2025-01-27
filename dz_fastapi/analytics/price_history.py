@@ -220,22 +220,22 @@ async def analyze_new_pricelist(new_pl: PriceList, session: AsyncSession):
                 }
             )
 
-            # 5) Если хотим в конце вывести Excel
-        if changes_list:
-            excel_file = create_excel_report(changes_list)
-            logger.info(
-                f'Excel report created, size={len(excel_file.getvalue())}'
-            )
-            subject = f'[ANALYSIS] for new price {provider_id}'
-            filename = 'analysis_report.xlsx'
-            send_email_with_attachment(
-                to_email=ANALYSIS_EMAIL,
-                subject=subject,
-                body='Добрый день, высылаем Вам анализ нового прайса',
-                attachment_filename=filename,
-                attachment_bytes=excel_file.getvalue(),
-            )
-        else:
-            logger.info('No changes detected, no Excel report generated.')
+    # 5) В конце вывести Excel
+    if changes_list:
+        excel_file = create_excel_report(changes_list)
+        logger.info(
+            f'Excel report created, size={len(excel_file.getvalue())}'
+        )
+        subject = f'[ANALYSIS] for new price {provider_id}'
+        filename = 'analysis_report.xlsx'
+        send_email_with_attachment(
+            to_email=ANALYSIS_EMAIL,
+            subject=subject,
+            body='Добрый день, высылаем Вам анализ нового прайса',
+            attachment_filename=filename,
+            attachment_bytes=excel_file.getvalue(),
+        )
+    else:
+        logger.info('No changes detected, no Excel report generated.')
 
-        return
+    return

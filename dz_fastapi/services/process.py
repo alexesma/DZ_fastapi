@@ -53,6 +53,7 @@ from dz_fastapi.crud.partner import (crud_customer_pricelist,
                                      crud_customer_pricelist_config,
                                      crud_pricelist, crud_provider,
                                      crud_provider_pricelist_config)
+from dz_fastapi.models.autopart import preprocess_oem_number
 from dz_fastapi.models.partner import Customer, CustomerPriceList, Provider
 from dz_fastapi.schemas.autopart import (AutoPartCreatePriceList,
                                          AutoPartResponse)
@@ -146,7 +147,7 @@ async def process_provider_pricelist(
                     engine='openpyxl'
                 )
         except Exception as e:
-            logger.error(f"Error reading Excel file: {e}")
+            logger.error(f'Error reading Excel file: {e}')
             raise HTTPException(status_code=400, detail='Invalid Excel file.')
     elif file_extension == 'csv':
         try:
@@ -184,7 +185,9 @@ async def process_provider_pricelist(
         data_df.dropna(
             subset=['oem_number', 'quantity', 'price'], inplace=True
         )
-        data_df['oem_number'] = data_df['oem_number'].astype(str).str.strip()
+        data_df['oem_number'] = preprocess_oem_number(
+            data_df['oem_number'].astype(str).str.strip()
+        )
         if 'name' in data_df.columns:
             data_df['name'] = data_df['name'].astype(str).str.strip()
         if 'brand' in data_df.columns:
@@ -229,7 +232,7 @@ async def process_provider_pricelist(
             )
             logger.debug(f'Created AutoPartCreatePriceList: {autopart_data}')
         except KeyError as ke:
-            logger.error(f"Missing key in item: {ke}")
+            logger.error(f'Missing key in item: {ke}')
             raise HTTPException(
                 status_code=400, detail=f'Missing key in item: {ke}'
             )
