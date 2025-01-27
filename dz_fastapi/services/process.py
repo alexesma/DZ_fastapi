@@ -1,9 +1,10 @@
 import asyncio
+import copy
 import logging
 from datetime import date, datetime
 from functools import partial
 from io import BytesIO, StringIO
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 import numpy as np
 import pandas as pd
@@ -64,6 +65,22 @@ from dz_fastapi.services.email import send_email_with_attachment
 from dz_fastapi.services.utils import position_exclude, prepare_excel_data
 
 logger = logging.getLogger('dz_fastapi')
+
+
+def deduplicate_autoparts_data(
+        autoparts_data: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    unique_map = {}
+    for row in autoparts_data:
+        key = (row.get('brand', '').strip().lower(), row['oem_number'].strip().lower())
+        if key not in unique_map:
+            unique_map[key] = copy.deepcopy(row)
+        else:
+            if unique_map[key]['price'] < row['price']:
+                continue
+            unique_map[key]['quantity'] = row['quantity']
+            unique_map[key]['price'] = row['price']
+    return list(unique_map.values())
 
 
 async def process_provider_pricelist(
@@ -191,12 +208,14 @@ async def process_provider_pricelist(
         raise HTTPException(
             status_code=400, detail='Error during data cleaning.'
         )
-
+    # (1) Получили список dict из DataFrame:
     autoparts_data = data_df.to_dict(orient='records')
+    # (2) Убрали/слили дубликаты:
+    deduplicated_data = deduplicate_autoparts_data(autoparts_data)
 
     pricelist_in = PriceListCreate(provider_id=provider.id, autoparts=[])
 
-    for item in autoparts_data:
+    for item in deduplicated_data:
         logger.debug(f'Processing item: {item}')
 
         try:
