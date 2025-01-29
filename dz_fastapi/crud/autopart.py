@@ -1,8 +1,9 @@
 import logging
+import re
 from typing import List, Optional
 
 from fastapi import HTTPException
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
@@ -306,6 +307,53 @@ class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
         except SQLAlchemyError as error:
             raise error
 
+    async def create_many(
+            self,
+            category_data: List[CategoryCreate],
+            session: AsyncSession
+    ):
+        """
+       Массово создать категории из списка CategoryCreate
+       """
+        try:
+            category_objs = [
+                Category(**category.dict(exclude_unset=True))
+                for category in category_data
+            ]
+            session.add_all(category_objs)
+            await session.commit()
+            for cat_obj in category_objs:
+                await session.refresh(cat_obj)
+
+            return category_objs
+        except IntegrityError as e:
+            await session.rollback()
+            detail = None
+            if hasattr(e.orig, 'diag') and getattr(
+                    e.orig.diag,
+                    'message_detail',
+                    None
+            ):
+                detail = e.orig.diag.message_detail
+            detail = detail or str(e)
+            match = re.search(
+                r'Key \(name\)=\((.+)\) already exists.',
+                detail
+            )
+            if match:
+                duplicate_name = match.group(1)
+                detail = f'Category {duplicate_name} already exists'
+
+            raise HTTPException(
+                status_code=400,
+                detail=f'Integrity error: {detail}'
+            ) from e
+        except SQLAlchemyError as error:
+            await session.rollback()
+            raise HTTPException(
+                status_code=400, detail='Error creating categories in bulk'
+            ) from error
+
 
 class CRUDStorageLocation(CRUDBase[
                               StorageLocation,
@@ -366,6 +414,50 @@ class CRUDStorageLocation(CRUDBase[
         except SQLAlchemyError as error:
             raise error
 
+    async def create_locations(
+            self,
+            locations_data: List[StorageLocationCreate],
+            session: AsyncSession
+    ):
+        try:
+            location_objs = [
+                StorageLocation(**loc.dict(exclude_unset=True))
+                for loc in locations_data
+            ]
+            session.add_all(location_objs)
+            await session.commit()
+            for loc_obj in location_objs:
+                await session.refresh(loc_obj)
+            return location_objs
+        except IntegrityError as e:
+            await session.rollback()
+            detail = None
+            if hasattr(e.orig, 'diag') and getattr(
+                    e.orig.diag,
+                    'message_detail',
+                    None
+            ):
+                detail = e.orig.diag.message_detail
+            detail = detail or str(e)
+            match = re.search(
+                r'Key \(name\)=\((.+)\) already exists.',
+                detail
+            )
+            if match:
+                duplicate_name = match.group(1)
+                detail = f'Storage location {duplicate_name} already exists'
+
+            raise HTTPException(
+                status_code=400,
+                detail=f'Integrity error: {detail}'
+            ) from e
+
+        except SQLAlchemyError as e:
+            await session.rollback()
+            raise HTTPException(
+                status_code=400,
+                detail='Database error when creating storage locations'
+            ) from e
 
 crud_category = CRUDCategory(Category)
 crud_storage = CRUDStorageLocation(StorageLocation)

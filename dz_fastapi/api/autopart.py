@@ -233,6 +233,18 @@ async def update_category(
     return updated_category
 
 
+@router.post('/categories/bulk/', response_model=List[CategoryResponse])
+async def create_categories_bulk(
+    categories_data: List[CategoryCreate],
+    session: AsyncSession = Depends(get_session)
+):
+    created_cats = await crud_category.create_many(
+        category_data=categories_data,
+        session=session
+    )
+    return [CategoryResponse.from_orm(cat) for cat in created_cats]
+
+
 @router.post(
     '/storage/',
     status_code=status.HTTP_201_CREATED,
@@ -367,3 +379,18 @@ async def update_storage_location(
             detail=f'Storage with name {storage_in.name} already exists.'
         ) from e
     return updated_storage
+
+
+@router.post('/storage/bulk/', response_model=List[StorageLocationResponse])
+async def create_storages_bulk(
+    storages_data: List[StorageLocationCreate],
+    session: AsyncSession = Depends(get_session)
+):
+    created_locations = await crud_storage.create_locations(
+        locations_data=storages_data,
+        session=session
+    )
+    return [
+        StorageLocationResponse.from_orm(location)
+        for location in created_locations
+    ]
