@@ -3,7 +3,7 @@ import re
 from typing import List, Optional
 
 from fastapi import HTTPException
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
@@ -458,6 +458,7 @@ class CRUDStorageLocation(CRUDBase[
                 status_code=400,
                 detail='Database error when creating storage locations'
             ) from e
+
 
 crud_category = CRUDCategory(Category)
 crud_storage = CRUDStorageLocation(StorageLocation)
