@@ -189,7 +189,7 @@ class StorageLocationBase(BaseModel):
     name: Annotated[
         str,
         StringConstraints(
-            pattern='^[A-Z0-9 ]+$', max_length=MAX_LIGHT_NAME_LOCATION
+            pattern='^[A-Z0-9 /]+$', max_length=MAX_LIGHT_NAME_LOCATION
         ),
     ]
 
@@ -202,7 +202,7 @@ class StorageLocationUpdate(BaseModel):
     name: Annotated[
         Optional[str],
         StringConstraints(
-            pattern='^[A-Z0-9 ]+$', max_length=MAX_LIGHT_NAME_LOCATION
+            pattern='^[A-Z0-9 /]+$', max_length=MAX_LIGHT_NAME_LOCATION
         ),
     ] = None
 
