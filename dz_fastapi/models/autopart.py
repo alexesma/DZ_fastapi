@@ -215,7 +215,10 @@ class StorageLocation(Base):
         cascade='all, delete',
     )
     __table_args__ = (
-        CheckConstraint("name ~ '^[A-Z0-9 ]+$'", name='latin_characters_only'),
+        CheckConstraint(
+            "name ~ '^[A-Z0-9 /]+$'",
+            name='latin_characters_only'
+        ),
     )
 
 
