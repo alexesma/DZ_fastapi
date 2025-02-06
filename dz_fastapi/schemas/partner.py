@@ -97,16 +97,19 @@ class CustomerPriceListAutoPartAssociationResponse(
 class PriceListBase(BaseModel):
     date: Optional[date] = None
     provider_id: int
+    provider_config_id: Optional[int] = None
     is_active: bool = True
 
 
 class PriceListCreate(PriceListBase):
     provider_id: int
+    provider_config_id: int
     autoparts: List[PriceListAutoPartAssociationCreate] = []
 
 
 class PriceListUpdate(PriceListBase):
     provider_id: Optional[int] = None
+    provider_config_id: Optional[int] = None
     autoparts: Optional[List[PriceListAutoPartAssociationCreate]] = None
 
 
@@ -124,6 +127,7 @@ class PriceListResponse(BaseModel):
     id: int
     date: Optional[date]
     provider: ProviderMinimalResponse
+    provider_config_id: Optional[int]
     autoparts: List[PriceListAutoPartAssociationResponse] = []
     model_config = ConfigDict(from_attributes=True)
 
@@ -132,6 +136,7 @@ class PriceListSummary(BaseModel):
     id: int
     date: date
     num_positions: int
+    provider_config_id: Optional[int] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -236,7 +241,10 @@ class ProviderPriceListConfigCreate(ProviderPriceListConfigBase):
 
 
 class ProviderPriceListConfigUpdate(ProviderPriceListConfigBase):
-    pass
+    start_row: Optional[int] = 0
+    oem_col: Optional[int] = 0
+    qty_col: Optional[int] = 0
+    price_col: Optional[int] = 0
 
 
 class ProviderPriceListConfigResponse(ProviderPriceListConfigBase):

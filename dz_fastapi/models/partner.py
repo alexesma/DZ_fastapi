@@ -153,6 +153,12 @@ class PriceList(Base):
     date = Column(Date)
     provider_id = Column(Integer, ForeignKey('provider.id'))
     provider = relationship('Provider', back_populates='price_lists')
+    provider_config_id = Column(
+        Integer,
+        ForeignKey('providerpricelistconfig.id'),
+        nullable=True
+    )
+    config_id = relationship('ProviderPriceListConfig')
     is_active = Column(Boolean, default=DEFAULT_IS_ACTIVE)
     autopart_associations = relationship(
         'PriceListAutoPartAssociation',
@@ -211,7 +217,7 @@ event.listen(CustomerPriceList, 'before_insert', set_date)
 
 
 class ProviderPriceListConfig(Base):
-    provider_id = Column(Integer, ForeignKey('provider.id'), unique=True)
+    provider_id = Column(Integer, ForeignKey('provider.id'))
     start_row = Column(Integer, nullable=False)
     oem_col = Column(Integer, nullable=False)
     name_col = Column(Integer, nullable=True)

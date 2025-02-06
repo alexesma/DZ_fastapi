@@ -214,27 +214,30 @@ async def download_new_price_provider(
     session: AsyncSession,
 ) -> Optional[str]:
     subject = msg.subject
-    logger.debug('Письмо uid=%s, subject=%s', msg.uid, subject)
+    logger.debug(f'Письмо uid={msg.uid}, subject={subject}')
     # Если тема не соответствует критерию, пропускаем письмо
     if provider_conf.name_mail.lower() not in subject.lower():
         logger.debug(
-            "Тема '%s' не содержит '%s', пропускаем",
-            subject,
-            provider_conf.name_mail.lower(),
+            f'Тема {subject} не содержит '
+            f'{provider_conf.name_mail}, пропускаем'
         )
         return None
     for att in msg.attachments:
         logger.debug(f'Found attachment: {att.filename}')
         filename = safe_filename(att.filename)
 
-        if filename.lower() in provider_conf.name_price.lower():
+        if (
+            provider_conf.name_price.strip().lower()
+            in filename.strip().lower()
+        ):
+            logger.debug('Имя вложения совпало')
             filepath = os.path.join(DOWNLOAD_FOLDER, filename)
             try:
                 with open(filepath, 'wb') as f:
                     f.write(att.payload)
                 logger.debug('Скачано вложение: %s', filepath)
             except Exception as e:
-                logger.exception('Ошибка записи файла %s: %s', filepath, e)
+                logger.exception(f'Ошибка записи файла {filepath}: {e}')
                 continue
             logger.debug(f'Downloaded attachment: {filepath}')
             current_uid = int(msg.uid)
@@ -254,7 +257,7 @@ async def get_emails(
     server_mail: str = EMAIL_HOST,
     email_account: str = EMAIL_NAME,
     email_password: str = EMAIL_PASSWORD,
-    main_box: str = 'INBOX'
+    main_box: str = 'INBOX',
 ) -> list[tuple[Provider, str]]:
     downloaded_files = []
     with MailBox(server_mail, IMAP_SERVER).login(
@@ -282,14 +285,14 @@ async def get_emails(
                     f'не найден, пропускаем письмо uid={msg.uid}'
                 )
                 continue  # Если провайдера нет, пропускаем письмо
-            provider_conf = (
-                await crud_provider_pricelist_config.get_config_or_none(
-                    provider_id=provider.id, session=session
-                )
+
+            # Получаем все конфигурации для данного провайдера
+            provider_confs = await crud_provider_pricelist_config.get_configs(
+                provider_id=provider.id, session=session
             )
-            if not provider_conf:
+            if not provider_confs:
                 logger.debug(
-                    f'Конфигурация для провайдера {provider.id} не найдена, '
+                    f'Конфигураций для провайдера {provider.id} не найдена, '
                     f'пропускаем письмо uid={msg.uid}'
                 )
                 continue
@@ -300,17 +303,24 @@ async def get_emails(
                 logger.debug(f'Старое UID = {msg.uid}, пропускаем письмо')
                 continue  # Если UID записанное равно или больше,
                 # пропускаем письмо
-            filepath = await download_new_price_provider(
-                msg=msg,
-                provider=provider,
-                provider_conf=provider_conf,
-                session=session,
-            )
-            if filepath:
-                # Если файл успешно скачан, помечаем письмо как прочитанное
-                # mailbox.flag(msg.uid, [r'\Seen'], True)
-                downloaded_files.append((provider, filepath))
-            else:
+            file_downloaded = False
+
+            for provider_conf in provider_confs:
+                logger.debug(f'Config: {provider_conf}')
+                filepath = await download_new_price_provider(
+                    msg=msg,
+                    provider=provider,
+                    provider_conf=provider_conf,
+                    session=session,
+                )
+                if filepath:
+                    # Если файл успешно скачан, помечаем письмо как прочитанное
+                    # mailbox.flag(msg.uid, [r'\Seen'], True)
+                    downloaded_files.append(
+                        (provider, filepath, provider_conf)
+                    )
+                    file_downloaded = True
+            if not file_downloaded:
                 logger.debug(
                     f'Письмо uid={msg.uid} не удовлетворило условиям загрузки'
                 )

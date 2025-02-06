@@ -256,6 +256,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                     selectinload(PriceList.autopart_associations)
                     .selectinload(PriceListAutoPartAssociation.autopart)
                     .selectinload(AutoPart.storage_locations),
+                    selectinload(PriceList.config_id)
                 )
             )
             result = await session.execute(stmt)
@@ -282,6 +283,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                     id=db_obj.id,
                     date=db_obj.date,
                     provider=db_obj.provider,
+                    provider_config_id=db_obj.provider_config_id,
                     autoparts=[
                         PriceListAutoPartAssociationResponse(
                             autopart=assoc.autopart,
@@ -330,7 +332,11 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
     ):
         # Подзапрос для получения ограниченного списка прайс-листов
         pricelist_subquery = (
-            select(PriceList.id.label('id'), PriceList.date.label('date'))
+            select(
+                PriceList.id.label('id'),
+                PriceList.date.label('date'),
+                PriceList.provider_config_id.label('provider_config_id')
+            )
             .where(PriceList.provider_id == provider_id)
             .order_by(PriceList.date.desc())
             .offset(skip)
@@ -343,6 +349,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             select(
                 pricelist_subquery.c.id,
                 pricelist_subquery.c.date,
+                pricelist_subquery.c.provider_config_id,
                 func.count(PriceListAutoPartAssociation.autopart_id).label(
                     'num_positions'
                 ),
@@ -352,7 +359,11 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                 PriceListAutoPartAssociation.pricelist_id
                 == pricelist_subquery.c.id,
             )
-            .group_by(pricelist_subquery.c.id, pricelist_subquery.c.date)
+            .group_by(
+                pricelist_subquery.c.id,
+                pricelist_subquery.c.date,
+                pricelist_subquery.c.provider_config_id
+            )
             .order_by(pricelist_subquery.c.date.desc())
         )
 
@@ -846,25 +857,37 @@ class CRUDProviderPriceListConfig(
         ProviderPriceListConfigUpdate,
     ]
 ):
-    async def get_config_or_none(
+    async def get_configs(
         self, provider_id: int, session: AsyncSession, **kwargs
-    ) -> Optional[ProviderPriceListConfig]:
-        existing_config = await session.execute(
-            select(ProviderPriceListConfig).where(
-                ProviderPriceListConfig.provider_id == provider_id
-            )
+    ) -> List[ProviderPriceListConfig]:
+        stmt = (
+            select(ProviderPriceListConfig).
+            where(ProviderPriceListConfig.provider_id == provider_id)
         )
-        return existing_config.scalar_one_or_none()
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_by_id(
+            self,
+            config_id: int,
+            session: AsyncSession
+    ) -> Optional[ProviderPriceListConfig]:
+        result = await session.execute(
+            select(ProviderPriceListConfig)
+            .where(ProviderPriceListConfig.id == config_id)
+        )
+        return result.scalar_one_or_none()
 
     async def create(
-        self,
-        provider_id: int,
-        config_in: ProviderPriceListConfigCreate,
-        session: AsyncSession,
-        **kwargs,
+            self,
+            provider_id: int,
+            config_in: ProviderPriceListConfigCreate,
+            session: AsyncSession,
+            **kwargs,
     ) -> ProviderPriceListConfig:
         new_config = ProviderPriceListConfig(
-            provider_id=provider_id, **config_in.model_dump()
+            provider_id=provider_id,
+            **config_in.model_dump(exclude_unset=True)
         )
         session.add(new_config)
         await session.commit()

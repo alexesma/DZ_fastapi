@@ -6,8 +6,9 @@ from dz_fastapi.models.autopart import (AutoPart, Category, Photo,  # noqa
 from dz_fastapi.models.brand import Brand, brand_synonyms  # noqa
 from dz_fastapi.models.partner import (Client, Customer, CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
-                                       PriceList, PriceListAutoPartAssociation,
-                                       Provider)
+                                       CustomerPriceListConfig, PriceList,
+                                       PriceListAutoPartAssociation, Provider,
+                                       ProviderPriceListConfig)
 
 __all__ = [
     'Base',
@@ -25,5 +26,7 @@ __all__ = [
     'Provider',
     'PriceListAutoPartAssociation',
     'CustomerPriceList',
-    'CustomerPriceListAutoPartAssociation'
+    'CustomerPriceListAutoPartAssociation',
+    'ProviderPriceListConfig',
+    'CustomerPriceListConfig',
 ]

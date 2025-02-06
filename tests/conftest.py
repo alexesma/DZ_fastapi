@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from dz_fastapi.core.base import (AutoPart, Brand, Category, Customer,
-                                  Provider, StorageLocation)
+                                  Provider, ProviderPriceListConfig,
+                                  StorageLocation)
 from dz_fastapi.core.config import settings
 from dz_fastapi.core.constants import get_max_file_size, get_upload_dir
 from dz_fastapi.core.db import Base, get_async_session, get_session
@@ -21,9 +22,7 @@ logger = logging.getLogger('dz_fastapi')
 @pytest.fixture(scope="function")
 async def test_engine():
     engine = create_async_engine(
-        settings.get_database_url(test=True),
-        echo=True,
-        future=True
+        settings.get_database_url(test=True), echo=True, future=True
     )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -51,9 +50,7 @@ async def test_db(test_engine):
 @pytest.fixture(scope="function")
 async def test_session(test_db, test_engine) -> AsyncSession:
     async_session = sessionmaker(
-        test_engine,
-        class_=AsyncSession,
-        expire_on_commit=False
+        test_engine, class_=AsyncSession, expire_on_commit=False
     )
     async with async_session() as session:
         yield session
@@ -76,14 +73,13 @@ async def created_brand(test_session: AsyncSession) -> Brand:
 
 @pytest.fixture
 async def created_autopart(
-        test_session: AsyncSession,
-        created_brand: Brand
+    test_session: AsyncSession, created_brand: Brand
 ) -> AutoPart:
     autopart = AutoPart(
         name='TEST AUTOPART',
         brand_id=created_brand.id,
         oem_number='E4G163611091',
-        description='A test autopart'
+        description='A test autopart',
     )
     test_session.add(autopart)
     await test_session.commit()
@@ -93,9 +89,7 @@ async def created_autopart(
 
 @pytest.fixture
 async def created_category(test_session: AsyncSession) -> Category:
-    category = Category(
-        name='Test Category'
-    )
+    category = Category(name='Test Category')
     test_session.add(category)
     await test_session.commit()
     await test_session.refresh(category)
@@ -111,7 +105,7 @@ async def created_providers(test_session: AsyncSession) -> list[Provider]:
             'email_incoming_price': 'prices1@test.com',
             'description': 'First test provider',
             'comment': 'No comment',
-            'type_prices': 'Wholesale'
+            'type_prices': 'Wholesale',
         },
         {
             'name': 'Test Provider 2',
@@ -119,8 +113,8 @@ async def created_providers(test_session: AsyncSession) -> list[Provider]:
             'email_incoming_price': 'prices2@test.com',
             'description': 'Second test provider',
             'comment': 'No comment',
-            'type_prices': 'Retail'
-        }
+            'type_prices': 'Retail',
+        },
     ]
 
     providers = []
@@ -135,6 +129,28 @@ async def created_providers(test_session: AsyncSession) -> list[Provider]:
 
 
 @pytest.fixture
+async def created_pricelist_config(
+    created_providers: list[Provider], test_session: AsyncSession
+) -> ProviderPriceListConfig:
+    provider_pricelist_config_data = {
+        'provider_id': created_providers[0].id,
+        'start_row': 1,
+        'oem_col': 0,
+        'name_col': 2,
+        'brand_col': 1,
+        'qty_col': 3,
+        'price_col': 4,
+        'name_price': 'PRICE_CONFIG',
+        'name_mail': 'MAIL_CONFIG',
+    }
+    config = ProviderPriceListConfig(**provider_pricelist_config_data)
+    test_session.add(config)
+    await test_session.commit()
+    await test_session.refresh(config)
+    return config
+
+
+@pytest.fixture
 async def created_customers(test_session: AsyncSession) -> list[Customer]:
     customers_data = [
         {
@@ -143,7 +159,7 @@ async def created_customers(test_session: AsyncSession) -> list[Customer]:
             'email_outgoing_price': 'prices1@costomer.com',
             'description': 'First test customer',
             'comment': 'No comment',
-            'type_prices': 'Wholesale'
+            'type_prices': 'Wholesale',
         },
         {
             'name': 'Test Customer 2',
@@ -151,8 +167,8 @@ async def created_customers(test_session: AsyncSession) -> list[Customer]:
             'email_outgoing_price': 'prices2@customer.com',
             'description': 'Second test customer',
             'comment': 'No comment',
-            'type_prices': 'Retail'
-        }
+            'type_prices': 'Retail',
+        },
     ]
 
     customers = []
@@ -168,9 +184,7 @@ async def created_customers(test_session: AsyncSession) -> list[Customer]:
 
 @pytest.fixture
 async def created_storage(test_session: AsyncSession) -> StorageLocation:
-    storage = StorageLocation(
-        name='AA 8'
-    )
+    storage = StorageLocation(name='AA 8')
     test_session.add(storage)
     await test_session.commit()
     await test_session.refresh(storage)
@@ -181,8 +195,7 @@ async def created_storage(test_session: AsyncSession) -> StorageLocation:
 async def async_client(test_session: AsyncSession):
     transport = ASGITransport(app=app)
     async with AsyncClient(
-            transport=transport,
-            base_url='http://test'
+        transport=transport, base_url='http://test'
     ) as client:
         yield client
 
@@ -198,9 +211,7 @@ async def override_dependencies(test_engine):
     if not logger.handlers:
         logger.setLevel(logging.DEBUG)
         handler = RotatingFileHandler(
-            "test_dz_fastapi.log",
-            maxBytes=2000,
-            backupCount=100
+            "test_dz_fastapi.log", maxBytes=2000, backupCount=100
         )
         handler.setLevel(logging.DEBUG)
         formatter = logging.Formatter(
@@ -211,9 +222,7 @@ async def override_dependencies(test_engine):
 
     # Use a temporary directory
     temp_upload_dir = tempfile.TemporaryDirectory()
-    logger.debug(
-        f'Temporary upload directory: {temp_upload_dir.name}'
-    )
+    logger.debug(f'Temporary upload directory: {temp_upload_dir.name}')
 
     # Override UPLOAD_DIR
     async def override_get_upload_dir():
@@ -225,9 +234,7 @@ async def override_dependencies(test_engine):
 
     # Create sessionmaker using test_engine
     async_sessionmaker = sessionmaker(
-        test_engine,
-        class_=AsyncSession,
-        expire_on_commit=False
+        test_engine, class_=AsyncSession, expire_on_commit=False
     )
 
     # Override get_session

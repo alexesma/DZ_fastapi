@@ -233,7 +233,13 @@ async def update_category(
     return updated_category
 
 
-@router.post('/categories/bulk/', response_model=List[CategoryResponse])
+@router.post(
+    '/categories/bulk/',
+    tags=['category'],
+    summary='Массовая вставка категорий автозапчастей',
+    status_code=status.HTTP_200_OK,
+    response_model=List[CategoryResponse]
+)
 async def create_categories_bulk(
     categories_data: List[CategoryCreate],
     session: AsyncSession = Depends(get_session)
@@ -381,7 +387,13 @@ async def update_storage_location(
     return updated_storage
 
 
-@router.post('/storage/bulk/', response_model=List[StorageLocationResponse])
+@router.post(
+    '/storage/bulk/',
+    summary='Массовое создание мест хранения',
+    status_code=status.HTTP_200_OK,
+    tags=['storage'],
+    response_model=List[StorageLocationResponse]
+)
 async def create_storages_bulk(
     storages_data: List[StorageLocationCreate],
     session: AsyncSession = Depends(get_session)

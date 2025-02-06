@@ -31,13 +31,13 @@ from dz_fastapi.schemas.partner import (AutoPartInPricelist,
                                         CustomerPriceListResponseShort,
                                         CustomerResponse,
                                         CustomerResponseShort, CustomerUpdate,
-                                        PriceListCreate,
                                         PriceListDeleteRequest,
                                         PriceListPaginationResponse,
                                         PriceListResponse, PriceListSummary,
-                                        PriceListUpdate, ProviderCreate,
+                                        ProviderCreate,
                                         ProviderPriceListConfigCreate,
                                         ProviderPriceListConfigResponse,
+                                        ProviderPriceListConfigUpdate,
                                         ProviderResponse, ProviderUpdate)
 from dz_fastapi.services.email import download_price_provider
 from dz_fastapi.services.process import (process_customer_pricelist,
@@ -384,9 +384,9 @@ async def update_customer(
 
 @router.post(
     '/providers/{provider_id}/pricelist-config/',
-    tags=['providers'],
+    tags=['providers', 'pricelist-config'],
     status_code=status.HTTP_201_CREATED,
-    summary='Create or update price list parsing parameters for a provider',
+    summary='Create new price list parsing parameters for a provider',
     response_model=ProviderPriceListConfigResponse,
 )
 async def set_provider_pricelist_config(
@@ -394,40 +394,60 @@ async def set_provider_pricelist_config(
     config_in: ProviderPriceListConfigCreate,
     session: AsyncSession = Depends(get_session),
 ):
-    # Check if the provider exists
+    # Проверяем, что провайдер существует
     provider = await crud_provider.get_by_id(
         provider_id=provider_id, session=session
     )
     if not provider:
         raise HTTPException(status_code=404, detail='Provider not found')
 
-    # Check if a config already exists
-    existing_config = await crud_provider_pricelist_config.get_config_or_none(
+    new_config = await crud_provider_pricelist_config.create(
+        provider_id=provider_id, config_in=config_in, session=session
+    )
+    return ProviderPriceListConfigResponse.model_validate(new_config)
+
+
+@router.patch(
+    '/providers/{provider_id}/pricelist-config/{config_id}/',
+    tags=['providers', 'pricelist-config'],
+    status_code=status.HTTP_200_OK,
+    summary='Update price list parsing parameters for a provider by config id',
+    response_model=ProviderPriceListConfigResponse,
+)
+async def update_provider_pricelist_config(
+    provider_id: int,
+    config_id: int,
+    config_in: ProviderPriceListConfigUpdate,
+    session: AsyncSession = Depends(get_session),
+):
+    # Проверяем, что провайдер существует
+    provider = await crud_provider.get_by_id(
         provider_id=provider_id, session=session
     )
-
-    if existing_config:
-        # Update existing config using the new update method
-        updated_config = await crud_provider_pricelist_config.update(
-            db_obj=existing_config, obj_in=config_in, session=session
+    if not provider:
+        raise HTTPException(status_code=404, detail='Provider not found')
+    provider_config = await crud_provider_pricelist_config.get_by_id(
+        config_id=config_id, session=session
+    )
+    if not provider_config:
+        raise HTTPException(
+            status_code=404,
+            detail=f'Config for provider {provider.name} not found',
         )
-        return ProviderPriceListConfigResponse.model_validate(updated_config)
-    else:
-        # Create new config
-        new_config = await crud_provider_pricelist_config.create(
-            provider_id=provider_id, config_in=config_in, session=session
-        )
-        return ProviderPriceListConfigResponse.model_validate(new_config)
+    update_config = await crud_provider_pricelist_config.update(
+        db_obj=provider_config, obj_in=config_in, session=session
+    )
+    return ProviderPriceListConfigResponse.model_validate(update_config)
 
 
 @router.get(
     '/providers/{provider_id}/pricelist-config/',
-    tags=['providers'],
+    tags=['providers', 'pricelist-config'],
     status_code=status.HTTP_200_OK,
-    summary='Get price list parsing parameters for a provider',
-    response_model=ProviderPriceListConfigResponse,
+    summary='Get list with price lists parsing parameters for provider',
+    response_model=List[ProviderPriceListConfigResponse],
 )
-async def get_provider_pricelist_config(
+async def get_provider_pricelist_configs(
     provider_id: int, session: AsyncSession = Depends(get_session)
 ):
     # Check if the provider exists
@@ -438,59 +458,92 @@ async def get_provider_pricelist_config(
         raise HTTPException(status_code=404, detail='Provider not found')
 
     # Check if a config already exists
-    existing_config = await crud_provider_pricelist_config.get_config_or_none(
+    existing_configs = await crud_provider_pricelist_config.get_configs(
         provider_id=provider_id, session=session
     )
 
-    if not existing_config:
+    if not existing_configs:
         raise HTTPException(
             status_code=404, detail='Config provider not found'
         )
-    return ProviderPriceListConfigResponse.model_validate(existing_config)
+    return [
+        ProviderPriceListConfigResponse.model_validate(existing_config)
+        for existing_config in existing_configs
+    ]
 
 
-@router.post(
-    '/providers/{provider_id}/pricelists/',
-    tags=['providers', 'pricelists'],
-    status_code=status.HTTP_201_CREATED,
-    summary='Create provider\'s pricelist',
-    response_model=PriceListResponse,
+@router.get(
+    '/providers/{provider_id}/pricelist-config/{config_id}/',
+    tags=['providers', 'pricelist-config'],
+    status_code=status.HTTP_200_OK,
+    summary='Get price list parsing parameters for provider',
+    response_model=ProviderPriceListConfigResponse,
 )
-async def create_provider_pricelist(
+async def get_provider_pricelist_config(
     provider_id: int,
-    pricelist_in_base: PriceListUpdate,
+    config_id: int,
     session: AsyncSession = Depends(get_session),
 ):
-    pricelist_in = PriceListCreate(
-        **pricelist_in_base.model_dump(exclude_unset=True),
-        provider_id=provider_id,
+    provider = await crud_provider.get_by_id(
+        provider_id=provider_id, session=session
     )
-    try:
-        # Get id provider
-        provider = await crud_provider.get_by_id(
-            provider_id=provider_id, session=session
-        )
-        if not provider:
-            raise HTTPException(status_code=404, detail='Provider not found')
-
-        pricelist = await crud_pricelist.create(
-            obj_in=pricelist_in, session=session
-        )
-        return PriceListResponse.model_validate(pricelist)
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        logger.error(
-            f'Unexpected error occurred while creating PriceList: {e}'
-        )
+    if not provider:
         raise HTTPException(
-            status_code=500,
-            detail='Unexpected error during PriceList creation',
+            status_code=404, detail=f'Provider not found for id {provider_id}'
         )
+    provider_config = await crud_provider_pricelist_config.get_by_id(
+        config_id=config_id, session=session
+    )
+    if not provider_config:
+        raise HTTPException(
+            status_code=404,
+            detail=f'Configuration for provider {provider.name} ' f'not found',
+        )
+    return ProviderPriceListConfigResponse.model_validate(provider_config)
+
+
+# @router.post(
+#     '/providers/{provider_id}/pricelists/',
+#     tags=['providers', 'pricelists'],
+#     status_code=status.HTTP_201_CREATED,
+#     summary='Create provider\'s pricelist',
+#     response_model=PriceListResponse,
+# )
+# async def create_provider_pricelist(
+#     provider_id: int,
+#     pricelist_in_base: PriceListUpdate,
+#     session: AsyncSession = Depends(get_session),
+# ):
+#     pricelist_in = PriceListCreate(
+#         **pricelist_in_base.model_dump(exclude_unset=True),
+#         provider_id=provider_id,
+#     )
+#     try:
+#         # Get id provider
+#         provider = await crud_provider.get_by_id(
+#             provider_id=provider_id, session=session
+#         )
+#         if not provider:
+#             raise HTTPException(status_code=404, detail='Provider not found')
+#
+#         pricelist = await crud_pricelist.create(
+#             obj_in=pricelist_in, session=session
+#         )
+#         return PriceListResponse.model_validate(pricelist)
+#     except HTTPException as e:
+#         raise e
+#     except Exception as e:
+#         logger.error(
+#             f'Unexpected error occurred while creating PriceList: {e}'
+#         )
+#         raise HTTPException(
+#             status_code=500,
+#             detail='Unexpected error during PriceList creation',
+#         )
 
 
 @router.post(
-    '/providers/{provider_id}/pricelists/upload/',
+    '/providers/{provider_id}/pricelists/{provider_list_conf_id}/upload/',
     tags=['providers', 'pricelists'],
     status_code=status.HTTP_201_CREATED,
     summary='Upload and create price list from file',
@@ -498,6 +551,7 @@ async def create_provider_pricelist(
 )
 async def upload_provider_pricelist(
     provider_id: int,
+    provider_list_conf_id: int,
     file: UploadFile = File(...),
     use_stored_params: bool = Form(True),
     start_row: Optional[int] = Form(
@@ -525,15 +579,26 @@ async def upload_provider_pricelist(
     # Get the file extension
     file_extension = file.filename.split('.')[-1].lower()
     provider = await crud_provider.get_by_id(
-        provider_id=provider_id,
-        session=session
+        provider_id=provider_id, session=session
     )
+    if not provider:
+        raise HTTPException(
+            status_code=404, detail=f'Not found provider_id: {provider_id}'
+        )
     logger.debug(f'Filename={file.filename}, size={len(content)} bytes')
     logger.debug(f'Extension={file_extension}')
+    provider_conf_obj = await crud_provider_pricelist_config.get_by_id(
+        config_id=provider_list_conf_id, session=session
+    )
+    if not provider_conf_obj:
+        raise HTTPException(
+            status_code=404, detail='Provider configuration not found'
+        )
     pricelist = await process_provider_pricelist(
         provider=provider,
         file_content=content,
         file_extension=file_extension,
+        provider_list_conf=provider_conf_obj,
         use_stored_params=use_stored_params,
         start_row=start_row,
         oem_col=oem_col,
@@ -569,13 +634,6 @@ async def get_provider_pricelists(
         )
         if not provider:
             raise HTTPException(status_code=404, detail='Поставщик не найден')
-
-        # # Получаем общее количество прайс-листов
-        # total_count_stmt = select(func.count(PriceList.id)).where(
-        #     PriceList.provider_id == provider_id
-        # )
-        # total_result = await session.execute(total_count_stmt)
-        # total_count = total_result.scalar_one()
         total_count = await crud_pricelist.count_by_provider_id(
             provider_id=provider_id, session=session
         )
@@ -588,45 +646,15 @@ async def get_provider_pricelists(
         pricelists = await crud_pricelist.get_by_provider_paginated(
             provider_id=provider_id, skip=skip, limit=limit, session=session
         )
-
-        # # Создаем подзапрос для пагинации
-        # pricelist_subquery = select(
-        #     PriceList.id.label('id'),
-        #     PriceList.date.label('date')
-        # ).where(
-        #     PriceList.provider_id == provider_id
-        # ).order_by(
-        #     PriceList.date.desc()
-        # ).offset(skip).limit(limit).subquery()
-        #
-        # # Основной запрос с агрегированием
-        # stmt = select(
-        #     pricelist_subquery.c.id,
-        #     pricelist_subquery.c.date,
-        #     func.count(
-        #         PriceListAutoPartAssociation.autopart_id
-        #     ).label('num_positions')
-        # ).outerjoin(
-        #     PriceListAutoPartAssociation,
-        #     PriceListAutoPartAssociation.pricelist_id ==
-        #     pricelist_subquery.c.id
-        # ).group_by(
-        #     pricelist_subquery.c.id,
-        #     pricelist_subquery.c.date
-        # ).order_by(
-        #     pricelist_subquery.c.date.desc()
-        # )
-        #
-        # result = await session.execute(stmt)
-        # pricelists = result.all()
-
-        # Формируем список прайс-листов для ответа
-        pricelist_summaries = [
-            PriceListSummary(
-                id=row.id, date=row.date, num_positions=row.num_positions
+        pricelist_summaries = []
+        for pl in pricelists:
+            summary = PriceListSummary(
+                id=pl.id,
+                date=pl.date,
+                num_positions=pl.num_positions,
+                provider_config_id=pl.provider_config_id,
             )
-            for row in pricelists
-        ]
+            pricelist_summaries.append(summary)
 
         return PriceListPaginationResponse(
             total_count=total_count,
@@ -1044,11 +1072,21 @@ async def delete_customer_pricelists(
     summary='Download pricelist from email',
 )
 async def download_provider_pricelist(
-    provider_id: int, session: AsyncSession = Depends(get_session)
+    provider_id: int,
+    provider_price_config_id: int,
+    session: AsyncSession = Depends(get_session),
 ):
     try:
-        filepath = await download_price_provider(
+        provider_list_config = await crud_provider_pricelist_config.get_by_id(
+            config_id=provider_price_config_id, session=session
+        )
+        provider = await crud_provider.get_by_id(
             provider_id=provider_id, session=session
+        )
+        filepath = await download_price_provider(
+            provider=provider,
+            provider_conf=provider_list_config,
+            session=session,
         )
         if not filepath:
             raise HTTPException(
@@ -1059,9 +1097,10 @@ async def download_provider_pricelist(
             file_content = f.read()
 
         await process_provider_pricelist(
-            provider_id=provider_id,
+            provider=provider,
             file_content=file_content,
             file_extension=file_extension,
+            provider_list_conf=provider_list_config,
             use_stored_params=True,
             start_row=None,
             oem_col=None,

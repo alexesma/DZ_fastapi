@@ -130,7 +130,7 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
         logger.info('Новых писем для обработки не найдено.')
         return
 
-    for provider, filepath in downloaded:
+    for provider, filepath, provider_conf in downloaded:
         file_extension = filepath.split('.')[-1].lower()
         with open(filepath, 'rb') as f:
             file_content = f.read()
@@ -140,6 +140,7 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
                 provider=provider,
                 file_content=file_content,
                 file_extension=file_extension,
+                provider_list_conf=provider_conf,
                 use_stored_params=True,
                 start_row=None,
                 oem_col=None,
@@ -164,7 +165,7 @@ async def download_price_provider_task(app: FastAPI):
     async_session_factory = get_async_session()
     async with async_session_factory() as session:
         try:
-            # Проверяю наличие начального поставщика
+            # Проверяю наличие поставщика
             provider = await crud_provider.get_provider_or_none(
                 provider=PROVIDER_IN['name'], session=session
             )

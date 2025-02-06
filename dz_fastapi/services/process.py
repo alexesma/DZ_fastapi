@@ -51,10 +51,10 @@ from dz_fastapi.core.constants import (BRILLIANCE_OEM, CUMMINS_OEM, FAW_OEM,
                                        MAX_PRICE_LISTS, ORIGINAL_BRANDS)
 from dz_fastapi.crud.partner import (crud_customer_pricelist,
                                      crud_customer_pricelist_config,
-                                     crud_pricelist, crud_provider,
-                                     crud_provider_pricelist_config)
+                                     crud_pricelist, crud_provider)
 from dz_fastapi.models.autopart import preprocess_oem_number
-from dz_fastapi.models.partner import Customer, CustomerPriceList, Provider
+from dz_fastapi.models.partner import (Customer, CustomerPriceList, Provider,
+                                       ProviderPriceListConfig)
 from dz_fastapi.schemas.autopart import (AutoPartCreatePriceList,
                                          AutoPartResponse)
 from dz_fastapi.schemas.partner import (AutoPartInPricelist,
@@ -69,13 +69,13 @@ logger = logging.getLogger('dz_fastapi')
 
 
 def deduplicate_autoparts_data(
-        autoparts_data: List[Dict[str, Any]]
+    autoparts_data: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
     unique_map = {}
     for row in autoparts_data:
         key = (
             row.get('brand', '').strip().lower(),
-            row['oem_number'].strip().lower()
+            row['oem_number'].strip().lower(),
         )
         if key not in unique_map:
             unique_map[key] = copy.deepcopy(row)
@@ -91,6 +91,7 @@ async def process_provider_pricelist(
     provider: Provider,
     file_content: bytes,
     file_extension: str,
+    provider_list_conf: ProviderPriceListConfig,
     use_stored_params: bool,
     start_row: Optional[int],
     oem_col: Optional[int],
@@ -106,25 +107,18 @@ async def process_provider_pricelist(
         f'file_extension = {file_extension} '
         f'use_stored_params = {use_stored_params}'
     )
+    if not provider_list_conf:
+        raise HTTPException(
+            status_code=404, detail='Configuration not transferred'
+        )
 
     if use_stored_params:
-        existing_config = (
-            await crud_provider_pricelist_config.get_config_or_none(
-                provider_id=provider.id, session=session
-            )
-        )
-        if not existing_config:
-            raise HTTPException(
-                status_code=400,
-                detail='No stored parameters found for this provider.',
-            )
-
-        start_row = existing_config.start_row
-        oem_col = existing_config.oem_col
-        brand_col = existing_config.brand_col
-        name_col = existing_config.name_col
-        qty_col = existing_config.qty_col
-        price_col = existing_config.price_col
+        start_row = provider_list_conf.start_row
+        oem_col = provider_list_conf.oem_col
+        brand_col = provider_list_conf.brand_col
+        name_col = provider_list_conf.name_col
+        qty_col = provider_list_conf.qty_col
+        price_col = provider_list_conf.price_col
     else:
         if None in (start_row, oem_col, qty_col, price_col):
             raise HTTPException(
@@ -136,15 +130,11 @@ async def process_provider_pricelist(
         try:
             if file_extension in 'xls':
                 df = pd.read_excel(
-                    BytesIO(file_content),
-                    header=None,
-                    engine='xlrd'
+                    BytesIO(file_content), header=None, engine='xlrd'
                 )
             else:  # xlsx
                 df = pd.read_excel(
-                    BytesIO(file_content),
-                    header=None,
-                    engine='openpyxl'
+                    BytesIO(file_content), header=None, engine='openpyxl'
                 )
         except Exception as e:
             logger.error(f'Error reading Excel file: {e}')
@@ -178,16 +168,19 @@ async def process_provider_pricelist(
         logger.debug(f'file df = {data_df}')
     except KeyError as e:
         raise HTTPException(
-            status_code=400, detail=f'Invalid column indices provided: {e}'
+            status_code=422, detail=f'Invalid column indices provided: {e}'
         )
 
     try:
         data_df.dropna(
             subset=['oem_number', 'quantity', 'price'], inplace=True
         )
-        data_df['oem_number'] = data_df[
-            'oem_number'
-        ].astype(str).str.strip().apply(preprocess_oem_number)
+        data_df['oem_number'] = (
+            data_df['oem_number']
+            .astype(str)
+            .str.strip()
+            .apply(preprocess_oem_number)
+        )
         if 'name' in data_df.columns:
             data_df['name'] = data_df['name'].astype(str).str.strip()
         if 'brand' in data_df.columns:
@@ -219,7 +212,11 @@ async def process_provider_pricelist(
     # (2) Убрали/слили дубликаты:
     deduplicated_data = deduplicate_autoparts_data(autoparts_data)
 
-    pricelist_in = PriceListCreate(provider_id=provider.id, autoparts=[])
+    pricelist_in = PriceListCreate(
+        provider_id=provider.id,
+        provider_config_id=provider_list_conf.id,
+        autoparts=[],
+    )
 
     for item in deduplicated_data:
         logger.debug(f'Processing item: {item}')
