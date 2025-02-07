@@ -1,4 +1,5 @@
 import logging
+import unicodedata
 from typing import List
 
 import pandas as pd
@@ -184,3 +185,7 @@ async def compare_pricelists(old_pl, new_pl, qty_diff_threshold: int = 3):
                 f'new PL: OEM={key[0]}, Brand={key[1]}. '
                 f'OldPrice={old_price}, OldQty={old_qty}'
             )
+
+
+def normalize_str(name: str) -> str:
+    return unicodedata.normalize('NFC', name)

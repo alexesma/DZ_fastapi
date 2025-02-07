@@ -16,6 +16,7 @@ from dz_fastapi.crud.partner import (crud_provider,
                                      crud_provider_pricelist_config,
                                      get_last_uid, set_last_uid)
 from dz_fastapi.models.partner import Provider, ProviderPriceListConfig
+from dz_fastapi.services.utils import normalize_str
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -142,10 +143,9 @@ async def download_price_provider(
 
                 for att in msg.attachments:
                     logger.debug(f'Found attachment: {att.filename}')
-                    filename = safe_filename(att.filename)
 
-                    if filename.lower() in provider_conf.name_price.lower():
-                        filepath = os.path.join(DOWNLOAD_FOLDER, filename)
+                    if normalize_str(att.filename) in normalize_str(provider_conf.name_price):
+                        filepath = os.path.join(DOWNLOAD_FOLDER, att.filename)
                         with open(filepath, 'wb') as f:
                             f.write(att.payload)
                         logger.debug(f'Downloaded attachment: {filepath}')
@@ -216,7 +216,7 @@ async def download_new_price_provider(
     subject = msg.subject
     logger.debug(f'Письмо uid={msg.uid}, subject={subject}')
     # Если тема не соответствует критерию, пропускаем письмо
-    if provider_conf.name_mail.lower() not in subject.lower():
+    if normalize_str(provider_conf.name_mail) not in normalize_str(subject):
         logger.debug(
             f'Тема {subject} не содержит '
             f'{provider_conf.name_mail}, пропускаем'
@@ -224,14 +224,12 @@ async def download_new_price_provider(
         return None
     for att in msg.attachments:
         logger.debug(f'Found attachment: {att.filename}')
-        filename = safe_filename(att.filename)
 
-        if (
-            provider_conf.name_price.strip().lower()
-            in filename.strip().lower()
+        if (normalize_str(provider_conf.name_price)
+            in normalize_str(att.filename)
         ):
             logger.debug('Имя вложения совпало')
-            filepath = os.path.join(DOWNLOAD_FOLDER, filename)
+            filepath = os.path.join(DOWNLOAD_FOLDER, att.filename)
             try:
                 with open(filepath, 'wb') as f:
                     f.write(att.payload)

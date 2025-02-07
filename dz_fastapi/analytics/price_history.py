@@ -226,7 +226,8 @@ async def analyze_new_pricelist(new_pl: PriceList, session: AsyncSession):
         logger.info(
             f'Excel report created, size={len(excel_file.getvalue())}'
         )
-        subject = f'[ANALYSIS] for new price {provider_id}'
+        subject = (f'[ANALYSIS] Поставщик = {new_pl.provider.name}'
+                   f'| Прайс = {new_pl.config_id.name_price}')
         filename = 'analysis_report.xlsx'
         send_email_with_attachment(
             to_email=ANALYSIS_EMAIL,
