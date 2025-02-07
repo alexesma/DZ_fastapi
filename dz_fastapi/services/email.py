@@ -144,7 +144,9 @@ async def download_price_provider(
                 for att in msg.attachments:
                     logger.debug(f'Found attachment: {att.filename}')
 
-                    if normalize_str(att.filename) in normalize_str(provider_conf.name_price):
+                    if normalize_str(att.filename) in normalize_str(
+                        provider_conf.name_price
+                    ):
                         filepath = os.path.join(DOWNLOAD_FOLDER, att.filename)
                         with open(filepath, 'wb') as f:
                             f.write(att.payload)
@@ -225,8 +227,8 @@ async def download_new_price_provider(
     for att in msg.attachments:
         logger.debug(f'Found attachment: {att.filename}')
 
-        if (normalize_str(provider_conf.name_price)
-            in normalize_str(att.filename)
+        if normalize_str(provider_conf.name_price) in normalize_str(
+            att.filename
         ):
             logger.debug('Имя вложения совпало')
             filepath = os.path.join(DOWNLOAD_FOLDER, att.filename)
