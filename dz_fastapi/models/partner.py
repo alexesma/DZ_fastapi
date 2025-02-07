@@ -226,7 +226,7 @@ class ProviderPriceListConfig(Base):
     price_col = Column(Integer, nullable=False)
     name_price = Column(String, nullable=True)
     name_mail = Column(String, nullable=True)
-
+    file_url = Column(String, nullable=True)
     provider = relationship('Provider', back_populates='pricelist_config')
 
 

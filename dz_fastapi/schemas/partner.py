@@ -234,6 +234,7 @@ class ProviderPriceListConfigBase(BaseModel):
     price_col: int
     name_price: Optional[str] = None
     name_mail: Optional[str] = None
+    file_url: Optional[str] = None
 
 
 class ProviderPriceListConfigCreate(ProviderPriceListConfigBase):

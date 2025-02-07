@@ -7,6 +7,7 @@ from datetime import date, timedelta
 from email.message import EmailMessage
 from typing import Optional
 
+import httpx
 from fastapi import HTTPException
 from imap_tools import AND, MailBox
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -224,6 +225,35 @@ async def download_new_price_provider(
             f'{provider_conf.name_mail}, пропускаем'
         )
         return None
+    # Если в конфигурации указан URL, пытаемся скачать файл по URL
+    if provider_conf.file_url:
+        logger.debug(f'Найден URL в конфигурации = {provider_conf.file_url}')
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(provider_conf.file_url)
+                if resp.status_code != 200:
+                    logger.debug(
+                        f'Failed to download file from URL '
+                        f'{provider_conf.file_url}: {resp.status_code}'
+                    )
+                    return None
+                filename = os.path.basename(provider_conf.file_url)
+                filepath = os.path.join(DOWNLOAD_FOLDER, filename)
+                with open(filepath, 'wb') as f:
+                    f.write(resp.content)
+                logger.debug(f'Загрузка файла из URL: {filepath}')
+                current_uid = int(msg.uid)
+                last_uid = await get_last_uid(provider.id, session)
+                logger.debug(f'Last UID: {last_uid}')
+                if current_uid > last_uid:
+                    await set_last_uid(provider.id, current_uid, session)
+                return filepath
+        except Exception as e:
+            logger.exception(
+                f'Error downloading file from '
+                f'URL {provider_conf.file_url}: {e}'
+            )
+            return None
     for att in msg.attachments:
         logger.debug(f'Found attachment: {att.filename}')
 
