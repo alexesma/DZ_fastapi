@@ -207,7 +207,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                 autopart_data['oem_number'] = normalized_oem
             else:
                 logger.error('oem_number is missing in autopart_data')
-                raise ValueError('oem_number is required')
+                return None
 
             existing_autopart = await self.get_autopart_by_oem_brand_or_none(
                 oem_number=autopart_data['oem_number'],
@@ -238,7 +238,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             return autopart
         except Exception as e:
             logger.exception(f'Error in create_autopart_from_price: {e}')
-            raise
+            return None
 
 
 crud_autopart = CRUDAutopart(AutoPart)
