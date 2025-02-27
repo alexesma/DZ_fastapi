@@ -198,9 +198,6 @@ async def bulk_update_autoparts(
             autopart = await crud_autopart.get_autopart_by_oem_brand_or_none(
                 oem_number=oem_number, brand_id=brand_obj.id, session=session
             )
-            logger.debug(
-                f'Autoparts found = {autopart.name} {autopart.oem_number}'
-            )
             if not autopart:
                 logger.debug(
                     f'Autoparts not found {oem_number}, {brand_obj.name}'
@@ -211,6 +208,9 @@ async def bulk_update_autoparts(
                     error_message='AutoPart not found',
                 )
                 continue
+            logger.debug(
+                f'Autoparts found = {autopart.name} {autopart.oem_number}'
+            )
             update_fields = {}
             relationship_updated = False
             if multiplicity_col is not None:
