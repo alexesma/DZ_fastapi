@@ -21,7 +21,7 @@ async def test_create_brand(test_session):
     payload = TEST_BRAND
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.post('/brand', json=payload)
+        response = await ac.post('/brand/', json=payload)
 
     assert response.status_code == 201, response.text
     data = response.json()
@@ -316,7 +316,7 @@ async def test_add_synonyms(test_session, created_brand: Brand):
             transport=transport,
             base_url='http://test'
     ) as ac:
-        response_create = await ac.post('/brand', json=brand_synonym)
+        response_create = await ac.post('/brand/', json=brand_synonym)
         assert response_create.status_code == 201, response_create.text
         created_synonym = response_create.json()
         assert created_synonym['name'] == 'TEST BRAND 2'
@@ -358,7 +358,7 @@ async def test_delete_synonyms(test_session, created_brand: Brand):
     transport = ASGITransport(app=app)
 
     async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response_create = await ac.post('/brand', json=brand_synonym)
+        response_create = await ac.post('/brand/', json=brand_synonym)
         assert response_create.status_code == 201, response_create.text
         created_synonym = response_create.json()
         assert created_synonym['name'] == 'TEST BRAND 2'

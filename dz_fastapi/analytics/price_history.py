@@ -119,7 +119,7 @@ async def analyze_new_pricelist(new_pl: PriceList, session: AsyncSession):
     all_pls = await crud_pricelist.get_pricelists_by_provider(
         provider_id=provider_id, session=session
     )
-    logger.debug(f'Прайс-листов поставщика {all_pls}')
+    logger.debug(f'Прайс-листов поставщика {len(all_pls)}')
 
     # Если у нас меньше 2 прайс-листов, "старого" нет
     if len(all_pls) < 2:

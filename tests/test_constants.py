@@ -31,20 +31,20 @@ TEST_PROVIDER = {
     'name': 'Test-Provider_*?/\\|<>,.()[]{};:!@#$%^&à'
             'áâãäåçèéêëìíîðñòôõöö[|]\'~<!--@/*$%^&#*/()?>,.*/\\',
     'type_prices': 'Retail',
-    'email_contact': 'test2@test2.ru',
+    'email_contact': 'test2@exemple.com',
     'comment': 'Test comment',
     'description': 'A test provider',
-    'email_incoming_price': 'test3@test2.ru'
+    'email_incoming_price': 'test3@exemple.com'
 }
 
 TEST_CUSTOMER = {
     'name': 'Test-Customer_*?/\\|<>,.()[]{};:!@#$%^&'
             'àáâãäåçèéêëìíîðñòôõöö[|]\'~<!--@/*$%^&#*/()?>,.*/\\',
     'type_prices': 'Retail',
-    'email_contact': 'testcustomer@customer.ru',
+    'email_contact': 'testcustomer@exemple.com',
     'comment': 'Test comment',
     'description': 'A test customer',
-    'email_outgoing_price': 'testcustomer@customer.ru'
+    'email_outgoing_price': 'testcustomer@exemple.com'
 }
 
 CONFIG_DATA = {

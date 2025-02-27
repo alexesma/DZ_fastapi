@@ -967,3 +967,22 @@ async def process_customer_pricelist(
         autoparts=autoparts_response,
     )
     return response
+
+
+def write_error_for_bulk(
+        problem_items: dict,
+        not_found: list,
+        error_message: str,
+        error: Optional[str] = None,
+) -> None:
+    record_str = {
+        k: (
+            v.decode('utf-8', errors='replace'
+                     ) if isinstance(v, bytes) else str(v)
+        )
+        for k, v in problem_items.items()
+    }
+    not_found.append({
+        'record': record_str,
+        'error': f'{error_message}: {error or 'Unknown error'}'
+    })

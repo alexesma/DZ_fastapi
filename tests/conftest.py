@@ -101,16 +101,16 @@ async def created_providers(test_session: AsyncSession) -> list[Provider]:
     providers_data = [
         {
             'name': 'Test Provider 1',
-            'email_contact': 'test1@test.com',
-            'email_incoming_price': 'prices1@test.com',
+            'email_contact': 'test1@exemple.com',
+            'email_incoming_price': 'prices1@exemple.com',
             'description': 'First test provider',
             'comment': 'No comment',
             'type_prices': 'Wholesale',
         },
         {
             'name': 'Test Provider 2',
-            'email_contact': 'test2@test.com',
-            'email_incoming_price': 'prices2@test.com',
+            'email_contact': 'test2@exemple.com',
+            'email_incoming_price': 'prices2@exemple.com',
             'description': 'Second test provider',
             'comment': 'No comment',
             'type_prices': 'Retail',

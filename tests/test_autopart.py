@@ -192,7 +192,7 @@ async def test_update_autopart_success(
             transport=transport,
             base_url='http://test'
     ) as ac:
-        response = await ac.post('/brand', json=payload)
+        response = await ac.post('/brand/', json=payload)
 
     assert response.status_code == 201, response.text
     data = response.json()

@@ -1,10 +1,14 @@
 import logging
+from http import HTTPStatus
 from typing import List, Optional
 
+from fastapi import HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from dz_fastapi.api.validators import change_brand_name
 from dz_fastapi.core.base import Brand
 from dz_fastapi.crud.base import CRUDBase
 from dz_fastapi.schemas.brand import BrandCreate, BrandUpdate
@@ -12,21 +16,74 @@ from dz_fastapi.schemas.brand import BrandCreate, BrandUpdate
 logger = logging.getLogger('dz_fastapi')
 
 
+async def duplicate_brand_name(brand_name: str, session: AsyncSession) -> None:
+    brand = await brand_crud.get_brand_by_name(brand_name, session)
+    if brand is not None:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail=f'Brand with name {brand_name} already exists',
+        )
+
+
+async def brand_exists(brand_id: int, session: AsyncSession) -> Brand:
+    brand = await brand_crud.get(session, brand_id)
+    if brand is None:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail='Brand not found'
+        )
+    return brand
+
+
 class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
+    async def create(self, brand: Brand, session: AsyncSession, **kwargs):
+        try:
+            logger.debug('Начало создания бренда api')
+            brand.name = await change_brand_name(brand.name)
+            logger.debug(f'Изменённое имя бренда: {brand.name}')
+            await duplicate_brand_name(brand_name=brand.name, session=session)
+            logger.debug('Проверка дубликата имени бренда завершена')
+            new_brand = await super().create(brand, session, commit=True)
+            logger.debug(f'Бренд создан и добавлен в сессию: {new_brand}')
+            stmt = (
+                select(Brand)
+                .options(selectinload(Brand.synonyms))
+                .filter_by(id=new_brand.id)
+            )
+            result = await session.execute(stmt)
+            new_brand = result.scalar_one()
+            logger.debug(f'Создан новый бренд: {new_brand}')
+            return new_brand
+
+        except IntegrityError as e:
+            logger.error(f'Integrity error occurred: {e}')
+            await session.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail=f'Brand with name {brand.name} already exists',
+            )
+        except SQLAlchemyError as e:
+            logger.error(f'Database error occurred: {e}')
+            await session.rollback()
+            raise HTTPException(
+                status_code=500, detail=f'Database error occurred: {str(e)}'
+            )
+        except Exception as e:
+            logger.error(f'Unexpected error occurred: {e}')
+            await session.rollback()
+            raise HTTPException(
+                status_code=500, detail=f'Unexpected error occurred: {str(e)}'
+            )
+
     async def get_brand_by_id(
-            self,
-            brand_id: int,
-            session: AsyncSession
+        self, brand_id: int, session: AsyncSession
     ) -> Optional[Brand]:
         try:
             logger.debug(f'Получение бренда по ID: {brand_id}')
             logger.debug(f'Тип сессии: {type(session)}')
             result = await session.execute(
-                select(Brand).options(
-                    selectinload(Brand.synonyms)
-                ).where(
-                    Brand.id == brand_id
-                )
+                select(Brand)
+                .options(selectinload(Brand.synonyms))
+                .where(Brand.id == brand_id)
             )
             brand = result.scalars().first()
             logger.debug(f'Получен бренд: {brand}')
@@ -38,18 +95,15 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
             raise
 
     async def get_brand_by_name(
-            self,
-            brand_name: str,
-            session: AsyncSession
+        self, brand_name: str, session: AsyncSession
     ) -> Optional[Brand]:
         try:
             logger.debug('Зашли в get_brand_by_name')
+            normal_name = await change_brand_name(brand_name)
             db_brand = await session.execute(
-                select(Brand).options(
-                    selectinload(Brand.synonyms)
-                ).where(
-                    Brand.name == brand_name
-                )
+                select(Brand)
+                .options(selectinload(Brand.synonyms))
+                .where(Brand.name == normal_name)
             )
             logger.debug(f'Результат запроса: {db_brand}')
             brand = db_brand.scalars().first()
@@ -60,16 +114,13 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
             raise
 
     async def get_brand_by_name_or_none(
-            self,
-            brand_name: str,
-            session: AsyncSession
+        self, brand_name: str, session: AsyncSession
     ) -> Optional[Brand]:
+        brand_name = await change_brand_name(brand_name=brand_name)
         result = await session.execute(
-            select(Brand).options(
-                selectinload(Brand.synonyms)
-            ).where(
-                Brand.name == brand_name
-            )
+            select(Brand)
+            .options(selectinload(Brand.synonyms))
+            .where(Brand.name == brand_name)
         )
         brand = result.scalar_one_or_none()
 
@@ -86,32 +137,27 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
         return brand
 
     async def get_multi_with_synonyms(
-            self,
-            session: AsyncSession
+        self, session: AsyncSession
     ) -> List[Brand]:
         result = await session.execute(
-            select(Brand).options(
-                selectinload(Brand.synonyms)
-            ).order_by(Brand.id)
+            select(Brand)
+            .options(selectinload(Brand.synonyms))
+            .order_by(Brand.id)
         )
         return result.scalars().all()
 
     async def get_with_synonyms(
-            self,
-            brand_id: int,
-            session: AsyncSession
+        self, brand_id: int, session: AsyncSession
     ) -> Optional[Brand]:
         result = await session.execute(
-            select(Brand).options(
-                selectinload(Brand.synonyms)
-            ).where(Brand.id == brand_id)
+            select(Brand)
+            .options(selectinload(Brand.synonyms))
+            .where(Brand.id == brand_id)
         )
         return result.scalars().first()
 
     async def get_all_synonyms(
-            self,
-            brand: Brand,
-            session: AsyncSession
+        self, brand: Brand, session: AsyncSession
     ) -> List[Brand]:
         checked = set()
         to_check = [brand]
@@ -124,8 +170,7 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
             checked.add(current.id)
             all_synonyms.add(current)
             brand_with_synonyms = await self.get_with_synonyms(
-                current.id,
-                session
+                current.id, session
             )
             if not brand_with_synonyms:
                 logger.warning(f'Brand with id {current.name} not found')
@@ -137,9 +182,7 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
         return list(all_synonyms)
 
     async def get_all_synonyms_bi_directional(
-            self,
-            brand: Brand,
-            session: AsyncSession
+        self, brand: Brand, session: AsyncSession
     ) -> List[Brand]:
         checked = set()
         to_check = [brand]
@@ -162,9 +205,7 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
         return list(all_synonyms)
 
     async def get_brands_by_names(
-            self,
-            brand_names: List[str],
-            session: AsyncSession
+        self, brand_names: List[str], session: AsyncSession
     ) -> List[Brand]:
         try:
             logger.debug('Получение брендов по названиям')
@@ -181,10 +222,7 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
             raise
 
     async def add_synonym(
-            self,
-            brand: Brand,
-            synonym: Brand,
-            session: AsyncSession
+        self, brand: Brand, synonym: Brand, session: AsyncSession
     ) -> Brand:
         logger.debug(
             f'Добавление синонима: бренд={brand.name}, '
@@ -200,9 +238,7 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
         logger.debug('Создали синонимы')
 
         logger.debug(f'Синонимы бренда после добавления: {brand.synonyms}')
-        logger.debug(
-            f'Синонимы синонима после добавления: {synonym.synonyms}'
-        )
+        logger.debug(f'Синонимы синонима после добавления: {synonym.synonyms}')
         session.add(brand)
         session.add(synonym)
         try:
@@ -215,15 +251,11 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
         return brand
 
     async def add_synonyms(
-            self,
-            session: AsyncSession,
-            brand_id: int,
-            synonym_names: List[str]
+        self, session: AsyncSession, brand_id: int, synonym_names: List[str]
     ) -> Brand:
         try:
             brand = await self.get_brand_by_id(
-                brand_id=brand_id,
-                session=session
+                brand_id=brand_id, session=session
             )
             if brand is None:
                 raise Exception('Failed to add synonym, returned None')
@@ -232,19 +264,14 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
 
             for synonym_name in synonym_names:
                 synonym = await self.get_brand_by_name(
-                    brand_name=synonym_name,
-                    session=session
+                    brand_name=synonym_name, session=session
                 )
                 if not synonym:
-                    raise ValueError(
-                        f'Synonym brand {synonym_name} not found'
-                    )
+                    raise ValueError(f'Synonym brand {synonym_name} not found')
 
                 logger.debug(f'Добавление синонима {synonym_name}')
                 brand = await self.add_synonym(
-                    brand=brand,
-                    synonym=synonym,
-                    session=session
+                    brand=brand, synonym=synonym, session=session
                 )
                 if brand is None:
                     raise Exception(f'Failed to add synonym {synonym_name}')
@@ -259,15 +286,12 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
             logger.exception(f'Ошибка в add_synonyms: {str(e)}')
             raise
 
-    async def remove_synonyms(self,
-                              session: AsyncSession,
-                              brand_id: int,
-                              synonym_names: List[str]
-                              ) -> Brand:
+    async def remove_synonyms(
+        self, session: AsyncSession, brand_id: int, synonym_names: List[str]
+    ) -> Brand:
         try:
             brand = await self.get_brand_by_id(
-                brand_id=brand_id,
-                session=session
+                brand_id=brand_id, session=session
             )
             if brand is None:
                 raise Exception('Failed to add synonym, returned None')
@@ -278,13 +302,10 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
 
             for synonym_name in synonym_names:
                 synonym = await self.get_brand_by_name(
-                    brand_name=synonym_name,
-                    session=session
+                    brand_name=synonym_name, session=session
                 )
                 if not synonym:
-                    raise ValueError(
-                        f'Synonym brand {synonym_name} not found'
-                    )
+                    raise ValueError(f'Synonym brand {synonym_name} not found')
                 logger.debug(f'Удаление синонима {synonym_name}')
                 if synonym in brand.synonyms:
                     brand.synonyms.remove(synonym)

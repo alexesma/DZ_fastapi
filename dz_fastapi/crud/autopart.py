@@ -31,15 +31,13 @@ def get_recursive_selectinloads(depth: int):
             return selectinload(Category.children).options(
                 recursive_load(level - 1)
             )
+
     return recursive_load(depth - 1)
 
 
 class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
     async def create_autopart(
-            self,
-            new_autopart: AutoPartCreate,
-            brand:  Brand,
-            session: AsyncSession
+        self, new_autopart: AutoPartCreate, brand: Brand, session: AsyncSession
     ) -> AutoPart:
         """
         Создает новую автозапчасть в базе данных.
@@ -61,34 +59,29 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             autopart_data = new_autopart.model_dump(exclude_unset=True)
             category_name = autopart_data.pop('category_name', None)
             storage_location_name = autopart_data.pop(
-                'storage_location_name',
-                None
+                'storage_location_name', None
             )
-            autopart_data['name'] = await change_string(
-                autopart_data['name']
-            )
+            autopart_data['name'] = await change_string(autopart_data['name'])
             autopart = AutoPart(**autopart_data)
             autopart.brand = brand
             autopart.categories = []
             if category_name:
                 category = await crud_category.get_category_id_by_name(
-                    category_name,
-                    session
+                    category_name, session
                 )
                 if not category:
                     raise HTTPException(
                         status_code=400,
-                        detail=(
-                            f'Category {category_name} does not exist.'
-                        )
+                        detail=(f'Category {category_name} does not exist.'),
                     )
                 autopart.categories.append(category)
             autopart.storage_locations = []
             if storage_location_name:
-                storage_location = await (
-                    crud_storage.get_storage_location_id_by_name(
-                        storage_location_name,
-                        session
+                storage_location = (
+                    await (
+                        crud_storage.get_storage_location_id_by_name(
+                            storage_location_name, session
+                        )
                     )
                 )
                 if not storage_location:
@@ -97,7 +90,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                         detail=(
                             f'Storage location '
                             f'{storage_location_name} does not exist.'
-                        )
+                        ),
                     )
                 autopart.storage_locations.append(storage_location)
             session.add(autopart)
@@ -110,13 +103,13 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             raise SQLAlchemyError("Failed to create autopart") from error
 
     async def get_multi(
-            self, session: AsyncSession, *, skip: int = 0, limit: int = 100
+        self, session: AsyncSession, *, skip: int = 0, limit: int = 100
     ) -> List[AutoPart]:
         stmt = (
             select(AutoPart)
             .options(
                 selectinload(AutoPart.categories),
-                selectinload(AutoPart.storage_locations)
+                selectinload(AutoPart.storage_locations),
             )
             .offset(skip)
             .limit(limit)
@@ -126,22 +119,19 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         return autoparts
 
     async def get_autopart_by_oem_brand_or_none(
-            self,
-            oem_number: str,
-            brand_id: int,
-            session: AsyncSession,
+        self,
+        oem_number: str,
+        brand_id: int,
+        session: AsyncSession,
     ) -> Optional[AutoPart]:
         stmt = select(AutoPart).where(
-            AutoPart.brand_id == brand_id,
-            AutoPart.oem_number == oem_number
+            AutoPart.brand_id == brand_id, AutoPart.oem_number == oem_number
         )
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_autopart_by_id(
-        self,
-        session: AsyncSession,
-        autopart_id: int
+        self, session: AsyncSession, autopart_id: int
     ) -> Optional[AutoPart]:
         try:
             stmt = (
@@ -149,7 +139,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                 .where(AutoPart.id == autopart_id)
                 .options(
                     selectinload(AutoPart.categories),
-                    selectinload(AutoPart.storage_locations)
+                    selectinload(AutoPart.storage_locations),
                 )
             )
             result = await session.execute(stmt)
@@ -162,10 +152,10 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             raise
 
     async def create_autopart_from_price(
-            self,
-            new_autopart: AutoPartCreatePriceList,
-            session: AsyncSession,
-            default_brand: Optional[Brand] = None
+        self,
+        new_autopart: AutoPartCreatePriceList,
+        session: AsyncSession,
+        default_brand: Optional[Brand] = None,
     ) -> Optional[AutoPart]:
         try:
             logger.debug(
@@ -180,8 +170,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                 brand_name = await change_brand_name(brand_name=brand_name)
                 logger.debug(f'Changed brand_name: {brand_name}')
                 brand = await brand_crud.get_brand_by_name_or_none(
-                    brand_name=brand_name,
-                    session=session
+                    brand_name=brand_name, session=session
                 )
                 logger.debug(f'Retrieved brand: {brand}')
                 if not brand:
@@ -212,7 +201,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             existing_autopart = await self.get_autopart_by_oem_brand_or_none(
                 oem_number=autopart_data['oem_number'],
                 brand_id=brand.id,
-                session=session
+                session=session,
             )
             logger.debug(f'Existing autopart: {existing_autopart}')
 
@@ -223,15 +212,12 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                 return existing_autopart
 
             autopart_create_data = AutoPartCreate(
-                **autopart_data,
-                brand_id=brand.id
+                **autopart_data, brand_id=brand.id
             )
             logger.debug(f'AutopartCreate data: {autopart_create_data}')
 
             autopart = await self.create_autopart(
-                new_autopart=autopart_create_data,
-                brand=brand,
-                session=session
+                new_autopart=autopart_create_data, brand=brand, session=session
             )
             logger.debug(f'Created autopart: {autopart}')
 
@@ -239,6 +225,36 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         except Exception as e:
             logger.exception(f'Error in create_autopart_from_price: {e}')
             return None
+
+    async def get_filtered(
+        self,
+        session: AsyncSession,
+        oem: Optional[str] = None,
+        brand: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> List[AutoPart]:
+        stmt = (
+            select(AutoPart)
+            .options(
+                selectinload(AutoPart.categories),
+                selectinload(AutoPart.storage_locations),
+            )
+            .offset(skip)
+            .limit(limit)
+        )
+        if oem is not None:
+            stmt = stmt.where(AutoPart.oem_number == oem)
+        if brand is not None:
+            brand_obj = await brand_crud.get_brand_by_name(
+                brand_name=brand, session=session
+            )
+            if not brand_obj:
+                raise HTTPException(status_code=404, detail='Brand not found')
+            stmt = stmt.where(AutoPart.brand_id == brand_obj.id)
+        result = await session.execute(stmt)
+        autoparts = result.scalars().unique().all()
+        return autoparts
 
 
 crud_autopart = CRUDAutopart(AutoPart)
@@ -251,10 +267,8 @@ class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
         try:
             stmt = (
                 select(Category)
-                .filter(Category.parent_id == None)    # noqa: E711
-                .options(
-                    get_recursive_selectinloads(5)
-                )
+                .filter(Category.parent_id == None)  # noqa: E711
+                .options(get_recursive_selectinloads(5))
                 .offset(skip)
                 .limit(limit)
             )
@@ -266,26 +280,19 @@ class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
 
     async def get_categories(session: AsyncSession):
         result = await session.execute(
-            select(Category)
-            .options(
-                selectinload(Category.children)
-            )
+            select(Category).options(selectinload(Category.children))
         )
         categories = result.scalars().all()
         return categories
 
     async def get_category_by_id(
-            self,
-            category_id: int,
-            session: AsyncSession
+        self, category_id: int, session: AsyncSession
     ) -> Category:
         try:
             stmt = (
                 select(Category)
                 .where(Category.id == category_id)
-                .options(
-                    get_recursive_selectinloads(5)
-                )
+                .options(get_recursive_selectinloads(5))
             )
             result = await session.execute(stmt)
             return result.scalars().unique().one_or_none()
@@ -293,28 +300,21 @@ class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
             raise error
 
     async def get_category_id_by_name(
-            self,
-            category_name: str,
-            session: AsyncSession
+        self, category_name: str, session: AsyncSession
     ) -> Category:
         try:
-            stmt = (
-                select(Category)
-                .where(Category.name == category_name)
-            )
+            stmt = select(Category).where(Category.name == category_name)
             result = await session.execute(stmt)
             return result.scalars().first()
         except SQLAlchemyError as error:
             raise error
 
     async def create_many(
-            self,
-            category_data: List[CategoryCreate],
-            session: AsyncSession
+        self, category_data: List[CategoryCreate], session: AsyncSession
     ):
         """
-       Массово создать категории из списка CategoryCreate
-       """
+        Массово создать категории из списка CategoryCreate
+        """
         try:
             category_objs = [
                 Category(**category.dict(exclude_unset=True))
@@ -330,23 +330,17 @@ class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
             await session.rollback()
             detail = None
             if hasattr(e.orig, 'diag') and getattr(
-                    e.orig.diag,
-                    'message_detail',
-                    None
+                e.orig.diag, 'message_detail', None
             ):
                 detail = e.orig.diag.message_detail
             detail = detail or str(e)
-            match = re.search(
-                r'Key \(name\)=\((.+)\) already exists.',
-                detail
-            )
+            match = re.search(r'Key \(name\)=\((.+)\) already exists.', detail)
             if match:
                 duplicate_name = match.group(1)
                 detail = f'Category {duplicate_name} already exists'
 
             raise HTTPException(
-                status_code=400,
-                detail=f'Integrity error: {detail}'
+                status_code=400, detail=f'Integrity error: {detail}'
             ) from e
         except SQLAlchemyError as error:
             await session.rollback()
@@ -355,13 +349,11 @@ class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
             ) from error
 
 
-class CRUDStorageLocation(CRUDBase[
-                              StorageLocation,
-                              StorageLocationCreate,
-                              StorageLocationUpdate
-                          ]):
+class CRUDStorageLocation(
+    CRUDBase[StorageLocation, StorageLocationCreate, StorageLocationUpdate]
+):
     async def get_multi(
-            self, session: AsyncSession, *, skip: int = 0, limit: int = 100
+        self, session: AsyncSession, *, skip: int = 0, limit: int = 100
     ) -> List[StorageLocation]:
         try:
             stmt = (
@@ -369,7 +361,7 @@ class CRUDStorageLocation(CRUDBase[
                 .options(
                     selectinload(StorageLocation.autoparts).options(
                         selectinload(AutoPart.categories),
-                        selectinload(AutoPart.storage_locations)
+                        selectinload(AutoPart.storage_locations),
                     )
                 )
                 .offset(skip)
@@ -382,17 +374,13 @@ class CRUDStorageLocation(CRUDBase[
             raise error
 
     async def get_storage_location_by_id(
-            self,
-            storage_location_id: int,
-            session: AsyncSession
+        self, storage_location_id: int, session: AsyncSession
     ) -> StorageLocation:
         try:
             stmt = (
                 select(StorageLocation)
                 .where(StorageLocation.id == storage_location_id)
-                .options(
-                    selectinload(StorageLocation.autoparts)
-                )
+                .options(selectinload(StorageLocation.autoparts))
             )
             result = await session.execute(stmt)
             return result.scalars().unique().one_or_none()
@@ -400,14 +388,11 @@ class CRUDStorageLocation(CRUDBase[
             raise error
 
     async def get_storage_location_id_by_name(
-            self,
-            storage_location_name: str,
-            session: AsyncSession
+        self, storage_location_name: str, session: AsyncSession
     ) -> StorageLocation:
         try:
-            stmt = (
-                select(StorageLocation)
-                .where(StorageLocation.name == storage_location_name)
+            stmt = select(StorageLocation).where(
+                StorageLocation.name == storage_location_name
             )
             result = await session.execute(stmt)
             return result.scalars().first()
@@ -415,9 +400,9 @@ class CRUDStorageLocation(CRUDBase[
             raise error
 
     async def create_locations(
-            self,
-            locations_data: List[StorageLocationCreate],
-            session: AsyncSession
+        self,
+        locations_data: List[StorageLocationCreate],
+        session: AsyncSession,
     ):
         try:
             location_objs = [
@@ -433,30 +418,24 @@ class CRUDStorageLocation(CRUDBase[
             await session.rollback()
             detail = None
             if hasattr(e.orig, 'diag') and getattr(
-                    e.orig.diag,
-                    'message_detail',
-                    None
+                e.orig.diag, 'message_detail', None
             ):
                 detail = e.orig.diag.message_detail
             detail = detail or str(e)
-            match = re.search(
-                r'Key \(name\)=\((.+)\) already exists.',
-                detail
-            )
+            match = re.search(r'Key \(name\)=\((.+)\) already exists.', detail)
             if match:
                 duplicate_name = match.group(1)
                 detail = f'Storage location {duplicate_name} already exists'
 
             raise HTTPException(
-                status_code=400,
-                detail=f'Integrity error: {detail}'
+                status_code=400, detail=f'Integrity error: {detail}'
             ) from e
 
         except SQLAlchemyError as e:
             await session.rollback()
             raise HTTPException(
                 status_code=400,
-                detail='Database error when creating storage locations'
+                detail='Database error when creating storage locations',
             ) from e
 
 

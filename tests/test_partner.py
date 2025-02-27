@@ -39,9 +39,9 @@ async def test_create_provider(
     data = response.json()
     assert data['name'] == 'TEST-PROVIDER'
     assert data['description'] == 'A test provider'
-    assert data['email_contact'] == 'test2@test2.ru'
+    assert data['email_contact'] == 'test2@exemple.com'
     assert data['comment'] == 'Test comment'
-    assert data['email_incoming_price'] == 'test3@test2.ru'
+    assert data['email_incoming_price'] == 'test3@exemple.com'
     assert data['type_prices'] == 'Retail'
     assert 'id' in data
 
@@ -174,7 +174,7 @@ async def test_update_provider_success(
     provider_to_update = created_providers[0]
     update_data = {
         'name': 'Updated Provider Name',
-        'email_contact': 'updated_email@test.com',
+        'email_contact': 'updated_email@exemple.com',
         'description': 'Updated description',
     }
 
@@ -241,9 +241,9 @@ async def test_create_customer(
 
     assert data['name'] == 'TEST-CUSTOMER'
     assert data['description'] == 'A test customer'
-    assert data['email_contact'] == 'testcustomer@customer.ru'
+    assert data['email_contact'] == 'testcustomer@exemple.com'
     assert data['comment'] == 'Test comment'
-    assert data['email_outgoing_price'] == 'testcustomer@customer.ru'
+    assert data['email_outgoing_price'] == 'testcustomer@exemple.com'
     assert data['type_prices'] == 'Retail'
     assert 'id' in data
 
@@ -371,7 +371,7 @@ async def test_update_customer_success(
     customer_to_update = created_customers[0]
     update_data = {
         'name': 'Updated Customer Name',
-        'email_contact': 'updated_email@test.com',
+        'email_contact': 'updated_email@exemple.com',
         'description': 'Updated description',
     }
 

@@ -1,4 +1,4 @@
-from typing import Annotated, List, Optional
+from typing import Annotated, Dict, List, Optional
 
 from pydantic import (BaseModel, ConfigDict, Field, StringConstraints,
                       field_validator)
@@ -138,6 +138,16 @@ class AutoPartPricelist(BaseModel):
     wholesale_price: Optional[float] = None
     comment: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
+
+
+class NotFoundPartResponse(BaseModel):
+    record: Dict[str, str]
+    error: str
+
+
+class BulkUpdateResponse(BaseModel):
+    updated_count: int
+    not_found_parts: List[NotFoundPartResponse]
 
 
 # Base schema with shared fields
