@@ -126,7 +126,7 @@ async def bulk_update_autoparts(
             'categories': categories_col,
             'min_balance_user': min_balance_user_col,
         }
-        filtered_columns = dict()
+        temp_columns = []
         for name, user_col in columns.items():
             if user_col is None:
                 continue
@@ -135,9 +135,13 @@ async def bulk_update_autoparts(
                     status_code=400,
                     detail=f'Invalid number column for {name}, got {user_col}',
                 )
-            filtered_columns[name] = user_col - 1
+            zero_based_col = user_col - 1
+            temp_columns.append((name, zero_based_col))
 
-        usecols_list = list(filtered_columns.values())
+        temp_columns.sort(key=lambda x: x[1])
+
+        usecols_list = [col_index for _, col_index in temp_columns]
+        col_names = [col_name for col_name, _ in temp_columns]
         try:
             if file_extension in ['xls', 'xlsx']:
                 df = pd.read_excel(
@@ -155,7 +159,7 @@ async def bulk_update_autoparts(
                 raise HTTPException(
                     status_code=400, detail='Unsupported file type'
                 )
-            df.columns = list(filtered_columns.keys())
+            df.columns = col_names
             logger.debug(f'DataFrame:\n{df.head()}')
         except Exception as e:
             raise HTTPException(
