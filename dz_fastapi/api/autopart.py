@@ -1,8 +1,10 @@
 import io
 import logging
+import zipfile
 from typing import List, Optional
 
 import pandas as pd
+import rarfile
 from fastapi import (APIRouter, Body, Depends, File, Form, HTTPException,
                      Query, UploadFile, status)
 from pydantic import conint
@@ -143,6 +145,33 @@ async def bulk_update_autoparts(
         usecols_list = [col_index for _, col_index in temp_columns]
         col_names = [col_name for col_name, _ in temp_columns]
         try:
+            if file_extension in 'zip':
+                with zipfile.ZipFile(io.BytesIO(file_content)) as zip:
+                    zip_list = zip.namelist()
+                    if not zip_list:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Zip archive is empty"
+                        )
+
+                    file_in_zip = zip_list[0]
+                    with zip.open(file_in_zip) as inner_file:
+                        file_content = inner_file.read()
+                        file_extension = file_in_zip.split('.')[-1].lower()
+
+            if file_extension in 'rar':
+                with rarfile.RarFile(io.BytesIO(file_content)) as rar:
+                    rar_list = rar.namelist()
+                    if not rar_list:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Rar archive is empty"
+                        )
+                    file_in_rar = rar_list[0]
+                    with zip.open(file_in_rar) as inner_file:
+                        file_content = inner_file.read()
+                        file_extension = file_in_rar.split('.')[-1].lower()
+
             if file_extension in ['xls', 'xlsx']:
                 df = pd.read_excel(
                     io.BytesIO(file_content),

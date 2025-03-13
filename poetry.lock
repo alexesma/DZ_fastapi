@@ -1485,6 +1485,17 @@ files = [
 ]
 
 [[package]]
+name = "rarfile"
+version = "4.2"
+description = "RAR archive reader for Python"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "rarfile-4.2-py3-none-any.whl", hash = "sha256:8757e1e3757e32962e229cab2432efc1f15f210823cc96ccba0f6a39d17370c9"},
+    {file = "rarfile-4.2.tar.gz", hash = "sha256:8e1c8e72d0845ad2b32a47ab11a719bc2e41165ec101fd4d3fe9e92aa3f469ef"},
+]
+
+[[package]]
 name = "six"
 version = "1.16.0"
 description = "Python 2 and 3 compatibility utilities"
@@ -1933,4 +1944,4 @@ test = ["pytest", "pytest-cov"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "b256e931057b9f548765f4fc7cfbb3a265fa2b3149b58f89af9abc3d3afd0873"
+content-hash = "95488bc234e75ac7a332001c225cb4240ca772fb5a19355104b88c2a4086f1a5"
