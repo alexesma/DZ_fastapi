@@ -200,7 +200,7 @@ async def bulk_update_autoparts(
         records = df.to_dict(orient='records')
         for record in records:
             try:
-                oem_number = preprocess_oem_number(record['oem_number'])
+                oem_number = preprocess_oem_number(str(record['oem_number']))
                 if brand_col is None:
                     brand_name = assign_brand(oem_original=oem_number)[0]
                 else:
