@@ -145,7 +145,7 @@ async def bulk_update_autoparts(
         usecols_list = [col_index for _, col_index in temp_columns]
         col_names = [col_name for col_name, _ in temp_columns]
         try:
-            if file_extension in 'zip':
+            if file_extension == 'zip':
                 with zipfile.ZipFile(io.BytesIO(file_content)) as zip:
                     zip_list = zip.namelist()
                     if not zip_list:
@@ -159,7 +159,7 @@ async def bulk_update_autoparts(
                         file_content = inner_file.read()
                         file_extension = file_in_zip.split('.')[-1].lower()
 
-            if file_extension in 'rar':
+            if file_extension == 'rar':
                 with rarfile.RarFile(io.BytesIO(file_content)) as rar:
                     rar_list = rar.namelist()
                     if not rar_list:

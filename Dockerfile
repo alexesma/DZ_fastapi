@@ -15,6 +15,10 @@ RUN apt-get update && apt-get install -y \
 # Обновите pip до последней версии
 RUN pip install --upgrade pip
 
+# Обновите unrar до последней версии
+RUN apt-get update && apt-get install -y unrar-free
+RUN pip install rarfile
+
 # Установите Poetry
 RUN pip install poetry
 
