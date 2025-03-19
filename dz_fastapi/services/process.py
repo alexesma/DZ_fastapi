@@ -1,6 +1,8 @@
 import asyncio
+import io
 import copy
 import logging
+import zipfile
 from datetime import date, datetime
 from functools import partial
 from io import BytesIO, StringIO
@@ -8,6 +10,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+import rarfile
 from fastapi import HTTPException
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -87,6 +90,79 @@ def deduplicate_autoparts_data(
     return list(unique_map.values())
 
 
+def process_download_pricelist(
+        file_extension: str,
+        file_content: bytes
+) -> pd.DataFrame:
+    """
+       Функция принимает файл (архив или обычный файл) и возвращает DataFrame.
+       Поддерживает форматы: zip, rar, xls, xlsx, csv.
+       """
+    try:
+        # Разархивируем ZIP
+        if file_extension == 'zip':
+            with zipfile.ZipFile(io.BytesIO(file_content)) as zip_file:
+                zip_list = zip_file.namelist()
+                if not zip_list:
+                    raise HTTPException(
+                        status_code=400,
+                        detail='Zip archive is empty'
+                    )
+
+                file_in_zip = zip_list[0]
+                with zip_file.open(file_in_zip) as inner_file:
+                    file_content = inner_file.read()
+                    file_extension = file_in_zip.split('.')[-1].lower()
+        # Разархивируем RAR
+        elif file_extension == 'rar':
+            with rarfile.RarFile(io.BytesIO(file_content)) as rar:
+                rar_list = rar.namelist()
+                if not rar_list:
+                    raise HTTPException(
+                        status_code=400,
+                        detail='Rar archive is empty'
+                    )
+                file_in_rar = rar_list[0]
+                with rar.open(file_in_rar) as inner_file:
+                    file_content = inner_file.read()
+                    file_extension = file_in_rar.split('.')[-1].lower()
+
+        if file_extension in ['xls', 'xlsx']:
+            try:
+                df = pd.read_excel(
+                    BytesIO(file_content),
+                    header=None,
+                    engine='xlrd' if file_extension == 'xls' else 'openpyxl'
+                )
+            except Exception as e:
+                logger.error(f'Error reading Excel file: {e}')
+                raise HTTPException(
+                    status_code=400,
+                    detail='Invalid Excel file.'
+                )
+        elif file_extension == 'csv':
+            try:
+                df = pd.read_csv(
+                    StringIO(file_content.decode('utf-8')), header=None
+                )
+            except Exception as e:
+                logger.error(f'Error reading CSV file: {e}')
+                raise HTTPException(
+                    status_code=400,
+                    detail='Invalid CSV file.'
+                )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f'Unsupported file type: {file_extension}'
+            )
+        return df
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail=f'Invalid format file:{e}'
+        )
+
+
 async def process_provider_pricelist(
     provider: Provider,
     file_content: bytes,
@@ -126,29 +202,10 @@ async def process_provider_pricelist(
             )
 
     # Load the file into a DataFrame
-    if file_extension in ['xlsx', 'xls']:
-        try:
-            if file_extension in 'xls':
-                df = pd.read_excel(
-                    BytesIO(file_content), header=None, engine='xlrd'
-                )
-            else:  # xlsx
-                df = pd.read_excel(
-                    BytesIO(file_content), header=None, engine='openpyxl'
-                )
-        except Exception as e:
-            logger.error(f'Error reading Excel file: {e}')
-            raise HTTPException(status_code=400, detail='Invalid Excel file.')
-    elif file_extension == 'csv':
-        try:
-            df = pd.read_csv(
-                StringIO(file_content.decode('utf-8')), header=None
-            )
-        except Exception as e:
-            logger.error(f'Error reading CSV file: {e}')
-            raise HTTPException(status_code=400, detail='Invalid CSV file.')
-    else:
-        raise HTTPException(status_code=400, detail='Unsupported file type')
+    df = process_download_pricelist(
+        file_extension=file_extension,
+        file_content=file_content
+    )
 
     try:
         data_df = df.iloc[start_row:]
