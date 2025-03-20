@@ -1,8 +1,6 @@
 import asyncio
 import copy
-import io
 import logging
-import zipfile
 from datetime import date, datetime
 from functools import partial
 from io import BytesIO, StringIO
@@ -10,8 +8,8 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
-import rarfile
 from fastapi import HTTPException
+from libarchive import memory_reader
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -70,8 +68,6 @@ from dz_fastapi.services.utils import position_exclude, prepare_excel_data
 
 logger = logging.getLogger('dz_fastapi')
 
-rarfile.UNRAR_TOOL = '/usr/bin/unrar'
-
 
 def deduplicate_autoparts_data(
     autoparts_data: List[Dict[str, Any]]
@@ -92,6 +88,22 @@ def deduplicate_autoparts_data(
     return list(unique_map.values())
 
 
+def extract_first_file_from_archive(file_content: bytes) -> (str, bytes):
+    extracted_content = None
+    extracted_extension = None
+    try:
+        for entry in memory_reader(file_content):
+            if entry.isfile:
+                extracted_content = b"".join(list(entry.get_blocks()))
+                extracted_extension = entry.pathname.split('.')[-1].lower()
+                break
+    except Exception as e:
+        raise Exception(f"Error reading archive: {e}")
+    if extracted_content is None:
+        raise Exception("Archive is empty")
+    return extracted_extension, extracted_content
+
+
 def process_download_pricelist(
         file_extension: str,
         file_content: bytes
@@ -102,32 +114,41 @@ def process_download_pricelist(
        """
     try:
         # Разархивируем ZIP
-        if file_extension == 'zip':
-            with zipfile.ZipFile(io.BytesIO(file_content)) as zip_file:
-                zip_list = zip_file.namelist()
-                if not zip_list:
-                    raise HTTPException(
-                        status_code=400,
-                        detail='Zip archive is empty'
-                    )
-
-                file_in_zip = zip_list[0]
-                with zip_file.open(file_in_zip) as inner_file:
-                    file_content = inner_file.read()
-                    file_extension = file_in_zip.split('.')[-1].lower()
-        # Разархивируем RAR
-        elif file_extension == 'rar':
-            with rarfile.RarFile(io.BytesIO(file_content)) as rar:
-                rar_list = rar.namelist()
-                if not rar_list:
-                    raise HTTPException(
-                        status_code=400,
-                        detail='Rar archive is empty'
-                    )
-                file_in_rar = rar_list[0]
-                with rar.open(file_in_rar) as inner_file:
-                    file_content = inner_file.read()
-                    file_extension = file_in_rar.split('.')[-1].lower()
+        if file_extension in ['zip', 'rar']:
+            logger.debug(
+                f'File is an archive ({file_extension}), '
+                f'attempting extraction...'
+            )
+            file_extension, file_content = extract_first_file_from_archive(
+                file_content
+            )
+            logger.debug(f'Extracted file extension: {file_extension}')
+        # if file_extension == 'zip':
+        #     with zipfile.ZipFile(io.BytesIO(file_content)) as zip_file:
+        #         zip_list = zip_file.namelist()
+        #         if not zip_list:
+        #             raise HTTPException(
+        #                 status_code=400,
+        #                 detail='Zip archive is empty'
+        #             )
+        #
+        #         file_in_zip = zip_list[0]
+        #         with zip_file.open(file_in_zip) as inner_file:
+        #             file_content = inner_file.read()
+        #             file_extension = file_in_zip.split('.')[-1].lower()
+        # # Разархивируем RAR
+        # elif file_extension == 'rar':
+        #     with rarfile.RarFile(io.BytesIO(file_content)) as rar:
+        #         rar_list = rar.namelist()
+        #         if not rar_list:
+        #             raise HTTPException(
+        #                 status_code=400,
+        #                 detail='Rar archive is empty'
+        #             )
+        #         file_in_rar = rar_list[0]
+        #         with rar.open(file_in_rar) as inner_file:
+        #             file_content = inner_file.read()
+        #             file_extension = file_in_rar.split('.')[-1].lower()
 
         if file_extension in ['xls', 'xlsx']:
             try:
