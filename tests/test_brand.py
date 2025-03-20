@@ -204,7 +204,7 @@ async def test_get_brands(test_session, created_brand: Brand):
             transport=transport,
             base_url='http://test'
     ) as ac:
-        response = await ac.get('/brand')
+        response = await ac.get('/brand/')
 
     assert response.status_code == 200, response.text
     data = response.json()[0]
