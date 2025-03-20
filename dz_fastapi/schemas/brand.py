@@ -20,6 +20,15 @@ class CountryEnum(StrEnum):
     TAIWAN = 'Taiwan'
     TURKEY = 'Turkey'
     CZECHIA = 'Czechia'
+    SWEDEN = 'Sweden'
+    INDIA = 'India'
+    BRAZIL = 'Brazil'
+    MEXICO = 'Mexico'
+    CANADA = 'Canada'
+    THAILAND = 'Thailand'
+    AUSTRIA = 'Austria'
+    INDONESIA = 'Indonesia'
+    SWITZERLAND = 'Switzerland'
 
 
 class BrandBase(BaseModel):
