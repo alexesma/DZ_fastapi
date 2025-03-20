@@ -28,7 +28,7 @@ UPLOAD_DIR = Path(UPLOAD_DIR)
 
 
 @router.get(
-    '/brand',
+    '/brand/',
     response_model=list[BrandCreateInDB],
     tags=['brand'],
     summary='Список брендов',
@@ -260,7 +260,7 @@ async def update_brand(
 
 
 @router.post(
-    '/brand/{brand_id}/synonyms',
+    '/brand/{brand_id}/synonyms/',
     response_model=BrandResponse,
     tags=['brand'],
     summary='Добавление синонимов к бренду',

@@ -70,6 +70,8 @@ from dz_fastapi.services.utils import position_exclude, prepare_excel_data
 
 logger = logging.getLogger('dz_fastapi')
 
+rarfile.UNRAR_TOOL = '/usr/bin/unrar'
+
 
 def deduplicate_autoparts_data(
     autoparts_data: List[Dict[str, Any]]

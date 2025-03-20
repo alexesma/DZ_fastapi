@@ -18,6 +18,8 @@ class CountryEnum(StrEnum):
     SOUTH_KOREA = 'South Korea'
     POLAND = 'Poland'
     TAIWAN = 'Taiwan'
+    TURKEY = 'Turkey'
+    CZECHIA = 'Czechia'
 
 
 class BrandBase(BaseModel):
