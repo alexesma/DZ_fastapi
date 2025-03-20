@@ -332,7 +332,7 @@ async def test_add_synonyms(test_session, created_brand: Brand):
             base_url='http://test'
     ) as ac:
         response = await ac.post(
-            f'/brand/{brand_id}/synonyms',
+            f'/brand/{brand_id}/synonyms/',
             json=synonym_payload
         )
 
@@ -370,7 +370,7 @@ async def test_delete_synonyms(test_session, created_brand: Brand):
 
     async with AsyncClient(transport=transport, base_url='http://test') as ac:
         response = await ac.post(
-            f'/brand/{brand_id}/synonyms',
+            f'/brand/{brand_id}/synonyms/',
             json=synonym_payload
         )
     assert response.status_code == 200
