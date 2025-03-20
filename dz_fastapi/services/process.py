@@ -92,11 +92,12 @@ def extract_first_file_from_archive(file_content: bytes) -> (str, bytes):
     extracted_content = None
     extracted_extension = None
     try:
-        for entry in memory_reader(file_content):
-            if entry.isfile:
-                extracted_content = b"".join(list(entry.get_blocks()))
-                extracted_extension = entry.pathname.split('.')[-1].lower()
-                break
+        with memory_reader(file_content) as entries:
+            for entry in entries:
+                if entry.isfile:
+                    extracted_content = b"".join(list(entry.get_blocks()))
+                    extracted_extension = entry.pathname.split('.')[-1].lower()
+                    break
     except Exception as e:
         raise Exception(f"Error reading archive: {e}")
     if extracted_content is None:
