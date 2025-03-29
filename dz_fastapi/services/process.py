@@ -280,8 +280,17 @@ async def process_provider_pricelist(
         )
     # (1) Получили список dict из DataFrame:
     autoparts_data = data_df.to_dict(orient='records')
+    logger.debug(
+        f'autoparts_data перед дедупликацией: '
+        f'{autoparts_data[:10]} (всего: {len(autoparts_data)})'
+    )
+
     # (2) Убрали/слили дубликаты:
     deduplicated_data = deduplicate_autoparts_data(autoparts_data)
+    logger.debug(
+        f'deduplicated_data после дедупликации: '
+        f'{deduplicated_data[:10]} (всего: {len(deduplicated_data)})'
+    )
 
     pricelist_in = PriceListCreate(
         provider_id=provider.id,
