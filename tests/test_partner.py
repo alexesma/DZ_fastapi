@@ -594,7 +594,7 @@ async def test_upload_provider_pricelist_invalid_file(
     data = response.json()
 
     assert data['detail'] == (
-        "Invalid column indices provided: '[1, 2, 3, 4] not in index'"
+        "Invalid CSV file."
     )
 
 
