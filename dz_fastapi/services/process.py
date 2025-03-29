@@ -123,8 +123,6 @@ def open_csv(file: bytes) -> pd.DataFrame:
     raise HTTPException(status_code=400, detail='Invalid CSV file.')
 
 
-
-
 def process_download_pricelist(
         file_extension: str,
         file_content: bytes
