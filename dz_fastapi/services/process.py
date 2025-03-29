@@ -105,6 +105,26 @@ def extract_first_file_from_archive(file_content: bytes) -> (str, bytes):
     return extracted_extension, extracted_content
 
 
+def open_csv(file: bytes) -> pd.DataFrame:
+    file_decoder = file.decode('utf-8')
+    separators = [',', ';', '/t', '|']
+    for sep in separators:
+        try:
+            df = pd.read_csv(
+                StringIO(file_decoder),
+                sep=sep,
+                engine='python',
+                header=None
+            )
+            if df.shape[1] > 1:
+                return df
+        except pd.errors.ParserError:
+            continue
+    raise HTTPException(status_code=400, detail='Invalid CSV file.')
+
+
+
+
 def process_download_pricelist(
         file_extension: str,
         file_content: bytes
@@ -140,9 +160,7 @@ def process_download_pricelist(
                 )
         elif file_extension == 'csv':
             try:
-                df = pd.read_csv(
-                    StringIO(file_content.decode('utf-8')), header=None
-                )
+                df = open_csv(file_content)
             except Exception as e:
                 logger.error(f'Error reading CSV file: {e}')
                 raise HTTPException(
