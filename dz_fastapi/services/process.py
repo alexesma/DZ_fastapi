@@ -124,32 +124,6 @@ def process_download_pricelist(
                 file_content
             )
             logger.debug(f'Extracted file extension: {file_extension}')
-        # if file_extension == 'zip':
-        #     with zipfile.ZipFile(io.BytesIO(file_content)) as zip_file:
-        #         zip_list = zip_file.namelist()
-        #         if not zip_list:
-        #             raise HTTPException(
-        #                 status_code=400,
-        #                 detail='Zip archive is empty'
-        #             )
-        #
-        #         file_in_zip = zip_list[0]
-        #         with zip_file.open(file_in_zip) as inner_file:
-        #             file_content = inner_file.read()
-        #             file_extension = file_in_zip.split('.')[-1].lower()
-        # # Разархивируем RAR
-        # elif file_extension == 'rar':
-        #     with rarfile.RarFile(io.BytesIO(file_content)) as rar:
-        #         rar_list = rar.namelist()
-        #         if not rar_list:
-        #             raise HTTPException(
-        #                 status_code=400,
-        #                 detail='Rar archive is empty'
-        #             )
-        #         file_in_rar = rar_list[0]
-        #         with rar.open(file_in_rar) as inner_file:
-        #             file_content = inner_file.read()
-        #             file_extension = file_in_rar.split('.')[-1].lower()
 
         if file_extension in ['xls', 'xlsx']:
             try:

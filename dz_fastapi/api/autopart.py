@@ -182,6 +182,8 @@ async def bulk_update_autoparts(
                 df = pd.read_csv(
                     io.StringIO(file_content.decode('utf-8')),
                     header=start_row - 1,
+                    sep=None,
+                    engine='python',
                     usecols=usecols_list,
                 )
             else:
