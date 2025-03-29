@@ -107,7 +107,7 @@ def extract_first_file_from_archive(file_content: bytes) -> (str, bytes):
 
 def open_csv(file: bytes) -> pd.DataFrame:
     file_decoder = file.decode('utf-8')
-    separators = [',', ';', '/t', '|']
+    separators = [',', ';', '\t', '|']
     for sep in separators:
         try:
             df = pd.read_csv(
@@ -256,6 +256,18 @@ async def process_provider_pricelist(
             data_df['name'] = data_df['name'].astype(str).str.strip()
         if 'brand' in data_df.columns:
             data_df['brand'] = data_df['brand'].astype(str).str.strip()
+        data_df['quantity'] = (
+            data_df['quantity']
+            .astype(str)
+            .str.replace(',', '.', regex=False)
+            .str.replace(r'[^\d\.]', '', regex=True)
+        )
+        data_df['price'] = (
+            data_df['price']
+            .astype(str)
+            .str.replace(',', '.', regex=False)
+            .str.replace(r'[^\d\.]', '', regex=True)
+        )
         data_df['quantity'] = pd.to_numeric(
             data_df['quantity'], errors='coerce'
         )
