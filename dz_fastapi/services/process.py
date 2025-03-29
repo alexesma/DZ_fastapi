@@ -120,7 +120,7 @@ def open_csv(file: bytes) -> pd.DataFrame:
                 return df
         except pd.errors.ParserError:
             continue
-    raise HTTPException(status_code=422, detail='Invalid CSV file.')
+    raise HTTPException(status_code=400, detail='Invalid CSV file.')
 
 
 def process_download_pricelist(

@@ -590,11 +590,11 @@ async def test_upload_provider_pricelist_invalid_file(
         f'/providers/{provider.id}/pricelists/{provider_list_conf_id}/upload/',
         files={'file': ('test.csv', file, 'text/csv')},
     )
-    assert response.status_code == 422, response.text
+    assert response.status_code == 400, response.text
     data = response.json()
 
     assert data['detail'] == (
-        "Invalid CSV file."
+        "Invalid format file:400: Invalid CSV file."
     )
 
 
