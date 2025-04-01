@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, Optional
 
 from fastapi import (APIRouter, BackgroundTasks, Body, Depends, File, Form,
