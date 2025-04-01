@@ -1159,12 +1159,12 @@ async def get_autopart_popularity(
         start_dt = (
             datetime.fromisoformat(date_start)
             if date_start
-            else datetime(2020, 1, 1, tzinfo=timezone.utc)
+            else datetime(2020, 1, 1)
         )
         finish_dt = (
             datetime.fromisoformat(date_finish)
             if date_finish
-            else datetime.now(timezone.utc)
+            else datetime.now()
         )
     except ValueError:
         raise HTTPException(

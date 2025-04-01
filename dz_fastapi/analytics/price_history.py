@@ -246,7 +246,7 @@ async def analyze_autopart_popularity(
     session: AsyncSession,
     provider_id: int,
     date_start: datetime = datetime(2022, 1, 1),
-    date_finish: datetime = datetime.now(timezone.utc),
+    date_finish: datetime = datetime.now(),
 ) -> pd.DataFrame:
     """
     Анализирует позиции по истории изменений прайс-листов.
