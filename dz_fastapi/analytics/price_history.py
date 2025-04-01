@@ -1,16 +1,16 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from io import BytesIO
 from typing import Optional
 
 import pandas as pd
-from sqlalchemy import select
+from sqlalchemy import and_, select
 
 from dz_fastapi.core.constants import ANALYSIS_EMAIL
 from dz_fastapi.core.db import AsyncSession
 from dz_fastapi.crud.autopart import crud_autopart
 from dz_fastapi.crud.partner import crud_pricelist
-from dz_fastapi.models.autopart import AutoPartPriceHistory
+from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
 from dz_fastapi.models.partner import PriceList, Provider
 from dz_fastapi.services.email import send_email_with_attachment
 
@@ -223,11 +223,11 @@ async def analyze_new_pricelist(new_pl: PriceList, session: AsyncSession):
     # 5) В конце вывести Excel
     if changes_list:
         excel_file = create_excel_report(changes_list)
-        logger.info(
-            f'Excel report created, size={len(excel_file.getvalue())}'
+        logger.info(f'Excel report created, size={len(excel_file.getvalue())}')
+        subject = (
+            f'[ANALYSIS] Поставщик = {new_pl.provider.name}'
+            f'| Прайс = {new_pl.config_id.name_price}'
         )
-        subject = (f'[ANALYSIS] Поставщик = {new_pl.provider.name}'
-                   f'| Прайс = {new_pl.config_id.name_price}')
         filename = 'analysis_report.xlsx'
         send_email_with_attachment(
             to_email=ANALYSIS_EMAIL,
@@ -240,3 +240,114 @@ async def analyze_new_pricelist(new_pl: PriceList, session: AsyncSession):
         logger.info('No changes detected, no Excel report generated.')
 
     return
+
+
+async def analyze_autopart_popularity(
+    session: AsyncSession,
+    provider_id: int,
+    date_start: datetime = datetime(2022, 1, 1),
+    date_finish: datetime = datetime.now(timezone.utc),
+) -> pd.DataFrame:
+    """
+    Анализирует позиции по истории изменений прайс-листов.
+    Возвращает DataFrame со всеми позициями,
+    ранжированными по перспективности.
+    """
+    # 1) Загружаем историю
+    query = (
+        select(
+            AutoPartPriceHistory.autopart_id,
+            AutoPartPriceHistory.quantity,
+            AutoPartPriceHistory.created_at,
+            AutoPart.oem_number,
+            AutoPart.name,
+        )
+        .join(AutoPart, AutoPart.id == AutoPartPriceHistory.autopart_id)
+        .where(
+            and_(
+                AutoPartPriceHistory.provider_id == provider_id,
+                AutoPartPriceHistory.created_at >= date_start,
+                AutoPartPriceHistory.created_at <= date_finish,
+            )
+        )
+        .order_by(
+            AutoPartPriceHistory.autopart_id, AutoPartPriceHistory.created_at
+        )
+    )
+    result = (await session.execute(query)).all()
+
+    df = pd.DataFrame(
+        result,
+        columns=[
+            'autopart_id',
+            'quantity',
+            'created_at',
+            'oem_number',
+            'name',
+        ],
+    )
+
+    # 2. Группируем по запчасти и считаем "продажи" как уменьшение количества
+    def count_quantity_drops(group):
+        group = group.sort_values('created_at')
+        group['qty_diff'] = group['quantity'].diff()
+        drops = group[group['qty_diff'] < 0]
+        return pd.Series(
+            {
+                'total_qty_sold': -drops['qty_diff'].sum(),
+                'times_qty_dropped': drops.shape[0],
+                'last_seen': group['created_at'].max(),
+                'last_quantity': group['quantity'].iloc[-1],
+                'name': group['name'].iloc[-1],
+                'oem_number': group['oem_number'].iloc[-1],
+            }
+        )
+
+    result_df = (
+        df.groupby('autopart_id').apply(count_quantity_drops).reset_index()
+    )
+
+    result_df.sort_values(by='total_qty_sold', ascending=False, inplace=True)
+
+    return result_df
+
+
+def create_autopart_analysis_excel(df: pd.DataFrame) -> BytesIO:
+    report_df = df[
+        [
+            'oem_number',
+            'name',
+            'total_qty_sold',
+            'times_qty_dropped',
+            'last_quantity',
+            'last_seen',
+        ]
+    ].rename(
+        columns={
+            'oem_number': 'OEM номер',
+            'name': 'Название',
+            'total_qty_sold': 'Продано всего (шт)',
+            'times_qty_dropped': 'Сколько раз покупали',
+            'last_quantity': 'Остаток последний',
+            'last_seen': 'Последний раз в прайсе',
+        }
+    )
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        report_df.to_excel(
+            writer, sheet_name='Популярные позиции', index=False
+        )
+
+        # Форматирование столбцов
+        worksheet = writer.sheets['Популярные позиции']
+        for column_cells in worksheet.columns:
+            max_length = max(
+                len(str(cell.value or '')) for cell in column_cells
+            )
+            worksheet.column_dimensions[
+                column_cells[0].column_letter
+            ].width = (max_length + 3)
+
+    output.seek(0)
+    return output

@@ -203,6 +203,7 @@ def send_email_with_attachment(
 
     try:
         with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as smtp:
+            smtp.set_debuglevel(1)
             smtp.login(EMAIL_NAME, EMAIL_PASSWORD)
             smtp.send_message(msg)
         logger.info(f'Email sent to {to_email}')

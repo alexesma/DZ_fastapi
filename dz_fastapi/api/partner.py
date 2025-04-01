@@ -1,15 +1,23 @@
 import logging
+import os
+from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import (APIRouter, Body, Depends, File, Form, HTTPException,
-                     Query, UploadFile, status)
+from fastapi import (APIRouter, BackgroundTasks, Body, Depends, File, Form,
+                     HTTPException, Query, UploadFile, status)
 from httpx import Response
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
+from dz_fastapi.analytics.price_history import (analyze_autopart_popularity,
+                                                create_autopart_analysis_excel)
 from dz_fastapi.api.validators import change_brand_name
+from dz_fastapi.core.constants import (
+    BODY_MAIL_ANALYTIC_PRICE_PROVIDER,
+    FILENAME_EXCEL_MAIL_ANALYTIC_PRICE_PROVIDER,
+    SUBJECT_MAIL_ANALYTIC_PRICE_PROVIDER)
 from dz_fastapi.core.db import get_session
 from dz_fastapi.crud.partner import (crud_customer, crud_customer_pricelist,
                                      crud_customer_pricelist_config,
@@ -39,11 +47,14 @@ from dz_fastapi.schemas.partner import (AutoPartInPricelist,
                                         ProviderPriceListConfigResponse,
                                         ProviderPriceListConfigUpdate,
                                         ProviderResponse, ProviderUpdate)
-from dz_fastapi.services.email import download_price_provider
+from dz_fastapi.services.email import (download_price_provider,
+                                       send_email_with_attachment)
 from dz_fastapi.services.process import (process_customer_pricelist,
                                          process_provider_pricelist)
 
 logger = logging.getLogger('dz_fastapi')
+EMAIL_NAME_ANALYTIC = os.getenv('EMAIL_NAME_ANALYTIC')
+
 
 router = APIRouter()
 
@@ -1125,3 +1136,57 @@ async def download_provider_pricelist(
         raise HTTPException(
             status_code=500, detail='Error during download and processing'
         )
+
+
+@router.get(
+    '/providers/{provider_id}/popularity/',
+    tags=['providers', 'pricelists'],
+    status_code=status.HTTP_200_OK,
+    summary='Get analytic autoparts for provider',
+)
+async def get_autopart_popularity(
+    background_tasks: BackgroundTasks,
+    provider_id: Optional[int],
+    date_start: Optional[str] = Query(
+        default=None, description='Start date in format YYYY-MM-DD'
+    ),
+    date_finish: Optional[str] = Query(
+        default=None, description='End date in format YYYY-MM-DD'
+    ),
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        start_dt = (
+            datetime.fromisoformat(date_start)
+            if date_start
+            else datetime(2020, 1, 1, tzinfo=timezone.utc)
+        )
+        finish_dt = (
+            datetime.fromisoformat(date_finish)
+            if date_finish
+            else datetime.now(timezone.utc)
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail='Invalid date format. Use YYYY-MM-DD or ISO format.',
+        )
+
+    df = await analyze_autopart_popularity(
+        provider_id=provider_id,
+        session=session,
+        date_start=start_dt,
+        date_finish=finish_dt,
+    )
+    excel_file = create_autopart_analysis_excel(df=df)
+
+    background_tasks.add_task(
+        send_email_with_attachment,
+        to_email=EMAIL_NAME_ANALYTIC,
+        subject=SUBJECT_MAIL_ANALYTIC_PRICE_PROVIDER,
+        body=BODY_MAIL_ANALYTIC_PRICE_PROVIDER,
+        attachment_filename=FILENAME_EXCEL_MAIL_ANALYTIC_PRICE_PROVIDER,
+        attachment_bytes=excel_file.getvalue(),
+    )
+
+    return {'message': f'Отчёт отправлен на почту {EMAIL_NAME_ANALYTIC}'}
