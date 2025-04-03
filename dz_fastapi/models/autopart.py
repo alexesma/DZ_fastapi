@@ -30,7 +30,7 @@ def change_string(old_string: str) -> str:
     return new_string
 
 
-def preprocess_oem_number(oem_number):
+def preprocess_oem_number(oem_number: str) -> str:
     '''
     Функция для предварительного обработки отправляемого номера запчасти.
     Удаляет все символы, кроме латинских букв и цифр.

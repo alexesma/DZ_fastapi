@@ -130,6 +130,18 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_autoparts_by_oem_or_none(
+        self,
+        oem_number: str,
+        session: AsyncSession,
+    ) -> Optional[List[AutoPart]]:
+        stmt = select(AutoPart).where(
+            AutoPart.oem_number == oem_number
+        )
+        result = await session.execute(stmt)
+        autoparts = result.scalars().all()
+        return autoparts if autoparts else None
+
     async def get_autopart_by_id(
         self, session: AsyncSession, autopart_id: int
     ) -> Optional[AutoPart]:

@@ -1,9 +1,11 @@
 import io
 import logging
 import zipfile
+from io import StringIO
 from typing import List, Optional
 
 import pandas as pd
+import plotly.express as px
 import rarfile
 from fastapi import (APIRouter, Body, Depends, File, Form, HTTPException,
                      Query, UploadFile, status)
@@ -12,7 +14,9 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
+from starlette.responses import HTMLResponse
 
+from dz_fastapi.analytics.price_history import analyze_autopart_allprices
 from dz_fastapi.api.validators import change_storage_name
 from dz_fastapi.core.db import get_session
 from dz_fastapi.crud.autopart import crud_autopart, crud_category, crud_storage
@@ -25,7 +29,9 @@ from dz_fastapi.schemas.autopart import (AutoPartCreate, AutoPartResponse,
                                          CategoryUpdate, StorageLocationCreate,
                                          StorageLocationResponse,
                                          StorageLocationUpdate)
-from dz_fastapi.services.process import assign_brand, write_error_for_bulk
+from dz_fastapi.services.process import (assign_brand,
+                                         check_start_and_finish_date,
+                                         write_error_for_bulk)
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -638,3 +644,65 @@ async def create_storages_bulk(
         StorageLocationResponse.from_orm(location)
         for location in created_locations
     ]
+
+
+@router.get(
+    '/autoparts/{oem_number}/price-history/plot/',
+    summary='Анализ изменения цены/временя по поставщикам',
+    status_code=status.HTTP_200_OK,
+    tags=['autopart', 'analytic'],
+)
+async def get_price_history_plot(
+        oem_number: str,
+        date_start: Optional[str] = Query(
+            default=None, description='Start date in format YYYY-MM-DD'
+        ),
+        date_finish: Optional[str] = Query(
+            default=None, description='End date in format YYYY-MM-DD'
+        ),
+        session: AsyncSession = Depends(get_session)
+) -> HTMLResponse:
+    # 1. Получаем запчасть по oem_number
+    normalized_oem = preprocess_oem_number(oem_number)
+
+    autoparts_for_analytic = await crud_autopart.get_autoparts_by_oem_or_none(
+        oem_number=normalized_oem,
+        session=session
+    )
+    if not autoparts_for_analytic:
+        logger.debug(f'No autoparts found for OEM {normalized_oem}')
+    else:
+        names = ', '.join(
+            [autopart.name for autopart in autoparts_for_analytic]
+        )
+        logger.debug(f'Autoparts found for OEM {oem_number}: {names}')
+
+    start_dt, finish_dt = check_start_and_finish_date(
+        date_start,
+        date_finish
+    )
+    df = await analyze_autopart_allprices(
+        session=session,
+        autoparts=autoparts_for_analytic,
+        date_start=start_dt,
+        date_finish=finish_dt
+    )
+    fig = px.line(
+        df,
+        x='created_at',
+        y='price',
+        color='provider',
+        title=f'Динамика цены по OEM {normalized_oem}',
+        labels={
+            'created_at': 'Дата',
+            'price': 'Цена',
+            'provider': 'Поставщик'
+        },
+        markers=True
+    )
+    fig.update_layout(hovermode='x unified')
+
+    html_io = StringIO()
+    fig.write_html(html_io, include_plotlyjs='include')
+    html_io.seek(0)
+    return HTMLResponse(content=html_io.getvalue())

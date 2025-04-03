@@ -1,9 +1,10 @@
 import logging
 from datetime import datetime
 from io import BytesIO
-from typing import Optional
+from typing import List, Optional
 
 import pandas as pd
+from fastapi import HTTPException
 from sqlalchemy import and_, select
 
 from dz_fastapi.core.constants import ANALYSIS_EMAIL
@@ -351,3 +352,46 @@ def create_autopart_analysis_excel(df: pd.DataFrame) -> BytesIO:
 
     output.seek(0)
     return output
+
+
+async def analyze_autopart_allprices(
+    session: AsyncSession,
+    autoparts: List[AutoPart],
+    date_start: datetime = datetime(2022, 1, 1),
+    date_finish: datetime = datetime.now(),
+) -> pd.DataFrame:
+
+    autopart_ids = [ap.id for ap in autoparts]
+
+    # 1) Загружаем историю
+    query = (
+        select(
+            AutoPartPriceHistory.created_at,
+            AutoPartPriceHistory.price,
+            Provider.name.label('provider')
+        ).join(
+            Provider, Provider.id == AutoPartPriceHistory.provider_id
+        ).where(
+            and_(
+                AutoPartPriceHistory.autopart_id.in_(autopart_ids),
+                AutoPartPriceHistory.created_at >= date_start,
+                AutoPartPriceHistory.created_at <= date_finish
+            )
+        ).order_by(
+            AutoPartPriceHistory.created_at
+        )
+    )
+    result = await session.execute(query)
+    rows = result.all()
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail='Нет данных по этому артикулу в указанный период'
+        )
+
+    df = pd.DataFrame(rows, columns=['created_at', 'price', 'provider'])
+    df['created_at'] = pd.to_datetime(df['created_at'])
+    df['price'] = pd.to_numeric(df['price'], errors='coerce')
+
+    return df

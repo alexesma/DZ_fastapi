@@ -1,6 +1,5 @@
 import logging
 import os
-from datetime import datetime
 from typing import List, Optional
 
 from fastapi import (APIRouter, BackgroundTasks, Body, Depends, File, Form,
@@ -49,7 +48,8 @@ from dz_fastapi.schemas.partner import (AutoPartInPricelist,
                                         ProviderResponse, ProviderUpdate)
 from dz_fastapi.services.email import (download_price_provider,
                                        send_email_with_attachment)
-from dz_fastapi.services.process import (process_customer_pricelist,
+from dz_fastapi.services.process import (check_start_and_finish_date,
+                                         process_customer_pricelist,
                                          process_provider_pricelist)
 
 logger = logging.getLogger('dz_fastapi')
@@ -1140,7 +1140,7 @@ async def download_provider_pricelist(
 
 @router.get(
     '/providers/{provider_id}/popularity/',
-    tags=['providers', 'pricelists'],
+    tags=['providers', 'analytic'],
     status_code=status.HTTP_200_OK,
     summary='Get analytic autoparts for provider',
 )
@@ -1148,29 +1148,19 @@ async def get_autopart_popularity(
     background_tasks: BackgroundTasks,
     provider_id: Optional[int],
     date_start: Optional[str] = Query(
-        default=None, description='Start date in format YYYY-MM-DD'
+        default=None,
+        description='Start date in format YYYY-MM-DD'
     ),
     date_finish: Optional[str] = Query(
-        default=None, description='End date in format YYYY-MM-DD'
+        default=None,
+        description='End date in format YYYY-MM-DD'
     ),
     session: AsyncSession = Depends(get_session),
 ):
-    try:
-        start_dt = (
-            datetime.fromisoformat(date_start)
-            if date_start
-            else datetime(2020, 1, 1)
-        )
-        finish_dt = (
-            datetime.fromisoformat(date_finish)
-            if date_finish
-            else datetime.now()
-        )
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail='Invalid date format. Use YYYY-MM-DD or ISO format.',
-        )
+    start_dt, finish_dt = check_start_and_finish_date(
+        date_start,
+        date_finish
+    )
 
     df = await analyze_autopart_popularity(
         provider_id=provider_id,

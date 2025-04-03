@@ -1078,3 +1078,26 @@ def write_error_for_bulk(
         'record': record_str,
         'error': f'{error_message}: {error or 'Unknown error'}'
     })
+
+
+def check_start_and_finish_date(
+        date_start: Optional[str],
+        date_finish: Optional[str]
+) -> tuple[datetime, datetime]:
+    try:
+        start_dt = (
+            datetime.fromisoformat(date_start)
+            if date_start
+            else datetime(2020, 1, 1)
+        )
+        finish_dt = (
+            datetime.fromisoformat(date_finish)
+            if date_finish
+            else datetime.now()
+        )
+        return start_dt, finish_dt
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail='Invalid date format. Use YYYY-MM-DD or ISO format.',
+        )
