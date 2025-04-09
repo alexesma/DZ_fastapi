@@ -444,7 +444,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         pricelist_ids = [row.id for row in rows]
         return sorted(pricelist_ids)
 
-    async def get_pricelists_by_provider(
+    async def get_two_last_pricelists_by_provider(
             self, session: AsyncSession, provider_id: int
     ) -> List[PriceList]:
         """
@@ -454,11 +454,13 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         stmt = (
             select(PriceList)
             .where(PriceList.provider_id == provider_id)
-            .order_by(PriceList.date)
+            .order_by(PriceList.date.desc())
+            .limit(2)
             .options(selectinload(PriceList.autopart_associations))
         )
         result = await session.execute(stmt)
         pricelists = result.scalars().all()
+        logger.debug(f'Fetching pricelists for provider_id={provider_id}')
         return pricelists
 
 

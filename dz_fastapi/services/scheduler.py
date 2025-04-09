@@ -1,5 +1,6 @@
 # scheduler.py
 import logging
+import os
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
@@ -23,6 +24,9 @@ from dz_fastapi.services.process import (process_customer_pricelist,
                                          process_provider_pricelist)
 
 logger = logging.getLogger('dz_fastapi')
+EMAIL_NAME_ORDER = os.getenv('EMAIL_NAME_ORDERS')
+EMAIL_PASSWORD_ORDER = os.getenv('EMAIL_PASSWORD_ORDERS')
+EMAIL_HOST_ORDER = os.getenv('EMAIL_HOST_ORDERS')
 
 
 def start_scheduler(app: FastAPI):
@@ -187,3 +191,36 @@ async def download_price_provider_task(app: FastAPI):
             logger.info('Completed download_price_provider_task')
         except Exception as e:
             logger.error(f'Error in download_price_provider_task: {e}')
+
+#
+# async def process_new_orders_emails(
+#         session: AsyncSession,
+#         app: FastAPI
+# ):
+#     """
+#     Обрабатывает все новые письма за сегодня,
+#     скачивая файлы заказов клиента и далее
+#     запускает функцию обработки для каждого заказа.
+#     """
+#     downloaded = await get_emails(
+#         session=session,
+#         server_mail=EMAIL_HOST_ORDER,
+#         email_account=EMAIL_NAME_ORDER,
+#         email_password=EMAIL_PASSWORD_ORDER,
+#         main_box='INBOX'
+#     )
+#
+#
+#
+# async def download_orders_customers_task(
+#         app: FastAPI
+# ):
+#     logger.debug('Start download_orders_customers_task')
+#     async_session_factory = get_async_session()
+#     async with async_session_factory() as session:
+#         try:
+#             await process_new_orders_emails(session, app)
+#             logger.info('Completed download_orders_customers_task')
+#         except Exception as e:
+#             logger.error(f'Error in download_orders_customers_task: {e}')
+#
