@@ -7,8 +7,8 @@ from typing import List, Optional
 import pandas as pd
 import plotly.express as px
 import rarfile
-from fastapi import (APIRouter, Body, Depends, File, Form, HTTPException,
-                     Query, UploadFile, status)
+from fastapi import (APIRouter, BackgroundTasks, Body, Depends, File, Form,
+                     HTTPException, Query, UploadFile, status)
 from pydantic import conint
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,16 +17,19 @@ from sqlalchemy.orm import selectinload
 from starlette.responses import HTMLResponse
 
 from dz_fastapi.analytics.price_history import analyze_autopart_allprices
+from dz_fastapi.analytics.restock_logic import (
+    get_autoparts_below_min_balance, process_restock_pipeline)
 from dz_fastapi.api.validators import change_storage_name
 from dz_fastapi.core.db import get_session
 from dz_fastapi.crud.autopart import crud_autopart, crud_category, crud_storage
 from dz_fastapi.crud.brand import brand_crud, brand_exists
 from dz_fastapi.models.autopart import (Category, StorageLocation,
                                         preprocess_oem_number)
-from dz_fastapi.schemas.autopart import (AutoPartCreate, AutoPartResponse,
-                                         AutoPartUpdate, BulkUpdateResponse,
-                                         CategoryCreate, CategoryResponse,
-                                         CategoryUpdate, StorageLocationCreate,
+from dz_fastapi.schemas.autopart import (AutoPartCreate, AutopartOrderRequest,
+                                         AutoPartResponse, AutoPartUpdate,
+                                         BulkUpdateResponse, CategoryCreate,
+                                         CategoryResponse, CategoryUpdate,
+                                         StorageLocationCreate,
                                          StorageLocationResponse,
                                          StorageLocationUpdate)
 from dz_fastapi.services.process import (assign_brand,
@@ -156,8 +159,7 @@ async def bulk_update_autoparts(
                     zip_list = zip.namelist()
                     if not zip_list:
                         raise HTTPException(
-                            status_code=400,
-                            detail="Zip archive is empty"
+                            status_code=400, detail="Zip archive is empty"
                         )
 
                     file_in_zip = zip_list[0]
@@ -170,8 +172,7 @@ async def bulk_update_autoparts(
                     rar_list = rar.namelist()
                     if not rar_list:
                         raise HTTPException(
-                            status_code=400,
-                            detail="Rar archive is empty"
+                            status_code=400, detail="Rar archive is empty"
                         )
                     file_in_rar = rar_list[0]
                     with zip.open(file_in_rar) as inner_file:
@@ -283,13 +284,8 @@ async def bulk_update_autoparts(
                             error=str(storage_locations),
                         )
                     else:
-                        if (
-                            storage_obj
-                            not in autopart.storage_locations
-                        ):
-                            autopart.storage_locations.append(
-                                storage_obj
-                            )
+                        if storage_obj not in autopart.storage_locations:
+                            autopart.storage_locations.append(storage_obj)
                             relationship_updated = True
             if categories_col is not None:
                 categories = record.get('categories')
@@ -653,21 +649,20 @@ async def create_storages_bulk(
     tags=['autopart', 'analytic'],
 )
 async def get_price_history_plot(
-        oem_number: str,
-        date_start: Optional[str] = Query(
-            default=None, description='Start date in format YYYY-MM-DD'
-        ),
-        date_finish: Optional[str] = Query(
-            default=None, description='End date in format YYYY-MM-DD'
-        ),
-        session: AsyncSession = Depends(get_session)
+    oem_number: str,
+    date_start: Optional[str] = Query(
+        default=None, description='Start date in format YYYY-MM-DD'
+    ),
+    date_finish: Optional[str] = Query(
+        default=None, description='End date in format YYYY-MM-DD'
+    ),
+    session: AsyncSession = Depends(get_session),
 ) -> HTMLResponse:
     # 1. Получаем запчасть по oem_number
     normalized_oem = preprocess_oem_number(oem_number)
 
     autoparts_for_analytic = await crud_autopart.get_autoparts_by_oem_or_none(
-        oem_number=normalized_oem,
-        session=session
+        oem_number=normalized_oem, session=session
     )
     if not autoparts_for_analytic:
         logger.debug(f'No autoparts found for OEM {normalized_oem}')
@@ -677,15 +672,12 @@ async def get_price_history_plot(
         )
         logger.debug(f'Autoparts found for OEM {oem_number}: {names}')
 
-    start_dt, finish_dt = check_start_and_finish_date(
-        date_start,
-        date_finish
-    )
+    start_dt, finish_dt = check_start_and_finish_date(date_start, date_finish)
     df = await analyze_autopart_allprices(
         session=session,
         autoparts=autoparts_for_analytic,
         date_start=start_dt,
-        date_finish=finish_dt
+        date_finish=finish_dt,
     )
     fig = px.line(
         df,
@@ -696,9 +688,9 @@ async def get_price_history_plot(
         labels={
             'created_at': 'Дата',
             'price': 'Цена',
-            'provider': 'Поставщик'
+            'provider': 'Поставщик',
         },
-        markers=True
+        markers=True,
     )
     fig.update_layout(hovermode='x unified')
 
@@ -706,3 +698,36 @@ async def get_price_history_plot(
     fig.write_html(html_io, include_plotlyjs='include')
     html_io.seek(0)
     return HTMLResponse(content=html_io.getvalue())
+
+
+@router.post(
+    '/autoparts/restock/',
+    summary='Анализ и формирование заказа',
+    status_code=status.HTTP_200_OK,
+    tags=['autopart', 'restock'],
+)
+async def restock_autoparts(
+    background_tasks: BackgroundTasks,
+    request: AutopartOrderRequest = Body(default_factory=AutopartOrderRequest),
+    session: AsyncSession = Depends(get_session),
+):
+    autoparts = request.autoparts
+    if autoparts is None:
+        autoparts = await get_autoparts_below_min_balance(
+            threshold_percent=request.threshold_percent, session=session
+        )
+    background_tasks.add_task(
+        process_restock_pipeline,
+        session=session,
+        budget_limit=request.budget_limit,
+        months_back=request.months_back,
+        email_to=request.email_to,
+        telegram_chat_id=request.telegram_chat_id,
+        autoparts=autoparts,
+        threshold_percent=request.threshold_percent,
+    )
+    return {
+        'status': 'success',
+        'message': 'Отчет формируется и '
+                   'будет отправлен на указанные контакты.',
+    }

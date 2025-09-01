@@ -1,9 +1,12 @@
 import logging
 import re
 from datetime import datetime
+from enum import StrEnum, unique
+from uuid import uuid4
 
-from sqlalchemy import (DECIMAL, Boolean, CheckConstraint, Column, DateTime,
-                        Float, ForeignKey, Index, Integer,
+from sqlalchemy import DECIMAL, Boolean, CheckConstraint, Column, DateTime
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy import (Float, ForeignKey, Index, Integer,
                         PrimaryKeyConstraint, String, Table, Text,
                         UniqueConstraint, event, inspect, select)
 from sqlalchemy.orm import relationship
@@ -14,6 +17,42 @@ from dz_fastapi.core.constants import (MAX_LEN_WEBSITE, MAX_LIGHT_BARCODE,
                                        MAX_NAME_CATEGORY)
 
 logger = logging.getLogger('dz_fastapi')
+
+
+@unique
+class TYPE_RESTOCK_DECISION_STATUS(StrEnum):
+    '''
+    Типы статусов для решения о необходимости пополнения конкретной детали
+    '''
+
+    NEW = 'New'
+    IN_PROGRESS = 'In Progress'
+    FULFILLED = 'Fulfilled'
+    CANCELLED = 'Cancelled'
+
+
+@unique
+class TYPE_SUPPLIER_DECISION_STATUS(StrEnum):
+    '''
+    Типы статусов для решения для конкретного поставщика
+    '''
+
+    NEW = 'New'
+    SEND = 'Send'
+    CONFIRMED = 'Confirmed'
+    REJECTED = 'Rejected'
+    FULFILLED = 'Fulfilled'
+    ERROR = 'Error'
+
+
+@unique
+class TYPE_SEND_METHOD(StrEnum):
+    '''
+    Типы способов отправки заказов поставщику
+    '''
+
+    API = 'API'
+    MAIL = 'E-mail'
 
 
 def change_string(old_string: str) -> str:
@@ -216,8 +255,7 @@ class StorageLocation(Base):
     )
     __table_args__ = (
         CheckConstraint(
-            "name ~ '^[A-Z0-9 /]+$'",
-            name='latin_characters_only'
+            "name ~ '^[A-Z0-9 /]+$'", name='latin_characters_only'
         ),
     )
 
@@ -289,9 +327,9 @@ class AutoPartPriceHistory(Base):
     price = Column(DECIMAL(10, 2), nullable=False)
     quantity = Column(Integer, nullable=False)
 
-    autopart = relationship("AutoPart")
-    provider = relationship("Provider")
-    pricelist = relationship("PriceList")
+    autopart = relationship('AutoPart')
+    provider = relationship('Provider')
+    pricelist = relationship('PriceList')
 
     __table_args__ = (
         Index(
@@ -300,4 +338,66 @@ class AutoPartPriceHistory(Base):
             'provider_id',
             'created_at',
         ),
+    )
+
+
+class AutoPartRestockDecision(Base):
+    autopart_id = Column(Integer, ForeignKey('autopart.id'), index=True)
+    required_quantity = Column(Integer, nullable=False)
+    decision_date = Column(DateTime, default=datetime.now)
+    status = Column(
+        SAEnum(
+            TYPE_RESTOCK_DECISION_STATUS,
+            values_callable=lambda enum: [e.name for e in enum],
+            native_enum=True,
+        ),
+        default=TYPE_RESTOCK_DECISION_STATUS.NEW,
+    )
+
+    autopart = relationship('AutoPart')
+    suppliers = relationship(
+        'AutoPartRestockDecisionSupplier',
+        cascade='all,delete-orphan',
+        lazy='selectin',
+        back_populates='restock_decision',
+    )
+
+
+class AutoPartRestockDecisionSupplier(Base):
+    restock_decision_id = Column(
+        Integer, ForeignKey('autopartrestockdecision.id')
+    )
+    supplier_id = Column(Integer, ForeignKey('provider.id'))
+    status = Column(
+        SAEnum(
+            TYPE_SUPPLIER_DECISION_STATUS,
+            values_callable=lambda enum: [e.name for e in enum],
+            native_enum=True,
+        ),
+        default=TYPE_SUPPLIER_DECISION_STATUS.NEW,
+    )
+
+    send_method = Column(
+        SAEnum(
+            TYPE_SEND_METHOD,
+            values_callable=lambda enum: [e.name for e in enum],
+            native_enum=True,
+        ),
+        default=TYPE_SEND_METHOD.MAIL,
+    )
+    send_date = Column(DateTime, nullable=True)
+    price = Column(DECIMAL(10, 2))
+    quantity = Column(Integer, nullable=True)
+    hash_key = Column(String(255), nullable=True, index=True)
+    system_hash = Column(String(255), nullable=True, index=True)
+    restock_decision = relationship(
+        'AutoPartRestockDecision', back_populates='suppliers'
+    )
+    brand_name = Column(String)
+    min_delivery_day = Column(Integer, default=1)
+    max_delivery_day = Column(Integer, default=3)
+    supplier = relationship('Provider')
+    order_items = relationship('OrderItem', back_populates='restock_supplier')
+    tracking_uuid = Column(
+        String(36), default=lambda: str(uuid4()), unique=True, index=True
     )

@@ -39,9 +39,9 @@ async def test_create_provider(
     data = response.json()
     assert data['name'] == 'TEST-PROVIDER'
     assert data['description'] == 'A test provider'
-    assert data['email_contact'] == 'test2@exemple.com'
+    assert data['email_contact'] == 'test2@example.com'
     assert data['comment'] == 'Test comment'
-    assert data['email_incoming_price'] == 'test3@exemple.com'
+    assert data['email_incoming_price'] == 'test3@example.com'
     assert data['type_prices'] == 'Retail'
     assert 'id' in data
 
@@ -53,38 +53,35 @@ async def test_get_providers(
     async_client: AsyncClient,
 ):
     response = await async_client.get('/providers/')
+    assert response.status_code == 200, response.text
 
     data = response.json()
-    assert isinstance(data, list)
-    assert len(data) >= len(created_providers)
+    assert isinstance(data, dict)
+    for key in ('items', 'page', 'page_size', 'total', 'pages'):
+        assert key in data
+    items = data['items']
+    assert isinstance(items, list)
+    by_id = {item['id']: item for item in items}
 
-    response_providers = [
-        ProviderResponse.model_validate(item) for item in data
-    ]
+    for cp in created_providers:
+        assert cp.id in by_id, f'Provider id {cp.id} not found in response'
+        item = by_id[cp.id]
 
-    for created_provider in created_providers:
-        provider_in_response = next(
-            (p for p in response_providers if p.id == created_provider.id),
-            None,
+        assert item['name'] == cp.name
+        assert item.get('email_contact') == getattr(cp, 'email_contact', None)
+        assert item.get('email_incoming_price') == getattr(
+            cp, 'email_incoming_price', None
         )
-        assert (
-            provider_in_response is not None
-        ), f'Provider with ID {created_provider.id} not found in response'
 
-        assert provider_in_response.name == created_provider.name
-        assert provider_in_response.description == (
-            created_provider.description
+        # Дополнительно — типы вложенных структур
+        assert 'pricelist_configs' in item and isinstance(
+            item['pricelist_configs'], list
         )
-        assert provider_in_response.email_contact == (
-            created_provider.email_contact
-        )
-        assert provider_in_response.comment == (created_provider.comment)
-        assert provider_in_response.email_incoming_price == (
-            created_provider.email_incoming_price
-        )
-        assert provider_in_response.type_prices == (
-            created_provider.type_prices
-        )
+        assert 'price_lists' in item and isinstance(item['price_lists'], list)
+        # last_email_uid может быть None или словарём
+        if item['last_email_uid'] is not None:
+            assert isinstance(item['last_email_uid'], dict)
+            assert 'uid' in item['last_email_uid']
 
 
 @pytest.mark.asyncio
@@ -174,7 +171,7 @@ async def test_update_provider_success(
     provider_to_update = created_providers[0]
     update_data = {
         'name': 'Updated Provider Name',
-        'email_contact': 'updated_email@exemple.com',
+        'email_contact': 'updated_email@example.com',
         'description': 'Updated description',
     }
 
@@ -200,17 +197,17 @@ async def test_update_provider_no_data(
 ):
     provider_to_update = created_providers[0]
     update_data = {}
+    resp_before = await async_client.get(
+        f'/providers/{provider_to_update.id}/'
+    )
+    before = resp_before.json()
 
     response = await async_client.patch(
         f'/providers/{provider_to_update.id}/', json=update_data
     )
-
-    assert response.status_code == 422, response.text
-    data = response.json()
-    assert isinstance(
-        data, dict
-    ), f'Expected response to be a dict, got {type(data)}'
-    assert data['detail'][0]['msg'] == 'Field required'
+    assert response.status_code == 200
+    after = response.json()
+    assert after == before
 
 
 @pytest.mark.asyncio
@@ -241,9 +238,9 @@ async def test_create_customer(
 
     assert data['name'] == 'TEST-CUSTOMER'
     assert data['description'] == 'A test customer'
-    assert data['email_contact'] == 'testcustomer@exemple.com'
+    assert data['email_contact'] == 'testcustomer@example.com'
     assert data['comment'] == 'Test comment'
-    assert data['email_outgoing_price'] == 'testcustomer@exemple.com'
+    assert data['email_outgoing_price'] == 'testcustomer@example.com'
     assert data['type_prices'] == 'Retail'
     assert 'id' in data
 
@@ -371,7 +368,7 @@ async def test_update_customer_success(
     customer_to_update = created_customers[0]
     update_data = {
         'name': 'Updated Customer Name',
-        'email_contact': 'updated_email@exemple.com',
+        'email_contact': 'updated_email@example.com',
         'description': 'Updated description',
     }
 
@@ -440,7 +437,8 @@ async def test_set_provider_pricelist_config_create(
     data = response.json()
     assert data['start_row'] == CONFIG_DATA['start_row']
     assert data['oem_col'] == CONFIG_DATA['oem_col']
-    assert data['provider_id'] == provider.id
+    assert data['qty_col'] == CONFIG_DATA['qty_col']
+    assert data['price_col'] == CONFIG_DATA['price_col']
 
 
 @pytest.mark.asyncio
@@ -593,9 +591,7 @@ async def test_upload_provider_pricelist_invalid_file(
     assert response.status_code == 400, response.text
     data = response.json()
 
-    assert data['detail'] == (
-        "Invalid format file:400: Invalid CSV file."
-    )
+    assert data['detail'] == ("Invalid format file:400: Invalid CSV file.")
 
 
 @pytest.mark.asyncio

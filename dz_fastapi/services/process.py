@@ -111,10 +111,7 @@ def open_csv(file: bytes) -> pd.DataFrame:
     for sep in separators:
         try:
             df = pd.read_csv(
-                StringIO(file_decoder),
-                sep=sep,
-                engine='python',
-                header=None
+                StringIO(file_decoder), sep=sep, engine='python', header=None
             )
             if df.shape[1] > 1:
                 return df
@@ -124,13 +121,12 @@ def open_csv(file: bytes) -> pd.DataFrame:
 
 
 def process_download_pricelist(
-        file_extension: str,
-        file_content: bytes
+    file_extension: str, file_content: bytes
 ) -> pd.DataFrame:
     """
-       Функция принимает файл (архив или обычный файл) и возвращает DataFrame.
-       Поддерживает форматы: zip, rar, xls, xlsx, csv.
-       """
+    Функция принимает файл (архив или обычный файл) и возвращает DataFrame.
+    Поддерживает форматы: zip, rar, xls, xlsx, csv.
+    """
     try:
         # Разархивируем ZIP
         if file_extension in ['zip', 'rar']:
@@ -148,13 +144,12 @@ def process_download_pricelist(
                 df = pd.read_excel(
                     BytesIO(file_content),
                     header=None,
-                    engine='xlrd' if file_extension == 'xls' else 'openpyxl'
+                    engine='xlrd' if file_extension == 'xls' else 'openpyxl',
                 )
             except Exception as e:
                 logger.error(f'Error reading Excel file: {e}')
                 raise HTTPException(
-                    status_code=400,
-                    detail='Invalid Excel file.'
+                    status_code=400, detail='Invalid Excel file.'
                 )
         elif file_extension == 'csv':
             try:
@@ -162,19 +157,16 @@ def process_download_pricelist(
             except Exception as e:
                 logger.error(f'Error reading CSV file: {e}')
                 raise HTTPException(
-                    status_code=400,
-                    detail='Invalid CSV file.'
+                    status_code=400, detail='Invalid CSV file.'
                 )
         else:
             raise HTTPException(
                 status_code=400,
-                detail=f'Unsupported file type: {file_extension}'
+                detail=f'Unsupported file type: {file_extension}',
             )
         return df
     except Exception as e:
-        raise HTTPException(
-            status_code=400, detail=f'Invalid format file:{e}'
-        )
+        raise HTTPException(status_code=400, detail=f'Invalid format file:{e}')
 
 
 async def process_provider_pricelist(
@@ -217,8 +209,7 @@ async def process_provider_pricelist(
 
     # Load the file into a DataFrame
     df = process_download_pricelist(
-        file_extension=file_extension,
-        file_content=file_content
+        file_extension=file_extension, file_content=file_content
     )
 
     try:
@@ -1062,27 +1053,29 @@ async def process_customer_pricelist(
 
 
 def write_error_for_bulk(
-        problem_items: dict,
-        not_found: list,
-        error_message: str,
-        error: Optional[str] = None,
+    problem_items: dict,
+    not_found: list,
+    error_message: str,
+    error: Optional[str] = None,
 ) -> None:
     record_str = {
         k: (
-            v.decode('utf-8', errors='replace'
-                     ) if isinstance(v, bytes) else str(v)
+            v.decode('utf-8', errors='replace')
+            if isinstance(v, bytes)
+            else str(v)
         )
         for k, v in problem_items.items()
     }
-    not_found.append({
-        'record': record_str,
-        'error': f'{error_message}: {error or 'Unknown error'}'
-    })
+    not_found.append(
+        {
+            'record': record_str,
+            'error': f'{error_message}: {error or 'Unknown error'}',
+        }
+    )
 
 
 def check_start_and_finish_date(
-        date_start: Optional[str],
-        date_finish: Optional[str]
+    date_start: Optional[str], date_finish: Optional[str]
 ) -> tuple[datetime, datetime]:
     try:
         start_dt = (

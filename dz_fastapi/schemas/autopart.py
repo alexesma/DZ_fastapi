@@ -1,10 +1,16 @@
-from typing import Annotated, Dict, List, Optional
+import os
+from typing import Annotated, Dict, List, Optional, Tuple
 
-from pydantic import (BaseModel, ConfigDict, Field, StringConstraints,
-                      field_validator)
+from pydantic import (BaseModel, ConfigDict, EmailStr, Field,
+                      StringConstraints, field_validator)
 
-from dz_fastapi.core.constants import (MAX_LIGHT_NAME_LOCATION,
-                                       MAX_NAME_CATEGORY)
+from dz_fastapi.core.constants import (DEPTH_MONTHS_HISTORY_PRICE_FOR_ORDER,
+                                       LIMIT_ORDER, MAX_LIGHT_NAME_LOCATION,
+                                       MAX_NAME_CATEGORY,
+                                       PERCENT_MIN_BALANS_FOR_ORDER)
+
+EMAIL_NAME_ORDER = os.getenv('EMAIL_NAME_ANALYTIC')
+TELEGRAM_TO = os.getenv('TELEGRAM_TO')
 
 
 class AutoPartBase(BaseModel):
@@ -227,3 +233,43 @@ class StorageLocationResponse(StorageLocationBase):
 
 StorageLocationResponse.model_rebuild()
 AutoPartResponse.model_rebuild()
+
+
+class AutopartOrderRequest(BaseModel):
+    budget_limit: int = Field(
+        default=LIMIT_ORDER, gt=0, description='Максимальный бюджет для заказа'
+    )
+    months_back: int = Field(
+        default=DEPTH_MONTHS_HISTORY_PRICE_FOR_ORDER,
+        ge=1,
+        description='Глубина поиска минимальной цены (в месяцах)',
+    )
+    email_to: EmailStr = Field(
+        default=EMAIL_NAME_ORDER, description='Email получателя отчета'
+    )
+    telegram_chat_id: str = Field(
+        default=TELEGRAM_TO, description='Telegram чат для отправки отчета'
+    )
+    autoparts: Optional[Dict[int, Tuple[float, float]]] = Field(
+        None,
+        description='Автозапчасти с минимальным '
+        'балансом и количеством для заказа',
+    )
+    threshold_percent: float = Field(
+        default=PERCENT_MIN_BALANS_FOR_ORDER,
+        gt=0,
+        lt=1,
+        description='Пороговый процент остатка для формирования заказа',
+    )
+
+
+class ConfirmedOffer(BaseModel):
+    autoparts_id: int = Field(..., description='ID автозапчасти')
+    supplier_id: int = Field(..., description='ID поставщика')
+    supplier_name: str = Field(..., description='Название постащика')
+    quantity: int = Field(..., gt=0, description='Заказываемое количество')
+    price: float = Field(..., gt=0, description='Цена за единицу товара')
+    total_cost: float = Field(..., gt=0, description='Общая стоимость позиции')
+    historical_min_price: int = Field(
+        ..., gt=0, description='Исторически минимальная цена'
+    )

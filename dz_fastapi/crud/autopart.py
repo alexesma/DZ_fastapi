@@ -1,24 +1,38 @@
 import logging
+import math
 import re
-from typing import List, Optional
+from datetime import datetime
+from decimal import Decimal
+from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import HTTPException
+from sqlalchemy import and_, func, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from dz_fastapi.api.validators import change_brand_name, change_string
+from dz_fastapi.core.constants import PERCENT_MIN_BALANS_FOR_ORDER
 from dz_fastapi.core.db import AsyncSession
 from dz_fastapi.crud.base import CRUDBase
 from dz_fastapi.crud.brand import brand_crud
-from dz_fastapi.models.autopart import (AutoPart, Category, StorageLocation,
+from dz_fastapi.models.autopart import (TYPE_RESTOCK_DECISION_STATUS,
+                                        TYPE_SEND_METHOD,
+                                        TYPE_SUPPLIER_DECISION_STATUS,
+                                        AutoPart, AutoPartPriceHistory,
+                                        AutoPartRestockDecision,
+                                        AutoPartRestockDecisionSupplier,
+                                        Category, StorageLocation,
                                         preprocess_oem_number)
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.partner import (PriceList, PriceListAutoPartAssociation,
+                                       Provider)
 from dz_fastapi.schemas.autopart import (AutoPartCreate,
                                          AutoPartCreatePriceList,
                                          AutoPartUpdate, CategoryCreate,
                                          CategoryUpdate, StorageLocationCreate,
                                          StorageLocationUpdate)
+from dz_fastapi.schemas.order import OrderPositionOut, SupplierOrderOut
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -135,9 +149,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         oem_number: str,
         session: AsyncSession,
     ) -> Optional[List[AutoPart]]:
-        stmt = select(AutoPart).where(
-            AutoPart.oem_number == oem_number
-        )
+        stmt = select(AutoPart).where(AutoPart.oem_number == oem_number)
         result = await session.execute(stmt)
         autoparts = result.scalars().all()
         return autoparts if autoparts else None
@@ -152,14 +164,39 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                 .options(
                     selectinload(AutoPart.categories),
                     selectinload(AutoPart.storage_locations),
+                    selectinload(AutoPart.brand),
                 )
             )
             result = await session.execute(stmt)
             autopart = result.scalars().unique().one_or_none()
             return autopart
-        except SQLAlchemyError as e:
+        except SQLAlchemyError as error:
             logger.error(
-                f'Database error when fetching autopart {autopart_id}: {e}'
+                f'Database error when fetching autopart '
+                f'{autopart_id}: {error}'
+            )
+            raise
+
+    async def get_autopart_by_ids(
+        self, session: AsyncSession, autopart_ids: List[int]
+    ) -> List[AutoPart]:
+        try:
+            stmt = (
+                select(AutoPart)
+                .where(AutoPart.id.in_(autopart_ids))
+                .options(
+                    selectinload(AutoPart.categories),
+                    selectinload(AutoPart.storage_locations),
+                    selectinload(AutoPart.brand),
+                )
+            )
+            result = await session.execute(stmt)
+            autoparts = result.scalars().unique().all()
+            return autoparts
+        except SQLAlchemyError as error:
+            logger.error(
+                f'Database error when fetching autoparts len = '
+                f'{len(autopart_ids)}: {error}'
             )
             raise
 
@@ -268,8 +305,319 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         autoparts = result.scalars().unique().all()
         return autoparts
 
+    async def get_autoparts_with_minimum_balance(
+        self, session: AsyncSession, threshold_percent: int
+    ) -> Dict[int, Tuple[float, float]]:
+        """
+        Возвращает автозапчасти,у которых
+        - остаток в PriceList id=1 меньше чем minimum_balance;
+        - остаток в PriceList id=1 равен 0, но AutoPart.minimum_balance != 0;
+        """
+        threshold = threshold_percent / 100
+        stmt = (
+            select(
+                AutoPart,
+                func.coalesce(PriceListAutoPartAssociation.quantity, 0).label(
+                    'current_stock'
+                ),
+            )
+            .outerjoin(
+                PriceListAutoPartAssociation,
+                and_(
+                    AutoPart.id == PriceListAutoPartAssociation.autopart_id,
+                    PriceListAutoPartAssociation.pricelist_id == 1,
+                ),
+            )
+            .where(AutoPart.minimum_balance > 0)
+            .options(
+                selectinload(AutoPart.categories),
+                selectinload(AutoPart.brand),
+                selectinload(AutoPart.storage_locations),
+                selectinload(AutoPart.price_list_associations),
+            )
+        )
+        result = await session.execute(stmt)
+        rows = result.all()
+        order_dict = {}
+
+        for autopart, current_stock in rows:
+            min_balance = autopart.minimum_balance
+            if current_stock == 0:
+                quantity_for_order = min_balance
+            elif current_stock < min_balance * float(threshold):
+                quantity_for_order = min_balance
+            else:
+                quantity_for_order = math.ceil(
+                    min_balance * PERCENT_MIN_BALANS_FOR_ORDER
+                )
+            order_dict[autopart.id] = [
+                min_balance,
+                quantity_for_order,
+                autopart.oem_number,
+                autopart.name,
+                autopart.brand.name,
+            ]
+        return order_dict
+
 
 crud_autopart = CRUDAutopart(AutoPart)
+
+
+class CRUDAutopartPriceHistory(CRUDBase[AutoPartPriceHistory, Any, Any]):
+    async def get_autoparts(
+        self,
+        autopart_ids: list[int],
+        date_threshold: datetime,
+        session: AsyncSession,
+    ) -> list[tuple[int, Decimal]]:
+        stmt = (
+            select(
+                AutoPartPriceHistory.autopart_id,
+                func.min(AutoPartPriceHistory.price).label('min_price'),
+            )
+            .where(
+                AutoPartPriceHistory.autopart_id.in_(autopart_ids),
+                AutoPartPriceHistory.created_at >= date_threshold,
+                AutoPartPriceHistory.provider_id != 1,
+            )
+            .group_by(AutoPartPriceHistory.autopart_id)
+        )
+
+        result = await session.execute(stmt)
+        return result.all()
+
+
+crud_autopart_price_history = CRUDAutopartPriceHistory(AutoPartPriceHistory)
+
+
+class CRUDAutopartRestockDecision(CRUDBase[AutoPartRestockDecision, Any, Any]):
+    async def get_prices_suppliers(
+        self,
+        autopart_ids: list[int],
+        session: AsyncSession,
+    ):
+        stmt = (
+            select(PriceListAutoPartAssociation, PriceList, Provider)
+            .join(
+                PriceList,
+                PriceList.id == PriceListAutoPartAssociation.pricelist_id,
+            )
+            .join(Provider, Provider.id == PriceList.provider_id)
+            .where(
+                PriceListAutoPartAssociation.autopart_id.in_(autopart_ids),
+                PriceListAutoPartAssociation.quantity > 0,
+                PriceList.provider_id != 1,
+            )
+            .options(selectinload(Provider.pricelist_config))
+            .order_by(
+                PriceListAutoPartAssociation.autopart_id.asc(),
+                PriceListAutoPartAssociation.price.asc(),
+            )
+        )
+        result = await session.execute(stmt)
+        return result.all()
+
+    async def save_restock_decision(
+        self, decisions: dict[int, dict], session: AsyncSession
+    ):
+        for autopart_id, data in decisions.items():
+            restock = AutoPartRestockDecision(
+                autopart_id=autopart_id,
+                required_quantity=data['quantity'],
+                decision_date=datetime.now(),
+                status=TYPE_RESTOCK_DECISION_STATUS.NEW,
+            )
+            session.add(restock)
+            await session.flush()
+            hash_key = data.get('hash_key')
+            supplier_entry = AutoPartRestockDecisionSupplier(
+                restock_decision_id=restock.id,
+                supplier_id=data['supplier_id'],
+                price=data['price'],
+                quantity=data['quantity'],
+                status=TYPE_SUPPLIER_DECISION_STATUS.CONFIRMED,
+                send_method=(
+                    TYPE_SEND_METHOD.API if hash_key else TYPE_SEND_METHOD.MAIL
+                ),
+                hash_key=hash_key,
+                min_delivery_day=data['min_delivery_day'],
+                max_delivery_day=data['max_delivery_day'],
+                brand_name=data['brand_name'],
+                system_hash=data.get('system_hash'),
+            )
+            session.add(supplier_entry)
+        await session.commit()
+
+    async def get_new_supplier_orders(self, session: AsyncSession):
+        # Получаем все NEW-позиции с JOIN-ами
+        stmt = (
+            select(AutoPartRestockDecisionSupplier)
+            .where(
+                AutoPartRestockDecisionSupplier.status
+                == TYPE_SUPPLIER_DECISION_STATUS.CONFIRMED
+            )
+            .options(
+                selectinload(AutoPartRestockDecisionSupplier.restock_decision)
+                .selectinload(AutoPartRestockDecision.autopart)
+                .selectinload(AutoPart.brand),
+                selectinload(AutoPartRestockDecisionSupplier.supplier),
+            )
+        )
+        result = await session.execute(stmt)
+        all_rows = result.scalars().all()
+        logger.debug(f'Найдено позиций: {len(all_rows)}')
+
+        # Группируем по supplier_id
+        orders = {}
+        for row in all_rows:
+            sid = row.supplier_id
+            restock_decision = row.restock_decision
+            autopart = restock_decision.autopart if restock_decision else None
+            brand_name = row.brand_name or (
+                autopart.brand.name if autopart and autopart.brand else ""
+            )
+            if sid not in orders:
+                orders[sid] = {
+                    'supplier_id': sid,
+                    'supplier_name': getattr(
+                        row.supplier, 'name', f'ID {sid}'
+                    ),
+                    'total_sum': 0,
+                    'send_method': row.send_method,
+                    'delivery_days': None,
+                    'order_status': row.status,
+                    'positions': [],
+                    'min_delivery_day': (
+                        row.min_delivery_day
+                        if row.min_delivery_day is not None
+                        else 1
+                    ),
+                    'max_delivery_day': (
+                        row.max_delivery_day
+                        if row.max_delivery_day is not None
+                        else 3
+                    ),
+                    'brand_name': row.brand_name,
+                }
+            # Добавляем позицию
+            orders[sid]['positions'].append(
+                OrderPositionOut(
+                    autopart_id=(
+                        restock_decision.autopart_id
+                        if restock_decision
+                        else None
+                    ),
+                    oem_number=getattr(autopart, 'oem_number', None),
+                    autopart_name=getattr(autopart, 'name', None),
+                    brand_name=brand_name,
+                    supplier_id=row.supplier_id,
+                    quantity=row.quantity,
+                    confirmed_price=row.price,
+                    status=row.status,
+                    created_at=getattr(row, 'created_at', None),
+                    updated_at=getattr(row, 'updated_at', None),
+                    tracking_uuid=getattr(row, 'tracking_uuid', None),
+                    hash_key=getattr(row, 'hash_key', None),
+                    system_hash=getattr(row, 'system_hash', None),
+                )
+            )
+            orders[sid]['total_sum'] += float(row.price or 0) * (
+                row.quantity or 1
+            )
+        result = [SupplierOrderOut(**order) for order in orders.values()]
+        logger.debug(f'Отправляемые данные: {result}')
+        return result
+
+    async def update_position_status(
+        self, tracking_uuid: str, status: str, session: AsyncSession
+    ):
+        stmt = select(AutoPartRestockDecisionSupplier).where(
+            AutoPartRestockDecisionSupplier.tracking_uuid == tracking_uuid
+        )
+        result = await session.execute(stmt)
+        autopart_restock_item = result.scalar_one_or_none()
+        if autopart_restock_item is None:
+            raise HTTPException(
+                status_code=404,
+                detail='AutoPartRestockDecisionSupplier not found',
+            )
+        if autopart_restock_item.status != status:
+            updated_item = await super().update(
+                db_obj=autopart_restock_item,
+                obj_in={'status': status},
+                session=session,
+                commit=False,
+            )
+
+            await session.commit()
+            await session.refresh(updated_item)
+            return updated_item
+
+        return autopart_restock_item
+
+    async def update_positions_status(
+        self,
+        tracking_uuids: list[str],
+        status: TYPE_SUPPLIER_DECISION_STATUS,
+        session: AsyncSession,
+    ):
+        stmt_select = select(AutoPartRestockDecisionSupplier).where(
+            AutoPartRestockDecisionSupplier.tracking_uuid.in_(tracking_uuids)
+        )
+        result = await session.execute(stmt_select)
+        existing_items = result.scalars().all()
+
+        if not existing_items:
+            raise HTTPException(
+                status_code=404,
+                detail='No AutoPartRestockDecisionSupplier '
+                       'found for provided UUIDs',
+            )
+        items_to_update = [
+            item for item in existing_items if item.status != status
+        ]
+        if not items_to_update:
+            return {
+                'message': 'No items needed updating - '
+                           'all already have the target status',
+                'updated_items': [],
+                'updated_count': 0,
+            }
+        uuids_to_update = [item.tracking_uuid for item in items_to_update]
+        stmt = (
+            update(AutoPartRestockDecisionSupplier)
+            .where(
+                AutoPartRestockDecisionSupplier.tracking_uuid.in_(
+                    uuids_to_update
+                )
+            )
+            .values(status=status)
+        )
+        await session.execute(stmt)
+        await session.commit()
+        return {
+            'message': f'Successfully updated {len(items_to_update)} items',
+            'updated_items': [
+                {
+                    'tracking_uuid': item.tracking_uuid,
+                    'old_status': item.status,
+                    'new_status': status,
+                    'autopart_id': (
+                        item.autopart_id
+                        if hasattr(item, 'autopart_id')
+                        else None
+                    ),
+                    'hash_key': item.hash_key,
+                }
+                for item in items_to_update
+            ],
+            'updated_count': len(items_to_update),
+        }
+
+
+crud_autopart_restock_decision = CRUDAutopartRestockDecision(
+    AutoPartRestockDecision
+)
 
 
 class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):

@@ -1,4 +1,14 @@
 services:
+  frontend:
+    build:
+      context: ../../../dz_frontend  # путь к фронту
+      dockerfile: Dockerfile
+    container_name: dz_frontend_dev
+    restart: always
+    ports:
+      - "3000:80"   # 3000 — внешний, 80 — внутренний nginx
+    depends_on:
+      - web
   db:
     container_name: dz_db_dev
     image: postgres:13.0-alpine
@@ -9,8 +19,8 @@ services:
     env_file:
       - ../../.env
     # Для локальных тестов
-#    ports:
-#      - "5432:5432"
+    ports:
+      - "5432:5432"
     healthcheck:
       # Проверяем, доступна ли БД через pg_isready
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-postgres} -h 127.0.0.1 || exit 1" ]
@@ -20,11 +30,11 @@ services:
       start_period: 60s
 
   web:
-    image: alexesma/dz_fastapi:latest
+#    image: alexesma/dz_fastapi:latest
 #     Для локальной загрузки образа
-#    build:
-#      context: ../..
-#      dockerfile: Dockerfile
+    build:
+      context: ../..
+      dockerfile: Dockerfile
     container_name: dz_fastapi_dev
     restart: always
 #    volumes:

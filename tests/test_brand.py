@@ -47,40 +47,32 @@ async def test_upload_logo(test_session, created_brand: Brand):
 
         transport = ASGITransport(app=app)
         async with AsyncClient(
-                transport=transport,
-                base_url='http://test'
+            transport=transport, base_url='http://test'
         ) as ac:
-            files = {'file': (
-                'test_logo.png',
-                img_byte_arr,
-                'image/png'
-            )}
+            files = {'file': ('test_logo.png', img_byte_arr, 'image/png')}
             response = await ac.patch(
-                f'/brand/{brand_id}/upload-logo',
-                files=files
+                f'/brand/{brand_id}/upload-logo', files=files
             )
 
         assert response.status_code == 200, response.text
         data = response.json()
-        assert data['id'] == brand_id, (
-            'Brand ID should match the uploaded one'
-        )
-        assert data['name'] == created_brand.name, (
-            f'Expected"TEST BRAND", but got "{data["name"]}"'
-        )
-        assert data['description'] == 'A test brand', (
-            'Brand description should match the original'
-        )
-        assert data['website'] == 'https://example.com', (
-            'Brand website should match the original'
-        )
+        assert data['id'] == brand_id, 'Brand ID should match the uploaded one'
+        assert (
+            data['name'] == created_brand.name
+        ), f'Expected"TEST BRAND", but got "{data["name"]}"'
+        assert (
+            data['description'] == 'A test brand'
+        ), 'Brand description should match the original'
+        assert (
+            data['website'] == 'https://example.com'
+        ), 'Brand website should match the original'
         assert data['main_brand'] is False, 'Brand should not be main'
-        assert data['country_of_origin'] == 'USA', (
-            'Brand country of origin should match the original'
-        )
-        assert f'brand_{brand_id}_logo.png' in data['logo'], (
-            'Logo URL should contain the brand ID and the original filename'
-        )
+        assert (
+            data['country_of_origin'] == 'USA'
+        ), 'Brand country of origin should match the original'
+        assert (
+            f'brand_{brand_id}_logo.png' in data['logo']
+        ), 'Logo URL should contain the brand ID and the original filename'
         logo_path = Path(data['logo'])
         assert logo_path.exists(), 'Logo file does not exist on disk'
 
@@ -90,8 +82,7 @@ async def test_upload_logo(test_session, created_brand: Brand):
 
 @pytest.mark.asyncio
 async def test_upload_logo_invalid_file_type(
-        test_session,
-        created_brand: Brand
+    test_session, created_brand: Brand
 ):
 
     brand_id = created_brand.id
@@ -100,18 +91,10 @@ async def test_upload_logo_invalid_file_type(
     file_byte_arr = BytesIO(file_content)
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(
-            transport=transport,
-            base_url='http://test'
-    ) as ac:
-        files = {'file': (
-            'test.txt',
-            file_byte_arr,
-            'text/plain'
-        )}
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+        files = {'file': ('test.txt', file_byte_arr, 'text/plain')}
         response = await ac.patch(
-            f'/brand/{brand_id}/upload-logo',
-            files=files
+            f'/brand/{brand_id}/upload-logo', files=files
         )
 
     assert response.status_code == 400
@@ -122,8 +105,7 @@ async def test_upload_logo_invalid_file_type(
 
 @pytest.mark.asyncio
 async def test_upload_logo_file_size_exceeds(
-        test_session,
-        created_brand: Brand
+    test_session, created_brand: Brand
 ):
     """
     Тест проверяет, что загрузка файла, превышающего максимальный размер,
@@ -141,22 +123,18 @@ async def test_upload_logo_file_size_exceeds(
 
     # Проверяем реальный размер файла
     file_size = len(img_byte_arr.getvalue())
-    assert file_size > 1 * 50 * 1024, (
-        f'File size is {file_size} bytes, which is not greater than 1 MB.'
-    )
+    assert (
+        file_size > 1 * 50 * 1024
+    ), f'File size is {file_size} bytes, which is not greater than 1 MB.'
 
     # Импортируем приложение после настройки зависимостей
     # from dz_fastapi.main import app
     transport = ASGITransport(app=app)
 
-    async with AsyncClient(
-            transport=transport,
-            base_url='http://test'
-    ) as ac:
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
         files = {'file': ('large_logo.png', img_byte_arr, 'image/png')}
         response = await ac.patch(
-            f'/brand/{brand_id}/upload-logo',
-            files=files
+            f'/brand/{brand_id}/upload-logo', files=files
         )
 
     # Проверки
@@ -178,18 +156,10 @@ async def test_upload_logo_invalid_image(test_session, created_brand: Brand):
     corrupted_image = BytesIO(b'this is not a valid image content')
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(
-            transport=transport,
-            base_url='http://test'
-    ) as ac:
-        files = {'file': (
-            'corrupted_logo.png',
-            corrupted_image,
-            'image/png'
-        )}
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+        files = {'file': ('corrupted_logo.png', corrupted_image, 'image/png')}
         response = await ac.patch(
-            f'/brand/{brand_id}/upload-logo',
-            files=files
+            f'/brand/{brand_id}/upload-logo', files=files
         )
 
     assert response.status_code == 400
@@ -200,10 +170,7 @@ async def test_upload_logo_invalid_image(test_session, created_brand: Brand):
 async def test_get_brands(test_session, created_brand: Brand):
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(
-            transport=transport,
-            base_url='http://test'
-    ) as ac:
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
         response = await ac.get('/brand/')
 
     assert response.status_code == 200, response.text
@@ -226,10 +193,7 @@ async def test_get_brand(test_session, created_brand: Brand):
     brand_id = created_brand.id
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(
-            transport=transport,
-            base_url='http://test'
-    ) as ac:
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
         response = await ac.get(f'/brand/{brand_id}')
 
     assert response.status_code == 200, response.text
@@ -256,14 +220,11 @@ async def test_update_brand(test_session, created_brand: Brand):
         'country_of_origin': 'Germany',
         'description': 'A test brand new ',
         'website': 'https://test.com',
-        'main_brand': True
+        'main_brand': True,
     }
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(
-            transport=transport,
-            base_url='http://test'
-    ) as ac:
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
         response = await ac.patch(f'/brand/{brand_id}', json=new_data)
 
     assert response.status_code == 200, response.text
@@ -286,10 +247,7 @@ async def test_delete_brand(test_session, created_brand: Brand):
     brand_id = created_brand.id
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(
-            transport=transport,
-            base_url='http://test'
-    ) as ac:
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
         response = await ac.delete(f'/brand/{brand_id}')
 
     assert response.status_code == 200, response.text
@@ -304,18 +262,12 @@ async def test_delete_brand(test_session, created_brand: Brand):
 
 @pytest.mark.asyncio
 async def test_add_synonyms(test_session, created_brand: Brand):
-    brand_synonym = {
-        'name': 'TEST BRAND 2',
-        'country_of_origin': 'China'
-    }
+    brand_synonym = {'name': 'TEST BRAND 2', 'country_of_origin': 'China'}
     brand_id = created_brand.id
 
     transport = ASGITransport(app=app)
 
-    async with AsyncClient(
-            transport=transport,
-            base_url='http://test'
-    ) as ac:
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
         response_create = await ac.post('/brand/', json=brand_synonym)
         assert response_create.status_code == 201, response_create.text
         created_synonym = response_create.json()
@@ -323,17 +275,11 @@ async def test_add_synonyms(test_session, created_brand: Brand):
         assert created_synonym['country_of_origin'] == 'China'
         synonym_id = created_synonym['id']
 
-    synonym_payload = {
-        'names': [brand_synonym['name']]
-    }
+    synonym_payload = {'names': [brand_synonym['name']]}
 
-    async with AsyncClient(
-            transport=transport,
-            base_url='http://test'
-    ) as ac:
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
         response = await ac.post(
-            f'/brand/{brand_id}/synonyms/',
-            json=synonym_payload
+            f'/brand/{brand_id}/synonyms/', json=synonym_payload
         )
 
     assert response.status_code == 200, response.text
@@ -341,18 +287,15 @@ async def test_add_synonyms(test_session, created_brand: Brand):
     assert data['name'] == created_brand.name
     assert 'id' in data
     assert any(
-        synonym['id'] == synonym_id and
-        synonym['name'] == brand_synonym['name']
+        synonym['id'] == synonym_id
+        and synonym['name'] == brand_synonym['name']
         for synonym in data['synonyms']
     )
 
 
 @pytest.mark.asyncio
 async def test_delete_synonyms(test_session, created_brand: Brand):
-    brand_synonym = {
-        'name': 'TEST BRAND 2',
-        'country_of_origin': 'China'
-    }
+    brand_synonym = {'name': 'TEST BRAND 2', 'country_of_origin': 'China'}
     brand_id = created_brand.id
 
     transport = ASGITransport(app=app)
@@ -364,28 +307,23 @@ async def test_delete_synonyms(test_session, created_brand: Brand):
         assert created_synonym['name'] == 'TEST BRAND 2'
         assert created_synonym['country_of_origin'] == 'China'
 
-    synonym_payload = {
-        'names': [brand_synonym['name']]
-    }
+    synonym_payload = {'names': [brand_synonym['name']]}
 
     async with AsyncClient(transport=transport, base_url='http://test') as ac:
         response = await ac.post(
-            f'/brand/{brand_id}/synonyms/',
-            json=synonym_payload
+            f'/brand/{brand_id}/synonyms/', json=synonym_payload
         )
     assert response.status_code == 200
 
     async with AsyncClient(transport=transport, base_url='http://test') as ac:
         response = await ac.request(
-            'DELETE',
-            f'/brand/{brand_id}/synonyms',
-            json=synonym_payload
+            'DELETE', f'/brand/{brand_id}/synonyms', json=synonym_payload
         )
 
     assert response.status_code == 200, response.text
     data = response.json()
     assert data['name'] == created_brand.name
     assert 'id' in data
-    assert data.get('synonyms') == [], (
-        'Synonyms list should be empty after deletion'
-    )
+    assert (
+        data.get('synonyms') == []
+    ), 'Synonyms list should be empty after deletion'

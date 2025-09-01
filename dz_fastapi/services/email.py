@@ -5,18 +5,21 @@ import smtplib
 import unicodedata
 from datetime import date, timedelta
 from email.message import EmailMessage
+from io import BytesIO
 from typing import Optional
 
 import httpx
+import pandas as pd
 from fastapi import HTTPException
 from imap_tools import AND, MailBox
+from jinja2 import Environment, FileSystemLoader
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.constants import DEPTH_DAY_EMAIL, IMAP_SERVER
 from dz_fastapi.crud.partner import (crud_provider,
                                      crud_provider_pricelist_config,
                                      get_last_uid, set_last_uid)
-from dz_fastapi.models.partner import Provider, ProviderPriceListConfig
+from dz_fastapi.models.partner import Order, Provider, ProviderPriceListConfig
 from dz_fastapi.services.utils import normalize_str
 
 logger = logging.getLogger('dz_fastapi')
@@ -176,7 +179,12 @@ async def download_price_provider(
 
 
 def send_email_with_attachment(
-    to_email, subject, body, attachment_bytes, attachment_filename
+    to_email,
+    subject,
+    body,
+    attachment_bytes,
+    attachment_filename,
+    is_html: bool = False,
 ):
     logger.debug(
         'Inside send_email_with_attachment with len(attachment_bytes)=%d',
@@ -191,7 +199,10 @@ def send_email_with_attachment(
     msg['Subject'] = subject
     msg['From'] = EMAIL_NAME
     msg['To'] = to_email
-    msg.set_content(body)
+    if is_html:
+        msg.add_alternative(body, subtype='html')
+    else:
+        msg.set_content(body)
 
     # Add the attachment
     msg.add_attachment(
@@ -356,3 +367,37 @@ async def get_emails(
                     f'Письмо uid={msg.uid} не удовлетворило условиям загрузки'
                 )
         return downloaded_files
+
+
+def send_order_to_provider(order: Order, provider_email: str):
+    order_items = [
+        {
+            'make_name': item.autopart.brand.name,
+            'oem': item.autopart.oem_number,
+            'detail_name': item.autopart.name,
+            'qnt': item.quantity,
+            'cost': float(item.price),
+            'sum': item.quantity * float(item.price),
+        }
+        for item in order.order_items
+    ]
+    total_sum = sum(item['sum'] for item in order_items)
+    env = Environment(loader=FileSystemLoader('email_form'))
+    template = env.get_template('from_order_email.html')
+    html_body = template.render(
+        customer_title=order.provider.name,
+        order_id=order.id,
+        order_items=order_items,
+        total_sum=total_sum,
+    )
+    buffer = BytesIO()
+    pd.DataFrame(order_items).to_excel(buffer, index=False, sheet_name='Order')
+    buffer.seek(0)
+    send_email_with_attachment(
+        to_email=provider_email,
+        subject=f'Заказ №{order.id}',
+        body=html_body,
+        attachment_filename=f'order_{order.id}.xlsx',
+        attachment_bytes=buffer.read(),
+        is_html=True,
+    )

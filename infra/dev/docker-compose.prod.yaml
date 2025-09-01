@@ -1,0 +1,9 @@
+services:
+  frontend:
+    image: alexesma/dz_frontend:latest
+
+  web:
+    image: alexesma/dz_fastapi:latest
+
+  db:
+    ports: [ ]

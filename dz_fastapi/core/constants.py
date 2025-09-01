@@ -1,5 +1,7 @@
 import os
 
+from dz_fastapi.models.partner import TYPE_STATUS_ORDER
+
 MAX_NAME_BRAND = 256
 MAX_NAME_PARTNER = 256
 MAX_LIGHT_OEM = 256
@@ -32,6 +34,20 @@ PROVIDER_IN = {
     'email_incoming_price': 'masterzapprice@gmail.com',
     'type_prices': 'Wholesale',
 }
+
+LIMIT_ORDER = 50000
+DEPTH_MONTHS_HISTORY_PRICE_FOR_ORDER = 6
+PERCENT_MIN_BALANS_FOR_ORDER = 0.5
+PERCENTAGE_DEVIATION_ORDER_PRICE = 1.1
+
+URL_OUR_SITE = 'https://dragonzap.ru/api/v1/auth_key/init'
+
+URL_DZ_SEARCH = 'https://dragonzap.ru/backend/price_items/api/v1/search'
+
+URL_DZ_V3 = 'https://dragonzap.ru/api/v3'
+
+CORE_BASE = 'https://dragonzap.ru/api/v1'
+
 CONFIG_DATA_PROVIDER = {
     'start_row': 2,
     'oem_col': 2,
@@ -42,6 +58,21 @@ CONFIG_DATA_PROVIDER = {
     'name_price': 'zzap_kross.xlsx',
     'name_mail': 'Прайс лист',
 }
+
+DZ_STATUS_MAP: dict[str, TYPE_STATUS_ORDER] = {
+    'processing': TYPE_STATUS_ORDER.PROCESSING,
+    'commit': TYPE_STATUS_ORDER.CONFIRMED,
+    'supplier-commit': TYPE_STATUS_ORDER.ACCEPTED,
+    'v-zakaze': TYPE_STATUS_ORDER.ORDERED,
+    'transit': TYPE_STATUS_ORDER.TRANSIT,
+    'supplier-accept': TYPE_STATUS_ORDER.ACCEPTED,
+    'prishlo': TYPE_STATUS_ORDER.ARRIVED,
+    'vydano': TYPE_STATUS_ORDER.SHIPPED,
+    'otkaz': TYPE_STATUS_ORDER.REFUSAL,
+    'snyat': TYPE_STATUS_ORDER.REMOVED,
+    'vozvrat': TYPE_STATUS_ORDER.RETURNED,
+}
+
 CUSTOMER_IN = {
     'name': 'Zzap',
     'type_prices': 'Retail',
@@ -58,6 +89,8 @@ CONFIG_DATA_CUSTOMER = {
 PRICELIST_DRAGONZAP = 'dragonzap.xlsx'
 PRICELIST_HOT_PARTS = 'Прайс Хотпартс.xls'
 
+
+DEFAULT_PAGE_SIZE = 20
 # Brand indicators
 INDICATOR_BYD_FIRST_FIVE = ['10237', '10242', '10259', '10375']
 INDICATOR_DONGFENG_FULL = ['4151700', '3502500VD01', '4151200', '8226006']
@@ -836,6 +869,8 @@ def create_brands(brands: list) -> list:
 # Mail body
 
 SUBJECT_MAIL_ANALYTIC_PRICE_PROVIDER = 'Анализ перспективности автозапчастей'
-BODY_MAIL_ANALYTIC_PRICE_PROVIDER = ('Добрый день!\n\nОтчет о перспективности'
-                                     ' автозапчастей находится во вложении.')
+BODY_MAIL_ANALYTIC_PRICE_PROVIDER = (
+    'Добрый день!\n\nОтчет о перспективности'
+    ' автозапчастей находится во вложении.'
+)
 FILENAME_EXCEL_MAIL_ANALYTIC_PRICE_PROVIDER = 'autopart_popularity.xlsx'

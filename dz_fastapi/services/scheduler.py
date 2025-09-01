@@ -1,7 +1,11 @@
 # scheduler.py
+import asyncio
 import logging
 import os
+import time
+from contextlib import asynccontextmanager
 
+import aiofiles
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dz_fastapi.core.constants import (CONFIG_DATA_CUSTOMER,
                                        CONFIG_DATA_PROVIDER, CUSTOMER,
                                        CUSTOMER_IN, PROVIDER_IN)
-from dz_fastapi.core.db import get_async_session
 from dz_fastapi.crud.partner import (crud_customer,
                                      crud_customer_pricelist_config,
                                      crud_pricelist, crud_provider,
@@ -31,7 +34,9 @@ EMAIL_HOST_ORDER = os.getenv('EMAIL_HOST_ORDERS')
 
 def start_scheduler(app: FastAPI):
     scheduler = AsyncIOScheduler()
-    scheduler.configure(timezone="UTC")
+    scheduler.configure(
+        timezone='UTC', job_defaults={'coalesce': True, 'max_instances': 1}
+    )
 
     # Добавляем задачи в планировщик
     scheduler.add_job(
@@ -41,6 +46,8 @@ def start_scheduler(app: FastAPI):
         id='download_price_provider',
         name='Download price provider',
         minute='*/5',  # каждые 5 минут
+        jitter=5,
+        replace_existing=True,
         # hour='9',
     )
 
@@ -56,11 +63,61 @@ def start_scheduler(app: FastAPI):
 
     scheduler.start()
     logger.info('Scheduler started.')
+    return scheduler
+
+
+@asynccontextmanager
+async def new_session_from_app(app: FastAPI):
+    session_factory = app.state.session_factory
+    async with session_factory() as s:
+        yield s
+
+
+async def _process_one(item, app: FastAPI, sem: asyncio.Semaphore):
+    provider, filepath, provider_conf = item
+    async with sem:
+        try:
+            async with new_session_from_app(app) as session:
+                file_extension = filepath.split('.')[-1].lower()
+                async with aiofiles.open(filepath, 'rb') as f:
+                    file_content = await f.read()
+                logger.info(
+                    f'Скачан прайс для провайдера {provider.id} '
+                    f'({provider.name}), размер: {len(file_content)} байт'
+                )
+                await process_provider_pricelist(
+                    provider=provider,
+                    file_content=file_content,
+                    file_extension=file_extension,
+                    provider_list_conf=provider_conf,
+                    use_stored_params=True,
+                    start_row=None,
+                    oem_col=None,
+                    brand_col=None,
+                    name_col=None,
+                    qty_col=None,
+                    price_col=None,
+                    session=session,
+                )
+                logger.info(
+                    f'Успешно обработан прайс для провайдера {provider.id}'
+                )
+
+                if provider.name == PROVIDER_IN['name']:
+                    await send_price_list_task(app)
+        except Exception as e:
+            logger.error(
+                f'Ошибка обработки прайса для провайдера {provider.id}: {e}',
+                exc_info=True,
+            )
+            raise
 
 
 async def send_price_list_task(app: FastAPI):
+    # logger.info('Starting send_price_list_task')
+    # async_session_factory = get_async_session()
     logger.info('Starting send_price_list_task')
-    async_session_factory = get_async_session()
+    async_session_factory = app.state.session_factory
     async with async_session_factory() as session:
         try:
             customer_in_model = CustomerCreate(**CUSTOMER_IN)
@@ -84,14 +141,15 @@ async def send_price_list_task(app: FastAPI):
                     config_in=config_in_model,
                     session=session,
                 )
-            config = configs[-1]
+            else:
+                config = configs[-1]
 
             provider = await crud_provider.get_provider_or_none(
                 provider=PROVIDER_IN['name'], session=session
             )
             if not provider:
-                logger.error(f'Provider {PROVIDER_IN['name']} not found.')
-                raise ValueError(f'Provider {PROVIDER_IN['name']} not found.')
+                logger.error(f"Provider {PROVIDER_IN['name']} not found.")
+                raise ValueError(f"Provider {PROVIDER_IN['name']} not found.")
             pricelist_ids = await crud_pricelist.get_pricelist_ids_by_provider(
                 provider_id=provider.id, session=session
             )
@@ -119,7 +177,8 @@ async def send_price_list_task(app: FastAPI):
             )
         except Exception as e:
             logger.error(
-                f'Error processing pricelist for customer {customer.name}: {e}'
+                f'Error process. pricelist for customer {customer.name}: {e}',
+                exc_info=True,
             )
 
 
@@ -129,44 +188,51 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
     скачивая файлы для провайдеров и далее
     запускает функцию обработки прайслеста для каждого провайдера.
     """
-    downloaded = await get_emails(session)
+    logger.info('Начинаем обработку писем провайдеров...')
+    start_time = time.perf_counter()
+    downloaded = await get_emails(session=session)
+
+    email_time = time.perf_counter()
+    logger.info(
+        f'get_emails() выполнена за {email_time - start_time:.2f} секунд'
+    )
+
     if not downloaded:
         logger.info('Новых писем для обработки не найдено.')
         return
+    sem = asyncio.Semaphore(2)
+    process_start = time.perf_counter()
+    tasks = [
+        asyncio.create_task(_process_one(item, app, sem))
+        for item in downloaded
+    ]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    process_end = time.perf_counter()
+    logger.info(
+        f'Обработка прайса выполнена '
+        f'за {process_end - process_start:.2f} секунд'
+    )
+    successful = 0
+    errors = 0
+    for result in results:
+        if isinstance(result, Exception):
+            errors += 1
+            logger.error(
+                f'Ошибка обработки прайс-листа: {result}', exc_info=True
+            )
+        else:
+            successful += 1
 
-    for provider, filepath, provider_conf in downloaded:
-        file_extension = filepath.split('.')[-1].lower()
-        with open(filepath, 'rb') as f:
-            file_content = f.read()
-        logger.info('Скачан прайс для провайдера %s', provider.id)
-        try:
-            await process_provider_pricelist(
-                provider=provider,
-                file_content=file_content,
-                file_extension=file_extension,
-                provider_list_conf=provider_conf,
-                use_stored_params=True,
-                start_row=None,
-                oem_col=None,
-                brand_col=None,
-                name_col=None,
-                qty_col=None,
-                price_col=None,
-                session=session,
-            )
-            if provider.name == PROVIDER_IN['name']:
-                await send_price_list_task(app)
-        except Exception as e:
-            logger.exception(
-                'Ошибка обработки прайс-листа для провайдера %s: %s',
-                provider.id,
-                e,
-            )
+    total_time = time.perf_counter() - start_time
+    logger.info(
+        f'process_new_provider_emails завершена за {total_time:.2f} секунд. '
+        f'Успешно: {successful}, Ошибок: {errors}'
+    )
 
 
 async def download_price_provider_task(app: FastAPI):
     logger.info('Starting download_price_provider_task')
-    async_session_factory = get_async_session()
+    async_session_factory = app.state.session_factory
     async with async_session_factory() as session:
         try:
             # Проверяю наличие поставщика
@@ -191,6 +257,7 @@ async def download_price_provider_task(app: FastAPI):
             logger.info('Completed download_price_provider_task')
         except Exception as e:
             logger.error(f'Error in download_price_provider_task: {e}')
+
 
 #
 # async def process_new_orders_emails(

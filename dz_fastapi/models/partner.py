@@ -2,16 +2,18 @@
 
 from datetime import date, datetime, timezone
 from enum import StrEnum, unique
+from uuid import uuid4
 
 from email_validator import EmailNotValidError, validate_email
-from sqlalchemy import (DECIMAL, JSON, Boolean, Column, Date, DateTime, Enum,
-                        Float, ForeignKey, Index, Integer, String, Text, event)
+from sqlalchemy import DECIMAL, JSON, Boolean, Column, Date, DateTime
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text, event
 from sqlalchemy.orm import relationship, validates
 
-from dz_fastapi.core.constants import MAX_NAME_PARTNER
 from dz_fastapi.core.db import Base
 
 DEFAULT_IS_ACTIVE = True
+MAX_NAME_PARTNER = 256
 
 
 @unique
@@ -38,6 +40,39 @@ class TYPE_STATUS_ORDER(StrEnum):
     REFUSAL = 'Refusal'
     ERROR = 'Error'
     REMOVED = 'Removed'
+    PROCESSING = 'Processing'
+    TRANSIT = 'In transit'
+    ACCEPTED = 'Accepted'
+    RETURNED = 'Returned'
+
+    @property
+    def label(self) -> str:
+        return {
+            TYPE_STATUS_ORDER.NEW_OREDER: 'Новый заказ',
+            TYPE_STATUS_ORDER.ORDERED: 'В заказе',
+            TYPE_STATUS_ORDER.CONFIRMED: 'Подтверждён',
+            TYPE_STATUS_ORDER.ARRIVED: 'Прибыл на склад',
+            TYPE_STATUS_ORDER.SHIPPED: 'Выдан клиенту',
+            TYPE_STATUS_ORDER.REFUSAL: 'Отказ поставщика',
+            TYPE_STATUS_ORDER.REMOVED: 'Удалён',
+            TYPE_STATUS_ORDER.ERROR: 'Ошибка',
+            TYPE_STATUS_ORDER.PROCESSING: 'Обрабатывается',
+            TYPE_STATUS_ORDER.TRANSIT: 'В пути',
+            TYPE_STATUS_ORDER.ACCEPTED: 'Ожидает приёмки',
+            TYPE_STATUS_ORDER.RETURNED: 'Возврат',
+        }[self]
+
+
+@unique
+class TYPE_ORDER_ITEM_STATUS(StrEnum):
+    NEW = 'NEW'
+    SENT = 'SENT'
+    CONFIRMED = 'CONFIRMED'
+    IN_PROGRESS = 'IN_PROGRESS'
+    DELIVERED = 'DELIVERED'
+    CANCELLED = 'CANCELLED'
+    FAILED = 'FAILED'
+    ERROR = 'ERROR'
 
 
 @unique
@@ -57,7 +92,14 @@ def set_date(mapper, connection, target):
 
 class Client(Base):
     name = Column(String(MAX_NAME_PARTNER), nullable=False, unique=True)
-    type_prices = Column(Enum(TYPE_PRICES), default=TYPE_PRICES.WHOLESALE)
+    type_prices = Column(
+        SAEnum(
+            TYPE_PRICES,
+            values_callable=lambda enum: [e.name for e in enum],
+            native_enum=True,
+        ),
+        default=TYPE_PRICES.WHOLESALE,
+    )
     email_contact = Column(String(255), unique=True, index=True, nullable=True)
     description = Column(Text, nullable=True)
     comment = Column(Text, default='')
@@ -85,12 +127,17 @@ class Provider(Client):
         String(255), index=True, nullable=True, unique=True
     )
     price_lists = relationship('PriceList', back_populates='provider')
-    pricelist_config = relationship(
-        'ProviderPriceListConfig', uselist=False, back_populates='provider'
+    pricelist_configs = relationship(
+        'ProviderPriceListConfig',
+        back_populates='provider',
+        cascade='all, delete-orphan',
+        lazy='selectin',
+        single_parent=True,
     )
     provider_last_uid = relationship(
         'ProviderLastEmailUID', back_populates='provider', uselist=False
     )
+    is_virtual = Column(Boolean, default=False)
 
     @validates('email_incoming_price')
     def validate_email_incoming_price(self, key, email):
@@ -154,11 +201,9 @@ class PriceList(Base):
     provider_id = Column(Integer, ForeignKey('provider.id'))
     provider = relationship('Provider', back_populates='price_lists')
     provider_config_id = Column(
-        Integer,
-        ForeignKey('providerpricelistconfig.id'),
-        nullable=True
+        Integer, ForeignKey('providerpricelistconfig.id'), nullable=True
     )
-    config_id = relationship('ProviderPriceListConfig')
+    config = relationship('ProviderPriceListConfig', lazy='selectin')
     is_active = Column(Boolean, default=DEFAULT_IS_ACTIVE)
     autopart_associations = relationship(
         'PriceListAutoPartAssociation',
@@ -227,7 +272,12 @@ class ProviderPriceListConfig(Base):
     name_price = Column(String, nullable=True)
     name_mail = Column(String, nullable=True)
     file_url = Column(String, nullable=True)
-    provider = relationship('Provider', back_populates='pricelist_config')
+    min_delivery_day = Column(Integer, nullable=True, default=1)
+    max_delivery_day = Column(Integer, nullable=True, default=2)
+    provider = relationship('Provider', back_populates='pricelist_configs')
+    price_lists = relationship(
+        'PriceList', back_populates='config', lazy='selectin'
+    )
 
 
 class CustomerPriceListConfig(Base):
@@ -276,3 +326,68 @@ class ProviderLastEmailUID(Base):
         DateTime(timezone=True), default=datetime.now, onupdate=datetime.now
     )
     provider = relationship('Provider', back_populates='provider_last_uid')
+
+
+class ProviderAbbreviation(Base):
+    abbreviation = Column(String(20), unique=True, nullable=False)
+    provider_id = Column(Integer, ForeignKey('provider.id'), nullable=False)
+    provider = relationship('Provider', backref='abbreviations')
+
+
+class Order(Base):
+    order_number = Column(
+        String(36), default=lambda: str(uuid4()), unique=True
+    )
+    provider_id = Column(Integer, ForeignKey('provider.id'), nullable=False)
+    customer_id = Column(Integer, ForeignKey('customer.id'), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=datetime.now)
+    updated_at = Column(
+        DateTime(timezone=True), default=datetime.now, onupdate=datetime.now
+    )
+    status = Column(
+        SAEnum(
+            TYPE_STATUS_ORDER,
+            values_callable=lambda enum: [e.name for e in enum],
+            native_enum=True,
+        ),
+        default=TYPE_STATUS_ORDER.NEW_OREDER,
+    )
+    comment = Column(Text, nullable=True)
+    provider = relationship('Provider', backref='orders')
+    customer = relationship('Customer', backref='orders')
+    order_items = relationship('OrderItem', back_populates='order')
+
+
+class OrderItem(Base):
+    order_id = Column(Integer, ForeignKey('order.id'))
+    autopart_id = Column(Integer, ForeignKey('autopart.id'))
+    quantity = Column(Integer, nullable=False)
+    price = Column(DECIMAL(10, 2))
+    created_at = Column(DateTime(timezone=True), default=datetime.now)
+    updated_at = Column(
+        DateTime(timezone=True), default=datetime.now, onupdate=datetime.now
+    )
+    tracking_uuid = Column(
+        String(36), default=lambda: str(uuid4()), unique=True, index=True
+    )
+    status = Column(
+        SAEnum(
+            TYPE_ORDER_ITEM_STATUS,
+            values_callable=lambda enum: [e.name for e in enum],
+            native_enum=True,
+        ),
+        default=TYPE_ORDER_ITEM_STATUS.NEW,
+    )
+    comments = Column(Text, nullable=True)
+    order = relationship('Order', back_populates='order_items')
+    hash_key = Column(String(255), nullable=True, index=True)
+    system_hash = Column(String(255), nullable=True, index=True)
+    autopart = relationship('AutoPart')
+    restock_supplier_id = Column(
+        Integer,
+        ForeignKey('autopartrestockdecisionsupplier.id'),
+        nullable=True,
+    )
+    restock_supplier = relationship(
+        'AutoPartRestockDecisionSupplier', back_populates='order_items'
+    )

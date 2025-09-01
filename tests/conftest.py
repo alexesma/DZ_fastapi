@@ -4,6 +4,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 import pytest
+from email_validator import validate_email as real_validate_email
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
@@ -96,21 +97,36 @@ async def created_category(test_session: AsyncSession) -> Category:
     return category
 
 
+@pytest.fixture(autouse=True)
+def _patch_email_validator(monkeypatch):
+    """
+    В тестах отключаем проверку deliverability (DNS/MX),
+    оставляя синтаксическую проверку.
+    """
+    import dz_fastapi.models.partner as partner_mod
+
+    def patched_validate(email, *args, **kwargs):
+        kwargs.setdefault("check_deliverability", False)
+        return real_validate_email(email, *args, **kwargs)
+
+    monkeypatch.setattr(partner_mod, "validate_email", patched_validate)
+
+
 @pytest.fixture
 async def created_providers(test_session: AsyncSession) -> list[Provider]:
     providers_data = [
         {
             'name': 'Test Provider 1',
-            'email_contact': 'test1@exemple.com',
-            'email_incoming_price': 'prices1@exemple.com',
+            'email_contact': 'test1@example.com',
+            'email_incoming_price': 'prices1@example.com',
             'description': 'First test provider',
             'comment': 'No comment',
             'type_prices': 'Wholesale',
         },
         {
             'name': 'Test Provider 2',
-            'email_contact': 'test2@exemple.com',
-            'email_incoming_price': 'prices2@exemple.com',
+            'email_contact': 'test2@axample.com',
+            'email_incoming_price': 'prices2@example.com',
             'description': 'Second test provider',
             'comment': 'No comment',
             'type_prices': 'Retail',

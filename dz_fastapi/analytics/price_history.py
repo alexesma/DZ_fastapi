@@ -114,10 +114,10 @@ async def analyze_new_pricelist(new_pl: PriceList, session: AsyncSession):
       - изменение количества (в %)
     """
     logger.debug('Зашли в функцию analyze_new_pricelist')
-    provider_id = new_pl.provider.id
+    provider_id = new_pl.provider_id
 
     # 1) Найти все прайс-листы этого поставщика
-    all_pls = await crud_pricelist.get_two_last_pricelists_by_provider(
+    all_pls = await crud_pricelist.get_last_pricelists_by_provider(
         provider_id=provider_id, session=session
     )
     logger.debug(f'Прайс-листов поставщика {len(all_pls)}')
@@ -227,7 +227,7 @@ async def analyze_new_pricelist(new_pl: PriceList, session: AsyncSession):
         logger.info(f'Excel report created, size={len(excel_file.getvalue())}')
         subject = (
             f'[ANALYSIS] Поставщик = {new_pl.provider.name}'
-            f'| Прайс = {new_pl.config_id.name_price}'
+            f'| Прайс = {new_pl.config.name_price}'
         )
         filename = 'analysis_report.xlsx'
         send_email_with_attachment(
@@ -368,18 +368,17 @@ async def analyze_autopart_allprices(
         select(
             AutoPartPriceHistory.created_at,
             AutoPartPriceHistory.price,
-            Provider.name.label('provider')
-        ).join(
-            Provider, Provider.id == AutoPartPriceHistory.provider_id
-        ).where(
+            Provider.name.label('provider'),
+        )
+        .join(Provider, Provider.id == AutoPartPriceHistory.provider_id)
+        .where(
             and_(
                 AutoPartPriceHistory.autopart_id.in_(autopart_ids),
                 AutoPartPriceHistory.created_at >= date_start,
-                AutoPartPriceHistory.created_at <= date_finish
+                AutoPartPriceHistory.created_at <= date_finish,
             )
-        ).order_by(
-            AutoPartPriceHistory.created_at
         )
+        .order_by(AutoPartPriceHistory.created_at)
     )
     result = await session.execute(query)
     rows = result.all()
@@ -387,7 +386,7 @@ async def analyze_autopart_allprices(
     if not rows:
         raise HTTPException(
             status_code=404,
-            detail='Нет данных по этому артикулу в указанный период'
+            detail='Нет данных по этому артикулу в указанный период',
         )
 
     df = pd.DataFrame(rows, columns=['created_at', 'price', 'provider'])

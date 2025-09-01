@@ -1,10 +1,11 @@
 services:
   frontend:
     build:
-      context: ../../../dz_frontend
+      context: ../../dz_frontend
       dockerfile: Dockerfile
-    ports:
-      - "3000:80"
+      args:
+        - VITE_API_URL=http://localhost:8000
+
 
   db:
     ports:

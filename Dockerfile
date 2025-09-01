@@ -10,6 +10,8 @@ RUN apt-get update && apt-get install -y \
     libjpeg-dev \
     libpng-dev \
     libfreetype6-dev \
+    unrar-free \
+    curl \
   && rm -rf /var/lib/apt/lists/*
 
 # Обновите pip до последней версии
@@ -17,7 +19,8 @@ RUN pip install --upgrade pip
 
 # Обновите unrar до последней версии
 RUN apt-get update && apt-get install -y unrar-free
-RUN pip install rarfile
+# ДОустановим ускорители для uvicorn (если их нет в pyproject)
+RUN pip install uvloop httptools uvicorn rarfile
 
 # Установите Poetry
 RUN pip install poetry
@@ -60,5 +63,12 @@ RUN pip install uvicorn
 COPY entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh
+
+# Healthcheck для контейнера
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
+
+# Открыть порт
+EXPOSE 8000
 
 CMD ["/entrypoint.sh"]

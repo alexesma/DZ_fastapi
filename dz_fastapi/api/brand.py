@@ -23,12 +23,12 @@ from dz_fastapi.schemas.brand import (BrandCreate, BrandCreateInDB,
 
 logger = logging.getLogger('dz_fastapi')
 
-router = APIRouter()
+router = APIRouter(prefix='/brand')
 UPLOAD_DIR = Path(UPLOAD_DIR)
 
 
 @router.get(
-    '/brand/',
+    '/',
     response_model=list[BrandCreateInDB],
     tags=['brand'],
     summary='Список брендов',
@@ -44,7 +44,7 @@ async def get_brands(session: AsyncSession = Depends(get_session)):
 
 
 @router.get(
-    '/brand/{brand_id}',
+    '/{brand_id}',
     response_model=BrandCreateInDB,
     tags=['brand'],
     summary='Получение данных по бренду',
@@ -68,7 +68,7 @@ async def get_brand(
 
 
 @router.patch(
-    '/brand/{brand_id}/upload-logo',
+    '/{brand_id}/upload-logo',
     tags=['brand'],
     summary='Загрузка логотипа бренда',
     response_model_exclude_none=True,
@@ -164,7 +164,7 @@ async def upload_logo(
 
 
 @router.post(
-    '/brand/',
+    '/',
     response_model=BrandCreateInDB,
     tags=['brand'],
     summary='Создание бренда',
@@ -178,7 +178,7 @@ async def create_brand(
 
 
 @router.delete(
-    '/brand/{brand_id}',
+    '/{brand_id}',
     tags=['brand'],
     summary='Удаление бренда',
     status_code=status.HTTP_200_OK,
@@ -199,7 +199,7 @@ async def remove_brand(
 
 
 @router.patch(
-    '/brand/{brand_id}',
+    '/{brand_id}',
     tags=['brand'],
     summary='Обновление бренда',
     response_model_exclude_none=True,
@@ -260,7 +260,7 @@ async def update_brand(
 
 
 @router.post(
-    '/brand/{brand_id}/synonyms/',
+    '/{brand_id}/synonyms/',
     response_model=BrandResponse,
     tags=['brand'],
     summary='Добавление синонимов к бренду',
@@ -300,14 +300,14 @@ async def add_synonyms(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         await session.rollback()
-        logger.error(f'Ошибка добаление синонимов: {str(e)}')
+        logger.error(f'Ошибка добавление синонимов: {str(e)}')
         raise HTTPException(
             status_code=500, detail=f'An error occurred: {str(e)}'
         )
 
 
 @router.delete(
-    '/brand/{brand_id}/synonyms',
+    '/{brand_id}/synonyms',
     response_model=BrandResponse,
     tags=['brand'],
     summary='Удаление синонимов к бренду',

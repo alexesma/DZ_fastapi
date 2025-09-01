@@ -12,19 +12,15 @@ brand_synonyms = Table(
         'brand_id',
         Integer,
         ForeignKey('brand.id', ondelete='CASCADE'),
-        primary_key=True
+        primary_key=True,
     ),
     Column(
         'synonym_id',
         Integer,
         ForeignKey('brand.id', ondelete='CASCADE'),
-        primary_key=True
+        primary_key=True,
     ),
-    UniqueConstraint(
-        'brand_id',
-        'synonym_id',
-        name='unique_brand_synonyms'
-    )
+    UniqueConstraint('brand_id', 'synonym_id', name='unique_brand_synonyms'),
 )
 
 
@@ -36,9 +32,7 @@ class Brand(Base):
     logo = Column(String(MAX_LEN_WEBSITE), nullable=True)
     main_brand = Column(Boolean, default=False)
     autoparts = relationship(
-        'AutoPart',
-        back_populates='brand',
-        cascade='all, delete-orphan'
+        'AutoPart', back_populates='brand', cascade='all, delete-orphan'
     )
     synonyms = relationship(
         'Brand',
@@ -46,7 +40,7 @@ class Brand(Base):
         primaryjoin='Brand.id == brand_synonyms.c.brand_id',
         secondaryjoin='Brand.id == brand_synonyms.c.synonym_id',
         cascade='save-update, merge',
-        backref='brand_synonyms'
+        backref='brand_synonyms',
         # lazy='subquery',
         # back_populates='synonyms',
         # viewonly=False
@@ -54,6 +48,6 @@ class Brand(Base):
     __table_args__ = (
         CheckConstraint(
             text("name ~ '^[a-zA-Z0-9]+(?:[ -]?[a-zA-Z0-9]+)*$'"),
-            name='check_name_brand'
+            name='check_name_brand',
         ),
     )

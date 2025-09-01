@@ -21,6 +21,7 @@ from dz_fastapi.core.db import get_session
 from dz_fastapi.crud.partner import (crud_customer, crud_customer_pricelist,
                                      crud_customer_pricelist_config,
                                      crud_pricelist, crud_provider,
+                                     crud_provider_abbreviation,
                                      crud_provider_pricelist_config)
 from dz_fastapi.models.partner import (Customer, CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
@@ -38,12 +39,14 @@ from dz_fastapi.schemas.partner import (AutoPartInPricelist,
                                         CustomerPriceListResponseShort,
                                         CustomerResponse,
                                         CustomerResponseShort, CustomerUpdate,
+                                        PaginatedProvidersResponse,
                                         PriceListDeleteRequest,
                                         PriceListPaginationResponse,
                                         PriceListResponse, PriceListSummary,
-                                        ProviderCreate,
+                                        ProviderAbbreviationOut,
+                                        ProviderCreate, ProviderPageResponse,
                                         ProviderPriceListConfigCreate,
-                                        ProviderPriceListConfigResponse,
+                                        ProviderPriceListConfigOut,
                                         ProviderPriceListConfigUpdate,
                                         ProviderResponse, ProviderUpdate)
 from dz_fastapi.services.email import (download_price_provider,
@@ -88,20 +91,47 @@ async def create_provider(
     tags=['providers'],
     status_code=status.HTTP_200_OK,
     summary='Список поставщиков',
-    response_model=List[ProviderResponse],
+    response_model=PaginatedProvidersResponse,
 )
-async def get_all_providers(session: AsyncSession = Depends(get_session)):
-    providers = await crud_provider.get_multi(session=session)
-    return [
-        ProviderResponse.model_validate(provider) for provider in providers
-    ]
+async def get_all_providers(
+    session: AsyncSession = Depends(get_session),
+    page: int = Query(1, ge=1, description='Номер страницы'),
+    page_size: int = Query(
+        10, ge=1, le=100, description='Количество элементов на странице'
+    ),
+    search: Optional[str] = Query(
+        None, description='Поиск по названию поставщика'
+    ),
+):
+    '''
+    Получить список всех поставщиков с пагинацией и поиском.
+
+    :param session:
+    :param page: номер страницы (начинается с 1)
+    :param page_size: количество поставщиков на странице (1-100)
+    :param search: поиск по названию поставщика (необязательно)
+    :return:
+        - items: список поставщиков
+        - page: текущая страница
+        - page_size: размер страницы
+        - total: общее количество поставщиков
+        - pages: общее количество страниц
+    '''
+
+    providers = await crud_provider.get_all(
+        session=session,
+        page=page,
+        page_size=page_size,
+        search=search,
+    )
+    return providers
 
 
 @router.get(
     '/providers/{provider_id}/',
     tags=['providers'],
     status_code=status.HTTP_200_OK,
-    summary='Покупатель по id',
+    summary='Поставщик по id',
     response_model=ProviderResponse,
 )
 async def get_provider(
@@ -113,6 +143,24 @@ async def get_provider(
     if not provider:
         raise HTTPException(status_code=404, detail='Provider not found')
     return ProviderResponse.model_validate(provider)
+
+
+@router.get(
+    '/providers/{provider_id}/full',
+    tags=['providers'],
+    status_code=status.HTTP_200_OK,
+    summary='Поставщик по id',
+    response_model=ProviderPageResponse,
+)
+async def get_provider_full(
+    provider_id: int, session: AsyncSession = Depends(get_session)
+):
+    result = await crud_provider.get_full_by_id(
+        provider_id=provider_id, session=session
+    )
+    if result is None:
+        raise HTTPException(status_code=404, detail='Provider not found')
+    return result
 
 
 @router.delete(
@@ -146,21 +194,8 @@ async def update_provider(
     provider_in: ProviderUpdate = Body(...),
     session: AsyncSession = Depends(get_session),
 ):
-    provider_db = await crud_provider.get_by_id(
-        provider_id=provider_id, session=session
-    )
-    if not provider_db:
-        raise HTTPException(status_code=404, detail='Provider not found')
-
-    update_data = provider_in.model_dump(exclude_unset=True)
-
-    if not update_data:
-        raise HTTPException(
-            status_code=404, detail='No data provider to update.'
-        )
-
-    updated_provider = await crud_provider.update(
-        db_obj=provider_db, obj_in=update_data, session=session
+    updated_provider = await crud_provider.update_provider(
+        provider_id=provider_id, obj_in=provider_in, session=session
     )
     return ProviderResponse.model_validate(updated_provider)
 
@@ -398,7 +433,7 @@ async def update_customer(
     tags=['providers', 'pricelist-config'],
     status_code=status.HTTP_201_CREATED,
     summary='Create new price list parsing parameters for a provider',
-    response_model=ProviderPriceListConfigResponse,
+    response_model=ProviderPriceListConfigOut,
 )
 async def set_provider_pricelist_config(
     provider_id: int,
@@ -415,7 +450,7 @@ async def set_provider_pricelist_config(
     new_config = await crud_provider_pricelist_config.create(
         provider_id=provider_id, config_in=config_in, session=session
     )
-    return ProviderPriceListConfigResponse.model_validate(new_config)
+    return ProviderPriceListConfigOut.model_validate(new_config)
 
 
 @router.patch(
@@ -423,7 +458,7 @@ async def set_provider_pricelist_config(
     tags=['providers', 'pricelist-config'],
     status_code=status.HTTP_200_OK,
     summary='Update price list parsing parameters for a provider by config id',
-    response_model=ProviderPriceListConfigResponse,
+    response_model=ProviderPriceListConfigOut,
 )
 async def update_provider_pricelist_config(
     provider_id: int,
@@ -448,7 +483,7 @@ async def update_provider_pricelist_config(
     update_config = await crud_provider_pricelist_config.update(
         db_obj=provider_config, obj_in=config_in, session=session
     )
-    return ProviderPriceListConfigResponse.model_validate(update_config)
+    return ProviderPriceListConfigOut.model_validate(update_config)
 
 
 @router.get(
@@ -456,7 +491,7 @@ async def update_provider_pricelist_config(
     tags=['providers', 'pricelist-config'],
     status_code=status.HTTP_200_OK,
     summary='Get list with price lists parsing parameters for provider',
-    response_model=List[ProviderPriceListConfigResponse],
+    response_model=List[ProviderPriceListConfigOut],
 )
 async def get_provider_pricelist_configs(
     provider_id: int, session: AsyncSession = Depends(get_session)
@@ -478,7 +513,7 @@ async def get_provider_pricelist_configs(
             status_code=404, detail='Config provider not found'
         )
     return [
-        ProviderPriceListConfigResponse.model_validate(existing_config)
+        ProviderPriceListConfigOut.model_validate(existing_config)
         for existing_config in existing_configs
     ]
 
@@ -488,7 +523,7 @@ async def get_provider_pricelist_configs(
     tags=['providers', 'pricelist-config'],
     status_code=status.HTTP_200_OK,
     summary='Get price list parsing parameters for provider',
-    response_model=ProviderPriceListConfigResponse,
+    response_model=ProviderPriceListConfigOut,
 )
 async def get_provider_pricelist_config(
     provider_id: int,
@@ -510,7 +545,7 @@ async def get_provider_pricelist_config(
             status_code=404,
             detail=f'Configuration for provider {provider.name} ' f'not found',
         )
-    return ProviderPriceListConfigResponse.model_validate(provider_config)
+    return ProviderPriceListConfigOut.model_validate(provider_config)
 
 
 # @router.post(
@@ -575,7 +610,7 @@ async def upload_provider_pricelist(
         None, description='Column number for brand (0-indexed)'
     ),
     name_col: Optional[int] = Form(
-        None, description='Column number for brand (0-indexed)'
+        None, description='Column number for name (0-indexed)'
     ),
     qty_col: Optional[int] = Form(
         None, description='Column number for quantity (0-indexed)'
@@ -1148,19 +1183,14 @@ async def get_autopart_popularity(
     background_tasks: BackgroundTasks,
     provider_id: Optional[int],
     date_start: Optional[str] = Query(
-        default=None,
-        description='Start date in format YYYY-MM-DD'
+        default=None, description='Start date in format YYYY-MM-DD'
     ),
     date_finish: Optional[str] = Query(
-        default=None,
-        description='End date in format YYYY-MM-DD'
+        default=None, description='End date in format YYYY-MM-DD'
     ),
     session: AsyncSession = Depends(get_session),
 ):
-    start_dt, finish_dt = check_start_and_finish_date(
-        date_start,
-        date_finish
-    )
+    start_dt, finish_dt = check_start_and_finish_date(date_start, date_finish)
 
     df = await analyze_autopart_popularity(
         provider_id=provider_id,
@@ -1180,3 +1210,108 @@ async def get_autopart_popularity(
     )
 
     return {'message': f'Отчёт отправлен на почту {EMAIL_NAME_ANALYTIC}'}
+
+
+@router.post(
+    '/providers/{provider_id}/abbreviations',
+    tags=['providers', 'abbreviations'],
+    response_model=ProviderAbbreviationOut,
+    status_code=status.HTTP_201_CREATED,
+    summary='Добавить аббревиатуру',
+)
+async def add_abbreviation(
+    provider_id: int,
+    abbreviation_name: str = Body(..., embed=True),
+    session: AsyncSession = Depends(get_session),
+):
+    abbr = await crud_provider_abbreviation.add_abbreviation(
+        session=session,
+        provider_id=provider_id,
+        abbreviation=abbreviation_name,
+    )
+    return abbr
+
+
+@router.patch(
+    '/providers/{provider_id}/abbreviations/{abbr_id}',
+    tags=['providers', 'abbreviations'],
+    response_model=ProviderAbbreviationOut,
+    status_code=status.HTTP_200_OK,
+    summary='Обновить аббревиатуру',
+)
+async def update_abbreviation(
+    provider_id: int,
+    abbr_id: int,
+    new_abbreviation: str = Body(..., embed=True),
+    session: AsyncSession = Depends(get_session),
+):
+    provider = crud_provider.get_by_id(
+        provider_id=provider_id, session=session
+    )
+    if provider is None:
+        raise HTTPException(status_code=404, detail='Provider not found')
+    abbr = await crud_provider_abbreviation.update_abbreviation(
+        session=session,
+        abbreviation_id=abbr_id,
+        new_abbreviation=new_abbreviation,
+    )
+    if provider_id != abbr.provider_id:
+        raise HTTPException(
+            status_code=404, detail='Provider have not this abbreviation'
+        )
+    return abbr
+
+
+@router.delete(
+    '/providers/{provider_id}/abbreviations/{abbr_id}',
+    tags=['providers', 'abbreviations'],
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary='Обновить аббревиатуру',
+)
+async def delete_abbreviation(
+    provider_id: int,
+    abbr_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    provider = await crud_provider.get_by_id(
+        provider_id=provider_id, session=session
+    )
+    if provider is None:
+        raise HTTPException(status_code=404, detail='Provider not found')
+    await crud_provider_abbreviation.delete_abbreviation(
+        session=session, abbreviation_id=abbr_id
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete(
+    '/providers/{provider_id}/pricelist-config/{config_id}/',
+    tags=['providers', 'pricelist-config'],
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary='Delete price list configuration',
+)
+async def delete_provider_pricelist_config(
+    provider_id: int,
+    config_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    '''Удалить конфигурацию прайс-листа поставщика'''
+    provider = await crud_provider.get_by_id(
+        provider_id=provider_id, session=session
+    )
+    if not provider:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail='Provider not found'
+        )
+    config = await crud_provider_pricelist_config.get_by_id(
+        config_id=config_id, session=session
+    )
+    if not config or config.provider_id != provider_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='Configuration not found for this provider',
+        )
+    await session.delete(config)
+    await session.commit()
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

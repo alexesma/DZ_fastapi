@@ -1,15 +1,16 @@
 import logging
+from math import ceil
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from fastapi import HTTPException
 from pydantic import ValidationError
-from sqlalchemy import delete, func, insert
+from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.sql import and_
 
+from dz_fastapi.core.constants import DEFAULT_PAGE_SIZE
 from dz_fastapi.core.db import AsyncSession
 from dz_fastapi.crud.autopart import crud_autopart
 from dz_fastapi.crud.base import CRUDBase
@@ -18,6 +19,7 @@ from dz_fastapi.models.partner import (Customer, CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
                                        CustomerPriceListConfig, PriceList,
                                        PriceListAutoPartAssociation, Provider,
+                                       ProviderAbbreviation,
                                        ProviderLastEmailUID,
                                        ProviderPriceListConfig)
 from dz_fastapi.schemas.autopart import AutoPartPricelist
@@ -29,8 +31,14 @@ from dz_fastapi.schemas.partner import (CustomerCreate,
                                         CustomerUpdate,
                                         PriceListAutoPartAssociationResponse,
                                         PriceListCreate, PriceListResponse,
-                                        PriceListUpdate, ProviderCreate,
+                                        PriceListShort, PriceListUpdate,
+                                        ProviderAbbreviationCreate,
+                                        ProviderAbbreviationOut,
+                                        ProviderAbbreviationUpdate,
+                                        ProviderCoreOut, ProviderCreate,
+                                        ProviderPageResponse,
                                         ProviderPriceListConfigCreate,
+                                        ProviderPriceListConfigOut,
                                         ProviderPriceListConfigUpdate,
                                         ProviderUpdate)
 from dz_fastapi.services.utils import (brand_filters, individual_markups,
@@ -51,8 +59,10 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             provider = result.scalar_one_or_none()
             return provider
         except Exception as e:
-            logger.error(f'Ошибка в crud_provider.get_provider_or_none: {e}')
-            logger.exception('Полный стек ошибки:')
+            logger.error(
+                f'Ошибка в crud_provider.get_provider_or_none: {e}',
+                exc_info=True,
+            )
             raise
 
     async def get_by_id(
@@ -67,9 +77,129 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             provider = result.scalar_one_or_none()
             return provider
         except Exception as e:
-            logger.error(f'Ошибка в crud_provider.get_by_id: {e}')
-            logger.exception('Полный стек ошибки:')
+            logger.error(
+                f'Ошибка в crud_provider.get_by_id: {e}', exc_info=True
+            )
             raise
+
+    async def get_full_by_id(
+        self, provider_id: int, session: AsyncSession
+    ) -> Optional[ProviderPageResponse]:
+        '''
+        Возвращает агрегированный словарь для страницы поставщика:
+        :param provider_id:
+        :param session:
+        :return:
+        - основные поля для редактирования
+        - все аббревиатуры
+        - все конфигурации
+        - по каждой конфигурации — последний PriceList
+        '''
+        try:
+            stmt = (
+                select(Provider)
+                .where(Provider.id == provider_id)
+                .options(
+                    selectinload(Provider.provider_last_uid),
+                    selectinload(Provider.pricelist_configs),
+                    selectinload(Provider.price_lists),
+                    selectinload(Provider.abbreviations),
+                )
+            )
+            result = await session.execute(stmt)
+            provider: Optional[Provider] = result.scalars().first()
+            if not provider:
+                return None
+            config_ids = [
+                config.id for config in (provider.pricelist_configs or [])
+            ]
+            latest_by_cfg: Dict[int, PriceListShort] = {}
+            if config_ids:
+                max_date_stmt = (
+                    select(
+                        PriceList.provider_config_id,
+                        func.max(PriceList.date).label('max_date'),
+                    )
+                    .where(
+                        PriceList.provider_id == provider_id,
+                        PriceList.provider_config_id.in_(config_ids),
+                    )
+                    .group_by(PriceList.provider_config_id)
+                    .subquery()
+                )
+
+                latest_stmt = (
+                    select(
+                        PriceList.id,
+                        PriceList.provider_config_id,
+                        PriceList.date,
+                        PriceList.is_active,
+                    )
+                    .join(
+                        max_date_stmt,
+                        and_(
+                            PriceList.provider_config_id
+                            == max_date_stmt.c.provider_config_id,
+                            PriceList.date == max_date_stmt.c.max_date,
+                        ),
+                    )
+                    .where(
+                        PriceList.provider_id == provider_id,
+                        PriceList.provider_config_id.in_(config_ids),
+                    )
+                    .order_by(PriceList.id.desc())
+                )
+
+                latest_rows = (await session.execute(latest_stmt)).all()
+                seen_configs = set()
+                for row in latest_rows:
+                    if row.provider_config_id not in seen_configs:
+                        latest_by_cfg[row.provider_config_id] = PriceListShort(
+                            id=row.id, date=row.date, is_active=row.is_active
+                        )
+                        seen_configs.add(row.provider_config_id)
+            # ---------- собрать ответ ----------
+            provider_core = ProviderCoreOut.model_validate(provider)
+            abbreviations = [
+                ProviderAbbreviationOut.model_validate(abbreviation)
+                for abbreviation in (provider.abbreviations or [])
+            ]
+
+            pricelist_configs = []
+            for config in provider.pricelist_configs or []:
+                config_out = ProviderPriceListConfigOut.model_validate(config)
+                config_out.latest_pricelist = latest_by_cfg.get(config.id)
+                pricelist_configs.append(config_out)
+
+            pricelist_configs.sort(
+                key=lambda c: (c.name_price is None, c.name_price or '')
+            )
+            return ProviderPageResponse(
+                provider=provider_core,
+                abbreviations=abbreviations,
+                pricelist_configs=pricelist_configs,
+            )
+        except Exception as e:
+            logger.error(
+                f'Ошибка в crud_provider.get_by_id: {e}', exc_info=True
+            )
+            raise
+
+    async def update_provider(
+        self,
+        session: AsyncSession,
+        provider_id: int,
+        obj_in: ProviderUpdate,
+    ) -> None:
+        provider = await self.get_by_id(
+            provider_id=provider_id, session=session
+        )
+        if provider is None:
+            raise HTTPException(status_code=404, detail='Provider not found')
+        updated_provider = await self.update(
+            db_obj=provider, obj_in=obj_in, session=session, commit=True
+        )
+        return updated_provider
 
     async def get_by_email_incoming_price(
         self, session: AsyncSession, email: str
@@ -105,8 +235,440 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         providers = result.scalars().all()
         return providers
 
+    async def get_or_create_provider_by_abbreviation(
+        self, abbreviation: str, session: AsyncSession
+    ):
+        try:
+            stmt = (
+                select(ProviderAbbreviation)
+                .where(ProviderAbbreviation.abbreviation == abbreviation)
+                .options(selectinload(ProviderAbbreviation.provider))
+            )
+            result = await session.execute(stmt)
+            abbreviation_entry = result.scalars().first()
+            if abbreviation_entry:
+                return abbreviation_entry.provider
+            new_provider = Provider(
+                name=f'Provider {abbreviation}',
+                email_contact=None,
+                email_incoming_price=None,
+                is_virtual=True,
+                description='Created from site abbreviation',
+                comment='Automatically created provider from site',
+                type_prices='Wholesale',
+            )
+            session.add(new_provider)
+            await session.flush()
+            new_abbreviation = ProviderAbbreviation(
+                abbreviation=abbreviation, provider_id=new_provider.id
+            )
+            session.add(new_abbreviation)
+            await session.commit()
+            await session.refresh(new_provider)
+
+            return new_provider
+        except SQLAlchemyError as e:
+            await session.rollback()
+            logger.error(f'Database error: {e}')
+            raise
+
+    async def get_all(
+        self,
+        session: AsyncSession,
+        page: int = 1,
+        page_size: int = DEFAULT_PAGE_SIZE,
+        search: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        '''
+        Вернёт постранично список поставщиков
+        с полной агрегированной информацией.
+        :param session:
+        :param page:
+        :param page_size:
+        :param search:
+        :return:
+        '''
+        if page < 1:
+            page = 1
+        if page_size < 1:
+            page_size = DEFAULT_PAGE_SIZE
+
+        # Базовый запрос + фильтр по имени (поиск)
+        base = select(Provider)
+        if search:
+            base = base.where(Provider.name.ilike(f'%{search}%'))
+
+        count_base = select(Provider.id)
+        if search:
+            count_base = count_base.where(Provider.name.ilike(f'%{search}%'))
+
+        count_query = select(func.count()).select_from(count_base.subquery())
+        total = (await session.execute(count_query)).scalar()
+
+        stmt = (
+            base.options(
+                selectinload(Provider.pricelist_configs),
+                selectinload(Provider.provider_last_uid),
+                selectinload(Provider.price_lists).selectinload(
+                    PriceList.config
+                ),
+            )
+            .order_by(Provider.name.asc())
+            .limit(page_size)
+            .offset((page - 1) * page_size)
+        )
+        result = await session.execute(stmt)
+        providers: List[Provider] = result.scalars().all()
+        # Получаем provider_ids для загрузки аббревиатур отдельно
+        provider_ids = [p.id for p in providers]
+
+        # Загружаем аббревиатуры отдельным запросом
+        abbr_query = select(ProviderAbbreviation).where(
+            ProviderAbbreviation.provider_id.in_(provider_ids)
+        )
+        abbr_result = await session.execute(abbr_query)
+        abbreviations = abbr_result.scalars().all()
+
+        # Создаем словарь для быстрого поиска аббревиатур
+        abbr_dict = {}
+        for abbr in abbreviations:
+            if abbr.provider_id not in abbr_dict:
+                abbr_dict[abbr.provider_id] = []
+            abbr_dict[abbr.provider_id].append(abbr.abbreviation)
+        items: List[Dict[str, Any]] = []
+        for provider in providers:
+            provider_abbrs = abbr_dict.get(provider.id, [])
+            abbr = provider_abbrs[0] if provider_abbrs else None
+
+            email_contact = getattr(provider, 'email_contact', None)
+            items.append(
+                {
+                    'id': provider.id,
+                    'name': provider.name,
+                    'abbr': abbr,
+                    'email_incoming_price': provider.email_incoming_price,
+                    'email_contact': email_contact,
+                    'pricelist_configs': [
+                        {'id': config.id, 'name_price': config.name_price}
+                        for config in sorted(
+                            provider.pricelist_configs,
+                            key=lambda c: (
+                                c.name_price is None,
+                                c.name_price or '',
+                            ),
+                        )
+                    ],
+                    'last_email_uid': (
+                        None
+                        if provider.provider_last_uid is None
+                        else {
+                            'uid': provider.provider_last_uid.last_uid,
+                            'updated_at': (
+                                provider.provider_last_uid.updated_at
+                            ),
+                        }
+                    ),
+                    'price_lists': [
+                        {
+                            'id': pl.id,
+                            'name_price': (
+                                pl.config.name_price if pl.config else None
+                            ),
+                            'date': pl.date,
+                            'is_active': pl.is_active,
+                        }
+                        for pl in (provider.price_lists or [])
+                    ],
+                }
+            )
+
+        pages = ceil(total / page_size) if page_size else 1
+
+        return {
+            'items': items,
+            'page': page,
+            'page_size': page_size,
+            'total': total,
+            'pages': pages,
+        }
+
+    async def should_delete_empty_provider(
+        self,
+        provider: Provider,
+        session: AsyncSession,
+    ):
+        '''
+        Проверяет, можно ли безопасно удалить поставщика.
+        Удаляем только если:
+        1. Поставщик виртуальный (автоматически созданный)
+        2. У него нет других аббревиатур
+        3. У него нет прайс-листов
+        4. У него нет конфигураций
+        5. У него нет связанных заказов/документов
+        :param provider:
+        :param session:
+        :return:
+        '''
+        if not provider.is_virtual:
+            return False
+
+        abbrev_list = await crud_provider_abbreviation.list_abbreviations(
+            provider_id=provider.id, session=session
+        )
+        if len(abbrev_list) > 1:
+            False
+
+        if provider.price_lists:
+            return False
+
+        if provider.pricelist_configs:
+            return False
+
+        return True
+
+    async def merge_providers(
+        self,
+        source_provider_id: int,
+        target_provider_id: int,
+        session: AsyncSession,
+    ) -> bool:
+        '''
+        Объединяет двух поставщиков: переносит все аббревиатуры
+        и другие данные от source к target, затем удаляет source.
+        :param source_provider_id:
+        :param target_provider_id:
+        :param session:
+        :return:
+        '''
+        if source_provider_id == target_provider_id:
+            raise ValueError(
+                'source_provider_id и target_provider_id совпадают'
+            )
+
+        try:
+            source_provider = await session.get(
+                Provider, source_provider_id, with_for_update=True
+            )
+            target_provider = await session.get(
+                Provider, target_provider_id, with_for_update=True
+            )
+
+            if not source_provider or not target_provider:
+                raise ValueError('One or both providers not found')
+
+            # Перенести все аббревиатуры
+            stmt = (
+                update(ProviderAbbreviation)
+                .where(ProviderAbbreviation.provider_id == source_provider_id)
+                .values(provider_id=target_provider_id)
+            )
+
+            await session.execute(stmt)
+            # 2) Перевесить конфиги
+            await session.execute(
+                update(ProviderPriceListConfig)
+                .where(
+                    ProviderPriceListConfig.provider_id == source_provider_id
+                )
+                .values(provider_id=target_provider_id)
+            )
+
+            # 3) Перевесить прайсы
+            await session.execute(
+                update(PriceList)
+                .where(PriceList.provider_id == source_provider_id)
+                .values(provider_id=target_provider_id)
+            )
+            # Удалить исходного поставщика
+            await session.delete(source_provider)
+            await session.commit()
+
+            logger.info(
+                f'Merged provider {source_provider_id} '
+                f'into {target_provider_id}'
+            )
+            return True
+
+        except SQLAlchemyError as e:
+            await session.rollback()
+            logger.error(f'Error merging providers: {e}')
+            raise
+
 
 crud_provider = CRUDProvider(Provider)
+
+
+class CRUDProviderAbbreviation(
+    CRUDBase[
+        ProviderAbbreviation,
+        ProviderAbbreviationCreate,
+        ProviderAbbreviationUpdate,
+    ]
+):
+    @staticmethod
+    def _normalize_abbr(s: str) -> str:
+        return (s or '').strip().upper()
+
+    async def _get_by_abbr_norm(
+        self,
+        session: AsyncSession,
+        abbr_norm: str,
+        exclude_id: int | None = None,
+    ) -> ProviderAbbreviation | None:
+        stmt = select(ProviderAbbreviation).where(
+            func.upper(ProviderAbbreviation.abbreviation) == abbr_norm
+        )
+        if exclude_id is not None:
+            stmt = stmt.where(ProviderAbbreviation.id != exclude_id)
+        return (await session.execute(stmt)).scalar_one_or_none()
+
+    async def list_abbreviations(
+        self, session: AsyncSession, provider_id: int
+    ) -> List[ProviderAbbreviationOut]:
+        stmt = (
+            select(ProviderAbbreviation)
+            .where(ProviderAbbreviation.provider_id == provider_id)
+            .order_by(func.lower(ProviderAbbreviation.abbreviation).asc())
+        )
+        rows = (await session.execute(stmt)).scalars().all()
+        return [ProviderAbbreviationOut.model_validate(r) for r in rows]
+
+    async def add_abbreviation(
+        self, session: AsyncSession, provider_id: int, abbreviation: str
+    ) -> ProviderAbbreviationOut:
+        abbreviation_norm = self._normalize_abbr(abbreviation)
+        if not abbreviation:
+            raise HTTPException(
+                status_code=400, detail='Abbreviation must not be empty'
+            )
+        if await self._get_by_abbr_norm(session, abbreviation_norm):
+            raise HTTPException(
+                status_code=409, detail='Abbreviation already exists'
+            )
+        obj = ProviderAbbreviation(
+            provider_id=provider_id, abbreviation=abbreviation_norm
+        )
+        session.add(obj)
+        try:
+            await session.commit()
+        except IntegrityError:
+            await session.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail='Abbreviation already exists for this provider',
+            )
+        await session.refresh(obj)
+        return ProviderAbbreviationOut.model_validate(obj)
+
+    async def update_abbreviation(
+        self,
+        session: AsyncSession,
+        abbreviation_id: int,
+        new_abbreviation: str,
+    ) -> ProviderAbbreviationOut:
+        obj = await session.get(ProviderAbbreviation, abbreviation_id)
+        if not obj:
+            raise HTTPException(
+                status_code=404, detail='Abbreviation not found'
+            )
+
+        abbreviation_norm = self._normalize_abbr(new_abbreviation)
+        if not abbreviation_norm:
+            raise HTTPException(
+                status_code=400, detail='Abbreviation must not be empty'
+            )
+
+        if await self._get_by_abbr_norm(
+            session, abbreviation_norm, exclude_id=abbreviation_id
+        ):
+            raise HTTPException(
+                status_code=409, detail='Abbreviation already exists'
+            )
+
+        obj.abbreviation = abbreviation_norm
+        try:
+            await session.commit()
+        except IntegrityError:
+            await session.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail='Abbreviation already exists for this provider',
+            )
+
+        await session.refresh(obj)
+        return ProviderAbbreviationOut.model_validate(obj)
+
+    async def delete_abbreviation(
+        self, session: AsyncSession, abbreviation_id: int
+    ) -> None:
+        stmt = select(ProviderAbbreviation).where(
+            ProviderAbbreviation.id == abbreviation_id
+        )
+        obj = (await session.execute(stmt)).scalars().first()
+        if not obj:
+            return
+        await session.delete(obj)
+        await session.commit()
+
+    async def reassign_abbreviation_to_provider(
+        self,
+        session: AsyncSession,
+        abbreviation: str,
+        target_provider_id: int,
+    ):
+        '''
+        Переназначает аббревиатуру другому поставщику.
+        Если старый поставщик автоматический и пустой - удаляет его.
+        :param session:
+        :param abbreviation:
+        :param target_provider_id:
+        :return:
+        '''
+        try:
+            stmt = (
+                select(ProviderAbbreviation)
+                .where(ProviderAbbreviation.abbreviation == abbreviation)
+                .options(selectinload(ProviderAbbreviation.provider))
+            )
+            result = await session.execute(stmt)
+            existing_abbreviation = result.scalars().first()
+            if existing_abbreviation:
+                old_provider = existing_abbreviation.provider
+
+                # Проверить, существует ли целевой поставщик
+                target_provider = await crud_provider.get_by_id(
+                    provider_id=target_provider_id, session=session
+                )
+                if not target_provider:
+                    raise ValueError(
+                        f'Provider with id {target_provider_id} not found'
+                    )
+                # Переназначить аббревиатуру
+                existing_abbreviation.provider_id = target_provider_id
+                # Проверить, можно ли удалить старого поставщика
+                should_delete_old = (
+                    await crud_provider.should_delete_empty_provider()
+                )
+                if should_delete_old:
+                    await session.delete(old_provider)
+                    logger.info(
+                        f'Deleted empty auto-created '
+                        f'provider {old_provider.id}'
+                    )
+                await session.commit()
+            else:
+                # Создать новую аббревиатуру для существующего поставщика
+                await self.add_abbreviation(
+                    session=session, provider_id=target_provider_id
+                )
+            return True
+        except SQLAlchemyError as e:
+            await session.rollback()
+            logger.error(f'Database error while reassigning abbreviation: {e}')
+            raise
+
+
+crud_provider_abbreviation = CRUDProviderAbbreviation(ProviderAbbreviation)
 
 
 class CRUDCustomer(CRUDBase[Customer, CustomerCreate, CustomerUpdate]):
@@ -239,8 +801,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                     f'records into AutoPartPriceHistory.'
                 )
                 await session.execute(
-                    insert(AutoPartPriceHistory),
-                    bulk_insert_data_history
+                    insert(AutoPartPriceHistory), bulk_insert_data_history
                 )
 
             await session.commit()
@@ -256,7 +817,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                     selectinload(PriceList.autopart_associations)
                     .selectinload(PriceListAutoPartAssociation.autopart)
                     .selectinload(AutoPart.storage_locations),
-                    selectinload(PriceList.config_id)
+                    selectinload(PriceList.config),
                 )
             )
             result = await session.execute(stmt)
@@ -279,10 +840,11 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                         )
 
             try:
+                provider_obj = await session.get(Provider, db_obj.provider_id)
                 response = PriceListResponse(
                     id=db_obj.id,
                     date=db_obj.date,
-                    provider=db_obj.provider,
+                    provider=provider_obj,
                     provider_config_id=db_obj.provider_config_id,
                     autoparts=[
                         PriceListAutoPartAssociationResponse(
@@ -335,7 +897,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             select(
                 PriceList.id.label('id'),
                 PriceList.date.label('date'),
-                PriceList.provider_config_id.label('provider_config_id')
+                PriceList.provider_config_id.label('provider_config_id'),
             )
             .where(PriceList.provider_id == provider_id)
             .order_by(PriceList.date.desc())
@@ -362,7 +924,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             .group_by(
                 pricelist_subquery.c.id,
                 pricelist_subquery.c.date,
-                pricelist_subquery.c.provider_config_id
+                pricelist_subquery.c.provider_config_id,
             )
             .order_by(pricelist_subquery.c.date.desc())
         )
@@ -389,6 +951,8 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                 selectinload(PriceList.autopart_associations)
                 .selectinload(PriceListAutoPartAssociation.autopart)
                 .selectinload(AutoPart.storage_locations),
+                selectinload(PriceList.provider),
+                selectinload(PriceList.config),
             )
         )
         result = await session.execute(stmt)
@@ -440,12 +1004,12 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
     ) -> List[int]:
         stmt = select(PriceList.id).where(PriceList.provider_id == provider_id)
         result = await session.execute(stmt)
-        rows = result.all()  # вернёт список кортежей (id,)
+        rows = result.all()
         pricelist_ids = [row.id for row in rows]
         return sorted(pricelist_ids)
 
-    async def get_two_last_pricelists_by_provider(
-            self, session: AsyncSession, provider_id: int
+    async def get_last_pricelists_by_provider(
+        self, session: AsyncSession, provider_id: int, limit_last_n: int = 2
     ) -> List[PriceList]:
         """
         Возвращает ВСЕ прайс-листы провайдера,
@@ -455,7 +1019,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             select(PriceList)
             .where(PriceList.provider_id == provider_id)
             .order_by(PriceList.date.desc())
-            .limit(2)
+            .limit(limit_last_n)
             .options(selectinload(PriceList.autopart_associations))
         )
         result = await session.execute(stmt)
@@ -650,7 +1214,7 @@ class CRUDCustomerPriceList(
         logger.debug(
             f'Into apply_coefficient data df:{df}, cofig: {config.__dict__}'
         )
-        individualmarkups = config.individual_markups
+        data_individual_markups = config.individual_markups
         priceintervals = config.price_intervals
         brandfilters = config.brand_filters
         positionfilters = config.position_filters
@@ -660,9 +1224,9 @@ class CRUDCustomerPriceList(
         df['price'] = pd.to_numeric(df['price'], errors='coerce')
 
         # Apply individual markups per supplier
-        if individual_markups:
+        if data_individual_markups:
             df = individual_markups(
-                individual_markups=individualmarkups, df=df
+                individual_markups=data_individual_markups, df=df
             )
 
         # Apply price intervals with coefficients
@@ -712,8 +1276,10 @@ class CRUDCustomerPriceList(
     ):
         result = await session.execute(
             select(CustomerPriceList).where(
-                CustomerPriceList.customer_id == customer_id
-                and CustomerPriceList.id == pricelist_id
+                and_(
+                    CustomerPriceList.customer_id == customer_id,
+                    CustomerPriceList.id == pricelist_id,
+                )
             )
         )
         return result.scalars().first()
@@ -776,7 +1342,7 @@ class CRUDCustomerPriceList(
                 raise HTTPException(
                     status_code=404,
                     detail=f'PriceList {pricelist_id} not '
-                           f'found for customer {customer_id}',
+                    f'found for customer {customer_id}',
                 )
 
             # Удаляем сам прайс-лист
@@ -863,33 +1429,34 @@ class CRUDProviderPriceListConfig(
         self, provider_id: int, session: AsyncSession, **kwargs
     ) -> List[ProviderPriceListConfig]:
         stmt = (
-            select(ProviderPriceListConfig).
-            where(ProviderPriceListConfig.provider_id == provider_id)
+            select(ProviderPriceListConfig)
+            .where(ProviderPriceListConfig.provider_id == provider_id)
+            .order_by(ProviderPriceListConfig.id.asc())
         )
         result = await session.execute(stmt)
-        return result.scalars().all()
+        configs = result.scalars().all()
+        return configs
 
     async def get_by_id(
-            self,
-            config_id: int,
-            session: AsyncSession
+        self, config_id: int, session: AsyncSession
     ) -> Optional[ProviderPriceListConfig]:
         result = await session.execute(
-            select(ProviderPriceListConfig)
-            .where(ProviderPriceListConfig.id == config_id)
+            select(ProviderPriceListConfig).where(
+                ProviderPriceListConfig.id == config_id
+            )
         )
         return result.scalar_one_or_none()
 
     async def create(
-            self,
-            provider_id: int,
-            config_in: ProviderPriceListConfigCreate,
-            session: AsyncSession,
-            **kwargs,
+        self,
+        provider_id: int,
+        config_in: ProviderPriceListConfigCreate,
+        session: AsyncSession,
+        **kwargs,
     ) -> ProviderPriceListConfig:
+        await crud_provider.get_by_id(provider_id=provider_id, session=session)
         new_config = ProviderPriceListConfig(
-            provider_id=provider_id,
-            **config_in.model_dump(exclude_unset=True)
+            provider_id=provider_id, **config_in.model_dump(exclude_unset=True)
         )
         session.add(new_config)
         await session.commit()
@@ -908,7 +1475,10 @@ class CRUDProviderPriceListConfig(
         else:
             update_data = obj_in.model_dump(exclude_unset=True)
 
+        REQUIRED = {'start_row', 'oem_col', 'qty_col', 'price_col'}
         for field, value in update_data.items():
+            if field in REQUIRED and value is None:
+                continue
             setattr(db_obj, field, value)
 
         session.add(db_obj)
@@ -974,7 +1544,6 @@ class CRUDCustomerPriceListConfig(
         config_in: CustomerPriceListConfigCreate,
         session: AsyncSession,
     ) -> CustomerPriceListConfig:
-        # Проверяем, есть ли уже конфигурация с таким именем
         existing_config = await self.get_by_name(
             customer_id=customer_id, name=config_in.name, session=session
         )

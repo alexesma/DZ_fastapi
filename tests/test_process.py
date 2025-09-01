@@ -12,7 +12,7 @@ BRAND_TEST_CASES = {
         ('FA3034210', ['FAW']),
         ('B5CA03328ZAP1', ['FAW']),
         ('1105110M01A00', ['FAW']),
-        ('FA014373XP1', ['FAW'])
+        ('FA014373XP1', ['FAW']),
     ],
     'GEELY': [
         ('3502140005', ['GEELY']),
@@ -24,7 +24,7 @@ BRAND_TEST_CASES = {
         ('1014001633', ['GEELY']),
         ('101200033502', ['GEELY']),
         ('380211000503', ['GEELY']),
-        ('6010008600661', ['GEELY'])
+        ('6010008600661', ['GEELY']),
     ],
     'CHERY': [
         ('M112905010', ['CHERY']),
@@ -47,13 +47,13 @@ BRAND_TEST_CASES = {
         ('30V0QU015', ['CHERY']),
         ('351HHA4004011AA10', ['CHERY']),
         ('401000070ABABK', ['CHERY']),
-        ('Q330C10', ['CHERY'])
+        ('Q330C10', ['CHERY']),
     ],
     'BYD': [
         ('17042500F3001', ['BYD']),
         ('BYDF32912011', ['BYD']),
         ('1001102300', ['BYD']),
-        ('1024272100', ['BYD'])
+        ('1024272100', ['BYD']),
     ],
     'LIFAN': [
         ('LF479Q13818100A', ['LIFAN']),
@@ -65,7 +65,7 @@ BRAND_TEST_CASES = {
         ('2311030TF30', ['LIFAN']),
         ('S1001210', ['LIFAN']),
         ('101B1212T13F3', ['LIFAN']),
-        ('SS22003', ['LIFAN'])
+        ('SS22003', ['LIFAN']),
     ],
     'CHANGAN': [
         ('H150010300', ['CHANGAN']),
@@ -74,7 +74,7 @@ BRAND_TEST_CASES = {
         ('08020150601061', ['CHANGAN']),
         ('K0010401', ['CHANGAN']),
         ('YJ003120', ['CHANGAN']),
-        ('CD569F2801032700', ['CHANGAN'])
+        ('CD569F2801032700', ['CHANGAN']),
     ],
     'HAIMA': [
         ('B25D67482AL1', ['HAIMA']),
@@ -90,14 +90,14 @@ BRAND_TEST_CASES = {
         ('09820019', ['HAVAL']),
         ('1701543S', ['HAVAL']),
         ('4408640001', ['HAVAL']),
-        ('6006ERSN', ['HAVAL'])
-    ]
+        ('6006ERSN', ['HAVAL']),
+    ],
 }
 
 # Генерация общего списка тест-кейсов для параметризации
 ALL_TESTS = []
 for brand, cases in BRAND_TEST_CASES.items():
-    for (oem_code, expected) in cases:
+    for oem_code, expected in cases:
         ALL_TESTS.append((oem_code, expected))
 
 
