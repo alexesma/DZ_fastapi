@@ -1,0 +1,16 @@
+services:
+  frontend:
+    build:
+      context: ../../../dz_frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+
+  db:
+    ports:
+      - "5432:5432"
+
+  web:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
