@@ -1,4 +1,3 @@
-import re
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
@@ -26,15 +25,6 @@ class ClientBase(BaseModel):
     def name_must_not_be_empty(cls, v):
         if not v.strip():
             raise ValueError('Name must not be empty')
-        return v
-
-    @field_validator('name')
-    def name_allowed_chars(cls, v: str):
-        if not re.match(r'^[A-Za-z0-9 .,_&()\-]+$', v):
-            raise ValueError(
-                'Name may contain only Latin '
-                'letters, numbers, spaces and .,_&()-'
-            )
         return v
 
     @field_validator('email_contact', mode='before')
