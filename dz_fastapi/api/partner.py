@@ -72,7 +72,15 @@ router = APIRouter()
 async def create_provider(
     provider_in: ProviderCreate, session: AsyncSession = Depends(get_session)
 ):
-    provider_in.name = await change_brand_name(brand_name=provider_in.name)
+    new_name = await change_brand_name(brand_name=provider_in.name)
+
+    if not new_name or not new_name.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail='Name became empty after normalization. '
+            'Please use Latin letters, numbers, spaces and .,_&()-',
+        )
+    provider_in.name = new_name
     existing_provider = await crud_provider.get_provider_or_none(
         provider=provider_in.name, session=session
     )
