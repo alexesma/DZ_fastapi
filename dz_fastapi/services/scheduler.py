@@ -51,6 +51,17 @@ def start_scheduler(app: FastAPI):
         # hour='9',
     )
 
+    scheduler.add_job(
+        func=cleanup_old_pricelists_task,
+        trigger='cron',
+        args=[app],
+        id='cleanup_old_pricelists',
+        name='Cleanup old pricelists keep last 5',
+        hour=2,
+        minute=30,
+        replace_existing=True,
+    )
+
     # scheduler.add_job(
     #     func=,
     #     trigger='cron',
@@ -259,35 +270,28 @@ async def download_price_provider_task(app: FastAPI):
             logger.error(f'Error in download_price_provider_task: {e}')
 
 
-#
-# async def process_new_orders_emails(
-#         session: AsyncSession,
-#         app: FastAPI
-# ):
-#     """
-#     Обрабатывает все новые письма за сегодня,
-#     скачивая файлы заказов клиента и далее
-#     запускает функцию обработки для каждого заказа.
-#     """
-#     downloaded = await get_emails(
-#         session=session,
-#         server_mail=EMAIL_HOST_ORDER,
-#         email_account=EMAIL_NAME_ORDER,
-#         email_password=EMAIL_PASSWORD_ORDER,
-#         main_box='INBOX'
-#     )
-#
-#
-#
-# async def download_orders_customers_task(
-#         app: FastAPI
-# ):
-#     logger.debug('Start download_orders_customers_task')
-#     async_session_factory = get_async_session()
-#     async with async_session_factory() as session:
-#         try:
-#             await process_new_orders_emails(session, app)
-#             logger.info('Completed download_orders_customers_task')
-#         except Exception as e:
-#             logger.error(f'Error in download_orders_customers_task: {e}')
-#
+async def cleanup_old_pricelists_task(app: FastAPI):
+    logger.info('Starting cleanup_old_pricelists_task')
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            total_deleted = 0
+            while True:
+                cleanup = crud_pricelist.cleanup_old_pricelists_keep_last_n
+                deleted = await cleanup(
+                    session=session,
+                    keep_last_n=5,
+                    batch_size=500,
+                )
+                total_deleted += deleted
+                if deleted == 0:
+                    break
+            logger.info(
+                f'Cleanup finished. Deleted pricelists: {total_deleted}'
+            )
+        except Exception as e:
+            logger.error(
+                f'Error in cleanup_old_pricelists_task: {e}',
+                exc_info=True
+            )
+            await session.rollback()

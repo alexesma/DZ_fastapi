@@ -75,7 +75,7 @@ class CustomerBase(ClientBase):
             return None
         return v
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
 
 class CustomerCreate(CustomerBase):

@@ -1,6 +1,6 @@
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import StrEnum, unique
 from uuid import uuid4
 
@@ -321,15 +321,18 @@ class AutoPartPriceHistory(Base):
 
     autopart_id = Column(Integer, ForeignKey('autopart.id'), nullable=False)
     provider_id = Column(Integer, ForeignKey('provider.id'), nullable=False)
-    pricelist_id = Column(Integer, ForeignKey('pricelist.id'), nullable=False)
+    pricelist_id = Column(Integer, nullable=False, index=True)
 
-    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
     price = Column(DECIMAL(10, 2), nullable=False)
     quantity = Column(Integer, nullable=False)
 
     autopart = relationship('AutoPart')
     provider = relationship('Provider')
-    pricelist = relationship('PriceList')
 
     __table_args__ = (
         Index(

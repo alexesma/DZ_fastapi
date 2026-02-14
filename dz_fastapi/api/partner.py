@@ -12,7 +12,7 @@ from sqlalchemy.orm import selectinload
 
 from dz_fastapi.analytics.price_history import (analyze_autopart_popularity,
                                                 create_autopart_analysis_excel)
-from dz_fastapi.api.validators import change_brand_name
+from dz_fastapi.api.validators import change_brand_name, change_customer_name
 from dz_fastapi.core.constants import (
     BODY_MAIL_ANALYTIC_PRICE_PROVIDER,
     FILENAME_EXCEL_MAIL_ANALYTIC_PRICE_PROVIDER,
@@ -218,7 +218,13 @@ async def update_provider(
 async def create_customer(
     customer_in: CustomerCreate, session: AsyncSession = Depends(get_session)
 ):
-    customer_in.name = await change_brand_name(brand_name=customer_in.name)
+    normalized_name = await change_customer_name(customer_in.name)
+    if not normalized_name or not normalized_name.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail='Name must not be empty after normalization.',
+        )
+    customer_in.name = normalized_name
     existing_customer = await crud_customer.get_customer_or_none(
         customer=customer_in.name, session=session
     )

@@ -37,6 +37,34 @@ async def change_brand_name(brand_name: str) -> str:
     return brand_name
 
 
+def _is_cyrillic(char: str) -> bool:
+    code = ord(char)
+    return (0x0400 <= code <= 0x04FF) or (0x0500 <= code <= 0x052F)
+
+
+async def change_customer_name(name: str) -> str:
+    """
+    Нормализация имени клиента.
+    Разрешает ASCII латиницу/цифры, кириллицу, пробелы и дефисы.
+    Остальные символы удаляются.
+    """
+    # Uppercase ASCII letters only
+    name = ''.join(
+        char.upper() if char in string.ascii_letters else char
+        for char in name
+    )
+    filtered = []
+    for char in name:
+        if char.isdigit() or char in {' ', '-'}:
+            filtered.append(char)
+        elif char in string.ascii_letters or _is_cyrillic(char):
+            filtered.append(char)
+    name = ''.join(filtered)
+    name = re.sub(r'[ -]{2,}', '-', name)
+    name = name.strip(' -')
+    return name
+
+
 async def change_storage_name(storage_name: str) -> str:
     storage_name = ''.join(
         [

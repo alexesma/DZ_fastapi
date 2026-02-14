@@ -1,4 +1,6 @@
 import logging
+from datetime import datetime, timezone
+from decimal import ROUND_HALF_UP, Decimal
 from math import ceil
 from typing import Any, Dict, List, Optional, Union
 
@@ -15,7 +17,8 @@ from dz_fastapi.core.db import AsyncSession
 from dz_fastapi.crud.autopart import crud_autopart
 from dz_fastapi.crud.base import CRUDBase
 from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
-from dz_fastapi.models.partner import (Customer, CustomerPriceList,
+from dz_fastapi.models.partner import (TYPE_PRICES, Customer,
+                                       CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
                                        CustomerPriceListConfig, PriceList,
                                        PriceListAutoPartAssociation, Provider,
@@ -46,6 +49,10 @@ from dz_fastapi.services.utils import (brand_filters, individual_markups,
                                        supplier_quantity_filters)
 
 logger = logging.getLogger('dz_fastapi')
+
+
+def money(x) -> Decimal:
+    return Decimal(str(x)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 
 class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
@@ -239,9 +246,16 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         self, abbreviation: str, session: AsyncSession
     ):
         try:
+            abbr_norm = (abbreviation or '').strip().upper()
+            if not abbr_norm:
+                raise HTTPException(
+                    status_code=400,
+                    detail='Abbreviation must not be empty'
+                )
+
             stmt = (
                 select(ProviderAbbreviation)
-                .where(ProviderAbbreviation.abbreviation == abbreviation)
+                .where(ProviderAbbreviation.abbreviation == abbr_norm)
                 .options(selectinload(ProviderAbbreviation.provider))
             )
             result = await session.execute(stmt)
@@ -249,18 +263,18 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             if abbreviation_entry:
                 return abbreviation_entry.provider
             new_provider = Provider(
-                name=f'Provider {abbreviation}',
+                name=f'Provider {abbr_norm}',
                 email_contact=None,
                 email_incoming_price=None,
                 is_virtual=True,
                 description='Created from site abbreviation',
                 comment='Automatically created provider from site',
-                type_prices='Wholesale',
+                type_prices=TYPE_PRICES.WHOLESALE,
             )
             session.add(new_provider)
             await session.flush()
             new_abbreviation = ProviderAbbreviation(
-                abbreviation=abbreviation, provider_id=new_provider.id
+                abbreviation=abbr_norm, provider_id=new_provider.id
             )
             session.add(new_abbreviation)
             await session.commit()
@@ -319,6 +333,15 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         )
         result = await session.execute(stmt)
         providers: List[Provider] = result.scalars().all()
+        if not providers:
+            pages = ceil(total / page_size) if page_size else 1
+            return {
+                'items': [],
+                'page': page,
+                'page_size': page_size,
+                'total': total,
+                'pages': pages,
+            }
         # Получаем provider_ids для загрузки аббревиатур отдельно
         provider_ids = [p.id for p in providers]
 
@@ -416,7 +439,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             provider_id=provider.id, session=session
         )
         if len(abbrev_list) > 1:
-            False
+            return False
 
         if provider.price_lists:
             return False
@@ -647,7 +670,10 @@ class CRUDProviderAbbreviation(
                 existing_abbreviation.provider_id = target_provider_id
                 # Проверить, можно ли удалить старого поставщика
                 should_delete_old = (
-                    await crud_provider.should_delete_empty_provider()
+                    await crud_provider.should_delete_empty_provider(
+                        provider=old_provider,
+                        session=session
+                    )
                 )
                 if should_delete_old:
                     await session.delete(old_provider)
@@ -659,7 +685,9 @@ class CRUDProviderAbbreviation(
             else:
                 # Создать новую аббревиатуру для существующего поставщика
                 await self.add_abbreviation(
-                    session=session, provider_id=target_provider_id
+                    session=session,
+                    provider_id=target_provider_id,
+                    abbreviation=abbreviation
                 )
             return True
         except SQLAlchemyError as e:
@@ -727,6 +755,100 @@ crud_customer = CRUDCustomer(Customer)
 
 
 class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
+
+    async def _get_last_history_snapshot(
+            self,
+            provider_id: int,
+            session: AsyncSession,
+    ) -> dict[int, dict]:
+        """
+        Последнее известное состояние по каждой позиции данного провайдера
+        из таблицы AutoPartPriceHistory (events).
+        Возвращает: {autopart_id: {'price': float, 'quantity': int}}
+        """
+        stmt = (
+            select(
+                AutoPartPriceHistory.autopart_id,
+                AutoPartPriceHistory.price,
+                AutoPartPriceHistory.quantity,
+            )
+            .where(AutoPartPriceHistory.provider_id == provider_id)
+            # Postgres DISTINCT ON (autopart_id)
+            .distinct(AutoPartPriceHistory.autopart_id)
+            .order_by(
+                AutoPartPriceHistory.autopart_id,
+                AutoPartPriceHistory.created_at.desc(),
+                AutoPartPriceHistory.id.desc(),
+            )
+        )
+        rows = (await session.execute(stmt)).all()
+
+        return {
+            r.autopart_id: {
+                'price': money(r.price),
+                'quantity': int(r.quantity)
+            }
+            for r in rows
+        }
+
+    async def cleanup_old_pricelists_keep_last_n(
+            self,
+            session: AsyncSession,
+            keep_last_n: int = 5,
+            batch_size: int = 500,
+    ) -> int:
+        """
+        Удаляет старые PriceList и их PriceListAutoPartAssociation,
+        оставляя последние keep_last_n прайсов на каждого provider_id.
+        Историю AutoPartPriceHistory НЕ трогаем.
+
+        Возвращает: сколько прайс-листов удалено.
+        """
+
+        ranked = (
+            select(
+                PriceList.id.label("id"),
+                func.row_number()
+                .over(
+                    partition_by=PriceList.provider_id,
+                    order_by=(
+                        PriceList.date.desc().nullslast(),
+                        PriceList.id.desc(),
+                    ),
+                )
+                .label("rn"),
+            )
+            .where(PriceList.provider_id.is_not(None))
+            .subquery()
+        )
+
+        ids = (
+            (await session.execute(
+                select(ranked.c.id)
+                .where(ranked.c.rn > keep_last_n)
+                .limit(batch_size)
+            ))
+            .scalars()
+            .all()
+        )
+        if not ids:
+            return 0
+
+        # 1) associations
+        await session.execute(
+            delete(PriceListAutoPartAssociation).where(
+                PriceListAutoPartAssociation.pricelist_id.in_(ids)
+            )
+        )
+
+        # 2) сами прайсы
+        await session.execute(
+            delete(PriceList).where(PriceList.id.in_(ids))
+        )
+
+        await session.commit()
+        return len(ids)
+
     async def create(
         self, obj_in: PriceListCreate, session: AsyncSession, **kwargs
     ) -> PriceListResponse:
@@ -741,8 +863,15 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             bulk_insert_data = []
 
             provider_id = db_obj.provider_id
-            bulk_insert_data_history = []
+            created_at_ts = datetime.now(timezone.utc)
 
+            last_history_map = await self._get_last_history_snapshot(
+                session=session,
+                provider_id=provider_id,
+            )
+            current_positions: dict[int, dict] = {}
+
+            # ===== ОБРАБОТКА ВХОДЯЩИХ ДАННЫХ =====
             for autopart_assoc_data in autoparts_data:
                 autopart_data_dict = autopart_assoc_data['autopart']
                 quantity = autopart_assoc_data['quantity']
@@ -765,25 +894,22 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                         f'AutoPart for data: {autopart_data_dict}'
                     )
                     continue
-
+                qty = int(quantity)
+                prc = money(price)
                 bulk_insert_data.append(
                     {
                         'pricelist_id': db_obj.id,
                         'autopart_id': autopart.id,
-                        'quantity': quantity,
-                        'price': price,
+                        'quantity': qty,
+                        'price': prc,
                     }
                 )
-                bulk_insert_data_history.append(
-                    {
-                        'autopart_id': autopart.id,
-                        'provider_id': provider_id,
-                        'pricelist_id': db_obj.id,
-                        'created_at': db_obj.date,
-                        'price': price,
-                        'quantity': quantity,
-                    }
-                )
+
+                # Запоминаем текущую позицию
+                current_positions[autopart.id] = {
+                    'price': prc,
+                    'quantity': qty
+                }
 
             # Шаг 4: Выполнение массовой вставки ассоциаций, если есть данные
             if bulk_insert_data:
@@ -794,6 +920,59 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                     insert(PriceListAutoPartAssociation), bulk_insert_data
                 )
 
+            # ===== ЗАПИСЬ ТОЛЬКО ИЗМЕНЕНИЙ В ИСТОРИЮ =====
+            bulk_insert_data_history = []
+
+            # 1. Проверяем изменения в текущих позициях
+            for autopart_id, current_data in current_positions.items():
+                last = last_history_map.get(autopart_id)
+                if last is None:
+                    # впервые видим эту позицию у этого провайдера
+                    bulk_insert_data_history.append({
+                        'autopart_id': autopart_id,
+                        'provider_id': provider_id,
+                        'pricelist_id': db_obj.id,
+                        'created_at': created_at_ts,
+                        'price': current_data['price'],
+                        'quantity': current_data['quantity'],
+                    })
+                    logger.debug(f'New position: autopart_id={autopart_id}')
+                    continue
+                price_changed = current_data['price'] != last['price']
+                qty_changed = current_data['quantity'] != last['quantity']
+                if price_changed or qty_changed:
+                    bulk_insert_data_history.append({
+                        'autopart_id': autopart_id,
+                        'provider_id': provider_id,
+                        'pricelist_id': db_obj.id,
+                        'created_at': created_at_ts,
+                        'price': current_data['price'],
+                        'quantity': current_data['quantity'],
+                    })
+
+            # 3) События исчезновения (qty=0)
+            # исчезли те, что были в last_history_map, но нет в current_ids
+            current_ids = set(current_positions.keys())
+            missing_ids = set(last_history_map.keys()) - current_ids
+
+            for autopart_id in missing_ids:
+                last = last_history_map.get(autopart_id)
+                if not last:
+                    continue
+                # если уже было qty=0 — повторно не пишем
+                if last['quantity'] != 0:
+                    bulk_insert_data_history.append({
+                        'autopart_id': autopart_id,
+                        'provider_id': provider_id,
+                        'pricelist_id': db_obj.id,
+                        'created_at': created_at_ts,
+                        'price': last['price'],
+                        'quantity': 0,
+                    })
+                    logger.debug(
+                        f'Position disappeared: autopart_id={autopart_id}, '
+                        f'recording qty=0'
+                    )
             if bulk_insert_data_history:
                 logger.debug(
                     f'Bulk inserting '
@@ -1012,7 +1191,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         self, session: AsyncSession, provider_id: int, limit_last_n: int = 2
     ) -> List[PriceList]:
         """
-        Возвращает ВСЕ прайс-листы провайдера,
+        Возвращает прайс-листы провайдера limit_last_n = 2,
         отсортированные по дате (или id).
         """
         stmt = (

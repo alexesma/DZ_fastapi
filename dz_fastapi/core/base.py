@@ -5,6 +5,7 @@ from dz_fastapi.models.autopart import (AutoPart, AutoPartRestockDecision,
                                         Category, Photo, StorageLocation,
                                         autopart_category_association,
                                         autopart_storage_association)
+from dz_fastapi.models.cross import AutoPartCross, AutoPartSubstitution  # noqa
 from dz_fastapi.models.brand import Brand, brand_synonyms  # noqa
 from dz_fastapi.models.partner import (Client, Customer, CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
@@ -14,6 +15,7 @@ from dz_fastapi.models.partner import (Client, Customer, CustomerPriceList,
                                        ProviderAbbreviation,
                                        ProviderLastEmailUID,
                                        ProviderPriceListConfig)
+from dz_fastapi.models.webchat import ChatMessage
 
 __all__ = [
     'Base',
@@ -41,4 +43,7 @@ __all__ = [
     'AutoPartPriceHistory',
     'AutoPartRestockDecision',
     'AutoPartRestockDecisionSupplier',
+    'AutoPartCross',
+    'AutoPartSubstitution',
+    'ChatMessage'
 ]

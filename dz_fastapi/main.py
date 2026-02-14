@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -13,9 +14,11 @@ from dz_fastapi.api.autopart import router as autopart_router
 from dz_fastapi.api.brand import router as brand_router
 from dz_fastapi.api.order import router as order_router
 from dz_fastapi.api.partner import router as partner_router
+from dz_fastapi.api.webchat import router as webchat_router
 from dz_fastapi.core.config import settings
 from dz_fastapi.core.db import get_async_session
 from dz_fastapi.services.scheduler import start_scheduler
+from dz_fastapi.services.telegram_bot import start_telegram_bot
 
 # --- Логирование ---
 # Настройка логгера
@@ -53,6 +56,14 @@ async def lifespan(app: FastAPI):
     # 2) Стартуем планировщик и сохраняем его, чтобы потом корректно остановить
     scheduler = start_scheduler(app)
     app.state.scheduler = scheduler
+    bot_task = None
+    try:
+        loop = asyncio.get_event_loop()
+        bot_task = loop.create_task(
+            asyncio.to_thread(start_telegram_bot)
+        )
+    except Exception as e:
+        logger.error(f'Failed to start Telegram bot: {e}')
     try:
         yield
     finally:
@@ -62,6 +73,9 @@ async def lifespan(app: FastAPI):
                 app.state.scheduler.shutdown(wait=True)
         except Exception as e:
             logger.exception(f'Scheduler shutdown error: {e}')
+        # Отменяем задачу бота
+        if bot_task:
+            bot_task.cancel()
 
 
 app = FastAPI(
@@ -89,6 +103,7 @@ app.add_middleware(
         'http://localhost:3000',  # Frontend в Docker (dev)
         'http://127.0.0.1:5173',  # Локальный Vite
         'http://127.0.0.1:3000',  # Локальный Docker frontend
+        'http://0.0.0.0:3000',  # Локальный Docker frontend (0.0.0.0)
         'http://90.156.158.19',  # Ваш продакшн сервер (frontend)
         'http://90.156.158.19:3000',  # Продакшн с портом
         'https://dragonzap.ru',  # Продакшн домен
@@ -101,3 +116,4 @@ app.include_router(autopart_router)
 app.include_router(brand_router)
 app.include_router(partner_router)
 app.include_router(order_router)
+app.include_router(webchat_router)
