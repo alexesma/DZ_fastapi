@@ -36,6 +36,7 @@ class ClientBase(BaseModel):
 
 class ProviderBase(ClientBase):
     email_incoming_price: Optional[EmailStr] = None
+    is_own_price: Optional[bool] = False
 
     @field_validator('email_incoming_price', mode='before')
     def validate_email_incoming_price(cls, v):
@@ -58,6 +59,7 @@ class ProviderUpdate(BaseModel):
     comment: Optional[str] = None
     email_incoming_price: Optional[EmailStr] = None
     is_virtual: Optional[bool] = None
+    is_own_price: Optional[bool] = None
 
     @field_validator('email_contact', 'email_incoming_price', mode='before')
     def empty_to_none(cls, v):
@@ -143,7 +145,16 @@ class PriceListResponse(BaseModel):
     autoparts: List[PriceListAutoPartAssociationResponse] = Field(
         default_factory=list
     )
+    stats: Optional['PriceListProcessStats'] = None
     model_config = ConfigDict(from_attributes=True)
+
+
+class PriceListProcessStats(BaseModel):
+    rows_total: int
+    rows_clean: int
+    rows_deduplicated: int
+    rows_removed: int
+    rows_dedup_removed: int
 
 
 class PriceListSummary(BaseModel):
@@ -198,7 +209,16 @@ class ProviderResponse(ProviderBase):
 class CustomerResponse(CustomerBase):
     id: int
     customer_price_lists: List[CustomerPriceListResponse] = []
+    pricelist_configs: List['CustomerPriceListConfigSummary'] = Field(
+        default_factory=list
+    )
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator('pricelist_configs', mode='before')
+    def normalize_pricelist_configs(cls, v):
+        if v is None:
+            return []
+        return v
 
 
 class CustomerPriceListResponseShort(BaseModel):
@@ -286,11 +306,11 @@ class CustomerPriceListItem(BaseModel):
 class CustomerPriceListCreate(BaseModel):
     customer_id: int
     config_id: int
-    items: List[int]
+    items: List[int] = Field(default_factory=list)
     excluded_own_positions: Optional[List[int]] = Field(default_factory=list)
-    excluded_supplier_positions: Optional[List[int]] = Field(
-        default_factory=list
-    )
+    excluded_supplier_positions: Optional[
+        Dict[int, List[int]] | List[int]
+    ] = Field(default_factory=dict)
     date: Optional[date]
 
     @model_validator(mode="before")
@@ -298,6 +318,14 @@ class CustomerPriceListCreate(BaseModel):
         if 'date' not in values or values['date'] is None:
             values['date'] = date.today()
         return values
+
+    @field_validator('excluded_supplier_positions', mode='before')
+    def normalize_excluded_supplier_positions(cls, v):
+        if v is None:
+            return {}
+        if isinstance(v, list):
+            return {}
+        return v
 
 
 class PriceIntervalMarkup(BaseModel):
@@ -349,6 +377,10 @@ class CustomerPriceListConfigBase(BaseModel):
     additional_filters: Optional[Dict[str, Any]] = Field(
         default_factory=dict, description='Other custom filters'
     )
+    schedule_days: Optional[List[str]] = Field(default_factory=list)
+    schedule_times: Optional[List[str]] = Field(default_factory=list)
+    emails: Optional[List[EmailStr]] = Field(default_factory=list)
+    is_active: Optional[bool] = True
 
 
 class CustomerPriceListConfigCreate(CustomerPriceListConfigBase):
@@ -375,12 +407,67 @@ class CustomerPriceListConfigUpdate(BaseModel):
     position_filters: Optional[List[int]] = None
     supplier_quantity_filters: Optional[List[SupplierQuantityFilter]] = None
     additional_filters: Optional[Dict[str, Any]] = None
+    schedule_days: Optional[List[str]] = None
+    schedule_times: Optional[List[str]] = None
+    emails: Optional[List[EmailStr]] = None
+    is_active: Optional[bool] = None
+
+
+class CustomerPriceListSourceBase(BaseModel):
+    provider_config_id: int
+    enabled: bool = True
+    markup: float = 1.0
+    brand_filters: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    position_filters: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    min_price: Optional[Decimal] = None
+    max_price: Optional[Decimal] = None
+    min_quantity: Optional[int] = None
+    max_quantity: Optional[int] = None
+    additional_filters: Optional[Dict[str, Any]] = Field(default_factory=dict)
+
+
+class CustomerPriceListSourceCreate(CustomerPriceListSourceBase):
+    pass
+
+
+class CustomerPriceListSourceUpdate(BaseModel):
+    provider_config_id: Optional[int] = None
+    enabled: Optional[bool] = None
+    markup: Optional[float] = None
+    brand_filters: Optional[Dict[str, Any]] = None
+    position_filters: Optional[Dict[str, Any]] = None
+    min_price: Optional[Decimal] = None
+    max_price: Optional[Decimal] = None
+    min_quantity: Optional[int] = None
+    max_quantity: Optional[int] = None
+    additional_filters: Optional[Dict[str, Any]] = None
+
+
+class CustomerPriceListSourceResponse(CustomerPriceListSourceBase):
+    id: int
+    provider_id: Optional[int] = None
+    provider_name: Optional[str] = None
+    provider_config_name: Optional[str] = None
+    is_own_price: bool = False
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CustomerPriceListConfigResponse(CustomerPriceListConfigBase):
     id: int
     customer_id: int
-    model_config = {'from_attributes': True}
+    last_sent_at: Optional[datetime] = None
+    sources: List[CustomerPriceListSourceResponse] = []
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CustomerPriceListConfigSummary(BaseModel):
+    id: int
+    name: str
+    sources_count: int = 0
+    schedule_days: Optional[List[str]] = Field(default_factory=list)
+    schedule_times: Optional[List[str]] = Field(default_factory=list)
+    is_active: Optional[bool] = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AutoPartInPricelist(BaseModel):
@@ -457,6 +544,18 @@ class ProviderPriceListConfigOut(BaseModel):
     latest_pricelist: Optional[PriceListShort] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ProviderPriceListConfigOption(BaseModel):
+    id: int
+    provider_id: int
+    provider_name: str
+    name_price: Optional[str] = None
+    is_own_price: bool = False
+
+
+CustomerResponse.model_rebuild()
+PriceListResponse.model_rebuild()
 
 
 class ProviderPageResponse(BaseModel):

@@ -1,4 +1,5 @@
 import logging
+import re
 import unicodedata
 from typing import List
 
@@ -8,12 +9,56 @@ from dz_fastapi.models.partner import CustomerPriceListAutoPartAssociation
 
 logger = logging.getLogger('dz_fastapi')
 
+_CYR_RE = re.compile(r'[А-Яа-яЁё]')
+_LAT_RE = re.compile(r'[A-Za-z]')
+_LAT_TO_CYR = str.maketrans(
+    {
+        'A': 'А',
+        'a': 'а',
+        'B': 'В',
+        'E': 'Е',
+        'e': 'е',
+        'K': 'К',
+        'k': 'к',
+        'M': 'М',
+        'm': 'м',
+        'H': 'Н',
+        'h': 'н',
+        'O': 'О',
+        'o': 'о',
+        'P': 'Р',
+        'p': 'р',
+        'C': 'С',
+        'c': 'с',
+        'T': 'Т',
+        't': 'т',
+        'X': 'Х',
+        'x': 'х',
+        'Y': 'У',
+        'y': 'у',
+    }
+)
+
+
+def normalize_markup(value) -> float:
+    try:
+        if value is None:
+            return 1.0
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return 1.0
+    if numeric <= 0:
+        return 1.0
+    if numeric > 5:
+        return numeric / 100 + 1
+    return numeric
+
 
 def individual_markups(
     individual_markups: dict, df: pd.DataFrame
 ) -> pd.DataFrame:
     for provider_id, markup in individual_markups.items():
-        multiplier = markup / 100 + 1
+        multiplier = normalize_markup(markup)
         df.loc[df['provider_id'] == int(provider_id), 'price'] *= multiplier
     return df
 
@@ -22,7 +67,7 @@ def price_intervals(price_intervals: dict, df: pd.DataFrame) -> pd.DataFrame:
     for interval in price_intervals:
         min_price = float(interval.min_price)
         max_price = float(interval.max_price)
-        coefficient = float(interval.coefficient) / 100 + 1
+        coefficient = normalize_markup(interval.coefficient)
         df.loc[
             (df['price'] >= min_price) & (df['price'] <= max_price), 'price'
         ] *= coefficient
@@ -189,3 +234,30 @@ async def compare_pricelists(old_pl, new_pl, qty_diff_threshold: int = 3):
 
 def normalize_str(name: str) -> str:
     return unicodedata.normalize('NFC', name)
+
+
+def normalize_mixed_cyrillic(text: str) -> str:
+    if text is None:
+        return text
+    value = normalize_str(str(text)).strip()
+    if not value:
+        return value
+
+    tokens = re.findall(r'[A-Za-zА-Яа-яЁё0-9]+|[^A-Za-zА-Яа-яЁё0-9]+', value)
+    normalized_tokens = []
+    for token in tokens:
+        if not re.search(r'[A-Za-zА-Яа-яЁё]', token):
+            normalized_tokens.append(token)
+            continue
+
+        has_cyr = _CYR_RE.search(token) is not None
+        has_lat = _LAT_RE.search(token) is not None
+        if has_lat and not has_cyr:
+            normalized_tokens.append(token.upper())
+            continue
+
+        converted = token.translate(_LAT_TO_CYR)
+        converted = converted.lower()
+        normalized_tokens.append(converted.capitalize())
+
+    return ''.join(normalized_tokens)

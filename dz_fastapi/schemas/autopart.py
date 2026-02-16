@@ -1,4 +1,5 @@
 import os
+from datetime import date
 from typing import Annotated, Dict, List, Optional, Tuple
 
 from pydantic import (BaseModel, ConfigDict, EmailStr, Field,
@@ -154,6 +155,29 @@ class NotFoundPartResponse(BaseModel):
 class BulkUpdateResponse(BaseModel):
     updated_count: int
     not_found_parts: List[NotFoundPartResponse]
+
+
+class AutopartOfferRow(BaseModel):
+    autopart_id: int
+    oem_number: str
+    brand_name: Optional[str] = None
+    name: Optional[str] = None
+    provider_id: int
+    provider_name: str
+    provider_config_id: Optional[int] = None
+    provider_config_name: Optional[str] = None
+    price: float
+    quantity: int
+    min_delivery_day: Optional[int] = None
+    max_delivery_day: Optional[int] = None
+    pricelist_id: int
+    pricelist_date: Optional[date] = None
+    is_own_price: bool = False
+
+
+class AutopartOffersResponse(BaseModel):
+    oem_number: str
+    offers: List[AutopartOfferRow] = Field(default_factory=list)
 
 
 # Base schema with shared fields

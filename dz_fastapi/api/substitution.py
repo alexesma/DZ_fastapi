@@ -1,6 +1,6 @@
 import pandas as pd
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,9 +31,7 @@ class SubstitutionResponse(BaseModel):
     min_source_quantity: int
     quantity_reduction: int
     is_active: bool
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 @router.post("/", response_model=SubstitutionResponse)

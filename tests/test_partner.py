@@ -6,15 +6,17 @@ from decimal import Decimal
 import pandas as pd
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.crud.partner import crud_customer_pricelist, crud_pricelist
 from dz_fastapi.main import app
-from dz_fastapi.models.autopart import AutoPart
+from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import (Customer, CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
-                                       CustomerPriceListConfig, PriceList,
+                                       CustomerPriceListConfig,
+                                       CustomerPriceListSource, PriceList,
                                        PriceListAutoPartAssociation, Provider,
                                        ProviderPriceListConfig)
 from dz_fastapi.schemas.autopart import AutoPartPricelist
@@ -647,6 +649,169 @@ async def test_crud_pricelist_create_no_autoparts(
     assert len(pricelist.autoparts) == 0
 
 
+async def _count_history(
+    session: AsyncSession,
+    provider_id: int,
+    provider_config_id: int,
+    autopart_id: int,
+) -> int:
+    result = await session.execute(
+        select(func.count(AutoPartPriceHistory.id))
+        .where(AutoPartPriceHistory.provider_id == provider_id)
+        .where(AutoPartPriceHistory.provider_config_id == provider_config_id)
+        .where(AutoPartPriceHistory.autopart_id == autopart_id)
+    )
+    return int(result.scalar_one())
+
+
+async def _create_pricelist_for_history(
+    *,
+    provider_id: int,
+    provider_config_id: int,
+    brand_name: str,
+    price: float,
+    quantity: int,
+    session: AsyncSession,
+):
+    autopart_data = AutoPartPricelist(
+        oem_number='SE3841',
+        brand=brand_name,
+        name='Наконечник рулевой тяги',
+    )
+    autopart_assoc = PriceListAutoPartAssociationCreate(
+        autopart=autopart_data,
+        quantity=quantity,
+        price=price,
+    )
+    pricelist_in = PriceListCreate(
+        provider_id=provider_id,
+        provider_config_id=provider_config_id,
+        autoparts=[autopart_assoc],
+    )
+    return await crud_pricelist.create(
+        obj_in=pricelist_in,
+        session=session,
+    )
+
+
+@pytest.mark.asyncio
+async def test_price_history_records_on_price_change(
+    created_providers: list[Provider],
+    created_pricelist_config: ProviderPriceListConfig,
+    created_brand: Brand,
+    test_session: AsyncSession,
+):
+    provider = created_providers[0]
+
+    pricelist_1 = await _create_pricelist_for_history(
+        provider_id=provider.id,
+        provider_config_id=created_pricelist_config.id,
+        brand_name=created_brand.name,
+        price=100.0,
+        quantity=10,
+        session=test_session,
+    )
+    autopart_id = pricelist_1.autoparts[0].autopart.id
+    count_1 = await _count_history(
+        test_session,
+        provider.id,
+        created_pricelist_config.id,
+        autopart_id,
+    )
+    assert count_1 == 1
+
+    await _create_pricelist_for_history(
+        provider_id=provider.id,
+        provider_config_id=created_pricelist_config.id,
+        brand_name=created_brand.name,
+        price=100.0,
+        quantity=10,
+        session=test_session,
+    )
+    count_2 = await _count_history(
+        test_session,
+        provider.id,
+        created_pricelist_config.id,
+        autopart_id,
+    )
+    assert count_2 == count_1
+
+    await _create_pricelist_for_history(
+        provider_id=provider.id,
+        provider_config_id=created_pricelist_config.id,
+        brand_name=created_brand.name,
+        price=110.0,
+        quantity=10,
+        session=test_session,
+    )
+    count_3 = await _count_history(
+        test_session,
+        provider.id,
+        created_pricelist_config.id,
+        autopart_id,
+    )
+    assert count_3 == count_1 + 1
+
+
+@pytest.mark.asyncio
+async def test_price_history_records_on_quantity_change(
+    created_providers: list[Provider],
+    created_pricelist_config: ProviderPriceListConfig,
+    created_brand: Brand,
+    test_session: AsyncSession,
+):
+    provider = created_providers[0]
+
+    pricelist_1 = await _create_pricelist_for_history(
+        provider_id=provider.id,
+        provider_config_id=created_pricelist_config.id,
+        brand_name=created_brand.name,
+        price=100.0,
+        quantity=10,
+        session=test_session,
+    )
+    autopart_id = pricelist_1.autoparts[0].autopart.id
+    count_1 = await _count_history(
+        test_session,
+        provider.id,
+        created_pricelist_config.id,
+        autopart_id,
+    )
+    assert count_1 == 1
+
+    await _create_pricelist_for_history(
+        provider_id=provider.id,
+        provider_config_id=created_pricelist_config.id,
+        brand_name=created_brand.name,
+        price=100.0,
+        quantity=10,
+        session=test_session,
+    )
+    count_2 = await _count_history(
+        test_session,
+        provider.id,
+        created_pricelist_config.id,
+        autopart_id,
+    )
+    assert count_2 == count_1
+
+    await _create_pricelist_for_history(
+        provider_id=provider.id,
+        provider_config_id=created_pricelist_config.id,
+        brand_name=created_brand.name,
+        price=100.0,
+        quantity=8,
+        session=test_session,
+    )
+    count_3 = await _count_history(
+        test_session,
+        provider.id,
+        created_pricelist_config.id,
+        autopart_id,
+    )
+    assert count_3 == count_1 + 1
+
+
 @pytest.mark.asyncio
 async def test_create_customer_pricelist_config(
     created_customers: Customer,
@@ -865,6 +1030,336 @@ async def test_create_customer_pricelist_invalid_customer(
 
     response_data = response.json()
     assert response_data['detail'] == 'Customer not found'
+
+
+@pytest.mark.asyncio
+async def test_customer_pricelist_prioritizes_own_price(
+    test_session: AsyncSession,
+    async_client: AsyncClient,
+    created_customers: list[Customer],
+    created_brand: Brand,
+):
+    customer = created_customers[0]
+
+    provider_own = Provider(
+        name='Own Provider',
+        email_contact='own@example.com',
+        email_incoming_price='own_prices@example.com',
+        description='Own provider',
+        comment='',
+        type_prices='Wholesale',
+        is_own_price=True,
+    )
+    provider_other = Provider(
+        name='Other Provider',
+        email_contact='other@example.com',
+        email_incoming_price='other_prices@example.com',
+        description='Other provider',
+        comment='',
+        type_prices='Wholesale',
+        is_own_price=False,
+    )
+    test_session.add_all([provider_own, provider_other])
+    await test_session.commit()
+    await test_session.refresh(provider_own)
+    await test_session.refresh(provider_other)
+
+    own_cfg = ProviderPriceListConfig(
+        provider_id=provider_own.id,
+        start_row=1,
+        oem_col=0,
+        qty_col=1,
+        price_col=2,
+        name_price='OWN_CFG',
+        name_mail='OWN_MAIL',
+    )
+    other_cfg = ProviderPriceListConfig(
+        provider_id=provider_other.id,
+        start_row=1,
+        oem_col=0,
+        qty_col=1,
+        price_col=2,
+        name_price='OTHER_CFG',
+        name_mail='OTHER_MAIL',
+    )
+    test_session.add_all([own_cfg, other_cfg])
+    await test_session.commit()
+    await test_session.refresh(own_cfg)
+    await test_session.refresh(other_cfg)
+
+    autopart = AutoPartPricelist(
+        oem_number='OEM-OWN-001',
+        brand=created_brand.name,
+        name='Test Part',
+    )
+    own_assoc = PriceListAutoPartAssociationCreate(
+        autopart=autopart,
+        quantity=5,
+        price=120.0,
+    )
+    other_assoc = PriceListAutoPartAssociationCreate(
+        autopart=autopart,
+        quantity=7,
+        price=100.0,
+    )
+    await crud_pricelist.create(
+        obj_in=PriceListCreate(
+            provider_id=provider_own.id,
+            provider_config_id=own_cfg.id,
+            autoparts=[own_assoc],
+        ),
+        session=test_session,
+    )
+    await crud_pricelist.create(
+        obj_in=PriceListCreate(
+            provider_id=provider_other.id,
+            provider_config_id=other_cfg.id,
+            autoparts=[other_assoc],
+        ),
+        session=test_session,
+    )
+
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name='OWN PRIORITY CONFIG',
+        general_markup=1.0,
+        own_price_list_markup=1.0,
+        third_party_markup=1.0,
+        additional_filters={},
+    )
+    test_session.add(config)
+    await test_session.commit()
+    await test_session.refresh(config)
+
+    test_session.add_all([
+        CustomerPriceListSource(
+            customer_config_id=config.id,
+            provider_config_id=own_cfg.id,
+            enabled=True,
+            markup=1.0,
+            brand_filters={},
+            position_filters={},
+            additional_filters={},
+        ),
+        CustomerPriceListSource(
+            customer_config_id=config.id,
+            provider_config_id=other_cfg.id,
+            enabled=True,
+            markup=1.0,
+            brand_filters={},
+            position_filters={},
+            additional_filters={},
+        ),
+    ])
+    await test_session.commit()
+
+    request_data = {
+        'date': str(date.today()),
+        'customer_id': customer.id,
+        'config_id': config.id,
+        'items': [],
+        'excluded_own_positions': [],
+        'excluded_supplier_positions': [],
+    }
+    response = await async_client.post(
+        f'/customers/{customer.id}/pricelists/', json=request_data
+    )
+
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert len(payload['autoparts']) == 1
+    assert abs(float(payload['autoparts'][0]['price']) - 120.0) < 0.01
+
+
+@pytest.mark.asyncio
+async def test_customer_pricelist_source_min_price_filter(
+    test_session: AsyncSession,
+    async_client: AsyncClient,
+    created_customers: list[Customer],
+    created_brand: Brand,
+):
+    customer = created_customers[0]
+
+    provider = Provider(
+        name='Filter Provider',
+        email_contact='filter@example.com',
+        email_incoming_price='filter_prices@example.com',
+        description='Filter provider',
+        comment='',
+        type_prices='Wholesale',
+    )
+    test_session.add(provider)
+    await test_session.commit()
+    await test_session.refresh(provider)
+
+    cfg = ProviderPriceListConfig(
+        provider_id=provider.id,
+        start_row=1,
+        oem_col=0,
+        qty_col=1,
+        price_col=2,
+        name_price='FILTER_CFG',
+        name_mail='FILTER_MAIL',
+    )
+    test_session.add(cfg)
+    await test_session.commit()
+    await test_session.refresh(cfg)
+
+    autopart_low = AutoPartPricelist(
+        oem_number='OEM-FILTER-LOW',
+        brand=created_brand.name,
+        name='Low Part',
+    )
+    autopart_high = AutoPartPricelist(
+        oem_number='OEM-FILTER-HIGH',
+        brand=created_brand.name,
+        name='High Part',
+    )
+    await crud_pricelist.create(
+        obj_in=PriceListCreate(
+            provider_id=provider.id,
+            provider_config_id=cfg.id,
+            autoparts=[
+                PriceListAutoPartAssociationCreate(
+                    autopart=autopart_low, quantity=5, price=50.0
+                ),
+                PriceListAutoPartAssociationCreate(
+                    autopart=autopart_high, quantity=6, price=150.0
+                ),
+            ],
+        ),
+        session=test_session,
+    )
+
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name='FILTER CONFIG',
+        general_markup=1.0,
+        own_price_list_markup=1.0,
+        third_party_markup=1.0,
+        additional_filters={},
+    )
+    test_session.add(config)
+    await test_session.commit()
+    await test_session.refresh(config)
+
+    test_session.add(
+        CustomerPriceListSource(
+            customer_config_id=config.id,
+            provider_config_id=cfg.id,
+            enabled=True,
+            markup=1.0,
+            min_price=100.0,
+            brand_filters={},
+            position_filters={},
+            additional_filters={},
+        )
+    )
+    await test_session.commit()
+
+    request_data = {
+        'date': str(date.today()),
+        'customer_id': customer.id,
+        'config_id': config.id,
+        'items': [],
+        'excluded_own_positions': [],
+        'excluded_supplier_positions': [],
+    }
+    response = await async_client.post(
+        f'/customers/{customer.id}/pricelists/', json=request_data
+    )
+
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert len(payload['autoparts']) == 1
+    assert abs(float(payload['autoparts'][0]['price']) - 150.0) < 0.01
+
+
+@pytest.mark.asyncio
+async def test_customer_pricelist_send_now_updates_last_sent_at(
+    test_session: AsyncSession,
+    async_client: AsyncClient,
+    created_customers: list[Customer],
+    created_brand: Brand,
+):
+    customer = created_customers[0]
+
+    provider = Provider(
+        name='Send Provider',
+        email_contact='send@example.com',
+        email_incoming_price='send_prices@example.com',
+        description='Send provider',
+        comment='',
+        type_prices='Wholesale',
+    )
+    test_session.add(provider)
+    await test_session.commit()
+    await test_session.refresh(provider)
+
+    cfg = ProviderPriceListConfig(
+        provider_id=provider.id,
+        start_row=1,
+        oem_col=0,
+        qty_col=1,
+        price_col=2,
+        name_price='SEND_CFG',
+        name_mail='SEND_MAIL',
+    )
+    test_session.add(cfg)
+    await test_session.commit()
+    await test_session.refresh(cfg)
+
+    autopart = AutoPartPricelist(
+        oem_number='OEM-SEND-001',
+        brand=created_brand.name,
+        name='Send Part',
+    )
+    await crud_pricelist.create(
+        obj_in=PriceListCreate(
+            provider_id=provider.id,
+            provider_config_id=cfg.id,
+            autoparts=[
+                PriceListAutoPartAssociationCreate(
+                    autopart=autopart, quantity=5, price=100.0
+                ),
+            ],
+        ),
+        session=test_session,
+    )
+
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name='SEND CONFIG',
+        general_markup=1.0,
+        own_price_list_markup=1.0,
+        third_party_markup=1.0,
+        emails=['test@example.com'],
+        additional_filters={},
+    )
+    test_session.add(config)
+    await test_session.commit()
+    await test_session.refresh(config)
+
+    test_session.add(
+        CustomerPriceListSource(
+            customer_config_id=config.id,
+            provider_config_id=cfg.id,
+            enabled=True,
+            markup=1.0,
+            brand_filters={},
+            position_filters={},
+            additional_filters={},
+        )
+    )
+    await test_session.commit()
+
+    response = await async_client.post(
+        f'/customers/{customer.id}/pricelist-configs/{config.id}/send-now'
+    )
+    assert response.status_code == 200, response.text
+
+    await test_session.refresh(config)
+    assert config.last_sent_at is not None
 
 
 @pytest.mark.asyncio

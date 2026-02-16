@@ -321,6 +321,9 @@ class AutoPartPriceHistory(Base):
 
     autopart_id = Column(Integer, ForeignKey('autopart.id'), nullable=False)
     provider_id = Column(Integer, ForeignKey('provider.id'), nullable=False)
+    provider_config_id = Column(
+        Integer, ForeignKey('providerpricelistconfig.id'), nullable=True
+    )
     pricelist_id = Column(Integer, nullable=False, index=True)
 
     created_at = Column(
@@ -339,6 +342,7 @@ class AutoPartPriceHistory(Base):
             'idx_autopart_price_history_autopart_provider_created_at',
             'autopart_id',
             'provider_id',
+            'provider_config_id',
             'created_at',
         ),
     )

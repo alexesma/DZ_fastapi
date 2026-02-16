@@ -106,10 +106,12 @@ async def download_price_provider(
                     f'Uid: {msg.uid}, from: {msg.from_}, '
                     f'date: {msg.date}, subject: {msg.subject}, all: {msg}'
                 )
-            criteria = AND(
-                from_=provider.email_incoming_price,
-                date_gte=since_date,
-            )
+            criteria_kwargs = {'date_gte': since_date}
+            if provider.email_incoming_price:
+                criteria_kwargs['from_'] = provider.email_incoming_price
+            if provider_conf.name_mail:
+                criteria_kwargs['subject'] = provider_conf.name_mail
+            criteria = AND(**criteria_kwargs)
             logger.debug(f'Using criteria: {criteria}')
 
             email_list = list(
@@ -138,7 +140,10 @@ async def download_price_provider(
                 # logger.debug(f'Subject: {msg.subject},
                 # From: {msg.from_}, To: {msg.to}, Date: {msg.date}')
                 # logger.debug(f'Processing email with subject: {subject}')
-                if not provider_conf.name_mail.lower() in subject.lower():
+                if (
+                    provider_conf.name_mail
+                    and provider_conf.name_mail.lower() not in subject.lower()
+                ):
                     logger.debug(
                         f'Subject {subject} does not '
                         f'contain {provider_conf.name_mail.lower()}, skipping.'
@@ -147,9 +152,16 @@ async def download_price_provider(
 
                 for att in msg.attachments:
                     logger.debug(f'Found attachment: {att.filename}')
-
-                    if normalize_str(att.filename) in normalize_str(
-                        provider_conf.name_price
+                    filename_norm = normalize_str(att.filename).lower()
+                    name_price_norm = normalize_str(
+                        provider_conf.name_price or ''
+                    ).lower()
+                    if (
+                        name_price_norm
+                        and (
+                            name_price_norm in filename_norm
+                            or filename_norm in name_price_norm
+                        )
                     ):
                         filepath = os.path.join(DOWNLOAD_FOLDER, att.filename)
                         with open(filepath, 'wb') as f:
@@ -162,6 +174,10 @@ async def download_price_provider(
                                 provider.id, current_uid, session
                             )
                         return filepath
+                    if not name_price_norm:
+                        logger.debug(
+                            'name_price is empty, skipping attachment match.'
+                        )
             logger.debug('No matching attachments found.')
             # if emails:
             #     max_uid = max(int(msg.uid) for msg in emails)

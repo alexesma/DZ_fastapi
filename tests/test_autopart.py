@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -8,6 +9,8 @@ from dz_fastapi.crud.autopart import crud_autopart
 from dz_fastapi.main import app
 from dz_fastapi.models.autopart import (AutoPart, Category, StorageLocation,
                                         change_string, preprocess_oem_number)
+from dz_fastapi.models.partner import (PriceList,
+                                       PriceListAutoPartAssociation)
 from dz_fastapi.models.brand import Brand
 from tests.test_constants import TEST_AUTOPART, TEST_BRAND
 
@@ -195,6 +198,87 @@ async def test_update_autopart_success(
         update_data['description'].upper()
     )
     assert updated_autopart['brand_id'] == update_data['brand_id']
+
+
+@pytest.mark.asyncio
+async def test_get_autopart_offers_latest_pricelist(
+    test_session,
+    created_autopart: AutoPart,
+    created_pricelist_config,
+    created_providers,
+):
+    provider = created_providers[0]
+    provider.is_own_price = True
+    created_pricelist_config.min_delivery_day = 2
+    created_pricelist_config.max_delivery_day = 5
+    test_session.add_all([provider, created_pricelist_config])
+
+    old_pricelist = PriceList(
+        provider_id=provider.id,
+        provider_config_id=created_pricelist_config.id,
+        date=date(2024, 1, 10),
+    )
+    new_pricelist = PriceList(
+        provider_id=provider.id,
+        provider_config_id=created_pricelist_config.id,
+        date=date(2024, 2, 10),
+    )
+    test_session.add_all([old_pricelist, new_pricelist])
+    await test_session.commit()
+    await test_session.refresh(old_pricelist)
+    await test_session.refresh(new_pricelist)
+
+    assoc_old = PriceListAutoPartAssociation(
+        pricelist_id=old_pricelist.id,
+        autopart_id=created_autopart.id,
+        quantity=1,
+        price=120.0,
+    )
+    assoc_new = PriceListAutoPartAssociation(
+        pricelist_id=new_pricelist.id,
+        autopart_id=created_autopart.id,
+        quantity=5,
+        price=98.5,
+    )
+    test_session.add_all([assoc_old, assoc_new])
+    await test_session.commit()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+        response = await ac.get(
+            '/autoparts/offers/',
+            params={'oem': created_autopart.oem_number},
+        )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data['oem_number'] == created_autopart.oem_number
+    assert len(data['offers']) == 1
+    offer = data['offers'][0]
+    assert offer['provider_id'] == provider.id
+    assert offer['provider_config_id'] == created_pricelist_config.id
+    assert offer['provider_config_name'] == created_pricelist_config.name_price
+    assert offer['price'] == 98.5
+    assert offer['quantity'] == 5
+    assert offer['min_delivery_day'] == 2
+    assert offer['max_delivery_day'] == 5
+    assert offer['is_own_price'] is True
+
+
+@pytest.mark.asyncio
+async def test_get_autopart_offers_empty(
+    test_session,
+    created_autopart: AutoPart,
+):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+        response = await ac.get(
+            '/autoparts/offers/',
+            params={'oem': 'NONEXISTENT123'},
+        )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data['oem_number'] == 'NONEXISTENT123'
+    assert data['offers'] == []
 
 
 @pytest.mark.asyncio

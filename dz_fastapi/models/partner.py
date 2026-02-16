@@ -138,6 +138,7 @@ class Provider(Client):
         'ProviderLastEmailUID', back_populates='provider', uselist=False
     )
     is_virtual = Column(Boolean, default=False)
+    is_own_price = Column(Boolean, default=False)
 
     @validates('email_incoming_price')
     def validate_email_incoming_price(self, key, email):
@@ -312,8 +313,59 @@ class CustomerPriceListConfig(Base):
         JSON, default=[]
     )  # Supplier-specific quantity filters
     additional_filters = Column(JSON, default={})  # Other custom filters
+    schedule_days = Column(JSON, default=[])
+    schedule_times = Column(JSON, default=[])
+    emails = Column(JSON, default=[])
+    is_active = Column(Boolean, default=True)
+    last_sent_at = Column(DateTime(timezone=True), nullable=True)
 
     customer = relationship('Customer', back_populates='pricelist_configs')
+    sources = relationship(
+        'CustomerPriceListSource',
+        back_populates='config',
+        cascade='all, delete-orphan',
+        lazy='selectin',
+    )
+
+
+class CustomerPriceListSource(Base):
+    customer_config_id = Column(
+        Integer,
+        ForeignKey('customerpricelistconfig.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    provider_config_id = Column(
+        Integer, ForeignKey('providerpricelistconfig.id'), nullable=False
+    )
+    enabled = Column(Boolean, default=True)
+    markup = Column(Float, default=1.0)
+    brand_filters = Column(JSON, default={})
+    position_filters = Column(JSON, default={})
+    min_price = Column(DECIMAL(10, 2), nullable=True)
+    max_price = Column(DECIMAL(10, 2), nullable=True)
+    min_quantity = Column(Integer, nullable=True)
+    max_quantity = Column(Integer, nullable=True)
+    additional_filters = Column(JSON, default={})
+
+    config = relationship('CustomerPriceListConfig', back_populates='sources')
+    provider_config = relationship(
+        'ProviderPriceListConfig',
+        lazy='selectin',
+    )
+
+    __table_args__ = (
+        Index(
+            'ix_customer_pricelist_source_config',
+            'customer_config_id',
+            unique=False,
+        ),
+        Index(
+            'ix_customer_pricelist_source_provider_config',
+            'provider_config_id',
+            unique=False,
+        ),
+    )
 
 
 class ProviderLastEmailUID(Base):

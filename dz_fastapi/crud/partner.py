@@ -20,7 +20,8 @@ from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
 from dz_fastapi.models.partner import (TYPE_PRICES, Customer,
                                        CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
-                                       CustomerPriceListConfig, PriceList,
+                                       CustomerPriceListConfig,
+                                       CustomerPriceListSource, PriceList,
                                        PriceListAutoPartAssociation, Provider,
                                        ProviderAbbreviation,
                                        ProviderLastEmailUID,
@@ -30,6 +31,8 @@ from dz_fastapi.schemas.partner import (CustomerCreate,
                                         CustomerPriceListConfigCreate,
                                         CustomerPriceListConfigUpdate,
                                         CustomerPriceListCreate,
+                                        CustomerPriceListSourceCreate,
+                                        CustomerPriceListSourceUpdate,
                                         CustomerPriceListUpdate,
                                         CustomerUpdate,
                                         PriceListAutoPartAssociationResponse,
@@ -45,7 +48,8 @@ from dz_fastapi.schemas.partner import (CustomerCreate,
                                         ProviderPriceListConfigUpdate,
                                         ProviderUpdate)
 from dz_fastapi.services.utils import (brand_filters, individual_markups,
-                                       position_filters, price_intervals,
+                                       normalize_markup, position_filters,
+                                       price_intervals,
                                        supplier_quantity_filters)
 
 logger = logging.getLogger('dz_fastapi')
@@ -760,6 +764,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             self,
             provider_id: int,
             session: AsyncSession,
+            provider_config_id: int | None = None,
     ) -> dict[int, dict]:
         """
         Последнее известное состояние по каждой позиции данного провайдера
@@ -781,6 +786,11 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                 AutoPartPriceHistory.id.desc(),
             )
         )
+        if provider_config_id is not None:
+            stmt = stmt.where(
+                AutoPartPriceHistory.provider_config_id
+                == provider_config_id
+            )
         rows = (await session.execute(stmt)).all()
 
         return {
@@ -863,11 +873,13 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             bulk_insert_data = []
 
             provider_id = db_obj.provider_id
+            provider_config_id = db_obj.provider_config_id
             created_at_ts = datetime.now(timezone.utc)
 
             last_history_map = await self._get_last_history_snapshot(
                 session=session,
                 provider_id=provider_id,
+                provider_config_id=provider_config_id,
             )
             current_positions: dict[int, dict] = {}
 
@@ -932,6 +944,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                         'autopart_id': autopart_id,
                         'provider_id': provider_id,
                         'pricelist_id': db_obj.id,
+                        'provider_config_id': provider_config_id,
                         'created_at': created_at_ts,
                         'price': current_data['price'],
                         'quantity': current_data['quantity'],
@@ -944,6 +957,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                     bulk_insert_data_history.append({
                         'autopart_id': autopart_id,
                         'provider_id': provider_id,
+                        'provider_config_id': provider_config_id,
                         'pricelist_id': db_obj.id,
                         'created_at': created_at_ts,
                         'price': current_data['price'],
@@ -964,6 +978,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                     bulk_insert_data_history.append({
                         'autopart_id': autopart_id,
                         'provider_id': provider_id,
+                        'provider_config_id': provider_config_id,
                         'pricelist_id': db_obj.id,
                         'created_at': created_at_ts,
                         'price': last['price'],
@@ -1151,7 +1166,9 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                 joinedload(PriceListAutoPartAssociation.autopart).joinedload(
                     AutoPart.brand
                 ),
-                joinedload(PriceListAutoPartAssociation.pricelist),
+                joinedload(PriceListAutoPartAssociation.pricelist).joinedload(
+                    PriceList.provider
+                ),
             )
             .where(PriceListAutoPartAssociation.pricelist_id == pricelist_id)
         )
@@ -1172,6 +1189,13 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                     'brand_id': autopart.brand_id,
                     'brand': brand_name,
                     'provider_id': assoc.pricelist.provider_id,
+                    'provider_config_id': assoc.pricelist.provider_config_id,
+                    'pricelist_id': assoc.pricelist.id,
+                    'is_own_price': bool(
+                        assoc.pricelist.provider.is_own_price
+                    )
+                    if assoc.pricelist.provider
+                    else False,
                     'quantity': assoc.quantity,
                     'price': float(assoc.price),
                 }
@@ -1186,6 +1210,18 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         rows = result.all()
         pricelist_ids = [row.id for row in rows]
         return sorted(pricelist_ids)
+
+    async def get_latest_pricelist_by_config(
+        self, session: AsyncSession, provider_config_id: int
+    ) -> Optional[PriceList]:
+        stmt = (
+            select(PriceList)
+            .where(PriceList.provider_config_id == provider_config_id)
+            .order_by(PriceList.date.desc().nullslast(), PriceList.id.desc())
+            .limit(1)
+        )
+        result = await session.execute(stmt)
+        return result.scalars().first()
 
     async def get_last_pricelists_by_provider(
         self, session: AsyncSession, provider_id: int, limit_last_n: int = 2
@@ -1215,6 +1251,60 @@ class CRUDCustomerPriceList(
         CustomerPriceList, CustomerPriceListCreate, CustomerPriceListUpdate
     ]
 ):
+    async def cleanup_old_pricelists_keep_last_n(
+        self,
+        session: AsyncSession,
+        keep_last_n: int = 10,
+        batch_size: int = 500,
+    ) -> int:
+        """
+        Удаляет старые CustomerPriceList и их связи,
+        оставляя последние keep_last_n прайсов на каждого customer_id.
+
+        Возвращает: сколько прайс-листов удалено.
+        """
+        ranked = (
+            select(
+                CustomerPriceList.id.label("id"),
+                func.row_number()
+                .over(
+                    partition_by=CustomerPriceList.customer_id,
+                    order_by=(
+                        CustomerPriceList.date.desc().nullslast(),
+                        CustomerPriceList.id.desc(),
+                    ),
+                )
+                .label("rn"),
+            )
+            .where(CustomerPriceList.customer_id.is_not(None))
+            .subquery()
+        )
+
+        ids = (
+            (await session.execute(
+                select(ranked.c.id)
+                .where(ranked.c.rn > keep_last_n)
+                .limit(batch_size)
+            ))
+            .scalars()
+            .all()
+        )
+        if not ids:
+            return 0
+
+        await session.execute(
+            delete(CustomerPriceListAutoPartAssociation).where(
+                CustomerPriceListAutoPartAssociation.customerpricelist_id.in_(
+                    ids
+                )
+            )
+        )
+        await session.execute(
+            delete(CustomerPriceList).where(CustomerPriceList.id.in_(ids))
+        )
+        await session.commit()
+        return len(ids)
+
     async def create(
         self, obj_in: CustomerPriceListCreate, session: AsyncSession, **kwargs
     ) -> CustomerPriceList:
@@ -1389,6 +1479,7 @@ class CRUDCustomerPriceList(
         self,
         df: pd.DataFrame,
         config: CustomerPriceListConfig,
+        apply_general_markup: bool = True,
     ) -> pd.DataFrame:
         logger.debug(
             f'Into apply_coefficient data df:{df}, cofig: {config.__dict__}'
@@ -1427,7 +1518,8 @@ class CRUDCustomerPriceList(
             )
 
         # Apply general markup
-        df['price'] *= config.general_markup / 100 + 1
+        if apply_general_markup:
+            df['price'] *= normalize_markup(config.general_markup)
 
         return df
 
@@ -1744,6 +1836,86 @@ class CRUDCustomerPriceListConfig(
 
 crud_customer_pricelist_config = CRUDCustomerPriceListConfig(
     CustomerPriceListConfig
+)
+
+
+class CRUDCustomerPriceListSource(
+    CRUDBase[
+        CustomerPriceListSource,
+        CustomerPriceListSourceCreate,
+        CustomerPriceListSourceUpdate,
+    ]
+):
+    async def get_by_id(
+        self, source_id: int, session: AsyncSession
+    ) -> Optional[CustomerPriceListSource]:
+        result = await session.execute(
+            select(CustomerPriceListSource)
+            .options(
+                selectinload(
+                    CustomerPriceListSource.provider_config
+                ).selectinload(
+                    ProviderPriceListConfig.provider
+                )
+            )
+            .where(CustomerPriceListSource.id == source_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_config_id(
+        self, config_id: int, session: AsyncSession
+    ) -> List[CustomerPriceListSource]:
+        result = await session.execute(
+            select(CustomerPriceListSource)
+            .options(
+                selectinload(
+                    CustomerPriceListSource.provider_config
+                ).selectinload(
+                    ProviderPriceListConfig.provider
+                )
+            )
+            .where(CustomerPriceListSource.customer_config_id == config_id)
+            .order_by(CustomerPriceListSource.id.asc())
+        )
+        return result.scalars().all()
+
+    async def create_source(
+        self,
+        config_id: int,
+        source_in: CustomerPriceListSourceCreate,
+        session: AsyncSession,
+    ) -> CustomerPriceListSource:
+        new_source = CustomerPriceListSource(
+            customer_config_id=config_id,
+            **source_in.model_dump(exclude_unset=True),
+        )
+        session.add(new_source)
+        await session.commit()
+        await session.refresh(new_source)
+        return new_source
+
+    async def update_source(
+        self,
+        db_obj: CustomerPriceListSource,
+        obj_in: Union[CustomerPriceListSourceUpdate, Dict[str, Any]],
+        session: AsyncSession,
+    ) -> CustomerPriceListSource:
+        if isinstance(obj_in, dict):
+            update_data = obj_in
+        else:
+            update_data = obj_in.model_dump(exclude_unset=True)
+
+        for field, value in update_data.items():
+            setattr(db_obj, field, value)
+
+        session.add(db_obj)
+        await session.commit()
+        await session.refresh(db_obj)
+        return db_obj
+
+
+crud_customer_pricelist_source = CRUDCustomerPriceListSource(
+    CustomerPriceListSource
 )
 
 

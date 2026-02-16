@@ -4,19 +4,23 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 import aiofiles
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 
 from dz_fastapi.core.constants import (CONFIG_DATA_CUSTOMER,
                                        CONFIG_DATA_PROVIDER, CUSTOMER,
                                        CUSTOMER_IN, PROVIDER_IN)
-from dz_fastapi.crud.partner import (crud_customer,
+from dz_fastapi.crud.partner import (crud_customer, crud_customer_pricelist,
                                      crud_customer_pricelist_config,
                                      crud_pricelist, crud_provider,
                                      crud_provider_pricelist_config)
+from dz_fastapi.models.partner import CustomerPriceListConfig
 from dz_fastapi.schemas.partner import (CustomerCreate,
                                         CustomerPriceListConfigCreate,
                                         CustomerPriceListCreate,
@@ -59,6 +63,16 @@ def start_scheduler(app: FastAPI):
         name='Cleanup old pricelists keep last 5',
         hour=2,
         minute=30,
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        func=send_scheduled_customer_pricelists_task,
+        trigger='cron',
+        args=[app],
+        id='send_customer_pricelists',
+        name='Send scheduled customer pricelists',
+        minute='*',
         replace_existing=True,
     )
 
@@ -193,6 +207,64 @@ async def send_price_list_task(app: FastAPI):
             )
 
 
+def _day_key(now: datetime) -> str:
+    mapping = {
+        0: 'mon',
+        1: 'tue',
+        2: 'wed',
+        3: 'thu',
+        4: 'fri',
+        5: 'sat',
+        6: 'sun',
+    }
+    return mapping[now.weekday()]
+
+
+async def send_scheduled_customer_pricelists_task(app: FastAPI):
+    """
+    Проверяет расписания customer pricelist configs и отправляет,
+    если текущий день/время совпадают.
+    """
+    async_session_factory = app.state.session_factory
+    now = datetime.now(timezone.utc)
+    day_key = _day_key(now)
+    time_key = now.strftime('%H:%M')
+
+    async with async_session_factory() as session:
+        stmt = (
+            select(CustomerPriceListConfig)
+            .options(selectinload(CustomerPriceListConfig.customer))
+            .where(CustomerPriceListConfig.is_active.is_(True))
+        )
+        configs = (await session.execute(stmt)).scalars().all()
+
+        for config in configs:
+            if not config.schedule_days or not config.schedule_times:
+                continue
+            if day_key not in (config.schedule_days or []):
+                continue
+            if time_key not in (config.schedule_times or []):
+                continue
+            if config.last_sent_at:
+                last_key = config.last_sent_at.strftime('%Y-%m-%d %H:%M')
+                now_key = now.strftime('%Y-%m-%d %H:%M')
+                if last_key == now_key:
+                    continue
+
+            customer = config.customer
+            if not customer:
+                continue
+
+            request = CustomerPriceListCreate(
+                customer_id=customer.id,
+                config_id=config.id,
+                items=[],
+            )
+            await process_customer_pricelist(
+                customer=customer, request=request, session=session
+            )
+
+
 async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
     """
     Обрабатывает все новые письма за сегодня,
@@ -276,6 +348,7 @@ async def cleanup_old_pricelists_task(app: FastAPI):
     async with async_session_factory() as session:
         try:
             total_deleted = 0
+            total_deleted_customer = 0
             while True:
                 cleanup = crud_pricelist.cleanup_old_pricelists_keep_last_n
                 deleted = await cleanup(
@@ -286,8 +359,22 @@ async def cleanup_old_pricelists_task(app: FastAPI):
                 total_deleted += deleted
                 if deleted == 0:
                     break
+            while True:
+                cleanup = (
+                    crud_customer_pricelist.cleanup_old_pricelists_keep_last_n
+                )
+                deleted = await cleanup(
+                    session=session,
+                    keep_last_n=10,
+                    batch_size=500,
+                )
+                total_deleted_customer += deleted
+                if deleted == 0:
+                    break
             logger.info(
-                f'Cleanup finished. Deleted pricelists: {total_deleted}'
+                f'Cleanup finished. '
+                f'Deleted provider pricelists: {total_deleted}; '
+                f'deleted customer pricelists: {total_deleted_customer}'
             )
         except Exception as e:
             logger.error(

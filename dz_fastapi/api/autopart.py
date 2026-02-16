@@ -10,6 +10,7 @@ import rarfile
 from fastapi import (APIRouter, BackgroundTasks, Body, Depends, File, Form,
                      HTTPException, Query, UploadFile, status)
 from pydantic import conint
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -23,9 +24,14 @@ from dz_fastapi.api.validators import change_storage_name
 from dz_fastapi.core.db import get_session
 from dz_fastapi.crud.autopart import crud_autopart, crud_category, crud_storage
 from dz_fastapi.crud.brand import brand_crud, brand_exists
-from dz_fastapi.models.autopart import (Category, StorageLocation,
+from dz_fastapi.models.autopart import (AutoPart, Category, StorageLocation,
                                         preprocess_oem_number)
-from dz_fastapi.schemas.autopart import (AutoPartCreate, AutopartOrderRequest,
+from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.partner import (PriceList, PriceListAutoPartAssociation,
+                                       Provider, ProviderPriceListConfig)
+from dz_fastapi.schemas.autopart import (AutoPartCreate, AutopartOfferRow,
+                                         AutopartOffersResponse,
+                                         AutopartOrderRequest,
                                          AutoPartResponse, AutoPartUpdate,
                                          BulkUpdateResponse, CategoryCreate,
                                          CategoryResponse, CategoryUpdate,
@@ -56,6 +62,112 @@ async def create_autopart_endpoint(
     autopart = await crud_autopart.create_autopart(autopart, brand_db, session)
     return await crud_autopart.get_autopart_by_id(
         session=session, autopart_id=autopart.id
+    )
+
+
+@router.get(
+    '/autoparts/offers/',
+    tags=['autopart', 'offer'],
+    summary='Предложения из прайс-листов по OEM',
+    response_model=AutopartOffersResponse,
+)
+async def get_autopart_offers(
+    oem: str = Query(..., description='OEM номер запчасти'),
+    session: AsyncSession = Depends(get_session),
+):
+    normalized_oem = preprocess_oem_number(oem)
+    partition_key = func.coalesce(
+        PriceList.provider_config_id, PriceList.provider_id
+    )
+    row_number = func.row_number().over(
+        partition_by=(
+            PriceListAutoPartAssociation.autopart_id,
+            partition_key,
+        ),
+        order_by=(PriceList.date.desc(), PriceList.id.desc()),
+    ).label('rn')
+
+    stmt = (
+        select(
+            AutoPart.id.label('autopart_id'),
+            AutoPart.oem_number.label('oem_number'),
+            AutoPart.name.label('autopart_name'),
+            Brand.name.label('brand_name'),
+            Provider.id.label('provider_id'),
+            Provider.name.label('provider_name'),
+            Provider.is_own_price.label('is_own_price'),
+            ProviderPriceListConfig.id.label('provider_config_id'),
+            ProviderPriceListConfig.name_price.label(
+                'provider_config_name'
+            ),
+            PriceListAutoPartAssociation.price.label('price'),
+            PriceListAutoPartAssociation.quantity.label('quantity'),
+            ProviderPriceListConfig.min_delivery_day.label(
+                'min_delivery_day'
+            ),
+            ProviderPriceListConfig.max_delivery_day.label(
+                'max_delivery_day'
+            ),
+            PriceList.id.label('pricelist_id'),
+            PriceList.date.label('pricelist_date'),
+            row_number,
+        )
+        .select_from(PriceListAutoPartAssociation)
+        .join(
+            PriceList,
+            PriceList.id == PriceListAutoPartAssociation.pricelist_id,
+        )
+        .join(
+            AutoPart,
+            AutoPart.id == PriceListAutoPartAssociation.autopart_id,
+        )
+        .join(Brand, Brand.id == AutoPart.brand_id)
+        .join(Provider, Provider.id == PriceList.provider_id)
+        .outerjoin(
+            ProviderPriceListConfig,
+            ProviderPriceListConfig.id == PriceList.provider_config_id,
+        )
+        .where(AutoPart.oem_number == normalized_oem)
+    )
+
+    subq = stmt.subquery()
+    final_stmt = (
+        select(subq)
+        .where(subq.c.rn == 1)
+        .order_by(
+            subq.c.provider_name.asc(),
+            subq.c.provider_config_name.asc().nullslast(),
+            subq.c.price.asc(),
+        )
+    )
+    result = await session.execute(final_stmt)
+    rows = result.mappings().all()
+
+    offers = []
+    for row in rows:
+        price_value = row.get('price')
+        offers.append(
+            AutopartOfferRow(
+                autopart_id=row['autopart_id'],
+                oem_number=row['oem_number'],
+                brand_name=row.get('brand_name'),
+                name=row.get('autopart_name'),
+                provider_id=row['provider_id'],
+                provider_name=row['provider_name'],
+                provider_config_id=row.get('provider_config_id'),
+                provider_config_name=row.get('provider_config_name'),
+                price=float(price_value) if price_value is not None else 0.0,
+                quantity=row.get('quantity') or 0,
+                min_delivery_day=row.get('min_delivery_day'),
+                max_delivery_day=row.get('max_delivery_day'),
+                pricelist_id=row['pricelist_id'],
+                pricelist_date=row.get('pricelist_date'),
+                is_own_price=bool(row.get('is_own_price')),
+            )
+        )
+
+    return AutopartOffersResponse(
+        oem_number=normalized_oem, offers=offers
     )
 
 

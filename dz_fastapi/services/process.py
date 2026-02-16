@@ -1,7 +1,7 @@
 import asyncio
 import copy
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from functools import partial
 from io import BytesIO, StringIO
 from typing import Any, Dict, List, Optional
@@ -52,9 +52,11 @@ from dz_fastapi.core.constants import (BRILLIANCE_OEM, CUMMINS_OEM, FAW_OEM,
                                        MAX_PRICE_LISTS, ORIGINAL_BRANDS)
 from dz_fastapi.crud.partner import (crud_customer_pricelist,
                                      crud_customer_pricelist_config,
+                                     crud_customer_pricelist_source,
                                      crud_pricelist, crud_provider)
 from dz_fastapi.models.autopart import preprocess_oem_number
-from dz_fastapi.models.partner import (Customer, CustomerPriceList, Provider,
+from dz_fastapi.models.partner import (Customer, CustomerPriceList,
+                                       CustomerPriceListConfig, Provider,
                                        ProviderPriceListConfig)
 from dz_fastapi.schemas.autopart import (AutoPartCreatePriceList,
                                          AutoPartResponse)
@@ -64,7 +66,10 @@ from dz_fastapi.schemas.partner import (AutoPartInPricelist,
                                         PriceListAutoPartAssociationCreate,
                                         PriceListCreate)
 from dz_fastapi.services.email import send_email_with_attachment
-from dz_fastapi.services.utils import position_exclude, prepare_excel_data
+from dz_fastapi.services.utils import (brand_filters, normalize_markup,
+                                       normalize_mixed_cyrillic,
+                                       position_exclude, position_filters,
+                                       prepare_excel_data)
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -103,6 +108,70 @@ def extract_first_file_from_archive(file_content: bytes) -> (str, bytes):
     if extracted_content is None:
         raise Exception("Archive is empty")
     return extracted_extension, extracted_content
+
+
+def _apply_source_filters(df: pd.DataFrame, source) -> pd.DataFrame:
+    df = df.copy()
+    df['price'] = pd.to_numeric(df['price'], errors='coerce')
+    df['quantity'] = pd.to_numeric(df['quantity'], errors='coerce')
+
+    def _to_int_list(values):
+        cleaned = []
+        for value in values or []:
+            try:
+                cleaned.append(int(value))
+            except (TypeError, ValueError):
+                continue
+        return cleaned
+
+    if source.brand_filters:
+        normalized = dict(source.brand_filters)
+        if 'brands' in normalized:
+            normalized['brands'] = _to_int_list(normalized.get('brands'))
+        df = brand_filters(brand_filters=normalized, df=df)
+    if source.position_filters:
+        normalized = dict(source.position_filters)
+        if 'autoparts' in normalized:
+            normalized['autoparts'] = _to_int_list(normalized.get('autoparts'))
+        df = position_filters(position_filters=normalized, df=df)
+
+    if source.min_price is not None:
+        df = df[df['price'] >= float(source.min_price)]
+    if source.max_price is not None:
+        df = df[df['price'] <= float(source.max_price)]
+    if source.min_quantity is not None:
+        df = df[df['quantity'] >= int(source.min_quantity)]
+    if source.max_quantity is not None:
+        df = df[df['quantity'] <= int(source.max_quantity)]
+
+    return df
+
+
+def _apply_source_markups(
+    df: pd.DataFrame,
+    config: CustomerPriceListConfig,
+    source,
+) -> pd.DataFrame:
+    df = df.copy()
+    base_multiplier = normalize_markup(config.general_markup)
+    base_multiplier *= normalize_markup(source.markup)
+
+    own_multiplier = normalize_markup(config.own_price_list_markup)
+    third_multiplier = normalize_markup(config.third_party_markup)
+
+    df['price'] = pd.to_numeric(df['price'], errors='coerce')
+    df['is_own_price'] = df.get('is_own_price', False)
+
+    def _row_multiplier(is_own: bool) -> float:
+        return own_multiplier if is_own else third_multiplier
+
+    df['price'] = df.apply(
+        lambda row: row['price'] * base_multiplier * _row_multiplier(
+            bool(row.get('is_own_price'))
+        ),
+        axis=1,
+    )
+    return df
 
 
 def open_csv(file: bytes) -> pd.DataFrame:
@@ -182,6 +251,7 @@ async def process_provider_pricelist(
     qty_col: Optional[int],
     price_col: Optional[int],
     session: AsyncSession,
+    return_stats: bool = False,
 ):
     logger.debug(
         f'Зашли в process_provider_pricelist '
@@ -234,6 +304,7 @@ async def process_provider_pricelist(
         )
 
     try:
+        total_rows = len(data_df)
         data_df.dropna(
             subset=['oem_number', 'quantity', 'price'], inplace=True
         )
@@ -244,7 +315,12 @@ async def process_provider_pricelist(
             .apply(preprocess_oem_number)
         )
         if 'name' in data_df.columns:
-            data_df['name'] = data_df['name'].astype(str).str.strip()
+            data_df['name'] = (
+                data_df['name']
+                .astype(str)
+                .str.strip()
+                .apply(normalize_mixed_cyrillic)
+            )
         if 'brand' in data_df.columns:
             data_df['brand'] = data_df['brand'].astype(str).str.strip()
         data_df['quantity'] = (
@@ -276,6 +352,7 @@ async def process_provider_pricelist(
 
         # и отрицательные цены:
         data_df = data_df[data_df['price'] >= 0]
+        clean_rows = len(data_df)
     except Exception as e:
         logger.error(f"Error during data cleaning: {e}")
         raise HTTPException(
@@ -294,6 +371,15 @@ async def process_provider_pricelist(
         f'deduplicated_data после дедупликации: '
         f'{deduplicated_data[:10]} (всего: {len(deduplicated_data)})'
     )
+    dedup_rows = len(deduplicated_data)
+
+    stats = {
+        'rows_total': int(total_rows),
+        'rows_clean': int(clean_rows),
+        'rows_deduplicated': int(dedup_rows),
+        'rows_removed': int(max(total_rows - clean_rows, 0)),
+        'rows_dedup_removed': int(max(clean_rows - dedup_rows, 0)),
+    }
 
     pricelist_in = PriceListCreate(
         provider_id=provider.id,
@@ -335,6 +421,8 @@ async def process_provider_pricelist(
         pl_orm = await crud_pricelist.get(session=session, obj_id=created_id)
 
         await analyze_new_pricelist(pl_orm, session=session)
+        if return_stats:
+            return pricelist, stats
         return pricelist
     except HTTPException as e:
         raise e
@@ -791,6 +879,7 @@ async def add_origin_brand_from_dz(
 async def send_pricelist(
     df_excel: pd.DataFrame,
     customer: Customer,
+    to_emails: Optional[List[str]],
     subject: str,
     body: str,
     attachment_filename: str,
@@ -836,7 +925,14 @@ async def send_pricelist(
 
     # Send email with the Excel attachment
     logger.debug('Send email with the Excel attachment')
-    to_email = customer.email_outgoing_price
+    to_email = None
+    if to_emails:
+        to_email = ','.join([email for email in to_emails if email])
+    if not to_email:
+        to_email = customer.email_outgoing_price
+    if not to_email:
+        logger.error('No recipient email configured for customer pricelist.')
+        return
     subject = subject
     body = body
 
@@ -885,28 +981,81 @@ async def process_customer_pricelist(
 
     combined_data = []
 
-    for pricelist_id in request.items:
-        associations = await crud_pricelist.fetch_pricelist_data(
-            pricelist_id, session
-        )
-        if not associations:
-            continue
+    if request.items:
+        for pricelist_id in request.items:
+            associations = await crud_pricelist.fetch_pricelist_data(
+                pricelist_id, session
+            )
+            if not associations:
+                continue
 
-        df = await crud_pricelist.transform_to_dataframe(
-            associations=associations, session=session
-        )
-        logger.debug(f'Transform file to dataframe {df}')
+            df = await crud_pricelist.transform_to_dataframe(
+                associations=associations, session=session
+            )
+            logger.debug(f'Transform file to dataframe {df}')
 
-        df = crud_customer_pricelist.apply_coefficient(df, config)
-        combined_data.append(df)
+            df = crud_customer_pricelist.apply_coefficient(
+                df, config, apply_general_markup=True
+            )
+            combined_data.append(df)
+    else:
+        sources = await crud_customer_pricelist_source.get_by_config_id(
+            config_id=config.id, session=session
+        )
+        if not sources:
+            raise HTTPException(
+                status_code=400,
+                detail='No autoparts to include in the pricelist',
+            )
+        for source in sources:
+            if not source.enabled:
+                continue
+
+            latest_pl = await crud_pricelist.get_latest_pricelist_by_config(
+                session=session, provider_config_id=source.provider_config_id
+            )
+            if not latest_pl:
+                continue
+
+            associations = await crud_pricelist.fetch_pricelist_data(
+                latest_pl.id, session
+            )
+            if not associations:
+                continue
+
+            df = await crud_pricelist.transform_to_dataframe(
+                associations=associations, session=session
+            )
+            logger.debug(f'Transform file to dataframe {df}')
+
+            df = _apply_source_filters(df, source)
+            if df.empty:
+                continue
+
+            df = crud_customer_pricelist.apply_coefficient(
+                df, config, apply_general_markup=False
+            )
+            df = _apply_source_markups(df, config, source)
+            combined_data.append(df)
 
     if combined_data:
         final_df = pd.concat(combined_data, ignore_index=True)
 
-        # Deduplicate: keep the lowest price for each autopart
-        final_df = final_df.sort_values(
-            by=['oem_number', 'brand', 'price']
-        ).drop_duplicates(subset=['oem_number', 'brand'], keep='first')
+        # Deduplicate with own-price priority, then lowest price
+        if 'is_own_price' in final_df.columns:
+            final_df['__own_rank'] = final_df['is_own_price'].astype(int)
+            final_df = (
+                final_df.sort_values(
+                    by=['oem_number', 'brand', '__own_rank', 'price'],
+                    ascending=[True, True, False, True],
+                )
+                .drop_duplicates(subset=['oem_number', 'brand'], keep='first')
+                .drop(columns=['__own_rank'])
+            )
+        else:
+            final_df = final_df.sort_values(
+                by=['oem_number', 'brand', 'price']
+            ).drop_duplicates(subset=['oem_number', 'brand'], keep='first')
     else:
         final_df = pd.DataFrame()
 
@@ -919,6 +1068,11 @@ async def process_customer_pricelist(
                 provider_id,
                 excluded_autoparts,
             ) in request.excluded_supplier_positions.items():
+                excluded_autoparts = [
+                    int(v)
+                    for v in (excluded_autoparts or [])
+                    if str(v).isdigit()
+                ]
                 final_df = position_exclude(
                     provider_id=provider_id,
                     excluded_autoparts=excluded_autoparts,
@@ -1019,15 +1173,30 @@ async def process_customer_pricelist(
             price_zzap=df_excel, session=session
         )
         logger.debug(f'Измененный файл для ZZAP: {df_excel}')
+    if {'Производитель', 'Наименование'}.issubset(df_excel.columns):
+        df_excel = df_excel.sort_values(
+            by=['Производитель', 'Наименование'], kind='stable'
+        ).reset_index(drop=True)
     await session.commit()
     logger.debug('Calling send_pricelist')
+    recipients = config.emails or (
+        [
+            customer.email_outgoing_price
+        ] if customer.email_outgoing_price else []
+    )
     await send_pricelist(
         customer=customer,
+        to_emails=recipients,
         df_excel=df_excel,
         subject=f'Прайс лист {customer_pricelist.date}',
         body='Добрый день, высылаем Вам наш прайс-лист',
         attachment_filename='zzap_kross.xlsx',
     )
+    if recipients:
+        config.last_sent_at = datetime.now(timezone.utc)
+        session.add(config)
+        await session.commit()
+    logger.debug('Finished send_pricelist')
     logger.debug('Finished send_pricelist')
 
     autoparts_response = []

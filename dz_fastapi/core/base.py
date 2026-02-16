@@ -9,7 +9,8 @@ from dz_fastapi.models.cross import AutoPartCross, AutoPartSubstitution  # noqa
 from dz_fastapi.models.brand import Brand, brand_synonyms  # noqa
 from dz_fastapi.models.partner import (Client, Customer, CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
-                                       CustomerPriceListConfig, Order,
+                                       CustomerPriceListConfig,
+                                       CustomerPriceListSource, Order,
                                        OrderItem, PriceList,
                                        PriceListAutoPartAssociation, Provider,
                                        ProviderAbbreviation,
@@ -36,6 +37,7 @@ __all__ = [
     'CustomerPriceListAutoPartAssociation',
     'ProviderPriceListConfig',
     'CustomerPriceListConfig',
+    'CustomerPriceListSource',
     'Order',
     'OrderItem',
     'ProviderAbbreviation',
