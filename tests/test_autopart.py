@@ -9,9 +9,8 @@ from dz_fastapi.crud.autopart import crud_autopart
 from dz_fastapi.main import app
 from dz_fastapi.models.autopart import (AutoPart, Category, StorageLocation,
                                         change_string, preprocess_oem_number)
-from dz_fastapi.models.partner import (PriceList,
-                                       PriceListAutoPartAssociation)
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation
 from tests.test_constants import TEST_AUTOPART, TEST_BRAND
 
 logger = logging.getLogger('dz_fastapi')
