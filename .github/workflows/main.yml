@@ -251,7 +251,7 @@ jobs:
           # sudo docker compose -f docker-compose.dev.yaml up -d --no-deps --build web
           # sudo docker compose -f docker-compose.dev.yaml down
           # Запускаем с новыми образами          
-          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d
+          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --force-recreate --pull always
           # Ждем запуска и выполняем миграции
           echo "Ждем запуска базы данных..."
           sleep 30
