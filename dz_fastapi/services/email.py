@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import re
@@ -8,6 +9,7 @@ from email.message import EmailMessage
 from io import BytesIO
 from typing import Optional
 
+import aiofiles
 import httpx
 import pandas as pd
 from fastapi import HTTPException
@@ -267,8 +269,8 @@ async def download_new_price_provider(
                     return None
                 filename = os.path.basename(provider_conf.file_url)
                 filepath = os.path.join(DOWNLOAD_FOLDER, filename)
-                with open(filepath, 'wb') as f:
-                    f.write(resp.content)
+                async with aiofiles.open(filepath, 'wb') as f:
+                    await f.write(resp.content)
                 logger.debug(f'Загрузка файла из URL: {filepath}')
                 current_uid = int(msg.uid)
                 last_uid = await get_last_uid(provider.id, session)
@@ -291,8 +293,8 @@ async def download_new_price_provider(
             logger.debug('Имя вложения совпало')
             filepath = os.path.join(DOWNLOAD_FOLDER, att.filename)
             try:
-                with open(filepath, 'wb') as f:
-                    f.write(att.payload)
+                async with aiofiles.open(filepath, 'wb') as f:
+                    await f.write(att.payload)
                 logger.debug('Скачано вложение: %s', filepath)
             except Exception as e:
                 logger.exception(f'Ошибка записи файла {filepath}: {e}')
@@ -310,6 +312,24 @@ async def download_new_price_provider(
     return None
 
 
+def _fetch_mailbox_messages(
+    server_mail: str,
+    email_account: str,
+    email_password: str,
+    main_box: str,
+):
+    with MailBox(server_mail, IMAP_SERVER).login(
+        email_account, email_password
+    ) as mailbox:
+        mailbox.folder.set(main_box)
+        return list(
+            mailbox.fetch(
+                AND(date_gte=date.today(), all=True),
+                charset='utf-8',
+            )
+        )
+
+
 async def get_emails(
     session: AsyncSession,
     server_mail: str = EMAIL_HOST,
@@ -318,71 +338,64 @@ async def get_emails(
     main_box: str = 'INBOX',
 ) -> list[tuple[Provider, str]]:
     downloaded_files = []
-    with MailBox(server_mail, IMAP_SERVER).login(
-        email_account, email_password
-    ) as mailbox:
-        mailbox.folder.set(main_box)
-        all_emails = list(
-            mailbox.fetch(
-                AND(date_gte=date.today(), all=True),
-                charset='utf-8',
-            )
+    all_emails = await asyncio.to_thread(
+        _fetch_mailbox_messages,
+        server_mail,
+        email_account,
+        email_password,
+        main_box,
+    )
+    logger.debug(f'Получено {len(all_emails)} писем за сегодня')
+    for msg in all_emails:
+        logger.debug(
+            f'Письмо: uid={msg.uid}, from={msg.from_}, '
+            f'date={msg.date}, subject={msg.subject}'
         )
-        logger.debug(f'Получено {len(all_emails)} писем за сегодня')
-        for msg in all_emails:
+        provider = await crud_provider.get_by_email_incoming_price(
+            session=session, email=msg.from_
+        )
+        if not provider:
             logger.debug(
-                f'Письмо: uid={msg.uid}, from={msg.from_}, '
-                f'date={msg.date}, subject={msg.subject}'
+                f'Провайдер для email {msg.from_} '
+                f'не найден, пропускаем письмо uid={msg.uid}'
             )
-            provider = await crud_provider.get_by_email_incoming_price(
-                session=session, email=msg.from_
-            )
-            if not provider:
-                logger.debug(
-                    f'Провайдер для email {msg.from_} '
-                    f'не найден, пропускаем письмо uid={msg.uid}'
-                )
-                continue  # Если провайдера нет, пропускаем письмо
+            continue  # Если провайдера нет, пропускаем письмо
 
-            # Получаем все конфигурации для данного провайдера
-            provider_confs = await crud_provider_pricelist_config.get_configs(
-                provider_id=provider.id, session=session
+        # Получаем все конфигурации для данного провайдера
+        provider_confs = await crud_provider_pricelist_config.get_configs(
+            provider_id=provider.id, session=session
+        )
+        if not provider_confs:
+            logger.debug(
+                f'Конфигураций для провайдера {provider.id} не найдена, '
+                f'пропускаем письмо uid={msg.uid}'
             )
-            if not provider_confs:
-                logger.debug(
-                    f'Конфигураций для провайдера {provider.id} не найдена, '
-                    f'пропускаем письмо uid={msg.uid}'
-                )
-                continue
-            last_uid = await get_last_uid(
-                provider_id=provider.id, session=session
-            )
-            if last_uid >= int(msg.uid):
-                logger.debug(f'Старое UID = {msg.uid}, пропускаем письмо')
-                continue  # Если UID записанное равно или больше,
-                # пропускаем письмо
-            file_downloaded = False
+            continue
+        last_uid = await get_last_uid(provider_id=provider.id, session=session)
+        if last_uid >= int(msg.uid):
+            logger.debug(f'Старое UID = {msg.uid}, пропускаем письмо')
+            continue  # Если UID записанное равно или больше,
+            # пропускаем письмо
+        file_downloaded = False
 
-            for provider_conf in provider_confs:
-                logger.debug(f'Config: {provider_conf}')
-                filepath = await download_new_price_provider(
-                    msg=msg,
-                    provider=provider,
-                    provider_conf=provider_conf,
-                    session=session,
-                )
-                if filepath:
-                    # Если файл успешно скачан, помечаем письмо как прочитанное
-                    # mailbox.flag(msg.uid, [r'\Seen'], True)
-                    downloaded_files.append(
-                        (provider, filepath, provider_conf)
-                    )
-                    file_downloaded = True
-            if not file_downloaded:
-                logger.debug(
-                    f'Письмо uid={msg.uid} не удовлетворило условиям загрузки'
-                )
-        return downloaded_files
+        for provider_conf in provider_confs:
+            logger.debug(f'Config: {provider_conf}')
+            filepath = await download_new_price_provider(
+                msg=msg,
+                provider=provider,
+                provider_conf=provider_conf,
+                session=session,
+            )
+            if filepath:
+                # Если файл успешно скачан, помечаем письмо как прочитанное
+                # mailbox.flag(msg.uid, [r'\Seen'], True)
+                downloaded_files.append((provider, filepath, provider_conf))
+                file_downloaded = True
+        if not file_downloaded:
+            logger.debug(
+                f'Письмо uid={msg.uid} не удовлетворило условиям загрузки'
+            )
+    return downloaded_files
 
 
 def send_order_to_provider(order: Order, provider_email: str):

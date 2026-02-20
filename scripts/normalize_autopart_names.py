@@ -1,10 +1,9 @@
 import asyncio
 import logging
 
-from sqlalchemy import select
+from sqlalchemy import text
 
 from dz_fastapi.core.db import get_async_session
-from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.services.utils import normalize_mixed_cyrillic
 
 logger = logging.getLogger('dz_fastapi')
@@ -15,21 +14,30 @@ async def normalize_batch(limit: int, offset: int) -> tuple[int, int]:
     session_factory = get_async_session()
     async with session_factory() as session:
         result = await session.execute(
-            select(AutoPart).order_by(AutoPart.id.asc()).offset(offset).limit(limit)
+            text(
+                "SELECT id, name FROM autopart "
+                "ORDER BY id ASC "
+                "LIMIT :limit OFFSET :offset"
+            ),
+            {"limit": limit, "offset": offset},
         )
-        parts = result.scalars().all()
-        if not parts:
+        rows = result.fetchall()
+        if not rows:
             return 0, 0
 
         updated = 0
         total = 0
-        for part in parts:
+        for row in rows:
             total += 1
-            if not part.name:
+            name = row.name
+            if not name:
                 continue
-            normalized = normalize_mixed_cyrillic(part.name)
-            if normalized != part.name:
-                part.name = normalized
+            normalized = normalize_mixed_cyrillic(name)
+            if normalized != name:
+                await session.execute(
+                    text("UPDATE autopart SET name = :name WHERE id = :id"),
+                    {"name": normalized, "id": row.id},
+                )
                 updated += 1
         await session.commit()
         return total, updated

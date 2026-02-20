@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from dz_fastapi.api.auth import router as auth_router
 from dz_fastapi.api.autopart import router as autopart_router
 from dz_fastapi.api.brand import router as brand_router
 from dz_fastapi.api.order import router as order_router
@@ -17,6 +18,7 @@ from dz_fastapi.api.partner import router as partner_router
 from dz_fastapi.api.webchat import router as webchat_router
 from dz_fastapi.core.config import settings
 from dz_fastapi.core.db import get_async_session
+from dz_fastapi.services.auth import ensure_admin_user
 from dz_fastapi.services.scheduler import start_scheduler
 from dz_fastapi.services.telegram_bot import start_telegram_bot
 
@@ -53,6 +55,11 @@ async def new_session(app: FastAPI) -> AsyncIterator[AsyncSession]:
 async def lifespan(app: FastAPI):
     # 1) Создаём одну фабрику сессий и кладём в app.state
     app.state.session_factory = get_async_session()
+    try:
+        async with app.state.session_factory() as session:
+            await ensure_admin_user(session)
+    except Exception as e:
+        logger.error(f'Failed to ensure admin user: {e}')
     # 2) Стартуем планировщик и сохраняем его, чтобы потом корректно остановить
     scheduler = start_scheduler(app)
     app.state.scheduler = scheduler
@@ -113,6 +120,7 @@ app.add_middleware(
     allow_headers=['*'],
 )
 app.include_router(autopart_router)
+app.include_router(auth_router)
 app.include_router(brand_router)
 app.include_router(partner_router)
 app.include_router(order_router)

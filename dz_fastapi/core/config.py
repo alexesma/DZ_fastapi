@@ -15,6 +15,19 @@ class Settings(BaseSettings):
     asyncpg_dsn: str = Field(..., json_schema_extra={'env': 'ASYNC_PG_DSN'})
     use_test_db: bool = False
     database_echo: bool = False
+    jwt_secret: str = Field(
+        'change-me', json_schema_extra={'env': 'JWT_SECRET'}
+    )
+    jwt_algorithm: str = 'HS256'
+    jwt_access_token_expire_minutes: int = 60 * 24
+    auth_cookie_name: str = 'access_token'
+    auth_cookie_secure: bool = False
+    admin_email: str | None = Field(
+        None, json_schema_extra={'env': 'ADMIN_EMAIL'}
+    )
+    admin_password: str | None = Field(
+        None, json_schema_extra={'env': 'ADMIN_PASSWORD'}
+    )
 
     model_config = SettingsConfigDict(
         extra="allow",

@@ -16,6 +16,7 @@ from dz_fastapi.models.partner import (Client, Customer, CustomerPriceList,
                                        ProviderAbbreviation,
                                        ProviderLastEmailUID,
                                        ProviderPriceListConfig)
+from dz_fastapi.models.user import User  # noqa
 from dz_fastapi.models.webchat import ChatMessage
 
 __all__ = [
@@ -47,5 +48,6 @@ __all__ = [
     'AutoPartRestockDecisionSupplier',
     'AutoPartCross',
     'AutoPartSubstitution',
-    'ChatMessage'
+    'ChatMessage',
+    'User',
 ]

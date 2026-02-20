@@ -238,6 +238,91 @@ def process_download_pricelist(
         raise HTTPException(status_code=400, detail=f'Invalid format file:{e}')
 
 
+def _prepare_pricelist_data(
+    file_extension: str,
+    file_content: bytes,
+    start_row: int,
+    oem_col: int,
+    brand_col: Optional[int],
+    name_col: Optional[int],
+    qty_col: int,
+    price_col: int,
+):
+    df = process_download_pricelist(
+        file_extension=file_extension, file_content=file_content
+    )
+    data_df = df.iloc[start_row:]
+    required_columns = {
+        'oem_number': oem_col,
+        'brand': brand_col,
+        'name': name_col,
+        'quantity': qty_col,
+        'price': price_col,
+    }
+    required_columns = {
+        k: v for k, v in required_columns.items() if v is not None
+    }
+
+    data_df = data_df.loc[:, list(required_columns.values())]
+    data_df.columns = list(required_columns.keys())
+
+    total_rows = len(data_df)
+    data_df.dropna(subset=['oem_number', 'quantity', 'price'], inplace=True)
+    data_df['oem_number'] = (
+        data_df['oem_number']
+        .astype(str)
+        .str.strip()
+        .apply(preprocess_oem_number)
+    )
+    if 'name' in data_df.columns:
+        data_df['name'] = (
+            data_df['name']
+            .astype(str)
+            .str.strip()
+            .apply(normalize_mixed_cyrillic)
+        )
+    if 'brand' in data_df.columns:
+        data_df['brand'] = data_df['brand'].astype(str).str.strip()
+    data_df['quantity'] = (
+        data_df['quantity']
+        .astype(str)
+        .str.replace(',', '.', regex=False)
+        .str.replace(r'[^\d\.]', '', regex=True)
+    )
+    data_df['price'] = (
+        data_df['price']
+        .astype(str)
+        .str.replace(',', '.', regex=False)
+        .str.replace(r'[^\d\.]', '', regex=True)
+    )
+    data_df['quantity'] = pd.to_numeric(data_df['quantity'], errors='coerce')
+    data_df['price'] = pd.to_numeric(data_df['price'], errors='coerce')
+    data_df.dropna(subset=['quantity', 'price'], inplace=True)
+    MAX_PRICE = 99999999.99
+    before_count = len(data_df)
+    data_df = data_df[data_df['price'] <= MAX_PRICE]
+    after_count = len(data_df)
+    logger.debug(
+        f'Removed {before_count - after_count} '
+        f'rows due to exceeding price {MAX_PRICE}'
+    )
+    data_df = data_df[data_df['price'] >= 0]
+    clean_rows = len(data_df)
+
+    autoparts_data = data_df.to_dict(orient='records')
+    deduplicated_data = deduplicate_autoparts_data(autoparts_data)
+    dedup_rows = len(deduplicated_data)
+
+    stats = {
+        'rows_total': int(total_rows),
+        'rows_clean': int(clean_rows),
+        'rows_deduplicated': int(dedup_rows),
+        'rows_removed': int(max(total_rows - clean_rows, 0)),
+        'rows_dedup_removed': int(max(clean_rows - dedup_rows, 0)),
+    }
+    return deduplicated_data, stats
+
+
 async def process_provider_pricelist(
     provider: Provider,
     file_content: bytes,
@@ -277,109 +362,27 @@ async def process_provider_pricelist(
                 status_code=400, detail='Missing required parameters.'
             )
 
-    # Load the file into a DataFrame
-    df = process_download_pricelist(
-        file_extension=file_extension, file_content=file_content
-    )
-
     try:
-        data_df = df.iloc[start_row:]
-        required_columns = {
-            'oem_number': oem_col,
-            'brand': brand_col,
-            'name': name_col,
-            'quantity': qty_col,
-            'price': price_col,
-        }
-        required_columns = {
-            k: v for k, v in required_columns.items() if v is not None
-        }
-
-        data_df = data_df.loc[:, list(required_columns.values())]
-        data_df.columns = list(required_columns.keys())
-        logger.debug(f'file df = {data_df}')
+        deduplicated_data, stats = await asyncio.to_thread(
+            _prepare_pricelist_data,
+            file_extension,
+            file_content,
+            start_row,
+            oem_col,
+            brand_col,
+            name_col,
+            qty_col,
+            price_col,
+        )
     except KeyError as e:
         raise HTTPException(
             status_code=422, detail=f'Invalid column indices provided: {e}'
         )
-
-    try:
-        total_rows = len(data_df)
-        data_df.dropna(
-            subset=['oem_number', 'quantity', 'price'], inplace=True
-        )
-        data_df['oem_number'] = (
-            data_df['oem_number']
-            .astype(str)
-            .str.strip()
-            .apply(preprocess_oem_number)
-        )
-        if 'name' in data_df.columns:
-            data_df['name'] = (
-                data_df['name']
-                .astype(str)
-                .str.strip()
-                .apply(normalize_mixed_cyrillic)
-            )
-        if 'brand' in data_df.columns:
-            data_df['brand'] = data_df['brand'].astype(str).str.strip()
-        data_df['quantity'] = (
-            data_df['quantity']
-            .astype(str)
-            .str.replace(',', '.', regex=False)
-            .str.replace(r'[^\d\.]', '', regex=True)
-        )
-        data_df['price'] = (
-            data_df['price']
-            .astype(str)
-            .str.replace(',', '.', regex=False)
-            .str.replace(r'[^\d\.]', '', regex=True)
-        )
-        data_df['quantity'] = pd.to_numeric(
-            data_df['quantity'], errors='coerce'
-        )
-        data_df['price'] = pd.to_numeric(data_df['price'], errors='coerce')
-        data_df.dropna(subset=['quantity', 'price'], inplace=True)
-        # Удаляем (или игнорируем) записи со слишком большой ценой
-        MAX_PRICE = 99999999.99
-        before_count = len(data_df)
-        data_df = data_df[data_df['price'] <= MAX_PRICE]
-        after_count = len(data_df)
-        logger.debug(
-            f'Removed {before_count - after_count} '
-            f'rows due to exceeding price {MAX_PRICE}'
-        )
-
-        # и отрицательные цены:
-        data_df = data_df[data_df['price'] >= 0]
-        clean_rows = len(data_df)
     except Exception as e:
         logger.error(f"Error during data cleaning: {e}")
         raise HTTPException(
             status_code=400, detail='Error during data cleaning.'
         )
-    # (1) Получили список dict из DataFrame:
-    autoparts_data = data_df.to_dict(orient='records')
-    logger.debug(
-        f'autoparts_data перед дедупликацией: '
-        f'{autoparts_data[:10]} (всего: {len(autoparts_data)})'
-    )
-
-    # (2) Убрали/слили дубликаты:
-    deduplicated_data = deduplicate_autoparts_data(autoparts_data)
-    logger.debug(
-        f'deduplicated_data после дедупликации: '
-        f'{deduplicated_data[:10]} (всего: {len(deduplicated_data)})'
-    )
-    dedup_rows = len(deduplicated_data)
-
-    stats = {
-        'rows_total': int(total_rows),
-        'rows_clean': int(clean_rows),
-        'rows_deduplicated': int(dedup_rows),
-        'rows_removed': int(max(total_rows - clean_rows, 0)),
-        'rows_dedup_removed': int(max(clean_rows - dedup_rows, 0)),
-    }
 
     pricelist_in = PriceListCreate(
         provider_id=provider.id,
