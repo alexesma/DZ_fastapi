@@ -1,0 +1,1198 @@
+2026-02-20 16:12:01,118 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3608701AKW09A', 'name': 'Ключ Механический От Замка Зажигания', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,139 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,139 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,142 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff75c75e80>
+2026-02-20 16:12:01,144 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74ae92e0>
+2026-02-20 16:12:01,144 - dz_fastapi - DEBUG - Autopart already exists: ID 42389
+2026-02-20 16:12:01,144 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3608703XKW09A', 'name': 'Ключ Механический', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,145 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3608703XKW09A' name='Ключ Механический' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,145 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3608703XKW09A', 'name': 'Ключ Механический', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,145 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,145 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,146 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff8ca362d0>
+2026-02-20 16:12:01,147 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74601820>
+2026-02-20 16:12:01,147 - dz_fastapi - DEBUG - Autopart already exists: ID 42390
+2026-02-20 16:12:01,147 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3608740XKV11A', 'name': 'Комплект Ключей H9', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,147 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3608740XKV11A' name='Комплект Ключей H9' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,147 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3608740XKV11A', 'name': 'Комплект Ключей H9', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,148 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,148 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,149 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff8ca37470>
+2026-02-20 16:12:01,150 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767dcf20>
+2026-02-20 16:12:01,150 - dz_fastapi - DEBUG - Autopart already exists: ID 42391
+2026-02-20 16:12:01,150 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3608750XKV11A', 'name': 'Комплект Ключей', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,150 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3608750XKV11A' name='Комплект Ключей' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,150 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3608750XKV11A', 'name': 'Комплект Ключей', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,150 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,150 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,151 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff8ca48140>
+2026-02-20 16:12:01,152 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff72a0f500>
+2026-02-20 16:12:01,152 - dz_fastapi - DEBUG - Autopart already exists: ID 42392
+2026-02-20 16:12:01,152 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3608800XKV08A', 'name': 'Кронштейн Антенны Низкочастотной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,152 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3608800XKV08A' name='Кронштейн Антенны Низкочастотной' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,152 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3608800XKV08A', 'name': 'Кронштейн Антенны Низкочастотной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,152 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,152 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,153 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74601a00>
+2026-02-20 16:12:01,154 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74602de0>
+2026-02-20 16:12:01,154 - dz_fastapi - DEBUG - Autopart already exists: ID 42394
+2026-02-20 16:12:01,154 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3608900XKW09A', 'name': 'Зуммер В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,155 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3608900XKW09A' name='Зуммер В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,155 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3608900XKW09A', 'name': 'Зуммер В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,155 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,155 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,156 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746003e0>
+2026-02-20 16:12:01,157 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff6608d130>
+2026-02-20 16:12:01,157 - dz_fastapi - DEBUG - Autopart already exists: ID 42395
+2026-02-20 16:12:01,157 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3609100XKN01A', 'name': 'Блок Управления Круговым Обзором', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,157 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3609100XKN01A' name='Блок Управления Круговым Обзором' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,157 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3609100XKN01A', 'name': 'Блок Управления Круговым Обзором', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,158 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,158 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,158 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746003e0>
+2026-02-20 16:12:01,160 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74600680>
+2026-02-20 16:12:01,160 - dz_fastapi - DEBUG - Autopart already exists: ID 42396
+2026-02-20 16:12:01,160 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3609100XKQ00A', 'name': 'Блок Управления Круговым Обзором', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,160 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3609100XKQ00A' name='Блок Управления Круговым Обзором' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,160 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3609100XKQ00A', 'name': 'Блок Управления Круговым Обзором', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,160 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,160 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,161 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff72a0f500>
+2026-02-20 16:12:01,162 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600cd40>
+2026-02-20 16:12:01,162 - dz_fastapi - DEBUG - Autopart already exists: ID 42398
+2026-02-20 16:12:01,162 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3609100XKQ41A', 'name': 'Блок Управления Круговым Обзором', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,162 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3609100XKQ41A' name='Блок Управления Круговым Обзором' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,163 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3609100XKQ41A', 'name': 'Блок Управления Круговым Обзором', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,163 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,163 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,164 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74602de0>
+2026-02-20 16:12:01,165 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600f080>
+2026-02-20 16:12:01,165 - dz_fastapi - DEBUG - Autopart already exists: ID 42399
+2026-02-20 16:12:01,165 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3609100XPW46A', 'name': 'Интеллектуальная Камера Передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,165 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3609100XPW46A' name='Интеллектуальная Камера Передняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,165 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3609100XPW46A', 'name': 'Интеллектуальная Камера Передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,165 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,165 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,166 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600fa40>
+2026-02-20 16:12:01,168 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600fb00>
+2026-02-20 16:12:01,168 - dz_fastapi - DEBUG - Autopart already exists: ID 62745
+2026-02-20 16:12:01,168 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3609100YKN01A', 'name': 'Камера Фронтальная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,168 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3609100YKN01A' name='Камера Фронтальная' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,168 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3609100YKN01A', 'name': 'Камера Фронтальная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,168 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,168 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,169 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600e8a0>
+2026-02-20 16:12:01,170 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600d3a0>
+2026-02-20 16:12:01,170 - dz_fastapi - DEBUG - Autopart already exists: ID 42402
+2026-02-20 16:12:01,170 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611010ED01', 'name': 'Датчик Положения Распредвала 4D20 DELPHI', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,171 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611010ED01' name='Датчик Положения Распредвала 4D20 DELPHI' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,171 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611010ED01', 'name': 'Датчик Положения Распредвала 4D20 DELPHI', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,171 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,171 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,172 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600f080>
+2026-02-20 16:12:01,173 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600db20>
+2026-02-20 16:12:01,173 - dz_fastapi - DEBUG - Autopart already exists: ID 42404
+2026-02-20 16:12:01,173 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611010EG01', 'name': 'Датчик Положения Распредвала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,173 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611010EG01' name='Датчик Положения Распредвала' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,173 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611010EG01', 'name': 'Датчик Положения Распредвала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,173 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,174 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,174 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600ec60>
+2026-02-20 16:12:01,175 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600e540>
+2026-02-20 16:12:01,175 - dz_fastapi - DEBUG - Autopart already exists: ID 42405
+2026-02-20 16:12:01,176 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611010XEC01', 'name': 'Датчик Температуры Входящего Воздуха', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,176 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611010XEC01' name='Датчик Температуры Входящего Воздуха' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,176 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611010XEC01', 'name': 'Датчик Температуры Входящего Воздуха', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,176 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,176 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,177 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600e8a0>
+2026-02-20 16:12:01,178 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff75906a20>
+2026-02-20 16:12:01,178 - dz_fastapi - DEBUG - Autopart already exists: ID 42406
+2026-02-20 16:12:01,178 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611010XED61', 'name': 'Датчик Положения Распредвала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,178 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611010XED61' name='Датчик Положения Распредвала' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,178 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611010XED61', 'name': 'Датчик Положения Распредвала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,178 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,178 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,179 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600d3a0>
+2026-02-20 16:12:01,180 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767a5b20>
+2026-02-20 16:12:01,181 - dz_fastapi - DEBUG - Autopart already exists: ID 42407
+2026-02-20 16:12:01,181 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611010XEG08B', 'name': 'Датчик Положения Распредвала 4D20 DELPHI', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,181 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611010XEG08B' name='Датчик Положения Распредвала 4D20 DELPHI' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,181 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611010XEG08B', 'name': 'Датчик Положения Распредвала 4D20 DELPHI', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,181 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,181 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,182 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600e480>
+2026-02-20 16:12:01,183 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600e360>
+2026-02-20 16:12:01,183 - dz_fastapi - DEBUG - Autopart already exists: ID 42409
+2026-02-20 16:12:01,183 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611020XEC01', 'name': 'Датчик Давления Во Впускном Коллекторе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,183 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611020XEC01' name='Датчик Давления Во Впускном Коллекторе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,183 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611020XEC01', 'name': 'Датчик Давления Во Впускном Коллекторе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,183 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,183 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,184 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600ec60>
+2026-02-20 16:12:01,185 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff746037a0>
+2026-02-20 16:12:01,185 - dz_fastapi - DEBUG - Autopart already exists: ID 42410
+2026-02-20 16:12:01,185 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611030ED01', 'name': 'Датчик Положения Коленвала 4D20 DELPHI', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,185 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611030ED01' name='Датчик Положения Коленвала 4D20 DELPHI' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,185 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611030ED01', 'name': 'Датчик Положения Коленвала 4D20 DELPHI', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,185 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,186 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,186 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600e360>
+2026-02-20 16:12:01,188 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8ca36db0>
+2026-02-20 16:12:01,188 - dz_fastapi - DEBUG - Autopart already exists: ID 42411
+2026-02-20 16:12:01,188 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611030EG01', 'name': 'Датчик Положения Коленвала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,188 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611030EG01' name='Датчик Положения Коленвала' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,188 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611030EG01', 'name': 'Датчик Положения Коленвала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,189 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,189 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,190 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746003e0>
+2026-02-20 16:12:01,190 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8c980350>
+2026-02-20 16:12:01,191 - dz_fastapi - DEBUG - Autopart already exists: ID 42412
+2026-02-20 16:12:01,191 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611040EG01', 'name': 'Датчик Детонации', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,191 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611040EG01' name='Датчик Детонации' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,191 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611040EG01', 'name': 'Датчик Детонации', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,191 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,191 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,192 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff6608d130>
+2026-02-20 16:12:01,193 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff736d40e0>
+2026-02-20 16:12:01,193 - dz_fastapi - DEBUG - Autopart already exists: ID 42413
+2026-02-20 16:12:01,193 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611040XED61', 'name': 'Датчик Давления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,193 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611040XED61' name='Датчик Давления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,193 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611040XED61', 'name': 'Датчик Давления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,193 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,194 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,194 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746003e0>
+2026-02-20 16:12:01,195 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581f140>
+2026-02-20 16:12:01,196 - dz_fastapi - DEBUG - Autopart already exists: ID 42414
+2026-02-20 16:12:01,196 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611040XED95', 'name': 'Датчик Температуры Нисходящего Потока Системы EGR', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,196 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611040XED95' name='Датчик Температуры Нисходящего Потока Системы EGR' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,196 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611040XED95', 'name': 'Датчик Температуры Нисходящего Потока Системы EGR', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,196 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,196 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,197 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581fb60>
+2026-02-20 16:12:01,198 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600fb60>
+2026-02-20 16:12:01,198 - dz_fastapi - DEBUG - Autopart already exists: ID 42415
+2026-02-20 16:12:01,198 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611050XEN03', 'name': 'Датчик Положения Системы CVVL', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,198 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611050XEN03' name='Датчик Положения Системы CVVL' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,198 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611050XEN03', 'name': 'Датчик Положения Системы CVVL', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,198 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,199 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,200 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600cf80>
+2026-02-20 16:12:01,201 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600e480>
+2026-02-20 16:12:01,201 - dz_fastapi - DEBUG - Autopart already exists: ID 76097
+2026-02-20 16:12:01,201 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611055XEB03', 'name': 'Датчик Положения Системы CVVL', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,201 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611055XEB03' name='Датчик Положения Системы CVVL' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,201 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611055XEB03', 'name': 'Датчик Положения Системы CVVL', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,201 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,201 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,202 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600d3a0>
+2026-02-20 16:12:01,203 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600d5e0>
+2026-02-20 16:12:01,203 - dz_fastapi - DEBUG - Autopart already exists: ID 42416
+2026-02-20 16:12:01,203 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611055XEB04', 'name': 'Датчик Положения Системы CVVL', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,204 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611055XEB04' name='Датчик Положения Системы CVVL' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,204 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611055XEB04', 'name': 'Датчик Положения Системы CVVL', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,204 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,204 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,205 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600db20>
+2026-02-20 16:12:01,206 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600fb00>
+2026-02-20 16:12:01,206 - dz_fastapi - DEBUG - Autopart already exists: ID 42417
+2026-02-20 16:12:01,206 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611070ED01', 'name': 'Датчик Температуры Охлаждающей Жидкости 4D20 DELPHI', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,206 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611070ED01' name='Датчик Температуры Охлаждающей Жидкости 4D20 DELPHI' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,206 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611070ED01', 'name': 'Датчик Температуры Охлаждающей Жидкости 4D20 DELPHI', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,206 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,206 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,207 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600d5e0>
+2026-02-20 16:12:01,208 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600db20>
+2026-02-20 16:12:01,209 - dz_fastapi - DEBUG - Autopart already exists: ID 42418
+2026-02-20 16:12:01,209 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611070EG01', 'name': 'Датчик Температуры Охлаждающей Жидкости', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,209 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611070EG01' name='Датчик Температуры Охлаждающей Жидкости' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,209 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611070EG01', 'name': 'Датчик Температуры Охлаждающей Жидкости', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,209 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,209 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,210 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600fb60>
+2026-02-20 16:12:01,212 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600cf80>
+2026-02-20 16:12:01,212 - dz_fastapi - DEBUG - Autopart already exists: ID 57251
+2026-02-20 16:12:01,212 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611075XED56', 'name': 'Датчик Температуры Охлаждающей Жидкости 4D20 DELPHI', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,212 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611075XED56' name='Датчик Температуры Охлаждающей Жидкости 4D20 DELPHI' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,212 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611075XED56', 'name': 'Датчик Температуры Охлаждающей Жидкости 4D20 DELPHI', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,212 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,212 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,213 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600fb60>
+2026-02-20 16:12:01,214 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600e480>
+2026-02-20 16:12:01,214 - dz_fastapi - DEBUG - Autopart already exists: ID 42419
+2026-02-20 16:12:01,214 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611080ED01', 'name': 'Датчик Давления Наддува 4D20', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,214 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611080ED01' name='Датчик Давления Наддува 4D20' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,214 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611080ED01', 'name': 'Датчик Давления Наддува 4D20', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,214 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,215 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,215 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600fb00>
+2026-02-20 16:12:01,216 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600e540>
+2026-02-20 16:12:01,216 - dz_fastapi - DEBUG - Autopart already exists: ID 42420
+2026-02-20 16:12:01,216 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611080EG01T', 'name': 'Датчик Температуры И Давления На Входе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,216 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611080EG01T' name='Датчик Температуры И Давления На Входе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,217 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611080EG01T', 'name': 'Датчик Температуры И Давления На Входе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,217 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,217 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,218 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600d5e0>
+2026-02-20 16:12:01,219 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600cd40>
+2026-02-20 16:12:01,219 - dz_fastapi - DEBUG - Autopart already exists: ID 42421
+2026-02-20 16:12:01,219 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611080XEB04', 'name': 'Датчик Давления Наддува', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,220 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611080XEB04' name='Датчик Давления Наддува' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,220 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611080XEB04', 'name': 'Датчик Давления Наддува', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,220 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,220 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,221 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600fb60>
+2026-02-20 16:12:01,222 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600db20>
+2026-02-20 16:12:01,222 - dz_fastapi - DEBUG - Autopart already exists: ID 42422
+2026-02-20 16:12:01,222 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611080XED61', 'name': 'Датчик Давления Наддува', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,222 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611080XED61' name='Датчик Давления Наддува' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,222 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611080XED61', 'name': 'Датчик Давления Наддува', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,222 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,222 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,223 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600fb00>
+2026-02-20 16:12:01,224 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600cf80>
+2026-02-20 16:12:01,224 - dz_fastapi - DEBUG - Autopart already exists: ID 42423
+2026-02-20 16:12:01,224 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611080XEG08B', 'name': 'Датчик Давления Наддува', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,224 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611080XEG08B' name='Датчик Давления Наддува' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,225 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611080XEG08B', 'name': 'Датчик Давления Наддува', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,225 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,225 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,225 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600d5e0>
+2026-02-20 16:12:01,227 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581c9e0>
+2026-02-20 16:12:01,227 - dz_fastapi - DEBUG - Autopart already exists: ID 42424
+2026-02-20 16:12:01,227 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611080XEN03', 'name': 'Датчик Давления Наддува 4D20', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,228 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611080XEN03' name='Датчик Давления Наддува 4D20' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,228 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611080XEN03', 'name': 'Датчик Давления Наддува 4D20', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,228 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,228 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,229 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a63c0>
+2026-02-20 16:12:01,230 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767a7740>
+2026-02-20 16:12:01,230 - dz_fastapi - DEBUG - Autopart already exists: ID 76098
+2026-02-20 16:12:01,230 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611090AED95', 'name': 'Датчик Температуры', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,230 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611090AED95' name='Датчик Температуры' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,230 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611090AED95', 'name': 'Датчик Температуры', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,231 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,231 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,231 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a77a0>
+2026-02-20 16:12:01,232 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767a50a0>
+2026-02-20 16:12:01,232 - dz_fastapi - DEBUG - Autopart already exists: ID 73319
+2026-02-20 16:12:01,232 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611090BEG01', 'name': 'Клапан Системы VVT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,233 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611090BEG01' name='Клапан Системы VVT' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,233 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611090BEG01', 'name': 'Клапан Системы VVT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,233 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,233 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,234 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff66641670>
+2026-02-20 16:12:01,235 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8ca35610>
+2026-02-20 16:12:01,235 - dz_fastapi - DEBUG - Autopart already exists: ID 42425
+2026-02-20 16:12:01,235 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611090CEG01', 'name': 'Клапан Системы VVT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,235 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611090CEG01' name='Клапан Системы VVT' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,235 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611090CEG01', 'name': 'Клапан Системы VVT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,235 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,235 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,236 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff8ca36db0>
+2026-02-20 16:12:01,238 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767dcf20>
+2026-02-20 16:12:01,238 - dz_fastapi - DEBUG - Autopart already exists: ID 42426
+2026-02-20 16:12:01,238 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611090EG01', 'name': 'Клапан Системы VVT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,238 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611090EG01' name='Клапан Системы VVT' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,238 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611090EG01', 'name': 'Клапан Системы VVT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,238 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,239 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,240 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581e5a0>
+2026-02-20 16:12:01,241 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff72a0f500>
+2026-02-20 16:12:01,241 - dz_fastapi - DEBUG - Autopart already exists: ID 42427
+2026-02-20 16:12:01,241 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611090XED12', 'name': 'Датчик Температуры', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,241 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611090XED12' name='Датчик Температуры' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,241 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611090XED12', 'name': 'Датчик Температуры', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,241 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,241 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,242 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff72763500>
+2026-02-20 16:12:01,243 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff737e9be0>
+2026-02-20 16:12:01,244 - dz_fastapi - DEBUG - Autopart already exists: ID 42428
+2026-02-20 16:12:01,244 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611090XED61', 'name': 'Датчик Температуры', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,244 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611090XED61' name='Датчик Температуры' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,244 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611090XED61', 'name': 'Датчик Температуры', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,244 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,244 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,246 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7242a5a0>
+2026-02-20 16:12:01,247 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8c671760>
+2026-02-20 16:12:01,247 - dz_fastapi - DEBUG - Autopart already exists: ID 42429
+2026-02-20 16:12:01,247 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611100EG01', 'name': 'Датчик Кислородный Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,247 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611100EG01' name='Датчик Кислородный Передний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,247 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611100EG01', 'name': 'Датчик Кислородный Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,247 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,247 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,248 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff75c77c20>
+2026-02-20 16:12:01,249 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff72a0f500>
+2026-02-20 16:12:01,249 - dz_fastapi - DEBUG - Autopart already exists: ID 42432
+2026-02-20 16:12:01,249 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611100XEC01', 'name': 'Датчик Положения Коленвала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,250 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611100XEC01' name='Датчик Положения Коленвала' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,250 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611100XEC01', 'name': 'Датчик Положения Коленвала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,250 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,250 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,251 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff72763500>
+2026-02-20 16:12:01,252 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff72760860>
+2026-02-20 16:12:01,252 - dz_fastapi - DEBUG - Autopart already exists: ID 42433
+2026-02-20 16:12:01,252 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611100XEC02', 'name': 'Расходомер Воздуха', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,252 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611100XEC02' name='Расходомер Воздуха' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,252 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611100XEC02', 'name': 'Расходомер Воздуха', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,252 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,252 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,253 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a7f20>
+2026-02-20 16:12:01,254 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff72ed9e20>
+2026-02-20 16:12:01,255 - dz_fastapi - DEBUG - Autopart already exists: ID 42434
+2026-02-20 16:12:01,255 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611101XKQ00A', 'name': 'Датчик Температуры Воды', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,255 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611101XKQ00A' name='Датчик Температуры Воды' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,255 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611101XKQ00A', 'name': 'Датчик Температуры Воды', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,255 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,255 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,256 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a6060>
+2026-02-20 16:12:01,257 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff75c75e80>
+2026-02-20 16:12:01,257 - dz_fastapi - DEBUG - Autopart already exists: ID 42435
+2026-02-20 16:12:01,258 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611200XEB02', 'name': 'Датчик Температуры Жидкости', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,258 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611200XEB02' name='Датчик Температуры Жидкости' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,258 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611200XEB02', 'name': 'Датчик Температуры Жидкости', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,258 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,258 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,259 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff72edb7a0>
+2026-02-20 16:12:01,260 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600e9c0>
+2026-02-20 16:12:01,260 - dz_fastapi - DEBUG - Autopart already exists: ID 3022
+2026-02-20 16:12:01,260 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611200XED10', 'name': 'Датчик Температуры Охлаждающей Жидкости', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,260 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611200XED10' name='Датчик Температуры Охлаждающей Жидкости' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,261 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611200XED10', 'name': 'Датчик Температуры Охлаждающей Жидкости', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,261 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,261 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,262 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff8f692090>
+2026-02-20 16:12:01,263 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8ca37920>
+2026-02-20 16:12:01,263 - dz_fastapi - DEBUG - Autopart already exists: ID 42436
+2026-02-20 16:12:01,263 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611200XEN03', 'name': 'Датчик Температуры Охлаждающей Жидкости', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,263 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611200XEN03' name='Датчик Температуры Охлаждающей Жидкости' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,263 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611200XEN03', 'name': 'Датчик Температуры Охлаждающей Жидкости', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,264 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,264 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,264 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff72760860>
+2026-02-20 16:12:01,265 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600e9c0>
+2026-02-20 16:12:01,266 - dz_fastapi - DEBUG - Autopart already exists: ID 37413
+2026-02-20 16:12:01,266 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611300AEC06', 'name': 'Датчик Кислорода Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,266 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611300AEC06' name='Датчик Кислорода Передний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,266 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611300AEC06', 'name': 'Датчик Кислорода Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,266 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,266 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,267 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600fa40>
+2026-02-20 16:12:01,268 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74bfce60>
+2026-02-20 16:12:01,268 - dz_fastapi - DEBUG - Autopart already exists: ID 42437
+2026-02-20 16:12:01,268 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611300AEN01', 'name': 'Датчик Кислородный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,268 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611300AEN01' name='Датчик Кислородный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,268 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611300AEN01', 'name': 'Датчик Кислородный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,268 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,268 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,269 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff8ca362d0>
+2026-02-20 16:12:01,270 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff75c75e80>
+2026-02-20 16:12:01,270 - dz_fastapi - DEBUG - Autopart already exists: ID 42438
+2026-02-20 16:12:01,271 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611300XEB05', 'name': 'Датчик Кислорода Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,271 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611300XEB05' name='Датчик Кислорода Передний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,271 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611300XEB05', 'name': 'Датчик Кислорода Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,271 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,271 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,272 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581c9e0>
+2026-02-20 16:12:01,273 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581da00>
+2026-02-20 16:12:01,273 - dz_fastapi - DEBUG - Autopart already exists: ID 42440
+2026-02-20 16:12:01,273 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611300XEC01', 'name': 'Датчик Кислорода Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,273 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611300XEC01' name='Датчик Кислорода Передний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,273 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611300XEC01', 'name': 'Датчик Кислорода Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,273 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,273 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,274 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581f140>
+2026-02-20 16:12:01,275 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600fa40>
+2026-02-20 16:12:01,275 - dz_fastapi - DEBUG - Autopart already exists: ID 42441
+2026-02-20 16:12:01,275 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611300XEC02', 'name': 'Датчик Кислорода Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,275 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611300XEC02' name='Датчик Кислорода Передний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,276 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611300XEC02', 'name': 'Датчик Кислорода Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,276 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,276 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,277 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600fb00>
+2026-02-20 16:12:01,278 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600f080>
+2026-02-20 16:12:01,278 - dz_fastapi - DEBUG - Autopart already exists: ID 42442
+2026-02-20 16:12:01,278 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611300XEC05', 'name': 'Датчик Кислорода Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,278 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611300XEC05' name='Датчик Кислорода Передний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,278 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611300XEC05', 'name': 'Датчик Кислорода Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,278 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,278 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,279 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff666412e0>
+2026-02-20 16:12:01,280 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff666418e0>
+2026-02-20 16:12:01,280 - dz_fastapi - DEBUG - Autopart already exists: ID 42443
+2026-02-20 16:12:01,280 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611300XEC06', 'name': 'Датчик Кислородный Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,280 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611300XEC06' name='Датчик Кислородный Передний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,280 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611300XEC06', 'name': 'Датчик Кислородный Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,280 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,280 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,281 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff666402c0>
+2026-02-20 16:12:01,282 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8c671760>
+2026-02-20 16:12:01,282 - dz_fastapi - DEBUG - Autopart already exists: ID 42444
+2026-02-20 16:12:01,282 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611300XED95', 'name': 'Датчик Кислородный Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,282 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611300XED95' name='Датчик Кислородный Передний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,282 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611300XED95', 'name': 'Датчик Кислородный Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,282 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,282 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,283 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff72ed9e20>
+2026-02-20 16:12:01,284 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74bfce60>
+2026-02-20 16:12:01,284 - dz_fastapi - DEBUG - Autopart already exists: ID 42445
+2026-02-20 16:12:01,284 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611300XEG01', 'name': 'Датчик Кислородный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,284 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611300XEG01' name='Датчик Кислородный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,284 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611300XEG01', 'name': 'Датчик Кислородный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,284 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,284 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,285 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff75904800>
+2026-02-20 16:12:01,286 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600db20>
+2026-02-20 16:12:01,286 - dz_fastapi - DEBUG - Autopart already exists: ID 42446
+2026-02-20 16:12:01,286 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611400CEG01B', 'name': 'Датчик Кислородный Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,286 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611400CEG01B' name='Датчик Кислородный Задний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,286 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611400CEG01B', 'name': 'Датчик Кислородный Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,287 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,287 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,288 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff759077a0>
+2026-02-20 16:12:01,289 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600fa40>
+2026-02-20 16:12:01,289 - dz_fastapi - DEBUG - Autopart already exists: ID 42447
+2026-02-20 16:12:01,289 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611400XEB05', 'name': 'Датчик Кислорода Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,289 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611400XEB05' name='Датчик Кислорода Задний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,289 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611400XEB05', 'name': 'Датчик Кислорода Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,289 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,289 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,290 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746039e0>
+2026-02-20 16:12:01,291 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74602a20>
+2026-02-20 16:12:01,291 - dz_fastapi - DEBUG - Autopart already exists: ID 42448
+2026-02-20 16:12:01,291 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611400XEC01', 'name': 'Датчик Кислорода Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,291 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611400XEC01' name='Датчик Кислорода Задний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,292 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611400XEC01', 'name': 'Датчик Кислорода Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,292 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,292 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,292 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74602c00>
+2026-02-20 16:12:01,294 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74602360>
+2026-02-20 16:12:01,294 - dz_fastapi - DEBUG - Autopart already exists: ID 42449
+2026-02-20 16:12:01,294 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611400XEC05', 'name': 'Датчик Кислорода Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,294 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611400XEC05' name='Датчик Кислорода Задний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,294 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611400XEC05', 'name': 'Датчик Кислорода Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,294 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,294 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,295 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a4b00>
+2026-02-20 16:12:01,296 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581c9e0>
+2026-02-20 16:12:01,296 - dz_fastapi - DEBUG - Autopart already exists: ID 42451
+2026-02-20 16:12:01,296 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611400XEC06', 'name': 'Датчик Кислородный Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,297 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611400XEC06' name='Датчик Кислородный Задний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,297 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611400XEC06', 'name': 'Датчик Кислородный Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,297 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,297 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,298 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581da00>
+2026-02-20 16:12:01,299 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff746032c0>
+2026-02-20 16:12:01,299 - dz_fastapi - DEBUG - Autopart already exists: ID 42452
+2026-02-20 16:12:01,299 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611400XEC51', 'name': 'Датчик Кислородный Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,299 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611400XEC51' name='Датчик Кислородный Задний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,299 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611400XEC51', 'name': 'Датчик Кислородный Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,299 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,299 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,300 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746039e0>
+2026-02-20 16:12:01,301 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74602d80>
+2026-02-20 16:12:01,301 - dz_fastapi - DEBUG - Autopart already exists: ID 42453
+2026-02-20 16:12:01,302 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611400XEC52', 'name': 'Датчик Кислородный Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,302 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611400XEC52' name='Датчик Кислородный Задний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,302 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611400XEC52', 'name': 'Датчик Кислородный Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,302 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,302 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,303 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746013a0>
+2026-02-20 16:12:01,304 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74603440>
+2026-02-20 16:12:01,304 - dz_fastapi - DEBUG - Autopart already exists: ID 76099
+2026-02-20 16:12:01,304 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611400XED95', 'name': 'Датчик Кислородный Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,305 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611400XED95' name='Датчик Кислородный Задний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,305 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611400XED95', 'name': 'Датчик Кислородный Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,305 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,305 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,306 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74601a00>
+2026-02-20 16:12:01,307 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff746032c0>
+2026-02-20 16:12:01,307 - dz_fastapi - DEBUG - Autopart already exists: ID 57252
+2026-02-20 16:12:01,307 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611500XEB03', 'name': 'Датчик Детонации', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,307 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611500XEB03' name='Датчик Детонации' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,308 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611500XEB03', 'name': 'Датчик Детонации', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,308 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,308 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,309 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74602d80>
+2026-02-20 16:12:01,311 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff746039e0>
+2026-02-20 16:12:01,311 - dz_fastapi - DEBUG - Autopart already exists: ID 42454
+2026-02-20 16:12:01,311 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611500XEB05', 'name': 'Датчик Детонации', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,311 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611500XEB05' name='Датчик Детонации' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,311 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611500XEB05', 'name': 'Датчик Детонации', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,311 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,311 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,312 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74601a00>
+2026-02-20 16:12:01,313 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff746013a0>
+2026-02-20 16:12:01,313 - dz_fastapi - DEBUG - Autopart already exists: ID 42455
+2026-02-20 16:12:01,313 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611500XEB07', 'name': 'Датчик Детонации', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,313 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611500XEB07' name='Датчик Детонации' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,313 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611500XEB07', 'name': 'Датчик Детонации', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,314 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,314 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,314 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74601a00>
+2026-02-20 16:12:01,316 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74602d80>
+2026-02-20 16:12:01,316 - dz_fastapi - DEBUG - Autopart already exists: ID 76100
+2026-02-20 16:12:01,316 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611500XEC01', 'name': 'Датчик Детонации', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,316 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611500XEC01' name='Датчик Детонации' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,316 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611500XEC01', 'name': 'Датчик Детонации', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,316 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,317 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,318 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74603440>
+2026-02-20 16:12:01,319 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74602c00>
+2026-02-20 16:12:01,319 - dz_fastapi - DEBUG - Autopart already exists: ID 42456
+2026-02-20 16:12:01,319 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611500XEC02', 'name': 'Датчик Детонации', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,319 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611500XEC02' name='Датчик Детонации' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,319 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611500XEC02', 'name': 'Датчик Детонации', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,319 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,319 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,320 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746038c0>
+2026-02-20 16:12:01,322 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8ca37470>
+2026-02-20 16:12:01,322 - dz_fastapi - DEBUG - Autopart already exists: ID 42457
+2026-02-20 16:12:01,322 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611500XEG01H', 'name': 'Датчик Детонации', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,322 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611500XEG01H' name='Датчик Детонации' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,322 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611500XEG01H', 'name': 'Датчик Детонации', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,322 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,322 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,323 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a5f40>
+2026-02-20 16:12:01,324 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff6608df10>
+2026-02-20 16:12:01,324 - dz_fastapi - DEBUG - Autopart already exists: ID 42458
+2026-02-20 16:12:01,324 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611501XEB07', 'name': 'Кронштейн Датчика Детонации', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,324 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611501XEB07' name='Кронштейн Датчика Детонации' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,324 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611501XEB07', 'name': 'Кронштейн Датчика Детонации', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,324 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,325 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,325 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff66643770>
+2026-02-20 16:12:01,326 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767a4f80>
+2026-02-20 16:12:01,327 - dz_fastapi - DEBUG - Autopart already exists: ID 76101
+2026-02-20 16:12:01,327 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611600XEB02', 'name': 'Датчик Положения Коленвала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,327 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611600XEB02' name='Датчик Положения Коленвала' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,327 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611600XEB02', 'name': 'Датчик Положения Коленвала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,327 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,327 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,328 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff66642420>
+2026-02-20 16:12:01,329 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff66643ad0>
+2026-02-20 16:12:01,329 - dz_fastapi - DEBUG - Autopart already exists: ID 42459
+2026-02-20 16:12:01,329 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611600XEC01', 'name': 'Датчик Положения Распредвала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,329 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611600XEC01' name='Датчик Положения Распредвала' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,329 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611600XEC01', 'name': 'Датчик Положения Распредвала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,329 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,329 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,330 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff66642ed0>
+2026-02-20 16:12:01,331 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8ca3c500>
+2026-02-20 16:12:01,331 - dz_fastapi - DEBUG - Autopart already exists: ID 3020
+2026-02-20 16:12:01,331 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611600XEG01H', 'name': 'Датчик Положения Коленвала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,332 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611600XEG01H' name='Датчик Положения Коленвала' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,332 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611600XEG01H', 'name': 'Датчик Положения Коленвала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,332 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,332 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,333 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581da00>
+2026-02-20 16:12:01,334 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581fb60>
+2026-02-20 16:12:01,334 - dz_fastapi - DEBUG - Autopart already exists: ID 42460
+2026-02-20 16:12:01,334 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611700XEB04', 'name': 'Клапан Системы VVT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,334 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611700XEB04' name='Клапан Системы VVT' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,334 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611700XEB04', 'name': 'Клапан Системы VVT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,334 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,334 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,335 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581c9e0>
+2026-02-20 16:12:01,336 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581f140>
+2026-02-20 16:12:01,336 - dz_fastapi - DEBUG - Autopart already exists: ID 42461
+2026-02-20 16:12:01,336 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611700XEC01', 'name': 'Клапан Системы VVT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,336 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611700XEC01' name='Клапан Системы VVT' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,336 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611700XEC01', 'name': 'Клапан Системы VVT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,337 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,337 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,337 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581e5a0>
+2026-02-20 16:12:01,338 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581da00>
+2026-02-20 16:12:01,339 - dz_fastapi - DEBUG - Autopart already exists: ID 3036
+2026-02-20 16:12:01,339 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611710AEN01', 'name': 'Клапан Системы VVT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,339 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611710AEN01' name='Клапан Системы VVT' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,339 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611710AEN01', 'name': 'Клапан Системы VVT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,339 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,339 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,340 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581c9e0>
+2026-02-20 16:12:01,341 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff746022a0>
+2026-02-20 16:12:01,341 - dz_fastapi - DEBUG - Autopart already exists: ID 42462
+2026-02-20 16:12:01,341 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611710XEB05', 'name': 'Клапан Системы VVT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,341 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611710XEB05' name='Клапан Системы VVT' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,341 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611710XEB05', 'name': 'Клапан Системы VVT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,341 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,342 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,342 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581c9e0>
+2026-02-20 16:12:01,343 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581f140>
+2026-02-20 16:12:01,344 - dz_fastapi - DEBUG - Autopart already exists: ID 61054
+2026-02-20 16:12:01,344 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611720AEN01', 'name': 'Клапан Системы VVT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,344 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611720AEN01' name='Клапан Системы VVT' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,344 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611720AEN01', 'name': 'Клапан Системы VVT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,344 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,344 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,345 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600e480>
+2026-02-20 16:12:01,346 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600fb00>
+2026-02-20 16:12:01,346 - dz_fastapi - DEBUG - Autopart already exists: ID 42463
+2026-02-20 16:12:01,346 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611720XEB05', 'name': 'Клапан Системы VVT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,346 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611720XEB05' name='Клапан Системы VVT' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,346 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611720XEB05', 'name': 'Клапан Системы VVT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,346 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,346 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,347 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600c0e0>
+2026-02-20 16:12:01,348 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff75ea3b60>
+2026-02-20 16:12:01,348 - dz_fastapi - DEBUG - Autopart already exists: ID 57253
+2026-02-20 16:12:01,348 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611800XEB04', 'name': 'Датчик Давления Впрыска Топлива', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,348 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611800XEB04' name='Датчик Давления Впрыска Топлива' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,348 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611800XEB04', 'name': 'Датчик Давления Впрыска Топлива', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,348 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,348 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,349 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff72760860>
+2026-02-20 16:12:01,350 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600fb00>
+2026-02-20 16:12:01,350 - dz_fastapi - DEBUG - Autopart already exists: ID 42464
+2026-02-20 16:12:01,350 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611800XEB05', 'name': 'Датчик Давления В Топливной Рейке', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,350 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611800XEB05' name='Датчик Давления В Топливной Рейке' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,350 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611800XEB05', 'name': 'Датчик Давления В Топливной Рейке', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,351 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,351 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,352 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74f3de20>
+2026-02-20 16:12:01,353 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74602a20>
+2026-02-20 16:12:01,353 - dz_fastapi - DEBUG - Autopart already exists: ID 42465
+2026-02-20 16:12:01,353 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611800XEC01', 'name': 'Датчик Давления Впрыска Топлива', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,353 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611800XEC01' name='Датчик Давления Впрыска Топлива' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,353 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611800XEC01', 'name': 'Датчик Давления Впрыска Топлива', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,353 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,353 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,355 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff8ca36db0>
+2026-02-20 16:12:01,356 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8ca35610>
+2026-02-20 16:12:01,356 - dz_fastapi - DEBUG - Autopart already exists: ID 42466
+2026-02-20 16:12:01,356 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611900AEC01', 'name': 'Датчик Давления Наддува', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,356 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611900AEC01' name='Датчик Давления Наддува' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,356 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611900AEC01', 'name': 'Датчик Давления Наддува', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,356 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,356 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,357 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff8ca37920>
+2026-02-20 16:12:01,358 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600c9e0>
+2026-02-20 16:12:01,358 - dz_fastapi - DEBUG - Autopart already exists: ID 42467
+2026-02-20 16:12:01,358 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3611900XEC01', 'name': 'Датчик Наддува', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,358 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3611900XEC01' name='Датчик Наддува' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,359 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3611900XEC01', 'name': 'Датчик Наддува', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,359 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,359 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,360 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600c6e0>
+2026-02-20 16:12:01,361 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8ca35610>
+2026-02-20 16:12:01,361 - dz_fastapi - DEBUG - Autopart already exists: ID 42468
+2026-02-20 16:12:01,361 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612010E06', 'name': 'Датчик Положения Распредвала 4D20 2.8TC', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,361 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612010E06' name='Датчик Положения Распредвала 4D20 2.8TC' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,361 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612010E06', 'name': 'Датчик Положения Распредвала 4D20 2.8TC', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,361 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,361 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,362 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600ed80>
+2026-02-20 16:12:01,363 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8ca3c500>
+2026-02-20 16:12:01,363 - dz_fastapi - DEBUG - Autopart already exists: ID 42469
+2026-02-20 16:12:01,363 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612100ED01A', 'name': 'Блок Управления Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,363 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612100ED01A' name='Блок Управления Двигателем' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,364 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612100ED01A', 'name': 'Блок Управления Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,364 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,364 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,365 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a7aa0>
+2026-02-20 16:12:01,366 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8ca37350>
+2026-02-20 16:12:01,366 - dz_fastapi - DEBUG - Autopart already exists: ID 42471
+2026-02-20 16:12:01,366 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612100XEB03', 'name': 'Блок Управления Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,366 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612100XEB03' name='Блок Управления Двигателем' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,366 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612100XEB03', 'name': 'Блок Управления Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,366 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,366 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,367 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600d3a0>
+2026-02-20 16:12:01,368 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600f380>
+2026-02-20 16:12:01,368 - dz_fastapi - DEBUG - Autopart already exists: ID 42472
+2026-02-20 16:12:01,368 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612100XEB04', 'name': 'Блок Управления Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,368 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612100XEB04' name='Блок Управления Двигателем' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,369 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612100XEB04', 'name': 'Блок Управления Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,369 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,369 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,369 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff66642b40>
+2026-02-20 16:12:01,371 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74bfce60>
+2026-02-20 16:12:01,371 - dz_fastapi - DEBUG - Autopart already exists: ID 55316
+2026-02-20 16:12:01,371 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612100XEB41', 'name': 'Блок Управления Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,371 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612100XEB41' name='Блок Управления Двигателем' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,371 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612100XEB41', 'name': 'Блок Управления Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,371 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,372 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,373 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600ed80>
+2026-02-20 16:12:01,374 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff759077a0>
+2026-02-20 16:12:01,374 - dz_fastapi - DEBUG - Autopart already exists: ID 62746
+2026-02-20 16:12:01,374 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612100XEC01', 'name': 'Эбу Системы Подачи Топлива', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,374 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612100XEC01' name='Эбу Системы Подачи Топлива' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,374 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612100XEC01', 'name': 'Эбу Системы Подачи Топлива', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,374 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,375 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,376 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff75906180>
+2026-02-20 16:12:01,379 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600ed80>
+2026-02-20 16:12:01,379 - dz_fastapi - DEBUG - Autopart already exists: ID 42474
+2026-02-20 16:12:01,379 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612100XEC36', 'name': 'Блок Управления Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,379 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612100XEC36' name='Блок Управления Двигателем' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,379 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612100XEC36', 'name': 'Блок Управления Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,379 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,379 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,380 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff75ea3b60>
+2026-02-20 16:12:01,381 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581c9e0>
+2026-02-20 16:12:01,381 - dz_fastapi - DEBUG - Autopart already exists: ID 42476
+2026-02-20 16:12:01,381 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612100XEC56', 'name': 'Блок Управления Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,382 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612100XEC56' name='Блок Управления Двигателем' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,382 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612100XEC56', 'name': 'Блок Управления Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,382 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,382 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,383 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746039e0>
+2026-02-20 16:12:01,384 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581ca40>
+2026-02-20 16:12:01,384 - dz_fastapi - DEBUG - Autopart already exists: ID 42477
+2026-02-20 16:12:01,384 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612100XED05', 'name': 'Блок Управления Двигателем 4D20D', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,384 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612100XED05' name='Блок Управления Двигателем 4D20D' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,384 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612100XED05', 'name': 'Блок Управления Двигателем 4D20D', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,384 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,384 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,385 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581f140>
+2026-02-20 16:12:01,386 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600d3a0>
+2026-02-20 16:12:01,386 - dz_fastapi - DEBUG - Autopart already exists: ID 42478
+2026-02-20 16:12:01,387 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612100XED12', 'name': 'Блок Управления Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,387 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612100XED12' name='Блок Управления Двигателем' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,387 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612100XED12', 'name': 'Блок Управления Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,387 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,387 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,388 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600fa40>
+2026-02-20 16:12:01,389 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600c380>
+2026-02-20 16:12:01,389 - dz_fastapi - DEBUG - Autopart already exists: ID 42479
+2026-02-20 16:12:01,389 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612100XED95', 'name': 'Блок Управления Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,389 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612100XED95' name='Блок Управления Двигателем' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,389 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612100XED95', 'name': 'Блок Управления Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,390 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,390 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,390 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600d3a0>
+2026-02-20 16:12:01,391 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600fa40>
+2026-02-20 16:12:01,392 - dz_fastapi - DEBUG - Autopart already exists: ID 42481
+2026-02-20 16:12:01,392 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612100XPW01B', 'name': 'Датчик Температуры', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,392 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612100XPW01B' name='Датчик Температуры' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,392 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612100XPW01B', 'name': 'Датчик Температуры', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,392 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,392 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,393 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74602a20>
+2026-02-20 16:12:01,394 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600c380>
+2026-02-20 16:12:01,394 - dz_fastapi - DEBUG - Autopart already exists: ID 42485
+2026-02-20 16:12:01,394 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612101XKY1YA', 'name': 'Панель Зашитная Блока Управлением Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,394 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612101XKY1YA' name='Панель Зашитная Блока Управлением Двигателем' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,394 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612101XKY1YA', 'name': 'Панель Зашитная Блока Управлением Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,395 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,395 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,395 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746029c0>
+2026-02-20 16:12:01,396 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600e9c0>
+2026-02-20 16:12:01,396 - dz_fastapi - DEBUG - Autopart already exists: ID 42486
+2026-02-20 16:12:01,397 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612103XGW03A', 'name': 'Блок Управления Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,397 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612103XGW03A' name='Блок Управления Двигателем' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,397 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612103XGW03A', 'name': 'Блок Управления Двигателем', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,397 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,397 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,398 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600c380>
+2026-02-20 16:12:01,399 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff75905be0>
+2026-02-20 16:12:01,399 - dz_fastapi - DEBUG - Autopart already exists: ID 42487
+2026-02-20 16:12:01,399 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612104XP6EXB', 'name': 'Датчик Температуры Двс', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,399 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612104XP6EXB' name='Датчик Температуры Двс' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,399 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612104XP6EXB', 'name': 'Датчик Температуры Двс', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,399 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,399 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,400 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff759077a0>
+2026-02-20 16:12:01,401 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8ca37920>
+2026-02-20 16:12:01,401 - dz_fastapi - DEBUG - Autopart already exists: ID 42488
+2026-02-20 16:12:01,401 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612105XPW01A', 'name': 'Кронштейн Датчика', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,401 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612105XPW01A' name='Кронштейн Датчика' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,402 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612105XPW01A', 'name': 'Кронштейн Датчика', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,402 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,402 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,402 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff8ca37470>
+2026-02-20 16:12:01,403 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600e9c0>
+2026-02-20 16:12:01,404 - dz_fastapi - DEBUG - Autopart already exists: ID 42489
+2026-02-20 16:12:01,404 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612200XEB03', 'name': 'Контроллер', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,404 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612200XEB03' name='Контроллер' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,404 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612200XEB03', 'name': 'Контроллер', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,404 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,404 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,405 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581e5a0>
+2026-02-20 16:12:01,406 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581f140>
+2026-02-20 16:12:01,406 - dz_fastapi - DEBUG - Autopart already exists: ID 42491
+2026-02-20 16:12:01,406 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612200XEB04', 'name': 'Контроллер', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,406 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612200XEB04' name='Контроллер' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,406 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612200XEB04', 'name': 'Контроллер', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,406 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,407 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,407 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff8ca37920>
+2026-02-20 16:12:01,408 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff666402c0>
+2026-02-20 16:12:01,408 - dz_fastapi - DEBUG - Autopart already exists: ID 42492
+2026-02-20 16:12:01,408 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612300XED30', 'name': 'Расходомер Воздуха', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,409 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612300XED30' name='Расходомер Воздуха' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,409 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612300XED30', 'name': 'Расходомер Воздуха', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,409 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,409 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,410 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff666417c0>
+2026-02-20 16:12:01,411 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff66643ad0>
+2026-02-20 16:12:01,411 - dz_fastapi - DEBUG - Autopart already exists: ID 42493
+2026-02-20 16:12:01,411 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612300XED61', 'name': 'Расходомер Воздуха', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,411 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612300XED61' name='Расходомер Воздуха' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,411 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612300XED61', 'name': 'Расходомер Воздуха', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,412 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,412 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,413 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff66642e70>
+2026-02-20 16:12:01,414 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff66642420>
+2026-02-20 16:12:01,414 - dz_fastapi - DEBUG - Autopart already exists: ID 61055
+2026-02-20 16:12:01,414 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612300XED95', 'name': 'Расходомер Воздуха', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,414 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612300XED95' name='Расходомер Воздуха' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,414 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612300XED95', 'name': 'Расходомер Воздуха', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,414 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,415 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,415 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a7440>
+2026-02-20 16:12:01,416 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767a67e0>
+2026-02-20 16:12:01,416 - dz_fastapi - DEBUG - Autopart already exists: ID 42494
+2026-02-20 16:12:01,416 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612300XKV86A', 'name': 'Расходомер Воздуха', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,416 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612300XKV86A' name='Расходомер Воздуха' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,416 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612300XKV86A', 'name': 'Расходомер Воздуха', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,416 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,417 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,417 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746019a0>
+2026-02-20 16:12:01,418 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74603b00>
+2026-02-20 16:12:01,418 - dz_fastapi - DEBUG - Autopart already exists: ID 61056
+2026-02-20 16:12:01,418 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612300XKV86B', 'name': 'Расходомер Воздуха', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,418 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612300XKV86B' name='Расходомер Воздуха' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,418 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612300XKV86B', 'name': 'Расходомер Воздуха', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,419 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,419 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,420 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74602d80>
+2026-02-20 16:12:01,421 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff66641670>
+2026-02-20 16:12:01,421 - dz_fastapi - DEBUG - Autopart already exists: ID 42495
+2026-02-20 16:12:01,421 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3612400XKV86A', 'name': 'Датчик Высокой Температуры', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,421 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3612400XKV86A' name='Датчик Высокой Температуры' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,421 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3612400XKV86A', 'name': 'Датчик Высокой Температуры', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,421 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,421 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,422 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff66642ed0>
+2026-02-20 16:12:01,423 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff66643ad0>
+2026-02-20 16:12:01,424 - dz_fastapi - DEBUG - Autopart already exists: ID 42496
+2026-02-20 16:12:01,424 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3624100XK0HXA', 'name': 'Блок Управления 4WD', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,424 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3624100XK0HXA' name='Блок Управления 4WD' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,424 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3624100XK0HXA', 'name': 'Блок Управления 4WD', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,424 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,424 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,425 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff666417c0>
+2026-02-20 16:12:01,426 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff746013a0>
+2026-02-20 16:12:01,426 - dz_fastapi - DEBUG - Autopart already exists: ID 42497
+2026-02-20 16:12:01,426 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3624100XKM01A', 'name': 'Блок Управления 4WD', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,426 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3624100XKM01A' name='Блок Управления 4WD' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,426 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3624100XKM01A', 'name': 'Блок Управления 4WD', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,426 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,426 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,427 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746007a0>
+2026-02-20 16:12:01,428 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff666402c0>
+2026-02-20 16:12:01,428 - dz_fastapi - DEBUG - Autopart already exists: ID 42498
+2026-02-20 16:12:01,428 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3624100XKV09A', 'name': 'Блок Управления Раздаточной Коробки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,428 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3624100XKV09A' name='Блок Управления Раздаточной Коробки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,428 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3624100XKV09A', 'name': 'Блок Управления Раздаточной Коробки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,428 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,428 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,429 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff666418e0>
+2026-02-20 16:12:01,430 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff746013a0>
+2026-02-20 16:12:01,430 - dz_fastapi - DEBUG - Autopart already exists: ID 42499
+2026-02-20 16:12:01,430 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3624100XKV86A', 'name': 'Блок Управления Акпп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,430 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3624100XKV86A' name='Блок Управления Акпп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,430 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3624100XKV86A', 'name': 'Блок Управления Акпп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,430 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,431 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,431 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746003e0>
+2026-02-20 16:12:01,432 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff72ed9e20>
+2026-02-20 16:12:01,432 - dz_fastapi - DEBUG - Autopart already exists: ID 42500
+2026-02-20 16:12:01,432 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3624100XKW57A', 'name': 'Блок Управления Раздаточной Коробки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,433 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3624100XKW57A' name='Блок Управления Раздаточной Коробки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,433 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3624100XKW57A', 'name': 'Блок Управления Раздаточной Коробки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,433 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,433 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,434 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746039e0>
+2026-02-20 16:12:01,435 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74601820>
+2026-02-20 16:12:01,435 - dz_fastapi - DEBUG - Autopart already exists: ID 42501
+2026-02-20 16:12:01,435 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3624100XKY88A', 'name': 'Эбу 4WD', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,435 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3624100XKY88A' name='Эбу 4WD' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,435 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3624100XKY88A', 'name': 'Эбу 4WD', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,436 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,436 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,436 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74602360>
+2026-02-20 16:12:01,438 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74601ac0>
+2026-02-20 16:12:01,438 - dz_fastapi - DEBUG - Autopart already exists: ID 42502
+2026-02-20 16:12:01,438 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3624100XKZ17F', 'name': 'Эбу 4WD', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,438 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3624100XKZ17F' name='Эбу 4WD' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,438 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3624100XKZ17F', 'name': 'Эбу 4WD', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,438 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,438 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,439 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74602ea0>
+2026-02-20 16:12:01,440 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74600620>
+2026-02-20 16:12:01,440 - dz_fastapi - DEBUG - Autopart already exists: ID 42503
+2026-02-20 16:12:01,441 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3624100XSZ09C', 'name': 'Эбу 4WD', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,441 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3624100XSZ09C' name='Эбу 4WD' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,441 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3624100XSZ09C', 'name': 'Эбу 4WD', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,441 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,441 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,442 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74602ea0>
+2026-02-20 16:12:01,443 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74603fe0>
+2026-02-20 16:12:01,443 - dz_fastapi - DEBUG - Autopart already exists: ID 42505
+2026-02-20 16:12:01,443 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3625100XGW01A', 'name': 'Эбу Дифференциала Заднего Моста', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,443 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3625100XGW01A' name='Эбу Дифференциала Заднего Моста' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,443 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3625100XGW01A', 'name': 'Эбу Дифференциала Заднего Моста', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,443 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,443 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,444 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746032c0>
+2026-02-20 16:12:01,445 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8c671760>
+2026-02-20 16:12:01,445 - dz_fastapi - DEBUG - Autopart already exists: ID 42507
+2026-02-20 16:12:01,446 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3636010XKW09A', 'name': 'Датчик Скорости Колеса Переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,446 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3636010XKW09A' name='Датчик Скорости Колеса Переднего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,446 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3636010XKW09A', 'name': 'Датчик Скорости Колеса Переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,446 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,446 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,447 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581ca40>
+2026-02-20 16:12:01,448 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581e5a0>
+2026-02-20 16:12:01,448 - dz_fastapi - DEBUG - Autopart already exists: ID 42509
+2026-02-20 16:12:01,448 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3640100XKV08A', 'name': 'Блок Управления AFS Основной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,448 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3640100XKV08A' name='Блок Управления AFS Основной' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,448 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3640100XKV08A', 'name': 'Блок Управления AFS Основной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,448 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,449 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,449 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581c9e0>
+2026-02-20 16:12:01,451 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581f140>
+2026-02-20 16:12:01,451 - dz_fastapi - DEBUG - Autopart already exists: ID 42510
+2026-02-20 16:12:01,451 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3640100XKV86A', 'name': 'Блок Управления AFS Основной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,451 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3640100XKV86A' name='Блок Управления AFS Основной' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,451 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3640100XKV86A', 'name': 'Блок Управления AFS Основной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,451 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,451 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,452 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581c9e0>
+2026-02-20 16:12:01,454 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581fb60>
+2026-02-20 16:12:01,454 - dz_fastapi - DEBUG - Autopart already exists: ID 42511
+2026-02-20 16:12:01,454 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3640100XKW09A', 'name': 'Блок Управления AFS Основной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,454 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3640100XKW09A' name='Блок Управления AFS Основной' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,454 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3640100XKW09A', 'name': 'Блок Управления AFS Основной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,454 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,454 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,456 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581ca40>
+2026-02-20 16:12:01,457 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581e5a0>
+2026-02-20 16:12:01,458 - dz_fastapi - DEBUG - Autopart already exists: ID 42512
+2026-02-20 16:12:01,458 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3640100XKZ36A', 'name': 'Датчик Положения Кузова Передний ALS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,458 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3640100XKZ36A' name='Датчик Положения Кузова Передний ALS' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,458 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3640100XKZ36A', 'name': 'Датчик Положения Кузова Передний ALS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,458 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,458 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,460 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581c9e0>
+2026-02-20 16:12:01,462 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74600620>
+2026-02-20 16:12:01,462 - dz_fastapi - DEBUG - Autopart already exists: ID 42513
+2026-02-20 16:12:01,462 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3640200XKZ36B', 'name': 'Датчик Положения Кузова Задний ALS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,462 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3640200XKZ36B' name='Датчик Положения Кузова Задний ALS' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,463 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3640200XKZ36B', 'name': 'Датчик Положения Кузова Задний ALS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,463 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,463 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,465 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff666418e0>
+2026-02-20 16:12:01,467 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff66642ed0>
+2026-02-20 16:12:01,467 - dz_fastapi - DEBUG - Autopart already exists: ID 42514
+2026-02-20 16:12:01,467 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3640300XKZ36A', 'name': 'Контроллер Системы ASL', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,467 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3640300XKZ36A' name='Контроллер Системы ASL' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,468 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3640300XKZ36A', 'name': 'Контроллер Системы ASL', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,468 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,468 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,469 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff66641e20>
+2026-02-20 16:12:01,470 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff666417c0>
+2026-02-20 16:12:01,470 - dz_fastapi - DEBUG - Autopart already exists: ID 42515
+2026-02-20 16:12:01,470 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3640700XKV08A', 'name': 'Датчик Положения Кузова Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,470 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3640700XKV08A' name='Датчик Положения Кузова Передний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,470 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3640700XKV08A', 'name': 'Датчик Положения Кузова Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,470 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,471 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,472 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600db20>
+2026-02-20 16:12:01,474 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8f692090>
+2026-02-20 16:12:01,474 - dz_fastapi - DEBUG - Autopart already exists: ID 42516
+2026-02-20 16:12:01,475 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3640800XKV08A', 'name': 'Датчик Положения Кузова Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,475 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3640800XKV08A' name='Датчик Положения Кузова Задний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,475 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3640800XKV08A', 'name': 'Датчик Положения Кузова Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,475 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,475 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,477 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff666417c0>
+2026-02-20 16:12:01,478 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff75c77c20>
+2026-02-20 16:12:01,478 - dz_fastapi - DEBUG - Autopart already exists: ID 42518
+2026-02-20 16:12:01,478 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3640800XKW09A', 'name': 'Датчик Положения Кузова Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,478 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3640800XKW09A' name='Датчик Положения Кузова Задний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,478 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3640800XKW09A', 'name': 'Датчик Положения Кузова Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,479 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,479 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,480 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7242a5a0>
+2026-02-20 16:12:01,481 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff66641670>
+2026-02-20 16:12:01,481 - dz_fastapi - DEBUG - Autopart already exists: ID 42519
+2026-02-20 16:12:01,481 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3641100AKR02A', 'name': 'Датчик TPMS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,482 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3641100AKR02A' name='Датчик TPMS' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,482 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3641100AKR02A', 'name': 'Датчик TPMS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,482 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,482 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,483 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581ca40>
+2026-02-20 16:12:01,485 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74600680>
+2026-02-20 16:12:01,485 - dz_fastapi - DEBUG - Autopart already exists: ID 42520
+2026-02-20 16:12:01,485 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3641100APW01A', 'name': 'Контролертрмs', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,485 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3641100APW01A' name='Контролертрмs' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,485 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3641100APW01A', 'name': 'Контролертрмs', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,485 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,485 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,486 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74602ea0>
+2026-02-20 16:12:01,487 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8c657e30>
+2026-02-20 16:12:01,488 - dz_fastapi - DEBUG - Autopart already exists: ID 42521
+2026-02-20 16:12:01,488 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3641100BKR02A', 'name': 'Датчик Давления Шины', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,488 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3641100BKR02A' name='Датчик Давления Шины' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,488 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3641100BKR02A', 'name': 'Датчик Давления Шины', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,488 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,488 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,490 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74602ea0>
+2026-02-20 16:12:01,491 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767dcf20>
+2026-02-20 16:12:01,491 - dz_fastapi - DEBUG - Autopart already exists: ID 42522
+2026-02-20 16:12:01,491 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3641100XKN01A', 'name': 'Датчик Давления Колеса', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,492 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3641100XKN01A' name='Датчик Давления Колеса' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,492 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3641100XKN01A', 'name': 'Датчик Давления Колеса', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,492 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,492 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,493 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff75c75e80>
+2026-02-20 16:12:01,494 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff75906a20>
+2026-02-20 16:12:01,494 - dz_fastapi - DEBUG - Autopart already exists: ID 42523
+2026-02-20 16:12:01,494 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3641100XKN02A', 'name': 'Датчик Давления Воздуха В Шине', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,495 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3641100XKN02A' name='Датчик Давления Воздуха В Шине' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,495 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3641100XKN02A', 'name': 'Датчик Давления Воздуха В Шине', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,495 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,495 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,496 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74602d80>
+2026-02-20 16:12:01,497 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff75906180>
+2026-02-20 16:12:01,497 - dz_fastapi - DEBUG - Autopart already exists: ID 62749
+2026-02-20 16:12:01,497 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3641100XKU00B', 'name': 'Датчик Контроля Давления В Шинах TPMS H9', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,497 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3641100XKU00B' name='Датчик Контроля Давления В Шинах TPMS H9' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,497 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3641100XKU00B', 'name': 'Датчик Контроля Давления В Шинах TPMS H9', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,497 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,497 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,498 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff759077a0>
+2026-02-20 16:12:01,500 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74602360>
+2026-02-20 16:12:01,500 - dz_fastapi - DEBUG - Autopart already exists: ID 42524
+2026-02-20 16:12:01,500 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3641100XKV3AA', 'name': 'Датчик Давления Колеса', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,500 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3641100XKV3AA' name='Датчик Давления Колеса' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,500 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3641100XKV3AA', 'name': 'Датчик Давления Колеса', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,500 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,500 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,501 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff66641e20>
+2026-02-20 16:12:01,502 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74600800>
+2026-02-20 16:12:01,502 - dz_fastapi - DEBUG - Autopart already exists: ID 42525
+2026-02-20 16:12:01,502 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3641100XKZ16A', 'name': 'Датчик Давления Колеса', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,503 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3641100XKZ16A' name='Датчик Давления Колеса' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,503 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3641100XKZ16A', 'name': 'Датчик Давления Колеса', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,503 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,503 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,504 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff72ed82c0>
+2026-02-20 16:12:01,505 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff72ed9e20>
+2026-02-20 16:12:01,505 - dz_fastapi - DEBUG - Autopart already exists: ID 42526
+2026-02-20 16:12:01,506 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3641100XKZ16B', 'name': 'Датчик Давления Колеса M6', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,506 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3641100XKZ16B' name='Датчик Давления Колеса M6' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,506 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3641100XKZ16B', 'name': 'Датчик Давления Колеса M6', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,506 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,507 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,508 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74603b00>
+2026-02-20 16:12:01,509 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74602d80>
+2026-02-20 16:12:01,509 - dz_fastapi - DEBUG - Autopart already exists: ID 42527
+2026-02-20 16:12:01,509 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3641100XPW01A', 'name': 'Блок TPMS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,510 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3641100XPW01A' name='Блок TPMS' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,510 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3641100XPW01A', 'name': 'Блок TPMS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,510 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,510 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,511 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74600620>
+2026-02-20 16:12:01,512 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74602ea0>
+2026-02-20 16:12:01,512 - dz_fastapi - DEBUG - Autopart already exists: ID 42528
+2026-02-20 16:12:01,512 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3641100XSZ08A', 'name': 'Датчик Давления Колеса', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,513 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3641100XSZ08A' name='Датчик Давления Колеса' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,513 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3641100XSZ08A', 'name': 'Датчик Давления Колеса', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,513 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,513 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,514 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74601ee0>
+2026-02-20 16:12:01,515 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74602360>
+2026-02-20 16:12:01,515 - dz_fastapi - DEBUG - Autopart already exists: ID 42529
+2026-02-20 16:12:01,515 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3641101AKN01A', 'name': 'Датчик Давления В Шине', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,515 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3641101AKN01A' name='Датчик Давления В Шине' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,516 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3641101AKN01A', 'name': 'Датчик Давления В Шине', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,516 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,516 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,517 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74600620>
+2026-02-20 16:12:01,519 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff746039e0>
+2026-02-20 16:12:01,519 - dz_fastapi - DEBUG - Autopart already exists: ID 42530
+2026-02-20 16:12:01,520 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3641101BKN01A', 'name': 'Датчик Давления В Шинах', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,520 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3641101BKN01A' name='Датчик Давления В Шинах' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,520 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3641101BKN01A', 'name': 'Датчик Давления В Шинах', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,520 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,521 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,522 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74601ee0>
+2026-02-20 16:12:01,525 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581ca40>
+2026-02-20 16:12:01,526 - dz_fastapi - DEBUG - Autopart already exists: ID 42531
+2026-02-20 16:12:01,526 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3641101XKN01A', 'name': 'Датчик Давления Колеса', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,526 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3641101XKN01A' name='Датчик Давления Колеса' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,527 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3641101XKN01A', 'name': 'Датчик Давления Колеса', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,527 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,527 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,528 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a7aa0>
+2026-02-20 16:12:01,529 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74f3c080>
+2026-02-20 16:12:01,529 - dz_fastapi - DEBUG - Autopart already exists: ID 37414
+2026-02-20 16:12:01,529 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3641110AK80XA', 'name': 'Датчик Давления Колеса', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,529 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3641110AK80XA' name='Датчик Давления Колеса' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,529 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3641110AK80XA', 'name': 'Датчик Давления Колеса', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,529 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,530 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,530 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff66642420>
+2026-02-20 16:12:01,531 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767a5a00>
+2026-02-20 16:12:01,531 - dz_fastapi - DEBUG - Autopart already exists: ID 42532
+2026-02-20 16:12:01,531 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3641130K80', 'name': 'Программатор Системы TPMS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,532 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3641130K80' name='Программатор Системы TPMS' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,532 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3641130K80', 'name': 'Программатор Системы TPMS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,532 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,532 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,533 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff66642b40>
+2026-02-20 16:12:01,534 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff66642ed0>
+2026-02-20 16:12:01,534 - dz_fastapi - DEBUG - Autopart already exists: ID 42533
+2026-02-20 16:12:01,534 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3641200XK0GXA', 'name': 'Блок Управления TPMS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,534 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3641200XK0GXA' name='Блок Управления TPMS' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,534 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3641200XK0GXA', 'name': 'Блок Управления TPMS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,534 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,534 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,536 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff666402c0>
+2026-02-20 16:12:01,537 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74e558e0>
+2026-02-20 16:12:01,537 - dz_fastapi - DEBUG - Autopart already exists: ID 42534
+2026-02-20 16:12:01,537 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3641200XKR02A', 'name': 'Приёмник TPMS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,538 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3641200XKR02A' name='Приёмник TPMS' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,538 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3641200XKR02A', 'name': 'Приёмник TPMS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,538 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,538 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,539 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff737ea7e0>
+2026-02-20 16:12:01,540 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff737e9be0>
+2026-02-20 16:12:01,540 - dz_fastapi - DEBUG - Autopart already exists: ID 42535
+2026-02-20 16:12:01,540 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3658100XKQ00A', 'name': 'Блок Управления Подушками Безопасности', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,540 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3658100XKQ00A' name='Блок Управления Подушками Безопасности' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,540 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3658100XKQ00A', 'name': 'Блок Управления Подушками Безопасности', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,541 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,541 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,542 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff75959f40>
+2026-02-20 16:12:01,545 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff75ea3b60>
+2026-02-20 16:12:01,546 - dz_fastapi - DEBUG - Autopart already exists: ID 42536
+2026-02-20 16:12:01,546 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3658100XKV08A', 'name': 'Эбу AIR BAG', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,546 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3658100XKV08A' name='Эбу AIR BAG' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,546 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3658100XKV08A', 'name': 'Эбу AIR BAG', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,546 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,546 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,547 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a6660>
+2026-02-20 16:12:01,549 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600cec0>
+2026-02-20 16:12:01,549 - dz_fastapi - DEBUG - Autopart already exists: ID 42537
+2026-02-20 16:12:01,549 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3658100XP9PXA', 'name': 'Эбу Подушки Безопасности', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,549 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3658100XP9PXA' name='Эбу Подушки Безопасности' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,549 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3658100XP9PXA', 'name': 'Эбу Подушки Безопасности', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,549 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,549 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,551 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600f8c0>
+2026-02-20 16:12:01,552 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600cd40>
+2026-02-20 16:12:01,552 - dz_fastapi - DEBUG - Autopart already exists: ID 42539
+2026-02-20 16:12:01,552 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3658101XKQ00A', 'name': 'Эбу Подушки Безопасности', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,552 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3658101XKQ00A' name='Эбу Подушки Безопасности' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:01,552 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3658101XKQ00A', 'name': 'Эбу Подушки Безопасности', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:01,552 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:01,553 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:01,553 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600f8c0>
+2026-02-20 16:12:01,554 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600e9c0>
+2026-02-20 16:12:01,554 - dz_fastapi - DEBUG - Autopart already exists: ID 42540

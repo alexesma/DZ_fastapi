@@ -1,0 +1,1177 @@
+2026-02-20 16:12:06,781 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206331XKW09A' name='Молдинг Лобового Стекла Левый (Нижняя Часть)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,804 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206331XKW09A', 'name': 'Молдинг Лобового Стекла Левый (Нижняя Часть)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,804 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,805 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,806 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746002c0>
+2026-02-20 16:12:06,807 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8ca3c500>
+2026-02-20 16:12:06,807 - dz_fastapi - DEBUG - Autopart already exists: ID 44193
+2026-02-20 16:12:06,808 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206332XKV08A', 'name': 'Молдинг Лобового Стекла Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,808 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206332XKV08A' name='Молдинг Лобового Стекла Правый' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,808 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206332XKV08A', 'name': 'Молдинг Лобового Стекла Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,808 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,808 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,809 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600f8c0>
+2026-02-20 16:12:06,810 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff746022a0>
+2026-02-20 16:12:06,810 - dz_fastapi - DEBUG - Autopart already exists: ID 44194
+2026-02-20 16:12:06,810 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206333XKV08A', 'name': 'Клипса Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,810 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206333XKV08A' name='Клипса Молдинга Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,810 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206333XKV08A', 'name': 'Клипса Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,810 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,810 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,811 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74603fe0>
+2026-02-20 16:12:06,812 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff746007a0>
+2026-02-20 16:12:06,812 - dz_fastapi - DEBUG - Autopart already exists: ID 44195
+2026-02-20 16:12:06,812 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206333XKV08B', 'name': 'Скоба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,812 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206333XKV08B' name='Скоба' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,812 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206333XKV08B', 'name': 'Скоба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,812 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,812 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,813 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746029c0>
+2026-02-20 16:12:06,814 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff72763500>
+2026-02-20 16:12:06,814 - dz_fastapi - DEBUG - Autopart already exists: ID 44196
+2026-02-20 16:12:06,814 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206333XKW09A', 'name': 'Клипса Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,814 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206333XKW09A' name='Клипса Молдинга Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,814 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206333XKW09A', 'name': 'Клипса Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,814 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,814 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,815 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74601ca0>
+2026-02-20 16:12:06,816 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74601820>
+2026-02-20 16:12:06,816 - dz_fastapi - DEBUG - Autopart already exists: ID 44197
+2026-02-20 16:12:06,816 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206334XKV08A', 'name': 'Клипса Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,816 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206334XKV08A' name='Клипса Молдинга Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,816 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206334XKV08A', 'name': 'Клипса Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,816 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,816 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,817 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600d3a0>
+2026-02-20 16:12:06,818 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74602a20>
+2026-02-20 16:12:06,818 - dz_fastapi - DEBUG - Autopart already exists: ID 44198
+2026-02-20 16:12:06,818 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206334XKV08B', 'name': 'Скоба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,818 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206334XKV08B' name='Скоба' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,818 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206334XKV08B', 'name': 'Скоба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,818 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,818 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,819 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74603fe0>
+2026-02-20 16:12:06,820 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff737ea7e0>
+2026-02-20 16:12:06,820 - dz_fastapi - DEBUG - Autopart already exists: ID 44199
+2026-02-20 16:12:06,820 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206337XKV08A', 'name': 'Клипса Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,820 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206337XKV08A' name='Клипса Молдинга Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,820 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206337XKV08A', 'name': 'Клипса Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,821 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,821 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,821 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746002c0>
+2026-02-20 16:12:06,822 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff737e9be0>
+2026-02-20 16:12:06,822 - dz_fastapi - DEBUG - Autopart already exists: ID 44200
+2026-02-20 16:12:06,823 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206337XKV08B', 'name': 'Скоба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,823 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206337XKV08B' name='Скоба' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,823 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206337XKV08B', 'name': 'Скоба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,823 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,823 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,824 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74601820>
+2026-02-20 16:12:06,825 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600d5e0>
+2026-02-20 16:12:06,825 - dz_fastapi - DEBUG - Autopart already exists: ID 44201
+2026-02-20 16:12:06,825 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206338XKV08A', 'name': 'Клипса Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,825 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206338XKV08A' name='Клипса Молдинга Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,825 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206338XKV08A', 'name': 'Клипса Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,825 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,825 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,826 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600f8c0>
+2026-02-20 16:12:06,827 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600f380>
+2026-02-20 16:12:06,827 - dz_fastapi - DEBUG - Autopart already exists: ID 44202
+2026-02-20 16:12:06,827 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206338XKV08B', 'name': 'Скоба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,827 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206338XKV08B' name='Скоба' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,827 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206338XKV08B', 'name': 'Скоба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,827 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,828 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,828 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600ed20>
+2026-02-20 16:12:06,829 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600fa40>
+2026-02-20 16:12:06,829 - dz_fastapi - DEBUG - Autopart already exists: ID 44203
+2026-02-20 16:12:06,829 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206351XKV08A', 'name': 'Клипса Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,829 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206351XKV08A' name='Клипса Молдинга Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,829 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206351XKV08A', 'name': 'Клипса Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,829 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,829 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,830 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600e360>
+2026-02-20 16:12:06,831 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600f8c0>
+2026-02-20 16:12:06,831 - dz_fastapi - DEBUG - Autopart already exists: ID 44204
+2026-02-20 16:12:06,831 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206351XKV08B', 'name': 'Скоба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,831 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206351XKV08B' name='Скоба' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,831 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206351XKV08B', 'name': 'Скоба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,831 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,831 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,832 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600d5e0>
+2026-02-20 16:12:06,833 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600ed20>
+2026-02-20 16:12:06,833 - dz_fastapi - DEBUG - Autopart already exists: ID 44205
+2026-02-20 16:12:06,833 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206352XKV08A', 'name': 'Клипса Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,833 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206352XKV08A' name='Клипса Молдинга Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,833 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206352XKV08A', 'name': 'Клипса Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,833 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,833 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,834 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600f380>
+2026-02-20 16:12:06,835 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74601ca0>
+2026-02-20 16:12:06,835 - dz_fastapi - DEBUG - Autopart already exists: ID 44206
+2026-02-20 16:12:06,835 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206352XKV08B', 'name': 'Скоба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,835 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206352XKV08B' name='Скоба' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,835 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206352XKV08B', 'name': 'Скоба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,835 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,835 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,836 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff72763500>
+2026-02-20 16:12:06,837 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767a6600>
+2026-02-20 16:12:06,837 - dz_fastapi - DEBUG - Autopart already exists: ID 44207
+2026-02-20 16:12:06,837 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206353XKV08A', 'name': 'Клипса Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,837 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206353XKV08A' name='Клипса Молдинга Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,837 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206353XKV08A', 'name': 'Клипса Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,837 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,838 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,838 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74602a20>
+2026-02-20 16:12:06,839 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff736d40e0>
+2026-02-20 16:12:06,839 - dz_fastapi - DEBUG - Autopart already exists: ID 44208
+2026-02-20 16:12:06,839 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206353XKV08B', 'name': 'Скоба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,840 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206353XKV08B' name='Скоба' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,840 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206353XKV08B', 'name': 'Скоба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,840 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,840 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,841 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a6ea0>
+2026-02-20 16:12:06,842 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600f380>
+2026-02-20 16:12:06,842 - dz_fastapi - DEBUG - Autopart already exists: ID 44209
+2026-02-20 16:12:06,842 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206354XKV08A', 'name': 'Клипса Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,842 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206354XKV08A' name='Клипса Молдинга Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,842 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206354XKV08A', 'name': 'Клипса Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,842 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,842 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,843 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a6420>
+2026-02-20 16:12:06,844 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600c9e0>
+2026-02-20 16:12:06,844 - dz_fastapi - DEBUG - Autopart already exists: ID 44210
+2026-02-20 16:12:06,844 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206354XKV08B', 'name': 'Скоба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,844 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206354XKV08B' name='Скоба' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,845 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206354XKV08B', 'name': 'Скоба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,845 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,845 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,846 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600f380>
+2026-02-20 16:12:06,847 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff75905be0>
+2026-02-20 16:12:06,847 - dz_fastapi - DEBUG - Autopart already exists: ID 44211
+2026-02-20 16:12:06,847 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206400CKZ16A', 'name': 'Стекло Лобовое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,847 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206400CKZ16A' name='Стекло Лобовое' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,847 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206400CKZ16A', 'name': 'Стекло Лобовое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,847 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,847 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,848 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600f380>
+2026-02-20 16:12:06,849 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600c6e0>
+2026-02-20 16:12:06,849 - dz_fastapi - DEBUG - Autopart already exists: ID 44212
+2026-02-20 16:12:06,849 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206400DKZ16A', 'name': 'Стекло Лобовое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,849 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206400DKZ16A' name='Стекло Лобовое' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,849 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206400DKZ16A', 'name': 'Стекло Лобовое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,849 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,849 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,850 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600d3a0>
+2026-02-20 16:12:06,851 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600e660>
+2026-02-20 16:12:06,851 - dz_fastapi - DEBUG - Autopart already exists: ID 44213
+2026-02-20 16:12:06,851 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206400XKZ1DA', 'name': 'Стекло В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,852 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206400XKZ1DA' name='Стекло В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,852 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206400XKZ1DA', 'name': 'Стекло В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,852 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,852 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,853 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600ed20>
+2026-02-20 16:12:06,854 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600f080>
+2026-02-20 16:12:06,854 - dz_fastapi - DEBUG - Autopart already exists: ID 74864
+2026-02-20 16:12:06,854 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206500AKN46A', 'name': 'Стекло Лобовое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,854 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206500AKN46A' name='Стекло Лобовое' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,854 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206500AKN46A', 'name': 'Стекло Лобовое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,854 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,854 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,855 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600e360>
+2026-02-20 16:12:06,856 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600f380>
+2026-02-20 16:12:06,856 - dz_fastapi - DEBUG - Autopart already exists: ID 44214
+2026-02-20 16:12:06,856 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206500AKN46B', 'name': 'Стекло Лобовое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,856 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206500AKN46B' name='Стекло Лобовое' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,856 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206500AKN46B', 'name': 'Стекло Лобовое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,856 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,856 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,857 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600c9e0>
+2026-02-20 16:12:06,858 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74603860>
+2026-02-20 16:12:06,858 - dz_fastapi - DEBUG - Autopart already exists: ID 56344
+2026-02-20 16:12:06,858 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206500XKJ20A', 'name': 'Лобовое Стекло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,858 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206500XKJ20A' name='Лобовое Стекло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,858 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206500XKJ20A', 'name': 'Лобовое Стекло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,858 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,859 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,859 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600ed20>
+2026-02-20 16:12:06,860 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600e660>
+2026-02-20 16:12:06,860 - dz_fastapi - DEBUG - Autopart already exists: ID 61143
+2026-02-20 16:12:06,860 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206500XKV08A', 'name': 'Стекло Лобовое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,861 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206500XKV08A' name='Стекло Лобовое' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,861 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206500XKV08A', 'name': 'Стекло Лобовое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,861 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,861 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,862 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74602360>
+2026-02-20 16:12:06,862 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff746003e0>
+2026-02-20 16:12:06,863 - dz_fastapi - DEBUG - Autopart already exists: ID 44215
+2026-02-20 16:12:06,863 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206500XKV86A', 'name': 'Стекло Лобовое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,863 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206500XKV86A' name='Стекло Лобовое' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,863 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206500XKV86A', 'name': 'Стекло Лобовое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,863 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,863 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,864 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600f080>
+2026-02-20 16:12:06,865 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff757ed6a0>
+2026-02-20 16:12:06,865 - dz_fastapi - DEBUG - Autopart already exists: ID 44216
+2026-02-20 16:12:06,865 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206500XKW09A', 'name': 'Стекло Лобовое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,865 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206500XKW09A' name='Стекло Лобовое' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,865 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206500XKW09A', 'name': 'Стекло Лобовое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,865 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,865 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,866 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff737ea7e0>
+2026-02-20 16:12:06,867 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581c9e0>
+2026-02-20 16:12:06,867 - dz_fastapi - DEBUG - Autopart already exists: ID 44217
+2026-02-20 16:12:06,867 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206501ASZ08A', 'name': 'Крышка Датчика Дождя И Света', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,867 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206501ASZ08A' name='Крышка Датчика Дождя И Света' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,867 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206501ASZ08A', 'name': 'Крышка Датчика Дождя И Света', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,867 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,867 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,868 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581da00>
+2026-02-20 16:12:06,869 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581f140>
+2026-02-20 16:12:06,869 - dz_fastapi - DEBUG - Autopart already exists: ID 55331
+2026-02-20 16:12:06,869 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206501XKZ36A', 'name': 'Заглушка Молдинга Левого', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,869 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206501XKZ36A' name='Заглушка Молдинга Левого' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,869 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206501XKZ36A', 'name': 'Заглушка Молдинга Левого', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,870 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,870 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,870 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a6ea0>
+2026-02-20 16:12:06,871 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581c9e0>
+2026-02-20 16:12:06,871 - dz_fastapi - DEBUG - Autopart already exists: ID 44219
+2026-02-20 16:12:06,872 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206503AKZ16A', 'name': 'Крепеж Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,872 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206503AKZ16A' name='Крепеж Молдинга Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,872 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206503AKZ16A', 'name': 'Крепеж Молдинга Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,872 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,872 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,873 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74601160>
+2026-02-20 16:12:06,874 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74601820>
+2026-02-20 16:12:06,874 - dz_fastapi - DEBUG - Autopart already exists: ID 55332
+2026-02-20 16:12:06,874 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206503XKZ16A', 'name': 'Крепёж Молдинга Лобового Стекла №1 (Жёлтая)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,874 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206503XKZ16A' name='Крепёж Молдинга Лобового Стекла №1 (Жёлтая)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,874 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206503XKZ16A', 'name': 'Крепёж Молдинга Лобового Стекла №1 (Жёлтая)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,874 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,874 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,875 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74601160>
+2026-02-20 16:12:06,876 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581e5a0>
+2026-02-20 16:12:06,876 - dz_fastapi - DEBUG - Autopart already exists: ID 44221
+2026-02-20 16:12:06,876 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206504AKZ16A', 'name': 'Фиксатор Молдинга', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,876 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206504AKZ16A' name='Фиксатор Молдинга' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,876 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206504AKZ16A', 'name': 'Фиксатор Молдинга', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,876 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,876 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,877 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7581ca40>
+2026-02-20 16:12:06,879 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7581da00>
+2026-02-20 16:12:06,885 - dz_fastapi - DEBUG - Autopart already exists: ID 55333
+2026-02-20 16:12:06,885 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206504XKZ16A', 'name': 'Крепёж Молдинга Лобового Стекла №2 (Красная)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,885 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206504XKZ16A' name='Крепёж Молдинга Лобового Стекла №2 (Красная)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,885 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206504XKZ16A', 'name': 'Крепёж Молдинга Лобового Стекла №2 (Красная)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,886 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,886 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,888 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff737e9be0>
+2026-02-20 16:12:06,889 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600f080>
+2026-02-20 16:12:06,889 - dz_fastapi - DEBUG - Autopart already exists: ID 3133
+2026-02-20 16:12:06,889 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206510BKZ16A', 'name': 'Молдинг Лобового Стекла Левый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,889 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206510BKZ16A' name='Молдинг Лобового Стекла Левый' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,890 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206510BKZ16A', 'name': 'Молдинг Лобового Стекла Левый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,890 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,890 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,891 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a6f60>
+2026-02-20 16:12:06,892 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767a57c0>
+2026-02-20 16:12:06,892 - dz_fastapi - DEBUG - Autopart already exists: ID 44222
+2026-02-20 16:12:06,892 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206510XKZ36A', 'name': 'Молдинг Лобового Стекла Левый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,892 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206510XKZ36A' name='Молдинг Лобового Стекла Левый' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,892 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206510XKZ36A', 'name': 'Молдинг Лобового Стекла Левый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,892 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,892 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,893 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a76e0>
+2026-02-20 16:12:06,894 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767a62a0>
+2026-02-20 16:12:06,894 - dz_fastapi - DEBUG - Autopart already exists: ID 44223
+2026-02-20 16:12:06,894 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206520XKZ36A', 'name': 'Молдинг Лобового Стекла Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,895 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206520XKZ36A' name='Молдинг Лобового Стекла Правый' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,895 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206520XKZ36A', 'name': 'Молдинг Лобового Стекла Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,895 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,895 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,896 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a4da0>
+2026-02-20 16:12:06,897 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767a5dc0>
+2026-02-20 16:12:06,897 - dz_fastapi - DEBUG - Autopart already exists: ID 44224
+2026-02-20 16:12:06,897 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206600XPS01A', 'name': 'Лобовое Стекло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,897 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206600XPS01A' name='Лобовое Стекло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,897 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206600XPS01A', 'name': 'Лобовое Стекло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,897 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,897 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,898 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a6660>
+2026-02-20 16:12:06,899 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600fda0>
+2026-02-20 16:12:06,899 - dz_fastapi - DEBUG - Autopart already exists: ID 44225
+2026-02-20 16:12:06,899 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206603XST10AD', 'name': 'Ветровое Стекло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,900 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206603XST10AD' name='Ветровое Стекло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,900 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206603XST10AD', 'name': 'Ветровое Стекло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,900 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,900 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,901 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600d3a0>
+2026-02-20 16:12:06,902 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600c380>
+2026-02-20 16:12:06,902 - dz_fastapi - DEBUG - Autopart already exists: ID 57137
+2026-02-20 16:12:06,902 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206603XST11AD', 'name': 'Ветровое Стекло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,902 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206603XST11AD' name='Ветровое Стекло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,902 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206603XST11AD', 'name': 'Ветровое Стекло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,902 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,902 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,903 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600c6e0>
+2026-02-20 16:12:06,904 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600fa40>
+2026-02-20 16:12:06,904 - dz_fastapi - DEBUG - Autopart already exists: ID 74704
+2026-02-20 16:12:06,904 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206605XST10AD', 'name': 'Ветровое Стекло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,904 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206605XST10AD' name='Ветровое Стекло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,904 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206605XST10AD', 'name': 'Ветровое Стекло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,905 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,905 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,906 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600e360>
+2026-02-20 16:12:06,907 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600c0e0>
+2026-02-20 16:12:06,907 - dz_fastapi - DEBUG - Autopart already exists: ID 57285
+2026-02-20 16:12:06,907 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206605XST11AD', 'name': 'Ветровое Стекло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,908 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206605XST11AD' name='Ветровое Стекло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,908 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206605XST11AD', 'name': 'Ветровое Стекло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,908 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,908 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,909 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600fda0>
+2026-02-20 16:12:06,910 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600d3a0>
+2026-02-20 16:12:06,910 - dz_fastapi - DEBUG - Autopart already exists: ID 44226
+2026-02-20 16:12:06,910 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206710XKZ0YA', 'name': 'Уплотнитель Лобового Стекла Левый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,910 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206710XKZ0YA' name='Уплотнитель Лобового Стекла Левый' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,911 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206710XKZ0YA', 'name': 'Уплотнитель Лобового Стекла Левый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,911 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,911 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,912 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600cec0>
+2026-02-20 16:12:06,913 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff666402c0>
+2026-02-20 16:12:06,913 - dz_fastapi - DEBUG - Autopart already exists: ID 44227
+2026-02-20 16:12:06,913 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206720XKZ0YA', 'name': 'Уплотнитель Лобового Стекла Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,913 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206720XKZ0YA' name='Уплотнитель Лобового Стекла Правый' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,913 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206720XKZ0YA', 'name': 'Уплотнитель Лобового Стекла Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,916 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,916 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,917 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74602a20>
+2026-02-20 16:12:06,918 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff746039e0>
+2026-02-20 16:12:06,918 - dz_fastapi - DEBUG - Autopart already exists: ID 44228
+2026-02-20 16:12:06,918 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206800XPS11A', 'name': 'Лобовое Стекло POER KINGKONG', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,918 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206800XPS11A' name='Лобовое Стекло POER KINGKONG' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,919 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206800XPS11A', 'name': 'Лобовое Стекло POER KINGKONG', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,919 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,919 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,920 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746013a0>
+2026-02-20 16:12:06,962 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74601ee0>
+2026-02-20 16:12:06,963 - dz_fastapi - DEBUG - Autopart already exists: ID 44229
+2026-02-20 16:12:06,964 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206900XKM52A', 'name': 'Стекло Лобовое H5 P04', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,964 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206900XKM52A' name='Стекло Лобовое H5 P04' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,964 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206900XKM52A', 'name': 'Стекло Лобовое H5 P04', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,964 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,965 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,968 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600ec60>
+2026-02-20 16:12:06,971 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8c671760>
+2026-02-20 16:12:06,971 - dz_fastapi - DEBUG - Autopart already exists: ID 44230
+2026-02-20 16:12:06,971 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206900XKN08A', 'name': 'Лобовое Стекло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,972 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206900XKN08A' name='Лобовое Стекло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,972 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206900XKN08A', 'name': 'Лобовое Стекло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,972 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,972 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,975 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff8ca35610>
+2026-02-20 16:12:06,978 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8ca37920>
+2026-02-20 16:12:06,978 - dz_fastapi - DEBUG - Autopart already exists: ID 44231
+2026-02-20 16:12:06,978 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206900XKN45A', 'name': 'Стекло Лобовое DARGO', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,978 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206900XKN45A' name='Стекло Лобовое DARGO' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:06,979 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206900XKN45A', 'name': 'Стекло Лобовое DARGO', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:06,979 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:06,979 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:06,986 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7600c6e0>
+2026-02-20 16:12:07,013 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7600ec60>
+2026-02-20 16:12:07,013 - dz_fastapi - DEBUG - Autopart already exists: ID 44232
+2026-02-20 16:12:07,013 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206900XKN45B', 'name': 'Стекло Лобовое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,014 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206900XKN45B' name='Стекло Лобовое' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,014 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206900XKN45B', 'name': 'Стекло Лобовое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,014 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,014 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,016 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74601820>
+2026-02-20 16:12:07,017 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff746039e0>
+2026-02-20 16:12:07,017 - dz_fastapi - DEBUG - Autopart already exists: ID 44233
+2026-02-20 16:12:07,017 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206900XP6PXA', 'name': 'Стекло Лобовое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,017 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206900XP6PXA' name='Стекло Лобовое' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,018 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206900XP6PXA', 'name': 'Стекло Лобовое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,018 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,018 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,019 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74602c60>
+2026-02-20 16:12:07,020 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff746013a0>
+2026-02-20 16:12:07,020 - dz_fastapi - DEBUG - Autopart already exists: ID 44234
+2026-02-20 16:12:07,020 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207100XK80XA', 'name': 'Бачок Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,020 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207100XK80XA' name='Бачок Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,020 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207100XK80XA', 'name': 'Бачок Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,020 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,020 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,021 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746003e0>
+2026-02-20 16:12:07,026 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74602c00>
+2026-02-20 16:12:07,027 - dz_fastapi - DEBUG - Autopart already exists: ID 44235
+2026-02-20 16:12:07,028 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207100XKN45A', 'name': 'Бачок Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,028 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207100XKN45A' name='Бачок Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,029 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207100XKN45A', 'name': 'Бачок Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,029 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,030 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,033 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff746022a0>
+2026-02-20 16:12:07,037 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74602c60>
+2026-02-20 16:12:07,037 - dz_fastapi - DEBUG - Autopart already exists: ID 44236
+2026-02-20 16:12:07,037 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207100XKN61A', 'name': 'Бачок Жидкости Омывателя Ветрового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,038 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207100XKN61A' name='Бачок Жидкости Омывателя Ветрового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,038 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207100XKN61A', 'name': 'Бачок Жидкости Омывателя Ветрового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,038 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,038 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,041 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74600800>
+2026-02-20 16:12:07,043 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74601820>
+2026-02-20 16:12:07,043 - dz_fastapi - DEBUG - Autopart already exists: ID 62841
+2026-02-20 16:12:07,043 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207100XKQ00A', 'name': 'Бачок Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,043 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207100XKQ00A' name='Бачок Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,043 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207100XKQ00A', 'name': 'Бачок Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,043 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,043 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,044 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff66642b40>
+2026-02-20 16:12:07,045 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff66641e20>
+2026-02-20 16:12:07,046 - dz_fastapi - DEBUG - Autopart already exists: ID 44237
+2026-02-20 16:12:07,046 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207100XKQ02A', 'name': 'Бачок Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,046 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207100XKQ02A' name='Бачок Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,046 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207100XKQ02A', 'name': 'Бачок Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,046 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,046 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,047 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a5a60>
+2026-02-20 16:12:07,056 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff67f00890>
+2026-02-20 16:12:07,056 - dz_fastapi - DEBUG - Autopart already exists: ID 44238
+2026-02-20 16:12:07,057 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207100XKQ41A', 'name': 'Бачок Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,057 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207100XKQ41A' name='Бачок Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,058 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207100XKQ41A', 'name': 'Бачок Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,058 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,058 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,060 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff67f026f0>
+2026-02-20 16:12:07,062 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff67f00950>
+2026-02-20 16:12:07,062 - dz_fastapi - DEBUG - Autopart already exists: ID 44239
+2026-02-20 16:12:07,062 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207100XKQ51A', 'name': 'Бачок Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,062 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207100XKQ51A' name='Бачок Омывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,062 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207100XKQ51A', 'name': 'Бачок Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,063 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,063 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,064 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff67f039b0>
+2026-02-20 16:12:07,065 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff67f014f0>
+2026-02-20 16:12:07,065 - dz_fastapi - DEBUG - Autopart already exists: ID 44240
+2026-02-20 16:12:07,066 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207100XKV08A', 'name': 'Бачок Стеклоомывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,066 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207100XKV08A' name='Бачок Стеклоомывателя Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,066 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207100XKV08A', 'name': 'Бачок Стеклоомывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,066 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,066 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,067 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff67f01e50>
+2026-02-20 16:12:07,068 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767a65a0>
+2026-02-20 16:12:07,068 - dz_fastapi - DEBUG - Autopart already exists: ID 44241
+2026-02-20 16:12:07,068 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207100XKV08B', 'name': 'Бачок Стеклоомывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,069 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207100XKV08B' name='Бачок Стеклоомывателя Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,069 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207100XKV08B', 'name': 'Бачок Стеклоомывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,069 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,069 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,070 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a6ae0>
+2026-02-20 16:12:07,071 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767a7140>
+2026-02-20 16:12:07,071 - dz_fastapi - DEBUG - Autopart already exists: ID 44242
+2026-02-20 16:12:07,071 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207100XKW09A', 'name': 'Бачок Омывателя Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,071 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207100XKW09A' name='Бачок Омывателя Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,071 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207100XKW09A', 'name': 'Бачок Омывателя Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,071 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,071 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,072 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a4500>
+2026-02-20 16:12:07,075 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767a56a0>
+2026-02-20 16:12:07,075 - dz_fastapi - DEBUG - Autopart already exists: ID 44243
+2026-02-20 16:12:07,075 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207100XKZ36A', 'name': 'Бачок Омывателя Лобового Стекла Без Омывателя Фар', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,075 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207100XKZ36A' name='Бачок Омывателя Лобового Стекла Без Омывателя Фар' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,075 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207100XKZ36A', 'name': 'Бачок Омывателя Лобового Стекла Без Омывателя Фар', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,075 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,075 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,076 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a5f40>
+2026-02-20 16:12:07,077 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767a49e0>
+2026-02-20 16:12:07,077 - dz_fastapi - DEBUG - Autopart already exists: ID 44244
+2026-02-20 16:12:07,078 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207100XKZ36B', 'name': 'Бачок Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,078 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207100XKZ36B' name='Бачок Омывателя Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,078 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207100XKZ36B', 'name': 'Бачок Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,078 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,078 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,079 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a6ea0>
+2026-02-20 16:12:07,080 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767a74a0>
+2026-02-20 16:12:07,080 - dz_fastapi - DEBUG - Autopart already exists: ID 44245
+2026-02-20 16:12:07,080 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207100XPS01A', 'name': 'Шланг Омывателя Передний В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,080 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207100XPS01A' name='Шланг Омывателя Передний В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,080 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207100XPS01A', 'name': 'Шланг Омывателя Передний В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,080 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,080 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,081 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a7140>
+2026-02-20 16:12:07,082 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767a5760>
+2026-02-20 16:12:07,082 - dz_fastapi - DEBUG - Autopart already exists: ID 44246
+2026-02-20 16:12:07,082 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207100XST10A', 'name': 'Бачок Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,082 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207100XST10A' name='Бачок Омывателя Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,082 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207100XST10A', 'name': 'Бачок Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,082 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,082 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,083 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a5f40>
+2026-02-20 16:12:07,084 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff767a6ae0>
+2026-02-20 16:12:07,084 - dz_fastapi - DEBUG - Autopart already exists: ID 44248
+2026-02-20 16:12:07,085 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207100XVD13A', 'name': 'Форсунка Омывателя Ветрового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,085 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207100XVD13A' name='Форсунка Омывателя Ветрового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,085 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207100XVD13A', 'name': 'Форсунка Омывателя Ветрового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,085 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,085 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,086 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff67f03830>
+2026-02-20 16:12:07,087 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff67f03590>
+2026-02-20 16:12:07,087 - dz_fastapi - DEBUG - Autopart already exists: ID 44249
+2026-02-20 16:12:07,087 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207101XKN02A', 'name': 'Заливная Горловина Жидкости Омывателя Ветрового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,087 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207101XKN02A' name='Заливная Горловина Жидкости Омывателя Ветрового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,087 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207101XKN02A', 'name': 'Заливная Горловина Жидкости Омывателя Ветрового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,087 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,087 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,088 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff67f03830>
+2026-02-20 16:12:07,089 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8ca37350>
+2026-02-20 16:12:07,089 - dz_fastapi - DEBUG - Autopart already exists: ID 44250
+2026-02-20 16:12:07,090 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207101XKN04A', 'name': 'Крышка Бачка Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,090 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207101XKN04A' name='Крышка Бачка Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,090 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207101XKN04A', 'name': 'Крышка Бачка Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,090 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,090 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,091 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff67f03830>
+2026-02-20 16:12:07,093 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff74602de0>
+2026-02-20 16:12:07,093 - dz_fastapi - DEBUG - Autopart already exists: ID 44251
+2026-02-20 16:12:07,093 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207101XKN06A', 'name': 'Трубка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,093 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207101XKN06A' name='Трубка Омывателя Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,094 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207101XKN06A', 'name': 'Трубка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,094 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,094 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,098 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff767a4500>
+2026-02-20 16:12:07,099 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff67f02cf0>
+2026-02-20 16:12:07,099 - dz_fastapi - DEBUG - Autopart already exists: ID 63563
+2026-02-20 16:12:07,099 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207101XKN62A', 'name': 'Узел Мойки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,099 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207101XKN62A' name='Узел Мойки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,099 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207101XKN62A', 'name': 'Узел Мойки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,099 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,100 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,100 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff67f032f0>
+2026-02-20 16:12:07,104 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff67f00170>
+2026-02-20 16:12:07,104 - dz_fastapi - DEBUG - Autopart already exists: ID 63564
+2026-02-20 16:12:07,104 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207101XKQ02A', 'name': 'Шланг Омывателя Передний В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,104 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207101XKQ02A' name='Шланг Омывателя Передний В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,104 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207101XKQ02A', 'name': 'Шланг Омывателя Передний В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,104 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,104 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,108 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff67f00200>
+2026-02-20 16:12:07,109 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff68602360>
+2026-02-20 16:12:07,109 - dz_fastapi - DEBUG - Autopart already exists: ID 44253
+2026-02-20 16:12:07,109 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207101XKV08A', 'name': 'Датчик Уровня Жидкости Бачка Омывателя Стекла Лобового', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,109 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207101XKV08A' name='Датчик Уровня Жидкости Бачка Омывателя Стекла Лобового' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,110 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207101XKV08A', 'name': 'Датчик Уровня Жидкости Бачка Омывателя Стекла Лобового', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,110 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,110 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,111 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff68601ca0>
+2026-02-20 16:12:07,112 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff68601220>
+2026-02-20 16:12:07,112 - dz_fastapi - DEBUG - Autopart already exists: ID 44255
+2026-02-20 16:12:07,112 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207101XKW09A', 'name': 'Крышка Бачка Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,112 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207101XKW09A' name='Крышка Бачка Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,112 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207101XKW09A', 'name': 'Крышка Бачка Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,113 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,113 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,113 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff686030e0>
+2026-02-20 16:12:07,114 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff68600530>
+2026-02-20 16:12:07,114 - dz_fastapi - DEBUG - Autopart already exists: ID 64258
+2026-02-20 16:12:07,115 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207101XPS01A', 'name': 'Шланг Омывателя Передний В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,115 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207101XPS01A' name='Шланг Омывателя Передний В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,115 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207101XPS01A', 'name': 'Шланг Омывателя Передний В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,115 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,115 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:07,116 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff68602750>
+2026-02-20 16:12:07,121 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff68601880>
+2026-02-20 16:12:07,121 - dz_fastapi - DEBUG - Autopart already exists: ID 44256
+2026-02-20 16:12:07,122 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207101XST01A', 'name': 'Горловина Заливная Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,122 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207101XST01A' name='Горловина Заливная Омывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:07,122 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207101XST01A', 'name': 'Горловина Заливная Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:07,122 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:07,122 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:12,853 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff8c686900>
+2026-02-20 16:12:12,976 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7510ce00>
+2026-02-20 16:12:12,977 - dz_fastapi - DEBUG - Autopart already exists: ID 3015
+2026-02-20 16:12:12,978 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207101XSY02A', 'name': 'Крышка Бачка Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:12,979 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207101XSY02A' name='Крышка Бачка Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:12,979 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207101XSY02A', 'name': 'Крышка Бачка Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:12,979 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:12,979 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:12,983 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73b24680>
+2026-02-20 16:12:13,004 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff643d2210>
+2026-02-20 16:12:13,004 - dz_fastapi - DEBUG - Autopart already exists: ID 3068
+2026-02-20 16:12:13,004 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207102XG83XA', 'name': 'Моторчик Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,004 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207102XG83XA' name='Моторчик Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,005 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207102XG83XA', 'name': 'Моторчик Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,005 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,005 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,016 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff726511c0>
+2026-02-20 16:12:13,033 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff726538c0>
+2026-02-20 16:12:13,034 - dz_fastapi - DEBUG - Autopart already exists: ID 3074
+2026-02-20 16:12:13,034 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207102XKN02A', 'name': 'Передняя Часть Трубки Омывателя Ветрового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,034 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207102XKN02A' name='Передняя Часть Трубки Омывателя Ветрового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,034 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207102XKN02A', 'name': 'Передняя Часть Трубки Омывателя Ветрового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,035 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,035 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,053 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff6794c050>
+2026-02-20 16:12:13,067 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff75c10380>
+2026-02-20 16:12:13,067 - dz_fastapi - DEBUG - Autopart already exists: ID 44257
+2026-02-20 16:12:13,067 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207102XKN04A', 'name': 'Трубка Омывателя Отводящая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,068 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207102XKN04A' name='Трубка Омывателя Отводящая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,068 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207102XKN04A', 'name': 'Трубка Омывателя Отводящая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,068 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,068 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,083 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff75c11b80>
+2026-02-20 16:12:13,098 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff8c95fd40>
+2026-02-20 16:12:13,098 - dz_fastapi - DEBUG - Autopart already exists: ID 44258
+2026-02-20 16:12:13,098 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207102XKQ02A', 'name': 'Бачок Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,098 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207102XKQ02A' name='Бачок Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,098 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207102XKQ02A', 'name': 'Бачок Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,098 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,098 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,100 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff8c63c5f0>
+2026-02-20 16:12:13,114 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff72ea5a00>
+2026-02-20 16:12:13,115 - dz_fastapi - DEBUG - Autopart already exists: ID 44259
+2026-02-20 16:12:13,115 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207102XST01A', 'name': 'Трубка Омывателя Отводящая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,115 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207102XST01A' name='Трубка Омывателя Отводящая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,115 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207102XST01A', 'name': 'Трубка Омывателя Отводящая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,115 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,115 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,127 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff631cda90>
+2026-02-20 16:12:13,128 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff631cd790>
+2026-02-20 16:12:13,128 - dz_fastapi - DEBUG - Autopart already exists: ID 44261
+2026-02-20 16:12:13,129 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207103XKN02A', 'name': 'Задняя Часть Трубки Омывателя Ветрового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,129 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207103XKN02A' name='Задняя Часть Трубки Омывателя Ветрового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,129 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207103XKN02A', 'name': 'Задняя Часть Трубки Омывателя Ветрового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,129 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,129 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,130 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff631cea50>
+2026-02-20 16:12:13,131 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff631cec30>
+2026-02-20 16:12:13,131 - dz_fastapi - DEBUG - Autopart already exists: ID 44262
+2026-02-20 16:12:13,131 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207103XKN04A', 'name': 'Трубка Омывателя Отводящая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,131 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207103XKN04A' name='Трубка Омывателя Отводящая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,132 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207103XKN04A', 'name': 'Трубка Омывателя Отводящая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,132 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,132 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,133 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73628c80>
+2026-02-20 16:12:13,134 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73629fa0>
+2026-02-20 16:12:13,134 - dz_fastapi - DEBUG - Autopart already exists: ID 44263
+2026-02-20 16:12:13,134 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207103XKN62A', 'name': 'Трубка Для Слива Воды Из Мойки - Переднее Ветровое Стекло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,134 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207103XKN62A' name='Трубка Для Слива Воды Из Мойки - Переднее Ветровое Стекло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,134 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207103XKN62A', 'name': 'Трубка Для Слива Воды Из Мойки - Переднее Ветровое Стекло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,134 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,134 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,146 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff76124560>
+2026-02-20 16:12:13,161 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff753f01a0>
+2026-02-20 16:12:13,161 - dz_fastapi - DEBUG - Autopart already exists: ID 63565
+2026-02-20 16:12:13,161 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207103XKQ00A', 'name': 'Блок Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,161 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207103XKQ00A' name='Блок Омывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,161 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207103XKQ00A', 'name': 'Блок Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,162 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,162 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,172 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff753f10a0>
+2026-02-20 16:12:13,184 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff63701b50>
+2026-02-20 16:12:13,184 - dz_fastapi - DEBUG - Autopart already exists: ID 2991
+2026-02-20 16:12:13,184 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207103XPS01A', 'name': 'Шланг Омывателя Передний В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,184 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207103XPS01A' name='Шланг Омывателя Передний В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,184 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207103XPS01A', 'name': 'Шланг Омывателя Передний В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,185 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,185 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,186 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff72f8a540>
+2026-02-20 16:12:13,188 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff72f89b80>
+2026-02-20 16:12:13,188 - dz_fastapi - DEBUG - Autopart already exists: ID 44264
+2026-02-20 16:12:13,188 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207103XST01A', 'name': 'Трубка Омывателя Отводящая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,188 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207103XST01A' name='Трубка Омывателя Отводящая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,188 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207103XST01A', 'name': 'Трубка Омывателя Отводящая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,188 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,188 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,189 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff72f88140>
+2026-02-20 16:12:13,190 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff72f891c0>
+2026-02-20 16:12:13,191 - dz_fastapi - DEBUG - Autopart already exists: ID 44265
+2026-02-20 16:12:13,191 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207104XPS01A', 'name': 'Шланг Омывателя Передний В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,191 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207104XPS01A' name='Шланг Омывателя Передний В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,191 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207104XPS01A', 'name': 'Шланг Омывателя Передний В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,191 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,191 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,192 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff72f88fe0>
+2026-02-20 16:12:13,193 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff72f8a9c0>
+2026-02-20 16:12:13,193 - dz_fastapi - DEBUG - Autopart already exists: ID 44267
+2026-02-20 16:12:13,193 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207104XPW03A', 'name': 'Форсунка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,193 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207104XPW03A' name='Форсунка Омывателя Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,193 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207104XPW03A', 'name': 'Форсунка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,193 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,194 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,203 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff72f892e0>
+2026-02-20 16:12:13,219 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff6492b950>
+2026-02-20 16:12:13,219 - dz_fastapi - DEBUG - Autopart already exists: ID 44268
+2026-02-20 16:12:13,219 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207104XST01A', 'name': 'Форсунка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,219 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207104XST01A' name='Форсунка Омывателя Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,219 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207104XST01A', 'name': 'Форсунка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,219 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,219 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,233 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff64929c70>
+2026-02-20 16:12:13,243 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7468dfa0>
+2026-02-20 16:12:13,243 - dz_fastapi - DEBUG - Autopart already exists: ID 44269
+2026-02-20 16:12:13,243 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207105XKN04A', 'name': 'Бачок Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,243 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207105XKN04A' name='Бачок Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,243 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207105XKN04A', 'name': 'Бачок Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,243 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,243 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,245 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7468de80>
+2026-02-20 16:12:13,246 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7468f320>
+2026-02-20 16:12:13,246 - dz_fastapi - DEBUG - Autopart already exists: ID 44271
+2026-02-20 16:12:13,246 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207105XKU62A', 'name': 'Моторчик Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,246 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207105XKU62A' name='Моторчик Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,246 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207105XKU62A', 'name': 'Моторчик Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,247 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,247 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,250 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73e5a8a0>
+2026-02-20 16:12:13,255 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7468dfa0>
+2026-02-20 16:12:13,255 - dz_fastapi - DEBUG - Autopart already exists: ID 44273
+2026-02-20 16:12:13,255 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207105XNW01A', 'name': 'Насос Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,255 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207105XNW01A' name='Насос Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,255 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207105XNW01A', 'name': 'Насос Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,256 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,256 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,259 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7468f6e0>
+2026-02-20 16:12:13,263 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7389cbc0>
+2026-02-20 16:12:13,263 - dz_fastapi - DEBUG - Autopart already exists: ID 44274
+2026-02-20 16:12:13,263 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207105XPS01A', 'name': 'Шланг Омывателя Передний В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,263 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207105XPS01A' name='Шланг Омывателя Передний В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,264 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207105XPS01A', 'name': 'Шланг Омывателя Передний В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,264 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,264 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,273 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7468ec00>
+2026-02-20 16:12:13,280 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7468fb60>
+2026-02-20 16:12:13,281 - dz_fastapi - DEBUG - Autopart already exists: ID 44275
+2026-02-20 16:12:13,281 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207105XPW01B', 'name': 'Шланг Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,281 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207105XPW01B' name='Шланг Омывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,281 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207105XPW01B', 'name': 'Шланг Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,281 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,281 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,289 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7468fa40>
+2026-02-20 16:12:13,295 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7468fda0>
+2026-02-20 16:12:13,295 - dz_fastapi - DEBUG - Autopart already exists: ID 44276
+2026-02-20 16:12:13,296 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207106XKN04A', 'name': 'Трубка Шланга Омыват', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,296 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207106XKN04A' name='Трубка Шланга Омыват' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,296 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207106XKN04A', 'name': 'Трубка Шланга Омыват', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,296 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,296 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,299 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7468eb40>
+2026-02-20 16:12:13,308 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7468efc0>
+2026-02-20 16:12:13,308 - dz_fastapi - DEBUG - Autopart already exists: ID 44277
+2026-02-20 16:12:13,308 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207106XKN61A', 'name': 'Выпускной Шланг Омывателя Ветрового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,308 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207106XKN61A' name='Выпускной Шланг Омывателя Ветрового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,309 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207106XKN61A', 'name': 'Выпускной Шланг Омывателя Ветрового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,309 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,309 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,310 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7468d820>
+2026-02-20 16:12:13,311 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7468c920>
+2026-02-20 16:12:13,311 - dz_fastapi - DEBUG - Autopart already exists: ID 44278
+2026-02-20 16:12:13,311 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207107XKN01A', 'name': 'Насос Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,311 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207107XKN01A' name='Насос Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,311 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207107XKN01A', 'name': 'Насос Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,311 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,312 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,317 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7468c320>
+2026-02-20 16:12:13,327 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7468f9e0>
+2026-02-20 16:12:13,327 - dz_fastapi - DEBUG - Autopart already exists: ID 44280
+2026-02-20 16:12:13,327 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207107XKN04A', 'name': 'Моторчик Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,327 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207107XKN04A' name='Моторчик Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,327 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207107XKN04A', 'name': 'Моторчик Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,327 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,328 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,334 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff74892b40>
+2026-02-20 16:12:13,343 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff62de9df0>
+2026-02-20 16:12:13,343 - dz_fastapi - DEBUG - Autopart already exists: ID 44281
+2026-02-20 16:12:13,343 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207107XPW01A', 'name': 'Моторчик Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,343 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207107XPW01A' name='Моторчик Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,343 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207107XPW01A', 'name': 'Моторчик Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,343 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,343 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,349 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7468f9e0>
+2026-02-20 16:12:13,357 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff72702d20>
+2026-02-20 16:12:13,357 - dz_fastapi - DEBUG - Autopart already exists: ID 44282
+2026-02-20 16:12:13,357 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207108XKN61A', 'name': 'Выпускной Шланг Омывателя Заднего Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,357 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207108XKN61A' name='Выпускной Шланг Омывателя Заднего Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:13,357 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207108XKN61A', 'name': 'Выпускной Шланг Омывателя Заднего Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:13,357 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:13,358 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:13,360 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff727015e0>
+2026-02-20 16:12:18,618 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7468cfe0>
+2026-02-20 16:12:18,619 - dz_fastapi - DEBUG - Autopart already exists: ID 44283
+2026-02-20 16:12:18,620 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207108XKQ00A', 'name': 'Горловина Заливная Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:18,621 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207108XKQ00A' name='Горловина Заливная Омывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:18,622 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207108XKQ00A', 'name': 'Горловина Заливная Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:18,622 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:18,623 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:18,638 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41520>
+2026-02-20 16:12:19,085 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a414c0>
+2026-02-20 16:12:19,086 - dz_fastapi - DEBUG - Autopart already exists: ID 3016
+2026-02-20 16:12:19,091 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207108XPW01A', 'name': 'Горловина Заливная Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,093 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207108XPW01A' name='Горловина Заливная Омывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,094 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207108XPW01A', 'name': 'Горловина Заливная Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,098 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,098 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,118 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40c80>
+2026-02-20 16:12:19,129 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43920>
+2026-02-20 16:12:19,129 - dz_fastapi - DEBUG - Autopart already exists: ID 44284
+2026-02-20 16:12:19,130 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207109XKN01A', 'name': 'Крышка Горловины Бачка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,130 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207109XKN01A' name='Крышка Горловины Бачка Омывателя Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,130 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207109XKN01A', 'name': 'Крышка Горловины Бачка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,130 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,130 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,133 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41a60>
+2026-02-20 16:12:19,151 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42f60>
+2026-02-20 16:12:19,151 - dz_fastapi - DEBUG - Autopart already exists: ID 44286
+2026-02-20 16:12:19,152 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207109XPW01A', 'name': 'Крышка Горловины Бачка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,152 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207109XPW01A' name='Крышка Горловины Бачка Омывателя Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,153 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207109XPW01A', 'name': 'Крышка Горловины Бачка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,153 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,153 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,159 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a413a0>
+2026-02-20 16:12:19,166 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40d40>
+2026-02-20 16:12:19,166 - dz_fastapi - DEBUG - Autopart already exists: ID 44287
+2026-02-20 16:12:19,166 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207110XKQ00A', 'name': 'Горловина Заливная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,168 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207110XKQ00A' name='Горловина Заливная' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,168 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207110XKQ00A', 'name': 'Горловина Заливная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,168 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,169 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,173 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a411c0>
+2026-02-20 16:12:19,180 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43800>
+2026-02-20 16:12:19,181 - dz_fastapi - DEBUG - Autopart already exists: ID 44288
+2026-02-20 16:12:19,181 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207110XKW09A', 'name': 'Моторчик Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,182 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207110XKW09A' name='Моторчик Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,182 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207110XKW09A', 'name': 'Моторчик Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,183 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,183 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,190 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40380>
+2026-02-20 16:12:19,194 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42f60>
+2026-02-20 16:12:19,194 - dz_fastapi - DEBUG - Autopart already exists: ID 44289
+2026-02-20 16:12:19,198 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207110XKY00A', 'name': 'Бачок Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,200 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207110XKY00A' name='Бачок Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,201 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207110XKY00A', 'name': 'Бачок Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,202 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,211 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,286 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40740>
+2026-02-20 16:12:19,300 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40260>
+2026-02-20 16:12:19,300 - dz_fastapi - DEBUG - Autopart already exists: ID 44290
+2026-02-20 16:12:19,301 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207110XKZ16A', 'name': 'Мотор Омывателя Стекла Лобового (Низкого Давления)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,301 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207110XKZ16A' name='Мотор Омывателя Стекла Лобового (Низкого Давления)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,301 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207110XKZ16A', 'name': 'Мотор Омывателя Стекла Лобового (Низкого Давления)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,302 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,302 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,303 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43bc0>
+2026-02-20 16:12:19,304 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40d40>
+2026-02-20 16:12:19,304 - dz_fastapi - DEBUG - Autopart already exists: ID 44291
+2026-02-20 16:12:19,304 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207110XKZ16B', 'name': 'Мотор Омывателя Стекла Лобового', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,304 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207110XKZ16B' name='Мотор Омывателя Стекла Лобового' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,305 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207110XKZ16B', 'name': 'Мотор Омывателя Стекла Лобового', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,305 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,305 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,306 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40aa0>
+2026-02-20 16:12:19,308 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a416a0>
+2026-02-20 16:12:19,308 - dz_fastapi - DEBUG - Autopart already exists: ID 44292
+2026-02-20 16:12:19,308 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207110XSZ08A', 'name': 'Насос Омывателя Стекол', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,308 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207110XSZ08A' name='Насос Омывателя Стекол' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,309 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207110XSZ08A', 'name': 'Насос Омывателя Стекол', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,309 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,309 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,311 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42b40>
+2026-02-20 16:12:19,312 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43bc0>
+2026-02-20 16:12:19,312 - dz_fastapi - DEBUG - Autopart already exists: ID 44293
+2026-02-20 16:12:19,312 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207112XPW01A', 'name': 'Шланг Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,313 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207112XPW01A' name='Шланг Омывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,313 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207112XPW01A', 'name': 'Шланг Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,313 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,313 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,314 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42c00>
+2026-02-20 16:12:19,315 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40f20>
+2026-02-20 16:12:19,315 - dz_fastapi - DEBUG - Autopart already exists: ID 44294
+2026-02-20 16:12:19,315 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207120AP24AA', 'name': 'Форсунка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,315 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207120AP24AA' name='Форсунка Омывателя Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,315 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207120AP24AA', 'name': 'Форсунка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,315 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,315 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,316 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a416a0>
+2026-02-20 16:12:19,317 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41340>
+2026-02-20 16:12:19,317 - dz_fastapi - DEBUG - Autopart already exists: ID 44295
+2026-02-20 16:12:19,318 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207120XKY00A', 'name': 'Горловина Заливная Бачка Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,318 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207120XKY00A' name='Горловина Заливная Бачка Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,318 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207120XKY00A', 'name': 'Горловина Заливная Бачка Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,318 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,318 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,319 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43620>
+2026-02-20 16:12:19,322 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42f60>
+2026-02-20 16:12:19,322 - dz_fastapi - DEBUG - Autopart already exists: ID 44296
+2026-02-20 16:12:19,322 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207130AP24AA', 'name': 'Шланг Омывателя Лобового Стекла На Форсунки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,323 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207130AP24AA' name='Шланг Омывателя Лобового Стекла На Форсунки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,323 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207130AP24AA', 'name': 'Шланг Омывателя Лобового Стекла На Форсунки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,323 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,324 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,327 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41a60>
+2026-02-20 16:12:19,330 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40c20>
+2026-02-20 16:12:19,330 - dz_fastapi - DEBUG - Autopart already exists: ID 44297
+2026-02-20 16:12:19,330 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207140AP24AA', 'name': 'Горловина Бачка Омывателя Стекла Лобового', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,331 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207140AP24AA' name='Горловина Бачка Омывателя Стекла Лобового' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,331 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207140AP24AA', 'name': 'Горловина Бачка Омывателя Стекла Лобового', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,331 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,332 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,334 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43ce0>
+2026-02-20 16:12:19,336 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a436e0>
+2026-02-20 16:12:19,336 - dz_fastapi - DEBUG - Autopart already exists: ID 51912
+2026-02-20 16:12:19,336 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207160AP24AB', 'name': 'Бачок Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,336 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207160AP24AB' name='Бачок Омывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,336 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207160AP24AB', 'name': 'Бачок Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,336 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,337 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,338 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40b60>
+2026-02-20 16:12:19,340 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a422a0>
+2026-02-20 16:12:19,340 - dz_fastapi - DEBUG - Autopart already exists: ID 44298
+2026-02-20 16:12:19,341 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207200XKZ16A', 'name': 'Шланг Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,341 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207200XKZ16A' name='Шланг Омывателя Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,341 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207200XKZ16A', 'name': 'Шланг Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,342 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,342 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,343 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42f60>
+2026-02-20 16:12:19,345 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a417c0>
+2026-02-20 16:12:19,345 - dz_fastapi - DEBUG - Autopart already exists: ID 44299
+2026-02-20 16:12:19,345 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207200XKZ16B', 'name': 'Шланг Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,345 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207200XKZ16B' name='Шланг Омывателя Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,345 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207200XKZ16B', 'name': 'Шланг Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,345 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,345 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,346 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a419a0>
+2026-02-20 16:12:19,347 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43fe0>
+2026-02-20 16:12:19,347 - dz_fastapi - DEBUG - Autopart already exists: ID 44300
+2026-02-20 16:12:19,347 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207201XKV08A', 'name': 'Горловина Бачка Омывателя Стекла Лобового (Без Крышки)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,348 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207201XKV08A' name='Горловина Бачка Омывателя Стекла Лобового (Без Крышки)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,348 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207201XKV08A', 'name': 'Горловина Бачка Омывателя Стекла Лобового (Без Крышки)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,348 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,348 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,349 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41a00>
+2026-02-20 16:12:19,350 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a425a0>
+2026-02-20 16:12:19,350 - dz_fastapi - DEBUG - Autopart already exists: ID 44301
+2026-02-20 16:12:19,350 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207202XKV08A', 'name': 'Крышка Горловины Бачка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,350 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207202XKV08A' name='Крышка Горловины Бачка Омывателя Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,350 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207202XKV08A', 'name': 'Крышка Горловины Бачка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,356 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,356 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,357 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41ac0>
+2026-02-20 16:12:19,359 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40d40>
+2026-02-20 16:12:19,359 - dz_fastapi - DEBUG - Autopart already exists: ID 44302
+2026-02-20 16:12:19,359 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207210XKQ00A', 'name': 'Шланг Омывателя Лобового Стекла Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,359 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207210XKQ00A' name='Шланг Омывателя Лобового Стекла Передний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,359 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207210XKQ00A', 'name': 'Шланг Омывателя Лобового Стекла Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,359 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,359 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,360 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43c80>
+2026-02-20 16:12:19,361 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43560>
+2026-02-20 16:12:19,361 - dz_fastapi - DEBUG - Autopart already exists: ID 44304
+2026-02-20 16:12:19,361 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207220XKQ00A', 'name': 'Шланг Омывателя Лобового Стекла Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,361 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207220XKQ00A' name='Шланг Омывателя Лобового Стекла Задний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,361 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207220XKQ00A', 'name': 'Шланг Омывателя Лобового Стекла Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,361 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,361 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,362 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42a80>
+2026-02-20 16:12:19,363 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40c20>
+2026-02-20 16:12:19,363 - dz_fastapi - DEBUG - Autopart already exists: ID 44305
+2026-02-20 16:12:19,364 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207300K00B1', 'name': 'Форсунка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,364 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207300K00B1' name='Форсунка Омывателя Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,364 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207300K00B1', 'name': 'Форсунка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,364 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,364 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,365 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41b80>
+2026-02-20 16:12:19,366 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a416a0>
+2026-02-20 16:12:19,366 - dz_fastapi - DEBUG - Autopart already exists: ID 3261
+2026-02-20 16:12:19,366 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207300XKQ00A', 'name': 'Форсунка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,366 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207300XKQ00A' name='Форсунка Омывателя Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,366 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207300XKQ00A', 'name': 'Форсунка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,366 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,366 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,367 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41ee0>
+2026-02-20 16:12:19,368 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40d40>
+2026-02-20 16:12:19,369 - dz_fastapi - DEBUG - Autopart already exists: ID 3262
+2026-02-20 16:12:19,369 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207300XKY00A', 'name': 'Форсунка Стеклоомывателя Переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,369 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207300XKY00A' name='Форсунка Стеклоомывателя Переднего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,369 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207300XKY00A', 'name': 'Форсунка Стеклоомывателя Переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,369 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,369 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,370 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42120>
+2026-02-20 16:12:19,372 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a419a0>
+2026-02-20 16:12:19,372 - dz_fastapi - DEBUG - Autopart already exists: ID 44307
+2026-02-20 16:12:19,373 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207300XKZ16A', 'name': 'Форсунка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,373 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207300XKZ16A' name='Форсунка Омывателя Лобового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,373 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207300XKZ16A', 'name': 'Форсунка Омывателя Лобового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,373 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,373 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,374 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a416a0>
+2026-02-20 16:12:19,375 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40c20>
+2026-02-20 16:12:19,375 - dz_fastapi - DEBUG - Autopart already exists: ID 44308
+2026-02-20 16:12:19,375 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207400XKZ16B', 'name': 'Трубка Омывателя Стекла Лобового', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,375 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207400XKZ16B' name='Трубка Омывателя Стекла Лобового' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,375 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207400XKZ16B', 'name': 'Трубка Омывателя Стекла Лобового', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,375 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,375 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,376 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43620>
+2026-02-20 16:12:19,377 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a408c0>
+2026-02-20 16:12:19,377 - dz_fastapi - DEBUG - Autopart already exists: ID 44309
+2026-02-20 16:12:19,377 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207400XKZ36B', 'name': 'Бачок Омывателя Лобового Стекла С Омывателем Фар', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,377 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207400XKZ36B' name='Бачок Омывателя Лобового Стекла С Омывателем Фар' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,378 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207400XKZ36B', 'name': 'Бачок Омывателя Лобового Стекла С Омывателем Фар', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,378 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,378 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,378 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41a60>
+2026-02-20 16:12:19,380 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a416a0>
+2026-02-20 16:12:19,380 - dz_fastapi - DEBUG - Autopart already exists: ID 44310
+2026-02-20 16:12:19,380 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207401XSZ08A', 'name': 'Крышка Бачка Расширительного Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,380 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207401XSZ08A' name='Крышка Бачка Расширительного Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,380 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207401XSZ08A', 'name': 'Крышка Бачка Расширительного Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,380 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,380 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,381 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42660>
+2026-02-20 16:12:19,382 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43620>
+2026-02-20 16:12:19,382 - dz_fastapi - DEBUG - Autopart already exists: ID 44311
+2026-02-20 16:12:19,382 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207410ASZ08A', 'name': 'Бачок Расширительный Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,382 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207410ASZ08A' name='Бачок Расширительный Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,382 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207410ASZ08A', 'name': 'Бачок Расширительный Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,382 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,382 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,383 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42f00>
+2026-02-20 16:12:19,384 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42b40>
+2026-02-20 16:12:19,384 - dz_fastapi - DEBUG - Autopart already exists: ID 44312
+2026-02-20 16:12:19,384 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207410K80', 'name': 'Горловина Бачка Омывателя Стекла Лобового', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,384 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207410K80' name='Горловина Бачка Омывателя Стекла Лобового' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,384 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207410K80', 'name': 'Горловина Бачка Омывателя Стекла Лобового', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,385 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,385 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,385 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43b00>
+2026-02-20 16:12:19,386 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43b60>
+2026-02-20 16:12:19,387 - dz_fastapi - DEBUG - Autopart already exists: ID 44313
+2026-02-20 16:12:19,387 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207420AKZ1DA', 'name': 'Крышка Бачка Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,387 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207420AKZ1DA' name='Крышка Бачка Омывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,387 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207420AKZ1DA', 'name': 'Крышка Бачка Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,387 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,387 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,388 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43f80>
+2026-02-20 16:12:19,389 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a410a0>
+2026-02-20 16:12:19,389 - dz_fastapi - DEBUG - Autopart already exists: ID 44314
+2026-02-20 16:12:19,389 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207420XSZ08A', 'name': 'Горловина Заливная Бачка Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,389 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207420XSZ08A' name='Горловина Заливная Бачка Омывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,389 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207420XSZ08A', 'name': 'Горловина Заливная Бачка Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,389 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,389 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,390 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41c40>
+2026-02-20 16:12:19,391 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42900>
+2026-02-20 16:12:19,391 - dz_fastapi - DEBUG - Autopart already exists: ID 44315
+2026-02-20 16:12:19,392 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207500K80', 'name': 'Форсунка Стеклоомывателя Заднего Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,392 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207500K80' name='Форсунка Стеклоомывателя Заднего Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,392 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207500K80', 'name': 'Форсунка Стеклоомывателя Заднего Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,392 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,392 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,393 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43d40>
+2026-02-20 16:12:19,394 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43620>
+2026-02-20 16:12:19,394 - dz_fastapi - DEBUG - Autopart already exists: ID 44316
+2026-02-20 16:12:19,394 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207500XKV08A', 'name': 'Трубка Омывателя Стела Лобового', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,394 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207500XKV08A' name='Трубка Омывателя Стела Лобового' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,394 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207500XKV08A', 'name': 'Трубка Омывателя Стела Лобового', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,394 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,394 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,395 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a431a0>
+2026-02-20 16:12:19,396 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43b00>
+2026-02-20 16:12:19,396 - dz_fastapi - DEBUG - Autopart already exists: ID 44317
+2026-02-20 16:12:19,396 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207501XKZ36A', 'name': 'Бачок Расширительный Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,396 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207501XKZ36A' name='Бачок Расширительный Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,397 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207501XKZ36A', 'name': 'Бачок Расширительный Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,397 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,397 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,397 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40ce0>
+2026-02-20 16:12:19,399 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43200>
+2026-02-20 16:12:19,399 - dz_fastapi - DEBUG - Autopart already exists: ID 44318
+2026-02-20 16:12:19,399 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207502XKZ36A', 'name': 'Мотор Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,399 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207502XKZ36A' name='Мотор Стеклоомывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,399 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207502XKZ36A', 'name': 'Мотор Стеклоомывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,399 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,399 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,400 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42240>
+2026-02-20 16:12:19,401 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a429c0>
+2026-02-20 16:12:19,401 - dz_fastapi - DEBUG - Autopart already exists: ID 44319
+2026-02-20 16:12:19,401 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207503XKZ36A', 'name': 'Горловина Заливная Бачка Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,401 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207503XKZ36A' name='Горловина Заливная Бачка Омывателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,401 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207503XKZ36A', 'name': 'Горловина Заливная Бачка Омывателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,401 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,402 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,402 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41700>
+2026-02-20 16:12:19,403 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41100>
+2026-02-20 16:12:19,404 - dz_fastapi - DEBUG - Autopart already exists: ID 61145
+2026-02-20 16:12:19,404 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5207700XKV08A', 'name': 'Панель Омывателя Стекла Лобового Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,404 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5207700XKV08A' name='Панель Омывателя Стекла Лобового Защитная' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,404 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5207700XKV08A', 'name': 'Панель Омывателя Стекла Лобового Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,404 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,404 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,405 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a412e0>
+2026-02-20 16:12:19,406 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40380>
+2026-02-20 16:12:19,406 - dz_fastapi - DEBUG - Autopart already exists: ID 44320
+2026-02-20 16:12:19,406 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5300100AK80XA', 'name': 'Секция Верхняя Передней Панели', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,406 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5300100AK80XA' name='Секция Верхняя Передней Панели' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,406 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5300100AK80XA', 'name': 'Секция Верхняя Передней Панели', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,406 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,406 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,407 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41220>
+2026-02-20 16:12:19,409 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a421e0>
+2026-02-20 16:12:19,409 - dz_fastapi - DEBUG - Autopart already exists: ID 44321
+2026-02-20 16:12:19,409 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5300100XGW01A', 'name': 'Щит Моторного Отсека', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,409 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5300100XGW01A' name='Щит Моторного Отсека' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,409 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5300100XGW01A', 'name': 'Щит Моторного Отсека', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,409 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,409 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,410 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a438c0>
+2026-02-20 16:12:19,411 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43ce0>
+2026-02-20 16:12:19,411 - dz_fastapi - DEBUG - Autopart already exists: ID 44322
+2026-02-20 16:12:19,411 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5300160XGW01A', 'name': 'Щит Моторного Отсека', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,411 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5300160XGW01A' name='Щит Моторного Отсека' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,411 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5300160XGW01A', 'name': 'Щит Моторного Отсека', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,411 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,411 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,412 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a435c0>
+2026-02-20 16:12:19,413 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41100>
+2026-02-20 16:12:19,413 - dz_fastapi - DEBUG - Autopart already exists: ID 44323
+2026-02-20 16:12:19,413 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5300160XKN46A', 'name': 'Панель Разделительная В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,413 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5300160XKN46A' name='Панель Разделительная В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,413 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5300160XKN46A', 'name': 'Панель Разделительная В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,413 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,413 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,414 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43500>
+2026-02-20 16:12:19,415 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42300>
+2026-02-20 16:12:19,415 - dz_fastapi - DEBUG - Autopart already exists: ID 44324
+2026-02-20 16:12:19,415 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5301010XKZ0YA', 'name': 'Верхняя Панель Моторного Отсека', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,415 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5301010XKZ0YA' name='Верхняя Панель Моторного Отсека' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,415 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5301010XKZ0YA', 'name': 'Верхняя Панель Моторного Отсека', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,415 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,415 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,416 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43ce0>
+2026-02-20 16:12:19,417 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a421e0>
+2026-02-20 16:12:19,417 - dz_fastapi - DEBUG - Autopart already exists: ID 44325
+2026-02-20 16:12:19,417 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5301012XGW02A', 'name': 'Усилительная Пластина', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,417 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5301012XGW02A' name='Усилительная Пластина' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,418 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5301012XGW02A', 'name': 'Усилительная Пластина', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,418 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,418 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,418 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43920>
+2026-02-20 16:12:19,419 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41b80>
+2026-02-20 16:12:19,420 - dz_fastapi - DEBUG - Autopart already exists: ID 44326
+2026-02-20 16:12:19,420 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5301020XKY00A', 'name': 'Панель Монтажная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,420 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5301020XKY00A' name='Панель Монтажная' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,420 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5301020XKY00A', 'name': 'Панель Монтажная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,420 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,420 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,421 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42000>
+2026-02-20 16:12:19,422 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43ce0>
+2026-02-20 16:12:19,422 - dz_fastapi - DEBUG - Autopart already exists: ID 44327
+2026-02-20 16:12:19,422 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5301105XPW15A', 'name': 'Панель Разделительная В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,422 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5301105XPW15A' name='Панель Разделительная В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:19,422 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5301105XPW15A', 'name': 'Панель Разделительная В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,422 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:19,422 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:19,423 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40140>
+2026-02-20 16:12:19,424 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43920>
+2026-02-20 16:12:19,424 - dz_fastapi - DEBUG - Autopart already exists: ID 61147
+2026-02-20 16:12:19,424 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5301106XST11A', 'name': 'Щит Моторного Отсека', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:19,425 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5301106XST11A' name='Щит Моторного Отсека' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None

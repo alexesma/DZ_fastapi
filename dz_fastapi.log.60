@@ -1,0 +1,1172 @@
+2026-02-20 16:12:26,233 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a414c0>
+2026-02-20 16:12:26,333 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41220>
+2026-02-20 16:12:26,335 - dz_fastapi - DEBUG - Autopart already exists: ID 46264
+2026-02-20 16:12:26,336 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105104XKN04A', 'name': 'Рычаг Замка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,339 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105104XKN04A' name='Рычаг Замка Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,340 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105104XKN04A', 'name': 'Рычаг Замка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,340 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,340 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,343 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42d20>
+2026-02-20 16:12:26,345 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a430e0>
+2026-02-20 16:12:26,345 - dz_fastapi - DEBUG - Autopart already exists: ID 62964
+2026-02-20 16:12:26,345 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105104XKQ00A86', 'name': 'Ручка Внутренняя Двери Передняя Правая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,346 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105104XKQ00A86' name='Ручка Внутренняя Двери Передняя Правая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,346 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105104XKQ00A86', 'name': 'Ручка Внутренняя Двери Передняя Правая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,346 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,346 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,347 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40260>
+2026-02-20 16:12:26,356 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40e00>
+2026-02-20 16:12:26,356 - dz_fastapi - DEBUG - Autopart already exists: ID 46265
+2026-02-20 16:12:26,356 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105104XKQ00A8P', 'name': 'Внутренняя Ручка Передней Правой Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,357 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105104XKQ00A8P' name='Внутренняя Ручка Передней Правой Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,357 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105104XKQ00A8P', 'name': 'Внутренняя Ручка Передней Правой Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,358 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,358 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,363 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43d40>
+2026-02-20 16:12:26,370 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43da0>
+2026-02-20 16:12:26,371 - dz_fastapi - DEBUG - Autopart already exists: ID 46266
+2026-02-20 16:12:26,371 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105104XPW01A', 'name': 'Замок Двери Передней Левой В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,372 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105104XPW01A' name='Замок Двери Передней Левой В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,374 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105104XPW01A', 'name': 'Замок Двери Передней Левой В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,375 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,375 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,387 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a427e0>
+2026-02-20 16:12:26,397 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43440>
+2026-02-20 16:12:26,397 - dz_fastapi - DEBUG - Autopart already exists: ID 46267
+2026-02-20 16:12:26,398 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105105XKN04A', 'name': 'Тросик Замка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,398 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105105XKN04A' name='Тросик Замка Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,399 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105105XKN04A', 'name': 'Тросик Замка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,400 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,400 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,405 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40260>
+2026-02-20 16:12:26,410 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42cc0>
+2026-02-20 16:12:26,410 - dz_fastapi - DEBUG - Autopart already exists: ID 46269
+2026-02-20 16:12:26,411 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105105XKQ00A86', 'name': 'Заглушка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,411 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105105XKQ00A86' name='Заглушка' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,411 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105105XKQ00A86', 'name': 'Заглушка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,411 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,412 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,413 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40680>
+2026-02-20 16:12:26,415 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40740>
+2026-02-20 16:12:26,415 - dz_fastapi - DEBUG - Autopart already exists: ID 46270
+2026-02-20 16:12:26,415 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105105XKZ3LA', 'name': 'Тросик Замка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,416 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105105XKZ3LA' name='Тросик Замка Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,416 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105105XKZ3LA', 'name': 'Тросик Замка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,416 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,417 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,429 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40380>
+2026-02-20 16:12:26,469 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40c20>
+2026-02-20 16:12:26,469 - dz_fastapi - DEBUG - Autopart already exists: ID 55359
+2026-02-20 16:12:26,470 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105105XPS11A', 'name': 'Внутрення Ручка Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,471 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105105XPS11A' name='Внутрення Ручка Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,471 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105105XPS11A', 'name': 'Внутрення Ручка Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,471 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,472 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,478 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a426c0>
+2026-02-20 16:12:26,481 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a430e0>
+2026-02-20 16:12:26,481 - dz_fastapi - DEBUG - Autopart already exists: ID 76167
+2026-02-20 16:12:26,481 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105105XPW01A', 'name': 'Замок Двери Передней Правой В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,481 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105105XPW01A' name='Замок Двери Передней Правой В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,482 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105105XPW01A', 'name': 'Замок Двери Передней Правой В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,482 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,482 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,484 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43a40>
+2026-02-20 16:12:26,486 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a416a0>
+2026-02-20 16:12:26,486 - dz_fastapi - DEBUG - Autopart already exists: ID 46271
+2026-02-20 16:12:26,486 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105105XST10A', 'name': 'Тросик Замка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,487 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105105XST10A' name='Тросик Замка Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,487 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105105XST10A', 'name': 'Тросик Замка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,487 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,487 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,488 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40320>
+2026-02-20 16:12:26,491 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42e40>
+2026-02-20 16:12:26,491 - dz_fastapi - DEBUG - Autopart already exists: ID 46272
+2026-02-20 16:12:26,492 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105106XKN02B', 'name': 'Наружная Ручка Правой Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,492 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105106XKN02B' name='Наружная Ручка Правой Передней Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,492 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105106XKN02B', 'name': 'Наружная Ручка Правой Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,492 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,492 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,494 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40380>
+2026-02-20 16:12:26,495 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40b00>
+2026-02-20 16:12:26,495 - dz_fastapi - DEBUG - Autopart already exists: ID 46273
+2026-02-20 16:12:26,496 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105106XKZ16A', 'name': 'Штанга Блокировки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,496 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105106XKZ16A' name='Штанга Блокировки Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,496 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105106XKZ16A', 'name': 'Штанга Блокировки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,496 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,496 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,497 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41b80>
+2026-02-20 16:12:26,499 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40e00>
+2026-02-20 16:12:26,499 - dz_fastapi - DEBUG - Autopart already exists: ID 46274
+2026-02-20 16:12:26,499 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105106XPW01A', 'name': 'Тросик Открытия Двери Передней', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,499 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105106XPW01A' name='Тросик Открытия Двери Передней' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,499 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105106XPW01A', 'name': 'Тросик Открытия Двери Передней', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,499 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,500 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,501 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43500>
+2026-02-20 16:12:26,502 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42600>
+2026-02-20 16:12:26,502 - dz_fastapi - DEBUG - Autopart already exists: ID 57326
+2026-02-20 16:12:26,502 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105107XKQ00A', 'name': 'Тяга Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,502 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105107XKQ00A' name='Тяга Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,503 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105107XKQ00A', 'name': 'Тяга Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,503 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,503 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,504 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a416a0>
+2026-02-20 16:12:26,505 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43c80>
+2026-02-20 16:12:26,505 - dz_fastapi - DEBUG - Autopart already exists: ID 46275
+2026-02-20 16:12:26,505 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105107XKZ16A', 'name': 'Тросик Замка Передней Двери (Внешн.Открытие)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,505 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105107XKZ16A' name='Тросик Замка Передней Двери (Внешн.Открытие)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,506 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105107XKZ16A', 'name': 'Тросик Замка Передней Двери (Внешн.Открытие)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,506 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,506 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,508 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41820>
+2026-02-20 16:12:26,509 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43980>
+2026-02-20 16:12:26,509 - dz_fastapi - DEBUG - Autopart already exists: ID 3220
+2026-02-20 16:12:26,510 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105107XKZ3LA', 'name': 'Тяга Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,510 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105107XKZ3LA' name='Тяга Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,510 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105107XKZ3LA', 'name': 'Тяга Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,510 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,510 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,511 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41040>
+2026-02-20 16:12:26,512 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41640>
+2026-02-20 16:12:26,512 - dz_fastapi - DEBUG - Autopart already exists: ID 46276
+2026-02-20 16:12:26,512 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105107XSZ08A', 'name': 'Тросик Открытия Двери Передней', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,513 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105107XSZ08A' name='Тросик Открытия Двери Передней' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,513 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105107XSZ08A', 'name': 'Тросик Открытия Двери Передней', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,513 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,513 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,514 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40860>
+2026-02-20 16:12:26,516 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41e20>
+2026-02-20 16:12:26,516 - dz_fastapi - DEBUG - Autopart already exists: ID 46277
+2026-02-20 16:12:26,516 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105108XKQ00A', 'name': 'Тяга Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,516 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105108XKQ00A' name='Тяга Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,516 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105108XKQ00A', 'name': 'Тяга Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,516 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,516 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,517 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40080>
+2026-02-20 16:12:26,518 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43500>
+2026-02-20 16:12:26,519 - dz_fastapi - DEBUG - Autopart already exists: ID 46278
+2026-02-20 16:12:26,519 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105108XKZ16A', 'name': 'Тросик Замка Передней Двери (Внутреннее Открытие)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,519 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105108XKZ16A' name='Тросик Замка Передней Двери (Внутреннее Открытие)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,519 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105108XKZ16A', 'name': 'Тросик Замка Передней Двери (Внутреннее Открытие)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,519 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,519 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,520 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40aa0>
+2026-02-20 16:12:26,521 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a404a0>
+2026-02-20 16:12:26,521 - dz_fastapi - DEBUG - Autopart already exists: ID 46279
+2026-02-20 16:12:26,521 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105109XKN02B', 'name': 'Рычаг Наружной Ручки Левой Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,522 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105109XKN02B' name='Рычаг Наружной Ручки Левой Передней Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,522 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105109XKN02B', 'name': 'Рычаг Наружной Ручки Левой Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,522 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,524 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,526 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41280>
+2026-02-20 16:12:26,527 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42f00>
+2026-02-20 16:12:26,527 - dz_fastapi - DEBUG - Autopart already exists: ID 46280
+2026-02-20 16:12:26,528 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105109XKZ16A', 'name': 'Трос Замка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,528 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105109XKZ16A' name='Трос Замка Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,528 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105109XKZ16A', 'name': 'Трос Замка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,528 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,529 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,530 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42fc0>
+2026-02-20 16:12:26,531 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42900>
+2026-02-20 16:12:26,531 - dz_fastapi - DEBUG - Autopart already exists: ID 3221
+2026-02-20 16:12:26,531 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105110XKN02B', 'name': 'Рычаг Наружной Ручки Правой Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,532 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105110XKN02B' name='Рычаг Наружной Ручки Правой Передней Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,532 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105110XKN02B', 'name': 'Рычаг Наружной Ручки Правой Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,532 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,532 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,533 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43500>
+2026-02-20 16:12:26,535 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41b80>
+2026-02-20 16:12:26,535 - dz_fastapi - DEBUG - Autopart already exists: ID 46281
+2026-02-20 16:12:26,535 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105110XKN04B', 'name': 'Замок Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,535 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105110XKN04B' name='Замок Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,535 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105110XKN04B', 'name': 'Замок Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,535 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,535 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,537 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41ee0>
+2026-02-20 16:12:26,538 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41520>
+2026-02-20 16:12:26,538 - dz_fastapi - DEBUG - Autopart already exists: ID 46282
+2026-02-20 16:12:26,538 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105110XKV08A', 'name': 'Тросик Замка Передней Двери (Внутр.Открытие)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,538 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105110XKV08A' name='Тросик Замка Передней Двери (Внутр.Открытие)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,538 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105110XKV08A', 'name': 'Тросик Замка Передней Двери (Внутр.Открытие)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,538 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,538 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,541 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40080>
+2026-02-20 16:12:26,542 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40ec0>
+2026-02-20 16:12:26,542 - dz_fastapi - DEBUG - Autopart already exists: ID 46283
+2026-02-20 16:12:26,542 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105110XKW09A', 'name': 'Тросик Замка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,543 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105110XKW09A' name='Тросик Замка Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,543 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105110XKW09A', 'name': 'Тросик Замка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,543 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,543 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,544 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41580>
+2026-02-20 16:12:26,545 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41a00>
+2026-02-20 16:12:26,545 - dz_fastapi - DEBUG - Autopart already exists: ID 46284
+2026-02-20 16:12:26,545 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105110XKZ20A', 'name': 'Замок Двери Передней Левой В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,546 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105110XKZ20A' name='Замок Двери Передней Левой В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,546 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105110XKZ20A', 'name': 'Замок Двери Передней Левой В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,546 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,546 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,547 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43560>
+2026-02-20 16:12:26,548 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43440>
+2026-02-20 16:12:26,548 - dz_fastapi - DEBUG - Autopart already exists: ID 46285
+2026-02-20 16:12:26,548 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105110XKZ30A', 'name': 'Замок Двери Передней Левой В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,549 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105110XKZ30A' name='Замок Двери Передней Левой В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,549 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105110XKZ30A', 'name': 'Замок Двери Передней Левой В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,549 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,549 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,550 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43800>
+2026-02-20 16:12:26,551 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a413a0>
+2026-02-20 16:12:26,551 - dz_fastapi - DEBUG - Autopart already exists: ID 46286
+2026-02-20 16:12:26,551 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105110XKZ3LA', 'name': 'Замок Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,551 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105110XKZ3LA' name='Замок Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,551 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105110XKZ3LA', 'name': 'Замок Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,552 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,552 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,553 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40260>
+2026-02-20 16:12:26,554 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43ce0>
+2026-02-20 16:12:26,554 - dz_fastapi - DEBUG - Autopart already exists: ID 46287
+2026-02-20 16:12:26,554 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105111XKN02A', 'name': 'Трос Замка Левой Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,555 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105111XKN02A' name='Трос Замка Левой Передней Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,555 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105111XKN02A', 'name': 'Трос Замка Левой Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,555 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,557 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,562 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40080>
+2026-02-20 16:12:26,564 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41340>
+2026-02-20 16:12:26,564 - dz_fastapi - DEBUG - Autopart already exists: ID 46288
+2026-02-20 16:12:26,564 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105111XKQ00A', 'name': 'Ручка Двери Внешняя Пл', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,565 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105111XKQ00A' name='Ручка Двери Внешняя Пл' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,565 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105111XKQ00A', 'name': 'Ручка Двери Внешняя Пл', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,565 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,565 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,566 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43fe0>
+2026-02-20 16:12:26,568 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41d00>
+2026-02-20 16:12:26,568 - dz_fastapi - DEBUG - Autopart already exists: ID 46290
+2026-02-20 16:12:26,568 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105111XKZ16A', 'name': 'Клипса Крепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,568 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105111XKZ16A' name='Клипса Крепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,569 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105111XKZ16A', 'name': 'Клипса Крепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,569 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,569 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,570 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a401a0>
+2026-02-20 16:12:26,575 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42900>
+2026-02-20 16:12:26,575 - dz_fastapi - DEBUG - Autopart already exists: ID 46291
+2026-02-20 16:12:26,576 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105112XKN02A', 'name': 'Трос Замка Правой Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,576 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105112XKN02A' name='Трос Замка Правой Передней Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,576 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105112XKN02A', 'name': 'Трос Замка Правой Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,577 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,577 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,579 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43260>
+2026-02-20 16:12:26,581 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41c40>
+2026-02-20 16:12:26,581 - dz_fastapi - DEBUG - Autopart already exists: ID 46292
+2026-02-20 16:12:26,581 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105112XKN04A', 'name': 'Ручка Двери Внешняя Пп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,581 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105112XKN04A' name='Ручка Двери Внешняя Пп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,582 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105112XKN04A', 'name': 'Ручка Двери Внешняя Пп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,582 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,582 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,583 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41ac0>
+2026-02-20 16:12:26,584 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42720>
+2026-02-20 16:12:26,584 - dz_fastapi - DEBUG - Autopart already exists: ID 46293
+2026-02-20 16:12:26,584 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105112XKQ00A', 'name': 'Ручка Двери Внешняя Пп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,585 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105112XKQ00A' name='Ручка Двери Внешняя Пп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,585 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105112XKQ00A', 'name': 'Ручка Двери Внешняя Пп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,585 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,585 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,586 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a433e0>
+2026-02-20 16:12:26,587 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41ee0>
+2026-02-20 16:12:26,587 - dz_fastapi - DEBUG - Autopart already exists: ID 46294
+2026-02-20 16:12:26,588 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105115XKN04A', 'name': 'Корпус Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,588 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105115XKN04A' name='Корпус Ручки Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,588 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105115XKN04A', 'name': 'Корпус Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,588 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,588 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,591 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41340>
+2026-02-20 16:12:26,593 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43320>
+2026-02-20 16:12:26,593 - dz_fastapi - DEBUG - Autopart already exists: ID 46298
+2026-02-20 16:12:26,593 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105115XPW01A', 'name': 'Тросик Замка Передней Двери (Внутр.Открытие)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,594 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105115XPW01A' name='Тросик Замка Передней Двери (Внутр.Открытие)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,594 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105115XPW01A', 'name': 'Тросик Замка Передней Двери (Внутр.Открытие)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,594 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,594 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,595 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43b00>
+2026-02-20 16:12:26,596 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41d00>
+2026-02-20 16:12:26,596 - dz_fastapi - DEBUG - Autopart already exists: ID 46299
+2026-02-20 16:12:26,596 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105115XSZ08A', 'name': 'Тросик Открытия Двери Снаружи Передней Левый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,596 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105115XSZ08A' name='Тросик Открытия Двери Снаружи Передней Левый' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,596 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105115XSZ08A', 'name': 'Тросик Открытия Двери Снаружи Передней Левый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,597 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,597 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,598 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40680>
+2026-02-20 16:12:26,599 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a404a0>
+2026-02-20 16:12:26,599 - dz_fastapi - DEBUG - Autopart already exists: ID 46300
+2026-02-20 16:12:26,599 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105116APW01A', 'name': 'Тросик Замка Передней Двери (Внутр.Открытие)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,599 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105116APW01A' name='Тросик Замка Передней Двери (Внутр.Открытие)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,599 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105116APW01A', 'name': 'Тросик Замка Передней Двери (Внутр.Открытие)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,599 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,599 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,600 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41580>
+2026-02-20 16:12:26,602 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42480>
+2026-02-20 16:12:26,602 - dz_fastapi - DEBUG - Autopart already exists: ID 46301
+2026-02-20 16:12:26,602 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105116XKN04A', 'name': 'Корпус Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,603 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105116XKN04A' name='Корпус Ручки Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,603 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105116XKN04A', 'name': 'Корпус Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,603 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,603 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,604 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a415e0>
+2026-02-20 16:12:26,605 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41520>
+2026-02-20 16:12:26,605 - dz_fastapi - DEBUG - Autopart already exists: ID 46302
+2026-02-20 16:12:26,605 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105116XPW01A', 'name': 'Корпус Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,606 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105116XPW01A' name='Корпус Ручки Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,606 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105116XPW01A', 'name': 'Корпус Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,607 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,607 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,609 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41d00>
+2026-02-20 16:12:26,610 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a403e0>
+2026-02-20 16:12:26,610 - dz_fastapi - DEBUG - Autopart already exists: ID 46303
+2026-02-20 16:12:26,610 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105117XKN04A', 'name': 'Корпус Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,611 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105117XKN04A' name='Корпус Ручки Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,611 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105117XKN04A', 'name': 'Корпус Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,611 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,611 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,612 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41220>
+2026-02-20 16:12:26,613 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a411c0>
+2026-02-20 16:12:26,613 - dz_fastapi - DEBUG - Autopart already exists: ID 46304
+2026-02-20 16:12:26,613 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105117XPW01A', 'name': 'Корпус Ручки Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,613 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105117XPW01A' name='Корпус Ручки Двери Передней Правой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,613 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105117XPW01A', 'name': 'Корпус Ручки Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,613 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,613 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,614 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40ec0>
+2026-02-20 16:12:26,615 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a433e0>
+2026-02-20 16:12:26,615 - dz_fastapi - DEBUG - Autopart already exists: ID 46305
+2026-02-20 16:12:26,615 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105118APS01A', 'name': 'Накладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,615 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105118APS01A' name='Накладка Ручки Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,615 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105118APS01A', 'name': 'Накладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,615 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,615 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,616 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a430e0>
+2026-02-20 16:12:26,617 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a407a0>
+2026-02-20 16:12:26,617 - dz_fastapi - DEBUG - Autopart already exists: ID 73427
+2026-02-20 16:12:26,618 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105118APW01A', 'name': 'Тросик Замка Передней Двери (Внутр.Открытие)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,618 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105118APW01A' name='Тросик Замка Передней Двери (Внутр.Открытие)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,618 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105118APW01A', 'name': 'Тросик Замка Передней Двери (Внутр.Открытие)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,618 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,618 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,619 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43560>
+2026-02-20 16:12:26,620 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42c00>
+2026-02-20 16:12:26,620 - dz_fastapi - DEBUG - Autopart already exists: ID 63574
+2026-02-20 16:12:26,620 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105118XPW01A', 'name': 'Прокладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,620 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105118XPW01A' name='Прокладка Ручки Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,620 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105118XPW01A', 'name': 'Прокладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,620 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,620 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,621 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42300>
+2026-02-20 16:12:26,622 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41880>
+2026-02-20 16:12:26,622 - dz_fastapi - DEBUG - Autopart already exists: ID 46306
+2026-02-20 16:12:26,622 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105119XPW01A', 'name': 'Накладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,623 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105119XPW01A' name='Накладка Ручки Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,624 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105119XPW01A', 'name': 'Накладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,624 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,624 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,627 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a423c0>
+2026-02-20 16:12:26,628 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40380>
+2026-02-20 16:12:26,628 - dz_fastapi - DEBUG - Autopart already exists: ID 46307
+2026-02-20 16:12:26,628 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105120XKN04A', 'name': 'Замок Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,629 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105120XKN04A' name='Замок Двери Передней Правой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,629 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105120XKN04A', 'name': 'Замок Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,629 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,629 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,630 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43320>
+2026-02-20 16:12:26,631 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a409e0>
+2026-02-20 16:12:26,631 - dz_fastapi - DEBUG - Autopart already exists: ID 46308
+2026-02-20 16:12:26,631 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105120XKZ16A', 'name': 'Замок Двери Передней Правой В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,631 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105120XKZ16A' name='Замок Двери Передней Правой В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,631 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105120XKZ16A', 'name': 'Замок Двери Передней Правой В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,632 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,632 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,633 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43560>
+2026-02-20 16:12:26,634 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42720>
+2026-02-20 16:12:26,634 - dz_fastapi - DEBUG - Autopart already exists: ID 46309
+2026-02-20 16:12:26,634 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105120XKZ30A', 'name': 'Замок Двери Передней Правой В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,634 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105120XKZ30A' name='Замок Двери Передней Правой В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,634 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105120XKZ30A', 'name': 'Замок Двери Передней Правой В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,634 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,634 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,635 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43980>
+2026-02-20 16:12:26,637 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43b60>
+2026-02-20 16:12:26,637 - dz_fastapi - DEBUG - Autopart already exists: ID 46310
+2026-02-20 16:12:26,637 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105120XPW01A', 'name': 'Замок Двери Передней Правой В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,637 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105120XPW01A' name='Замок Двери Передней Правой В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,638 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105120XPW01A', 'name': 'Замок Двери Передней Правой В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,638 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,639 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,643 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40560>
+2026-02-20 16:12:26,644 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41ca0>
+2026-02-20 16:12:26,644 - dz_fastapi - DEBUG - Autopart already exists: ID 62965
+2026-02-20 16:12:26,644 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105123XKN01A', 'name': 'Заглушка Личинки Замка Водительской Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,644 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105123XKN01A' name='Заглушка Личинки Замка Водительской Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,645 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105123XKN01A', 'name': 'Заглушка Личинки Замка Водительской Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,645 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,645 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,646 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a419a0>
+2026-02-20 16:12:26,648 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41640>
+2026-02-20 16:12:26,648 - dz_fastapi - DEBUG - Autopart already exists: ID 46313
+2026-02-20 16:12:26,648 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105126XPS01A', 'name': 'Замок Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,648 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105126XPS01A' name='Замок Двери Передней Правой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,648 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105126XPS01A', 'name': 'Замок Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,648 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,649 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,650 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a403e0>
+2026-02-20 16:12:26,651 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41e20>
+2026-02-20 16:12:26,651 - dz_fastapi - DEBUG - Autopart already exists: ID 46314
+2026-02-20 16:12:26,651 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105131XKU00A', 'name': 'Замок Ложный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,651 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105131XKU00A' name='Замок Ложный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,652 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105131XKU00A', 'name': 'Замок Ложный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,652 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,652 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,653 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43980>
+2026-02-20 16:12:26,654 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a413a0>
+2026-02-20 16:12:26,654 - dz_fastapi - DEBUG - Autopart already exists: ID 46315
+2026-02-20 16:12:26,654 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105132XST01A', 'name': 'Заглушка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,654 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105132XST01A' name='Заглушка' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,655 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105132XST01A', 'name': 'Заглушка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,655 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,655 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,656 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42c60>
+2026-02-20 16:12:26,659 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41760>
+2026-02-20 16:12:26,659 - dz_fastapi - DEBUG - Autopart already exists: ID 46317
+2026-02-20 16:12:26,659 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105133CKZ16A', 'name': 'Ручка Двери Наружняя Передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,659 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105133CKZ16A' name='Ручка Двери Наружняя Передняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,659 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105133CKZ16A', 'name': 'Ручка Двери Наружняя Передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,659 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,660 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,661 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42600>
+2026-02-20 16:12:26,662 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43140>
+2026-02-20 16:12:26,662 - dz_fastapi - DEBUG - Autopart already exists: ID 46318
+2026-02-20 16:12:26,662 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105133DKZ16A', 'name': 'Ручка Двери Наружняя Передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,662 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105133DKZ16A' name='Ручка Двери Наружняя Передняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,662 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105133DKZ16A', 'name': 'Ручка Двери Наружняя Передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,662 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,662 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,663 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a417c0>
+2026-02-20 16:12:26,664 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40620>
+2026-02-20 16:12:26,665 - dz_fastapi - DEBUG - Autopart already exists: ID 57327
+2026-02-20 16:12:26,665 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105133XKZ3LA', 'name': 'Ручка Двери Наружняя Передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,665 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105133XKZ3LA' name='Ручка Двери Наружняя Передняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,665 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105133XKZ3LA', 'name': 'Ручка Двери Наружняя Передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,665 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,665 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,666 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41700>
+2026-02-20 16:12:26,667 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43980>
+2026-02-20 16:12:26,667 - dz_fastapi - DEBUG - Autopart already exists: ID 46319
+2026-02-20 16:12:26,667 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105133XSZ08A', 'name': 'Ручка Наружняя Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,667 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105133XSZ08A' name='Ручка Наружняя Передней Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,668 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105133XSZ08A', 'name': 'Ручка Наружняя Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,668 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,668 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,669 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a430e0>
+2026-02-20 16:12:26,670 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42d20>
+2026-02-20 16:12:26,670 - dz_fastapi - DEBUG - Autopart already exists: ID 46320
+2026-02-20 16:12:26,670 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105134CKZ16A', 'name': 'Накладка Ручки Двери Под Ключ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,670 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105134CKZ16A' name='Накладка Ручки Двери Под Ключ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,670 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105134CKZ16A', 'name': 'Накладка Ручки Двери Под Ключ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,670 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,671 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,671 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40b60>
+2026-02-20 16:12:26,673 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42360>
+2026-02-20 16:12:26,674 - dz_fastapi - DEBUG - Autopart already exists: ID 46321
+2026-02-20 16:12:26,674 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105134DKZ16A', 'name': 'Накладка Ручки Двери Под Ключ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,674 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105134DKZ16A' name='Накладка Ручки Двери Под Ключ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,674 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105134DKZ16A', 'name': 'Накладка Ручки Двери Под Ключ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,674 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,675 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,676 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43320>
+2026-02-20 16:12:26,677 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43b00>
+2026-02-20 16:12:26,677 - dz_fastapi - DEBUG - Autopart already exists: ID 46322
+2026-02-20 16:12:26,677 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105134XKZ3LA', 'name': 'Накладка Ручки Двери Под Ключ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,678 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105134XKZ3LA' name='Накладка Ручки Двери Под Ключ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,678 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105134XKZ3LA', 'name': 'Накладка Ручки Двери Под Ключ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,678 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,678 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,679 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42600>
+2026-02-20 16:12:26,680 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41a60>
+2026-02-20 16:12:26,680 - dz_fastapi - DEBUG - Autopart already exists: ID 46323
+2026-02-20 16:12:26,680 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105134XST01A', 'name': 'Ручка Двери Наружняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,680 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105134XST01A' name='Ручка Двери Наружняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,680 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105134XST01A', 'name': 'Ручка Двери Наружняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,680 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,680 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,681 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40140>
+2026-02-20 16:12:26,683 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40c20>
+2026-02-20 16:12:26,683 - dz_fastapi - DEBUG - Autopart already exists: ID 46324
+2026-02-20 16:12:26,683 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105134XST01B', 'name': 'Ручка Задней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,683 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105134XST01B' name='Ручка Задней Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,683 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105134XST01B', 'name': 'Ручка Задней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,683 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,683 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,684 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42660>
+2026-02-20 16:12:26,685 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a409e0>
+2026-02-20 16:12:26,685 - dz_fastapi - DEBUG - Autopart already exists: ID 46325
+2026-02-20 16:12:26,685 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105134XSZ08A', 'name': 'Накладка Ручки Двери Передней Под Ключ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,685 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105134XSZ08A' name='Накладка Ручки Двери Передней Под Ключ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,685 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105134XSZ08A', 'name': 'Накладка Ручки Двери Передней Под Ключ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,686 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,686 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,686 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a411c0>
+2026-02-20 16:12:26,688 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41f40>
+2026-02-20 16:12:26,688 - dz_fastapi - DEBUG - Autopart already exists: ID 46326
+2026-02-20 16:12:26,688 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105135BKZ16A', 'name': 'Корпус Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,688 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105135BKZ16A' name='Корпус Ручки Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,688 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105135BKZ16A', 'name': 'Корпус Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,688 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,689 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,690 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43e60>
+2026-02-20 16:12:26,692 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43440>
+2026-02-20 16:12:26,692 - dz_fastapi - DEBUG - Autopart already exists: ID 46327
+2026-02-20 16:12:26,692 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105135XP6PXA', 'name': 'Корпус Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,692 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105135XP6PXA' name='Корпус Ручки Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,692 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105135XP6PXA', 'name': 'Корпус Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,692 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,692 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,693 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a426c0>
+2026-02-20 16:12:26,694 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41be0>
+2026-02-20 16:12:26,694 - dz_fastapi - DEBUG - Autopart already exists: ID 46328
+2026-02-20 16:12:26,695 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105135XSZ08A', 'name': 'Корпус Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,695 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105135XSZ08A' name='Корпус Ручки Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,695 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105135XSZ08A', 'name': 'Корпус Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,695 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,695 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,696 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42660>
+2026-02-20 16:12:26,697 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40980>
+2026-02-20 16:12:26,697 - dz_fastapi - DEBUG - Autopart already exists: ID 46329
+2026-02-20 16:12:26,697 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105136BKZ16A', 'name': 'Корпус Ручки Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,697 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105136BKZ16A' name='Корпус Ручки Двери Передней Правой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,697 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105136BKZ16A', 'name': 'Корпус Ручки Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,698 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,698 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,698 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40920>
+2026-02-20 16:12:26,700 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43140>
+2026-02-20 16:12:26,700 - dz_fastapi - DEBUG - Autopart already exists: ID 46330
+2026-02-20 16:12:26,700 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105136XSZ08A', 'name': 'Корпус Ручки Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,700 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105136XSZ08A' name='Корпус Ручки Двери Передней Правой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,700 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105136XSZ08A', 'name': 'Корпус Ручки Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,700 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,700 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,701 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42fc0>
+2026-02-20 16:12:26,702 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a422a0>
+2026-02-20 16:12:26,702 - dz_fastapi - DEBUG - Autopart already exists: ID 46331
+2026-02-20 16:12:26,702 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105137BKZ16A', 'name': 'Прокладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,703 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105137BKZ16A' name='Прокладка Ручки Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,703 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105137BKZ16A', 'name': 'Прокладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,703 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,703 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,704 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42960>
+2026-02-20 16:12:26,705 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41a00>
+2026-02-20 16:12:26,705 - dz_fastapi - DEBUG - Autopart already exists: ID 46332
+2026-02-20 16:12:26,705 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105137DKZ16A', 'name': 'Прокладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,705 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105137DKZ16A' name='Прокладка Ручки Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,706 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105137DKZ16A', 'name': 'Прокладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,706 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,706 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,707 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42ba0>
+2026-02-20 16:12:26,709 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42540>
+2026-02-20 16:12:26,709 - dz_fastapi - DEBUG - Autopart already exists: ID 46333
+2026-02-20 16:12:26,709 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105137XP6PXA', 'name': 'Ручка Двери Наружняя Передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,709 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105137XP6PXA' name='Ручка Двери Наружняя Передняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,709 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105137XP6PXA', 'name': 'Ручка Двери Наружняя Передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,709 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,710 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,710 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40980>
+2026-02-20 16:12:26,712 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43500>
+2026-02-20 16:12:26,712 - dz_fastapi - DEBUG - Autopart already exists: ID 46334
+2026-02-20 16:12:26,712 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105137XSZ08A', 'name': 'Прокладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,712 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105137XSZ08A' name='Прокладка Ручки Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,712 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105137XSZ08A', 'name': 'Прокладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,712 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,712 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,713 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40320>
+2026-02-20 16:12:26,714 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41760>
+2026-02-20 16:12:26,714 - dz_fastapi - DEBUG - Autopart already exists: ID 46335
+2026-02-20 16:12:26,714 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105138BKZ16A', 'name': 'Прокладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,714 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105138BKZ16A' name='Прокладка Ручки Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,714 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105138BKZ16A', 'name': 'Прокладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,715 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,715 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,715 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43c20>
+2026-02-20 16:12:26,717 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41100>
+2026-02-20 16:12:26,717 - dz_fastapi - DEBUG - Autopart already exists: ID 46336
+2026-02-20 16:12:26,717 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105138DKZ16A', 'name': 'Прокладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,717 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105138DKZ16A' name='Прокладка Ручки Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,717 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105138DKZ16A', 'name': 'Прокладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,717 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,717 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,718 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40740>
+2026-02-20 16:12:26,719 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41460>
+2026-02-20 16:12:26,719 - dz_fastapi - DEBUG - Autopart already exists: ID 57328
+2026-02-20 16:12:26,719 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105139BKZ16A', 'name': 'Штифт Корпуса Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,721 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105139BKZ16A' name='Штифт Корпуса Ручки Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,721 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105139BKZ16A', 'name': 'Штифт Корпуса Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,721 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,721 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,722 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40ec0>
+2026-02-20 16:12:26,726 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43140>
+2026-02-20 16:12:26,726 - dz_fastapi - DEBUG - Autopart already exists: ID 46337
+2026-02-20 16:12:26,726 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105144CKZ16A', 'name': 'Накладка Декоративная Ручки Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,726 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105144CKZ16A' name='Накладка Декоративная Ручки Передней Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,726 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105144CKZ16A', 'name': 'Накладка Декоративная Ручки Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,726 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,727 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,728 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41760>
+2026-02-20 16:12:26,729 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43560>
+2026-02-20 16:12:26,729 - dz_fastapi - DEBUG - Autopart already exists: ID 46338
+2026-02-20 16:12:26,729 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105144DKZ16A', 'name': 'Накладка Декоративная Ручки Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,729 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105144DKZ16A' name='Накладка Декоративная Ручки Передней Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,729 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105144DKZ16A', 'name': 'Накладка Декоративная Ручки Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,729 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,730 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,730 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41be0>
+2026-02-20 16:12:26,732 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a405c0>
+2026-02-20 16:12:26,732 - dz_fastapi - DEBUG - Autopart already exists: ID 46339
+2026-02-20 16:12:26,732 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105144XKZ3LA', 'name': 'Накладка Декоративная Ручки Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,732 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105144XKZ3LA' name='Накладка Декоративная Ручки Передней Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,732 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105144XKZ3LA', 'name': 'Накладка Декоративная Ручки Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,732 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,732 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,733 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a422a0>
+2026-02-20 16:12:26,734 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42f60>
+2026-02-20 16:12:26,734 - dz_fastapi - DEBUG - Autopart already exists: ID 61253
+2026-02-20 16:12:26,735 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105144XSZ08A', 'name': 'Накладка Декоративная Наружней Ручки Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,735 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105144XSZ08A' name='Накладка Декоративная Наружней Ручки Передней Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,735 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105144XSZ08A', 'name': 'Накладка Декоративная Наружней Ручки Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,735 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,736 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,738 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42720>
+2026-02-20 16:12:26,746 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a414c0>
+2026-02-20 16:12:26,747 - dz_fastapi - DEBUG - Autopart already exists: ID 46340
+2026-02-20 16:12:26,747 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105150XKZ36A', 'name': 'Ручка Внутренняя Открытия Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,747 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105150XKZ36A' name='Ручка Внутренняя Открытия Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,747 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105150XKZ36A', 'name': 'Ручка Внутренняя Открытия Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,747 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,750 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,751 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43e00>
+2026-02-20 16:12:26,753 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42d20>
+2026-02-20 16:12:26,753 - dz_fastapi - DEBUG - Autopart already exists: ID 46341
+2026-02-20 16:12:26,753 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105152XKY28B', 'name': 'Рамка Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,753 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105152XKY28B' name='Рамка Ручки Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,753 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105152XKY28B', 'name': 'Рамка Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,754 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,754 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,755 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a407a0>
+2026-02-20 16:12:26,820 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41220>
+2026-02-20 16:12:26,821 - dz_fastapi - DEBUG - Autopart already exists: ID 46342
+2026-02-20 16:12:26,821 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105153XKY28A', 'name': 'Прокладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,827 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105153XKY28A' name='Прокладка Ручки Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,828 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105153XKY28A', 'name': 'Прокладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,828 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,829 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,835 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a410a0>
+2026-02-20 16:12:26,837 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a409e0>
+2026-02-20 16:12:26,837 - dz_fastapi - DEBUG - Autopart already exists: ID 46343
+2026-02-20 16:12:26,838 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105160XKZ36A', 'name': 'Ручка Внутренняя Открытия Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,838 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105160XKZ36A' name='Ручка Внутренняя Открытия Двери Передней Правой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,838 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105160XKZ36A', 'name': 'Ручка Внутренняя Открытия Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,838 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,839 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,848 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a424e0>
+2026-02-20 16:12:26,850 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a430e0>
+2026-02-20 16:12:26,850 - dz_fastapi - DEBUG - Autopart already exists: ID 46345
+2026-02-20 16:12:26,850 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105162XKY28B', 'name': 'Рамка Ручки Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,851 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105162XKY28B' name='Рамка Ручки Двери Передней Правой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,851 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105162XKY28B', 'name': 'Рамка Ручки Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,851 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,851 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,853 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40140>
+2026-02-20 16:12:26,854 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41580>
+2026-02-20 16:12:26,854 - dz_fastapi - DEBUG - Autopart already exists: ID 46346
+2026-02-20 16:12:26,855 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105170XKN02AJA', 'name': 'Внутренняя Ручка Левой Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,855 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105170XKN02AJA' name='Внутренняя Ручка Левой Передней Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,856 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105170XKN02AJA', 'name': 'Внутренняя Ручка Левой Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,857 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,857 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,859 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41400>
+2026-02-20 16:12:26,860 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41700>
+2026-02-20 16:12:26,860 - dz_fastapi - DEBUG - Autopart already exists: ID 46347
+2026-02-20 16:12:26,861 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105170XST01A8P', 'name': 'Ручка Двери Передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,861 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105170XST01A8P' name='Ручка Двери Передняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,861 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105170XST01A8P', 'name': 'Ручка Двери Передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,862 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,862 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,863 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a407a0>
+2026-02-20 16:12:26,865 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41a60>
+2026-02-20 16:12:26,865 - dz_fastapi - DEBUG - Autopart already exists: ID 57329
+2026-02-20 16:12:26,865 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105171XKN02A8P', 'name': 'Декоративная Крышка Винта Крепления Внутренней Ручки Левой Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,865 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105171XKN02A8P' name='Декоративная Крышка Винта Крепления Внутренней Ручки Левой Передней Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,865 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105171XKN02A8P', 'name': 'Декоративная Крышка Винта Крепления Внутренней Ручки Левой Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,865 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,865 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,866 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41dc0>
+2026-02-20 16:12:26,868 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42420>
+2026-02-20 16:12:26,868 - dz_fastapi - DEBUG - Autopart already exists: ID 62966
+2026-02-20 16:12:26,868 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105180XKN02AJA', 'name': 'Внутренняя Ручка Правой Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,868 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105180XKN02AJA' name='Внутренняя Ручка Правой Передней Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,868 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105180XKN02AJA', 'name': 'Внутренняя Ручка Правой Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,868 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,868 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,869 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40440>
+2026-02-20 16:12:26,871 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43440>
+2026-02-20 16:12:26,871 - dz_fastapi - DEBUG - Autopart already exists: ID 46350
+2026-02-20 16:12:26,872 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105180XKN04A8P', 'name': 'Ручка Внутренняя Открытия Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,873 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105180XKN04A8P' name='Ручка Внутренняя Открытия Двери Передней Правой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,873 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105180XKN04A8P', 'name': 'Ручка Внутренняя Открытия Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,873 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,873 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,875 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43f20>
+2026-02-20 16:12:26,876 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40380>
+2026-02-20 16:12:26,876 - dz_fastapi - DEBUG - Autopart already exists: ID 46351
+2026-02-20 16:12:26,877 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105200AK80XA89', 'name': 'Внутрення Ручка Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,877 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105200AK80XA89' name='Внутрення Ручка Двери Передней Правой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,877 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105200AK80XA89', 'name': 'Внутрення Ручка Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,877 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,877 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,878 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41460>
+2026-02-20 16:12:26,883 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a422a0>
+2026-02-20 16:12:26,883 - dz_fastapi - DEBUG - Autopart already exists: ID 46353
+2026-02-20 16:12:26,883 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105200XKN02A', 'name': 'Замок Правой Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,883 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105200XKN02A' name='Замок Правой Передней Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,884 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105200XKN02A', 'name': 'Замок Правой Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,884 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,884 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,885 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40680>
+2026-02-20 16:12:26,887 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41e20>
+2026-02-20 16:12:26,887 - dz_fastapi - DEBUG - Autopart already exists: ID 46354
+2026-02-20 16:12:26,887 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105200XKV08A', 'name': 'Замок Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,888 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105200XKV08A' name='Замок Двери Передней Правой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,888 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105200XKV08A', 'name': 'Замок Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,889 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,889 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,891 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42f00>
+2026-02-20 16:12:26,893 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41d00>
+2026-02-20 16:12:26,893 - dz_fastapi - DEBUG - Autopart already exists: ID 46355
+2026-02-20 16:12:26,893 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105200XKW09A', 'name': 'Замок Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,893 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105200XKW09A' name='Замок Двери Передней Правой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,893 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105200XKW09A', 'name': 'Замок Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,893 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,893 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,894 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42480>
+2026-02-20 16:12:26,896 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41100>
+2026-02-20 16:12:26,896 - dz_fastapi - DEBUG - Autopart already exists: ID 46356
+2026-02-20 16:12:26,896 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105200XP6PXA', 'name': 'Замок Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,896 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105200XP6PXA' name='Замок Двери Передней Правой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,896 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105200XP6PXA', 'name': 'Замок Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,896 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,897 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,898 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a404a0>
+2026-02-20 16:12:26,899 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41ca0>
+2026-02-20 16:12:26,899 - dz_fastapi - DEBUG - Autopart already exists: ID 46357
+2026-02-20 16:12:26,899 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105200XPW04A8P', 'name': 'Внутрення Ручка Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,900 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105200XPW04A8P' name='Внутрення Ручка Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,901 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105200XPW04A8P', 'name': 'Внутрення Ручка Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,901 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,902 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,904 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41580>
+2026-02-20 16:12:26,905 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41700>
+2026-02-20 16:12:26,905 - dz_fastapi - DEBUG - Autopart already exists: ID 62968
+2026-02-20 16:12:26,905 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105200XVE21A', 'name': 'Замок В Сборе,Правая Передняя Дверь', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,905 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105200XVE21A' name='Замок В Сборе,Правая Передняя Дверь' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,906 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105200XVE21A', 'name': 'Замок В Сборе,Правая Передняя Дверь', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,906 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,906 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,908 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43c80>
+2026-02-20 16:12:26,909 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40f20>
+2026-02-20 16:12:26,909 - dz_fastapi - DEBUG - Autopart already exists: ID 46358
+2026-02-20 16:12:26,909 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105235AKZ16A', 'name': 'Рамка Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,909 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105235AKZ16A' name='Рамка Ручки Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,909 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105235AKZ16A', 'name': 'Рамка Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,910 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,910 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,911 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43740>
+2026-02-20 16:12:26,912 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40c20>
+2026-02-20 16:12:26,912 - dz_fastapi - DEBUG - Autopart already exists: ID 46359
+2026-02-20 16:12:26,912 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105235XKZ16A', 'name': 'Корпус Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,912 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105235XKZ16A' name='Корпус Ручки Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,912 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105235XKZ16A', 'name': 'Корпус Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,912 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,913 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,914 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41fa0>
+2026-02-20 16:12:26,915 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43e60>
+2026-02-20 16:12:26,915 - dz_fastapi - DEBUG - Autopart already exists: ID 46360
+2026-02-20 16:12:26,915 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105235XKZ3LA', 'name': 'Корпус Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,915 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105235XKZ3LA' name='Корпус Ручки Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,916 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105235XKZ3LA', 'name': 'Корпус Ручки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,916 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,916 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,917 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42420>
+2026-02-20 16:12:26,918 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42d80>
+2026-02-20 16:12:26,918 - dz_fastapi - DEBUG - Autopart already exists: ID 46361
+2026-02-20 16:12:26,918 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105250XST10A', 'name': 'Замок Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,919 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105250XST10A' name='Замок Двери Передней Правой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,919 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105250XST10A', 'name': 'Замок Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,920 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,920 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,921 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41d60>
+2026-02-20 16:12:26,922 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43f20>
+2026-02-20 16:12:26,922 - dz_fastapi - DEBUG - Autopart already exists: ID 46362
+2026-02-20 16:12:26,922 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105300XK80XB', 'name': 'Замок Передней Левой Двери В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,923 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105300XK80XB' name='Замок Передней Левой Двери В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,923 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105300XK80XB', 'name': 'Замок Передней Левой Двери В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,923 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,924 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,925 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40920>
+2026-02-20 16:12:26,926 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41880>
+2026-02-20 16:12:26,926 - dz_fastapi - DEBUG - Autopart already exists: ID 46363
+2026-02-20 16:12:26,926 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105300XPS01AJA', 'name': 'Внутренняя Ручка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,927 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105300XPS01AJA' name='Внутренняя Ручка Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,927 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105300XPS01AJA', 'name': 'Внутренняя Ручка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,927 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,927 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,928 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41fa0>
+2026-02-20 16:12:26,929 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43920>
+2026-02-20 16:12:26,929 - dz_fastapi - DEBUG - Autopart already exists: ID 74628
+2026-02-20 16:12:26,929 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105300XPW01ABW', 'name': 'Внутренняя Ручка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,929 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105300XPW01ABW' name='Внутренняя Ручка Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,930 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105300XPW01ABW', 'name': 'Внутренняя Ручка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,930 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,930 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,931 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41340>
+2026-02-20 16:12:26,935 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43a40>
+2026-02-20 16:12:26,935 - dz_fastapi - DEBUG - Autopart already exists: ID 46364
+2026-02-20 16:12:26,935 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105310K80', 'name': 'Замок Передней Левой Двери В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,935 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105310K80' name='Замок Передней Левой Двери В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,935 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105310K80', 'name': 'Замок Передней Левой Двери В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,936 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,936 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,937 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42ea0>
+2026-02-20 16:12:26,938 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40fe0>
+2026-02-20 16:12:26,938 - dz_fastapi - DEBUG - Autopart already exists: ID 46365
+2026-02-20 16:12:26,938 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105320XKV08A', 'name': 'Каркас Рукоятки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,938 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105320XKV08A' name='Каркас Рукоятки Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,938 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105320XKV08A', 'name': 'Каркас Рукоятки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,938 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,938 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,940 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41700>
+2026-02-20 16:12:26,941 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41ee0>
+2026-02-20 16:12:26,941 - dz_fastapi - DEBUG - Autopart already exists: ID 46366
+2026-02-20 16:12:26,942 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105330XKV08A', 'name': 'Накладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,963 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105330XKV08A' name='Накладка Ручки Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,964 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105330XKV08A', 'name': 'Накладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,964 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,964 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,966 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42300>
+2026-02-20 16:12:26,968 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41ac0>
+2026-02-20 16:12:26,968 - dz_fastapi - DEBUG - Autopart already exists: ID 46367
+2026-02-20 16:12:26,968 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105333AKZ16A', 'name': 'Ручка Наружняя Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,968 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105333AKZ16A' name='Ручка Наружняя Передней Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,968 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105333AKZ16A', 'name': 'Ручка Наружняя Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,968 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,969 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,970 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41340>
+2026-02-20 16:12:26,971 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40260>
+2026-02-20 16:12:26,971 - dz_fastapi - DEBUG - Autopart already exists: ID 46368
+2026-02-20 16:12:26,971 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105333BKZ16B', 'name': 'Ручка Наружняя Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,971 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105333BKZ16B' name='Ручка Наружняя Передней Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,971 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105333BKZ16B', 'name': 'Ручка Наружняя Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,972 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,972 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,973 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42360>
+2026-02-20 16:12:26,974 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a417c0>
+2026-02-20 16:12:26,974 - dz_fastapi - DEBUG - Autopart already exists: ID 46369
+2026-02-20 16:12:26,974 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105333XKZ16A', 'name': 'Ручка Наружняя Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,974 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105333XKZ16A' name='Ручка Наружняя Передней Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,974 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105333XKZ16A', 'name': 'Ручка Наружняя Передней Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,974 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,975 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,976 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41fa0>
+2026-02-20 16:12:26,977 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41880>
+2026-02-20 16:12:26,977 - dz_fastapi - DEBUG - Autopart already exists: ID 46370
+2026-02-20 16:12:26,977 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105340XKV08A', 'name': 'Прокладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,977 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105340XKV08A' name='Прокладка Ручки Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,977 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105340XKV08A', 'name': 'Прокладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,977 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,977 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,978 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42d20>
+2026-02-20 16:12:26,980 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42ba0>
+2026-02-20 16:12:26,980 - dz_fastapi - DEBUG - Autopart already exists: ID 46371
+2026-02-20 16:12:26,980 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105350XKV08A', 'name': 'Ручка Двери С Декоративной Накладкой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,980 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105350XKV08A' name='Ручка Двери С Декоративной Накладкой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,980 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105350XKV08A', 'name': 'Ручка Двери С Декоративной Накладкой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,980 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,980 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,982 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40260>
+2026-02-20 16:12:26,984 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a439e0>
+2026-02-20 16:12:26,984 - dz_fastapi - DEBUG - Autopart already exists: ID 46372
+2026-02-20 16:12:26,984 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105400XK80XB', 'name': 'Замок Передней Правой Двери В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,984 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105400XK80XB' name='Замок Передней Правой Двери В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,984 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105400XK80XB', 'name': 'Замок Передней Правой Двери В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,984 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,984 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,985 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a438c0>
+2026-02-20 16:12:26,987 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42f60>
+2026-02-20 16:12:26,987 - dz_fastapi - DEBUG - Autopart already exists: ID 46373
+2026-02-20 16:12:26,987 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105400XPS01AJA', 'name': 'Внутренняя Ручка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,987 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105400XPS01AJA' name='Внутренняя Ручка Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,987 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105400XPS01AJA', 'name': 'Внутренняя Ручка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,987 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,988 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,988 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41100>
+2026-02-20 16:12:26,990 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40440>
+2026-02-20 16:12:26,991 - dz_fastapi - DEBUG - Autopart already exists: ID 76168
+2026-02-20 16:12:26,991 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105400XPW01ABW', 'name': 'Внутренняя Ручка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,991 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105400XPW01ABW' name='Внутренняя Ручка Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,991 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105400XPW01ABW', 'name': 'Внутренняя Ручка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,991 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,991 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,992 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42ea0>
+2026-02-20 16:12:26,994 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42960>
+2026-02-20 16:12:26,994 - dz_fastapi - DEBUG - Autopart already exists: ID 63655
+2026-02-20 16:12:26,994 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105410K80', 'name': 'Замок Передней Правой Двери В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,994 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105410K80' name='Замок Передней Правой Двери В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,994 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105410K80', 'name': 'Замок Передней Правой Двери В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,994 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,995 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,996 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42a20>
+2026-02-20 16:12:26,997 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42660>
+2026-02-20 16:12:26,997 - dz_fastapi - DEBUG - Autopart already exists: ID 46374
+2026-02-20 16:12:26,997 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105420XKV08A', 'name': 'Каркас Рукоятки Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,998 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105420XKV08A' name='Каркас Рукоятки Двери Передней Правой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:26,998 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105420XKV08A', 'name': 'Каркас Рукоятки Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:26,998 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:26,998 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:26,999 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43260>
+2026-02-20 16:12:27,001 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43b60>
+2026-02-20 16:12:27,003 - dz_fastapi - DEBUG - Autopart already exists: ID 46375
+2026-02-20 16:12:27,003 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105450XKV08A', 'name': 'Ручка Двери С Декоративной Накладкой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,003 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105450XKV08A' name='Ручка Двери С Декоративной Накладкой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,003 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105450XKV08A', 'name': 'Ручка Двери С Декоративной Накладкой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,004 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,004 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,005 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41fa0>
+2026-02-20 16:12:27,006 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43c80>
+2026-02-20 16:12:27,006 - dz_fastapi - DEBUG - Autopart already exists: ID 46376
+2026-02-20 16:12:27,006 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105500K00', 'name': 'Ручка Двери Левая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,006 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105500K00' name='Ручка Двери Левая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,007 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105500K00', 'name': 'Ручка Двери Левая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,007 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,007 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,008 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41460>
+2026-02-20 16:12:27,011 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43ce0>
+2026-02-20 16:12:27,011 - dz_fastapi - DEBUG - Autopart already exists: ID 46377
+2026-02-20 16:12:27,011 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105511XST01A', 'name': 'Каркас Рукоятки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,012 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105511XST01A' name='Каркас Рукоятки Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,012 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105511XST01A', 'name': 'Каркас Рукоятки Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,012 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,012 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,013 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a431a0>
+2026-02-20 16:12:27,014 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40740>
+2026-02-20 16:12:27,014 - dz_fastapi - DEBUG - Autopart already exists: ID 46378
+2026-02-20 16:12:27,014 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105512XST01A', 'name': 'Каркас Рукоятки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,014 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105512XST01A' name='Каркас Рукоятки Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,014 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105512XST01A', 'name': 'Каркас Рукоятки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,015 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,015 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,017 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42960>
+2026-02-20 16:12:27,018 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42a20>
+2026-02-20 16:12:27,018 - dz_fastapi - DEBUG - Autopart already exists: ID 46379
+2026-02-20 16:12:27,018 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105513XKN01A', 'name': 'Накладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,018 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105513XKN01A' name='Накладка Ручки Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,018 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105513XKN01A', 'name': 'Накладка Ручки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,018 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,019 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,019 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42240>
+2026-02-20 16:12:27,021 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41a00>
+2026-02-20 16:12:27,021 - dz_fastapi - DEBUG - Autopart already exists: ID 56358
+2026-02-20 16:12:27,021 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105521XST01A', 'name': 'Каркас Рукоятки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,021 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105521XST01A' name='Каркас Рукоятки Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,021 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105521XST01A', 'name': 'Каркас Рукоятки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,021 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,021 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,022 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42de0>
+2026-02-20 16:12:27,023 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a418e0>
+2026-02-20 16:12:27,023 - dz_fastapi - DEBUG - Autopart already exists: ID 61255
+2026-02-20 16:12:27,023 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105600K00', 'name': 'Ручка Двери Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,024 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105600K00' name='Ручка Двери Правой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,024 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105600K00', 'name': 'Ручка Двери Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,024 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,024 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,025 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40980>
+2026-02-20 16:12:27,026 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40f20>
+2026-02-20 16:12:27,026 - dz_fastapi - DEBUG - Autopart already exists: ID 46380
+2026-02-20 16:12:27,027 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105601XKW09A', 'name': 'Панель Декоративная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,027 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105601XKW09A' name='Панель Декоративная' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,027 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105601XKW09A', 'name': 'Панель Декоративная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,027 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,027 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,029 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41ac0>
+2026-02-20 16:12:27,030 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a437a0>
+2026-02-20 16:12:27,030 - dz_fastapi - DEBUG - Autopart already exists: ID 46381
+2026-02-20 16:12:27,031 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105602XKV08A', 'name': 'Панель Декоративная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,031 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105602XKV08A' name='Панель Декоративная' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,031 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105602XKV08A', 'name': 'Панель Декоративная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,031 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,031 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,033 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a404a0>
+2026-02-20 16:12:27,034 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40260>
+2026-02-20 16:12:27,034 - dz_fastapi - DEBUG - Autopart already exists: ID 46382
+2026-02-20 16:12:27,034 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105602XSZ08A', 'name': 'Ручка Двери Передней Правой Внутренняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,034 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105602XSZ08A' name='Ручка Двери Передней Правой Внутренняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,035 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105602XSZ08A', 'name': 'Ручка Двери Передней Правой Внутренняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,035 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,035 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,036 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41220>
+2026-02-20 16:12:27,037 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41dc0>
+2026-02-20 16:12:27,037 - dz_fastapi - DEBUG - Autopart already exists: ID 46383
+2026-02-20 16:12:27,037 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105701K80', 'name': 'Трос Замка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,038 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105701K80' name='Трос Замка Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,038 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105701K80', 'name': 'Трос Замка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,038 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,038 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,039 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a408c0>
+2026-02-20 16:12:27,040 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42720>
+2026-02-20 16:12:27,040 - dz_fastapi - DEBUG - Autopart already exists: ID 46384
+2026-02-20 16:12:27,040 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6105702K80', 'name': 'Трос Замка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,041 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6105702K80' name='Трос Замка Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,041 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6105702K80', 'name': 'Трос Замка Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,041 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,041 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,042 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41400>
+2026-02-20 16:12:27,043 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42540>
+2026-02-20 16:12:27,043 - dz_fastapi - DEBUG - Autopart already exists: ID 63575
+2026-02-20 16:12:27,043 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6106010BK00XA', 'name': 'Петля Двери Двери Пл', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,043 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6106010BK00XA' name='Петля Двери Двери Пл' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,043 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6106010BK00XA', 'name': 'Петля Двери Двери Пл', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,043 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,044 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,044 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43260>
+2026-02-20 16:12:27,048 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a421e0>
+2026-02-20 16:12:27,048 - dz_fastapi - DEBUG - Autopart already exists: ID 3128
+2026-02-20 16:12:27,048 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6106020BK00XA', 'name': 'Петля Верхняя Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,049 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6106020BK00XA' name='Петля Верхняя Двери Передней Правой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,049 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6106020BK00XA', 'name': 'Петля Верхняя Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,049 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,049 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,050 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41dc0>
+2026-02-20 16:12:27,051 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43320>
+2026-02-20 16:12:27,051 - dz_fastapi - DEBUG - Autopart already exists: ID 3127
+2026-02-20 16:12:27,052 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6106030BK00XA', 'name': 'Петля Нижняя Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,052 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6106030BK00XA' name='Петля Нижняя Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,052 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6106030BK00XA', 'name': 'Петля Нижняя Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,052 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,052 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,053 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a414c0>
+2026-02-20 16:12:27,054 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43b00>
+2026-02-20 16:12:27,054 - dz_fastapi - DEBUG - Autopart already exists: ID 3132
+2026-02-20 16:12:27,054 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6106040BK00XA', 'name': 'Петля Нижняя Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,055 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6106040BK00XA' name='Петля Нижняя Двери Передней Правой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,055 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6106040BK00XA', 'name': 'Петля Нижняя Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,055 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,055 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,056 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43920>
+2026-02-20 16:12:27,057 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40e60>
+2026-02-20 16:12:27,057 - dz_fastapi - DEBUG - Autopart already exists: ID 46385
+2026-02-20 16:12:27,057 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6106100XKR02A', 'name': 'Петля Верхняя Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,057 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6106100XKR02A' name='Петля Верхняя Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,057 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6106100XKR02A', 'name': 'Петля Верхняя Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,057 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,057 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,058 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a430e0>
+2026-02-20 16:12:27,059 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a43680>
+2026-02-20 16:12:27,059 - dz_fastapi - DEBUG - Autopart already exists: ID 46387
+2026-02-20 16:12:27,060 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6106100XKV08A', 'name': 'Петля Верхняя Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,060 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6106100XKV08A' name='Петля Верхняя Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,060 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6106100XKV08A', 'name': 'Петля Верхняя Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,060 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,060 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,061 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a40ec0>
+2026-02-20 16:12:27,062 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a41c40>
+2026-02-20 16:12:27,062 - dz_fastapi - DEBUG - Autopart already exists: ID 46388
+2026-02-20 16:12:27,062 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6106100XKZ09A', 'name': 'Петля Верхняя Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,063 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6106100XKZ09A' name='Петля Верхняя Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,063 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6106100XKZ09A', 'name': 'Петля Верхняя Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,063 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,063 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,064 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42840>
+2026-02-20 16:12:27,066 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40f80>
+2026-02-20 16:12:27,066 - dz_fastapi - DEBUG - Autopart already exists: ID 57331
+2026-02-20 16:12:27,066 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6106100XPW01A', 'name': 'Петля Верхняя Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,066 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6106100XPW01A' name='Петля Верхняя Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,067 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6106100XPW01A', 'name': 'Петля Верхняя Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,067 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,067 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,068 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a423c0>
+2026-02-20 16:12:27,069 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a403e0>
+2026-02-20 16:12:27,069 - dz_fastapi - DEBUG - Autopart already exists: ID 46389
+2026-02-20 16:12:27,069 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6106100XSZ08A', 'name': 'Петля Верхняя Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,069 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6106100XSZ08A' name='Петля Верхняя Двери Передней Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,070 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6106100XSZ08A', 'name': 'Петля Верхняя Двери Передней Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,070 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,070 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,071 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41460>
+2026-02-20 16:12:27,072 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a433e0>
+2026-02-20 16:12:27,072 - dz_fastapi - DEBUG - Autopart already exists: ID 46390
+2026-02-20 16:12:27,072 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6106101AKN01A', 'name': 'Петля Верхняя Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,072 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6106101AKN01A' name='Петля Верхняя Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,072 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6106101AKN01A', 'name': 'Петля Верхняя Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,072 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,072 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,073 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41d00>
+2026-02-20 16:12:27,074 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a426c0>
+2026-02-20 16:12:27,074 - dz_fastapi - DEBUG - Autopart already exists: ID 46391
+2026-02-20 16:12:27,074 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6106101XKN01A', 'name': 'Петля Верхняя Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,075 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6106101XKN01A' name='Петля Верхняя Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,075 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6106101XKN01A', 'name': 'Петля Верхняя Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,075 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,075 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,076 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42a20>
+2026-02-20 16:12:27,077 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42120>
+2026-02-20 16:12:27,077 - dz_fastapi - DEBUG - Autopart already exists: ID 46392
+2026-02-20 16:12:27,077 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6106102AKN01A', 'name': 'Петля Верхняя Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,077 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6106102AKN01A' name='Петля Верхняя Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,077 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6106102AKN01A', 'name': 'Петля Верхняя Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,077 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,077 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,078 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41640>
+2026-02-20 16:12:27,079 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42240>
+2026-02-20 16:12:27,079 - dz_fastapi - DEBUG - Autopart already exists: ID 46393
+2026-02-20 16:12:27,080 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6106102XKN01A', 'name': 'Петля Верхняя Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,080 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6106102XKN01A' name='Петля Верхняя Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,080 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6106102XKN01A', 'name': 'Петля Верхняя Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,080 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,080 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,082 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42cc0>
+2026-02-20 16:12:27,083 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a40080>
+2026-02-20 16:12:27,084 - dz_fastapi - DEBUG - Autopart already exists: ID 46394
+2026-02-20 16:12:27,084 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6106103AKN01A', 'name': 'Петля Нижняя Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,085 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6106103AKN01A' name='Петля Нижняя Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,085 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6106103AKN01A', 'name': 'Петля Нижняя Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,085 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,085 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,086 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41ca0>
+2026-02-20 16:12:27,087 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42c60>
+2026-02-20 16:12:27,088 - dz_fastapi - DEBUG - Autopart already exists: ID 46395
+2026-02-20 16:12:27,088 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6106103XKN01A', 'name': 'Петля Нижняя Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,088 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6106103XKN01A' name='Петля Нижняя Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,088 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6106103XKN01A', 'name': 'Петля Нижняя Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,088 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,088 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,089 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a41100>
+2026-02-20 16:12:27,091 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a411c0>
+2026-02-20 16:12:27,091 - dz_fastapi - DEBUG - Autopart already exists: ID 46396
+2026-02-20 16:12:27,091 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6106104AKN01A', 'name': 'Петля Нижняя Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,091 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6106104AKN01A' name='Петля Нижняя Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,091 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6106104AKN01A', 'name': 'Петля Нижняя Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,091 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,091 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,092 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a43260>
+2026-02-20 16:12:27,093 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a427e0>
+2026-02-20 16:12:27,093 - dz_fastapi - DEBUG - Autopart already exists: ID 46397
+2026-02-20 16:12:27,093 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6106104XKN01A', 'name': 'Петля Нижняя Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,094 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='6106104XKN01A' name='Петля Нижняя Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-20 16:12:27,094 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '6106104XKN01A', 'name': 'Петля Нижняя Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-20 16:12:27,094 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-20 16:12:27,094 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-20 16:12:27,095 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff73a42780>
+2026-02-20 16:12:27,096 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff73a42840>
+2026-02-20 16:12:27,096 - dz_fastapi - DEBUG - Autopart already exists: ID 46398
+2026-02-20 16:12:27,096 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '6106200BP00XA', 'name': 'Петля Верхняя Двери Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
