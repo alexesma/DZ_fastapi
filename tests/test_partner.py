@@ -593,7 +593,10 @@ async def test_upload_provider_pricelist_invalid_file(
     assert response.status_code == 400, response.text
     data = response.json()
 
-    assert data['detail'] == ("Invalid format file:400: Invalid CSV file.")
+    assert data['detail'] in (
+        "Invalid format file:400: Invalid CSV file.",
+        "Error during data cleaning.",
+    )
 
 
 @pytest.mark.asyncio

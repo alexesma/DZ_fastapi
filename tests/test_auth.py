@@ -117,7 +117,7 @@ async def test_me_requires_auth(async_client):
 
 @pytest.mark.asyncio
 async def test_admin_endpoints_require_admin(async_client, test_session):
-    admin = await _create_user(
+    await _create_user(
         test_session,
         email="admin@example.com",
         password="secret123",
@@ -149,7 +149,7 @@ async def test_admin_endpoints_require_admin(async_client, test_session):
     response = await async_client.get("/admin/users")
     assert response.status_code == 200
     data = response.json()
-    assert any(u["email"] == admin.email for u in data)
+    assert any(u["email"] == "admin@example.com" for u in data)
 
 
 @pytest.mark.asyncio
@@ -160,7 +160,7 @@ async def test_admin_requires_auth(async_client):
 
 @pytest.mark.asyncio
 async def test_admin_approve_disable_and_role(async_client, test_session):
-    admin = await _create_user(
+    await _create_user(
         test_session,
         email="admin@example.com",
         password="secret123",
@@ -182,7 +182,10 @@ async def test_admin_approve_disable_and_role(async_client, test_session):
     )
 
     # list pending
-    response = await async_client.get("/admin/users", params={"status": "pending"})
+    response = await async_client.get(
+        "/admin/users",
+        params={"status": "pending"},
+    )
     assert response.status_code == 200
     assert any(u["id"] == pending.id for u in response.json())
 
