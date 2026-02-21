@@ -50,6 +50,7 @@ from dz_fastapi.core.constants import (BRILLIANCE_OEM, CUMMINS_OEM, FAW_OEM,
                                        INDICATOR_LIFAN_WHISOUT,
                                        INDICATOR_LIFAN_WHISOUT_FIRST,
                                        MAX_PRICE_LISTS, ORIGINAL_BRANDS)
+from dz_fastapi.crud.email_account import crud_email_account
 from dz_fastapi.crud.partner import (crud_customer_pricelist,
                                      crud_customer_pricelist_config,
                                      crud_customer_pricelist_source,
@@ -880,6 +881,7 @@ async def add_origin_brand_from_dz(
 
 
 async def send_pricelist(
+    session: AsyncSession,
     df_excel: pd.DataFrame,
     customer: Customer,
     to_emails: Optional[List[str]],
@@ -945,6 +947,22 @@ async def send_pricelist(
     # Send the email asynchronously
     logger.debug('Send the email asynchronously')
     loop = asyncio.get_running_loop()
+    account = await crud_email_account.get_active_by_purpose(
+        session=session,
+        purpose='prices_out',
+    )
+    kwargs = {}
+    if account:
+        account = account[0]
+        kwargs = {
+            'smtp_host': account.smtp_host,
+            'smtp_port': account.smtp_port,
+            'smtp_user': account.email,
+            'smtp_password': account.password,
+            'from_email': account.email,
+            'use_ssl': bool(account.smtp_use_ssl),
+        }
+
     await loop.run_in_executor(
         None,
         partial(
@@ -954,6 +972,7 @@ async def send_pricelist(
             body=body,
             attachment_bytes=attachment_bytes,
             attachment_filename=attachment_filename,
+            **kwargs,
         ),
     )
     logger.debug('Final send email')
@@ -1188,6 +1207,7 @@ async def process_customer_pricelist(
         ] if customer.email_outgoing_price else []
     )
     await send_pricelist(
+        session=session,
         customer=customer,
         to_emails=recipients,
         df_excel=df_excel,

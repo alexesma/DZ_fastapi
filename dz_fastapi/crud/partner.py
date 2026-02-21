@@ -1480,15 +1480,119 @@ class CRUDCustomerPriceList(
         df: pd.DataFrame,
         config: CustomerPriceListConfig,
         apply_general_markup: bool = True,
+        provider_id: int | None = None,
+        is_own_price: bool | None = None,
     ) -> pd.DataFrame:
         logger.debug(
             f'Into apply_coefficient data df:{df}, cofig: {config.__dict__}'
         )
         data_individual_markups = config.individual_markups
-        priceintervals = config.price_intervals
-        brandfilters = config.brand_filters
-        positionfilters = config.position_filters
-        supplierquantityfilters = config.supplier_quantity_filters
+
+        def _base_filters() -> dict:
+            if config.default_filters:
+                return dict(config.default_filters)
+            return {
+                'brand_filters': config.brand_filters,
+                'category_filter': config.category_filter,
+                'price_intervals': config.price_intervals,
+                'position_filters': config.position_filters,
+                'supplier_quantity_filters': config.supplier_quantity_filters,
+                'additional_filters': config.additional_filters,
+            }
+
+        def _merge_filters(base: dict, override: dict | None) -> dict:
+            if not override:
+                return base
+            merged = dict(base)
+            for key, value in override.items():
+                merged[key] = value
+            return merged
+
+        def _resolve_filters(pid: int | None, own_flag: bool | None) -> dict:
+            base = _base_filters()
+            if own_flag:
+                return _merge_filters(base, config.own_filters)
+            supplier_filters = config.supplier_filters or {}
+            if pid is not None:
+                override = supplier_filters.get(pid)
+                if override is None:
+                    override = supplier_filters.get(str(pid))
+                if override:
+                    return _merge_filters(base, override)
+            return _merge_filters(base, config.other_filters)
+
+        def _normalize_list(values):
+            return [int(v) for v in (values or []) if str(v).isdigit()]
+
+        def _apply_filter_block(block_df: pd.DataFrame, filters_cfg: dict):
+            block_df = block_df.copy()
+            block_df['price'] = pd.to_numeric(
+                block_df['price'], errors='coerce'
+            )
+            block_df['quantity'] = pd.to_numeric(
+                block_df['quantity'], errors='coerce'
+            )
+
+            brand_cfg = filters_cfg.get('brand_filters')
+            if isinstance(brand_cfg, list):
+                brands = _normalize_list(brand_cfg)
+                brand_cfg = (
+                    {'type': 'include', 'brands': brands} if brands else None
+                )
+            elif isinstance(brand_cfg, dict):
+                brands = _normalize_list(brand_cfg.get('brands'))
+                if not brands:
+                    brand_cfg = None
+                else:
+                    brand_cfg = {**brand_cfg, 'brands': brands}
+            if brand_cfg:
+                block_df = brand_filters(brand_filters=brand_cfg, df=block_df)
+
+            position_cfg = filters_cfg.get('position_filters')
+            if isinstance(position_cfg, list):
+                autoparts = _normalize_list(position_cfg)
+                position_cfg = (
+                    {'type': 'include', 'autoparts': autoparts}
+                    if autoparts
+                    else None
+                )
+            elif isinstance(position_cfg, dict):
+                autoparts = _normalize_list(position_cfg.get('autoparts'))
+                if not autoparts:
+                    position_cfg = None
+                else:
+                    position_cfg = {**position_cfg, 'autoparts': autoparts}
+            if position_cfg:
+                block_df = position_filters(
+                    position_filters=position_cfg, df=block_df
+                )
+
+            intervals_cfg = filters_cfg.get('price_intervals')
+            if intervals_cfg:
+                block_df = price_intervals(
+                    price_intervals=intervals_cfg, df=block_df
+                )
+
+            supplier_qty_cfg = filters_cfg.get('supplier_quantity_filters')
+            if supplier_qty_cfg:
+                block_df = supplier_quantity_filters(
+                    supplier_quantity_filters=supplier_qty_cfg, df=block_df
+                )
+
+            min_price = filters_cfg.get('min_price')
+            max_price = filters_cfg.get('max_price')
+            min_qty = filters_cfg.get('min_quantity')
+            max_qty = filters_cfg.get('max_quantity')
+            if min_price is not None:
+                block_df = block_df[block_df['price'] >= float(min_price)]
+            if max_price is not None:
+                block_df = block_df[block_df['price'] <= float(max_price)]
+            if min_qty is not None:
+                block_df = block_df[block_df['quantity'] >= int(min_qty)]
+            if max_qty is not None:
+                block_df = block_df[block_df['quantity'] <= int(max_qty)]
+
+            return block_df
 
         # Ensure 'price' column is numeric
         df['price'] = pd.to_numeric(df['price'], errors='coerce')
@@ -1499,23 +1603,23 @@ class CRUDCustomerPriceList(
                 individual_markups=data_individual_markups, df=df
             )
 
-        # Apply price intervals with coefficients
-        if priceintervals:
-            df = price_intervals(price_intervals=priceintervals, df=df)
-
-        # Apply brand filters
-        if brandfilters:
-            df = brand_filters(brand_filters=brandfilters, df=df)
-
-        # Apply position filters
-        if positionfilters:
-            df = position_filters(position_filters=positionfilters, df=df)
-
-        # Apply supplier quantity filters
-        if supplierquantityfilters:
-            df = supplier_quantity_filters(
-                supplier_quantity_filters=supplierquantityfilters, df=df
-            )
+        if provider_id is None and 'provider_id' in df.columns:
+            blocks = []
+            for (pid, own_flag), block in df.groupby(
+                ['provider_id', 'is_own_price'], dropna=False
+            ):
+                filters_cfg = _resolve_filters(
+                    int(pid) if pd.notna(pid) else None, bool(own_flag)
+                )
+                filtered = _apply_filter_block(block, filters_cfg)
+                if not filtered.empty:
+                    blocks.append(filtered)
+            df = pd.concat(
+                blocks, ignore_index=True
+            ) if blocks else df.iloc[0:0]
+        else:
+            filters_cfg = _resolve_filters(provider_id, is_own_price)
+            df = _apply_filter_block(df, filters_cfg)
 
         # Apply general markup
         if apply_general_markup:

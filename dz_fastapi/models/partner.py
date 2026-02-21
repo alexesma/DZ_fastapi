@@ -86,6 +86,44 @@ class TYPE_PAYMENT_STATUS(StrEnum):
     NOT_PAID = 'Not paid'
 
 
+@unique
+class CUSTOMER_ORDER_STATUS(StrEnum):
+    NEW = 'NEW'
+    PROCESSED = 'PROCESSED'
+    SENT = 'SENT'
+    ERROR = 'ERROR'
+
+
+@unique
+class CUSTOMER_ORDER_ITEM_STATUS(StrEnum):
+    NEW = 'NEW'
+    OWN_STOCK = 'OWN_STOCK'
+    SUPPLIER = 'SUPPLIER'
+    REJECTED = 'REJECTED'
+
+
+@unique
+class SUPPLIER_ORDER_STATUS(StrEnum):
+    NEW = 'NEW'
+    SCHEDULED = 'SCHEDULED'
+    SENT = 'SENT'
+    ERROR = 'ERROR'
+
+
+@unique
+class STOCK_ORDER_STATUS(StrEnum):
+    NEW = 'NEW'
+    COMPLETED = 'COMPLETED'
+    ERROR = 'ERROR'
+
+
+@unique
+class CUSTOMER_ORDER_SHIP_MODE(StrEnum):
+    REPLACE_QTY = 'REPLACE_QTY'
+    WRITE_SHIP_QTY = 'WRITE_SHIP_QTY'
+    WRITE_REJECT_QTY = 'WRITE_REJECT_QTY'
+
+
 def set_date(mapper, connection, target):
     target.date = datetime.now(timezone.utc).date()
 
@@ -139,6 +177,9 @@ class Provider(Client):
     )
     is_virtual = Column(Boolean, default=False)
     is_own_price = Column(Boolean, default=False)
+    order_schedule_days = Column(JSON, default=[])
+    order_schedule_times = Column(JSON, default=[])
+    order_schedule_enabled = Column(Boolean, default=False)
 
     @validates('email_incoming_price')
     def validate_email_incoming_price(self, key, email):
@@ -159,6 +200,17 @@ class Customer(Client):
     )
     pricelist_configs = relationship(
         'CustomerPriceListConfig',
+        back_populates='customer',
+        cascade='all, delete-orphan',
+    )
+    order_config = relationship(
+        'CustomerOrderConfig',
+        back_populates='customer',
+        uselist=False,
+        cascade='all, delete-orphan',
+    )
+    customer_orders = relationship(
+        'CustomerOrder',
         back_populates='customer',
         cascade='all, delete-orphan',
     )
@@ -313,6 +365,18 @@ class CustomerPriceListConfig(Base):
         JSON, default=[]
     )  # Supplier-specific quantity filters
     additional_filters = Column(JSON, default={})  # Other custom filters
+    default_filters = Column(
+        JSON, default={}
+    )  # Общие фильтры по умолчанию
+    own_filters = Column(
+        JSON, default={}
+    )  # Фильтры для нашего прайса
+    other_filters = Column(
+        JSON, default={}
+    )  # Фильтры для остальных поставщиков
+    supplier_filters = Column(
+        JSON, default={}
+    )  # Индивидуальные фильтры для поставщиков
     schedule_days = Column(JSON, default=[])
     schedule_times = Column(JSON, default=[])
     emails = Column(JSON, default=[])
@@ -326,6 +390,183 @@ class CustomerPriceListConfig(Base):
         cascade='all, delete-orphan',
         lazy='selectin',
     )
+
+
+class CustomerOrderConfig(Base):
+    customer_id = Column(Integer, ForeignKey('customer.id'), nullable=False)
+
+    order_email = Column(String(255), nullable=True, index=True)
+    order_emails = Column(JSON, default=[])
+    order_subject_pattern = Column(String(255), nullable=True)
+    order_filename_pattern = Column(String(255), nullable=True)
+    order_reply_emails = Column(JSON, default=[])
+
+    pricelist_config_id = Column(
+        Integer, ForeignKey('customerpricelistconfig.id'), nullable=True
+    )
+
+    order_number_column = Column(Integer, nullable=True)
+    order_date_column = Column(Integer, nullable=True)
+    order_number_regex_subject = Column(String(255), nullable=True)
+    order_number_regex_filename = Column(String(255), nullable=True)
+    order_number_regex_body = Column(String(255), nullable=True)
+    order_number_prefix = Column(String(255), nullable=True)
+    order_number_suffix = Column(String(255), nullable=True)
+    order_number_source = Column(String(32), nullable=True)
+
+    oem_col = Column(Integer, nullable=False)
+    brand_col = Column(Integer, nullable=False)
+    name_col = Column(Integer, nullable=True)
+    qty_col = Column(Integer, nullable=False)
+    price_col = Column(Integer, nullable=True)
+    ship_qty_col = Column(Integer, nullable=True)
+    reject_qty_col = Column(Integer, nullable=True)
+    ship_mode = Column(
+        SAEnum(
+            CUSTOMER_ORDER_SHIP_MODE,
+            values_callable=lambda enum: [e.name for e in enum],
+            native_enum=True,
+        ),
+        default=CUSTOMER_ORDER_SHIP_MODE.REPLACE_QTY,
+    )
+
+    price_tolerance_pct = Column(Float, default=2.0)
+    price_warning_pct = Column(Float, default=5.0)
+
+    is_active = Column(Boolean, default=True)
+    last_uid = Column(Integer, default=0)
+
+    customer = relationship('Customer', back_populates='order_config')
+
+
+class CustomerOrder(Base):
+    customer_id = Column(Integer, ForeignKey('customer.id'), nullable=False)
+    status = Column(
+        SAEnum(
+            CUSTOMER_ORDER_STATUS,
+            values_callable=lambda enum: [e.name for e in enum],
+            native_enum=True,
+        ),
+        default=CUSTOMER_ORDER_STATUS.NEW,
+    )
+    received_at = Column(DateTime(timezone=True), default=datetime.now)
+    processed_at = Column(DateTime(timezone=True), nullable=True)
+
+    source_email = Column(String(255), nullable=True)
+    source_uid = Column(Integer, nullable=True)
+    source_subject = Column(String(255), nullable=True)
+    source_filename = Column(String(255), nullable=True)
+    file_hash = Column(String(64), nullable=True, index=True)
+
+    order_number = Column(String(255), nullable=True)
+    order_date = Column(Date, nullable=True)
+
+    response_file_path = Column(String(255), nullable=True)
+    response_file_name = Column(String(255), nullable=True)
+
+    customer = relationship('Customer', back_populates='customer_orders')
+    items = relationship(
+        'CustomerOrderItem',
+        back_populates='order',
+        cascade='all, delete-orphan',
+    )
+
+
+class CustomerOrderItem(Base):
+    order_id = Column(Integer, ForeignKey('customerorder.id'), nullable=False)
+    row_index = Column(Integer, nullable=True)
+    oem = Column(String(255), nullable=False)
+    brand = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=True)
+    requested_qty = Column(Integer, nullable=False)
+    requested_price = Column(DECIMAL(10, 2), nullable=True)
+    ship_qty = Column(Integer, nullable=True)
+    reject_qty = Column(Integer, nullable=True)
+    status = Column(
+        SAEnum(
+            CUSTOMER_ORDER_ITEM_STATUS,
+            values_callable=lambda enum: [e.name for e in enum],
+            native_enum=True,
+        ),
+        default=CUSTOMER_ORDER_ITEM_STATUS.NEW,
+    )
+    supplier_id = Column(Integer, ForeignKey('provider.id'), nullable=True)
+    autopart_id = Column(Integer, ForeignKey('autopart.id'), nullable=True)
+    matched_price = Column(DECIMAL(10, 2), nullable=True)
+    price_diff_pct = Column(Float, nullable=True)
+
+    order = relationship('CustomerOrder', back_populates='items')
+    supplier = relationship('Provider')
+
+
+class SupplierOrder(Base):
+    provider_id = Column(Integer, ForeignKey('provider.id'), nullable=False)
+    status = Column(
+        SAEnum(
+            SUPPLIER_ORDER_STATUS,
+            values_callable=lambda enum: [e.name for e in enum],
+            native_enum=True,
+        ),
+        default=SUPPLIER_ORDER_STATUS.NEW,
+    )
+    created_at = Column(DateTime(timezone=True), default=datetime.now)
+    scheduled_at = Column(DateTime(timezone=True), nullable=True)
+    sent_at = Column(DateTime(timezone=True), nullable=True)
+
+    provider = relationship('Provider')
+    items = relationship(
+        'SupplierOrderItem',
+        back_populates='supplier_order',
+        cascade='all, delete-orphan',
+    )
+
+
+class SupplierOrderItem(Base):
+    supplier_order_id = Column(
+        Integer, ForeignKey('supplierorder.id'), nullable=False
+    )
+    customer_order_item_id = Column(
+        Integer, ForeignKey('customerorderitem.id'), nullable=True
+    )
+    autopart_id = Column(Integer, ForeignKey('autopart.id'), nullable=True)
+    quantity = Column(Integer, nullable=False)
+    price = Column(DECIMAL(10, 2), nullable=True)
+
+    supplier_order = relationship('SupplierOrder', back_populates='items')
+    customer_order_item = relationship('CustomerOrderItem')
+
+
+class StockOrder(Base):
+    customer_id = Column(Integer, ForeignKey('customer.id'), nullable=True)
+    status = Column(
+        SAEnum(
+            STOCK_ORDER_STATUS,
+            values_callable=lambda enum: [e.name for e in enum],
+            native_enum=True,
+        ),
+        default=STOCK_ORDER_STATUS.NEW,
+    )
+    created_at = Column(DateTime(timezone=True), default=datetime.now)
+
+    customer = relationship('Customer')
+    items = relationship(
+        'StockOrderItem',
+        back_populates='stock_order',
+        cascade='all, delete-orphan',
+    )
+
+
+class StockOrderItem(Base):
+    stock_order_id = Column(Integer, ForeignKey('stockorder.id'))
+    customer_order_item_id = Column(
+        Integer, ForeignKey('customerorderitem.id'), nullable=True
+    )
+    autopart_id = Column(Integer, ForeignKey('autopart.id'), nullable=True)
+    quantity = Column(Integer, nullable=False)
+
+    stock_order = relationship('StockOrder', back_populates='items')
+    customer_order_item = relationship('CustomerOrderItem')
+    autopart = relationship('AutoPart')
 
 
 class CustomerPriceListSource(Base):

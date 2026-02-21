@@ -26,6 +26,9 @@ from dz_fastapi.schemas.partner import (CustomerCreate,
                                         CustomerPriceListCreate,
                                         ProviderCreate,
                                         ProviderPriceListConfigCreate)
+from dz_fastapi.services.customer_orders import (
+    cleanup_order_reports, process_customer_orders,
+    send_scheduled_supplier_orders)
 from dz_fastapi.services.email import get_emails
 from dz_fastapi.services.process import (process_customer_pricelist,
                                          process_provider_pricelist)
@@ -73,6 +76,39 @@ def start_scheduler(app: FastAPI):
         id='send_customer_pricelists',
         name='Send scheduled customer pricelists',
         minute='*',
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        func=download_customer_orders_task,
+        trigger='cron',
+        args=[app],
+        id='download_customer_orders',
+        name='Download customer orders',
+        minute='*/5',
+        jitter=5,
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        func=send_scheduled_supplier_orders_task,
+        trigger='cron',
+        args=[app],
+        id='send_supplier_orders',
+        name='Send scheduled supplier orders',
+        minute='*/5',
+        jitter=5,
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        func=cleanup_order_reports_task,
+        trigger='cron',
+        args=[],
+        id='cleanup_order_reports',
+        name='Cleanup order reports',
+        hour=3,
+        minute=0,
         replace_existing=True,
     )
 
@@ -205,6 +241,36 @@ async def send_price_list_task(app: FastAPI):
                 f'Error process. pricelist for customer {customer.name}: {e}',
                 exc_info=True,
             )
+
+
+async def download_customer_orders_task(app: FastAPI):
+    logger.info('Starting download_customer_orders_task')
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            await process_customer_orders(session)
+        except Exception as e:
+            logger.error(
+                f'Error processing customer orders: {e}', exc_info=True
+            )
+
+
+async def send_scheduled_supplier_orders_task(app: FastAPI):
+    logger.info('Starting send_scheduled_supplier_orders_task')
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            await send_scheduled_supplier_orders(session)
+        except Exception as e:
+            logger.error(
+                f'Error sending scheduled supplier orders: {e}',
+                exc_info=True,
+            )
+
+
+def cleanup_order_reports_task():
+    removed = cleanup_order_reports()
+    logger.info('Cleanup order reports removed %s files', removed)
 
 
 def _day_key(now: datetime) -> str:

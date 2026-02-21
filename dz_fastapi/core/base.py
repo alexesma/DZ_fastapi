@@ -5,9 +5,12 @@ from dz_fastapi.models.autopart import (AutoPart, AutoPartRestockDecision,
                                         Category, Photo, StorageLocation,
                                         autopart_category_association,
                                         autopart_storage_association)
-from dz_fastapi.models.cross import AutoPartCross, AutoPartSubstitution  # noqa
 from dz_fastapi.models.brand import Brand, brand_synonyms  # noqa
-from dz_fastapi.models.partner import (Client, Customer, CustomerPriceList,
+from dz_fastapi.models.cross import AutoPartCross, AutoPartSubstitution  # noqa
+from dz_fastapi.models.email_account import EmailAccount  # noqa
+from dz_fastapi.models.partner import (Client, Customer, CustomerOrder,
+                                       CustomerOrderConfig, CustomerOrderItem,
+                                       CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
                                        CustomerPriceListConfig,
                                        CustomerPriceListSource, Order,
@@ -15,7 +18,9 @@ from dz_fastapi.models.partner import (Client, Customer, CustomerPriceList,
                                        PriceListAutoPartAssociation, Provider,
                                        ProviderAbbreviation,
                                        ProviderLastEmailUID,
-                                       ProviderPriceListConfig)
+                                       ProviderPriceListConfig, StockOrder,
+                                       StockOrderItem, SupplierOrder,
+                                       SupplierOrderItem)
 from dz_fastapi.models.user import User  # noqa
 from dz_fastapi.models.webchat import ChatMessage
 
@@ -39,6 +44,13 @@ __all__ = [
     'ProviderPriceListConfig',
     'CustomerPriceListConfig',
     'CustomerPriceListSource',
+    'CustomerOrderConfig',
+    'CustomerOrder',
+    'CustomerOrderItem',
+    'SupplierOrder',
+    'SupplierOrderItem',
+    'StockOrder',
+    'StockOrderItem',
     'Order',
     'OrderItem',
     'ProviderAbbreviation',
@@ -50,4 +62,5 @@ __all__ = [
     'AutoPartSubstitution',
     'ChatMessage',
     'User',
+    'EmailAccount',
 ]

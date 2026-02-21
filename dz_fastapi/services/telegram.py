@@ -3,8 +3,12 @@ import os
 import aiohttp
 
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_TOKEN')
-TELEGRAM_API_URL = (
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_TO')
+TELEGRAM_DOC_URL = (
     f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendDocument'
+)
+TELEGRAM_MSG_URL = (
+    f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
 )
 
 
@@ -19,6 +23,8 @@ async def send_file_to_telegram(
     :param filename: имя файла (например, 'report.xlsx')
     :param caption: сообщение к файлу
     """
+    if not TELEGRAM_BOT_TOKEN:
+        raise Exception('TELEGRAM_TOKEN is not configured')
     data = aiohttp.FormData()
     data.add_field('chat_id', chat_id)
     data.add_field('caption', caption)
@@ -31,7 +37,27 @@ async def send_file_to_telegram(
         ),
     )
     async with aiohttp.ClientSession() as session:
-        async with session.post(TELEGRAM_API_URL, data=data) as response:
+        async with session.post(TELEGRAM_DOC_URL, data=data) as response:
+            if response.status != 200:
+                error_text = await response.text()
+                raise Exception(
+                    f'Ошибка отправки в Telegram: '
+                    f'{response.status} — {error_text}'
+                )
+
+
+async def send_message_to_telegram(text: str, chat_id: str | None = None):
+    if not TELEGRAM_BOT_TOKEN:
+        raise Exception('TELEGRAM_TOKEN is not configured')
+    chat_id = chat_id or TELEGRAM_CHAT_ID
+    if not chat_id:
+        raise Exception('TELEGRAM_TO is not configured')
+    payload = {
+        'chat_id': chat_id,
+        'text': text,
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.post(TELEGRAM_MSG_URL, data=payload) as response:
             if response.status != 200:
                 error_text = await response.text()
                 raise Exception(

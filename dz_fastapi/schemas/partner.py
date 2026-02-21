@@ -37,6 +37,9 @@ class ClientBase(BaseModel):
 class ProviderBase(ClientBase):
     email_incoming_price: Optional[EmailStr] = None
     is_own_price: Optional[bool] = False
+    order_schedule_days: Optional[List[str]] = None
+    order_schedule_times: Optional[List[str]] = None
+    order_schedule_enabled: Optional[bool] = None
 
     @field_validator('email_incoming_price', mode='before')
     def validate_email_incoming_price(cls, v):
@@ -60,6 +63,9 @@ class ProviderUpdate(BaseModel):
     email_incoming_price: Optional[EmailStr] = None
     is_virtual: Optional[bool] = None
     is_own_price: Optional[bool] = None
+    order_schedule_days: Optional[List[str]] = None
+    order_schedule_times: Optional[List[str]] = None
+    order_schedule_enabled: Optional[bool] = None
 
     @field_validator('email_contact', 'email_incoming_price', mode='before')
     def empty_to_none(cls, v):
@@ -377,6 +383,22 @@ class CustomerPriceListConfigBase(BaseModel):
     additional_filters: Optional[Dict[str, Any]] = Field(
         default_factory=dict, description='Other custom filters'
     )
+    default_filters: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description='Default filters (fallback for all suppliers)',
+    )
+    own_filters: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description='Filters for own price list',
+    )
+    other_filters: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description='Filters for all other suppliers',
+    )
+    supplier_filters: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description='Per-supplier filters (provider_id -> filters)',
+    )
     schedule_days: Optional[List[str]] = Field(default_factory=list)
     schedule_times: Optional[List[str]] = Field(default_factory=list)
     emails: Optional[List[EmailStr]] = Field(default_factory=list)
@@ -407,6 +429,10 @@ class CustomerPriceListConfigUpdate(BaseModel):
     position_filters: Optional[List[int]] = None
     supplier_quantity_filters: Optional[List[SupplierQuantityFilter]] = None
     additional_filters: Optional[Dict[str, Any]] = None
+    default_filters: Optional[Dict[str, Any]] = None
+    own_filters: Optional[Dict[str, Any]] = None
+    other_filters: Optional[Dict[str, Any]] = None
+    supplier_filters: Optional[Dict[str, Any]] = None
     schedule_days: Optional[List[str]] = None
     schedule_times: Optional[List[str]] = None
     emails: Optional[List[EmailStr]] = None

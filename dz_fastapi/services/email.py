@@ -18,6 +18,7 @@ from jinja2 import Environment, FileSystemLoader
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.constants import DEPTH_DAY_EMAIL, IMAP_SERVER
+from dz_fastapi.crud.email_account import crud_email_account
 from dz_fastapi.crud.partner import (crud_provider,
                                      crud_provider_pricelist_config,
                                      get_last_uid, set_last_uid)
@@ -38,6 +39,13 @@ SMTP_PASSWORD = os.getenv('EMAIL_PASSWORD')
 
 DOWNLOAD_FOLDER = 'uploads/pricelistprovider'
 PROCESSED_FOLDER = 'processed'
+
+
+def _extract_email(value: Optional[str]) -> str:
+    if not value:
+        return ''
+    match = re.search(r'[\\w\\.-]+@[\\w\\.-]+\\.[\\w]+', value)
+    return match.group(0).lower() if match else value.lower()
 
 
 # os.makedirs(PROCESSED_FOLDER, exist_ok=True)
@@ -203,19 +211,31 @@ def send_email_with_attachment(
     attachment_bytes,
     attachment_filename,
     is_html: bool = False,
+    smtp_host: str | None = None,
+    smtp_port: int | None = None,
+    smtp_user: str | None = None,
+    smtp_password: str | None = None,
+    from_email: str | None = None,
+    use_ssl: bool = True,
 ):
     logger.debug(
         'Inside send_email_with_attachment with len(attachment_bytes)=%d',
         len(attachment_bytes),
     )
 
-    if not EMAIL_NAME or not EMAIL_PASSWORD:
+    smtp_user = smtp_user or EMAIL_NAME
+    smtp_password = smtp_password or EMAIL_PASSWORD
+    smtp_host = smtp_host or SMTP_SERVER
+    smtp_port = smtp_port or SMTP_PORT
+    from_email = from_email or EMAIL_NAME
+
+    if not smtp_user or not smtp_password or not smtp_host:
         logger.error('Email credentials are not set.')
         return
 
     msg = EmailMessage()
     msg['Subject'] = subject
-    msg['From'] = EMAIL_NAME
+    msg['From'] = from_email
     msg['To'] = to_email
     if is_html:
         msg.add_alternative(body, subtype='html')
@@ -231,9 +251,13 @@ def send_email_with_attachment(
     )
 
     try:
-        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as smtp:
+        if use_ssl:
+            smtp_ctx = smtplib.SMTP_SSL(smtp_host, smtp_port)
+        else:
+            smtp_ctx = smtplib.SMTP(smtp_host, smtp_port)
+        with smtp_ctx as smtp:
             smtp.set_debuglevel(1)
-            smtp.login(EMAIL_NAME, EMAIL_PASSWORD)
+            smtp.login(smtp_user, smtp_password)
             smtp.send_message(msg)
         logger.info(f'Email sent to {to_email}')
     except Exception as e:
@@ -317,8 +341,10 @@ def _fetch_mailbox_messages(
     email_account: str,
     email_password: str,
     main_box: str,
+    port: int = IMAP_SERVER,
+    ssl: bool = True,
 ):
-    with MailBox(server_mail, IMAP_SERVER).login(
+    with MailBox(server_mail, port, ssl=ssl).login(
         email_account, email_password
     ) as mailbox:
         mailbox.folder.set(main_box)
@@ -338,13 +364,35 @@ async def get_emails(
     main_box: str = 'INBOX',
 ) -> list[tuple[Provider, str]]:
     downloaded_files = []
-    all_emails = await asyncio.to_thread(
-        _fetch_mailbox_messages,
-        server_mail,
-        email_account,
-        email_password,
-        main_box,
+    all_emails = []
+    accounts = await crud_email_account.get_active_by_purpose(
+        session, 'prices_in'
     )
+    if accounts:
+        for account in accounts:
+            host = account.imap_host or server_mail
+            if not host:
+                continue
+            messages = await asyncio.to_thread(
+                _fetch_mailbox_messages,
+                host,
+                account.email,
+                account.password,
+                main_box,
+                account.imap_port or IMAP_SERVER,
+                True,
+            )
+            all_emails.extend(messages)
+    else:
+        all_emails = await asyncio.to_thread(
+            _fetch_mailbox_messages,
+            server_mail,
+            email_account,
+            email_password,
+            main_box,
+            IMAP_SERVER,
+            True,
+        )
     logger.debug(f'Получено {len(all_emails)} писем за сегодня')
     for msg in all_emails:
         logger.debug(
@@ -352,7 +400,7 @@ async def get_emails(
             f'date={msg.date}, subject={msg.subject}'
         )
         provider = await crud_provider.get_by_email_incoming_price(
-            session=session, email=msg.from_
+            session=session, email=_extract_email(msg.from_)
         )
         if not provider:
             logger.debug(

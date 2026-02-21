@@ -64,10 +64,15 @@ def individual_markups(
 
 
 def price_intervals(price_intervals: dict, df: pd.DataFrame) -> pd.DataFrame:
-    for interval in price_intervals:
-        min_price = float(interval.min_price)
-        max_price = float(interval.max_price)
-        coefficient = normalize_markup(interval.coefficient)
+    for interval in price_intervals or []:
+        if isinstance(interval, dict):
+            min_price = float(interval.get('min_price', 0))
+            max_price = float(interval.get('max_price', 0))
+            coefficient = normalize_markup(interval.get('coefficient'))
+        else:
+            min_price = float(interval.min_price)
+            max_price = float(interval.max_price)
+            coefficient = normalize_markup(interval.coefficient)
         df.loc[
             (df['price'] >= min_price) & (df['price'] <= max_price), 'price'
         ] *= coefficient
@@ -93,11 +98,20 @@ def position_filters(position_filters: dict, df: pd.DataFrame) -> pd.DataFrame:
 def supplier_quantity_filters(
     supplier_quantity_filters: dict, df: pd.DataFrame
 ) -> pd.DataFrame:
+    if not supplier_quantity_filters:
+        return df
     combined_mask = pd.Series(False, index=df.index)
-    for supplier_filter in supplier_quantity_filters:
-        provider_id = supplier_filter.provider_id
-        min_qty = supplier_filter.min_quantity
-        max_qty = supplier_filter.max_quantity
+    for supplier_filter in supplier_quantity_filters or []:
+        if isinstance(supplier_filter, dict):
+            provider_id = supplier_filter.get('provider_id')
+            min_qty = supplier_filter.get('min_quantity')
+            max_qty = supplier_filter.get('max_quantity')
+        else:
+            provider_id = supplier_filter.provider_id
+            min_qty = supplier_filter.min_quantity
+            max_qty = supplier_filter.max_quantity
+        if provider_id is None or min_qty is None or max_qty is None:
+            continue
         mask = (
             (df['provider_id'] == provider_id)
             & (df['quantity'] >= min_qty)
