@@ -57,6 +57,7 @@ CONFIG_DATA_PROVIDER = {
     'price_col': 4,
     'name_price': 'zzap_kross.xlsx',
     'name_mail': 'Прайс лист',
+    'max_days_without_update': 3,
 }
 
 DZ_STATUS_MAP: dict[str, TYPE_STATUS_ORDER] = {

@@ -17,6 +17,8 @@ from dz_fastapi.api.customer_order import router as customer_order_router
 from dz_fastapi.api.email_account import router as email_account_router
 from dz_fastapi.api.order import router as order_router
 from dz_fastapi.api.partner import router as partner_router
+from dz_fastapi.api.settings import router as settings_router
+from dz_fastapi.api.watchlist import router as watchlist_router
 from dz_fastapi.api.webchat import router as webchat_router
 from dz_fastapi.core.config import settings
 from dz_fastapi.core.db import get_async_session
@@ -128,4 +130,6 @@ app.include_router(partner_router)
 app.include_router(order_router)
 app.include_router(customer_order_router)
 app.include_router(email_account_router)
+app.include_router(settings_router)
+app.include_router(watchlist_router)
 app.include_router(webchat_router)

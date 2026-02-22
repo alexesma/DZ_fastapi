@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from typing import List, Optional
@@ -60,6 +61,7 @@ from dz_fastapi.schemas.partner import (AutoPartInPricelist,
 from dz_fastapi.services.email import (download_price_provider,
                                        send_email_with_attachment)
 from dz_fastapi.services.process import (check_start_and_finish_date,
+                                         parse_exclude_positions_file,
                                          process_customer_pricelist,
                                          process_provider_pricelist)
 
@@ -624,6 +626,33 @@ async def update_provider_pricelist_config(
         db_obj=provider_config, obj_in=config_in, session=session
     )
     return ProviderPriceListConfigOut.model_validate(update_config)
+
+
+@router.post(
+    '/providers/pricelist-config/exclude-positions/parse',
+    tags=['providers', 'pricelist-config'],
+    status_code=status.HTTP_200_OK,
+    summary='Parse exclude positions file for provider pricelist config',
+)
+async def parse_provider_pricelist_excludes(
+    file: UploadFile = File(...),
+):
+    filename = file.filename or ''
+    if '.' not in filename:
+        raise HTTPException(
+            status_code=400, detail='File extension is required'
+        )
+    extension = filename.rsplit('.', 1)[-1].lower()
+    file_content = await file.read()
+    try:
+        items = await asyncio.to_thread(
+            parse_exclude_positions_file, extension, file_content
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=400, detail='Invalid exclude file.')
+    return {'items': items}
 
 
 @router.get(

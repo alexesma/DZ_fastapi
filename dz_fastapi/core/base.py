@@ -21,7 +21,10 @@ from dz_fastapi.models.partner import (Client, Customer, CustomerOrder,
                                        ProviderPriceListConfig, StockOrder,
                                        StockOrderItem, SupplierOrder,
                                        SupplierOrderItem)
+from dz_fastapi.models.settings import (PriceCheckLog, PriceCheckSchedule,
+                                        PriceListStaleAlert)
 from dz_fastapi.models.user import User  # noqa
+from dz_fastapi.models.watchlist import PriceWatchItem
 from dz_fastapi.models.webchat import ChatMessage
 
 __all__ = [
@@ -63,4 +66,8 @@ __all__ = [
     'ChatMessage',
     'User',
     'EmailAccount',
+    'PriceCheckSchedule',
+    'PriceCheckLog',
+    'PriceListStaleAlert',
+    'PriceWatchItem',
 ]

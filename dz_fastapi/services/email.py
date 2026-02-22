@@ -273,7 +273,9 @@ async def download_new_price_provider(
     subject = msg.subject
     logger.debug(f'Письмо uid={msg.uid}, subject={subject}')
     # Если тема не соответствует критерию, пропускаем письмо
-    if normalize_str(provider_conf.name_mail) not in normalize_str(subject):
+    if provider_conf.name_mail and (
+        normalize_str(provider_conf.name_mail) not in normalize_str(subject)
+    ):
         logger.debug(
             f'Тема {subject} не содержит '
             f'{provider_conf.name_mail}, пропускаем'
@@ -311,8 +313,10 @@ async def download_new_price_provider(
     for att in msg.attachments:
         logger.debug(f'Found attachment: {att.filename}')
 
-        if normalize_str(provider_conf.name_price) in normalize_str(
-            att.filename
+        if (
+            not provider_conf.name_price
+            or normalize_str(provider_conf.name_price)
+            in normalize_str(att.filename)
         ):
             logger.debug('Имя вложения совпало')
             filepath = os.path.join(DOWNLOAD_FOLDER, att.filename)

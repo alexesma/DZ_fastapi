@@ -20,7 +20,11 @@ from dz_fastapi.crud.partner import (crud_customer, crud_customer_pricelist,
                                      crud_customer_pricelist_config,
                                      crud_pricelist, crud_provider,
                                      crud_provider_pricelist_config)
-from dz_fastapi.models.partner import CustomerPriceListConfig
+from dz_fastapi.crud.settings import (crud_price_check_log,
+                                      crud_price_check_schedule,
+                                      crud_price_stale_alert)
+from dz_fastapi.models.partner import (CustomerPriceListConfig, PriceList,
+                                       ProviderPriceListConfig)
 from dz_fastapi.schemas.partner import (CustomerCreate,
                                         CustomerPriceListConfigCreate,
                                         CustomerPriceListCreate,
@@ -32,6 +36,8 @@ from dz_fastapi.services.customer_orders import (
 from dz_fastapi.services.email import get_emails
 from dz_fastapi.services.process import (process_customer_pricelist,
                                          process_provider_pricelist)
+from dz_fastapi.services.telegram import send_message_to_telegram
+from dz_fastapi.services.watchlist_site import check_watchlist_site
 
 logger = logging.getLogger('dz_fastapi')
 EMAIL_NAME_ORDER = os.getenv('EMAIL_NAME_ORDERS')
@@ -52,7 +58,7 @@ def start_scheduler(app: FastAPI):
         args=[app],
         id='download_price_provider',
         name='Download price provider',
-        minute='*/5',  # каждые 5 минут
+        minute=0,  # каждый час
         jitter=5,
         replace_existing=True,
         # hour='9',
@@ -87,6 +93,27 @@ def start_scheduler(app: FastAPI):
         name='Download customer orders',
         minute='*/5',
         jitter=5,
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        func=check_provider_pricelist_staleness_task,
+        trigger='cron',
+        args=[app],
+        id='check_provider_pricelist_staleness',
+        name='Check provider pricelist staleness',
+        minute=10,
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        func=check_watchlist_site_task,
+        trigger='cron',
+        args=[app],
+        id='check_watchlist_site',
+        name='Check watchlist site offers',
+        hour=2,
+        minute=0,
         replace_existing=True,
     )
 
@@ -379,11 +406,33 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
     )
 
 
+def _is_price_check_due(schedule) -> bool:
+    if not schedule.enabled:
+        return False
+    if not schedule.days or not schedule.times:
+        return True
+    now = datetime.now(timezone.utc)
+    day_key = now.strftime('%a').lower()[:3]
+    time_key = now.strftime('%H:%M')
+    return day_key in (schedule.days or []) and time_key in (
+        schedule.times or []
+    )
+
+
 async def download_price_provider_task(app: FastAPI):
     logger.info('Starting download_price_provider_task')
     async_session_factory = app.state.session_factory
     async with async_session_factory() as session:
         try:
+            schedule = await crud_price_check_schedule.get_or_create(session)
+            if not _is_price_check_due(schedule):
+                logger.info('Price check skipped by schedule')
+                await crud_price_check_log.create(
+                    session=session,
+                    status='SKIP',
+                    message='Skipped by schedule',
+                )
+                return
             # Проверяю наличие поставщика
             provider = await crud_provider.get_provider_or_none(
                 provider=PROVIDER_IN['name'], session=session
@@ -403,9 +452,25 @@ async def download_price_provider_task(app: FastAPI):
                 )
                 logger.info(f'Created initial provider with id: {provider.id}')
             await process_new_provider_emails(session, app)
+            schedule.last_checked_at = datetime.now(timezone.utc)
+            session.add(schedule)
+            await session.commit()
+            await crud_price_check_log.create(
+                session=session,
+                status='OK',
+                message='Price check completed',
+            )
             logger.info('Completed download_price_provider_task')
         except Exception as e:
             logger.error(f'Error in download_price_provider_task: {e}')
+            try:
+                await crud_price_check_log.create(
+                    session=session,
+                    status='ERROR',
+                    message=str(e)[:240],
+                )
+            except Exception:
+                pass
 
 
 async def cleanup_old_pricelists_task(app: FastAPI):
@@ -448,3 +513,78 @@ async def cleanup_old_pricelists_task(app: FastAPI):
                 exc_info=True
             )
             await session.rollback()
+
+
+async def check_provider_pricelist_staleness_task(app: FastAPI):
+    logger.info('Starting check_provider_pricelist_staleness_task')
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            now = datetime.now(timezone.utc)
+            stmt = (
+                select(ProviderPriceListConfig)
+                .options(selectinload(ProviderPriceListConfig.provider))
+            )
+            configs = (await session.execute(stmt)).scalars().all()
+
+            for config in configs:
+                threshold = config.max_days_without_update or 3
+                if threshold <= 0:
+                    continue
+                last_price_stmt = (
+                    select(PriceList.date)
+                    .where(PriceList.provider_config_id == config.id)
+                    .order_by(PriceList.date.desc())
+                    .limit(1)
+                )
+                last_date = (await session.execute(last_price_stmt)).scalar()
+                if not last_date:
+                    continue
+                days_diff = (now.date() - last_date).days
+                if days_diff <= threshold:
+                    continue
+
+                if (
+                    config.last_stale_alert_at
+                    and config.last_stale_alert_at.date() == now.date()
+                ):
+                    continue
+
+                provider_name = config.provider.name if config.provider else ''
+                config_label = config.name_price or f'#{config.id}'
+                message = (
+                    f'Прайс не обновлялся: {provider_name} '
+                    f'({config_label}) — {days_diff} дн. '
+                    f'Последний: {last_date}'
+                )
+                await send_message_to_telegram(message)
+                if config.provider_id:
+                    await crud_price_stale_alert.create(
+                        session=session,
+                        provider_id=config.provider_id,
+                        provider_config_id=config.id,
+                        days_diff=days_diff,
+                        last_price_date=last_date,
+                    )
+                config.last_stale_alert_at = now
+                session.add(config)
+
+            await session.commit()
+            logger.info('Completed check_provider_pricelist_staleness_task')
+        except Exception as e:
+            logger.error(
+                f'Error in check_provider_pricelist_staleness_task: {e}',
+                exc_info=True
+            )
+            await session.rollback()
+
+
+async def check_watchlist_site_task(app: FastAPI):
+    logger.info('Starting check_watchlist_site_task')
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            await check_watchlist_site(session)
+            logger.info('Completed check_watchlist_site_task')
+        except Exception as e:
+            logger.error(f'Error in check_watchlist_site_task: {e}')

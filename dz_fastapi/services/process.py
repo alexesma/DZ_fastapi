@@ -71,6 +71,7 @@ from dz_fastapi.services.utils import (brand_filters, normalize_markup,
                                        normalize_mixed_cyrillic,
                                        position_exclude, position_filters,
                                        prepare_excel_data)
+from dz_fastapi.services.watchlist import handle_provider_pricelist_watch
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -324,6 +325,83 @@ def _prepare_pricelist_data(
     return deduplicated_data, stats
 
 
+def _normalize_exclude_positions(exclude_positions):
+    if not exclude_positions:
+        return set()
+    normalized = set()
+    for item in exclude_positions:
+        if not isinstance(item, dict):
+            continue
+        brand = str(item.get('brand', '')).strip().upper()
+        oem = str(item.get('oem', '')).strip().upper()
+        if brand and oem:
+            normalized.add((brand, oem))
+    return normalized
+
+
+def _apply_provider_filters(items, provider_list_conf):
+    if not items:
+        return items
+    min_price = provider_list_conf.min_price
+    max_price = provider_list_conf.max_price
+    min_quantity = provider_list_conf.min_quantity
+    max_quantity = provider_list_conf.max_quantity
+    exclude_positions = _normalize_exclude_positions(
+        provider_list_conf.exclude_positions
+    )
+
+    filtered = []
+    removed = 0
+    for item in items:
+        price = float(item.get('price', 0))
+        quantity = int(item.get('quantity', 0))
+        brand = str(item.get('brand', '')).strip().upper()
+        oem = str(item.get('oem_number', '')).strip().upper()
+
+        if min_price is not None and price < min_price:
+            removed += 1
+            continue
+        if max_price is not None and price > max_price:
+            removed += 1
+            continue
+        if min_quantity is not None and quantity < min_quantity:
+            removed += 1
+            continue
+        if max_quantity is not None and quantity > max_quantity:
+            removed += 1
+            continue
+        if exclude_positions and (brand, oem) in exclude_positions:
+            removed += 1
+            continue
+
+        filtered.append(item)
+
+    if removed:
+        logger.debug(f'Removed {removed} items by provider filters')
+    return filtered
+
+
+def parse_exclude_positions_file(file_extension, file_content):
+    buffer = BytesIO(file_content)
+    ext = file_extension.lower()
+    if ext in ('xlsx', 'xls'):
+        df = pd.read_excel(buffer, header=None, dtype=str)
+    elif ext in ('csv', 'txt'):
+        df = pd.read_csv(buffer, header=None, dtype=str)
+    else:
+        raise ValueError('Unsupported file extension')
+
+    df = df.dropna(how='all')
+    items = []
+    for _, row in df.iterrows():
+        brand = str(row.iloc[0]).strip() if len(row) > 0 else ''
+        oem = str(row.iloc[1]).strip() if len(row) > 1 else ''
+        if not brand or not oem:
+            continue
+        items.append({'brand': brand, 'oem': oem})
+    return items
+
+
 async def process_provider_pricelist(
     provider: Provider,
     file_content: bytes,
@@ -385,6 +463,10 @@ async def process_provider_pricelist(
             status_code=400, detail='Error during data cleaning.'
         )
 
+    deduplicated_data = _apply_provider_filters(
+        deduplicated_data, provider_list_conf
+    )
+
     pricelist_in = PriceListCreate(
         provider_id=provider.id,
         provider_config_id=provider_list_conf.id,
@@ -418,6 +500,13 @@ async def process_provider_pricelist(
     try:
         pricelist = await crud_pricelist.create(
             obj_in=pricelist_in, session=session
+        )
+        await handle_provider_pricelist_watch(
+            session=session,
+            provider=provider,
+            provider_config=provider_list_conf,
+            pricelist_id=pricelist.id,
+            items=deduplicated_data,
         )
         # Получили Pydantic-ответ с .id
         created_id = pricelist.id

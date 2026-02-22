@@ -258,6 +258,9 @@ async def override_dependencies(test_engine):
         async with async_sessionmaker() as session:
             yield session
 
+    # Create and store session factory for scheduler tests
+    app.state.session_factory = async_sessionmaker
+
     # Apply dependency overrides
     app.dependency_overrides[get_upload_dir] = override_get_upload_dir
     app.dependency_overrides[get_max_file_size] = override_get_max_file_size
@@ -273,4 +276,6 @@ async def override_dependencies(test_engine):
 
     # Clear overrides after test
     app.dependency_overrides.clear()
+    if hasattr(app.state, "session_factory"):
+        delattr(app.state, "session_factory")
     logger.debug("Dependencies overrides cleared after the test")

@@ -275,6 +275,12 @@ class ProviderPriceListConfigBase(BaseModel):
     name_price: Optional[str] = None
     name_mail: Optional[str] = None
     file_url: Optional[str] = None
+    min_price: Optional[float] = None
+    max_price: Optional[float] = None
+    min_quantity: Optional[int] = None
+    max_quantity: Optional[int] = None
+    exclude_positions: List[Dict[str, str]] = Field(default_factory=list)
+    max_days_without_update: Optional[int] = Field(default=3, ge=0)
     min_delivery_day: Optional[int] = Field(default=1, ge=0)
     max_delivery_day: Optional[int] = Field(default=3, ge=0)
 
@@ -293,6 +299,12 @@ class ProviderPriceListConfigUpdate(BaseModel):
     name_price: Optional[str] = None
     name_mail: Optional[str] = None
     file_url: Optional[str] = None
+    min_price: Optional[float] = None
+    max_price: Optional[float] = None
+    min_quantity: Optional[int] = None
+    max_quantity: Optional[int] = None
+    exclude_positions: Optional[List[Dict[str, str]]] = None
+    max_days_without_update: Optional[int] = Field(default=None, ge=0)
     min_delivery_day: Optional[int] = Field(default=None, ge=0)
     max_delivery_day: Optional[int] = Field(default=None, ge=0)
 
@@ -565,6 +577,12 @@ class ProviderPriceListConfigOut(BaseModel):
     brand_col: int | None = None
     qty_col: int
     price_col: int
+    min_price: float | None = None
+    max_price: float | None = None
+    min_quantity: int | None = None
+    max_quantity: int | None = None
+    exclude_positions: List[Dict[str, str]] = Field(default_factory=list)
+    max_days_without_update: int | None = 3
     min_delivery_day: int | None = 1
     max_delivery_day: int | None = 3
     latest_pricelist: Optional[PriceListShort] = None
