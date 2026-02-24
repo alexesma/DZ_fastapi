@@ -14,6 +14,7 @@ from sqlalchemy.orm import selectinload
 from dz_fastapi.api.validators import change_brand_name, change_string
 from dz_fastapi.core.constants import PERCENT_MIN_BALANS_FOR_ORDER
 from dz_fastapi.core.db import AsyncSession
+from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.base import CRUDBase
 from dz_fastapi.crud.brand import brand_crud
 from dz_fastapi.models.autopart import (TYPE_RESTOCK_DECISION_STATUS,
@@ -424,7 +425,7 @@ class CRUDAutopartRestockDecision(CRUDBase[AutoPartRestockDecision, Any, Any]):
             restock = AutoPartRestockDecision(
                 autopart_id=autopart_id,
                 required_quantity=data['quantity'],
-                decision_date=datetime.now(),
+                decision_date=now_moscow(),
                 status=TYPE_RESTOCK_DECISION_STATUS.NEW,
             )
             session.add(restock)

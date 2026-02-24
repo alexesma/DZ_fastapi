@@ -1,7 +1,7 @@
 import logging
 import os
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import timedelta
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -12,6 +12,7 @@ from dz_fastapi.core.constants import (DEPTH_MONTHS_HISTORY_PRICE_FOR_ORDER,
                                        PERCENTAGE_DEVIATION_ORDER_PRICE,
                                        URL_DZ_SEARCH)
 from dz_fastapi.core.db import AsyncSession
+from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.autopart import (crud_autopart,
                                       crud_autopart_price_history,
                                       crud_autopart_restock_decision)
@@ -111,7 +112,7 @@ async def get_historical_min_price(
     :return: словарь {autopart_id: min_price}
     '''
     logger.debug('Зашли в функцию get_historical_min_price')
-    date_threshold = datetime.now() - timedelta(days=30 * months_back)
+    date_threshold = now_moscow() - timedelta(days=30 * months_back)
     rows = await crud_autopart_price_history.get_autoparts(
         autopart_ids=autopart_ids,
         date_threshold=date_threshold,

@@ -4,19 +4,25 @@ import logging
 import os
 import re
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from io import BytesIO
 from typing import Dict, List, Optional, Tuple
 
 import aiofiles
 import pandas as pd
-from imap_tools import AND, MailBox
+
+try:
+    from imap_tools import AND, MailBox, MailBoxSsl
+except ImportError:  # pragma: no cover - fallback for older imap_tools
+    from imap_tools import AND, MailBox
+    MailBoxSsl = None
 from openpyxl import load_workbook
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from dz_fastapi.core.constants import IMAP_SERVER
+from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.email_account import crud_email_account
 from dz_fastapi.crud.partner import (crud_customer_pricelist,
                                      crud_customer_pricelist_config,
@@ -57,6 +63,12 @@ ORDERS_REPORT_DIR = os.getenv(
 ORDERS_RETENTION_DAYS = int(os.getenv('CUSTOMER_ORDERS_REPORT_DAYS', 7))
 
 
+def _create_mailbox(server_mail: str, port: int, ssl: bool = True):
+    if ssl and MailBoxSsl is not None:
+        return MailBoxSsl(server_mail, port)
+    return MailBox(server_mail, port)
+
+
 @dataclass
 class ParsedOrderRow:
     row_index: int
@@ -86,7 +98,7 @@ async def _fetch_order_messages(
     ssl: bool = True,
 ) -> list:
     def _fetch():
-        with MailBox(server_mail, port, ssl=ssl).login(
+        with _create_mailbox(server_mail, port, ssl).login(
             email_account, email_password
         ) as mailbox:
             mailbox.folder.set(folder)
@@ -874,7 +886,7 @@ async def process_customer_orders(session: AsyncSession) -> None:
             order = CustomerOrder(
                 customer_id=config.customer_id,
                 status=CUSTOMER_ORDER_STATUS.NEW,
-                received_at=datetime.now(timezone.utc),
+                received_at=now_moscow(),
                 source_email=sender,
                 source_uid=int(msg.uid) if msg.uid else None,
                 source_subject=msg.subject,
@@ -1055,7 +1067,7 @@ async def process_customer_orders(session: AsyncSession) -> None:
             order.response_file_path = response_path
             order.response_file_name = response_name
             order.status = CUSTOMER_ORDER_STATUS.PROCESSED
-            order.processed_at = datetime.now(timezone.utc)
+            order.processed_at = now_moscow()
 
             await session.commit()
 
@@ -1180,7 +1192,7 @@ async def send_supplier_orders(
                 **smtp_kwargs,
             )
             order.status = SUPPLIER_ORDER_STATUS.SENT
-            order.sent_at = datetime.now(timezone.utc)
+            order.sent_at = now_moscow()
             sent += 1
         except Exception as exc:
             logger.error(
@@ -1199,7 +1211,7 @@ async def send_supplier_orders(
 async def send_scheduled_supplier_orders(
         session: AsyncSession
 ) -> Dict[str, int]:
-    now = datetime.now(timezone.utc)
+    now = now_moscow()
     day_key = {
         0: 'mon',
         1: 'tue',
@@ -1243,7 +1255,7 @@ async def send_scheduled_supplier_orders(
 def cleanup_order_reports(days: int = ORDERS_RETENTION_DAYS) -> int:
     if days <= 0:
         return 0
-    cutoff = datetime.now(timezone.utc).timestamp() - days * 86400
+    cutoff = now_moscow().timestamp() - days * 86400
     if not os.path.isdir(ORDERS_REPORT_DIR):
         return 0
     removed = 0

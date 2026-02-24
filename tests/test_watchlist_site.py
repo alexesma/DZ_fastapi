@@ -7,6 +7,7 @@ from dz_fastapi.services.watchlist_site import check_watchlist_site
 async def test_watchlist_site_telegram(
         async_client, test_session, monkeypatch
 ):
+    monkeypatch.setenv("WATCHLIST_NOTIFY_MODE", "immediate")
     payload = {
         "brand": "SITEBRAND",
         "oem": "SITE123",

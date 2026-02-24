@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from enum import Enum
 
 from sqlalchemy import Column, DateTime
@@ -7,6 +6,7 @@ from sqlalchemy import ForeignKey, String
 from sqlalchemy.sql import func
 
 from dz_fastapi.core.db import Base
+from dz_fastapi.core.time import now_moscow
 
 
 class UserRole(str, Enum):
@@ -60,4 +60,4 @@ class User(Base):
     def approve(self, admin_id: int) -> None:
         self.status = UserStatus.ACTIVE
         self.approved_by = admin_id
-        self.approved_at = datetime.now(timezone.utc)
+        self.approved_at = now_moscow()

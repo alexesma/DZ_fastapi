@@ -1,10 +1,9 @@
-from datetime import datetime, timezone
-
 from sqlalchemy import (JSON, Boolean, Column, Date, DateTime, ForeignKey,
                         Integer, String)
 from sqlalchemy.orm import relationship
 
 from dz_fastapi.core.db import Base
+from dz_fastapi.core.time import now_moscow
 
 
 class PriceCheckSchedule(Base):
@@ -17,8 +16,8 @@ class PriceCheckSchedule(Base):
     )
     updated_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=now_moscow,
+        onupdate=now_moscow,
     )
 
 
@@ -30,7 +29,7 @@ class PriceListStaleAlert(Base):
     days_diff = Column(Integer, nullable=False)
     last_price_date = Column(Date, nullable=False)
     created_at = Column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=now_moscow
     )
 
     provider = relationship('Provider')
@@ -39,6 +38,4 @@ class PriceListStaleAlert(Base):
 class PriceCheckLog(Base):
     status = Column(String(32), nullable=False)
     message = Column(String(255), nullable=True)
-    checked_at = Column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    checked_at = Column(DateTime(timezone=True), default=now_moscow)

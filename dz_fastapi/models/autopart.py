@@ -1,6 +1,5 @@
 import logging
 import re
-from datetime import datetime, timezone
 from enum import StrEnum, unique
 from uuid import uuid4
 
@@ -15,6 +14,7 @@ from dz_fastapi.core.base import Base
 from dz_fastapi.core.constants import (MAX_LEN_WEBSITE, MAX_LIGHT_BARCODE,
                                        MAX_LIGHT_NAME_LOCATION, MAX_LIGHT_OEM,
                                        MAX_NAME_CATEGORY)
+from dz_fastapi.core.time import now_moscow
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -328,7 +328,7 @@ class AutoPartPriceHistory(Base):
 
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=now_moscow,
         nullable=False,
     )
     price = Column(DECIMAL(10, 2), nullable=False)
@@ -351,7 +351,7 @@ class AutoPartPriceHistory(Base):
 class AutoPartRestockDecision(Base):
     autopart_id = Column(Integer, ForeignKey('autopart.id'), index=True)
     required_quantity = Column(Integer, nullable=False)
-    decision_date = Column(DateTime, default=datetime.now)
+    decision_date = Column(DateTime, default=now_moscow)
     status = Column(
         SAEnum(
             TYPE_RESTOCK_DECISION_STATUS,

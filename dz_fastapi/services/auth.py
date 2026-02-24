@@ -1,6 +1,6 @@
 import hashlib
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import Any
 
 from jose import JWTError, jwt
@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.config import settings
+from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.user import User, UserRole, UserStatus
 
 logger = logging.getLogger("dz_fastapi")
@@ -36,7 +37,7 @@ def get_password_hash(password: str) -> str:
 def create_access_token(
         subject: str, expires_delta: timedelta | None = None
 ) -> str:
-    expire = datetime.now(timezone.utc) + (
+    expire = now_moscow() + (
         expires_delta
         if expires_delta
         else timedelta(minutes=settings.jwt_access_token_expire_minutes)
@@ -76,7 +77,7 @@ async def ensure_admin_user(session: AsyncSession) -> None:
         password_hash=get_password_hash(settings.admin_password),
         role=UserRole.ADMIN,
         status=UserStatus.ACTIVE,
-        approved_at=datetime.now(timezone.utc),
+        approved_at=now_moscow(),
     )
     session.add(admin)
     await session.commit()

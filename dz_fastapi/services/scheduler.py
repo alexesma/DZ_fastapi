@@ -4,7 +4,7 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime
 
 import aiofiles
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -16,6 +16,7 @@ from sqlalchemy.orm import selectinload
 from dz_fastapi.core.constants import (CONFIG_DATA_CUSTOMER,
                                        CONFIG_DATA_PROVIDER, CUSTOMER,
                                        CUSTOMER_IN, PROVIDER_IN)
+from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.partner import (crud_customer, crud_customer_pricelist,
                                      crud_customer_pricelist_config,
                                      crud_pricelist, crud_provider,
@@ -37,6 +38,7 @@ from dz_fastapi.services.email import get_emails
 from dz_fastapi.services.process import (process_customer_pricelist,
                                          process_provider_pricelist)
 from dz_fastapi.services.telegram import send_message_to_telegram
+from dz_fastapi.services.watchlist import send_watchlist_daily_notifications
 from dz_fastapi.services.watchlist_site import check_watchlist_site
 
 logger = logging.getLogger('dz_fastapi')
@@ -48,7 +50,8 @@ EMAIL_HOST_ORDER = os.getenv('EMAIL_HOST_ORDERS')
 def start_scheduler(app: FastAPI):
     scheduler = AsyncIOScheduler()
     scheduler.configure(
-        timezone='UTC', job_defaults={'coalesce': True, 'max_instances': 1}
+        timezone='Europe/Moscow',
+        job_defaults={'coalesce': True, 'max_instances': 1},
     )
 
     # Добавляем задачи в планировщик
@@ -113,6 +116,17 @@ def start_scheduler(app: FastAPI):
         id='check_watchlist_site',
         name='Check watchlist site offers',
         hour=2,
+        minute=0,
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        func=notify_watchlist_task,
+        trigger='cron',
+        args=[app],
+        id='notify_watchlist',
+        name='Notify watchlist',
+        hour=9,
         minute=0,
         replace_existing=True,
     )
@@ -319,7 +333,7 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
     если текущий день/время совпадают.
     """
     async_session_factory = app.state.session_factory
-    now = datetime.now(timezone.utc)
+    now = now_moscow()
     day_key = _day_key(now)
     time_key = now.strftime('%H:%M')
 
@@ -411,7 +425,7 @@ def _is_price_check_due(schedule) -> bool:
         return False
     if not schedule.days or not schedule.times:
         return True
-    now = datetime.now(timezone.utc)
+    now = now_moscow()
     day_key = now.strftime('%a').lower()[:3]
     time_key = now.strftime('%H:%M')
     return day_key in (schedule.days or []) and time_key in (
@@ -452,7 +466,7 @@ async def download_price_provider_task(app: FastAPI):
                 )
                 logger.info(f'Created initial provider with id: {provider.id}')
             await process_new_provider_emails(session, app)
-            schedule.last_checked_at = datetime.now(timezone.utc)
+            schedule.last_checked_at = now_moscow()
             session.add(schedule)
             await session.commit()
             await crud_price_check_log.create(
@@ -520,7 +534,7 @@ async def check_provider_pricelist_staleness_task(app: FastAPI):
     async_session_factory = app.state.session_factory
     async with async_session_factory() as session:
         try:
-            now = datetime.now(timezone.utc)
+            now = now_moscow()
             stmt = (
                 select(ProviderPriceListConfig)
                 .options(selectinload(ProviderPriceListConfig.provider))
@@ -588,3 +602,14 @@ async def check_watchlist_site_task(app: FastAPI):
             logger.info('Completed check_watchlist_site_task')
         except Exception as e:
             logger.error(f'Error in check_watchlist_site_task: {e}')
+
+
+async def notify_watchlist_task(app: FastAPI):
+    logger.info('Starting notify_watchlist_task')
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            await send_watchlist_daily_notifications(session)
+            logger.info('Completed notify_watchlist_task')
+        except Exception as e:
+            logger.error(f'Error in notify_watchlist_task: {e}')

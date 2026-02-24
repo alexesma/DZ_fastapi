@@ -265,6 +265,19 @@ class CustomerResponseShort(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CustomerListSummary(BaseModel):
+    id: int
+    name: str
+    email_outgoing_price: Optional[EmailStr] = None
+    type_prices: TypePrices = TypePrices.WHOLESALE
+    email_contact: Optional[EmailStr] = None
+    price_lists_count: int = 0
+    pricelist_configs_count: int = 0
+    pricelist_sources_count: int = 0
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ProviderPriceListConfigBase(BaseModel):
     start_row: int
     oem_col: int

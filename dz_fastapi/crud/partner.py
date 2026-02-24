@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from math import ceil
 from typing import Any, Dict, List, Optional, Union
@@ -14,6 +13,7 @@ from sqlalchemy.sql import and_
 
 from dz_fastapi.core.constants import DEFAULT_PAGE_SIZE
 from dz_fastapi.core.db import AsyncSession
+from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.autopart import crud_autopart
 from dz_fastapi.crud.base import CRUDBase
 from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
@@ -874,7 +874,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
 
             provider_id = db_obj.provider_id
             provider_config_id = db_obj.provider_config_id
-            created_at_ts = datetime.now(timezone.utc)
+            created_at_ts = now_moscow()
 
             last_history_map = await self._get_last_history_snapshot(
                 session=session,

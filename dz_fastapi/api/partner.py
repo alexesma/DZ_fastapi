@@ -6,6 +6,7 @@ from typing import List, Optional
 from fastapi import (APIRouter, BackgroundTasks, Body, Depends, File, Form,
                      HTTPException, Query, UploadFile, status)
 from httpx import Response
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -27,12 +28,13 @@ from dz_fastapi.crud.partner import (crud_customer, crud_customer_pricelist,
                                      crud_provider_pricelist_config)
 from dz_fastapi.models.partner import (Customer, CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
-                                       CustomerPriceListConfig, PriceList,
+                                       CustomerPriceListConfig,
+                                       CustomerPriceListSource, PriceList,
                                        Provider, ProviderPriceListConfig)
 from dz_fastapi.schemas.autopart import AutoPartResponse
 from dz_fastapi.schemas.partner import (AutoPartInPricelist,
                                         CustomerAllPriceListResponse,
-                                        CustomerCreate,
+                                        CustomerCreate, CustomerListSummary,
                                         CustomerPriceListConfigCreate,
                                         CustomerPriceListConfigResponse,
                                         CustomerPriceListConfigSummary,
@@ -325,6 +327,89 @@ async def create_customer(
         customer_price_lists=[],
         pricelist_configs=[],
     )
+
+
+@router.get(
+    '/customers/summary/',
+    tags=['customers'],
+    status_code=status.HTTP_200_OK,
+    summary='Список покупателей (кратко)',
+    response_model=List[CustomerListSummary],
+)
+async def get_customers_summary(
+    search: Optional[str] = Query(
+        None, description='Поиск по имени клиента'
+    ),
+    session: AsyncSession = Depends(get_session),
+):
+    pricelist_counts = (
+        select(
+            CustomerPriceList.customer_id.label('customer_id'),
+            func.count(CustomerPriceList.id).label('price_lists_count'),
+        )
+        .group_by(CustomerPriceList.customer_id)
+        .subquery()
+    )
+
+    config_counts = (
+        select(
+            CustomerPriceListConfig.customer_id.label('customer_id'),
+            func.count(CustomerPriceListConfig.id).label('configs_count'),
+        )
+        .group_by(CustomerPriceListConfig.customer_id)
+        .subquery()
+    )
+
+    source_counts = (
+        select(
+            CustomerPriceListConfig.customer_id.label('customer_id'),
+            func.count(CustomerPriceListSource.id).label('sources_count'),
+        )
+        .join(
+            CustomerPriceListSource,
+            CustomerPriceListSource.customer_config_id
+            == CustomerPriceListConfig.id,
+            isouter=True,
+        )
+        .group_by(CustomerPriceListConfig.customer_id)
+        .subquery()
+    )
+
+    stmt = (
+        select(
+            Customer.id.label('id'),
+            Customer.name.label('name'),
+            Customer.email_outgoing_price.label('email_outgoing_price'),
+            Customer.email_contact.label('email_contact'),
+            Customer.type_prices.label('type_prices'),
+            func.coalesce(
+                pricelist_counts.c.price_lists_count, 0
+            ).label('price_lists_count'),
+            func.coalesce(
+                config_counts.c.configs_count, 0
+            ).label('pricelist_configs_count'),
+            func.coalesce(
+                source_counts.c.sources_count, 0
+            ).label('pricelist_sources_count'),
+        )
+        .outerjoin(
+            pricelist_counts, pricelist_counts.c.customer_id == Customer.id
+        )
+        .outerjoin(
+            config_counts, config_counts.c.customer_id == Customer.id
+        )
+        .outerjoin(
+            source_counts, source_counts.c.customer_id == Customer.id
+        )
+        .order_by(Customer.name.asc())
+    )
+
+    if search:
+        stmt = stmt.where(Customer.name.ilike(f'%{search}%'))
+
+    result = await session.execute(stmt)
+    rows = result.mappings().all()
+    return [CustomerListSummary(**row) for row in rows]
 
 
 @router.get(

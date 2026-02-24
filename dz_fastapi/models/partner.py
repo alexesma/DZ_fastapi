@@ -1,6 +1,6 @@
 # dragonzap_fastapi/models/partner.py
 
-from datetime import date, datetime, timezone
+from datetime import date
 from enum import StrEnum, unique
 from uuid import uuid4
 
@@ -11,6 +11,7 @@ from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text, event
 from sqlalchemy.orm import relationship, validates
 
 from dz_fastapi.core.db import Base
+from dz_fastapi.core.time import now_moscow
 
 DEFAULT_IS_ACTIVE = True
 MAX_NAME_PARTNER = 256
@@ -125,7 +126,7 @@ class CUSTOMER_ORDER_SHIP_MODE(StrEnum):
 
 
 def set_date(mapper, connection, target):
-    target.date = datetime.now(timezone.utc).date()
+    target.date = now_moscow().date()
 
 
 class Client(Base):
@@ -456,7 +457,7 @@ class CustomerOrder(Base):
         ),
         default=CUSTOMER_ORDER_STATUS.NEW,
     )
-    received_at = Column(DateTime(timezone=True), default=datetime.now)
+    received_at = Column(DateTime(timezone=True), default=now_moscow)
     processed_at = Column(DateTime(timezone=True), nullable=True)
 
     source_email = Column(String(255), nullable=True)
@@ -516,7 +517,7 @@ class SupplierOrder(Base):
         ),
         default=SUPPLIER_ORDER_STATUS.NEW,
     )
-    created_at = Column(DateTime(timezone=True), default=datetime.now)
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
     scheduled_at = Column(DateTime(timezone=True), nullable=True)
     sent_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -553,7 +554,7 @@ class StockOrder(Base):
         ),
         default=STOCK_ORDER_STATUS.NEW,
     )
-    created_at = Column(DateTime(timezone=True), default=datetime.now)
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
 
     customer = relationship('Customer')
     items = relationship(
@@ -623,7 +624,7 @@ class ProviderLastEmailUID(Base):
     )
     last_uid = Column(Integer, nullable=False, default=0)
     updated_at = Column(
-        DateTime(timezone=True), default=datetime.now, onupdate=datetime.now
+        DateTime(timezone=True), default=now_moscow, onupdate=now_moscow
     )
     provider = relationship('Provider', back_populates='provider_last_uid')
 
@@ -640,9 +641,9 @@ class Order(Base):
     )
     provider_id = Column(Integer, ForeignKey('provider.id'), nullable=False)
     customer_id = Column(Integer, ForeignKey('customer.id'), nullable=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.now)
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
     updated_at = Column(
-        DateTime(timezone=True), default=datetime.now, onupdate=datetime.now
+        DateTime(timezone=True), default=now_moscow, onupdate=now_moscow
     )
     status = Column(
         SAEnum(
@@ -663,9 +664,9 @@ class OrderItem(Base):
     autopart_id = Column(Integer, ForeignKey('autopart.id'))
     quantity = Column(Integer, nullable=False)
     price = Column(DECIMAL(10, 2))
-    created_at = Column(DateTime(timezone=True), default=datetime.now)
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
     updated_at = Column(
-        DateTime(timezone=True), default=datetime.now, onupdate=datetime.now
+        DateTime(timezone=True), default=now_moscow, onupdate=now_moscow
     )
     tracking_uuid = Column(
         String(36), default=lambda: str(uuid4()), unique=True, index=True

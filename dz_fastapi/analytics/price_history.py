@@ -9,6 +9,7 @@ from sqlalchemy import and_, select
 
 from dz_fastapi.core.constants import ANALYSIS_EMAIL
 from dz_fastapi.core.db import AsyncSession
+from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.autopart import crud_autopart
 from dz_fastapi.crud.partner import crud_pricelist
 from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
@@ -247,7 +248,7 @@ async def analyze_autopart_popularity(
     session: AsyncSession,
     provider_id: int,
     date_start: datetime = datetime(2022, 1, 1),
-    date_finish: datetime = datetime.now(),
+    date_finish: datetime = now_moscow(),
 ) -> pd.DataFrame:
     """
     Анализирует позиции по истории изменений прайс-листов.
@@ -358,8 +359,14 @@ async def analyze_autopart_allprices(
     session: AsyncSession,
     autoparts: List[AutoPart],
     date_start: datetime = datetime(2022, 1, 1),
-    date_finish: datetime = datetime.now(),
+    date_finish: datetime = now_moscow(),
 ) -> pd.DataFrame:
+
+    if not autoparts:
+        raise HTTPException(
+            status_code=404,
+            detail='Запчасти по этому артикулу не найдены',
+        )
 
     autopart_ids = [ap.id for ap in autoparts]
 

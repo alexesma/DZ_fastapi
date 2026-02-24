@@ -8,6 +8,7 @@ from dz_fastapi.services.watchlist import handle_provider_pricelist_watch
 async def test_watchlist_provider_telegram(
         async_client, test_session, monkeypatch
 ):
+    monkeypatch.setenv("WATCHLIST_NOTIFY_MODE", "immediate")
     payload = {
         "brand": "TESTBRAND",
         "oem": "OEM123",

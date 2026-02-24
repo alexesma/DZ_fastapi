@@ -13,7 +13,12 @@ import aiofiles
 import httpx
 import pandas as pd
 from fastapi import HTTPException
-from imap_tools import AND, MailBox
+
+try:
+    from imap_tools import AND, MailBox, MailBoxSsl
+except ImportError:  # pragma: no cover - fallback for older imap_tools
+    from imap_tools import AND, MailBox
+    MailBoxSsl = None
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,6 +44,12 @@ SMTP_PASSWORD = os.getenv('EMAIL_PASSWORD')
 
 DOWNLOAD_FOLDER = 'uploads/pricelistprovider'
 PROCESSED_FOLDER = 'processed'
+
+
+def _create_mailbox(server_mail: str, port: int, ssl: bool = True):
+    if ssl and MailBoxSsl is not None:
+        return MailBoxSsl(server_mail, port)
+    return MailBox(server_mail, port)
 
 
 def _extract_email(value: Optional[str]) -> str:
@@ -104,7 +115,7 @@ async def download_price_provider(
         last_uid = await get_last_uid(provider.id, session)
         logger.debug(f'Last UID: {last_uid}')
 
-        with MailBox(server_mail, IMAP_SERVER).login(
+        with _create_mailbox(server_mail, IMAP_SERVER, True).login(
             email_account, email_password
         ) as mailbox:
             mailbox.folder.set('INBOX')
@@ -185,9 +196,22 @@ async def download_price_provider(
                             )
                         return filepath
                     if not name_price_norm:
+                        filepath = os.path.join(DOWNLOAD_FOLDER, att.filename)
+                        with open(filepath, 'wb') as f:
+                            f.write(att.payload)
                         logger.debug(
-                            'name_price is empty, skipping attachment match.'
+                            'name_price is empty, '
+                            'downloaded first attachment: '
+                            '%s',
+                            filepath,
                         )
+                        mailbox.flag(msg.uid, [r'\Seen'], True)
+                        current_uid = int(msg.uid)
+                        if current_uid > last_uid:
+                            await set_last_uid(
+                                provider.id, current_uid, session
+                            )
+                        return filepath
             logger.debug('No matching attachments found.')
             # if emails:
             #     max_uid = max(int(msg.uid) for msg in emails)
@@ -348,7 +372,7 @@ def _fetch_mailbox_messages(
     port: int = IMAP_SERVER,
     ssl: bool = True,
 ):
-    with MailBox(server_mail, port, ssl=ssl).login(
+    with _create_mailbox(server_mail, port, ssl).login(
         email_account, email_password
     ) as mailbox:
         mailbox.folder.set(main_box)

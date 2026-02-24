@@ -1,7 +1,7 @@
 import asyncio
 import copy
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from functools import partial
 from io import BytesIO, StringIO
 from typing import Any, Dict, List, Optional
@@ -50,6 +50,7 @@ from dz_fastapi.core.constants import (BRILLIANCE_OEM, CUMMINS_OEM, FAW_OEM,
                                        INDICATOR_LIFAN_WHISOUT,
                                        INDICATOR_LIFAN_WHISOUT_FIRST,
                                        MAX_PRICE_LISTS, ORIGINAL_BRANDS)
+from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.email_account import crud_email_account
 from dz_fastapi.crud.partner import (crud_customer_pricelist,
                                      crud_customer_pricelist_config,
@@ -982,7 +983,7 @@ async def send_pricelist(
     wb = Workbook()
     ws = wb.active
 
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    current_time = now_moscow().strftime("%Y-%m-%d %H:%M:%S")
     ws.cell(row=1, column=5).value = f"Сформирован {current_time}"
     ws.cell(row=1, column=5).font = Font(name="Arial", size=7)
     ws.cell(row=1, column=5).alignment = Alignment(
@@ -1305,7 +1306,7 @@ async def process_customer_pricelist(
         attachment_filename='zzap_kross.xlsx',
     )
     if recipients:
-        config.last_sent_at = datetime.now(timezone.utc)
+        config.last_sent_at = now_moscow()
         session.add(config)
         await session.commit()
     logger.debug('Finished send_pricelist')
@@ -1367,7 +1368,7 @@ def check_start_and_finish_date(
         finish_dt = (
             datetime.fromisoformat(date_finish)
             if date_finish
-            else datetime.now()
+            else now_moscow()
         )
         return start_dt, finish_dt
     except ValueError:
