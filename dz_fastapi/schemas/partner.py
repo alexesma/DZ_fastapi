@@ -278,6 +278,14 @@ class CustomerListSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PaginatedCustomersResponse(BaseModel):
+    items: List[CustomerListSummary]
+    page: int
+    page_size: int
+    total: int
+    pages: int
+
+
 class ProviderPriceListConfigBase(BaseModel):
     start_row: int
     oem_col: int
@@ -449,7 +457,7 @@ class CustomerPriceListConfigUpdate(BaseModel):
     third_party_markup: float | None = None
     individual_markups: Optional[Dict[int, float]] = None
     brand_filters: Optional[List[int]] = None
-    category_filters: Optional[List[int]] = None
+    category_filter: Optional[List[int]] = None
     price_intervals: Optional[List[PriceIntervalMarkup]] = None
     position_filters: Optional[List[int]] = None
     supplier_quantity_filters: Optional[List[SupplierQuantityFilter]] = None

@@ -485,6 +485,33 @@ async def test_create_pricelist_config(
 
 
 @pytest.mark.asyncio
+async def test_update_provider_pricelist_config(
+    created_providers: list[Provider],
+    created_pricelist_config: ProviderPriceListConfig,
+    async_client: AsyncClient,
+    test_session: AsyncSession,
+):
+    provider = created_providers[0]
+    config = created_pricelist_config
+    update_data = {
+        'name_price': 'UPDATED_PRICE',
+        'min_delivery_day': 2,
+        'max_delivery_day': 5,
+    }
+
+    response = await async_client.patch(
+        f'/providers/{provider.id}/pricelist-config/{config.id}/',
+        json=update_data,
+    )
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data['name_price'] == 'UPDATED_PRICE'
+    assert data['min_delivery_day'] == 2
+    assert data['max_delivery_day'] == 5
+
+
+@pytest.mark.asyncio
 async def test_create_provider_pricelist_success(
     created_providers: list[Provider],
     created_pricelist_config: ProviderPriceListConfig,

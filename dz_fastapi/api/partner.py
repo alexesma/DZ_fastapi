@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+from math import ceil
 from typing import List, Optional
 
 from fastapi import (APIRouter, BackgroundTasks, Body, Depends, File, Form,
@@ -48,6 +49,7 @@ from dz_fastapi.schemas.partner import (AutoPartInPricelist,
                                         CustomerPriceListSourceUpdate,
                                         CustomerResponse,
                                         CustomerResponseShort, CustomerUpdate,
+                                        PaginatedCustomersResponse,
                                         PaginatedProvidersResponse,
                                         PriceListDeleteRequest,
                                         PriceListPaginationResponse,
@@ -334,9 +336,13 @@ async def create_customer(
     tags=['customers'],
     status_code=status.HTTP_200_OK,
     summary='Список покупателей (кратко)',
-    response_model=List[CustomerListSummary],
+    response_model=PaginatedCustomersResponse,
 )
 async def get_customers_summary(
+    page: int = Query(1, ge=1, description='Номер страницы'),
+    page_size: int = Query(
+        20, ge=1, le=200, description='Количество элементов на странице'
+    ),
     search: Optional[str] = Query(
         None, description='Поиск по имени клиента'
     ),
@@ -404,12 +410,31 @@ async def get_customers_summary(
         .order_by(Customer.name.asc())
     )
 
+    count_stmt = select(func.count(Customer.id))
+
     if search:
         stmt = stmt.where(Customer.name.ilike(f'%{search}%'))
+        count_stmt = count_stmt.where(Customer.name.ilike(f'%{search}%'))
 
+    total = (await session.execute(count_stmt)).scalar_one()
+    if total == 0:
+        return PaginatedCustomersResponse(
+            items=[], page=page, page_size=page_size, total=0, pages=0
+        )
+
+    stmt = stmt.offset((page - 1) * page_size).limit(page_size)
     result = await session.execute(stmt)
     rows = result.mappings().all()
-    return [CustomerListSummary(**row) for row in rows]
+    items = [CustomerListSummary(**row) for row in rows]
+    pages = ceil(total / page_size)
+
+    return PaginatedCustomersResponse(
+        items=items,
+        page=page,
+        page_size=page_size,
+        total=total,
+        pages=pages,
+    )
 
 
 @router.get(
