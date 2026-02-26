@@ -27,7 +27,8 @@ from dz_fastapi.crud.partner import (crud_customer, crud_customer_pricelist,
                                      crud_pricelist, crud_provider,
                                      crud_provider_abbreviation,
                                      crud_provider_pricelist_config)
-from dz_fastapi.models.partner import (Customer, CustomerPriceList,
+from dz_fastapi.models.partner import (TYPE_PRICES, Customer,
+                                       CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
                                        CustomerPriceListConfig,
                                        CustomerPriceListSource, PriceList,
@@ -124,6 +125,21 @@ async def get_all_providers(
     search: Optional[str] = Query(
         None, description='Поиск по названию поставщика'
     ),
+    has_pricelist_config: Optional[bool] = Query(
+        None, description='Фильтр: есть конфигурация прайса'
+    ),
+    has_active_pricelists: Optional[bool] = Query(
+        None, description='Фильтр: есть активные прайс-листы'
+    ),
+    is_virtual: Optional[bool] = Query(
+        None, description='Фильтр: виртуальный поставщик'
+    ),
+    sort_by: Optional[str] = Query(
+        None, description='Сортировка: name или id'
+    ),
+    sort_dir: Optional[str] = Query(
+        None, description='Направление сортировки: asc или desc'
+    ),
 ):
     '''
     Получить список всех поставщиков с пагинацией и поиском.
@@ -145,6 +161,11 @@ async def get_all_providers(
         page=page,
         page_size=page_size,
         search=search,
+        has_pricelist_config=has_pricelist_config,
+        has_active_pricelists=has_active_pricelists,
+        is_virtual=is_virtual,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
     )
     return providers
 
@@ -346,6 +367,25 @@ async def get_customers_summary(
     search: Optional[str] = Query(
         None, description='Поиск по имени клиента'
     ),
+    type_prices: Optional[TYPE_PRICES] = Query(
+        None, description='Фильтр по типу цен'
+    ),
+    has_price_lists: Optional[bool] = Query(
+        None, description='Фильтр: есть прайс-листы'
+    ),
+    has_pricelist_configs: Optional[bool] = Query(
+        None, description='Фильтр: есть конфигурации прайс-листов'
+    ),
+    sort_by: Optional[str] = Query(
+        None,
+        description=(
+            'Сортировка: name, id, price_lists_count, '
+            'pricelist_configs_count, pricelist_sources_count'
+        ),
+    ),
+    sort_dir: Optional[str] = Query(
+        None, description='Направление сортировки: asc или desc'
+    ),
     session: AsyncSession = Depends(get_session),
 ):
     pricelist_counts = (
@@ -381,6 +421,12 @@ async def get_customers_summary(
         .subquery()
     )
 
+    price_lists_count = func.coalesce(
+        pricelist_counts.c.price_lists_count, 0
+    )
+    configs_count = func.coalesce(config_counts.c.configs_count, 0)
+    sources_count = func.coalesce(source_counts.c.sources_count, 0)
+
     stmt = (
         select(
             Customer.id.label('id'),
@@ -388,15 +434,9 @@ async def get_customers_summary(
             Customer.email_outgoing_price.label('email_outgoing_price'),
             Customer.email_contact.label('email_contact'),
             Customer.type_prices.label('type_prices'),
-            func.coalesce(
-                pricelist_counts.c.price_lists_count, 0
-            ).label('price_lists_count'),
-            func.coalesce(
-                config_counts.c.configs_count, 0
-            ).label('pricelist_configs_count'),
-            func.coalesce(
-                source_counts.c.sources_count, 0
-            ).label('pricelist_sources_count'),
+            price_lists_count.label('price_lists_count'),
+            configs_count.label('pricelist_configs_count'),
+            sources_count.label('pricelist_sources_count'),
         )
         .outerjoin(
             pricelist_counts, pricelist_counts.c.customer_id == Customer.id
@@ -407,21 +447,46 @@ async def get_customers_summary(
         .outerjoin(
             source_counts, source_counts.c.customer_id == Customer.id
         )
-        .order_by(Customer.name.asc())
     )
-
-    count_stmt = select(func.count(Customer.id))
 
     if search:
         stmt = stmt.where(Customer.name.ilike(f'%{search}%'))
-        count_stmt = count_stmt.where(Customer.name.ilike(f'%{search}%'))
+    if type_prices:
+        stmt = stmt.where(Customer.type_prices == type_prices)
+    if has_price_lists is not None:
+        if has_price_lists:
+            stmt = stmt.where(price_lists_count > 0)
+        else:
+            stmt = stmt.where(price_lists_count == 0)
+    if has_pricelist_configs is not None:
+        if has_pricelist_configs:
+            stmt = stmt.where(configs_count > 0)
+        else:
+            stmt = stmt.where(configs_count == 0)
 
+    count_stmt = select(func.count()).select_from(stmt.subquery())
     total = (await session.execute(count_stmt)).scalar_one()
     if total == 0:
         return PaginatedCustomersResponse(
             items=[], page=page, page_size=page_size, total=0, pages=0
         )
 
+    sort_map = {
+        'name': Customer.name,
+        'id': Customer.id,
+        'price_lists_count': price_lists_count,
+        'pricelist_configs_count': configs_count,
+        'pricelist_sources_count': sources_count,
+    }
+    sort_column = sort_map.get(sort_by) or Customer.name
+    sort_direction = (sort_dir or 'asc').lower()
+    order_clause = (
+        sort_column.asc()
+        if sort_direction != 'desc'
+        else sort_column.desc()
+    )
+
+    stmt = stmt.order_by(order_clause)
     stmt = stmt.offset((page - 1) * page_size).limit(page_size)
     result = await session.execute(stmt)
     rows = result.mappings().all()

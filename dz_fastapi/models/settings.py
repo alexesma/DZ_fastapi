@@ -1,5 +1,5 @@
-from sqlalchemy import (JSON, Boolean, Column, Date, DateTime, ForeignKey,
-                        Integer, String)
+from sqlalchemy import (JSON, BigInteger, Boolean, Column, Date, DateTime,
+                        ForeignKey, Integer, String)
 from sqlalchemy.orm import relationship
 
 from dz_fastapi.core.db import Base
@@ -19,6 +19,30 @@ class PriceCheckSchedule(Base):
         default=now_moscow,
         onupdate=now_moscow,
     )
+
+
+class SchedulerSetting(Base):
+    key = Column(String(64), unique=True, nullable=False, index=True)
+    enabled = Column(Boolean, default=True)
+    days = Column(JSON, default=[])
+    times = Column(JSON, default=[])
+    last_run_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        onupdate=now_moscow,
+    )
+
+
+class SystemMetricSnapshot(Base):
+    created_at = Column(
+        DateTime(timezone=True), default=now_moscow, nullable=False
+    )
+    db_size_bytes = Column(BigInteger, nullable=True)
+    disk_total_bytes = Column(BigInteger, nullable=True)
+    disk_free_bytes = Column(BigInteger, nullable=True)
+    mem_total_bytes = Column(BigInteger, nullable=True)
+    mem_available_bytes = Column(BigInteger, nullable=True)
 
 
 class PriceListStaleAlert(Base):

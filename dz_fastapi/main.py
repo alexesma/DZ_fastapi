@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import time
 from contextlib import asynccontextmanager
 from logging.handlers import RotatingFileHandler
 from typing import AsyncIterator
@@ -59,6 +60,7 @@ async def new_session(app: FastAPI) -> AsyncIterator[AsyncSession]:
 async def lifespan(app: FastAPI):
     # 1) Создаём одну фабрику сессий и кладём в app.state
     app.state.session_factory = get_async_session()
+    app.state.started_at = time.time()
     try:
         async with app.state.session_factory() as session:
             await ensure_admin_user(session)

@@ -1,14 +1,22 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.db import get_session
+from dz_fastapi.core.scheduler_settings import SCHEDULER_SETTING_DEFAULTS
 from dz_fastapi.crud.settings import (crud_price_check_log,
                                       crud_price_check_schedule,
-                                      crud_price_stale_alert)
-from dz_fastapi.schemas.settings import (PriceCheckLogOut,
+                                      crud_price_stale_alert,
+                                      crud_scheduler_setting,
+                                      crud_system_metric_snapshot)
+from dz_fastapi.schemas.settings import (MonitorSummaryOut, PriceCheckLogOut,
                                          PriceCheckScheduleOut,
                                          PriceCheckScheduleUpdate,
-                                         PriceListStaleAlertOut)
+                                         PriceListStaleAlertOut,
+                                         SchedulerSettingOut,
+                                         SchedulerSettingUpdate,
+                                         SystemMetricSnapshotOut)
+from dz_fastapi.services.monitoring import (build_snapshot_payload,
+                                            get_monitor_summary)
 
 router = APIRouter()
 
@@ -75,3 +83,98 @@ async def list_price_check_logs(
 ):
     logs = await crud_price_check_log.list(session=session, limit=limit)
     return [PriceCheckLogOut.model_validate(log) for log in logs]
+
+
+@router.get(
+    '/settings/scheduler',
+    tags=['settings'],
+    status_code=status.HTTP_200_OK,
+    response_model=list[SchedulerSettingOut],
+)
+async def list_scheduler_settings(
+    session: AsyncSession = Depends(get_session),
+):
+    settings = []
+    for key, defaults in SCHEDULER_SETTING_DEFAULTS.items():
+        setting = await crud_scheduler_setting.get_or_create(
+            session=session, key=key, defaults=defaults
+        )
+        settings.append(SchedulerSettingOut.model_validate(setting))
+    return settings
+
+
+@router.put(
+    '/settings/scheduler/{key}',
+    tags=['settings'],
+    status_code=status.HTTP_200_OK,
+    response_model=SchedulerSettingOut,
+)
+async def update_scheduler_setting(
+    key: str,
+    payload: SchedulerSettingUpdate,
+    session: AsyncSession = Depends(get_session),
+):
+    if key not in SCHEDULER_SETTING_DEFAULTS:
+        raise HTTPException(status_code=404, detail='Unknown scheduler key')
+    update_data = payload.model_dump(exclude_unset=True)
+    defaults = SCHEDULER_SETTING_DEFAULTS.get(key, {})
+    if 'days' in update_data and not update_data.get('days'):
+        update_data['days'] = defaults.get('days', [])
+    if 'times' in update_data and not update_data.get('times'):
+        update_data['times'] = defaults.get('times', [])
+    setting = await crud_scheduler_setting.update(
+        session=session,
+        key=key,
+        data=update_data,
+        defaults=defaults,
+    )
+    return SchedulerSettingOut.model_validate(setting)
+
+
+@router.get(
+    '/settings/monitor/summary',
+    tags=['settings'],
+    status_code=status.HTTP_200_OK,
+    response_model=MonitorSummaryOut,
+)
+async def get_monitor_summary_api(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+):
+    summary = await get_monitor_summary(session=session, app=request.app)
+    return summary
+
+
+@router.post(
+    '/settings/monitor/snapshot',
+    tags=['settings'],
+    status_code=status.HTTP_200_OK,
+    response_model=SystemMetricSnapshotOut,
+)
+async def create_monitor_snapshot(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+):
+    summary = await get_monitor_summary(session=session, app=request.app)
+    payload = build_snapshot_payload(summary)
+    snapshot = await crud_system_metric_snapshot.create(
+        session=session, payload=payload
+    )
+    return SystemMetricSnapshotOut.model_validate(snapshot)
+
+
+@router.get(
+    '/settings/monitor/snapshots',
+    tags=['settings'],
+    status_code=status.HTTP_200_OK,
+    response_model=list[SystemMetricSnapshotOut],
+)
+async def list_monitor_snapshots(
+    limit: int = Query(default=200, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+    session: AsyncSession = Depends(get_session),
+):
+    snapshots = await crud_system_metric_snapshot.list(
+        session=session, limit=limit, offset=offset
+    )
+    return [SystemMetricSnapshotOut.model_validate(s) for s in snapshots]

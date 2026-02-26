@@ -8,6 +8,7 @@ async def test_watchlist_site_telegram(
         async_client, test_session, monkeypatch
 ):
     monkeypatch.setenv("WATCHLIST_NOTIFY_MODE", "immediate")
+    monkeypatch.setenv("KEY_FOR_WEBSITE", "test")
     payload = {
         "brand": "SITEBRAND",
         "oem": "SITE123",

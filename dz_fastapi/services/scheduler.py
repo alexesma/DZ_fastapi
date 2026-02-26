@@ -4,7 +4,7 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import aiofiles
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -16,6 +16,7 @@ from sqlalchemy.orm import selectinload
 from dz_fastapi.core.constants import (CONFIG_DATA_CUSTOMER,
                                        CONFIG_DATA_PROVIDER, CUSTOMER,
                                        CUSTOMER_IN, PROVIDER_IN)
+from dz_fastapi.core.scheduler_settings import SCHEDULER_SETTING_DEFAULTS
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.partner import (crud_customer, crud_customer_pricelist,
                                      crud_customer_pricelist_config,
@@ -23,9 +24,12 @@ from dz_fastapi.crud.partner import (crud_customer, crud_customer_pricelist,
                                      crud_provider_pricelist_config)
 from dz_fastapi.crud.settings import (crud_price_check_log,
                                       crud_price_check_schedule,
-                                      crud_price_stale_alert)
+                                      crud_price_stale_alert,
+                                      crud_scheduler_setting,
+                                      crud_system_metric_snapshot)
 from dz_fastapi.models.partner import (CustomerPriceListConfig, PriceList,
-                                       ProviderPriceListConfig)
+                                       Provider, ProviderPriceListConfig)
+from dz_fastapi.models.settings import PriceListStaleAlert
 from dz_fastapi.schemas.partner import (CustomerCreate,
                                         CustomerPriceListConfigCreate,
                                         CustomerPriceListCreate,
@@ -35,6 +39,8 @@ from dz_fastapi.services.customer_orders import (
     cleanup_order_reports, process_customer_orders,
     send_scheduled_supplier_orders)
 from dz_fastapi.services.email import get_emails
+from dz_fastapi.services.monitoring import (build_snapshot_payload,
+                                            get_monitor_summary)
 from dz_fastapi.services.process import (process_customer_pricelist,
                                          process_provider_pricelist)
 from dz_fastapi.services.telegram import send_message_to_telegram
@@ -73,8 +79,7 @@ def start_scheduler(app: FastAPI):
         args=[app],
         id='cleanup_old_pricelists',
         name='Cleanup old pricelists keep last 5',
-        hour=2,
-        minute=30,
+        minute='*',
         replace_existing=True,
     )
 
@@ -115,8 +120,7 @@ def start_scheduler(app: FastAPI):
         args=[app],
         id='check_watchlist_site',
         name='Check watchlist site offers',
-        hour=2,
-        minute=0,
+        minute='*',
         replace_existing=True,
     )
 
@@ -126,8 +130,27 @@ def start_scheduler(app: FastAPI):
         args=[app],
         id='notify_watchlist',
         name='Notify watchlist',
-        hour=9,
-        minute=0,
+        minute='*',
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        func=notify_pricelist_stale_task,
+        trigger='cron',
+        args=[app],
+        id='notify_pricelist_stale',
+        name='Notify stale pricelists',
+        minute='*',
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        func=collect_system_metrics_snapshot_task,
+        trigger='cron',
+        args=[app],
+        id='metrics_snapshot',
+        name='Collect system metrics snapshot',
+        minute='*',
         replace_existing=True,
     )
 
@@ -327,6 +350,42 @@ def _day_key(now: datetime) -> str:
     return mapping[now.weekday()]
 
 
+async def _should_run_scheduled_job(
+    session: AsyncSession, key: str
+) -> tuple[bool, object | None]:
+    defaults = SCHEDULER_SETTING_DEFAULTS.get(key)
+    if not defaults:
+        return True, None
+    setting = await crud_scheduler_setting.get_or_create(
+        session=session, key=key, defaults=defaults
+    )
+    if not setting.enabled:
+        return False, setting
+    now = now_moscow()
+    days = setting.days or defaults.get('days', [])
+    times = setting.times or defaults.get('times', [])
+    day_key = _day_key(now)
+    time_key = now.strftime('%H:%M')
+    if days and day_key not in days:
+        return False, setting
+    if times and time_key not in times:
+        return False, setting
+    if setting.last_run_at:
+        last_key = setting.last_run_at.strftime('%Y-%m-%d %H:%M')
+        now_key = now.strftime('%Y-%m-%d %H:%M')
+        if last_key == now_key:
+            return False, setting
+    return True, setting
+
+
+async def _mark_scheduler_ran(
+    session: AsyncSession, setting, when: datetime
+) -> None:
+    setting.last_run_at = when
+    session.add(setting)
+    await session.commit()
+
+
 async def send_scheduled_customer_pricelists_task(app: FastAPI):
     """
     Проверяет расписания customer pricelist configs и отправляет,
@@ -488,10 +547,15 @@ async def download_price_provider_task(app: FastAPI):
 
 
 async def cleanup_old_pricelists_task(app: FastAPI):
-    logger.info('Starting cleanup_old_pricelists_task')
     async_session_factory = app.state.session_factory
     async with async_session_factory() as session:
         try:
+            should_run, setting = await _should_run_scheduled_job(
+                session, 'cleanup_old_pricelists'
+            )
+            if not should_run:
+                return
+            logger.info('Starting cleanup_old_pricelists_task')
             total_deleted = 0
             total_deleted_customer = 0
             while True:
@@ -521,6 +585,8 @@ async def cleanup_old_pricelists_task(app: FastAPI):
                 f'Deleted provider pricelists: {total_deleted}; '
                 f'deleted customer pricelists: {total_deleted_customer}'
             )
+            if setting:
+                await _mark_scheduler_ran(session, setting, now_moscow())
         except Exception as e:
             logger.error(
                 f'Error in cleanup_old_pricelists_task: {e}',
@@ -564,14 +630,6 @@ async def check_provider_pricelist_staleness_task(app: FastAPI):
                 ):
                     continue
 
-                provider_name = config.provider.name if config.provider else ''
-                config_label = config.name_price or f'#{config.id}'
-                message = (
-                    f'Прайс не обновлялся: {provider_name} '
-                    f'({config_label}) — {days_diff} дн. '
-                    f'Последний: {last_date}'
-                )
-                await send_message_to_telegram(message)
                 if config.provider_id:
                     await crud_price_stale_alert.create(
                         session=session,
@@ -593,23 +651,119 @@ async def check_provider_pricelist_staleness_task(app: FastAPI):
             await session.rollback()
 
 
-async def check_watchlist_site_task(app: FastAPI):
-    logger.info('Starting check_watchlist_site_task')
+async def notify_pricelist_stale_task(app: FastAPI):
     async_session_factory = app.state.session_factory
     async with async_session_factory() as session:
         try:
+            should_run, setting = await _should_run_scheduled_job(
+                session, 'pricelist_stale_notify'
+            )
+            if not should_run:
+                return
+            logger.info('Starting notify_pricelist_stale_task')
+            now = now_moscow()
+            start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            end = start + timedelta(days=1)
+            stmt = (
+                select(PriceListStaleAlert, ProviderPriceListConfig, Provider)
+                .join(
+                    ProviderPriceListConfig,
+                    ProviderPriceListConfig.id
+                    == PriceListStaleAlert.provider_config_id,
+                )
+                .join(
+                    Provider,
+                    Provider.id == PriceListStaleAlert.provider_id,
+                )
+                .where(
+                    PriceListStaleAlert.created_at >= start,
+                    PriceListStaleAlert.created_at < end,
+                )
+                .order_by(
+                    Provider.name.asc(),
+                    ProviderPriceListConfig.name_price.asc().nulls_last(),
+                    PriceListStaleAlert.days_diff.desc(),
+                )
+            )
+            rows = (await session.execute(stmt)).all()
+            if not rows:
+                logger.info('No stale pricelist alerts for today')
+                return
+
+            lines = ['Проблемы с обновлением прайсов:']
+            for alert, config, provider in rows:
+                config_label = config.name_price or f'#{config.id}'
+                lines.append(
+                    f'- {provider.name} ({config_label}) — '
+                    f'{alert.days_diff} дн. Последний: {alert.last_price_date}'
+                )
+            await send_message_to_telegram('\n'.join(lines))
+            logger.info('Sent stale pricelist notification')
+            if setting:
+                await _mark_scheduler_ran(session, setting, now)
+        except Exception as e:
+            logger.error(
+                f'Error in notify_pricelist_stale_task: {e}',
+                exc_info=True
+            )
+
+
+async def collect_system_metrics_snapshot_task(app: FastAPI):
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            should_run, setting = await _should_run_scheduled_job(
+                session, 'metrics_snapshot'
+            )
+            if not should_run:
+                return
+            logger.info('Starting collect_system_metrics_snapshot_task')
+            summary = await get_monitor_summary(session=session, app=app)
+            payload = build_snapshot_payload(summary)
+            await crud_system_metric_snapshot.create(
+                session=session, payload=payload
+            )
+            if setting:
+                await _mark_scheduler_ran(session, setting, now_moscow())
+            logger.info('Completed collect_system_metrics_snapshot_task')
+        except Exception as e:
+            logger.error(
+                f'Error in collect_system_metrics_snapshot_task: {e}',
+                exc_info=True
+            )
+
+
+async def check_watchlist_site_task(app: FastAPI):
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            should_run, setting = await _should_run_scheduled_job(
+                session, 'watchlist_site_check'
+            )
+            if not should_run:
+                return
+            logger.info('Starting check_watchlist_site_task')
             await check_watchlist_site(session)
             logger.info('Completed check_watchlist_site_task')
+            if setting:
+                await _mark_scheduler_ran(session, setting, now_moscow())
         except Exception as e:
             logger.error(f'Error in check_watchlist_site_task: {e}')
 
 
 async def notify_watchlist_task(app: FastAPI):
-    logger.info('Starting notify_watchlist_task')
     async_session_factory = app.state.session_factory
     async with async_session_factory() as session:
         try:
+            should_run, setting = await _should_run_scheduled_job(
+                session, 'watchlist_notify'
+            )
+            if not should_run:
+                return
+            logger.info('Starting notify_watchlist_task')
             await send_watchlist_daily_notifications(session)
             logger.info('Completed notify_watchlist_task')
+            if setting:
+                await _mark_scheduler_ran(session, setting, now_moscow())
         except Exception as e:
             logger.error(f'Error in notify_watchlist_task: {e}')

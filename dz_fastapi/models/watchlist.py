@@ -18,6 +18,7 @@ class PriceWatchItem(Base):
 
     last_seen_site_at = Column(DateTime(timezone=True), nullable=True)
     last_seen_site_price = Column(Float, nullable=True)
+    last_seen_site_qty = Column(Integer, nullable=True)
 
     last_notified_provider_at = Column(DateTime(timezone=True), nullable=True)
     last_notified_site_at = Column(DateTime(timezone=True), nullable=True)

@@ -4,7 +4,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.models.settings import (PriceCheckLog, PriceCheckSchedule,
-                                        PriceListStaleAlert)
+                                        PriceListStaleAlert, SchedulerSetting,
+                                        SystemMetricSnapshot)
 
 
 class CRUDPriceCheckSchedule:
@@ -91,6 +92,80 @@ class CRUDPriceCheckLog:
         return result.scalars().all()
 
 
+class CRUDSchedulerSetting:
+    async def get_or_create(
+        self,
+        session: AsyncSession,
+        key: str,
+        defaults: dict | None = None,
+    ) -> SchedulerSetting:
+        result = await session.execute(
+            select(SchedulerSetting).where(SchedulerSetting.key == key)
+        )
+        setting = result.scalar_one_or_none()
+        if setting:
+            return setting
+        payload = defaults or {}
+        setting = SchedulerSetting(key=key, **payload)
+        session.add(setting)
+        await session.commit()
+        await session.refresh(setting)
+        return setting
+
+    async def list(self, session: AsyncSession):
+        result = await session.execute(
+            select(SchedulerSetting).order_by(SchedulerSetting.key.asc())
+        )
+        return result.scalars().all()
+
+    async def update(
+        self,
+        session: AsyncSession,
+        key: str,
+        data: dict,
+        defaults: dict | None = None,
+    ) -> SchedulerSetting:
+        setting = await self.get_or_create(
+            session=session, key=key, defaults=defaults
+        )
+        for field, value in data.items():
+            setattr(setting, field, value)
+        session.add(setting)
+        await session.commit()
+        await session.refresh(setting)
+        return setting
+
+
+class CRUDSystemMetricSnapshot:
+    async def create(
+        self,
+        session: AsyncSession,
+        payload: dict,
+    ) -> SystemMetricSnapshot:
+        snapshot = SystemMetricSnapshot(**payload)
+        session.add(snapshot)
+        await session.commit()
+        await session.refresh(snapshot)
+        return snapshot
+
+    async def list(
+        self,
+        session: AsyncSession,
+        limit: int = 200,
+        offset: int = 0,
+    ):
+        stmt = (
+            select(SystemMetricSnapshot)
+            .order_by(SystemMetricSnapshot.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
+
 crud_price_check_schedule = CRUDPriceCheckSchedule()
 crud_price_stale_alert = CRUDPriceListStaleAlert()
 crud_price_check_log = CRUDPriceCheckLog()
+crud_scheduler_setting = CRUDSchedulerSetting()
+crud_system_metric_snapshot = CRUDSystemMetricSnapshot()

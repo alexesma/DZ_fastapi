@@ -37,3 +37,70 @@ class PriceCheckLogOut(BaseModel):
     message: Optional[str] = None
     checked_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+class SchedulerSettingOut(BaseModel):
+    id: int
+    key: str
+    enabled: bool = True
+    days: List[str] = Field(default_factory=list)
+    times: List[str] = Field(default_factory=list)
+    last_run_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SchedulerSettingUpdate(BaseModel):
+    enabled: Optional[bool] = None
+    days: Optional[List[str]] = None
+    times: Optional[List[str]] = None
+
+
+class SystemMetricSnapshotOut(BaseModel):
+    id: int
+    created_at: datetime
+    db_size_bytes: Optional[int] = None
+    disk_total_bytes: Optional[int] = None
+    disk_free_bytes: Optional[int] = None
+    mem_total_bytes: Optional[int] = None
+    mem_available_bytes: Optional[int] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MonitorDbTableOut(BaseModel):
+    table: str
+    size_bytes: int
+    size_pretty: str
+
+
+class MonitorDbOut(BaseModel):
+    size_bytes: int
+    size_pretty: str
+    connections: int
+    max_connections: int
+    tables: List[MonitorDbTableOut]
+
+
+class MonitorSystemOut(BaseModel):
+    disk_total_bytes: Optional[int] = None
+    disk_free_bytes: Optional[int] = None
+    disk_used_bytes: Optional[int] = None
+    mem_total_bytes: Optional[int] = None
+    mem_available_bytes: Optional[int] = None
+    cpu_load_1: Optional[float] = None
+    cpu_load_5: Optional[float] = None
+    cpu_load_15: Optional[float] = None
+    uptime_seconds: Optional[float] = None
+
+
+class MonitorAppOut(BaseModel):
+    last_price_check_at: Optional[datetime] = None
+    scheduler_last_runs: List[SchedulerSettingOut] = Field(
+        default_factory=list
+    )
+
+
+class MonitorSummaryOut(BaseModel):
+    db: MonitorDbOut
+    system: MonitorSystemOut
+    app: MonitorAppOut

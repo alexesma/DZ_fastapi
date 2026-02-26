@@ -296,6 +296,11 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         page: int = 1,
         page_size: int = DEFAULT_PAGE_SIZE,
         search: Optional[str] = None,
+        has_pricelist_config: Optional[bool] = None,
+        has_active_pricelists: Optional[bool] = None,
+        is_virtual: Optional[bool] = None,
+        sort_by: Optional[str] = None,
+        sort_dir: Optional[str] = None,
     ) -> Dict[str, Any]:
         '''
         Вернёт постранично список поставщиков
@@ -311,17 +316,57 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         if page_size < 1:
             page_size = DEFAULT_PAGE_SIZE
 
-        # Базовый запрос + фильтр по имени (поиск)
-        base = select(Provider)
+        filters = []
         if search:
-            base = base.where(Provider.name.ilike(f'%{search}%'))
+            filters.append(Provider.name.ilike(f'%{search}%'))
+        if is_virtual is not None:
+            filters.append(Provider.is_virtual.is_(is_virtual))
+        if has_pricelist_config is not None:
+            config_exists = (
+                select(ProviderPriceListConfig.id)
+                .where(ProviderPriceListConfig.provider_id == Provider.id)
+                .limit(1)
+            )
+            filters.append(
+                config_exists.exists()
+                if has_pricelist_config
+                else ~config_exists.exists()
+            )
+        if has_active_pricelists is not None:
+            active_exists = (
+                select(PriceList.id)
+                .where(
+                    PriceList.provider_id == Provider.id,
+                    PriceList.is_active.is_(True),
+                )
+                .limit(1)
+            )
+            filters.append(
+                active_exists.exists()
+                if has_active_pricelists
+                else ~active_exists.exists()
+            )
 
+        base = select(Provider)
         count_base = select(Provider.id)
-        if search:
-            count_base = count_base.where(Provider.name.ilike(f'%{search}%'))
+        if filters:
+            base = base.where(*filters)
+            count_base = count_base.where(*filters)
 
         count_query = select(func.count()).select_from(count_base.subquery())
         total = (await session.execute(count_query)).scalar()
+
+        sort_map = {
+            'name': Provider.name,
+            'id': Provider.id,
+        }
+        sort_column = sort_map.get(sort_by) or Provider.name
+        sort_direction = (sort_dir or 'asc').lower()
+        order_clause = (
+            sort_column.asc()
+            if sort_direction != 'desc'
+            else sort_column.desc()
+        )
 
         stmt = (
             base.options(
@@ -331,7 +376,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                     PriceList.config
                 ),
             )
-            .order_by(Provider.name.asc())
+            .order_by(order_clause)
             .limit(page_size)
             .offset((page - 1) * page_size)
         )
