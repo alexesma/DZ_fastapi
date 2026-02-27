@@ -14,8 +14,8 @@ from dz_fastapi.schemas.email_account import (EmailAccountCreate,
                                               EmailAccountTestRequest,
                                               EmailAccountTestResponse,
                                               EmailAccountUpdate)
-from dz_fastapi.services.email_account_test import (test_imap_connection,
-                                                    test_smtp_connection)
+from dz_fastapi.services.email_account_checks import (test_imap_connection,
+                                                      test_smtp_connection)
 
 logger = logging.getLogger('dz_fastapi')
 
