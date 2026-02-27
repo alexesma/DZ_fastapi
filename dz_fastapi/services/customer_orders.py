@@ -743,7 +743,7 @@ async def process_customer_orders(session: AsyncSession) -> None:
                 host,
                 account.email,
                 account.password,
-                EMAIL_FOLDER_ORDER,
+                account.imap_folder or EMAIL_FOLDER_ORDER,
                 port=account.imap_port or IMAP_SERVER,
                 ssl=True,
             )

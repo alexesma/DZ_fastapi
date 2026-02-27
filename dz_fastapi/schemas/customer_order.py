@@ -181,6 +181,25 @@ class SupplierOrderResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class SupplierOrderSummaryResponse(BaseModel):
+    id: int
+    provider_id: int
+    status: SUPPLIER_ORDER_STATUS
+    created_at: datetime
+    customer_order_id: Optional[int] = None
+    customer_name: Optional[str] = None
+    customer_order_number: Optional[str] = None
+    customer_received_at: Optional[datetime] = None
+    customer_status: Optional[CUSTOMER_ORDER_STATUS] = None
+    total_sum: float = 0.0
+    stock_sum: float = 0.0
+    supplier_sum: float = 0.0
+    rejected_sum: float = 0.0
+    rejected_pct: float = 0.0
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class StockOrderItemResponse(BaseModel):
     id: int
     autopart_id: Optional[int]

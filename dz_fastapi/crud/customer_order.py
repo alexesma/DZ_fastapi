@@ -4,13 +4,14 @@ from typing import List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import (CustomerOrder, CustomerOrderConfig,
-                                       StockOrder, StockOrderItem,
-                                       SupplierOrder)
+                                       CustomerOrderItem, StockOrder,
+                                       StockOrderItem, SupplierOrder,
+                                       SupplierOrderItem)
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -140,7 +141,16 @@ class CRUDSupplierOrder:
         skip: int = 0,
         limit: int = 100,
     ) -> List[SupplierOrder]:
-        stmt = select(SupplierOrder).options(joinedload(SupplierOrder.items))
+        stmt = select(SupplierOrder).options(
+            selectinload(SupplierOrder.items)
+            .selectinload(SupplierOrderItem.customer_order_item)
+            .selectinload(CustomerOrderItem.order)
+            .selectinload(CustomerOrder.customer),
+            selectinload(SupplierOrder.items)
+            .selectinload(SupplierOrderItem.customer_order_item)
+            .selectinload(CustomerOrderItem.order)
+            .selectinload(CustomerOrder.items),
+        )
         if provider_id is not None:
             stmt = stmt.where(SupplierOrder.provider_id == provider_id)
         if status is not None:

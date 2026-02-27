@@ -1,5 +1,6 @@
 import logging
 from datetime import date
+from decimal import Decimal
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -11,13 +12,14 @@ from dz_fastapi.crud.customer_order import (crud_customer_order,
                                             crud_customer_order_config,
                                             crud_stock_order,
                                             crud_supplier_order)
+from dz_fastapi.models.partner import CUSTOMER_ORDER_ITEM_STATUS
 from dz_fastapi.models.user import User
 from dz_fastapi.schemas.customer_order import (CustomerOrderConfigCreate,
                                                CustomerOrderConfigResponse,
                                                CustomerOrderConfigUpdate,
                                                CustomerOrderResponse,
                                                StockOrderResponse,
-                                               SupplierOrderResponse)
+                                               SupplierOrderSummaryResponse)
 from dz_fastapi.services.customer_orders import (
     process_customer_orders, send_scheduled_supplier_orders,
     send_supplier_orders)
@@ -170,12 +172,25 @@ async def list_stock_orders(
 
 @router.get(
     '/supplier/list',
-    response_model=List[SupplierOrderResponse],
+    response_model=List[SupplierOrderSummaryResponse],
     status_code=status.HTTP_200_OK,
 )
 async def list_supplier_orders(
     provider_id: Optional[int] = None,
     status: Optional[str] = None,
+    customer_id: Optional[int] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    rejected_pct_min: Optional[float] = None,
+    rejected_pct_max: Optional[float] = None,
+    total_sum_min: Optional[float] = None,
+    total_sum_max: Optional[float] = None,
+    stock_sum_min: Optional[float] = None,
+    stock_sum_max: Optional[float] = None,
+    supplier_sum_min: Optional[float] = None,
+    supplier_sum_max: Optional[float] = None,
+    rejected_sum_min: Optional[float] = None,
+    rejected_sum_max: Optional[float] = None,
     skip: int = 0,
     limit: int = 100,
     session: AsyncSession = Depends(get_session),
@@ -188,7 +203,134 @@ async def list_supplier_orders(
         skip=skip,
         limit=limit,
     )
-    return [SupplierOrderResponse.model_validate(o) for o in orders]
+    results: List[SupplierOrderSummaryResponse] = []
+
+    def _money(value) -> Decimal:
+        if value is None:
+            return Decimal('0')
+        return Decimal(str(value))
+
+    def _in_range(value: float, min_value, max_value) -> bool:
+        if min_value is not None and value < min_value:
+            return False
+        if max_value is not None and value > max_value:
+            return False
+        return True
+
+    for order in orders:
+        customer_order = None
+        if order.items:
+            first_item = order.items[0]
+            if first_item.customer_order_item:
+                customer_order = first_item.customer_order_item.order
+
+        total_sum = Decimal('0')
+        stock_sum = Decimal('0')
+        supplier_sum = Decimal('0')
+        rejected_sum = Decimal('0')
+
+        if customer_order:
+            for item in customer_order.items or []:
+                ship_qty = int(item.ship_qty or 0)
+                reject_qty = int(item.reject_qty or 0)
+
+                requested_price = _money(item.requested_price)
+                matched_price = _money(item.matched_price)
+                base_price = (
+                    requested_price
+                    if requested_price > 0
+                    else matched_price
+                )
+                ship_price = (
+                    matched_price
+                    if matched_price > 0
+                    else requested_price
+                )
+
+                if ship_qty > 0 and ship_price > 0:
+                    ship_sum = Decimal(ship_qty) * ship_price
+                    if item.status == CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK:
+                        stock_sum += ship_sum
+                    elif item.status == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER:
+                        supplier_sum += ship_sum
+                    else:
+                        supplier_sum += ship_sum
+
+                if reject_qty > 0 and base_price > 0:
+                    rejected_sum += Decimal(reject_qty) * base_price
+
+        total_sum = stock_sum + supplier_sum
+        reject_denominator = total_sum + rejected_sum
+        rejected_pct = (
+            float((rejected_sum / reject_denominator) * 100)
+            if reject_denominator > 0
+            else 0.0
+        )
+
+        if customer_id is not None:
+            if not customer_order or customer_order.customer_id != customer_id:
+                continue
+
+        if date_from or date_to:
+            if not customer_order or not customer_order.received_at:
+                continue
+            received_date = customer_order.received_at.date()
+            if date_from and received_date < date_from:
+                continue
+            if date_to and received_date > date_to:
+                continue
+
+        if not _in_range(rejected_pct, rejected_pct_min, rejected_pct_max):
+            continue
+        if not _in_range(float(total_sum), total_sum_min, total_sum_max):
+            continue
+        if not _in_range(float(stock_sum), stock_sum_min, stock_sum_max):
+            continue
+        if not _in_range(
+            float(supplier_sum), supplier_sum_min, supplier_sum_max
+        ):
+            continue
+        if not _in_range(
+            float(rejected_sum), rejected_sum_min, rejected_sum_max
+        ):
+            continue
+
+        results.append(
+            SupplierOrderSummaryResponse(
+                id=order.id,
+                provider_id=order.provider_id,
+                status=order.status,
+                created_at=order.created_at,
+                customer_order_id=(
+                    customer_order.id if customer_order else None
+                ),
+                customer_name=(
+                    customer_order.customer.name
+                    if customer_order and customer_order.customer
+                    else None
+                ),
+                customer_order_number=(
+                    customer_order.order_number if customer_order else None
+                ),
+                customer_received_at=(
+                    customer_order.received_at if customer_order else None
+                ),
+                customer_status=(
+                    customer_order.status if customer_order else None
+                ),
+                total_sum=float(total_sum),
+                stock_sum=float(stock_sum),
+                supplier_sum=float(supplier_sum),
+                rejected_sum=float(rejected_sum),
+                rejected_pct=rejected_pct,
+            )
+        )
+
+    results.sort(
+        key=lambda item: item.customer_received_at or item.created_at,
+        reverse=True,
+    )
+    return results
 
 
 @router.post(

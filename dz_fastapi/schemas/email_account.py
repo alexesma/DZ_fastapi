@@ -9,6 +9,7 @@ class EmailAccountBase(BaseModel):
     password: str
     imap_host: Optional[str] = None
     imap_port: int = 993
+    imap_folder: Optional[str] = None
     smtp_host: Optional[str] = None
     smtp_port: int = 465
     smtp_use_ssl: bool = True
@@ -34,6 +35,7 @@ class EmailAccountUpdate(BaseModel):
     password: Optional[str] = None
     imap_host: Optional[str] = None
     imap_port: Optional[int] = None
+    imap_folder: Optional[str] = None
     smtp_host: Optional[str] = None
     smtp_port: Optional[int] = None
     smtp_use_ssl: Optional[bool] = None
@@ -45,3 +47,16 @@ class EmailAccountUpdate(BaseModel):
 
 class EmailAccountResponse(EmailAccountBase):
     id: int
+
+
+class EmailAccountTestRequest(BaseModel):
+    imap: bool = True
+    smtp: bool = True
+    folder: Optional[str] = None
+
+
+class EmailAccountTestResponse(BaseModel):
+    imap_ok: Optional[bool] = None
+    imap_error: Optional[str] = None
+    smtp_ok: Optional[bool] = None
+    smtp_error: Optional[str] = None

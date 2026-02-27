@@ -406,7 +406,7 @@ async def get_emails(
                 host,
                 account.email,
                 account.password,
-                main_box,
+                account.imap_folder or main_box,
                 account.imap_port or IMAP_SERVER,
                 True,
             )
