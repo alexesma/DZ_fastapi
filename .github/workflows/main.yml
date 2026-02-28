@@ -87,7 +87,7 @@ jobs:
     - name: Run database migrations
       run: |
         export PATH="$HOME/.local/bin:$PATH"
-        poetry run alembic upgrade head
+        poetry run alembic upgrade heads
 
     # Запускаем flake8
     - name: Test with flake8
@@ -256,7 +256,7 @@ jobs:
           echo "Ждем запуска базы данных..."
           sleep 30
           # Выполняет миграции и сбор статики
-          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml exec -T web poetry run alembic upgrade head
+          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml exec -T web poetry run alembic upgrade heads
 
   send_success_message:
     runs-on: ubuntu-latest

@@ -1,0 +1,1141 @@
+2026-02-28 13:03:17,326 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'S111308010BA', 'name': 'Электровентилятор Радиатора Охлаждения CH QQ SWEET (465 ENGINE)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,369 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,369 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,370 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbe720>
+2026-02-28 13:03:17,370 - dz_fastapi - DEBUG - Autopart already exists: ID 51203
+2026-02-28 13:03:17,370 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'S111308010BA', 'name': 'Электровентилятор Радиатора Охлаждения CH QQ SWEET (465 ENGINE)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,371 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='S111308010BA' name='Электровентилятор Радиатора Охлаждения CH QQ SWEET (465 ENGINE)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,371 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'S111308010BA', 'name': 'Электровентилятор Радиатора Охлаждения CH QQ SWEET (465 ENGINE)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,371 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,371 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,374 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb2330>
+2026-02-28 13:03:17,374 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbfda0>
+2026-02-28 13:03:17,377 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb3cb0>
+2026-02-28 13:03:17,377 - dz_fastapi - DEBUG - Autopart already exists: ID 74418
+2026-02-28 13:03:17,377 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '2803200XSZ08A', 'name': 'Усилитель Бампера Переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,377 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='2803200XSZ08A' name='Усилитель Бампера Переднего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,378 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '2803200XSZ08A', 'name': 'Усилитель Бампера Переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,378 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-28 13:03:17,378 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-28 13:03:17,379 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbf020>
+2026-02-28 13:03:17,379 - dz_fastapi - DEBUG - Autopart already exists: ID 74418
+2026-02-28 13:03:17,379 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '2803200XSZ08A', 'name': 'Усилитель Бампера Переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,379 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='2803200XSZ08A' name='Усилитель Бампера Переднего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,380 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '2803200XSZ08A', 'name': 'Усилитель Бампера Переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,380 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-28 13:03:17,380 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-28 13:03:17,381 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb0800>
+2026-02-28 13:03:17,382 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbda60>
+2026-02-28 13:03:17,383 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb3980>
+2026-02-28 13:03:17,384 - dz_fastapi - DEBUG - Autopart already exists: ID 40584
+2026-02-28 13:03:17,384 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'AAB6305100', 'name': 'Замок Пятой Двери LF X50', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,384 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='AAB6305100' name='Замок Пятой Двери LF X50' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,384 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'AAB6305100', 'name': 'Замок Пятой Двери LF X50', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,384 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,384 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,385 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbfe30>
+2026-02-28 13:03:17,385 - dz_fastapi - DEBUG - Autopart already exists: ID 40584
+2026-02-28 13:03:17,385 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'AAB6305100', 'name': 'Замок Пятой Двери LF X50', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,385 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='AAB6305100' name='Замок Пятой Двери LF X50' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,385 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'AAB6305100', 'name': 'Замок Пятой Двери LF X50', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,385 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,386 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,386 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb9790>
+2026-02-28 13:03:17,387 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbf9b0>
+2026-02-28 13:03:17,388 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bba840>
+2026-02-28 13:03:17,388 - dz_fastapi - DEBUG - Autopart already exists: ID 52120
+2026-02-28 13:03:17,388 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Great Wall', 'oem_number': '2803100K06E', 'name': 'Усилитель Рамы Передний GW HOVER H1 (Н/О), H3, H5 -C1', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,389 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Great Wall' oem_number='2803100K06E' name='Усилитель Рамы Передний GW HOVER H1 (Н/О), H3, H5 -C1' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,389 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Great Wall', 'oem_number': '2803100K06E', 'name': 'Усилитель Рамы Передний GW HOVER H1 (Н/О), H3, H5 -C1', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,389 - dz_fastapi - DEBUG - Extracted brand_name: Great Wall
+2026-02-28 13:03:17,389 - dz_fastapi - DEBUG - Changed brand_name: GREAT WALL
+2026-02-28 13:03:17,389 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb1520>
+2026-02-28 13:03:17,389 - dz_fastapi - DEBUG - Autopart already exists: ID 52120
+2026-02-28 13:03:17,389 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Great Wall', 'oem_number': '2803100K06E', 'name': 'Усилитель Рамы Передний GW HOVER H1 (Н/О), H3, H5 -C1', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,390 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Great Wall' oem_number='2803100K06E' name='Усилитель Рамы Передний GW HOVER H1 (Н/О), H3, H5 -C1' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,390 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Great Wall', 'oem_number': '2803100K06E', 'name': 'Усилитель Рамы Передний GW HOVER H1 (Н/О), H3, H5 -C1', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,390 - dz_fastapi - DEBUG - Extracted brand_name: Great Wall
+2026-02-28 13:03:17,390 - dz_fastapi - DEBUG - Changed brand_name: GREAT WALL
+2026-02-28 13:03:17,391 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb3860>
+2026-02-28 13:03:17,391 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbc950>
+2026-02-28 13:03:17,392 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb1fd0>
+2026-02-28 13:03:17,392 - dz_fastapi - DEBUG - Autopart already exists: ID 55725
+2026-02-28 13:03:17,392 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'A131109110FA', 'name': 'Корпус Воздушного Фильтра', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,393 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='A131109110FA' name='Корпус Воздушного Фильтра' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,393 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'A131109110FA', 'name': 'Корпус Воздушного Фильтра', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,393 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,393 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,393 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbf350>
+2026-02-28 13:03:17,393 - dz_fastapi - DEBUG - Autopart already exists: ID 55725
+2026-02-28 13:03:17,394 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'A131109110FA', 'name': 'Корпус Воздушного Фильтра', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,394 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='A131109110FA' name='Корпус Воздушного Фильтра' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,394 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'A131109110FA', 'name': 'Корпус Воздушного Фильтра', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,394 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,394 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,395 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bba600>
+2026-02-28 13:03:17,395 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbf6b0>
+2026-02-28 13:03:17,397 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbaea0>
+2026-02-28 13:03:17,397 - dz_fastapi - DEBUG - Autopart already exists: ID 50129
+2026-02-28 13:03:17,397 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'T113774130BB', 'name': 'Переключатель Подрулевой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,397 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='T113774130BB' name='Переключатель Подрулевой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,397 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'T113774130BB', 'name': 'Переключатель Подрулевой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,398 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,398 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,398 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbfd40>
+2026-02-28 13:03:17,398 - dz_fastapi - DEBUG - Autopart already exists: ID 50129
+2026-02-28 13:03:17,398 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'T113774130BB', 'name': 'Переключатель Подрулевой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,399 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='T113774130BB' name='Переключатель Подрулевой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,399 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'T113774130BB', 'name': 'Переключатель Подрулевой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,399 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,399 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,400 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbbc20>
+2026-02-28 13:03:17,400 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbe120>
+2026-02-28 13:03:17,401 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb2930>
+2026-02-28 13:03:17,401 - dz_fastapi - DEBUG - Autopart already exists: ID 25535
+2026-02-28 13:03:17,402 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'S118105010', 'name': 'Радиатор Кондиционера CH QQ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,402 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='S118105010' name='Радиатор Кондиционера CH QQ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,402 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'S118105010', 'name': 'Радиатор Кондиционера CH QQ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,402 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,402 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,403 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbc110>
+2026-02-28 13:03:17,403 - dz_fastapi - DEBUG - Autopart already exists: ID 25535
+2026-02-28 13:03:17,403 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'S118105010', 'name': 'Радиатор Кондиционера CH QQ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,403 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='S118105010' name='Радиатор Кондиционера CH QQ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,404 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'S118105010', 'name': 'Радиатор Кондиционера CH QQ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,404 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,404 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,405 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb82c0>
+2026-02-28 13:03:17,405 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbcb90>
+2026-02-28 13:03:17,407 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb3500>
+2026-02-28 13:03:17,407 - dz_fastapi - DEBUG - Autopart already exists: ID 58002
+2026-02-28 13:03:17,407 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3501011XKY00A', 'name': 'Диск Тормозной Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,407 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3501011XKY00A' name='Диск Тормозной Передний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,407 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3501011XKY00A', 'name': 'Диск Тормозной Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,407 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-28 13:03:17,408 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-28 13:03:17,408 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbe450>
+2026-02-28 13:03:17,408 - dz_fastapi - DEBUG - Autopart already exists: ID 58002
+2026-02-28 13:03:17,408 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '3501011XKY00A', 'name': 'Диск Тормозной Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,408 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='3501011XKY00A' name='Диск Тормозной Передний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,409 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '3501011XKY00A', 'name': 'Диск Тормозной Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,409 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-28 13:03:17,409 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-28 13:03:17,410 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb36e0>
+2026-02-28 13:03:17,410 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbfa40>
+2026-02-28 13:03:17,412 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb33b0>
+2026-02-28 13:03:17,412 - dz_fastapi - DEBUG - Autopart already exists: ID 37368
+2026-02-28 13:03:17,412 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Great Wall', 'oem_number': '6105300AK80XA', 'name': 'Замок Двери Передней Левой HOVER H3,H5 (Новый Салон)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,412 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Great Wall' oem_number='6105300AK80XA' name='Замок Двери Передней Левой HOVER H3,H5 (Новый Салон)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,413 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Great Wall', 'oem_number': '6105300AK80XA', 'name': 'Замок Двери Передней Левой HOVER H3,H5 (Новый Салон)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,413 - dz_fastapi - DEBUG - Extracted brand_name: Great Wall
+2026-02-28 13:03:17,413 - dz_fastapi - DEBUG - Changed brand_name: GREAT WALL
+2026-02-28 13:03:17,414 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbe690>
+2026-02-28 13:03:17,414 - dz_fastapi - DEBUG - Autopart already exists: ID 37368
+2026-02-28 13:03:17,414 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Great Wall', 'oem_number': '6105300AK80XA', 'name': 'Замок Двери Передней Левой HOVER H3,H5 (Новый Салон)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,414 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Great Wall' oem_number='6105300AK80XA' name='Замок Двери Передней Левой HOVER H3,H5 (Новый Салон)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,415 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Great Wall', 'oem_number': '6105300AK80XA', 'name': 'Замок Двери Передней Левой HOVER H3,H5 (Новый Салон)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,415 - dz_fastapi - DEBUG - Extracted brand_name: Great Wall
+2026-02-28 13:03:17,415 - dz_fastapi - DEBUG - Changed brand_name: GREAT WALL
+2026-02-28 13:03:17,420 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb2e40>
+2026-02-28 13:03:17,421 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbe450>
+2026-02-28 13:03:17,426 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb28a0>
+2026-02-28 13:03:17,426 - dz_fastapi - DEBUG - Autopart already exists: ID 51133
+2026-02-28 13:03:17,427 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'T115010011DY', 'name': 'Панель Кузова Пола Багажного Отделения, Горизонтальная Нижняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,427 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='T115010011DY' name='Панель Кузова Пола Багажного Отделения, Горизонтальная Нижняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,427 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'T115010011DY', 'name': 'Панель Кузова Пола Багажного Отделения, Горизонтальная Нижняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,427 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,428 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,429 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb8a70>
+2026-02-28 13:03:17,429 - dz_fastapi - DEBUG - Autopart already exists: ID 51133
+2026-02-28 13:03:17,429 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'T115010011DY', 'name': 'Панель Кузова Пола Багажного Отделения, Горизонтальная Нижняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,429 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='T115010011DY' name='Панель Кузова Пола Багажного Отделения, Горизонтальная Нижняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,429 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'T115010011DY', 'name': 'Панель Кузова Пола Багажного Отделения, Горизонтальная Нижняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,429 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,430 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,431 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bba000>
+2026-02-28 13:03:17,431 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbe0c0>
+2026-02-28 13:03:17,433 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbac60>
+2026-02-28 13:03:17,433 - dz_fastapi - DEBUG - Autopart already exists: ID 25552
+2026-02-28 13:03:17,433 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '1014026083', 'name': 'Трубка Гура', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,433 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='1014026083' name='Трубка Гура' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,434 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '1014026083', 'name': 'Трубка Гура', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,434 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,434 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,434 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbfda0>
+2026-02-28 13:03:17,434 - dz_fastapi - DEBUG - Autopart already exists: ID 25552
+2026-02-28 13:03:17,434 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '1014026083', 'name': 'Трубка Гура', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,435 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='1014026083' name='Трубка Гура' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,435 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '1014026083', 'name': 'Трубка Гура', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,435 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,435 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,436 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb8a70>
+2026-02-28 13:03:17,437 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbf350>
+2026-02-28 13:03:17,438 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb1b20>
+2026-02-28 13:03:17,438 - dz_fastapi - DEBUG - Autopart already exists: ID 60599
+2026-02-28 13:03:17,438 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Great Wall', 'oem_number': '1201210F00B1', 'name': 'Глушитель (F1) (Полукруглый Фланец)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,438 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Great Wall' oem_number='1201210F00B1' name='Глушитель (F1) (Полукруглый Фланец)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,438 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Great Wall', 'oem_number': '1201210F00B1', 'name': 'Глушитель (F1) (Полукруглый Фланец)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,438 - dz_fastapi - DEBUG - Extracted brand_name: Great Wall
+2026-02-28 13:03:17,438 - dz_fastapi - DEBUG - Changed brand_name: GREAT WALL
+2026-02-28 13:03:17,439 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbc440>
+2026-02-28 13:03:17,439 - dz_fastapi - DEBUG - Autopart already exists: ID 60599
+2026-02-28 13:03:17,439 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Great Wall', 'oem_number': '1201210F00B1', 'name': 'Глушитель (F1) (Полукруглый Фланец)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,439 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Great Wall' oem_number='1201210F00B1' name='Глушитель (F1) (Полукруглый Фланец)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,440 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Great Wall', 'oem_number': '1201210F00B1', 'name': 'Глушитель (F1) (Полукруглый Фланец)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,440 - dz_fastapi - DEBUG - Extracted brand_name: Great Wall
+2026-02-28 13:03:17,440 - dz_fastapi - DEBUG - Changed brand_name: GREAT WALL
+2026-02-28 13:03:17,441 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb0800>
+2026-02-28 13:03:17,442 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbf4d0>
+2026-02-28 13:03:17,443 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb34d0>
+2026-02-28 13:03:17,443 - dz_fastapi - DEBUG - Autopart already exists: ID 58461
+2026-02-28 13:03:17,443 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'A151106610DA', 'name': 'Насос Топливный Электрический', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,443 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='A151106610DA' name='Насос Топливный Электрический' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,444 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'A151106610DA', 'name': 'Насос Топливный Электрический', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,444 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,444 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,445 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbd760>
+2026-02-28 13:03:17,445 - dz_fastapi - DEBUG - Autopart already exists: ID 58461
+2026-02-28 13:03:17,445 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'A151106610DA', 'name': 'Насос Топливный Электрический', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,445 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='A151106610DA' name='Насос Топливный Электрический' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,445 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'A151106610DA', 'name': 'Насос Топливный Электрический', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,445 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,445 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,446 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb19d0>
+2026-02-28 13:03:17,447 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbf3e0>
+2026-02-28 13:03:17,448 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb0b60>
+2026-02-28 13:03:17,448 - dz_fastapi - DEBUG - Autopart already exists: ID 74437
+2026-02-28 13:03:17,448 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': '202000281AA', 'name': 'Амортизатор Передний Правый TIGGO 2', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,448 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='202000281AA' name='Амортизатор Передний Правый TIGGO 2' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,448 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': '202000281AA', 'name': 'Амортизатор Передний Правый TIGGO 2', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,449 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,449 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,449 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbf6b0>
+2026-02-28 13:03:17,449 - dz_fastapi - DEBUG - Autopart already exists: ID 74437
+2026-02-28 13:03:17,450 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': '202000281AA', 'name': 'Амортизатор Передний Правый TIGGO 2', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,450 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='202000281AA' name='Амортизатор Передний Правый TIGGO 2' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,450 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': '202000281AA', 'name': 'Амортизатор Передний Правый TIGGO 2', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,450 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,450 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,451 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb3650>
+2026-02-28 13:03:17,452 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbd970>
+2026-02-28 13:03:17,453 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb3aa0>
+2026-02-28 13:03:17,453 - dz_fastapi - DEBUG - Autopart already exists: ID 9143
+2026-02-28 13:03:17,453 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': '481FD1004001', 'name': 'Поршень С Шатуном (1.6, 481) CH FORA, TIGGO, M11, M12', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,454 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='481FD1004001' name='Поршень С Шатуном (1.6, 481) CH FORA, TIGGO, M11, M12' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,454 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': '481FD1004001', 'name': 'Поршень С Шатуном (1.6, 481) CH FORA, TIGGO, M11, M12', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,454 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,454 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,455 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbf650>
+2026-02-28 13:03:17,455 - dz_fastapi - DEBUG - Autopart already exists: ID 9143
+2026-02-28 13:03:17,455 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': '481FD1004001', 'name': 'Поршень С Шатуном (1.6, 481) CH FORA, TIGGO, M11, M12', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,455 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='481FD1004001' name='Поршень С Шатуном (1.6, 481) CH FORA, TIGGO, M11, M12' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,455 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': '481FD1004001', 'name': 'Поршень С Шатуном (1.6, 481) CH FORA, TIGGO, M11, M12', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,455 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,455 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,457 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb8500>
+2026-02-28 13:03:17,457 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbc230>
+2026-02-28 13:03:17,459 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbbce0>
+2026-02-28 13:03:17,459 - dz_fastapi - DEBUG - Autopart already exists: ID 14748
+2026-02-28 13:03:17,459 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '1014012752', 'name': 'Рычаг Передней Подвески Левый GL X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,459 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='1014012752' name='Рычаг Передней Подвески Левый GL X7' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,459 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '1014012752', 'name': 'Рычаг Передней Подвески Левый GL X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,459 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,459 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,460 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbc530>
+2026-02-28 13:03:17,460 - dz_fastapi - DEBUG - Autopart already exists: ID 14748
+2026-02-28 13:03:17,460 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '1014012752', 'name': 'Рычаг Передней Подвески Левый GL X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,460 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='1014012752' name='Рычаг Передней Подвески Левый GL X7' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,460 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '1014012752', 'name': 'Рычаг Передней Подвески Левый GL X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,461 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,461 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,462 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb2330>
+2026-02-28 13:03:17,462 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbc800>
+2026-02-28 13:03:17,464 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb3fb0>
+2026-02-28 13:03:17,464 - dz_fastapi - DEBUG - Autopart already exists: ID 53518
+2026-02-28 13:03:17,464 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '1017026954', 'name': 'Мотор Стеклоочистителя Двери Задка GL X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,464 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='1017026954' name='Мотор Стеклоочистителя Двери Задка GL X7' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,465 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '1017026954', 'name': 'Мотор Стеклоочистителя Двери Задка GL X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,465 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,465 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,465 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbeed0>
+2026-02-28 13:03:17,465 - dz_fastapi - DEBUG - Autopart already exists: ID 53518
+2026-02-28 13:03:17,466 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '1017026954', 'name': 'Мотор Стеклоочистителя Двери Задка GL X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,466 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='1017026954' name='Мотор Стеклоочистителя Двери Задка GL X7' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,466 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '1017026954', 'name': 'Мотор Стеклоочистителя Двери Задка GL X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,466 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,466 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,467 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb84d0>
+2026-02-28 13:03:17,468 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbe030>
+2026-02-28 13:03:17,469 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bba6f0>
+2026-02-28 13:03:17,469 - dz_fastapi - DEBUG - Autopart already exists: ID 60260
+2026-02-28 13:03:17,469 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '1067000108', 'name': 'Фонарь Задний Левый GL VISION', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,469 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='1067000108' name='Фонарь Задний Левый GL VISION' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,469 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '1067000108', 'name': 'Фонарь Задний Левый GL VISION', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,470 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,470 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,470 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbc950>
+2026-02-28 13:03:17,471 - dz_fastapi - DEBUG - Autopart already exists: ID 60260
+2026-02-28 13:03:17,471 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '1067000108', 'name': 'Фонарь Задний Левый GL VISION', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,471 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='1067000108' name='Фонарь Задний Левый GL VISION' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,472 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '1067000108', 'name': 'Фонарь Задний Левый GL VISION', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,472 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,472 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,473 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bba690>
+2026-02-28 13:03:17,473 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbfbf0>
+2026-02-28 13:03:17,475 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb20c0>
+2026-02-28 13:03:17,475 - dz_fastapi - DEBUG - Autopart already exists: ID 61841
+2026-02-28 13:03:17,475 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Great Wall', 'oem_number': '1703100K81', 'name': 'Рычаг Кпп Переключения Передач (Новый Салон) GW HOVER H3,H5', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,475 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Great Wall' oem_number='1703100K81' name='Рычаг Кпп Переключения Передач (Новый Салон) GW HOVER H3,H5' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,476 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Great Wall', 'oem_number': '1703100K81', 'name': 'Рычаг Кпп Переключения Передач (Новый Салон) GW HOVER H3,H5', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,476 - dz_fastapi - DEBUG - Extracted brand_name: Great Wall
+2026-02-28 13:03:17,476 - dz_fastapi - DEBUG - Changed brand_name: GREAT WALL
+2026-02-28 13:03:17,477 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbcd10>
+2026-02-28 13:03:17,477 - dz_fastapi - DEBUG - Autopart already exists: ID 61841
+2026-02-28 13:03:17,477 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Great Wall', 'oem_number': '1703100K81', 'name': 'Рычаг Кпп Переключения Передач (Новый Салон) GW HOVER H3,H5', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,477 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Great Wall' oem_number='1703100K81' name='Рычаг Кпп Переключения Передач (Новый Салон) GW HOVER H3,H5' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,478 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Great Wall', 'oem_number': '1703100K81', 'name': 'Рычаг Кпп Переключения Передач (Новый Салон) GW HOVER H3,H5', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,478 - dz_fastapi - DEBUG - Extracted brand_name: Great Wall
+2026-02-28 13:03:17,478 - dz_fastapi - DEBUG - Changed brand_name: GREAT WALL
+2026-02-28 13:03:17,479 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb0800>
+2026-02-28 13:03:17,479 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbf020>
+2026-02-28 13:03:17,481 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb3fb0>
+2026-02-28 13:03:17,481 - dz_fastapi - DEBUG - Autopart already exists: ID 51615
+2026-02-28 13:03:17,481 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206310XKV08A', 'name': 'Молдинг Лобового Стекла Левый (Верхняя Часть)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,481 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206310XKV08A' name='Молдинг Лобового Стекла Левый (Верхняя Часть)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,482 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206310XKV08A', 'name': 'Молдинг Лобового Стекла Левый (Верхняя Часть)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,482 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-28 13:03:17,482 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-28 13:03:17,482 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbff50>
+2026-02-28 13:03:17,482 - dz_fastapi - DEBUG - Autopart already exists: ID 51615
+2026-02-28 13:03:17,483 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5206310XKV08A', 'name': 'Молдинг Лобового Стекла Левый (Верхняя Часть)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,483 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5206310XKV08A' name='Молдинг Лобового Стекла Левый (Верхняя Часть)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,483 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5206310XKV08A', 'name': 'Молдинг Лобового Стекла Левый (Верхняя Часть)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,483 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-28 13:03:17,483 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-28 13:03:17,484 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb1fa0>
+2026-02-28 13:03:17,485 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbfb30>
+2026-02-28 13:03:17,486 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb3e60>
+2026-02-28 13:03:17,486 - dz_fastapi - DEBUG - Autopart already exists: ID 44186
+2026-02-28 13:03:17,486 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5174201BKY48C', 'name': 'Пыльник Двигателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,487 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5174201BKY48C' name='Пыльник Двигателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,487 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5174201BKY48C', 'name': 'Пыльник Двигателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,487 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-28 13:03:17,487 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-28 13:03:17,487 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbe7b0>
+2026-02-28 13:03:17,487 - dz_fastapi - DEBUG - Autopart already exists: ID 44186
+2026-02-28 13:03:17,488 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '5174201BKY48C', 'name': 'Пыльник Двигателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,488 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='5174201BKY48C' name='Пыльник Двигателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,488 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '5174201BKY48C', 'name': 'Пыльник Двигателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,488 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-28 13:03:17,488 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-28 13:03:17,489 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb3ce0>
+2026-02-28 13:03:17,490 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbf650>
+2026-02-28 13:03:17,491 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb33b0>
+2026-02-28 13:03:17,491 - dz_fastapi - DEBUG - Autopart already exists: ID 44067
+2026-02-28 13:03:17,491 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'T112909020BA', 'name': 'Рычаг Передней Подвески Правый Нижний CH TIGGO FL, TIGGO 3', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,492 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='T112909020BA' name='Рычаг Передней Подвески Правый Нижний CH TIGGO FL, TIGGO 3' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,492 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'T112909020BA', 'name': 'Рычаг Передней Подвески Правый Нижний CH TIGGO FL, TIGGO 3', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,492 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,492 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,493 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb9430>
+2026-02-28 13:03:17,493 - dz_fastapi - DEBUG - Autopart already exists: ID 44067
+2026-02-28 13:03:17,493 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'T112909020BA', 'name': 'Рычаг Передней Подвески Правый Нижний CH TIGGO FL, TIGGO 3', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,493 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='T112909020BA' name='Рычаг Передней Подвески Правый Нижний CH TIGGO FL, TIGGO 3' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,493 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'T112909020BA', 'name': 'Рычаг Передней Подвески Правый Нижний CH TIGGO FL, TIGGO 3', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,493 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,493 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,494 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb8200>
+2026-02-28 13:03:17,494 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbf170>
+2026-02-28 13:03:17,496 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbbb00>
+2026-02-28 13:03:17,496 - dz_fastapi - DEBUG - Autopart already exists: ID 74390
+2026-02-28 13:03:17,496 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '6013024400', 'name': 'Молдинг Облицовки Радиатора Нижний GL COOLRAY', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,496 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='6013024400' name='Молдинг Облицовки Радиатора Нижний GL COOLRAY' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,496 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '6013024400', 'name': 'Молдинг Облицовки Радиатора Нижний GL COOLRAY', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,496 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,497 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,497 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbc440>
+2026-02-28 13:03:17,497 - dz_fastapi - DEBUG - Autopart already exists: ID 74390
+2026-02-28 13:03:17,497 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '6013024400', 'name': 'Молдинг Облицовки Радиатора Нижний GL COOLRAY', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,497 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='6013024400' name='Молдинг Облицовки Радиатора Нижний GL COOLRAY' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,498 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '6013024400', 'name': 'Молдинг Облицовки Радиатора Нижний GL COOLRAY', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,498 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,498 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,499 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bba6f0>
+2026-02-28 13:03:17,499 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbf950>
+2026-02-28 13:03:17,500 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb3980>
+2026-02-28 13:03:17,500 - dz_fastapi - DEBUG - Autopart already exists: ID 53186
+2026-02-28 13:03:17,500 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '1014025587', 'name': 'Рычаг Передней Подвески Левый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,500 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='1014025587' name='Рычаг Передней Подвески Левый' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,501 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '1014025587', 'name': 'Рычаг Передней Подвески Левый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,501 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,501 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,501 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbc0b0>
+2026-02-28 13:03:17,501 - dz_fastapi - DEBUG - Autopart already exists: ID 53186
+2026-02-28 13:03:17,501 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '1014025587', 'name': 'Рычаг Передней Подвески Левый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,501 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='1014025587' name='Рычаг Передней Подвески Левый' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,501 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '1014025587', 'name': 'Рычаг Передней Подвески Левый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,502 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,502 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,502 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb3aa0>
+2026-02-28 13:03:17,503 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbce90>
+2026-02-28 13:03:17,504 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb2b10>
+2026-02-28 13:03:17,504 - dz_fastapi - DEBUG - Autopart already exists: ID 53514
+2026-02-28 13:03:17,504 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'C3103100', 'name': 'Ступица Передняя LF CEBRIUM', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,504 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='C3103100' name='Ступица Передняя LF CEBRIUM' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,504 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'C3103100', 'name': 'Ступица Передняя LF CEBRIUM', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,504 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,504 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,505 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbfcb0>
+2026-02-28 13:03:17,505 - dz_fastapi - DEBUG - Autopart already exists: ID 53514
+2026-02-28 13:03:17,505 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'C3103100', 'name': 'Ступица Передняя LF CEBRIUM', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,505 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='C3103100' name='Ступица Передняя LF CEBRIUM' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,505 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'C3103100', 'name': 'Ступица Передняя LF CEBRIUM', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,505 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,505 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,506 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb3ce0>
+2026-02-28 13:03:17,507 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbd430>
+2026-02-28 13:03:17,509 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb1b20>
+2026-02-28 13:03:17,509 - dz_fastapi - DEBUG - Autopart already exists: ID 59836
+2026-02-28 13:03:17,509 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': '204001412AA', 'name': 'Тормозной Диск Задний T1D/T1DPHEV/T18', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,509 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='204001412AA' name='Тормозной Диск Задний T1D/T1DPHEV/T18' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,509 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': '204001412AA', 'name': 'Тормозной Диск Задний T1D/T1DPHEV/T18', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,509 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,509 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,510 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbf5f0>
+2026-02-28 13:03:17,510 - dz_fastapi - DEBUG - Autopart already exists: ID 59836
+2026-02-28 13:03:17,510 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': '204001412AA', 'name': 'Тормозной Диск Задний T1D/T1DPHEV/T18', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,510 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='204001412AA' name='Тормозной Диск Задний T1D/T1DPHEV/T18' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,510 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': '204001412AA', 'name': 'Тормозной Диск Задний T1D/T1DPHEV/T18', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,510 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,511 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,512 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb2210>
+2026-02-28 13:03:17,513 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbf890>
+2026-02-28 13:03:17,515 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb3500>
+2026-02-28 13:03:17,515 - dz_fastapi - DEBUG - Autopart already exists: ID 9856
+2026-02-28 13:03:17,515 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Byd', 'oem_number': 'BYDF3D1123100A1', 'name': 'Насос Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,515 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Byd' oem_number='BYDF3D1123100A1' name='Насос Топливный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,515 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Byd', 'oem_number': 'BYDF3D1123100A1', 'name': 'Насос Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,515 - dz_fastapi - DEBUG - Extracted brand_name: Byd
+2026-02-28 13:03:17,515 - dz_fastapi - DEBUG - Changed brand_name: BYD
+2026-02-28 13:03:17,516 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbe0f0>
+2026-02-28 13:03:17,516 - dz_fastapi - DEBUG - Autopart already exists: ID 9856
+2026-02-28 13:03:17,516 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Byd', 'oem_number': 'BYDF3D1123100A1', 'name': 'Насос Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,516 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Byd' oem_number='BYDF3D1123100A1' name='Насос Топливный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,516 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Byd', 'oem_number': 'BYDF3D1123100A1', 'name': 'Насос Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,516 - dz_fastapi - DEBUG - Extracted brand_name: Byd
+2026-02-28 13:03:17,517 - dz_fastapi - DEBUG - Changed brand_name: BYD
+2026-02-28 13:03:17,517 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-02-28 13:03:17,517 - dz_fastapi - WARNING - Brand BYD not found. Skipping autopart creation.
+2026-02-28 13:03:17,517 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'Byd', 'oem_number': 'BYDF3D1123100A1', 'name': 'Насос Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,517 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Byd', 'oem_number': 'F3D1123100A1', 'name': 'Насос Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,517 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Byd' oem_number='F3D1123100A1' name='Насос Топливный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,518 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Byd', 'oem_number': 'F3D1123100A1', 'name': 'Насос Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,518 - dz_fastapi - DEBUG - Extracted brand_name: Byd
+2026-02-28 13:03:17,518 - dz_fastapi - DEBUG - Changed brand_name: BYD
+2026-02-28 13:03:17,518 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-02-28 13:03:17,518 - dz_fastapi - WARNING - Brand BYD not found. Skipping autopart creation.
+2026-02-28 13:03:17,519 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'Byd', 'oem_number': 'BYDF3D1123100A1', 'name': 'Насос Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,519 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Byd', 'oem_number': 'F3D1123100A1', 'name': 'Насос Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,519 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Byd' oem_number='F3D1123100A1' name='Насос Топливный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,519 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Byd', 'oem_number': 'F3D1123100A1', 'name': 'Насос Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,519 - dz_fastapi - DEBUG - Extracted brand_name: Byd
+2026-02-28 13:03:17,519 - dz_fastapi - DEBUG - Changed brand_name: BYD
+2026-02-28 13:03:17,519 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-02-28 13:03:17,520 - dz_fastapi - WARNING - Brand BYD not found. Skipping autopart creation.
+2026-02-28 13:03:17,520 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'Byd', 'oem_number': 'F3D1123100A1', 'name': 'Насос Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,520 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Byd', 'oem_number': '17030400F3057', 'name': 'Насос Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,520 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Byd' oem_number='17030400F3057' name='Насос Топливный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,520 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Byd', 'oem_number': '17030400F3057', 'name': 'Насос Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,520 - dz_fastapi - DEBUG - Extracted brand_name: Byd
+2026-02-28 13:03:17,520 - dz_fastapi - DEBUG - Changed brand_name: BYD
+2026-02-28 13:03:17,521 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-02-28 13:03:17,521 - dz_fastapi - WARNING - Brand BYD not found. Skipping autopart creation.
+2026-02-28 13:03:17,521 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'Byd', 'oem_number': 'F3D1123100A1', 'name': 'Насос Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,521 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Byd', 'oem_number': '17030400F3057', 'name': 'Насос Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,521 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Byd' oem_number='17030400F3057' name='Насос Топливный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,521 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Byd', 'oem_number': '17030400F3057', 'name': 'Насос Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,522 - dz_fastapi - DEBUG - Extracted brand_name: Byd
+2026-02-28 13:03:17,522 - dz_fastapi - DEBUG - Changed brand_name: BYD
+2026-02-28 13:03:17,522 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-02-28 13:03:17,522 - dz_fastapi - WARNING - Brand BYD not found. Skipping autopart creation.
+2026-02-28 13:03:17,523 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'Byd', 'oem_number': '17030400F3057', 'name': 'Насос Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,523 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'A118CB6105H4', 'name': 'Замок Зажигания С Комплектом Личинок CH AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,523 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='A118CB6105H4' name='Замок Зажигания С Комплектом Личинок CH AMULET' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,523 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'A118CB6105H4', 'name': 'Замок Зажигания С Комплектом Личинок CH AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,523 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,523 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,524 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-02-28 13:03:17,524 - dz_fastapi - WARNING - Brand BYD not found. Skipping autopart creation.
+2026-02-28 13:03:17,524 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'Byd', 'oem_number': '17030400F3057', 'name': 'Насос Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,524 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'A118CB6105H4', 'name': 'Замок Зажигания С Комплектом Личинок CH AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,524 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='A118CB6105H4' name='Замок Зажигания С Комплектом Личинок CH AMULET' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,524 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'A118CB6105H4', 'name': 'Замок Зажигания С Комплектом Личинок CH AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,524 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,525 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,525 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbaa80>
+2026-02-28 13:03:17,526 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbd5e0>
+2026-02-28 13:03:17,527 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbbcb0>
+2026-02-28 13:03:17,527 - dz_fastapi - DEBUG - Autopart already exists: ID 57600
+2026-02-28 13:03:17,527 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'A3104100', 'name': 'Ступица Задняя Левая LF CELLIYA, X50', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,527 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='A3104100' name='Ступица Задняя Левая LF CELLIYA, X50' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,527 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'A3104100', 'name': 'Ступица Задняя Левая LF CELLIYA, X50', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,527 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,528 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,529 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbc230>
+2026-02-28 13:03:17,529 - dz_fastapi - DEBUG - Autopart already exists: ID 57600
+2026-02-28 13:03:17,529 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'A3104100', 'name': 'Ступица Задняя Левая LF CELLIYA, X50', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,529 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='A3104100' name='Ступица Задняя Левая LF CELLIYA, X50' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,529 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'A3104100', 'name': 'Ступица Задняя Левая LF CELLIYA, X50', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,529 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,529 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,530 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbb140>
+2026-02-28 13:03:17,531 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bba090>
+2026-02-28 13:03:17,532 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbe4b0>
+2026-02-28 13:03:17,532 - dz_fastapi - DEBUG - Autopart already exists: ID 52638
+2026-02-28 13:03:17,532 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'A21BJ1703090', 'name': 'Трос Переключения Передач CH FORA (NEW)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,532 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='A21BJ1703090' name='Трос Переключения Передач CH FORA (NEW)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,532 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'A21BJ1703090', 'name': 'Трос Переключения Передач CH FORA (NEW)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,532 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,532 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,533 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb2930>
+2026-02-28 13:03:17,533 - dz_fastapi - DEBUG - Autopart already exists: ID 52638
+2026-02-28 13:03:17,533 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'A21BJ1703090', 'name': 'Трос Переключения Передач CH FORA (NEW)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,534 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='A21BJ1703090' name='Трос Переключения Передач CH FORA (NEW)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,534 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'A21BJ1703090', 'name': 'Трос Переключения Передач CH FORA (NEW)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,534 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,534 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,534 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbe030>
+2026-02-28 13:03:17,536 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbac00>
+2026-02-28 13:03:17,537 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbe1b0>
+2026-02-28 13:03:17,537 - dz_fastapi - DEBUG - Autopart already exists: ID 50704
+2026-02-28 13:03:17,537 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Dongfeng', 'oem_number': '1109N12020', 'name': 'Фильтр Воздушный (Дно Прямое) (46X30X19) (Евро-2, 3)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,538 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Dongfeng' oem_number='1109N12020' name='Фильтр Воздушный (Дно Прямое) (46X30X19) (Евро-2, 3)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,538 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Dongfeng', 'oem_number': '1109N12020', 'name': 'Фильтр Воздушный (Дно Прямое) (46X30X19) (Евро-2, 3)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,538 - dz_fastapi - DEBUG - Extracted brand_name: Dongfeng
+2026-02-28 13:03:17,538 - dz_fastapi - DEBUG - Changed brand_name: DONGFENG
+2026-02-28 13:03:17,539 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-02-28 13:03:17,539 - dz_fastapi - WARNING - Brand DONGFENG not found. Skipping autopart creation.
+2026-02-28 13:03:17,540 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'Dongfeng', 'oem_number': '1109N12020', 'name': 'Фильтр Воздушный (Дно Прямое) (46X30X19) (Евро-2, 3)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,540 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '1287002284', 'name': 'Мотор Заднего Стеклоочистителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,540 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='1287002284' name='Мотор Заднего Стеклоочистителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,540 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '1287002284', 'name': 'Мотор Заднего Стеклоочистителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,540 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,541 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,541 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87b801d0>
+2026-02-28 13:03:17,541 - dz_fastapi - DEBUG - Autopart already exists: ID 50704
+2026-02-28 13:03:17,542 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Dongfeng', 'oem_number': '1109N12020', 'name': 'Фильтр Воздушный (Дно Прямое) (46X30X19) (Евро-2, 3)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,542 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Dongfeng' oem_number='1109N12020' name='Фильтр Воздушный (Дно Прямое) (46X30X19) (Евро-2, 3)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,542 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Dongfeng', 'oem_number': '1109N12020', 'name': 'Фильтр Воздушный (Дно Прямое) (46X30X19) (Евро-2, 3)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,542 - dz_fastapi - DEBUG - Extracted brand_name: Dongfeng
+2026-02-28 13:03:17,542 - dz_fastapi - DEBUG - Changed brand_name: DONGFENG
+2026-02-28 13:03:17,543 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-02-28 13:03:17,543 - dz_fastapi - WARNING - Brand DONGFENG not found. Skipping autopart creation.
+2026-02-28 13:03:17,543 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'Dongfeng', 'oem_number': '1109N12020', 'name': 'Фильтр Воздушный (Дно Прямое) (46X30X19) (Евро-2, 3)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,543 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '1287002284', 'name': 'Мотор Заднего Стеклоочистителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,544 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='1287002284' name='Мотор Заднего Стеклоочистителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,544 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '1287002284', 'name': 'Мотор Заднего Стеклоочистителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,544 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,544 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,545 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bba2d0>
+2026-02-28 13:03:17,546 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbbce0>
+2026-02-28 13:03:17,547 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbff50>
+2026-02-28 13:03:17,547 - dz_fastapi - DEBUG - Autopart already exists: ID 55879
+2026-02-28 13:03:17,547 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'J682804700DY', 'name': 'Усилитель Бампера Заднего CH TIGGO 4PRO', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,547 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='J682804700DY' name='Усилитель Бампера Заднего CH TIGGO 4PRO' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,547 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'J682804700DY', 'name': 'Усилитель Бампера Заднего CH TIGGO 4PRO', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,547 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,548 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,549 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbc260>
+2026-02-28 13:03:17,549 - dz_fastapi - DEBUG - Autopart already exists: ID 55879
+2026-02-28 13:03:17,550 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'J682804700DY', 'name': 'Усилитель Бампера Заднего CH TIGGO 4PRO', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,550 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='J682804700DY' name='Усилитель Бампера Заднего CH TIGGO 4PRO' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,550 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'J682804700DY', 'name': 'Усилитель Бампера Заднего CH TIGGO 4PRO', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,550 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,550 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,551 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbc2f0>
+2026-02-28 13:03:17,552 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbb410>
+2026-02-28 13:03:17,553 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbeb40>
+2026-02-28 13:03:17,553 - dz_fastapi - DEBUG - Autopart already exists: ID 23608
+2026-02-28 13:03:17,553 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'L3501110A1', 'name': 'Суппорт Тормозной Передний Левый LF BREEZ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,553 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='L3501110A1' name='Суппорт Тормозной Передний Левый LF BREEZ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,553 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'L3501110A1', 'name': 'Суппорт Тормозной Передний Левый LF BREEZ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,553 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,553 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,554 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbd2e0>
+2026-02-28 13:03:17,554 - dz_fastapi - DEBUG - Autopart already exists: ID 23608
+2026-02-28 13:03:17,554 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'L3501110A1', 'name': 'Суппорт Тормозной Передний Левый LF BREEZ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,554 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='L3501110A1' name='Суппорт Тормозной Передний Левый LF BREEZ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,555 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'L3501110A1', 'name': 'Суппорт Тормозной Передний Левый LF BREEZ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,555 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,555 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,555 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbffe0>
+2026-02-28 13:03:17,556 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbacf0>
+2026-02-28 13:03:17,557 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbef90>
+2026-02-28 13:03:17,557 - dz_fastapi - DEBUG - Autopart already exists: ID 75422
+2026-02-28 13:03:17,557 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'M113502060', 'name': 'Суппорт Тормозной Задний Правый CH M11', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,557 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='M113502060' name='Суппорт Тормозной Задний Правый CH M11' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,557 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'M113502060', 'name': 'Суппорт Тормозной Задний Правый CH M11', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,558 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,558 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,559 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbdaf0>
+2026-02-28 13:03:17,559 - dz_fastapi - DEBUG - Autopart already exists: ID 75422
+2026-02-28 13:03:17,559 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'M113502060', 'name': 'Суппорт Тормозной Задний Правый CH M11', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,559 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='M113502060' name='Суппорт Тормозной Задний Правый CH M11' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,559 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'M113502060', 'name': 'Суппорт Тормозной Задний Правый CH M11', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,559 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,559 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,560 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbe2d0>
+2026-02-28 13:03:17,561 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb97c0>
+2026-02-28 13:03:17,561 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbc920>
+2026-02-28 13:03:17,562 - dz_fastapi - DEBUG - Autopart already exists: ID 50661
+2026-02-28 13:03:17,562 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'F7903110', 'name': 'Антенна LF SMILY, SMILY NEW', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,562 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='F7903110' name='Антенна LF SMILY, SMILY NEW' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,562 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'F7903110', 'name': 'Антенна LF SMILY, SMILY NEW', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,562 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,562 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,563 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbed80>
+2026-02-28 13:03:17,563 - dz_fastapi - DEBUG - Autopart already exists: ID 50661
+2026-02-28 13:03:17,563 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'F7903110', 'name': 'Антенна LF SMILY, SMILY NEW', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,563 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='F7903110' name='Антенна LF SMILY, SMILY NEW' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,564 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'F7903110', 'name': 'Антенна LF SMILY, SMILY NEW', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,564 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,564 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,564 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbd970>
+2026-02-28 13:03:17,565 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bba840>
+2026-02-28 13:03:17,566 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbdf70>
+2026-02-28 13:03:17,566 - dz_fastapi - DEBUG - Autopart already exists: ID 51950
+2026-02-28 13:03:17,566 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': '609000051AADQ', 'name': 'Молдинг Двери Передней Левой CH TIGGO 8', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,566 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='609000051AADQ' name='Молдинг Двери Передней Левой CH TIGGO 8' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,567 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': '609000051AADQ', 'name': 'Молдинг Двери Передней Левой CH TIGGO 8', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,567 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,567 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,568 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbdaf0>
+2026-02-28 13:03:17,568 - dz_fastapi - DEBUG - Autopart already exists: ID 51950
+2026-02-28 13:03:17,568 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': '609000051AADQ', 'name': 'Молдинг Двери Передней Левой CH TIGGO 8', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,568 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='609000051AADQ' name='Молдинг Двери Передней Левой CH TIGGO 8' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,568 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': '609000051AADQ', 'name': 'Молдинг Двери Передней Левой CH TIGGO 8', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,568 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,568 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,569 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbec30>
+2026-02-28 13:03:17,570 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbbe90>
+2026-02-28 13:03:17,570 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbc230>
+2026-02-28 13:03:17,570 - dz_fastapi - DEBUG - Autopart already exists: ID 18574
+2026-02-28 13:03:17,571 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '3010001400', 'name': 'Диск Сцепления Нажимной GL ATLAS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,571 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='3010001400' name='Диск Сцепления Нажимной GL ATLAS' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,571 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '3010001400', 'name': 'Диск Сцепления Нажимной GL ATLAS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,571 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,571 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,572 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbda60>
+2026-02-28 13:03:17,572 - dz_fastapi - DEBUG - Autopart already exists: ID 18574
+2026-02-28 13:03:17,572 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '3010001400', 'name': 'Диск Сцепления Нажимной GL ATLAS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,572 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='3010001400' name='Диск Сцепления Нажимной GL ATLAS' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,572 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '3010001400', 'name': 'Диск Сцепления Нажимной GL ATLAS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,572 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,573 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,573 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbc950>
+2026-02-28 13:03:17,574 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbb800>
+2026-02-28 13:03:17,575 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbf740>
+2026-02-28 13:03:17,575 - dz_fastapi - DEBUG - Autopart already exists: ID 60209
+2026-02-28 13:03:17,575 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'S18D1106610', 'name': 'Насос Топливный CH INDIS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,575 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='S18D1106610' name='Насос Топливный CH INDIS' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,575 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'S18D1106610', 'name': 'Насос Топливный CH INDIS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,575 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,575 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,576 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbedb0>
+2026-02-28 13:03:17,576 - dz_fastapi - DEBUG - Autopart already exists: ID 60209
+2026-02-28 13:03:17,576 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'S18D1106610', 'name': 'Насос Топливный CH INDIS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,576 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='S18D1106610' name='Насос Топливный CH INDIS' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,577 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'S18D1106610', 'name': 'Насос Топливный CH INDIS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,577 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,577 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,577 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bba930>
+2026-02-28 13:03:17,578 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87b092b0>
+2026-02-28 13:03:17,579 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbfb30>
+2026-02-28 13:03:17,579 - dz_fastapi - DEBUG - Autopart already exists: ID 57771
+2026-02-28 13:03:17,579 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Changan', 'oem_number': 'C281F2702040100', 'name': 'Усилитель Бампера Заднего CG UNI-V', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,579 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Changan' oem_number='C281F2702040100' name='Усилитель Бампера Заднего CG UNI-V' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,579 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Changan', 'oem_number': 'C281F2702040100', 'name': 'Усилитель Бампера Заднего CG UNI-V', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,580 - dz_fastapi - DEBUG - Extracted brand_name: Changan
+2026-02-28 13:03:17,580 - dz_fastapi - DEBUG - Changed brand_name: CHANGAN
+2026-02-28 13:03:17,581 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbce30>
+2026-02-28 13:03:17,581 - dz_fastapi - DEBUG - Autopart already exists: ID 57771
+2026-02-28 13:03:17,581 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Changan', 'oem_number': 'C281F2702040100', 'name': 'Усилитель Бампера Заднего CG UNI-V', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,581 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Changan' oem_number='C281F2702040100' name='Усилитель Бампера Заднего CG UNI-V' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,581 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Changan', 'oem_number': 'C281F2702040100', 'name': 'Усилитель Бампера Заднего CG UNI-V', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,581 - dz_fastapi - DEBUG - Extracted brand_name: Changan
+2026-02-28 13:03:17,581 - dz_fastapi - DEBUG - Changed brand_name: CHANGAN
+2026-02-28 13:03:17,582 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbe3f0>
+2026-02-28 13:03:17,583 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbf3b0>
+2026-02-28 13:03:17,584 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbc4d0>
+2026-02-28 13:03:17,584 - dz_fastapi - DEBUG - Autopart already exists: ID 28566
+2026-02-28 13:03:17,584 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Great Wall', 'oem_number': '1130100XJZ08A', 'name': 'Адсорбер GW HOVER H6, F7, F7X', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,584 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Great Wall' oem_number='1130100XJZ08A' name='Адсорбер GW HOVER H6, F7, F7X' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,585 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Great Wall', 'oem_number': '1130100XJZ08A', 'name': 'Адсорбер GW HOVER H6, F7, F7X', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,585 - dz_fastapi - DEBUG - Extracted brand_name: Great Wall
+2026-02-28 13:03:17,585 - dz_fastapi - DEBUG - Changed brand_name: GREAT WALL
+2026-02-28 13:03:17,585 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbc530>
+2026-02-28 13:03:17,585 - dz_fastapi - DEBUG - Autopart already exists: ID 28566
+2026-02-28 13:03:17,585 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Great Wall', 'oem_number': '1130100XJZ08A', 'name': 'Адсорбер GW HOVER H6, F7, F7X', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,586 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Great Wall' oem_number='1130100XJZ08A' name='Адсорбер GW HOVER H6, F7, F7X' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,586 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Great Wall', 'oem_number': '1130100XJZ08A', 'name': 'Адсорбер GW HOVER H6, F7, F7X', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,586 - dz_fastapi - DEBUG - Extracted brand_name: Great Wall
+2026-02-28 13:03:17,586 - dz_fastapi - DEBUG - Changed brand_name: GREAT WALL
+2026-02-28 13:03:17,587 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb19a0>
+2026-02-28 13:03:17,587 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbdf70>
+2026-02-28 13:03:17,589 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbcfb0>
+2026-02-28 13:03:17,589 - dz_fastapi - DEBUG - Autopart already exists: ID 50937
+2026-02-28 13:03:17,589 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'L2916103', 'name': 'Торсион Задней Подвески Передний LF BREEZ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,589 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='L2916103' name='Торсион Задней Подвески Передний LF BREEZ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,589 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'L2916103', 'name': 'Торсион Задней Подвески Передний LF BREEZ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,589 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,589 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,590 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87b0bb30>
+2026-02-28 13:03:17,590 - dz_fastapi - DEBUG - Autopart already exists: ID 50937
+2026-02-28 13:03:17,590 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'L2916103', 'name': 'Торсион Задней Подвески Передний LF BREEZ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,590 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='L2916103' name='Торсион Задней Подвески Передний LF BREEZ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,590 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'L2916103', 'name': 'Торсион Задней Подвески Передний LF BREEZ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,590 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,590 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,591 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87b0a3f0>
+2026-02-28 13:03:17,592 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbe3f0>
+2026-02-28 13:03:17,593 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb2ba0>
+2026-02-28 13:03:17,593 - dz_fastapi - DEBUG - Autopart already exists: ID 74440
+2026-02-28 13:03:17,593 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Byd', 'oem_number': '17010600F3004', 'name': 'Насос Водяной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,593 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Byd' oem_number='17010600F3004' name='Насос Водяной' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,593 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Byd', 'oem_number': '17010600F3004', 'name': 'Насос Водяной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,593 - dz_fastapi - DEBUG - Extracted brand_name: Byd
+2026-02-28 13:03:17,593 - dz_fastapi - DEBUG - Changed brand_name: BYD
+2026-02-28 13:03:17,594 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbf350>
+2026-02-28 13:03:17,594 - dz_fastapi - DEBUG - Autopart already exists: ID 74440
+2026-02-28 13:03:17,594 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Byd', 'oem_number': '17010600F3004', 'name': 'Насос Водяной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,594 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Byd' oem_number='17010600F3004' name='Насос Водяной' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,594 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Byd', 'oem_number': '17010600F3004', 'name': 'Насос Водяной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,595 - dz_fastapi - DEBUG - Extracted brand_name: Byd
+2026-02-28 13:03:17,595 - dz_fastapi - DEBUG - Changed brand_name: BYD
+2026-02-28 13:03:17,595 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-02-28 13:03:17,595 - dz_fastapi - WARNING - Brand BYD not found. Skipping autopart creation.
+2026-02-28 13:03:17,595 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'Byd', 'oem_number': '17010600F3004', 'name': 'Насос Водяной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,595 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '2804120XKV08A', 'name': 'Накладка Декоративная  Бампера Заднего В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,595 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='2804120XKV08A' name='Накладка Декоративная  Бампера Заднего В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,596 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '2804120XKV08A', 'name': 'Накладка Декоративная  Бампера Заднего В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,596 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-28 13:03:17,596 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-28 13:03:17,596 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-02-28 13:03:17,596 - dz_fastapi - WARNING - Brand BYD not found. Skipping autopart creation.
+2026-02-28 13:03:17,596 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'Byd', 'oem_number': '17010600F3004', 'name': 'Насос Водяной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,596 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '2804120XKV08A', 'name': 'Накладка Декоративная  Бампера Заднего В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,597 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='2804120XKV08A' name='Накладка Декоративная  Бампера Заднего В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,597 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '2804120XKV08A', 'name': 'Накладка Декоративная  Бампера Заднего В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,597 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-28 13:03:17,597 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-28 13:03:17,599 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb3cb0>
+2026-02-28 13:03:17,599 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbc4d0>
+2026-02-28 13:03:17,601 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbc200>
+2026-02-28 13:03:17,601 - dz_fastapi - DEBUG - Autopart already exists: ID 37349
+2026-02-28 13:03:17,601 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Changan', 'oem_number': 'S203F2713011701', 'name': 'Накладка Птф Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,601 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Changan' oem_number='S203F2713011701' name='Накладка Птф Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,601 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Changan', 'oem_number': 'S203F2713011701', 'name': 'Накладка Птф Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,601 - dz_fastapi - DEBUG - Extracted brand_name: Changan
+2026-02-28 13:03:17,601 - dz_fastapi - DEBUG - Changed brand_name: CHANGAN
+2026-02-28 13:03:17,602 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb3da0>
+2026-02-28 13:03:17,602 - dz_fastapi - DEBUG - Autopart already exists: ID 37349
+2026-02-28 13:03:17,602 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Changan', 'oem_number': 'S203F2713011701', 'name': 'Накладка Птф Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,602 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Changan' oem_number='S203F2713011701' name='Накладка Птф Левой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,602 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Changan', 'oem_number': 'S203F2713011701', 'name': 'Накладка Птф Левой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,602 - dz_fastapi - DEBUG - Extracted brand_name: Changan
+2026-02-28 13:03:17,602 - dz_fastapi - DEBUG - Changed brand_name: CHANGAN
+2026-02-28 13:03:17,603 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb36e0>
+2026-02-28 13:03:17,604 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbe4b0>
+2026-02-28 13:03:17,605 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb3710>
+2026-02-28 13:03:17,605 - dz_fastapi - DEBUG - Autopart already exists: ID 34974
+2026-02-28 13:03:17,605 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Changan', 'oem_number': 'S203F2713011801', 'name': 'Накладка Птф Правая Золотистая(=S203F271301-1800)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,606 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Changan' oem_number='S203F2713011801' name='Накладка Птф Правая Золотистая(=S203F271301-1800)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,606 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Changan', 'oem_number': 'S203F2713011801', 'name': 'Накладка Птф Правая Золотистая(=S203F271301-1800)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,606 - dz_fastapi - DEBUG - Extracted brand_name: Changan
+2026-02-28 13:03:17,606 - dz_fastapi - DEBUG - Changed brand_name: CHANGAN
+2026-02-28 13:03:17,607 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbfc80>
+2026-02-28 13:03:17,607 - dz_fastapi - DEBUG - Autopart already exists: ID 34974
+2026-02-28 13:03:17,607 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Changan', 'oem_number': 'S203F2713011801', 'name': 'Накладка Птф Правая Золотистая(=S203F271301-1800)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,607 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Changan' oem_number='S203F2713011801' name='Накладка Птф Правая Золотистая(=S203F271301-1800)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,607 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Changan', 'oem_number': 'S203F2713011801', 'name': 'Накладка Птф Правая Золотистая(=S203F271301-1800)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,607 - dz_fastapi - DEBUG - Extracted brand_name: Changan
+2026-02-28 13:03:17,608 - dz_fastapi - DEBUG - Changed brand_name: CHANGAN
+2026-02-28 13:03:17,609 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb2d20>
+2026-02-28 13:03:17,609 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbe420>
+2026-02-28 13:03:17,610 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb28a0>
+2026-02-28 13:03:17,610 - dz_fastapi - DEBUG - Autopart already exists: ID 34975
+2026-02-28 13:03:17,610 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Changan', 'oem_number': 'C211F2713010903', 'name': 'Накладка Бампера Пер Нижняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,610 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Changan' oem_number='C211F2713010903' name='Накладка Бампера Пер Нижняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,611 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Changan', 'oem_number': 'C211F2713010903', 'name': 'Накладка Бампера Пер Нижняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,611 - dz_fastapi - DEBUG - Extracted brand_name: Changan
+2026-02-28 13:03:17,611 - dz_fastapi - DEBUG - Changed brand_name: CHANGAN
+2026-02-28 13:03:17,612 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbd0d0>
+2026-02-28 13:03:17,612 - dz_fastapi - DEBUG - Autopart already exists: ID 34975
+2026-02-28 13:03:17,612 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Changan', 'oem_number': 'C211F2713010903', 'name': 'Накладка Бампера Пер Нижняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,612 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Changan' oem_number='C211F2713010903' name='Накладка Бампера Пер Нижняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,612 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Changan', 'oem_number': 'C211F2713010903', 'name': 'Накладка Бампера Пер Нижняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,612 - dz_fastapi - DEBUG - Extracted brand_name: Changan
+2026-02-28 13:03:17,612 - dz_fastapi - DEBUG - Changed brand_name: CHANGAN
+2026-02-28 13:03:17,613 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb1fa0>
+2026-02-28 13:03:17,614 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbf860>
+2026-02-28 13:03:17,616 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb19d0>
+2026-02-28 13:03:17,616 - dz_fastapi - DEBUG - Autopart already exists: ID 28293
+2026-02-28 13:03:17,616 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Great Wall', 'oem_number': '1106100XK45XB', 'name': 'Насос Топливный Погружной GW H3 NEW (TURBO),HOWER H3', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,616 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Great Wall' oem_number='1106100XK45XB' name='Насос Топливный Погружной GW H3 NEW (TURBO),HOWER H3' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,616 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Great Wall', 'oem_number': '1106100XK45XB', 'name': 'Насос Топливный Погружной GW H3 NEW (TURBO),HOWER H3', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,616 - dz_fastapi - DEBUG - Extracted brand_name: Great Wall
+2026-02-28 13:03:17,616 - dz_fastapi - DEBUG - Changed brand_name: GREAT WALL
+2026-02-28 13:03:17,617 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bba7b0>
+2026-02-28 13:03:17,617 - dz_fastapi - DEBUG - Autopart already exists: ID 28293
+2026-02-28 13:03:17,617 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Great Wall', 'oem_number': '1106100XK45XB', 'name': 'Насос Топливный Погружной GW H3 NEW (TURBO),HOWER H3', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,618 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Great Wall' oem_number='1106100XK45XB' name='Насос Топливный Погружной GW H3 NEW (TURBO),HOWER H3' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,618 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Great Wall', 'oem_number': '1106100XK45XB', 'name': 'Насос Топливный Погружной GW H3 NEW (TURBO),HOWER H3', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,618 - dz_fastapi - DEBUG - Extracted brand_name: Great Wall
+2026-02-28 13:03:17,618 - dz_fastapi - DEBUG - Changed brand_name: GREAT WALL
+2026-02-28 13:03:17,619 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbaab0>
+2026-02-28 13:03:17,620 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb3b60>
+2026-02-28 13:03:17,621 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb9130>
+2026-02-28 13:03:17,621 - dz_fastapi - DEBUG - Autopart already exists: ID 51678
+2026-02-28 13:03:17,622 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': '202000838AA', 'name': 'Амортизатор Передний Левый M1D/M1DFL2/J60', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,622 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='202000838AA' name='Амортизатор Передний Левый M1D/M1DFL2/J60' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,622 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': '202000838AA', 'name': 'Амортизатор Передний Левый M1D/M1DFL2/J60', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,622 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,622 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,623 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb2930>
+2026-02-28 13:03:17,623 - dz_fastapi - DEBUG - Autopart already exists: ID 51678
+2026-02-28 13:03:17,623 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': '202000838AA', 'name': 'Амортизатор Передний Левый M1D/M1DFL2/J60', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,624 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='202000838AA' name='Амортизатор Передний Левый M1D/M1DFL2/J60' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,624 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': '202000838AA', 'name': 'Амортизатор Передний Левый M1D/M1DFL2/J60', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,624 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,624 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,625 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb91c0>
+2026-02-28 13:03:17,625 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb3e60>
+2026-02-28 13:03:17,626 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bba690>
+2026-02-28 13:03:17,626 - dz_fastapi - DEBUG - Autopart already exists: ID 9210
+2026-02-28 13:03:17,627 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '1014025588', 'name': 'Рычаг Передней Подвески Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,627 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='1014025588' name='Рычаг Передней Подвески Правый' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,627 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '1014025588', 'name': 'Рычаг Передней Подвески Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,627 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,627 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,628 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87b81190>
+2026-02-28 13:03:17,628 - dz_fastapi - DEBUG - Autopart already exists: ID 9210
+2026-02-28 13:03:17,628 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '1014025588', 'name': 'Рычаг Передней Подвески Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,628 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='1014025588' name='Рычаг Передней Подвески Правый' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,628 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '1014025588', 'name': 'Рычаг Передней Подвески Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,629 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,629 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,629 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbfc20>
+2026-02-28 13:03:17,630 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb2420>
+2026-02-28 13:03:17,631 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbf950>
+2026-02-28 13:03:17,631 - dz_fastapi - DEBUG - Autopart already exists: ID 60505
+2026-02-28 13:03:17,631 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '1067002023', 'name': 'Мотор Стеклоочистителя Двери Задка GL EMGRAND (HATCHBACK)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,631 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='1067002023' name='Мотор Стеклоочистителя Двери Задка GL EMGRAND (HATCHBACK)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,631 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '1067002023', 'name': 'Мотор Стеклоочистителя Двери Задка GL EMGRAND (HATCHBACK)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,631 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,631 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,632 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb9d60>
+2026-02-28 13:03:17,632 - dz_fastapi - DEBUG - Autopart already exists: ID 60505
+2026-02-28 13:03:17,632 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Geely', 'oem_number': '1067002023', 'name': 'Мотор Стеклоочистителя Двери Задка GL EMGRAND (HATCHBACK)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,633 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Geely' oem_number='1067002023' name='Мотор Стеклоочистителя Двери Задка GL EMGRAND (HATCHBACK)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,633 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Geely', 'oem_number': '1067002023', 'name': 'Мотор Стеклоочистителя Двери Задка GL EMGRAND (HATCHBACK)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,633 - dz_fastapi - DEBUG - Extracted brand_name: Geely
+2026-02-28 13:03:17,633 - dz_fastapi - DEBUG - Changed brand_name: GEELY
+2026-02-28 13:03:17,633 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbdf10>
+2026-02-28 13:03:17,634 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb92b0>
+2026-02-28 13:03:17,635 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbe990>
+2026-02-28 13:03:17,635 - dz_fastapi - DEBUG - Autopart already exists: ID 53182
+2026-02-28 13:03:17,635 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'T111703010', 'name': 'Механизм Переключения Передач В Сборе Металл (Кулиса)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,635 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='T111703010' name='Механизм Переключения Передач В Сборе Металл (Кулиса)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,636 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'T111703010', 'name': 'Механизм Переключения Передач В Сборе Металл (Кулиса)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,636 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,636 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,637 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb3290>
+2026-02-28 13:03:17,637 - dz_fastapi - DEBUG - Autopart already exists: ID 53182
+2026-02-28 13:03:17,637 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'T111703010', 'name': 'Механизм Переключения Передач В Сборе Металл (Кулиса)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,637 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='T111703010' name='Механизм Переключения Передач В Сборе Металл (Кулиса)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,638 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'T111703010', 'name': 'Механизм Переключения Передач В Сборе Металл (Кулиса)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,638 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,638 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,639 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbf1a0>
+2026-02-28 13:03:17,640 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bba810>
+2026-02-28 13:03:17,641 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbd4c0>
+2026-02-28 13:03:17,641 - dz_fastapi - DEBUG - Autopart already exists: ID 50195
+2026-02-28 13:03:17,641 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': '481FB1006010', 'name': 'Вал Распределительный Впускной CH EASTAR, FORA, M11, TIGGO 1.8 CAST IRON', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,641 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='481FB1006010' name='Вал Распределительный Впускной CH EASTAR, FORA, M11, TIGGO 1.8 CAST IRON' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,641 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': '481FB1006010', 'name': 'Вал Распределительный Впускной CH EASTAR, FORA, M11, TIGGO 1.8 CAST IRON', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,641 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,642 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,643 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb95b0>
+2026-02-28 13:03:17,643 - dz_fastapi - DEBUG - Autopart already exists: ID 50195
+2026-02-28 13:03:17,643 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': '481FB1006010', 'name': 'Вал Распределительный Впускной CH EASTAR, FORA, M11, TIGGO 1.8 CAST IRON', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,643 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='481FB1006010' name='Вал Распределительный Впускной CH EASTAR, FORA, M11, TIGGO 1.8 CAST IRON' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,643 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': '481FB1006010', 'name': 'Вал Распределительный Впускной CH EASTAR, FORA, M11, TIGGO 1.8 CAST IRON', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,643 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,643 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,644 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbfd10>
+2026-02-28 13:03:17,645 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb2e40>
+2026-02-28 13:03:17,645 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbed80>
+2026-02-28 13:03:17,645 - dz_fastapi - DEBUG - Autopart already exists: ID 58019
+2026-02-28 13:03:17,646 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'G-Energy', 'oem_number': '253142395', 'name': 'Моторное Масло SYNTHETIC LONG LIFE 10W40/4л', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,646 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='G-Energy' oem_number='253142395' name='Моторное Масло SYNTHETIC LONG LIFE 10W40/4л' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,646 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'G-Energy', 'oem_number': '253142395', 'name': 'Моторное Масло SYNTHETIC LONG LIFE 10W40/4л', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,646 - dz_fastapi - DEBUG - Extracted brand_name: G-Energy
+2026-02-28 13:03:17,646 - dz_fastapi - DEBUG - Changed brand_name: G-ENERGY
+2026-02-28 13:03:17,647 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-02-28 13:03:17,647 - dz_fastapi - WARNING - Brand G-ENERGY not found. Skipping autopart creation.
+2026-02-28 13:03:17,647 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'G-Energy', 'oem_number': '253142395', 'name': 'Моторное Масло SYNTHETIC LONG LIFE 10W40/4л', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,647 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '2905382XGW02A', 'name': 'Амортизатор Передний Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,647 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='2905382XGW02A' name='Амортизатор Передний Правый' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,647 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '2905382XGW02A', 'name': 'Амортизатор Передний Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,647 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-28 13:03:17,647 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-28 13:03:17,648 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbdd60>
+2026-02-28 13:03:17,648 - dz_fastapi - DEBUG - Autopart already exists: ID 58019
+2026-02-28 13:03:17,648 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'G-Energy', 'oem_number': '253142395', 'name': 'Моторное Масло SYNTHETIC LONG LIFE 10W40/4л', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,648 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='G-Energy' oem_number='253142395' name='Моторное Масло SYNTHETIC LONG LIFE 10W40/4л' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,648 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'G-Energy', 'oem_number': '253142395', 'name': 'Моторное Масло SYNTHETIC LONG LIFE 10W40/4л', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,649 - dz_fastapi - DEBUG - Extracted brand_name: G-Energy
+2026-02-28 13:03:17,649 - dz_fastapi - DEBUG - Changed brand_name: G-ENERGY
+2026-02-28 13:03:17,649 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-02-28 13:03:17,649 - dz_fastapi - WARNING - Brand G-ENERGY not found. Skipping autopart creation.
+2026-02-28 13:03:17,650 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'G-Energy', 'oem_number': '253142395', 'name': 'Моторное Масло SYNTHETIC LONG LIFE 10W40/4л', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,650 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Haval', 'oem_number': '2905382XGW02A', 'name': 'Амортизатор Передний Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,650 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Haval' oem_number='2905382XGW02A' name='Амортизатор Передний Правый' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,650 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Haval', 'oem_number': '2905382XGW02A', 'name': 'Амортизатор Передний Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,650 - dz_fastapi - DEBUG - Extracted brand_name: Haval
+2026-02-28 13:03:17,650 - dz_fastapi - DEBUG - Changed brand_name: HAVAL
+2026-02-28 13:03:17,651 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbd400>
+2026-02-28 13:03:17,651 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb2e40>
+2026-02-28 13:03:17,653 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87b81a60>
+2026-02-28 13:03:17,653 - dz_fastapi - DEBUG - Autopart already exists: ID 41066
+2026-02-28 13:03:17,653 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Great Wall', 'oem_number': '1205100K46B1', 'name': 'Катализатор HOVER H3,H5 Евро-3 ( Г-Образный Фланец)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,653 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Great Wall' oem_number='1205100K46B1' name='Катализатор HOVER H3,H5 Евро-3 ( Г-Образный Фланец)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,654 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Great Wall', 'oem_number': '1205100K46B1', 'name': 'Катализатор HOVER H3,H5 Евро-3 ( Г-Образный Фланец)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,654 - dz_fastapi - DEBUG - Extracted brand_name: Great Wall
+2026-02-28 13:03:17,654 - dz_fastapi - DEBUG - Changed brand_name: GREAT WALL
+2026-02-28 13:03:17,655 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbd610>
+2026-02-28 13:03:17,655 - dz_fastapi - DEBUG - Autopart already exists: ID 41066
+2026-02-28 13:03:17,655 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Great Wall', 'oem_number': '1205100K46B1', 'name': 'Катализатор HOVER H3,H5 Евро-3 ( Г-Образный Фланец)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,655 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Great Wall' oem_number='1205100K46B1' name='Катализатор HOVER H3,H5 Евро-3 ( Г-Образный Фланец)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,655 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Great Wall', 'oem_number': '1205100K46B1', 'name': 'Катализатор HOVER H3,H5 Евро-3 ( Г-Образный Фланец)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,655 - dz_fastapi - DEBUG - Extracted brand_name: Great Wall
+2026-02-28 13:03:17,656 - dz_fastapi - DEBUG - Changed brand_name: GREAT WALL
+2026-02-28 13:03:17,657 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb3ce0>
+2026-02-28 13:03:17,657 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbf4a0>
+2026-02-28 13:03:17,659 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb0b30>
+2026-02-28 13:03:17,659 - dz_fastapi - DEBUG - Autopart already exists: ID 53957
+2026-02-28 13:03:17,659 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Great Wall', 'oem_number': '2904101XPW01A', 'name': 'Рычаг Верхний Левый В Сборе GW POER', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,659 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Great Wall' oem_number='2904101XPW01A' name='Рычаг Верхний Левый В Сборе GW POER' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,659 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Great Wall', 'oem_number': '2904101XPW01A', 'name': 'Рычаг Верхний Левый В Сборе GW POER', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,659 - dz_fastapi - DEBUG - Extracted brand_name: Great Wall
+2026-02-28 13:03:17,659 - dz_fastapi - DEBUG - Changed brand_name: GREAT WALL
+2026-02-28 13:03:17,660 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbc800>
+2026-02-28 13:03:17,660 - dz_fastapi - DEBUG - Autopart already exists: ID 53957
+2026-02-28 13:03:17,661 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Great Wall', 'oem_number': '2904101XPW01A', 'name': 'Рычаг Верхний Левый В Сборе GW POER', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,661 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Great Wall' oem_number='2904101XPW01A' name='Рычаг Верхний Левый В Сборе GW POER' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,661 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Great Wall', 'oem_number': '2904101XPW01A', 'name': 'Рычаг Верхний Левый В Сборе GW POER', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,661 - dz_fastapi - DEBUG - Extracted brand_name: Great Wall
+2026-02-28 13:03:17,661 - dz_fastapi - DEBUG - Changed brand_name: GREAT WALL
+2026-02-28 13:03:17,664 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb3fb0>
+2026-02-28 13:03:17,664 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbf6b0>
+2026-02-28 13:03:17,667 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb3dd0>
+2026-02-28 13:03:17,667 - dz_fastapi - DEBUG - Autopart already exists: ID 75052
+2026-02-28 13:03:17,667 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Great Wall', 'oem_number': '1109104K00A1', 'name': 'Корпус Воздушного Фильтра (Нижняя Часть) (С ABS)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,667 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Great Wall' oem_number='1109104K00A1' name='Корпус Воздушного Фильтра (Нижняя Часть) (С ABS)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,668 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Great Wall', 'oem_number': '1109104K00A1', 'name': 'Корпус Воздушного Фильтра (Нижняя Часть) (С ABS)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,668 - dz_fastapi - DEBUG - Extracted brand_name: Great Wall
+2026-02-28 13:03:17,668 - dz_fastapi - DEBUG - Changed brand_name: GREAT WALL
+2026-02-28 13:03:17,669 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbd760>
+2026-02-28 13:03:17,669 - dz_fastapi - DEBUG - Autopart already exists: ID 75052
+2026-02-28 13:03:17,669 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Great Wall', 'oem_number': '1109104K00A1', 'name': 'Корпус Воздушного Фильтра (Нижняя Часть) (С ABS)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,669 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Great Wall' oem_number='1109104K00A1' name='Корпус Воздушного Фильтра (Нижняя Часть) (С ABS)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,669 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Great Wall', 'oem_number': '1109104K00A1', 'name': 'Корпус Воздушного Фильтра (Нижняя Часть) (С ABS)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,669 - dz_fastapi - DEBUG - Extracted brand_name: Great Wall
+2026-02-28 13:03:17,669 - dz_fastapi - DEBUG - Changed brand_name: GREAT WALL
+2026-02-28 13:03:17,671 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb3e60>
+2026-02-28 13:03:17,672 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbfad0>
+2026-02-28 13:03:17,673 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb3500>
+2026-02-28 13:03:17,674 - dz_fastapi - DEBUG - Autopart already exists: ID 55666
+2026-02-28 13:03:17,674 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'T112909020', 'name': 'Рычаг Передней Подвески Правый Нижний CH TIGGO', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,675 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='T112909020' name='Рычаг Передней Подвески Правый Нижний CH TIGGO' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,675 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'T112909020', 'name': 'Рычаг Передней Подвески Правый Нижний CH TIGGO', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,676 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,676 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,678 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbef00>
+2026-02-28 13:03:17,679 - dz_fastapi - DEBUG - Autopart already exists: ID 55666
+2026-02-28 13:03:17,680 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'T112909020', 'name': 'Рычаг Передней Подвески Правый Нижний CH TIGGO', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,680 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='T112909020' name='Рычаг Передней Подвески Правый Нижний CH TIGGO' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,680 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'T112909020', 'name': 'Рычаг Передней Подвески Правый Нижний CH TIGGO', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,680 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,681 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,684 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbf3e0>
+2026-02-28 13:03:17,684 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbd760>
+2026-02-28 13:03:17,689 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87b81b80>
+2026-02-28 13:03:17,689 - dz_fastapi - DEBUG - Autopart already exists: ID 55598
+2026-02-28 13:03:17,689 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'S2904200', 'name': 'Рычаг Передней Подвески Правый LF X60', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,689 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='S2904200' name='Рычаг Передней Подвески Правый LF X60' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,690 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'S2904200', 'name': 'Рычаг Передней Подвески Правый LF X60', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,690 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,690 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,692 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbef90>
+2026-02-28 13:03:17,693 - dz_fastapi - DEBUG - Autopart already exists: ID 55598
+2026-02-28 13:03:17,694 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'S2904200', 'name': 'Рычаг Передней Подвески Правый LF X60', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,695 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='S2904200' name='Рычаг Передней Подвески Правый LF X60' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,695 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'S2904200', 'name': 'Рычаг Передней Подвески Правый LF X60', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,698 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,698 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,701 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb3b60>
+2026-02-28 13:03:17,701 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbc920>
+2026-02-28 13:03:17,702 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb0800>
+2026-02-28 13:03:17,703 - dz_fastapi - DEBUG - Autopart already exists: ID 55806
+2026-02-28 13:03:17,703 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'SCA2904200', 'name': 'Рычаг Передней Подвески Правый LF X70', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,703 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='SCA2904200' name='Рычаг Передней Подвески Правый LF X70' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,703 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'SCA2904200', 'name': 'Рычаг Передней Подвески Правый LF X70', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,703 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,703 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,704 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbc320>
+2026-02-28 13:03:17,704 - dz_fastapi - DEBUG - Autopart already exists: ID 55806
+2026-02-28 13:03:17,704 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'SCA2904200', 'name': 'Рычаг Передней Подвески Правый LF X70', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,704 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='SCA2904200' name='Рычаг Передней Подвески Правый LF X70' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,704 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'SCA2904200', 'name': 'Рычаг Передней Подвески Правый LF X70', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,705 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,705 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,707 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb2030>
+2026-02-28 13:03:17,707 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbc530>
+2026-02-28 13:03:17,709 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb2ba0>
+2026-02-28 13:03:17,710 - dz_fastapi - DEBUG - Autopart already exists: ID 52582
+2026-02-28 13:03:17,710 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Changan', 'oem_number': 'C211F2713013301', 'name': 'Вставка Пер Бампера Прав', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,710 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Changan' oem_number='C211F2713013301' name='Вставка Пер Бампера Прав' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,710 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Changan', 'oem_number': 'C211F2713013301', 'name': 'Вставка Пер Бампера Прав', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,710 - dz_fastapi - DEBUG - Extracted brand_name: Changan
+2026-02-28 13:03:17,710 - dz_fastapi - DEBUG - Changed brand_name: CHANGAN
+2026-02-28 13:03:17,711 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbb410>
+2026-02-28 13:03:17,711 - dz_fastapi - DEBUG - Autopart already exists: ID 52582
+2026-02-28 13:03:17,711 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Changan', 'oem_number': 'C211F2713013301', 'name': 'Вставка Пер Бампера Прав', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,712 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Changan' oem_number='C211F2713013301' name='Вставка Пер Бампера Прав' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,712 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Changan', 'oem_number': 'C211F2713013301', 'name': 'Вставка Пер Бампера Прав', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,712 - dz_fastapi - DEBUG - Extracted brand_name: Changan
+2026-02-28 13:03:17,712 - dz_fastapi - DEBUG - Changed brand_name: CHANGAN
+2026-02-28 13:03:17,713 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bba690>
+2026-02-28 13:03:17,713 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbf920>
+2026-02-28 13:03:17,715 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbb020>
+2026-02-28 13:03:17,715 - dz_fastapi - DEBUG - Autopart already exists: ID 28307
+2026-02-28 13:03:17,715 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Byd', 'oem_number': '1024765700A1', 'name': 'Суппорт Тормозной Передний Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,715 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Byd' oem_number='1024765700A1' name='Суппорт Тормозной Передний Правый' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,715 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Byd', 'oem_number': '1024765700A1', 'name': 'Суппорт Тормозной Передний Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,715 - dz_fastapi - DEBUG - Extracted brand_name: Byd
+2026-02-28 13:03:17,716 - dz_fastapi - DEBUG - Changed brand_name: BYD
+2026-02-28 13:03:17,718 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb3500>
+2026-02-28 13:03:17,718 - dz_fastapi - DEBUG - Autopart already exists: ID 28307
+2026-02-28 13:03:17,718 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Byd', 'oem_number': '1024765700A1', 'name': 'Суппорт Тормозной Передний Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,719 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Byd' oem_number='1024765700A1' name='Суппорт Тормозной Передний Правый' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,719 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Byd', 'oem_number': '1024765700A1', 'name': 'Суппорт Тормозной Передний Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,719 - dz_fastapi - DEBUG - Extracted brand_name: Byd
+2026-02-28 13:03:17,720 - dz_fastapi - DEBUG - Changed brand_name: BYD
+2026-02-28 13:03:17,721 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-02-28 13:03:17,721 - dz_fastapi - WARNING - Brand BYD not found. Skipping autopart creation.
+2026-02-28 13:03:17,721 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'Byd', 'oem_number': '1024765700A1', 'name': 'Суппорт Тормозной Передний Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,722 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'L2916104A1', 'name': 'Торсион Задней Подвески Задний LF BREEZ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,722 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='L2916104A1' name='Торсион Задней Подвески Задний LF BREEZ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,722 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'L2916104A1', 'name': 'Торсион Задней Подвески Задний LF BREEZ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,723 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,723 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,724 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-02-28 13:03:17,724 - dz_fastapi - WARNING - Brand BYD not found. Skipping autopart creation.
+2026-02-28 13:03:17,724 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'Byd', 'oem_number': '1024765700A1', 'name': 'Суппорт Тормозной Передний Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,724 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'L2916104A1', 'name': 'Торсион Задней Подвески Задний LF BREEZ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,725 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='L2916104A1' name='Торсион Задней Подвески Задний LF BREEZ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,725 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'L2916104A1', 'name': 'Торсион Задней Подвески Задний LF BREEZ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,725 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,725 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,727 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbb410>
+2026-02-28 13:03:17,727 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbd9d0>
+2026-02-28 13:03:17,729 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87b81a60>
+2026-02-28 13:03:17,729 - dz_fastapi - DEBUG - Autopart already exists: ID 52657
+2026-02-28 13:03:17,729 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Howo', 'oem_number': '199000440031', 'name': 'Колодка Тормозная Передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,729 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Howo' oem_number='199000440031' name='Колодка Тормозная Передняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,729 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Howo', 'oem_number': '199000440031', 'name': 'Колодка Тормозная Передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,730 - dz_fastapi - DEBUG - Extracted brand_name: Howo
+2026-02-28 13:03:17,730 - dz_fastapi - DEBUG - Changed brand_name: HOWO
+2026-02-28 13:03:17,730 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbc440>
+2026-02-28 13:03:17,731 - dz_fastapi - DEBUG - Autopart already exists: ID 52657
+2026-02-28 13:03:17,731 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Howo', 'oem_number': '199000440031', 'name': 'Колодка Тормозная Передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,731 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Howo' oem_number='199000440031' name='Колодка Тормозная Передняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,731 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Howo', 'oem_number': '199000440031', 'name': 'Колодка Тормозная Передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,731 - dz_fastapi - DEBUG - Extracted brand_name: Howo
+2026-02-28 13:03:17,731 - dz_fastapi - DEBUG - Changed brand_name: HOWO
+2026-02-28 13:03:17,732 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-02-28 13:03:17,732 - dz_fastapi - WARNING - Brand HOWO not found. Skipping autopart creation.
+2026-02-28 13:03:17,732 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'Howo', 'oem_number': '199000440031', 'name': 'Колодка Тормозная Передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,732 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Changan', 'oem_number': 'C211F2709061000AA', 'name': 'Накладка Крышки Багажника CG EADO PLUS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,732 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Changan' oem_number='C211F2709061000AA' name='Накладка Крышки Багажника CG EADO PLUS' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,733 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Changan', 'oem_number': 'C211F2709061000AA', 'name': 'Накладка Крышки Багажника CG EADO PLUS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,733 - dz_fastapi - DEBUG - Extracted brand_name: Changan
+2026-02-28 13:03:17,733 - dz_fastapi - DEBUG - Changed brand_name: CHANGAN
+2026-02-28 13:03:17,734 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-02-28 13:03:17,734 - dz_fastapi - WARNING - Brand HOWO not found. Skipping autopart creation.
+2026-02-28 13:03:17,734 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'Howo', 'oem_number': '199000440031', 'name': 'Колодка Тормозная Передняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,734 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Changan', 'oem_number': 'C211F2709061000AA', 'name': 'Накладка Крышки Багажника CG EADO PLUS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,734 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Changan' oem_number='C211F2709061000AA' name='Накладка Крышки Багажника CG EADO PLUS' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,735 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Changan', 'oem_number': 'C211F2709061000AA', 'name': 'Накладка Крышки Багажника CG EADO PLUS', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,735 - dz_fastapi - DEBUG - Extracted brand_name: Changan
+2026-02-28 13:03:17,735 - dz_fastapi - DEBUG - Changed brand_name: CHANGAN
+2026-02-28 13:03:17,736 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbbda0>
+2026-02-28 13:03:17,737 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbd7c0>
+2026-02-28 13:03:17,738 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb3b90>
+2026-02-28 13:03:17,738 - dz_fastapi - DEBUG - Autopart already exists: ID 28262
+2026-02-28 13:03:17,738 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'SS35400', 'name': 'Цилиндр Главный Тормозной LF X60 (С Бачком)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,738 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='SS35400' name='Цилиндр Главный Тормозной LF X60 (С Бачком)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,738 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'SS35400', 'name': 'Цилиндр Главный Тормозной LF X60 (С Бачком)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,739 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,739 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,739 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbc740>
+2026-02-28 13:03:17,739 - dz_fastapi - DEBUG - Autopart already exists: ID 28262
+2026-02-28 13:03:17,739 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Lifan', 'oem_number': 'SS35400', 'name': 'Цилиндр Главный Тормозной LF X60 (С Бачком)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,740 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Lifan' oem_number='SS35400' name='Цилиндр Главный Тормозной LF X60 (С Бачком)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,740 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Lifan', 'oem_number': 'SS35400', 'name': 'Цилиндр Главный Тормозной LF X60 (С Бачком)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,740 - dz_fastapi - DEBUG - Extracted brand_name: Lifan
+2026-02-28 13:03:17,740 - dz_fastapi - DEBUG - Changed brand_name: LIFAN
+2026-02-28 13:03:17,741 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb3da0>
+2026-02-28 13:03:17,741 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbdca0>
+2026-02-28 13:03:17,743 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb2030>
+2026-02-28 13:03:17,743 - dz_fastapi - DEBUG - Autopart already exists: ID 59968
+2026-02-28 13:03:17,743 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'T116GN3502060BA', 'name': 'Суппорт Тормозной Задний Правый CH TIGGO 2.0', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,743 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='T116GN3502060BA' name='Суппорт Тормозной Задний Правый CH TIGGO 2.0' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,743 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'T116GN3502060BA', 'name': 'Суппорт Тормозной Задний Правый CH TIGGO 2.0', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,743 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,744 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,744 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbc230>
+2026-02-28 13:03:17,744 - dz_fastapi - DEBUG - Autopart already exists: ID 59968
+2026-02-28 13:03:17,744 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': 'T116GN3502060BA', 'name': 'Суппорт Тормозной Задний Правый CH TIGGO 2.0', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,745 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='T116GN3502060BA' name='Суппорт Тормозной Задний Правый CH TIGGO 2.0' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,745 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': 'T116GN3502060BA', 'name': 'Суппорт Тормозной Задний Правый CH TIGGO 2.0', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,745 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,745 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,746 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb3e60>
+2026-02-28 13:03:17,747 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbd610>
+2026-02-28 13:03:17,748 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb1d30>
+2026-02-28 13:03:17,748 - dz_fastapi - DEBUG - Autopart already exists: ID 53919
+2026-02-28 13:03:17,748 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': '202001683AA', 'name': 'Амортизатор Передний Правый T1EFL/T1C', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,748 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='202001683AA' name='Амортизатор Передний Правый T1EFL/T1C' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,748 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': '202001683AA', 'name': 'Амортизатор Передний Правый T1EFL/T1C', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,748 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,749 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,749 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbf950>
+2026-02-28 13:03:17,749 - dz_fastapi - DEBUG - Autopart already exists: ID 53919
+2026-02-28 13:03:17,749 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': '202001683AA', 'name': 'Амортизатор Передний Правый T1EFL/T1C', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,749 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='202001683AA' name='Амортизатор Передний Правый T1EFL/T1C' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,749 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': '202001683AA', 'name': 'Амортизатор Передний Правый T1EFL/T1C', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,750 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,750 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,751 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bb3080>
+2026-02-28 13:03:17,751 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff87bbf710>
+2026-02-28 13:03:17,753 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bb23f0>
+2026-02-28 13:03:17,753 - dz_fastapi - DEBUG - Autopart already exists: ID 9391
+2026-02-28 13:03:17,753 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Chery', 'oem_number': '609000052AADQ', 'name': 'Молдинг Двери Передней Правой CH TIGGO 8', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,753 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Chery' oem_number='609000052AADQ' name='Молдинг Двери Передней Правой CH TIGGO 8' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-02-28 13:03:17,754 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Chery', 'oem_number': '609000052AADQ', 'name': 'Молдинг Двери Передней Правой CH TIGGO 8', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-02-28 13:03:17,754 - dz_fastapi - DEBUG - Extracted brand_name: Chery
+2026-02-28 13:03:17,754 - dz_fastapi - DEBUG - Changed brand_name: CHERY
+2026-02-28 13:03:17,754 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff87bbe4e0>
+2026-02-28 13:03:17,754 - dz_fastapi - DEBUG - Autopart already exists: ID 9391
