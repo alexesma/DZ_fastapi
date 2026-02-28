@@ -2,7 +2,7 @@
 set -e
 
 echo "Applying database migrations..."
-alembic upgrade head
+alembic upgrade heads
 
 echo "Seeding database..."
 python seed.py

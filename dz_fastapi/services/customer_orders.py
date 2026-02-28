@@ -145,6 +145,23 @@ def _normalize_email_list(values: Optional[List[str]]) -> List[str]:
     return [str(v).strip().lower() for v in values if str(v).strip()]
 
 
+def _pick_config_for_account(configs, account_id: Optional[int]):
+    if not configs:
+        return None
+    if account_id is not None:
+        for config in configs:
+            if config.email_account_id == account_id:
+                return config
+        for config in configs:
+            if config.email_account_id is None:
+                return config
+        return None
+    for config in configs:
+        if config.email_account_id is None:
+            return config
+    return None
+
+
 def _strip_html(text: str) -> str:
     return re.sub(r'<[^>]+>', ' ', text)
 
@@ -725,15 +742,15 @@ async def process_customer_orders(session: AsyncSession) -> None:
         logger.info('No active customer order configs found.')
         return
 
-    config_by_email = {}
+    config_by_email: dict[str, list[CustomerOrderConfig]] = {}
     for config in configs:
         emails = _normalize_email_list(config.order_emails)
         if config.order_email:
             emails.append(config.order_email.lower())
         for email in emails:
-            config_by_email[email] = config
+            config_by_email.setdefault(email, []).append(config)
 
-    messages = []
+    messages: list[tuple[object, Optional[object]]] = []
     if order_accounts:
         for account in order_accounts:
             host = account.imap_host or EMAIL_HOST_ORDER
@@ -747,9 +764,9 @@ async def process_customer_orders(session: AsyncSession) -> None:
                 port=account.imap_port or IMAP_SERVER,
                 ssl=True,
             )
-            messages.extend(account_messages)
+            messages.extend([(msg, account) for msg in account_messages])
     else:
-        messages = await _fetch_order_messages(
+        fallback_messages = await _fetch_order_messages(
             EMAIL_HOST_ORDER,
             EMAIL_NAME_ORDER,
             EMAIL_PASSWORD_ORDER,
@@ -757,6 +774,7 @@ async def process_customer_orders(session: AsyncSession) -> None:
             port=IMAP_SERVER,
             ssl=True,
         )
+        messages = [(msg, None) for msg in fallback_messages]
 
     if not messages:
         logger.info('No order emails found.')
@@ -764,10 +782,14 @@ async def process_customer_orders(session: AsyncSession) -> None:
 
     logger.debug('Получено %d писем с заказами', len(messages))
 
-    for msg in messages:
+    for msg, account in messages:
         try:
             sender = _extract_email(msg.from_)
-            config = config_by_email.get(sender)
+            configs_for_sender = config_by_email.get(sender)
+            account_id = account.id if account else None
+            config = _pick_config_for_account(
+                configs_for_sender, account_id
+            )
             if not config:
                 continue
             if msg.uid and int(msg.uid) <= int(config.last_uid or 0):

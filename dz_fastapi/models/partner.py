@@ -408,6 +408,9 @@ class CustomerOrderConfig(Base):
     order_subject_pattern = Column(String(255), nullable=True)
     order_filename_pattern = Column(String(255), nullable=True)
     order_reply_emails = Column(JSON, default=[])
+    email_account_id = Column(
+        Integer, ForeignKey('emailaccount.id'), nullable=True
+    )
 
     pricelist_config_id = Column(
         Integer, ForeignKey('customerpricelistconfig.id'), nullable=True
@@ -434,6 +437,7 @@ class CustomerOrderConfig(Base):
             CUSTOMER_ORDER_SHIP_MODE,
             values_callable=lambda enum: [e.name for e in enum],
             native_enum=True,
+            name='customerordershipmode',
         ),
         default=CUSTOMER_ORDER_SHIP_MODE.REPLACE_QTY,
     )
@@ -445,6 +449,7 @@ class CustomerOrderConfig(Base):
     last_uid = Column(Integer, default=0)
 
     customer = relationship('Customer', back_populates='order_config')
+    email_account = relationship('EmailAccount')
 
 
 class CustomerOrder(Base):
@@ -454,6 +459,7 @@ class CustomerOrder(Base):
             CUSTOMER_ORDER_STATUS,
             values_callable=lambda enum: [e.name for e in enum],
             native_enum=True,
+            name='customerorderstatus',
         ),
         default=CUSTOMER_ORDER_STATUS.NEW,
     )
@@ -495,6 +501,7 @@ class CustomerOrderItem(Base):
             CUSTOMER_ORDER_ITEM_STATUS,
             values_callable=lambda enum: [e.name for e in enum],
             native_enum=True,
+            name='customerorderitemstatus',
         ),
         default=CUSTOMER_ORDER_ITEM_STATUS.NEW,
     )
@@ -514,6 +521,7 @@ class SupplierOrder(Base):
             SUPPLIER_ORDER_STATUS,
             values_callable=lambda enum: [e.name for e in enum],
             native_enum=True,
+            name='supplierorderstatus',
         ),
         default=SUPPLIER_ORDER_STATUS.NEW,
     )
@@ -551,6 +559,7 @@ class StockOrder(Base):
             STOCK_ORDER_STATUS,
             values_callable=lambda enum: [e.name for e in enum],
             native_enum=True,
+            name='stockorderstatus',
         ),
         default=STOCK_ORDER_STATUS.NEW,
     )

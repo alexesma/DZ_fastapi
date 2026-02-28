@@ -1,13 +1,24 @@
 import logging
 import os
+from decimal import Decimal, ROUND_HALF_UP
+
+from sqlalchemy import select
 
 from dz_fastapi.core.constants import URL_DZ_SEARCH
 from dz_fastapi.core.time import now_moscow
+from dz_fastapi.crud.autopart import crud_autopart
+from dz_fastapi.crud.brand import brand_crud
+from dz_fastapi.crud.partner import crud_provider
 from dz_fastapi.crud.watchlist import crud_price_watch_item
 from dz_fastapi.http.dz_site_client import DZSiteClient
+from dz_fastapi.models.autopart import AutoPartPriceHistory
+from dz_fastapi.models.partner import Provider
 from dz_fastapi.services.telegram import send_message_to_telegram
 
 logger = logging.getLogger('dz_fastapi')
+SITE_PROVIDER_NAME = 'Сайт Dragonzap'
+SITE_PRICELIST_ID = 0
+PRICE_STEP = Decimal('0.01')
 
 
 def _notify_immediately() -> bool:
@@ -16,6 +27,10 @@ def _notify_immediately() -> bool:
 
 def _norm(value: str) -> str:
     return str(value or '').strip().upper()
+
+
+def _normalize_price(value) -> Decimal:
+    return Decimal(str(value)).quantize(PRICE_STEP, rounding=ROUND_HALF_UP)
 
 
 def _pick_first(offer: dict, keys: tuple[str, ...]):
@@ -95,6 +110,81 @@ def _normalize_offer(offer: dict) -> dict | None:
     }
 
 
+async def _get_site_provider(session) -> Provider:
+    provider = await crud_provider.get_provider_or_none(
+        SITE_PROVIDER_NAME, session
+    )
+    if provider:
+        return provider
+    provider = Provider(name=SITE_PROVIDER_NAME, is_virtual=True)
+    session.add(provider)
+    await session.flush()
+    return provider
+
+
+async def _get_autopart_id(item, session) -> int | None:
+    brand = await brand_crud.get_brand_by_name_or_none(
+        item.brand, session
+    )
+    if not brand:
+        return None
+    autopart = await crud_autopart.get_autopart_by_oem_brand_or_none(
+        item.oem, brand.id, session
+    )
+    if not autopart:
+        return None
+    return autopart.id
+
+
+async def _get_last_site_price(
+    session, autopart_id: int, provider_id: int
+) -> Decimal | None:
+    stmt = (
+        select(AutoPartPriceHistory.price)
+        .where(
+            AutoPartPriceHistory.autopart_id == autopart_id,
+            AutoPartPriceHistory.provider_id == provider_id,
+        )
+        .order_by(
+            AutoPartPriceHistory.created_at.desc(),
+            AutoPartPriceHistory.id.desc(),
+        )
+        .limit(1)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def _record_site_price_history(
+    session,
+    item,
+    provider: Provider,
+    best_price: float,
+    best_qty: int,
+    created_at,
+):
+    autopart_id = await _get_autopart_id(item, session)
+    if not autopart_id:
+        return
+    price = _normalize_price(best_price)
+    last_price = await _get_last_site_price(
+        session, autopart_id, provider.id
+    )
+    if last_price is not None:
+        if _normalize_price(last_price) == price:
+            return
+    history = AutoPartPriceHistory(
+        autopart_id=autopart_id,
+        provider_id=provider.id,
+        provider_config_id=None,
+        pricelist_id=SITE_PRICELIST_ID,
+        created_at=created_at,
+        price=price,
+        quantity=int(best_qty),
+    )
+    session.add(history)
+
+
 def _collect_top_offers(
     offers: list[dict], max_price: float | None, limit: int = 5
 ) -> list[dict]:
@@ -149,6 +239,7 @@ async def check_watchlist_site(session):
     if not watch_items:
         return
     now = now_moscow()
+    site_provider = None
     async with DZSiteClient(
         base_url=URL_DZ_SEARCH, api_key=key, verify_ssl=False
     ) as client:
@@ -162,6 +253,25 @@ async def check_watchlist_site(session):
                 continue
             if not offers:
                 continue
+
+            best_offer = _collect_top_offers(offers, None, limit=1)
+            if best_offer:
+                try:
+                    if site_provider is None:
+                        site_provider = await _get_site_provider(session)
+                    await _record_site_price_history(
+                        session=session,
+                        item=item,
+                        provider=site_provider,
+                        best_price=best_offer[0]['price'],
+                        best_qty=best_offer[0]['qty'],
+                        created_at=now,
+                    )
+                except Exception as e:
+                    logger.error(
+                        f'Failed to save site price history for '
+                        f'{item.oem}: {e}'
+                    )
 
             top_offers = _collect_top_offers(
                 offers, item.max_price, limit=5

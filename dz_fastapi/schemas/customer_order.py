@@ -18,6 +18,7 @@ class CustomerOrderConfigBase(BaseModel):
     order_subject_pattern: Optional[str] = None
     order_filename_pattern: Optional[str] = None
     order_reply_emails: List[EmailStr] = Field(default_factory=list)
+    email_account_id: Optional[int] = None
     pricelist_config_id: Optional[int] = None
 
     order_number_column: Optional[int] = None
@@ -68,6 +69,7 @@ class CustomerOrderConfigUpdate(BaseModel):
     order_subject_pattern: Optional[str] = None
     order_filename_pattern: Optional[str] = None
     order_reply_emails: Optional[List[EmailStr]] = None
+    email_account_id: Optional[int] = None
     pricelist_config_id: Optional[int] = None
 
     order_number_column: Optional[int] = None
