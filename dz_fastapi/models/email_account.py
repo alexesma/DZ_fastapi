@@ -1,6 +1,7 @@
-from sqlalchemy import JSON, Boolean, Column, Integer, String
+from sqlalchemy import JSON, Boolean, Column, DateTime, Integer, String
 
 from dz_fastapi.core.db import Base
+from dz_fastapi.core.time import now_moscow
 
 
 class EmailAccount(Base):
@@ -18,3 +19,13 @@ class EmailAccount(Base):
 
     purposes = Column(JSON, default=[])
     is_active = Column(Boolean, default=True)
+
+    oauth_provider = Column(String(32), nullable=True)
+    oauth_refresh_token = Column(String(2048), nullable=True)
+    oauth_connected_at = Column(DateTime(timezone=True), nullable=True)
+    oauth_updated_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        onupdate=now_moscow,
+        nullable=True,
+    )

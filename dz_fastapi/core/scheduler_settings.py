@@ -11,6 +11,10 @@ SCHEDULER_SETTING_DEFAULTS = {
         'days': [],
         'times': ['09:00'],
     },
+    'pricelist_stale_cleanup': {
+        'days': [],
+        'times': ['02:40'],
+    },
     'cleanup_old_pricelists': {
         'days': [],
         'times': ['02:30'],
@@ -18,6 +22,10 @@ SCHEDULER_SETTING_DEFAULTS = {
     'metrics_snapshot': {
         'days': [],
         'times': ['09:00'],
+    },
+    'customer_orders_check': {
+        'days': [],
+        'times': [],
     },
 }
 

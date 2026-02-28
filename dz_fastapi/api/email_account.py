@@ -2,11 +2,13 @@ import asyncio
 import logging
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.api.deps import require_admin
 from dz_fastapi.core.db import get_session
+from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.email_account import crud_email_account
 from dz_fastapi.models.email_account import EmailAccount
 from dz_fastapi.schemas.email_account import (EmailAccountCreate,
@@ -16,6 +18,10 @@ from dz_fastapi.schemas.email_account import (EmailAccountCreate,
                                               EmailAccountUpdate)
 from dz_fastapi.services.email_account_checks import (test_imap_connection,
                                                       test_smtp_connection)
+from dz_fastapi.services.google_oauth import (build_google_auth_url,
+                                              exchange_code_for_tokens,
+                                              parse_oauth_state,
+                                              test_google_gmail_access)
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -102,7 +108,14 @@ async def test_email_account(
 
     response = EmailAccountTestResponse()
     if payload.imap:
-        if not account.imap_host:
+        if account.oauth_provider == 'google' and account.oauth_refresh_token:
+            try:
+                await test_google_gmail_access(account.oauth_refresh_token)
+                response.imap_ok = True
+            except Exception as exc:
+                response.imap_ok = False
+                response.imap_error = str(exc)
+        elif not account.imap_host:
             response.imap_ok = False
             response.imap_error = 'IMAP host не указан'
         else:
@@ -151,3 +164,100 @@ async def test_email_account(
                 response.smtp_error = str(exc)
 
     return response
+
+
+@router.post(
+    '/{account_id}/google-oauth/init',
+    status_code=status.HTTP_200_OK,
+)
+async def init_google_oauth(
+    account_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: EmailAccount = Depends(require_admin),
+):
+    account = await crud_email_account.get(session, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail='Account not found')
+    auth_url = build_google_auth_url(account_id)
+    return {'auth_url': auth_url}
+
+
+@router.post(
+    '/{account_id}/google-oauth/disconnect',
+    response_model=EmailAccountResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def disconnect_google_oauth(
+    account_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: EmailAccount = Depends(require_admin),
+):
+    account = await crud_email_account.get(session, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail='Account not found')
+    account.oauth_provider = None
+    account.oauth_refresh_token = None
+    account.oauth_connected_at = None
+    session.add(account)
+    await session.commit()
+    await session.refresh(account)
+    return EmailAccountResponse.model_validate(account)
+
+
+@router.get(
+    '/google-oauth/callback',
+    include_in_schema=False,
+)
+async def google_oauth_callback(
+    code: str | None = Query(default=None),
+    state: str | None = Query(default=None),
+    error: str | None = Query(default=None),
+    session: AsyncSession = Depends(get_session),
+):
+    if error:
+        return HTMLResponse(
+            f'<h3>OAuth error</h3><p>{error}</p>', status_code=400
+        )
+    if not code or not state:
+        return HTMLResponse(
+            '<h3>OAuth error</h3><p>Missing code or state.</p>',
+            status_code=400,
+        )
+    account_id = parse_oauth_state(state)
+    if not account_id:
+        return HTMLResponse(
+            '<h3>OAuth error</h3><p>Invalid state.</p>',
+            status_code=400,
+        )
+    account = await crud_email_account.get(session, account_id)
+    if not account:
+        return HTMLResponse(
+            '<h3>OAuth error</h3><p>Account not found.</p>',
+            status_code=404,
+        )
+    try:
+        tokens = await exchange_code_for_tokens(code)
+    except Exception as exc:
+        logger.error('Google OAuth exchange failed: %s', exc)
+        return HTMLResponse(
+            '<h3>OAuth error</h3><p>Token exchange failed.</p>',
+            status_code=400,
+        )
+    refresh_token = tokens.get('refresh_token')
+    if not refresh_token and not account.oauth_refresh_token:
+        return HTMLResponse(
+            '<h3>OAuth error</h3>'
+            '<p>Refresh token not returned. '
+            'Try reconnecting with prompt=consent.</p>',
+            status_code=400,
+        )
+    if refresh_token:
+        account.oauth_refresh_token = refresh_token
+    account.oauth_provider = 'google'
+    account.oauth_connected_at = now_moscow()
+    session.add(account)
+    await session.commit()
+    return HTMLResponse(
+        '<h3>Google OAuth подключен</h3>'
+        '<p>Можно закрыть это окно.</p>'
+    )

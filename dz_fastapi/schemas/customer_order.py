@@ -21,6 +21,7 @@ class CustomerOrderConfigBase(BaseModel):
     email_account_id: Optional[int] = None
     pricelist_config_id: Optional[int] = None
 
+    order_start_row: int = 1
     order_number_column: Optional[int] = None
     order_date_column: Optional[int] = None
     order_number_regex_subject: Optional[str] = None
@@ -72,6 +73,7 @@ class CustomerOrderConfigUpdate(BaseModel):
     email_account_id: Optional[int] = None
     pricelist_config_id: Optional[int] = None
 
+    order_start_row: Optional[int] = None
     order_number_column: Optional[int] = None
     order_date_column: Optional[int] = None
     order_number_regex_subject: Optional[str] = None

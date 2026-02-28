@@ -21,7 +21,8 @@ from dz_fastapi.models.partner import (Client, Customer, CustomerOrder,
                                        ProviderPriceListConfig, StockOrder,
                                        StockOrderItem, SupplierOrder,
                                        SupplierOrderItem)
-from dz_fastapi.models.settings import (PriceCheckLog, PriceCheckSchedule,
+from dz_fastapi.models.settings import (CustomerOrderInboxSettings,
+                                        PriceCheckLog, PriceCheckSchedule,
                                         PriceListStaleAlert, SchedulerSetting,
                                         SystemMetricSnapshot)
 from dz_fastapi.models.user import User  # noqa
@@ -72,5 +73,6 @@ __all__ = [
     'SchedulerSetting',
     'SystemMetricSnapshot',
     'PriceListStaleAlert',
+    'CustomerOrderInboxSettings',
     'PriceWatchItem',
 ]

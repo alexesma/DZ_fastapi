@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
@@ -47,6 +48,8 @@ class EmailAccountUpdate(BaseModel):
 
 class EmailAccountResponse(EmailAccountBase):
     id: int
+    oauth_provider: Optional[str] = None
+    oauth_connected_at: Optional[datetime] = None
 
 
 class EmailAccountTestRequest(BaseModel):

@@ -56,6 +56,19 @@ class SchedulerSettingUpdate(BaseModel):
     times: Optional[List[str]] = None
 
 
+class CustomerOrderInboxSettingsOut(BaseModel):
+    id: int
+    lookback_days: int = 1
+    mark_seen: bool = False
+    updated_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CustomerOrderInboxSettingsUpdate(BaseModel):
+    lookback_days: Optional[int] = None
+    mark_seen: Optional[bool] = None
+
+
 class SystemMetricSnapshotOut(BaseModel):
     id: int
     created_at: datetime

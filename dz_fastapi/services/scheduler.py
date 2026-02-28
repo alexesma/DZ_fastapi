@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import aiofiles
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -51,6 +52,9 @@ logger = logging.getLogger('dz_fastapi')
 EMAIL_NAME_ORDER = os.getenv('EMAIL_NAME_ORDERS')
 EMAIL_PASSWORD_ORDER = os.getenv('EMAIL_PASSWORD_ORDERS')
 EMAIL_HOST_ORDER = os.getenv('EMAIL_HOST_ORDERS')
+PRICELIST_STALE_ALERT_RETENTION_DAYS = int(
+    os.getenv('PRICELIST_STALE_ALERT_RETENTION_DAYS', '7')
+)
 
 
 def start_scheduler(app: FastAPI):
@@ -140,6 +144,16 @@ def start_scheduler(app: FastAPI):
         args=[app],
         id='notify_pricelist_stale',
         name='Notify stale pricelists',
+        minute='*',
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        func=cleanup_pricelist_stale_alerts_task,
+        trigger='cron',
+        args=[app],
+        id='cleanup_pricelist_stale_alerts',
+        name='Cleanup stale pricelist alerts',
         minute='*',
         replace_existing=True,
     )
@@ -312,7 +326,14 @@ async def download_customer_orders_task(app: FastAPI):
     async_session_factory = app.state.session_factory
     async with async_session_factory() as session:
         try:
+            should_run, setting = await _should_run_scheduled_job(
+                session, 'customer_orders_check'
+            )
+            if not should_run:
+                return
             await process_customer_orders(session)
+            if setting:
+                await _mark_scheduler_ran(session, setting, now_moscow())
         except Exception as e:
             logger.error(
                 f'Error processing customer orders: {e}', exc_info=True
@@ -690,8 +711,17 @@ async def notify_pricelist_stale_task(app: FastAPI):
                 logger.info('No stale pricelist alerts for today')
                 return
 
-            lines = ['Проблемы с обновлением прайсов:']
+            seen_keys = set()
+            unique_rows = []
             for alert, config, provider in rows:
+                key = (alert.provider_id, alert.provider_config_id)
+                if key in seen_keys:
+                    continue
+                seen_keys.add(key)
+                unique_rows.append((alert, config, provider))
+
+            lines = ['Проблемы с обновлением прайсов:']
+            for alert, config, provider in unique_rows:
                 config_label = config.name_price or f'#{config.id}'
                 lines.append(
                     f'- {provider.name} ({config_label}) — '
@@ -706,6 +736,37 @@ async def notify_pricelist_stale_task(app: FastAPI):
                 f'Error in notify_pricelist_stale_task: {e}',
                 exc_info=True
             )
+
+
+async def cleanup_pricelist_stale_alerts_task(app: FastAPI):
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            should_run, setting = await _should_run_scheduled_job(
+                session, 'pricelist_stale_cleanup'
+            )
+            if not should_run:
+                return
+            logger.info('Starting cleanup_pricelist_stale_alerts_task')
+            now = now_moscow()
+            cutoff = now - timedelta(days=PRICELIST_STALE_ALERT_RETENTION_DAYS)
+            stmt = delete(PriceListStaleAlert).where(
+                PriceListStaleAlert.created_at < cutoff
+            )
+            result = await session.execute(stmt)
+            await session.commit()
+            logger.info(
+                'Cleanup stale pricelist alerts removed %s rows',
+                result.rowcount or 0,
+            )
+            if setting:
+                await _mark_scheduler_ran(session, setting, now)
+        except Exception as e:
+            logger.error(
+                f'Error in cleanup_pricelist_stale_alerts_task: {e}',
+                exc_info=True
+            )
+            await session.rollback()
 
 
 async def collect_system_metrics_snapshot_task(app: FastAPI):

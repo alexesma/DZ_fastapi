@@ -3,7 +3,8 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.models.settings import (PriceCheckLog, PriceCheckSchedule,
+from dz_fastapi.models.settings import (CustomerOrderInboxSettings,
+                                        PriceCheckLog, PriceCheckSchedule,
                                         PriceListStaleAlert, SchedulerSetting,
                                         SystemMetricSnapshot)
 
@@ -136,6 +137,34 @@ class CRUDSchedulerSetting:
         return setting
 
 
+class CRUDCustomerOrderInboxSettings:
+    async def get_or_create(
+        self, session: AsyncSession
+    ) -> CustomerOrderInboxSettings:
+        result = await session.execute(
+            select(CustomerOrderInboxSettings).limit(1)
+        )
+        setting = result.scalar_one_or_none()
+        if setting:
+            return setting
+        setting = CustomerOrderInboxSettings(lookback_days=1, mark_seen=False)
+        session.add(setting)
+        await session.commit()
+        await session.refresh(setting)
+        return setting
+
+    async def update(
+        self, session: AsyncSession, data: dict
+    ) -> CustomerOrderInboxSettings:
+        setting = await self.get_or_create(session)
+        for key, value in data.items():
+            setattr(setting, key, value)
+        session.add(setting)
+        await session.commit()
+        await session.refresh(setting)
+        return setting
+
+
 class CRUDSystemMetricSnapshot:
     async def create(
         self,
@@ -168,4 +197,5 @@ crud_price_check_schedule = CRUDPriceCheckSchedule()
 crud_price_stale_alert = CRUDPriceListStaleAlert()
 crud_price_check_log = CRUDPriceCheckLog()
 crud_scheduler_setting = CRUDSchedulerSetting()
+crud_customer_order_inbox_settings = CRUDCustomerOrderInboxSettings()
 crud_system_metric_snapshot = CRUDSystemMetricSnapshot()

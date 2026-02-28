@@ -3,12 +3,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.db import get_session
 from dz_fastapi.core.scheduler_settings import SCHEDULER_SETTING_DEFAULTS
-from dz_fastapi.crud.settings import (crud_price_check_log,
+from dz_fastapi.crud.settings import (crud_customer_order_inbox_settings,
+                                      crud_price_check_log,
                                       crud_price_check_schedule,
                                       crud_price_stale_alert,
                                       crud_scheduler_setting,
                                       crud_system_metric_snapshot)
-from dz_fastapi.schemas.settings import (MonitorSummaryOut, PriceCheckLogOut,
+from dz_fastapi.schemas.settings import (CustomerOrderInboxSettingsOut,
+                                         CustomerOrderInboxSettingsUpdate,
+                                         MonitorSummaryOut, PriceCheckLogOut,
                                          PriceCheckScheduleOut,
                                          PriceCheckScheduleUpdate,
                                          PriceListStaleAlertOut,
@@ -129,6 +132,40 @@ async def update_scheduler_setting(
         defaults=defaults,
     )
     return SchedulerSettingOut.model_validate(setting)
+
+
+@router.get(
+    '/settings/orders-inbox',
+    tags=['settings'],
+    status_code=status.HTTP_200_OK,
+    response_model=CustomerOrderInboxSettingsOut,
+)
+async def get_customer_order_inbox_settings(
+    session: AsyncSession = Depends(get_session),
+):
+    setting = await crud_customer_order_inbox_settings.get_or_create(
+        session=session
+    )
+    return CustomerOrderInboxSettingsOut.model_validate(setting)
+
+
+@router.put(
+    '/settings/orders-inbox',
+    tags=['settings'],
+    status_code=status.HTTP_200_OK,
+    response_model=CustomerOrderInboxSettingsOut,
+)
+async def update_customer_order_inbox_settings(
+    payload: CustomerOrderInboxSettingsUpdate,
+    session: AsyncSession = Depends(get_session),
+):
+    data = payload.model_dump(exclude_unset=True)
+    if 'lookback_days' in data:
+        data['lookback_days'] = max(1, int(data['lookback_days']))
+    setting = await crud_customer_order_inbox_settings.update(
+        session=session, data=data
+    )
+    return CustomerOrderInboxSettingsOut.model_validate(setting)
 
 
 @router.get(

@@ -416,6 +416,7 @@ class CustomerOrderConfig(Base):
         Integer, ForeignKey('customerpricelistconfig.id'), nullable=True
     )
 
+    order_start_row = Column(Integer, default=1)
     order_number_column = Column(Integer, nullable=True)
     order_date_column = Column(Integer, nullable=True)
     order_number_regex_subject = Column(String(255), nullable=True)

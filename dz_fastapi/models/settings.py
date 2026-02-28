@@ -34,6 +34,16 @@ class SchedulerSetting(Base):
     )
 
 
+class CustomerOrderInboxSettings(Base):
+    lookback_days = Column(Integer, default=1)
+    mark_seen = Column(Boolean, default=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        onupdate=now_moscow,
+    )
+
+
 class SystemMetricSnapshot(Base):
     created_at = Column(
         DateTime(timezone=True), default=now_moscow, nullable=False

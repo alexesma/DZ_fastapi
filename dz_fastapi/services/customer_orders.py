@@ -1,14 +1,18 @@
 import asyncio
+import base64
 import hashlib
 import logging
 import os
 import re
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from email import message_from_bytes
+from email.header import decode_header
 from io import BytesIO
 from typing import Dict, List, Optional, Tuple
 
 import aiofiles
+import httpx
 import pandas as pd
 
 try:
@@ -28,6 +32,7 @@ from dz_fastapi.crud.partner import (crud_customer_pricelist,
                                      crud_customer_pricelist_config,
                                      crud_customer_pricelist_source,
                                      crud_pricelist)
+from dz_fastapi.crud.settings import crud_customer_order_inbox_settings
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.partner import (CUSTOMER_ORDER_ITEM_STATUS,
                                        CUSTOMER_ORDER_SHIP_MODE,
@@ -41,6 +46,7 @@ from dz_fastapi.models.partner import (CUSTOMER_ORDER_ITEM_STATUS,
                                        StockOrder, StockOrderItem,
                                        SupplierOrder, SupplierOrderItem)
 from dz_fastapi.services.email import send_email_with_attachment
+from dz_fastapi.services.google_oauth import refresh_google_access_token
 from dz_fastapi.services.process import (_apply_source_filters,
                                          _apply_source_markups)
 from dz_fastapi.services.telegram import (send_file_to_telegram,
@@ -89,11 +95,29 @@ class OfferRow:
     is_own_price: bool
 
 
+@dataclass
+class SimpleAttachment:
+    filename: Optional[str]
+    payload: bytes
+
+
+@dataclass
+class SimpleMessage:
+    uid: Optional[str]
+    from_: str
+    subject: str
+    attachments: List[SimpleAttachment]
+    text: Optional[str]
+    html: Optional[str]
+
+
 async def _fetch_order_messages(
     server_mail: str,
     email_account: str,
     email_password: str,
     folder: str,
+    date_from: date,
+    mark_seen: bool,
     port: int = 993,
     ssl: bool = True,
 ) -> list:
@@ -104,12 +128,115 @@ async def _fetch_order_messages(
             mailbox.folder.set(folder)
             return list(
                 mailbox.fetch(
-                    AND(date_gte=date.today(), all=True),
+                    AND(date_gte=date_from, all=True),
+                    mark_seen=mark_seen,
                     charset='utf-8',
                 )
             )
 
     return await asyncio.to_thread(_fetch)
+
+
+def _decode_header_value(value: Optional[str]) -> str:
+    if not value:
+        return ''
+    parts = decode_header(value)
+    decoded = ''
+    for part, encoding in parts:
+        if isinstance(part, bytes):
+            try:
+                decoded += part.decode(encoding or 'utf-8', errors='ignore')
+            except Exception:
+                decoded += part.decode('utf-8', errors='ignore')
+        else:
+            decoded += str(part)
+    return decoded
+
+
+def _parse_raw_email(raw_bytes: bytes) -> SimpleMessage:
+    msg = message_from_bytes(raw_bytes)
+    subject = _decode_header_value(msg.get('Subject'))
+    from_value = _decode_header_value(msg.get('From'))
+    text = None
+    html = None
+    attachments: List[SimpleAttachment] = []
+    for part in msg.walk():
+        content_disposition = part.get_content_disposition()
+        filename = part.get_filename()
+        content_type = part.get_content_type()
+        if content_disposition == 'attachment' or filename:
+            payload = part.get_payload(decode=True) or b''
+            attachments.append(SimpleAttachment(filename, payload))
+            continue
+        if content_type == 'text/plain' and text is None:
+            payload = part.get_payload(decode=True) or b''
+            charset = part.get_content_charset() or 'utf-8'
+            text = payload.decode(charset, errors='ignore')
+        if content_type == 'text/html' and html is None:
+            payload = part.get_payload(decode=True) or b''
+            charset = part.get_content_charset() or 'utf-8'
+            html = payload.decode(charset, errors='ignore')
+    return SimpleMessage(
+        uid=None,
+        from_=from_value,
+        subject=subject,
+        attachments=attachments,
+        text=text,
+        html=html,
+    )
+
+
+async def _fetch_gmail_messages(
+    account,
+    date_from: date,
+    label: Optional[str] = None,
+) -> List[SimpleMessage]:
+    if not account.oauth_refresh_token:
+        return []
+    token_data = await refresh_google_access_token(
+        account.oauth_refresh_token
+    )
+    access_token = token_data.get('access_token')
+    if not access_token:
+        raise RuntimeError('Google OAuth access token not returned')
+    headers = {'Authorization': f'Bearer {access_token}'}
+    query = f'after:{date_from.strftime("%Y/%m/%d")}'
+    if label and label.upper() != 'INBOX':
+        query = f'{query} label:{label}'
+    url = 'https://gmail.googleapis.com/gmail/v1/users/me/messages'
+    messages: List[SimpleMessage] = []
+    page_token = None
+    async with httpx.AsyncClient(timeout=20) as client:
+        while True:
+            params = {
+                'q': query,
+                'maxResults': 200,
+            }
+            if page_token:
+                params['pageToken'] = page_token
+            response = await client.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            payload = response.json()
+            for item in payload.get('messages', []):
+                message_id = item.get('id')
+                if not message_id:
+                    continue
+                raw_response = await client.get(
+                    f'{url}/{message_id}',
+                    headers=headers,
+                    params={'format': 'raw'},
+                )
+                raw_response.raise_for_status()
+                raw_payload = raw_response.json()
+                raw_data = raw_payload.get('raw')
+                if not raw_data:
+                    continue
+                raw_bytes = base64.urlsafe_b64decode(raw_data + '==')
+                messages.append(_parse_raw_email(raw_bytes))
+            page_token = payload.get('nextPageToken')
+            if not page_token:
+                break
+    return messages
 
 
 def _match_pattern(pattern: Optional[str], value: Optional[str]) -> bool:
@@ -303,6 +430,7 @@ def _parse_excel_order(
         else None
     )
 
+    start_row = max(1, int(config.order_start_row or 1))
     for row_idx, row in enumerate(ws.iter_rows(values_only=True), start=1):
         if order_date is None and order_date_col is not None:
             order_date = _parse_date(row[order_date_col - 1])
@@ -310,6 +438,8 @@ def _parse_excel_order(
             value = row[order_number_col - 1]
             if value is not None and str(value).strip():
                 order_number = str(value).strip()
+        if row_idx < start_row:
+            continue
         oem = row[oem_col - 1] if oem_col - 1 < len(row) else None
         brand = row[brand_col - 1] if brand_col - 1 < len(row) else None
         qty = row[qty_col - 1] if qty_col - 1 < len(row) else None
@@ -352,6 +482,7 @@ def _parse_csv_order(
     order_date: Optional[date] = None
     order_number: Optional[str] = None
 
+    start_row = max(1, int(config.order_start_row or 1))
     for idx, row in df.iterrows():
         if order_date is None and config.order_date_column is not None:
             order_date = _parse_date(row[config.order_date_column])
@@ -359,6 +490,8 @@ def _parse_csv_order(
             value = row[config.order_number_column]
             if not pd.isna(value) and str(value).strip():
                 order_number = str(value).strip()
+        if idx + 1 < start_row:
+            continue
         oem = row[config.oem_col]
         brand = row[config.brand_col]
         qty = row[config.qty_col]
@@ -403,6 +536,7 @@ def _parse_xls_order(
     order_date: Optional[date] = None
     order_number: Optional[str] = None
 
+    start_row = max(1, int(config.order_start_row or 1))
     for idx, row in df.iterrows():
         if order_date is None and config.order_date_column is not None:
             order_date = _parse_date(row[config.order_date_column])
@@ -410,6 +544,8 @@ def _parse_xls_order(
             value = row[config.order_number_column]
             if not pd.isna(value) and str(value).strip():
                 order_number = str(value).strip()
+        if idx + 1 < start_row:
+            continue
         oem = row[config.oem_col]
         brand = row[config.brand_col]
         qty = row[config.qty_col]
@@ -750,31 +886,76 @@ async def process_customer_orders(session: AsyncSession) -> None:
         for email in emails:
             config_by_email.setdefault(email, []).append(config)
 
+    inbox_settings = await crud_customer_order_inbox_settings.get_or_create(
+        session
+    )
+    lookback_days = max(1, int(inbox_settings.lookback_days or 1))
+    mark_seen = bool(inbox_settings.mark_seen)
+    date_from = now_moscow().date() - timedelta(days=lookback_days - 1)
+
     messages: list[tuple[object, Optional[object]]] = []
     if order_accounts:
         for account in order_accounts:
             host = account.imap_host or EMAIL_HOST_ORDER
+            label = account.imap_folder or EMAIL_FOLDER_ORDER
+            if account.oauth_provider == 'google':
+                try:
+                    account_messages = await _fetch_gmail_messages(
+                        account, date_from, label=label
+                    )
+                    messages.extend(
+                        [(msg, account) for msg in account_messages]
+                    )
+                except Exception as exc:
+                    logger.error(
+                        'Order inbox fetch failed for %s: %s',
+                        account.email,
+                        exc,
+                        exc_info=True,
+                    )
+                continue
             if not host:
                 continue
-            account_messages = await _fetch_order_messages(
-                host,
-                account.email,
-                account.password,
-                account.imap_folder or EMAIL_FOLDER_ORDER,
-                port=account.imap_port or IMAP_SERVER,
+            try:
+                account_messages = await _fetch_order_messages(
+                    host,
+                    account.email,
+                    account.password,
+                    label,
+                    date_from,
+                    mark_seen,
+                    port=account.imap_port or IMAP_SERVER,
+                    ssl=True,
+                )
+                messages.extend([(msg, account) for msg in account_messages])
+            except Exception as exc:
+                logger.error(
+                    'Order inbox fetch failed for %s: %s',
+                    account.email,
+                    exc,
+                    exc_info=True,
+                )
+                continue
+    else:
+        try:
+            fallback_messages = await _fetch_order_messages(
+                EMAIL_HOST_ORDER,
+                EMAIL_NAME_ORDER,
+                EMAIL_PASSWORD_ORDER,
+                EMAIL_FOLDER_ORDER,
+                date_from,
+                mark_seen,
+                port=IMAP_SERVER,
                 ssl=True,
             )
-            messages.extend([(msg, account) for msg in account_messages])
-    else:
-        fallback_messages = await _fetch_order_messages(
-            EMAIL_HOST_ORDER,
-            EMAIL_NAME_ORDER,
-            EMAIL_PASSWORD_ORDER,
-            EMAIL_FOLDER_ORDER,
-            port=IMAP_SERVER,
-            ssl=True,
-        )
-        messages = [(msg, None) for msg in fallback_messages]
+            messages = [(msg, None) for msg in fallback_messages]
+        except Exception as exc:
+            logger.error(
+                'Order inbox fetch failed for fallback mailbox: %s',
+                exc,
+                exc_info=True,
+            )
+            return
 
     if not messages:
         logger.info('No order emails found.')
