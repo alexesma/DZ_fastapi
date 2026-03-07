@@ -1,5 +1,8 @@
+import asyncio
 import json
 import logging
+import os
+import ssl
 from typing import Optional
 
 import aiohttp
@@ -20,9 +23,10 @@ class HTTPClient:
 
     def _ensure_session(self):
         if self._session is None or self._session.closed:
+            timeout_total = float(os.getenv('HTTP_CLIENT_TIMEOUT', '20'))
             self._session = ClientSession(
                 connector=self._make_connector(),
-                timeout=ClientTimeout(total=20),
+                timeout=ClientTimeout(total=timeout_total),
                 headers={
                     # "Content-Type": "application/json",
                     "Accept": "application/json",
@@ -49,18 +53,35 @@ class HTTPClient:
         params = dict(params or {})
         params.setdefault('api_key', self.api_key)
         logger.debug(f'GET {url} params={params}')
-        try:
-            async with self._session.get(url, params=params) as resp:
-                text = await resp.text()
-                if resp.status >= 400:
-                    logger.warning(f'GET {url} -> {resp.status}: {text}')
-                    resp.raise_for_status()
-                logger.debug(f'GET {url} <- {text}')
-                return json.loads(text)
-        except aiohttp.ClientError as e:
-            logger.warning(f'Ошибка GET {url}: {e}')
-        except json.JSONDecodeError as e:
-            logger.warning(f'Ошибка парсинга JSON от {url}: {e}')
+        last_error = None
+        for attempt in range(3):
+            try:
+                async with self._session.get(url, params=params) as resp:
+                    text = await resp.text()
+                    if resp.status >= 400:
+                        logger.warning(f'GET {url} -> {resp.status}: {text}')
+                        resp.raise_for_status()
+                    logger.debug(f'GET {url} <- {text}')
+                    return json.loads(text)
+            except (
+                    aiohttp.ClientError,
+                    asyncio.TimeoutError,
+                    ssl.SSLError,
+                    OSError
+            ) as e:
+                last_error = e
+                logger.warning(
+                    f'Ошибка GET {url} (попытка {attempt + 1}/3): {e}'
+                )
+                if attempt < 2:
+                    await asyncio.sleep(0.5 * (attempt + 1))
+                    continue
+            except json.JSONDecodeError as e:
+                last_error = e
+                logger.warning(f'Ошибка парсинга JSON от {url}: {e}')
+            break
+        if last_error:
+            logger.warning(f'GET {url} не выполнен: {last_error}')
         return None
 
     async def post(
@@ -90,28 +111,47 @@ class HTTPClient:
         else:
             payload_kwargs["json"] = json_data or {}
 
-        try:
-            async with self._session.post(
-                url=url, params=params, headers=req_headers, **payload_kwargs
-            ) as resp:
-                text = await resp.text()
-                if resp.status >= 400:
-                    logger.warning(f'POST {url} -> {resp.status}: {text}')
-                    resp.raise_for_status()
-                try:
-                    parsed = json.loads(text) if text else {}
-                except json.JSONDecodeError:
-                    logger.warning(f'POST {url} вернул не-JSON: {text}')
-                    return None
-                logger.debug(f'POST {url} parsed response: {parsed}')
+        last_error = None
+        for attempt in range(3):
+            try:
+                async with self._session.post(
+                        url=url,
+                        params=params,
+                        headers=req_headers,
+                        **payload_kwargs
+                ) as resp:
+                    text = await resp.text()
+                    if resp.status >= 400:
+                        logger.warning(f'POST {url} -> {resp.status}: {text}')
+                        resp.raise_for_status()
+                    try:
+                        parsed = json.loads(text) if text else {}
+                    except json.JSONDecodeError:
+                        logger.warning(f'POST {url} вернул не-JSON: {text}')
+                        return None
+                    logger.debug(f'POST {url} parsed response: {parsed}')
 
-                if (
-                    isinstance(parsed, dict)
-                    and parsed.get('result') == 'error'
-                ):
-                    logger.warning(f'API ответил ошибкой: {parsed}')
-                    return None
-                return parsed
-        except aiohttp.ClientError as e:
-            logger.warning(f'Ошибка POST {url}: {e}')
-            return None
+                    if (
+                        isinstance(parsed, dict)
+                        and parsed.get('result') == 'error'
+                    ):
+                        logger.warning(f'API ответил ошибкой: {parsed}')
+                        return None
+                    return parsed
+            except (
+                    aiohttp.ClientError,
+                    asyncio.TimeoutError,
+                    ssl.SSLError,
+                    OSError
+            ) as e:
+                last_error = e
+                logger.warning(
+                    f'Ошибка POST {url} (попытка {attempt + 1}/3): {e}'
+                )
+                if attempt < 2:
+                    await asyncio.sleep(0.5 * (attempt + 1))
+                    continue
+            break
+        if last_error:
+            logger.warning(f'POST {url} не выполнен: {last_error}')
+        return None

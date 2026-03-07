@@ -21,12 +21,15 @@ except ImportError:  # pragma: no cover - fallback for older imap_tools
     from imap_tools import AND, MailBox
     MailBoxSsl = None
 from openpyxl import load_workbook
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
+from sqlalchemy.sql import func
 
 from dz_fastapi.core.constants import IMAP_SERVER
 from dz_fastapi.core.time import now_moscow
+from dz_fastapi.crud.customer_order import (crud_customer_order,
+                                            crud_customer_order_config)
 from dz_fastapi.crud.email_account import crud_email_account
 from dz_fastapi.crud.partner import (crud_customer_pricelist,
                                      crud_customer_pricelist_config,
@@ -34,23 +37,24 @@ from dz_fastapi.crud.partner import (crud_customer_pricelist,
                                      crud_pricelist)
 from dz_fastapi.crud.settings import crud_customer_order_inbox_settings
 from dz_fastapi.models.autopart import AutoPart
+from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import (CUSTOMER_ORDER_ITEM_STATUS,
                                        CUSTOMER_ORDER_SHIP_MODE,
                                        CUSTOMER_ORDER_STATUS,
                                        STOCK_ORDER_STATUS,
-                                       SUPPLIER_ORDER_STATUS, CustomerOrder,
-                                       CustomerOrderConfig, CustomerOrderItem,
-                                       CustomerPriceList,
+                                       SUPPLIER_ORDER_STATUS, Customer,
+                                       CustomerOrder, CustomerOrderConfig,
+                                       CustomerOrderItem, CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
-                                       CustomerPriceListConfig, Provider,
+                                       CustomerPriceListConfig, PriceList,
+                                       PriceListAutoPartAssociation, Provider,
                                        StockOrder, StockOrderItem,
                                        SupplierOrder, SupplierOrderItem)
 from dz_fastapi.services.email import send_email_with_attachment
 from dz_fastapi.services.google_oauth import refresh_google_access_token
 from dz_fastapi.services.process import (_apply_source_filters,
                                          _apply_source_markups)
-from dz_fastapi.services.telegram import (send_file_to_telegram,
-                                          send_message_to_telegram)
+from dz_fastapi.services.telegram import send_message_to_telegram
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -272,21 +276,17 @@ def _normalize_email_list(values: Optional[List[str]]) -> List[str]:
     return [str(v).strip().lower() for v in values if str(v).strip()]
 
 
-def _pick_config_for_account(configs, account_id: Optional[int]):
+def _pick_configs_for_account(configs, account_id: Optional[int]):
     if not configs:
-        return None
+        return []
     if account_id is not None:
-        for config in configs:
-            if config.email_account_id == account_id:
-                return config
-        for config in configs:
-            if config.email_account_id is None:
-                return config
-        return None
-    for config in configs:
-        if config.email_account_id is None:
-            return config
-    return None
+        matched = [
+            cfg for cfg in configs if cfg.email_account_id == account_id
+        ]
+        if matched:
+            return matched
+        return [cfg for cfg in configs if cfg.email_account_id is None]
+    return [cfg for cfg in configs if cfg.email_account_id is None]
 
 
 def _strip_html(text: str) -> str:
@@ -792,43 +792,57 @@ async def _send_reject_report(
     if not rejected_items:
         return
     report_email = os.getenv('EMAIL_NAME_ANALYTIC')
-    rows = []
+    result = await session.execute(
+        select(Customer.name).where(Customer.id == order.customer_id)
+    )
+    customer_name = result.scalar()
+    lines = [
+        f'Клиент: {customer_name or order.customer_id}',
+        f'Заказ: {order.order_number or order.id}',
+        'Отказы:',
+    ]
     for item in rejected_items:
-        rows.append(
-            {
-                'OEM': item.oem,
-                'Brand': item.brand,
-                'Name': item.name or '',
-                'Requested Qty': item.requested_qty,
-                'Rejected Qty': item.reject_qty or 0,
-                'Reason': item.status.value,
-            }
+        price = (
+            item.requested_price
+            if item.requested_price is not None
+            else item.matched_price
         )
-    buffer = BytesIO()
-    pd.DataFrame(rows).to_excel(buffer, index=False)
-    buffer.seek(0)
-    os.makedirs(ORDERS_REPORT_DIR, exist_ok=True)
-    filename = f'reject_report_{order.id}.xlsx'
-    path = os.path.join(ORDERS_REPORT_DIR, filename)
-    async with aiofiles.open(path, 'wb') as f:
-        await f.write(buffer.getvalue())
+        price_value = float(price) if price is not None else 0.0
+        price_text = f'{price_value:.2f}'
+        qty = item.reject_qty or item.requested_qty
+        name = item.name or ''
+        lines.append(
+            f'- {item.oem} / {item.brand} / {name} — '
+            f'{qty} шт, {price_text}'
+        )
     chat_id = os.getenv('TELEGRAM_TO')
-    if not chat_id:
-        chat_id = None
     try:
         if chat_id:
-            await send_file_to_telegram(
-                chat_id=chat_id,
-                file_bytes=buffer.getvalue(),
-                file_name=filename,
-                caption=(
-                    f'Отчет по отказам заказа {order.order_number or order.id}'
-                ),
-            )
+            await send_message_to_telegram('\n'.join(lines))
     except Exception as exc:
         logger.error('Reject report telegram failed: %s', exc, exc_info=True)
 
     if report_email:
+        rows = []
+        for item in rejected_items:
+            rows.append(
+                {
+                    'OEM': item.oem,
+                    'Brand': item.brand,
+                    'Name': item.name or '',
+                    'Requested Qty': item.requested_qty,
+                    'Rejected Qty': item.reject_qty or 0,
+                    'Reason': item.status.value,
+                }
+            )
+        buffer = BytesIO()
+        pd.DataFrame(rows).to_excel(buffer, index=False)
+        buffer.seek(0)
+        os.makedirs(ORDERS_REPORT_DIR, exist_ok=True)
+        filename = f'reject_report_{order.id}.xlsx'
+        path = os.path.join(ORDERS_REPORT_DIR, filename)
+        async with aiofiles.open(path, 'wb') as f:
+            await f.write(buffer.getvalue())
         account = await _get_out_account(session, 'reports_out')
         kwargs = {}
         if account:
@@ -854,6 +868,472 @@ async def _send_reject_report(
             )
         except Exception as exc:
             logger.error('Reject report email failed: %s', exc, exc_info=True)
+
+
+async def _resolve_pricelist_config(
+    session: AsyncSession,
+    config: CustomerOrderConfig,
+) -> CustomerPriceListConfig | None:
+    if not config.pricelist_config_id:
+        return None
+    return await crud_customer_pricelist_config.get_by_id(
+        customer_id=config.customer_id,
+        config_id=config.pricelist_config_id,
+        session=session,
+    )
+
+
+async def _prepare_customer_order_context(
+    session: AsyncSession,
+    config: CustomerOrderConfig,
+):
+    last_pricelist = await _load_latest_customer_pricelist(
+        session, config.customer_id
+    )
+    expected_prices = (
+        _build_expected_price_map(last_pricelist)
+        if last_pricelist
+        else {}
+    )
+    pricelist_config = await _resolve_pricelist_config(session, config)
+    offers = (
+        await _build_current_offers(session, pricelist_config)
+        if pricelist_config
+        else {}
+    )
+    return expected_prices, offers
+
+
+async def _process_manual_rows(
+    session: AsyncSession,
+    config: CustomerOrderConfig,
+    order: CustomerOrder,
+    parsed_rows: List[ParsedOrderRow],
+):
+    expected_prices, offers = await _prepare_customer_order_context(
+        session, config
+    )
+
+    order_items: List[CustomerOrderItem] = []
+    supplier_items: Dict[int, List[CustomerOrderItem]] = {}
+    stock_items: List[CustomerOrderItem] = []
+    rejected_items: List[CustomerOrderItem] = []
+
+    for row in parsed_rows:
+        key = _normalize_key(row.oem, row.brand)
+        expected_price = expected_prices.get(key)
+        offer = offers.get(key)
+        requested_price = row.requested_price
+
+        if (expected_price is None or expected_price <= 0) and requested_price:
+            try:
+                expected_price = float(requested_price)
+            except (TypeError, ValueError):
+                expected_price = expected_price
+        if (expected_price is None or expected_price <= 0) and offer:
+            if offer.price and offer.price > 0:
+                expected_price = float(offer.price)
+
+        item = CustomerOrderItem(
+            order_id=order.id,
+            row_index=row.row_index,
+            oem=row.oem,
+            brand=row.brand,
+            name=row.name,
+            requested_qty=row.requested_qty,
+            requested_price=requested_price,
+            status=CUSTOMER_ORDER_ITEM_STATUS.NEW,
+        )
+        if not offer or not expected_price or expected_price <= 0:
+            item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
+            item.ship_qty = 0
+            item.reject_qty = row.requested_qty
+        else:
+            offered_price = offer.price
+            diff_pct = _compute_price_diff_pct(
+                expected_price, offered_price
+            )
+            item.price_diff_pct = diff_pct
+            item.matched_price = offered_price
+
+            warning_pct = config.price_warning_pct or 5.0
+            tolerance_pct = config.price_tolerance_pct or 2.0
+            if diff_pct > warning_pct:
+                if offer.is_own_price:
+                    item.status = CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK
+                    await _send_price_warning(
+                        order,
+                        item,
+                        expected_price,
+                        offered_price,
+                        diff_pct,
+                        critical=True,
+                    )
+                else:
+                    item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
+                    item.ship_qty = 0
+                    item.reject_qty = row.requested_qty
+                    await _send_price_warning(
+                        order,
+                        item,
+                        expected_price,
+                        offered_price,
+                        diff_pct,
+                        critical=True,
+                    )
+            else:
+                if diff_pct > tolerance_pct:
+                    await _send_price_warning(
+                        order,
+                        item,
+                        expected_price,
+                        offered_price,
+                        diff_pct,
+                        critical=False,
+                    )
+                item.status = (
+                    CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK
+                    if offer.is_own_price
+                    else CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
+                )
+
+            if item.status != CUSTOMER_ORDER_ITEM_STATUS.REJECTED:
+                available_qty = int(offer.quantity or 0)
+                if available_qty < 0:
+                    available_qty = 0
+                ship_qty = min(row.requested_qty, available_qty)
+                reject_qty = max(row.requested_qty - ship_qty, 0)
+                item.ship_qty = ship_qty
+                item.reject_qty = reject_qty
+                item.autopart_id = offer.autopart_id
+                if offer.is_own_price:
+                    item.supplier_id = None
+                else:
+                    item.supplier_id = offer.provider_id
+                if ship_qty == 0:
+                    item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
+
+        order_items.append(item)
+        session.add(item)
+        await session.flush()
+
+        if (
+            item.status == CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK
+            and item.ship_qty
+        ):
+            stock_items.append(item)
+        elif (
+            item.status == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
+            and item.ship_qty
+        ):
+            supplier_items.setdefault(item.supplier_id, []).append(item)
+        elif item.status == CUSTOMER_ORDER_ITEM_STATUS.REJECTED:
+            rejected_items.append(item)
+
+    if stock_items:
+        stock_order = StockOrder(
+            customer_id=config.customer_id,
+            status=STOCK_ORDER_STATUS.NEW,
+        )
+        session.add(stock_order)
+        await session.flush()
+        for item in stock_items:
+            session.add(
+                StockOrderItem(
+                    stock_order_id=stock_order.id,
+                    customer_order_item_id=item.id,
+                    autopart_id=item.autopart_id,
+                    quantity=item.ship_qty or 0,
+                )
+            )
+
+    for provider_id, items in supplier_items.items():
+        order_stmt = (
+            select(SupplierOrder)
+            .where(
+                SupplierOrder.provider_id == provider_id,
+                SupplierOrder.status.in_(
+                    [
+                        SUPPLIER_ORDER_STATUS.NEW,
+                        SUPPLIER_ORDER_STATUS.SCHEDULED,
+                    ]
+                ),
+            )
+            .order_by(SupplierOrder.created_at.asc())
+            .limit(1)
+        )
+        supplier_order = (
+            await session.execute(order_stmt)
+        ).scalar_one_or_none()
+        if not supplier_order:
+            supplier_order = SupplierOrder(
+                provider_id=provider_id,
+                status=SUPPLIER_ORDER_STATUS.NEW,
+            )
+            session.add(supplier_order)
+            await session.flush()
+        for item in items:
+            session.add(
+                SupplierOrderItem(
+                    supplier_order_id=supplier_order.id,
+                    customer_order_item_id=item.id,
+                    autopart_id=item.autopart_id,
+                    quantity=item.ship_qty or 0,
+                    price=item.matched_price,
+                )
+            )
+
+    order.status = CUSTOMER_ORDER_STATUS.PROCESSED
+    order.processed_at = now_moscow()
+    await session.commit()
+    return order_items, rejected_items
+
+
+async def create_manual_customer_order(
+    session: AsyncSession,
+    customer_id: int,
+    order_number: str | None,
+    order_date,
+    items: List[dict],
+    auto_process: bool,
+    order_config_id: int | None = None,
+) -> CustomerOrder:
+    cleaned_items: list[dict] = []
+    for item in items or []:
+        oem = (item.get('oem') or '').strip()
+        brand = (item.get('brand') or '').strip()
+        name = (item.get('name') or '').strip() or None
+        try:
+            quantity = int(item.get('quantity') or 0)
+        except (TypeError, ValueError):
+            quantity = 0
+        price = item.get('price')
+        if not oem or not brand or quantity <= 0:
+            continue
+        cleaned_items.append(
+            {
+                'oem': oem,
+                'brand': brand,
+                'name': name,
+                'quantity': quantity,
+                'price': price,
+            }
+        )
+    if not cleaned_items:
+        raise ValueError('Items list is empty')
+
+    config = None
+    if auto_process:
+        if order_config_id is not None:
+            config = await crud_customer_order_config.get_by_id(
+                session=session, config_id=order_config_id
+            )
+            if not config or config.customer_id != customer_id:
+                raise ValueError('Customer order config not found')
+        else:
+            configs = await crud_customer_order_config.list_by_customer_id(
+                session=session, customer_id=customer_id
+            )
+            if not configs:
+                raise ValueError(
+                    'Customer order config not found for auto processing'
+                )
+            if len(configs) > 1:
+                raise ValueError(
+                    'Multiple configs found, choose one for processing'
+                )
+            config = configs[0]
+        if not config.pricelist_config_id:
+            raise ValueError(
+                'Order config must be linked to a pricelist config'
+            )
+
+    order = CustomerOrder(
+        customer_id=customer_id,
+        status=CUSTOMER_ORDER_STATUS.NEW,
+        received_at=now_moscow(),
+        source_email='manual',
+        order_number=order_number,
+        order_date=order_date or now_moscow().date(),
+    )
+    session.add(order)
+    await session.flush()
+
+    if auto_process:
+        parsed_rows = []
+        for idx, item in enumerate(cleaned_items, start=1):
+            parsed_rows.append(
+                ParsedOrderRow(
+                    row_index=idx,
+                    oem=item['oem'].strip(),
+                    brand=item['brand'].strip(),
+                    name=(item.get('name') or '').strip() or None,
+                    requested_qty=int(item['quantity']),
+                    requested_price=item.get('price'),
+                )
+            )
+        order_items, rejected_items = await _process_manual_rows(
+            session, config, order, parsed_rows
+        )
+        if rejected_items:
+            await _send_reject_report(session, order, rejected_items)
+        await session.refresh(order)
+        return order
+
+    for idx, item in enumerate(cleaned_items, start=1):
+        session.add(
+            CustomerOrderItem(
+                order_id=order.id,
+                row_index=idx,
+                oem=item['oem'].strip(),
+                brand=item['brand'].strip(),
+                name=(item.get('name') or '').strip() or None,
+                requested_qty=int(item['quantity']),
+                requested_price=item.get('price'),
+                status=CUSTOMER_ORDER_ITEM_STATUS.NEW,
+            )
+        )
+    await session.commit()
+    await session.refresh(order)
+    return order
+
+
+async def process_manual_customer_order(
+    session: AsyncSession,
+    order_id: int,
+) -> CustomerOrder:
+    order = await crud_customer_order.get_by_id(
+        session=session, order_id=order_id
+    )
+    if not order:
+        raise LookupError('Order not found')
+    if order.status != CUSTOMER_ORDER_STATUS.NEW:
+        raise ValueError('Order already processed')
+    config = await crud_customer_order_config.get_by_customer_id(
+        session=session, customer_id=order.customer_id
+    )
+    if not config:
+        raise ValueError('Customer order config not found')
+    if not config.pricelist_config_id:
+        raise ValueError('Order config must be linked to a pricelist config')
+
+    existing_link = await session.execute(
+        select(SupplierOrderItem.id)
+        .join(CustomerOrderItem)
+        .where(CustomerOrderItem.order_id == order.id)
+        .limit(1)
+    )
+    if existing_link.scalar_one_or_none() is not None:
+        raise ValueError('Order already has supplier items')
+
+    if not order.items:
+        raise ValueError('Order has no items')
+
+    parsed_rows = []
+    for idx, item in enumerate(order.items, start=1):
+        parsed_rows.append(
+            ParsedOrderRow(
+                row_index=item.row_index or idx,
+                oem=item.oem,
+                brand=item.brand,
+                name=item.name,
+                requested_qty=item.requested_qty,
+                requested_price=item.requested_price,
+            )
+        )
+
+    await session.execute(
+        delete(CustomerOrderItem).where(
+            CustomerOrderItem.order_id == order.id
+        )
+    )
+    await session.flush()
+    order_items, rejected_items = await _process_manual_rows(
+        session, config, order, parsed_rows
+    )
+    if rejected_items:
+        await _send_reject_report(session, order, rejected_items)
+    await session.refresh(order)
+    return order
+
+
+async def create_manual_supplier_order(
+    session: AsyncSession,
+    provider_id: int,
+    items: List[dict],
+) -> SupplierOrder:
+    provider = await session.get(Provider, provider_id)
+    if not provider:
+        raise ValueError('Supplier not found')
+    cleaned_items: list[dict] = []
+    for item in items or []:
+        oem = (item.get('oem') or '').strip()
+        brand = (item.get('brand') or '').strip()
+        try:
+            quantity = int(item.get('quantity') or 0)
+        except (TypeError, ValueError):
+            quantity = 0
+        if not oem or not brand or quantity <= 0:
+            continue
+        cleaned_items.append(
+            {'oem': oem, 'brand': brand, 'quantity': quantity}
+        )
+    if not cleaned_items:
+        raise ValueError('Items list is empty')
+
+    supplier_order = SupplierOrder(
+        provider_id=provider_id, status=SUPPLIER_ORDER_STATUS.NEW
+    )
+    session.add(supplier_order)
+    await session.flush()
+
+    for item in cleaned_items:
+        oem = item['oem']
+        brand = item['brand']
+        brand_key = brand.lower()
+        quantity = item['quantity']
+        autopart_stmt = (
+            select(AutoPart)
+            .join(Brand)
+            .where(
+                AutoPart.oem_number == oem,
+                func.lower(Brand.name) == brand_key,
+            )
+            .limit(1)
+        )
+        autopart = (await session.execute(autopart_stmt)).scalar_one_or_none()
+        price_value = 0.0
+        if autopart:
+            price_stmt = (
+                select(PriceListAutoPartAssociation.price)
+                .join(PriceList)
+                .where(
+                    PriceList.provider_id == provider_id,
+                    PriceListAutoPartAssociation.autopart_id == autopart.id,
+                )
+                .order_by(
+                    PriceList.date.desc().nullslast(),
+                    PriceList.id.desc(),
+                )
+                .limit(1)
+            )
+            price_value = (
+                (await session.execute(price_stmt)).scalar_one_or_none()
+            ) or 0.0
+
+        session.add(
+            SupplierOrderItem(
+                supplier_order_id=supplier_order.id,
+                customer_order_item_id=None,
+                autopart_id=autopart.id if autopart else None,
+                quantity=quantity,
+                price=price_value,
+            )
+        )
+
+    await session.commit()
+    await session.refresh(supplier_order)
+    return supplier_order
 
 
 async def process_customer_orders(session: AsyncSession) -> None:
@@ -966,27 +1446,46 @@ async def process_customer_orders(session: AsyncSession) -> None:
     for msg, account in messages:
         try:
             sender = _extract_email(msg.from_)
-            configs_for_sender = config_by_email.get(sender)
+            configs_for_sender = config_by_email.get(sender) or []
             account_id = account.id if account else None
-            config = _pick_config_for_account(
+            candidate_configs = _pick_configs_for_account(
                 configs_for_sender, account_id
             )
-            if not config:
-                continue
-            if msg.uid and int(msg.uid) <= int(config.last_uid or 0):
-                continue
-            if not _match_pattern(config.order_subject_pattern, msg.subject):
-                continue
-
+            config = None
             attachment = None
-            for att in msg.attachments:
-                if _match_pattern(config.order_filename_pattern, att.filename):
-                    attachment = att
-                    break
-            if attachment is None and msg.attachments:
-                attachment = msg.attachments[0]
-            if attachment is None:
-                logger.info('No attachment for order email uid=%s', msg.uid)
+            for candidate in candidate_configs:
+                if not candidate.pricelist_config_id:
+                    logger.warning(
+                        'Order config %s has no pricelist_config_id; skip',
+                        candidate.id,
+                    )
+                    continue
+                if msg.uid and int(msg.uid) <= int(candidate.last_uid or 0):
+                    continue
+                if not _match_pattern(
+                    candidate.order_subject_pattern, msg.subject
+                ):
+                    continue
+                candidate_attachment = None
+                for att in msg.attachments:
+                    if _match_pattern(
+                        candidate.order_filename_pattern, att.filename
+                    ):
+                        candidate_attachment = att
+                        break
+                if candidate_attachment is None and msg.attachments:
+                    candidate_attachment = msg.attachments[0]
+                if candidate_attachment is None:
+                    continue
+                config = candidate
+                attachment = candidate_attachment
+                break
+
+            if not config or not attachment:
+                if not msg.attachments:
+                    logger.info(
+                        'No attachment for order email uid=%s', msg.uid
+                    )
                 continue
 
             filename = attachment.filename or 'order.xlsx'
@@ -1041,34 +1540,9 @@ async def process_customer_orders(session: AsyncSession) -> None:
                 else {}
             )
 
-            pricelist_config = None
-            if config.pricelist_config_id:
-                configs = (
-                    await crud_customer_pricelist_config.get_by_customer_id(
-                        customer_id=config.customer_id,
-                        session=session,
-                    )
-                )
-                pricelist_config = next(
-                    (
-                        c
-                        for c in configs
-                        if c.id == config.pricelist_config_id
-                    ),
-                    None,
-                )
-            if pricelist_config is None:
-                configs = (
-                    await crud_customer_pricelist_config.get_by_customer_id(
-                        customer_id=config.customer_id,
-                        session=session,
-                    )
-                )
-                pricelist_config = (
-                    sorted(configs, key=lambda c: c.id, reverse=True)[0]
-                    if configs
-                    else None
-                )
+            pricelist_config = await _resolve_pricelist_config(
+                session, config
+            )
             offers = (
                 await _build_current_offers(session, pricelist_config)
                 if pricelist_config
@@ -1111,6 +1585,16 @@ async def process_customer_orders(session: AsyncSession) -> None:
                 expected_price = expected_prices.get(key)
                 offer = offers.get(key)
                 requested_price = row.requested_price
+                if (
+                        expected_price is None or expected_price <= 0
+                ) and requested_price:
+                    try:
+                        expected_price = float(requested_price)
+                    except (TypeError, ValueError):
+                        expected_price = expected_price
+                if (expected_price is None or expected_price <= 0) and offer:
+                    if offer.price and offer.price > 0:
+                        expected_price = float(offer.price)
 
                 item = CustomerOrderItem(
                     order_id=order.id,
@@ -1228,12 +1712,30 @@ async def process_customer_orders(session: AsyncSession) -> None:
                     )
 
             for provider_id, items in supplier_items.items():
-                supplier_order = SupplierOrder(
-                    provider_id=provider_id,
-                    status=SUPPLIER_ORDER_STATUS.NEW,
+                order_stmt = (
+                    select(SupplierOrder)
+                    .where(
+                        SupplierOrder.provider_id == provider_id,
+                        SupplierOrder.status.in_(
+                            [
+                                SUPPLIER_ORDER_STATUS.NEW,
+                                SUPPLIER_ORDER_STATUS.SCHEDULED,
+                            ]
+                        ),
+                    )
+                    .order_by(SupplierOrder.created_at.asc())
+                    .limit(1)
                 )
-                session.add(supplier_order)
-                await session.flush()
+                supplier_order = (
+                    await session.execute(order_stmt)
+                ).scalar_one_or_none()
+                if not supplier_order:
+                    supplier_order = SupplierOrder(
+                        provider_id=provider_id,
+                        status=SUPPLIER_ORDER_STATUS.NEW,
+                    )
+                    session.add(supplier_order)
+                    await session.flush()
                 for item in items:
                     session.add(
                         SupplierOrderItem(
@@ -1453,6 +1955,282 @@ async def send_scheduled_supplier_orders(
     )
     order_ids = [row[0] for row in (await session.execute(orders_stmt)).all()]
     return await send_supplier_orders(session, order_ids)
+
+
+async def update_customer_order_item_manual(
+    session: AsyncSession,
+    item_id: int,
+    status: CUSTOMER_ORDER_ITEM_STATUS | None,
+    supplier_id: int | None,
+) -> CustomerOrderItem:
+    stmt = (
+        select(CustomerOrderItem)
+        .options(joinedload(CustomerOrderItem.order))
+        .where(CustomerOrderItem.id == item_id)
+    )
+    item = (await session.execute(stmt)).scalar_one_or_none()
+    if not item:
+        raise LookupError('Order item not found')
+
+    target_status = status
+    if target_status is None and supplier_id is not None:
+        target_status = CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
+
+    if target_status not in (
+        CUSTOMER_ORDER_ITEM_STATUS.REJECTED,
+        CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER,
+        CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK,
+    ):
+        raise ValueError('Unsupported status')
+
+    if target_status == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER:
+        if not supplier_id:
+            raise ValueError('supplier_id is required')
+        provider = await session.get(Provider, supplier_id)
+        if not provider:
+            raise ValueError('Supplier not found')
+        if provider.is_own_price:
+            target_status = CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK
+            supplier_id = None
+    if target_status == CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK:
+        supplier_id = None
+
+    existing_item = None
+    existing_order = None
+    existing_stmt = (
+        select(SupplierOrderItem, SupplierOrder)
+        .join(SupplierOrder)
+        .where(SupplierOrderItem.customer_order_item_id == item.id)
+    )
+    existing_row = (await session.execute(existing_stmt)).first()
+    if existing_row:
+        existing_item, existing_order = existing_row
+
+    existing_stock_item = None
+    existing_stock_order = None
+    existing_stock_stmt = (
+        select(StockOrderItem, StockOrder)
+        .join(StockOrder)
+        .where(StockOrderItem.customer_order_item_id == item.id)
+    )
+    existing_stock_row = (await session.execute(existing_stock_stmt)).first()
+    if existing_stock_row:
+        existing_stock_item, existing_stock_order = existing_stock_row
+
+    def _is_modifiable(order: SupplierOrder) -> bool:
+        return order.status in (
+            SUPPLIER_ORDER_STATUS.NEW,
+            SUPPLIER_ORDER_STATUS.SCHEDULED,
+        )
+
+    def _is_stock_modifiable(order: StockOrder) -> bool:
+        return order.status == STOCK_ORDER_STATUS.NEW
+
+    if target_status == CUSTOMER_ORDER_ITEM_STATUS.REJECTED:
+        if existing_stock_item and existing_stock_order:
+            if not _is_stock_modifiable(existing_stock_order):
+                raise ValueError('Stock order already closed')
+            await session.delete(existing_stock_item)
+            await session.flush()
+            remaining_stmt = (
+                select(StockOrderItem.id)
+                .where(
+                    StockOrderItem.stock_order_id == existing_stock_order.id
+                )
+                .limit(1)
+            )
+            remaining = (
+                await session.execute(remaining_stmt)
+            ).scalar_one_or_none()
+            if remaining is None:
+                await session.delete(existing_stock_order)
+        if existing_item and existing_order:
+            if not _is_modifiable(existing_order):
+                raise ValueError('Supplier order already sent')
+            await session.delete(existing_item)
+            await session.flush()
+            remaining_stmt = (
+                select(SupplierOrderItem.id)
+                .where(
+                    SupplierOrderItem.supplier_order_id == existing_order.id
+                )
+                .limit(1)
+            )
+            remaining = (
+                await session.execute(remaining_stmt)
+            ).scalar_one_or_none()
+            if remaining is None:
+                await session.delete(existing_order)
+        item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
+        item.supplier_id = None
+        item.ship_qty = 0
+        item.reject_qty = item.requested_qty
+        await session.commit()
+        await session.refresh(item)
+        return item
+
+    if target_status == CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK:
+        if existing_item and existing_order:
+            if not _is_modifiable(existing_order):
+                raise ValueError('Supplier order already sent')
+            await session.delete(existing_item)
+            await session.flush()
+            remaining_stmt = (
+                select(SupplierOrderItem.id)
+                .where(
+                    SupplierOrderItem.supplier_order_id == existing_order.id
+                )
+                .limit(1)
+            )
+            remaining = (
+                await session.execute(remaining_stmt)
+            ).scalar_one_or_none()
+            if remaining is None:
+                await session.delete(existing_order)
+            existing_item = None
+            existing_order = None
+
+        stock_order = existing_stock_order
+        if not stock_order:
+            order_stmt = (
+                select(StockOrder)
+                .where(
+                    StockOrder.customer_id == item.order.customer_id,
+                    StockOrder.status == STOCK_ORDER_STATUS.NEW,
+                )
+                .order_by(StockOrder.created_at.asc())
+                .limit(1)
+            )
+            stock_order = (
+                await session.execute(order_stmt)
+            ).scalar_one_or_none()
+            if not stock_order:
+                stock_order = StockOrder(
+                    customer_id=item.order.customer_id,
+                    status=STOCK_ORDER_STATUS.NEW,
+                )
+                session.add(stock_order)
+                await session.flush()
+
+        if (
+            existing_stock_item
+            and stock_order
+            and existing_stock_order
+            and stock_order.id == existing_stock_order.id
+        ):
+            existing_stock_item.quantity = item.requested_qty
+            existing_stock_item.autopart_id = item.autopart_id
+        else:
+            session.add(
+                StockOrderItem(
+                    stock_order_id=stock_order.id,
+                    customer_order_item_id=item.id,
+                    autopart_id=item.autopart_id,
+                    quantity=item.requested_qty,
+                )
+            )
+
+        item.status = CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK
+        item.supplier_id = None
+        item.ship_qty = item.requested_qty
+        item.reject_qty = 0
+
+        await session.commit()
+        await session.refresh(item)
+        return item
+
+    if existing_item and existing_order:
+        if not _is_modifiable(existing_order):
+            raise ValueError('Supplier order already sent')
+        if existing_order.provider_id != supplier_id:
+            await session.delete(existing_item)
+            await session.flush()
+            remaining_stmt = (
+                select(SupplierOrderItem.id)
+                .where(
+                    SupplierOrderItem.supplier_order_id == existing_order.id
+                )
+                .limit(1)
+            )
+            remaining = (
+                await session.execute(remaining_stmt)
+            ).scalar_one_or_none()
+            if remaining is None:
+                await session.delete(existing_order)
+            existing_item = None
+            existing_order = None
+
+    if existing_stock_item and existing_stock_order:
+        if not _is_stock_modifiable(existing_stock_order):
+            raise ValueError('Stock order already closed')
+        await session.delete(existing_stock_item)
+        await session.flush()
+        remaining_stmt = (
+            select(StockOrderItem.id)
+            .where(
+                StockOrderItem.stock_order_id == existing_stock_order.id
+            )
+            .limit(1)
+        )
+        remaining = (
+            await session.execute(remaining_stmt)
+        ).scalar_one_or_none()
+        if remaining is None:
+            await session.delete(existing_stock_order)
+
+    supplier_order = existing_order
+    if not supplier_order:
+        order_stmt = (
+            select(SupplierOrder)
+            .where(
+                SupplierOrder.provider_id == supplier_id,
+                SupplierOrder.status.in_(
+                    [
+                        SUPPLIER_ORDER_STATUS.NEW,
+                        SUPPLIER_ORDER_STATUS.SCHEDULED,
+                    ]
+                ),
+            )
+            .order_by(SupplierOrder.created_at.asc())
+            .limit(1)
+        )
+        supplier_order = (
+            await session.execute(order_stmt)
+        ).scalar_one_or_none()
+        if not supplier_order:
+            supplier_order = SupplierOrder(
+                provider_id=supplier_id, status=SUPPLIER_ORDER_STATUS.NEW
+            )
+            session.add(supplier_order)
+            await session.flush()
+
+    if (
+        existing_item
+        and supplier_order
+        and supplier_order.id == existing_order.id
+    ):
+        existing_item.quantity = item.requested_qty
+        existing_item.price = item.matched_price or item.requested_price
+        existing_item.autopart_id = item.autopart_id
+    else:
+        session.add(
+            SupplierOrderItem(
+                supplier_order_id=supplier_order.id,
+                customer_order_item_id=item.id,
+                autopart_id=item.autopart_id,
+                quantity=item.requested_qty,
+                price=item.matched_price or item.requested_price,
+            )
+        )
+
+    item.status = CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
+    item.supplier_id = supplier_id
+    item.ship_qty = item.requested_qty
+    item.reject_qty = 0
+
+    await session.commit()
+    await session.refresh(item)
+    return item
 
 
 def cleanup_order_reports(days: int = ORDERS_RETENTION_DAYS) -> int:

@@ -71,6 +71,16 @@ class AutoPartResponse(BaseModel):
         return []
 
 
+class AutoPartLookupItem(BaseModel):
+    id: int
+    oem_number: str
+    brand_id: int
+    brand: str
+    name: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class AutoPartCreate(BaseModel):
     brand_id: int
     oem_number: str

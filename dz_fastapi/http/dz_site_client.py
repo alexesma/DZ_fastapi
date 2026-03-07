@@ -14,10 +14,9 @@ class DZSiteClient(HTTPClient):
         verify_ssl: bool = True,
         base_url: str | None = None,
     ):
-        # base_url оставлен для совместимости,
-        # но игнорируется — поиск всегда через SEARCH_BASE
+        resolved_base = base_url or URL_DZ_SEARCH
         super().__init__(
-            base_url=URL_DZ_SEARCH, api_key=api_key, verify_ssl=verify_ssl
+            base_url=resolved_base, api_key=api_key, verify_ssl=verify_ssl
         )
 
     # ---------- Поиск ----------

@@ -17,15 +17,80 @@ logger = logging.getLogger('dz_fastapi')
 
 
 class CRUDCustomerOrderConfig:
+    async def get_by_id(
+        self, session: AsyncSession, config_id: int
+    ) -> Optional[CustomerOrderConfig]:
+        result = await session.execute(
+            select(CustomerOrderConfig).where(
+                CustomerOrderConfig.id == config_id
+            )
+        )
+        return result.scalars().first()
+
+    async def get_by_customer_and_pricelist(
+        self,
+        session: AsyncSession,
+        customer_id: int,
+        pricelist_config_id: int,
+    ) -> Optional[CustomerOrderConfig]:
+        result = await session.execute(
+            select(CustomerOrderConfig).where(
+                CustomerOrderConfig.customer_id == customer_id,
+                CustomerOrderConfig.pricelist_config_id
+                == pricelist_config_id,
+            )
+        )
+        return result.scalars().first()
+
     async def get_by_customer_id(
         self, session: AsyncSession, customer_id: int
     ) -> Optional[CustomerOrderConfig]:
+        result = await session.execute(
+            select(CustomerOrderConfig)
+            .where(CustomerOrderConfig.customer_id == customer_id)
+            .order_by(CustomerOrderConfig.id.desc())
+        )
+        return result.scalars().first()
+
+    async def list_by_customer_id(
+        self, session: AsyncSession, customer_id: int
+    ) -> List[CustomerOrderConfig]:
         result = await session.execute(
             select(CustomerOrderConfig).where(
                 CustomerOrderConfig.customer_id == customer_id
             )
         )
-        return result.scalars().first()
+        return result.scalars().all()
+
+    async def create(
+        self,
+        session: AsyncSession,
+        customer_id: int,
+        data: dict,
+    ) -> CustomerOrderConfig:
+        config = CustomerOrderConfig(customer_id=customer_id, **data)
+        session.add(config)
+        await session.commit()
+        await session.refresh(config)
+        return config
+
+    async def update(
+        self,
+        session: AsyncSession,
+        config: CustomerOrderConfig,
+        data: dict,
+    ) -> CustomerOrderConfig:
+        for key, value in data.items():
+            setattr(config, key, value)
+        await session.commit()
+        await session.refresh(config)
+        return config
+
+    async def delete(
+        self, session: AsyncSession, config: CustomerOrderConfig
+    ) -> None:
+        await session.delete(config)
+        await session.commit()
 
     async def upsert(
         self,
@@ -68,7 +133,10 @@ class CRUDCustomerOrder:
         skip: int = 0,
         limit: int = 100,
     ) -> List[CustomerOrder]:
-        stmt = select(CustomerOrder).options(joinedload(CustomerOrder.items))
+        stmt = select(CustomerOrder).options(
+            joinedload(CustomerOrder.items),
+            joinedload(CustomerOrder.customer),
+        )
         if customer_id is not None:
             stmt = stmt.where(CustomerOrder.customer_id == customer_id)
         if status is not None:
@@ -85,7 +153,7 @@ class CRUDCustomerOrder:
             CustomerOrder.received_at.desc()
         ).offset(skip).limit(limit)
         result = await session.execute(stmt)
-        return result.scalars().all()
+        return result.unique().scalars().all()
 
 
 class CRUDStockOrder:
@@ -133,6 +201,26 @@ class CRUDStockOrder:
 
 
 class CRUDSupplierOrder:
+    async def get_by_id(
+        self,
+        session: AsyncSession,
+        order_id: int,
+    ) -> Optional[SupplierOrder]:
+        stmt = (
+            select(SupplierOrder)
+            .options(
+                selectinload(SupplierOrder.items)
+                .selectinload(SupplierOrderItem.customer_order_item),
+                selectinload(SupplierOrder.items)
+                .selectinload(SupplierOrderItem.autopart)
+                .selectinload(AutoPart.brand),
+                selectinload(SupplierOrder.provider),
+            )
+            .where(SupplierOrder.id == order_id)
+        )
+        result = await session.execute(stmt)
+        return result.scalars().first()
+
     async def list_supplier_orders(
         self,
         session: AsyncSession,

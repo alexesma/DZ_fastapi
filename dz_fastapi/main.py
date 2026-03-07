@@ -18,6 +18,7 @@ from dz_fastapi.api.customer_order import router as customer_order_router
 from dz_fastapi.api.email_account import router as email_account_router
 from dz_fastapi.api.order import router as order_router
 from dz_fastapi.api.partner import router as partner_router
+from dz_fastapi.api.price_control import router as price_control_router
 from dz_fastapi.api.settings import router as settings_router
 from dz_fastapi.api.watchlist import router as watchlist_router
 from dz_fastapi.api.webchat import router as webchat_router
@@ -60,6 +61,7 @@ async def new_session(app: FastAPI) -> AsyncIterator[AsyncSession]:
 async def lifespan(app: FastAPI):
     # 1) Создаём одну фабрику сессий и кладём в app.state
     app.state.session_factory = get_async_session()
+    app.state.is_shutting_down = False
     app.state.started_at = time.time()
     try:
         async with app.state.session_factory() as session:
@@ -81,6 +83,7 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         # 3) Аккуратно останавливаем планировщик при выключении приложения
+        app.state.is_shutting_down = True
         try:
             if app.state.scheduler:
                 app.state.scheduler.shutdown(wait=True)
@@ -89,6 +92,12 @@ async def lifespan(app: FastAPI):
         # Отменяем задачу бота
         if bot_task:
             bot_task.cancel()
+        try:
+            engine = getattr(app.state.session_factory, 'bind', None)
+            if engine:
+                await engine.dispose()
+        except Exception as e:
+            logger.exception(f'Engine dispose error: {e}')
 
 
 app = FastAPI(
@@ -132,6 +141,7 @@ app.include_router(partner_router)
 app.include_router(order_router)
 app.include_router(customer_order_router)
 app.include_router(email_account_router)
+app.include_router(price_control_router)
 app.include_router(settings_router)
 app.include_router(watchlist_router)
 app.include_router(webchat_router)

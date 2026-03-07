@@ -120,6 +120,7 @@ class CustomerOrderConfigResponse(CustomerOrderConfigBase):
     id: int
     customer_id: int
     last_uid: int = 0
+    pricelist_config_name: Optional[str] = None
 
 
 class CustomerOrderItemResponse(BaseModel):
@@ -138,6 +139,39 @@ class CustomerOrderItemResponse(BaseModel):
     price_diff_pct: Optional[float]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CustomerOrderItemUpdate(BaseModel):
+    status: Optional[CUSTOMER_ORDER_ITEM_STATUS] = None
+    supplier_id: Optional[int] = None
+
+
+class CustomerOrderManualItemCreate(BaseModel):
+    oem: str
+    brand: str
+    name: Optional[str] = None
+    quantity: int = Field(gt=0)
+    price: Optional[Decimal] = None
+
+
+class CustomerOrderManualCreate(BaseModel):
+    customer_id: int
+    order_number: Optional[str] = None
+    order_date: Optional[date] = None
+    auto_process: bool = True
+    order_config_id: Optional[int] = None
+    items: List[CustomerOrderManualItemCreate] = Field(default_factory=list)
+
+
+class SupplierOrderManualItemCreate(BaseModel):
+    oem: str
+    brand: str
+    quantity: int = Field(gt=0)
+
+
+class SupplierOrderManualCreate(BaseModel):
+    provider_id: int
+    items: List[SupplierOrderManualItemCreate] = Field(default_factory=list)
 
 
 class CustomerOrderResponse(BaseModel):
@@ -159,6 +193,22 @@ class CustomerOrderResponse(BaseModel):
     response_file_name: Optional[str]
 
     items: List[CustomerOrderItemResponse] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CustomerOrderSummaryResponse(BaseModel):
+    id: int
+    customer_id: int
+    customer_name: Optional[str] = None
+    order_number: Optional[str] = None
+    received_at: datetime
+    status: CUSTOMER_ORDER_STATUS
+    total_sum: float = 0.0
+    stock_sum: float = 0.0
+    supplier_sum: float = 0.0
+    rejected_sum: float = 0.0
+    rejected_pct: float = 0.0
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -185,6 +235,34 @@ class SupplierOrderResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class SupplierOrderItemDetailResponse(BaseModel):
+    id: int
+    customer_order_item_id: Optional[int]
+    quantity: int
+    price: Optional[Decimal]
+    oem: Optional[str] = None
+    brand: Optional[str] = None
+    name: Optional[str] = None
+    requested_qty: Optional[int] = None
+    ship_qty: Optional[int] = None
+    reject_qty: Optional[int] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SupplierOrderDetailResponse(BaseModel):
+    id: int
+    provider_id: int
+    provider_name: Optional[str] = None
+    status: SUPPLIER_ORDER_STATUS
+    created_at: datetime
+    scheduled_at: Optional[datetime]
+    sent_at: Optional[datetime]
+    items: List[SupplierOrderItemDetailResponse] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class SupplierOrderSummaryResponse(BaseModel):
     id: int
     provider_id: int
@@ -195,6 +273,7 @@ class SupplierOrderSummaryResponse(BaseModel):
     customer_order_number: Optional[str] = None
     customer_received_at: Optional[datetime] = None
     customer_status: Optional[CUSTOMER_ORDER_STATUS] = None
+    customer_orders_count: int = 0
     total_sum: float = 0.0
     stock_sum: float = 0.0
     supplier_sum: float = 0.0

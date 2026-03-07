@@ -56,6 +56,7 @@ from dz_fastapi.crud.partner import (crud_customer_pricelist,
                                      crud_customer_pricelist_config,
                                      crud_customer_pricelist_source,
                                      crud_pricelist, crud_provider)
+from dz_fastapi.crud.price_control import crud_customer_pricelist_override
 from dz_fastapi.models.autopart import preprocess_oem_number
 from dz_fastapi.models.partner import (Customer, CustomerPriceList,
                                        CustomerPriceListConfig, Provider,
@@ -174,6 +175,16 @@ def _apply_source_markups(
         ),
         axis=1,
     )
+    return df
+
+
+def apply_price_overrides(
+    df: pd.DataFrame, overrides: dict[int, float]
+) -> pd.DataFrame:
+    if df.empty or not overrides:
+        return df
+    df = df.copy()
+    df['price'] = df['autopart_id'].map(overrides).fillna(df['price'])
     return df
 
 
@@ -1172,6 +1183,12 @@ async def process_customer_pricelist(
         final_df = pd.DataFrame()
 
     logger.debug(f'Final DataFrame before creating associations:\n{final_df}')
+    if not final_df.empty:
+        overrides = await crud_customer_pricelist_override.get_for_config(
+            session=session, config_id=config.id
+        )
+        if overrides:
+            final_df = apply_price_overrides(final_df, overrides)
     # Apply exclusions
 
     if not final_df.empty:

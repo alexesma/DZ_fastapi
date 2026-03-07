@@ -30,6 +30,7 @@ from dz_fastapi.crud.settings import (crud_price_check_log,
                                       crud_system_metric_snapshot)
 from dz_fastapi.models.partner import (CustomerPriceListConfig, PriceList,
                                        Provider, ProviderPriceListConfig)
+from dz_fastapi.models.price_control import PriceControlConfig
 from dz_fastapi.models.settings import PriceListStaleAlert
 from dz_fastapi.schemas.partner import (CustomerCreate,
                                         CustomerPriceListConfigCreate,
@@ -42,6 +43,7 @@ from dz_fastapi.services.customer_orders import (
 from dz_fastapi.services.email import get_emails
 from dz_fastapi.services.monitoring import (build_snapshot_payload,
                                             get_monitor_summary)
+from dz_fastapi.services.price_control import run_price_control
 from dz_fastapi.services.process import (process_customer_pricelist,
                                          process_provider_pricelist)
 from dz_fastapi.services.telegram import send_message_to_telegram
@@ -93,6 +95,16 @@ def start_scheduler(app: FastAPI):
         args=[app],
         id='send_customer_pricelists',
         name='Send scheduled customer pricelists',
+        minute='*',
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        func=price_control_run_task,
+        trigger='cron',
+        args=[app],
+        id='price_control_run',
+        name='Price control run',
         minute='*',
         replace_existing=True,
     )
@@ -208,48 +220,69 @@ def start_scheduler(app: FastAPI):
 @asynccontextmanager
 async def new_session_from_app(app: FastAPI):
     session_factory = app.state.session_factory
-    async with session_factory() as s:
-        yield s
+    session = session_factory()
+    try:
+        yield session
+    finally:
+        try:
+            await session.close()
+        except (asyncio.CancelledError, Exception) as e:
+            if getattr(app.state, 'is_shutting_down', False):
+                logger.debug(
+                    'Ignoring session close error during shutdown: %s', e
+                )
+            else:
+                raise
 
 
 async def _process_one(item, app: FastAPI, sem: asyncio.Semaphore):
     provider, filepath, provider_conf = item
-    async with sem:
-        try:
-            async with new_session_from_app(app) as session:
-                file_extension = filepath.split('.')[-1].lower()
-                async with aiofiles.open(filepath, 'rb') as f:
-                    file_content = await f.read()
-                logger.info(
-                    f'Скачан прайс для провайдера {provider.id} '
-                    f'({provider.name}), размер: {len(file_content)} байт'
-                )
-                await process_provider_pricelist(
-                    provider=provider,
-                    file_content=file_content,
-                    file_extension=file_extension,
-                    provider_list_conf=provider_conf,
-                    use_stored_params=True,
-                    start_row=None,
-                    oem_col=None,
-                    brand_col=None,
-                    name_col=None,
-                    qty_col=None,
-                    price_col=None,
-                    session=session,
-                )
-                logger.info(
-                    f'Успешно обработан прайс для провайдера {provider.id}'
-                )
+    try:
+        async with sem:
+            try:
+                async with new_session_from_app(app) as session:
+                    file_extension = filepath.split('.')[-1].lower()
+                    async with aiofiles.open(filepath, 'rb') as f:
+                        file_content = await f.read()
+                    logger.info(
+                        f'Скачан прайс для провайдера {provider.id} '
+                        f'({provider.name}), размер: {len(file_content)} байт'
+                    )
+                    await process_provider_pricelist(
+                        provider=provider,
+                        file_content=file_content,
+                        file_extension=file_extension,
+                        provider_list_conf=provider_conf,
+                        use_stored_params=True,
+                        start_row=None,
+                        oem_col=None,
+                        brand_col=None,
+                        name_col=None,
+                        qty_col=None,
+                        price_col=None,
+                        session=session,
+                    )
+                    logger.info(
+                        f'Успешно обработан прайс для провайдера {provider.id}'
+                    )
 
-                if provider.name == PROVIDER_IN['name']:
-                    await send_price_list_task(app)
-        except Exception as e:
-            logger.error(
-                f'Ошибка обработки прайса для провайдера {provider.id}: {e}',
-                exc_info=True,
+                    if provider.name == PROVIDER_IN['name']:
+                        await send_price_list_task(app)
+            except Exception as e:
+                logger.error(
+                    f'Ошибка обработки прайса для провайдера {provider.id}: '
+                    f'{e}',
+                    exc_info=True,
+                )
+                raise
+    except asyncio.CancelledError:
+        if getattr(app.state, 'is_shutting_down', False):
+            logger.info(
+                'Отмена обработки прайса провайдера %s при остановке',
+                provider.id,
             )
-            raise
+            return
+        raise
 
 
 async def send_price_list_task(app: FastAPI):
@@ -452,6 +485,48 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
             )
 
 
+async def price_control_run_task(app: FastAPI):
+    async_session_factory = app.state.session_factory
+    now = now_moscow()
+    day_key = _day_key(now)
+    time_key = now.strftime('%H:%M')
+    async with async_session_factory() as session:
+        try:
+            stmt = select(PriceControlConfig).where(
+                PriceControlConfig.is_active.is_(True)
+            )
+            configs = (await session.execute(stmt)).scalars().all()
+            if not configs:
+                return
+            for config in configs:
+                schedule_days = config.schedule_days or []
+                schedule_times = config.schedule_times or ['09:00']
+                if schedule_days and day_key not in schedule_days:
+                    continue
+                if schedule_times and time_key not in schedule_times:
+                    continue
+                if config.last_run_at:
+                    last_key = config.last_run_at.strftime('%Y-%m-%d %H:%M')
+                    now_key = now.strftime('%Y-%m-%d %H:%M')
+                    if last_key == now_key:
+                        continue
+                try:
+                    await run_price_control(session, config)
+                except Exception as exc:
+                    logger.error(
+                        'Error running price control for config %s: %s',
+                        config.id,
+                        exc,
+                        exc_info=True,
+                    )
+            logger.info('Completed price_control_run_task')
+        except Exception as exc:
+            logger.error(
+                f'Error in price_control_run_task: {exc}',
+                exc_info=True,
+            )
+
+
 async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
     """
     Обрабатывает все новые письма за сегодня,
@@ -476,7 +551,13 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
         asyncio.create_task(_process_one(item, app, sem))
         for item in downloaded
     ]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    try:
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+    except asyncio.CancelledError:
+        if getattr(app.state, 'is_shutting_down', False):
+            logger.info('Отмена обработки писем провайдеров при остановке')
+            return
+        raise
     process_end = time.perf_counter()
     logger.info(
         f'Обработка прайса выполнена '
@@ -555,6 +636,13 @@ async def download_price_provider_task(app: FastAPI):
                 message='Price check completed',
             )
             logger.info('Completed download_price_provider_task')
+        except asyncio.CancelledError:
+            if getattr(app.state, 'is_shutting_down', False):
+                logger.info(
+                    'download_price_provider_task отменена при остановке'
+                )
+                return
+            raise
         except Exception as e:
             logger.error(f'Error in download_price_provider_task: {e}')
             try:

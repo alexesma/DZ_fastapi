@@ -1,326 +1,291 @@
-2026-02-28 15:28:45,348 - dz_fastapi - DEBUG - Existing autopart: None
-2026-02-28 15:28:45,359 - dz_fastapi - DEBUG - AutopartCreate data: brand_id=1 oem_number='OEMFILTERHIGH' name='High Part' description=None width=None height=None length=None weight=None purchase_price=None retail_price=None wholesale_price=None multiplicity=None minimum_balance=None min_balance_auto=None min_balance_user=None comment=None barcode=None category_name=None storage_location_name=None
-2026-02-28 15:28:45,364 - dz_fastapi - DEBUG - Created new AutoPart: ID=2
-2026-02-28 15:28:45,364 - dz_fastapi - DEBUG - Created autopart: <dz_fastapi.models.autopart.AutoPart object at 0x113318b60>
-2026-02-28 15:28:45,364 - dz_fastapi - DEBUG - Bulk inserting 2 associations.
-2026-02-28 15:28:45,368 - dz_fastapi - DEBUG - New position: autopart_id=1
-2026-02-28 15:28:45,368 - dz_fastapi - DEBUG - New position: autopart_id=2
-2026-02-28 15:28:45,368 - dz_fastapi - DEBUG - Bulk inserting 2 records into AutoPartPriceHistory.
-2026-02-28 15:28:45,382 - dz_fastapi - DEBUG - Retrieved PriceList: <dz_fastapi.models.partner.PriceList object at 0x1132c61b0>
-2026-02-28 15:28:45,382 - dz_fastapi - DEBUG - AutoPart Association - Pricelist ID: 1, Autopart ID: 1, Quantity: 5, Price: 50.00
-2026-02-28 15:28:45,382 - dz_fastapi - DEBUG - AutoPart - ID: 1, OEM Number: OEMFILTERLOW, Name: LOW PART
-2026-02-28 15:28:45,382 - dz_fastapi - DEBUG - AutoPart Association - Pricelist ID: 1, Autopart ID: 2, Quantity: 6, Price: 150.00
-2026-02-28 15:28:45,382 - dz_fastapi - DEBUG - AutoPart - ID: 2, OEM Number: OEMFILTERHIGH, Name: HIGH PART
-2026-02-28 15:28:45,400 - dz_fastapi - INFO - Incoming request: customer_id=1, body={'customer_id': 1, 'config_id': 1, 'items': [], 'excluded_own_positions': [], 'excluded_supplier_positions': {}, 'date': datetime.date(2026, 2, 28)}
-2026-02-28 15:28:45,438 - dz_fastapi - DEBUG - Transform file to dataframe    autopart_id       name     oem_number  ...  is_own_price quantity  price
-0            1   LOW PART   OEMFILTERLOW  ...         False        5   50.0
-1            2  HIGH PART  OEMFILTERHIGH  ...         False        6  150.0
-
-[2 rows x 11 columns]
-2026-02-28 15:28:45,442 - dz_fastapi - DEBUG - Into apply_coefficient data df:   autopart_id       name     oem_number  ...  is_own_price quantity  price
-1            2  HIGH PART  OEMFILTERHIGH  ...         False        6  150.0
-
-[1 rows x 11 columns], cofig: {'_sa_instance_state': <sqlalchemy.orm.state.InstanceState object at 0x1134f87d0>, 'general_markup': 1.0, 'position_filters': [], 'schedule_times': [], 'own_price_list_markup': 1.0, 'supplier_quantity_filters': [], 'emails': [], 'third_party_markup': 1.0, 'additional_filters': {}, 'is_active': True, 'individual_markups': {}, 'default_filters': {}, 'last_sent_at': None, 'brand_filters': [], 'own_filters': {}, 'customer_id': 1, 'name': 'FILTER CONFIG', 'category_filter': [], 'other_filters': {}, 'price_intervals': [], 'supplier_filters': {}, 'id': 1, 'schedule_days': [], 'sources': [<dz_fastapi.models.partner.CustomerPriceListSource object at 0x113508230>]}
-2026-02-28 15:28:45,447 - dz_fastapi - DEBUG - Final DataFrame before creating associations:
-   autopart_id       name     oem_number  ...  is_own_price quantity  price
-0            2  HIGH PART  OEMFILTERHIGH  ...         False        6  150.0
-
-[1 rows x 11 columns]
-2026-02-28 15:28:45,460 - dz_fastapi - DEBUG - Calling send_pricelist
-2026-02-28 15:28:45,461 - dz_fastapi - DEBUG - Write headers on the second row
-2026-02-28 15:28:45,461 - dz_fastapi - DEBUG - Write data rows starting from the third row
-2026-02-28 15:28:45,464 - dz_fastapi - DEBUG - Workbook saved successfully. Size: 5175 bytes
-2026-02-28 15:28:45,465 - dz_fastapi - DEBUG - Send email with the Excel attachment
-2026-02-28 15:28:45,465 - dz_fastapi - DEBUG - Send the email asynchronously
-2026-02-28 15:28:45,467 - dz_fastapi - DEBUG - Inside send_email_with_attachment with len(attachment_bytes)=5175
-2026-02-28 15:28:47,292 - dz_fastapi - INFO - Email sent to prices1@costomer.com
-2026-02-28 15:28:47,295 - dz_fastapi - DEBUG - Final send email
-2026-02-28 15:28:47,314 - dz_fastapi - DEBUG - Finished send_pricelist
-2026-02-28 15:28:47,314 - dz_fastapi - DEBUG - Finished send_pricelist
-2026-02-28 15:28:47,588 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:48,101 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpoyzi9h8f
-2026-02-28 15:28:48,101 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:48,746 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TEST BRAND', 'oem_number': 'OEM-SEND-001', 'name': 'Send Part', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
-2026-02-28 15:28:48,747 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TEST BRAND' oem_number='OEM-SEND-001' name='Send Part' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
-2026-02-28 15:28:48,747 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TEST BRAND', 'oem_number': 'OEM-SEND-001', 'name': 'Send Part', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
-2026-02-28 15:28:48,747 - dz_fastapi - DEBUG - Extracted brand_name: TEST BRAND
-2026-02-28 15:28:48,747 - dz_fastapi - DEBUG - Changed brand_name: TEST BRAND
-2026-02-28 15:28:48,750 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0x1135a3e30>
-2026-02-28 15:28:48,751 - dz_fastapi - DEBUG - Existing autopart: None
-2026-02-28 15:28:48,751 - dz_fastapi - DEBUG - AutopartCreate data: brand_id=1 oem_number='OEMSEND001' name='Send Part' description=None width=None height=None length=None weight=None purchase_price=None retail_price=None wholesale_price=None multiplicity=None minimum_balance=None min_balance_auto=None min_balance_user=None comment=None barcode=None category_name=None storage_location_name=None
-2026-02-28 15:28:48,759 - dz_fastapi - DEBUG - Created new AutoPart: ID=1
-2026-02-28 15:28:48,759 - dz_fastapi - DEBUG - Created autopart: <dz_fastapi.models.autopart.AutoPart object at 0x113440e90>
-2026-02-28 15:28:48,759 - dz_fastapi - DEBUG - Bulk inserting 1 associations.
-2026-02-28 15:28:48,761 - dz_fastapi - DEBUG - New position: autopart_id=1
-2026-02-28 15:28:48,761 - dz_fastapi - DEBUG - Bulk inserting 1 records into AutoPartPriceHistory.
-2026-02-28 15:28:48,919 - dz_fastapi - DEBUG - Retrieved PriceList: <dz_fastapi.models.partner.PriceList object at 0x1131f4260>
-2026-02-28 15:28:48,919 - dz_fastapi - DEBUG - AutoPart Association - Pricelist ID: 1, Autopart ID: 1, Quantity: 5, Price: 100.00
-2026-02-28 15:28:48,919 - dz_fastapi - DEBUG - AutoPart - ID: 1, OEM Number: OEMSEND001, Name: SEND PART
-2026-02-28 15:28:48,964 - dz_fastapi - DEBUG - Transform file to dataframe    autopart_id       name  oem_number  ...  is_own_price quantity  price
+2026-03-07 12:32:47,960 - dz_fastapi - INFO - Email sent to prices1@costomer.com
+2026-03-07 12:32:47,986 - dz_fastapi - DEBUG - Final send email
+2026-03-07 12:32:47,993 - dz_fastapi - DEBUG - Finished send_pricelist
+2026-03-07 12:32:47,993 - dz_fastapi - DEBUG - Finished send_pricelist
+2026-03-07 12:32:48,162 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:32:48,483 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpidp6cvjx
+2026-03-07 12:32:48,483 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:32:48,952 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TEST BRAND', 'oem_number': 'OEM-SEND-001', 'name': 'Send Part', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-07 12:32:48,952 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TEST BRAND' oem_number='OEM-SEND-001' name='Send Part' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-07 12:32:48,952 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TEST BRAND', 'oem_number': 'OEM-SEND-001', 'name': 'Send Part', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-07 12:32:48,952 - dz_fastapi - DEBUG - Extracted brand_name: TEST BRAND
+2026-03-07 12:32:48,953 - dz_fastapi - DEBUG - Changed brand_name: TEST BRAND
+2026-03-07 12:32:48,957 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0x115169fa0>
+2026-03-07 12:32:48,959 - dz_fastapi - DEBUG - Existing autopart: None
+2026-03-07 12:32:48,959 - dz_fastapi - DEBUG - AutopartCreate data: brand_id=1 oem_number='OEMSEND001' name='Send Part' description=None width=None height=None length=None weight=None purchase_price=None retail_price=None wholesale_price=None multiplicity=None minimum_balance=None min_balance_auto=None min_balance_user=None comment=None barcode=None category_name=None storage_location_name=None
+2026-03-07 12:32:48,967 - dz_fastapi - DEBUG - Created new AutoPart: ID=1
+2026-03-07 12:32:48,967 - dz_fastapi - DEBUG - Created autopart: <dz_fastapi.models.autopart.AutoPart object at 0x114d834a0>
+2026-03-07 12:32:48,967 - dz_fastapi - DEBUG - Bulk inserting 1 associations.
+2026-03-07 12:32:48,968 - dz_fastapi - DEBUG - New position: autopart_id=1
+2026-03-07 12:32:48,968 - dz_fastapi - DEBUG - Bulk inserting 1 records into AutoPartPriceHistory.
+2026-03-07 12:32:48,982 - dz_fastapi - DEBUG - Retrieved PriceList: <dz_fastapi.models.partner.PriceList object at 0x1150fa7b0>
+2026-03-07 12:32:48,982 - dz_fastapi - DEBUG - AutoPart Association - Pricelist ID: 1, Autopart ID: 1, Quantity: 5, Price: 100.00
+2026-03-07 12:32:48,982 - dz_fastapi - DEBUG - AutoPart - ID: 1, OEM Number: OEMSEND001, Name: SEND PART
+2026-03-07 12:32:49,045 - dz_fastapi - DEBUG - Transform file to dataframe    autopart_id       name  oem_number  ...  is_own_price quantity  price
 0            1  SEND PART  OEMSEND001  ...         False        5  100.0
 
 [1 rows x 11 columns]
-2026-02-28 15:28:48,966 - dz_fastapi - DEBUG - Into apply_coefficient data df:   autopart_id       name  oem_number  ...  is_own_price quantity  price
+2026-03-07 12:32:49,049 - dz_fastapi - DEBUG - Into apply_coefficient data df:   autopart_id       name  oem_number  ...  is_own_price quantity  price
 0            1  SEND PART  OEMSEND001  ...         False        5  100.0
 
-[1 rows x 11 columns], cofig: {'_sa_instance_state': <sqlalchemy.orm.state.InstanceState object at 0x113593cb0>, 'general_markup': 1.0, 'position_filters': [], 'schedule_times': [], 'own_price_list_markup': 1.0, 'supplier_quantity_filters': [], 'emails': ['test@example.com'], 'third_party_markup': 1.0, 'additional_filters': {}, 'is_active': True, 'individual_markups': {}, 'default_filters': {}, 'last_sent_at': None, 'brand_filters': [], 'own_filters': {}, 'customer_id': 1, 'name': 'SEND CONFIG', 'category_filter': [], 'other_filters': {}, 'price_intervals': [], 'supplier_filters': {}, 'id': 1, 'schedule_days': [], 'sources': [<dz_fastapi.models.partner.CustomerPriceListSource object at 0x113579220>]}
-2026-02-28 15:28:48,970 - dz_fastapi - DEBUG - Final DataFrame before creating associations:
+[1 rows x 11 columns], cofig: {'_sa_instance_state': <sqlalchemy.orm.state.InstanceState object at 0x1149a6870>, 'general_markup': 1.0, 'position_filters': [], 'schedule_times': [], 'own_price_list_markup': 1.0, 'supplier_quantity_filters': [], 'emails': ['test@example.com'], 'third_party_markup': 1.0, 'additional_filters': {}, 'is_active': True, 'individual_markups': {}, 'default_filters': {}, 'last_sent_at': None, 'brand_filters': [], 'own_filters': {}, 'name': 'SEND CONFIG', 'customer_id': 1, 'category_filter': [], 'other_filters': {}, 'price_intervals': [], 'supplier_filters': {}, 'id': 1, 'schedule_days': [], 'sources': [<dz_fastapi.models.partner.CustomerPriceListSource object at 0x1145cc260>]}
+2026-03-07 12:32:49,055 - dz_fastapi - DEBUG - Final DataFrame before creating associations:
    autopart_id       name  oem_number  ...  is_own_price quantity  price
 0            1  SEND PART  OEMSEND001  ...         False        5  100.0
 
 [1 rows x 11 columns]
-2026-02-28 15:28:48,985 - dz_fastapi - DEBUG - Calling send_pricelist
-2026-02-28 15:28:48,985 - dz_fastapi - DEBUG - Write headers on the second row
-2026-02-28 15:28:48,986 - dz_fastapi - DEBUG - Write data rows starting from the third row
-2026-02-28 15:28:48,988 - dz_fastapi - DEBUG - Workbook saved successfully. Size: 5170 bytes
-2026-02-28 15:28:48,988 - dz_fastapi - DEBUG - Send email with the Excel attachment
-2026-02-28 15:28:48,988 - dz_fastapi - DEBUG - Send the email asynchronously
-2026-02-28 15:28:48,990 - dz_fastapi - DEBUG - Inside send_email_with_attachment with len(attachment_bytes)=5170
-2026-02-28 15:28:50,519 - dz_fastapi - INFO - Email sent to test@example.com
-2026-02-28 15:28:50,521 - dz_fastapi - DEBUG - Final send email
-2026-02-28 15:28:50,532 - dz_fastapi - DEBUG - Finished send_pricelist
-2026-02-28 15:28:50,533 - dz_fastapi - DEBUG - Finished send_pricelist
-2026-02-28 15:28:50,820 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:51,365 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpy32sti0h
-2026-02-28 15:28:51,365 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:51,923 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:52,159 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpzwt83o7m
-2026-02-28 15:28:52,159 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:52,722 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:52,969 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp4etalicb
-2026-02-28 15:28:52,970 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:52,971 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:53,393 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpjv_af0s5
-2026-02-28 15:28:53,393 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:53,396 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:53,818 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpd2u19jka
-2026-02-28 15:28:53,818 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:53,820 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:54,237 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmppnhaiota
-2026-02-28 15:28:54,238 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:54,240 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:54,695 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmph9099pdg
-2026-02-28 15:28:54,695 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:54,698 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:55,122 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpsviwnbcn
-2026-02-28 15:28:55,122 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:55,124 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:55,503 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpo8y0n0ak
-2026-02-28 15:28:55,503 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:55,505 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:55,885 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp_5yej2db
-2026-02-28 15:28:55,885 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:55,887 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:56,292 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmprhxcqp1n
-2026-02-28 15:28:56,293 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:56,294 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:56,706 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmphv1vnyp7
-2026-02-28 15:28:56,707 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:56,709 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:57,145 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpu0l2os0o
-2026-02-28 15:28:57,145 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:57,147 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:57,507 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp0obur3oq
-2026-02-28 15:28:57,508 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:57,510 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:57,876 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpyb8btmc4
-2026-02-28 15:28:57,876 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:57,878 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:58,249 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpgsk29wx1
-2026-02-28 15:28:58,249 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:58,251 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:58,615 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmplbb30hre
-2026-02-28 15:28:58,615 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:58,618 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:59,109 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp5som5wfn
-2026-02-28 15:28:59,109 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:59,111 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:59,561 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp3l76xs6w
-2026-02-28 15:28:59,562 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:59,563 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:28:59,956 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp_pojvkjf
-2026-02-28 15:28:59,957 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:28:59,959 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:00,373 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpgzgrdecr
-2026-02-28 15:29:00,374 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:00,376 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:00,805 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp96vo38cm
-2026-02-28 15:29:00,806 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:00,808 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:01,207 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpjmh14b_8
-2026-02-28 15:29:01,208 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:01,210 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:01,607 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpx65x2cs7
-2026-02-28 15:29:01,607 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:01,609 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:02,029 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp21t7cxz7
-2026-02-28 15:29:02,030 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:02,032 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:02,439 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp6814nf73
-2026-02-28 15:29:02,439 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:02,441 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:02,799 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpa4u8q8z8
-2026-02-28 15:29:02,799 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:02,801 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:03,182 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpv3a315zd
-2026-02-28 15:29:03,183 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:03,185 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:03,595 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpz9aobrf3
-2026-02-28 15:29:03,596 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:03,598 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:04,002 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmptwwdqgj1
-2026-02-28 15:29:04,002 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:04,004 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:04,416 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpjiqfdk9z
-2026-02-28 15:29:04,417 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:04,418 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:04,851 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpzyo3i9lp
-2026-02-28 15:29:04,852 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:04,854 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:05,257 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpakof3ddp
-2026-02-28 15:29:05,258 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:05,260 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:05,645 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpjlmfy5ov
-2026-02-28 15:29:05,646 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:05,648 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:06,008 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpp4c_i7pv
-2026-02-28 15:29:06,009 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:06,011 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:06,404 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpc1i9u_m2
-2026-02-28 15:29:06,404 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:06,406 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:06,797 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpp3rmcvyn
-2026-02-28 15:29:06,797 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:06,799 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:07,158 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpxw50oxt2
-2026-02-28 15:29:07,158 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:07,160 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:07,540 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpvhy1seqn
-2026-02-28 15:29:07,540 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:07,542 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:07,919 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp3sihtf4v
-2026-02-28 15:29:07,919 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:07,922 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:08,294 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpuh30e29v
-2026-02-28 15:29:08,294 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:08,296 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:08,690 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpqcvr8ky5
-2026-02-28 15:29:08,690 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:08,693 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:09,209 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpm157ie5p
-2026-02-28 15:29:09,209 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:09,210 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:09,628 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpdwl1_pw8
-2026-02-28 15:29:09,629 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:09,631 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:10,042 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpigphj05t
-2026-02-28 15:29:10,043 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:10,045 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:10,446 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp88_y6z6m
-2026-02-28 15:29:10,447 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:10,449 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:10,854 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmprjbcwkid
-2026-02-28 15:29:10,855 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:10,857 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:11,311 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp4v69xcng
-2026-02-28 15:29:11,312 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:11,313 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:11,745 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpauwaqux4
-2026-02-28 15:29:11,745 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:11,747 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:12,135 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpx_fb4952
-2026-02-28 15:29:12,136 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:12,137 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:12,604 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp3_6k_kna
-2026-02-28 15:29:12,604 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:12,606 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:12,966 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpavnjpuvd
-2026-02-28 15:29:12,966 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:12,972 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:13,344 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp598ymu1f
-2026-02-28 15:29:13,345 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:13,346 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:13,727 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmplzd74nyn
-2026-02-28 15:29:13,727 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:13,729 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:14,104 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpwuesvbnk
-2026-02-28 15:29:14,105 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:14,107 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:14,503 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp4ghu_pvt
-2026-02-28 15:29:14,503 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:14,505 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:14,937 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp9cx82x18
-2026-02-28 15:29:14,937 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:14,940 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:15,545 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmppt4v_ot8
-2026-02-28 15:29:15,545 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:15,547 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:15,959 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp845xhbmo
-2026-02-28 15:29:15,959 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:15,960 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:16,680 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp6iga63on
-2026-02-28 15:29:16,681 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:16,683 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:17,739 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp00rmihfo
-2026-02-28 15:29:17,739 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:17,746 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:18,177 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpahfa8sj7
-2026-02-28 15:29:18,177 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:18,178 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:18,592 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpym_9mvh6
-2026-02-28 15:29:18,593 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:18,594 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:19,010 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp9zqyus6d
-2026-02-28 15:29:19,010 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:19,012 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:19,412 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp3f4ajpy6
-2026-02-28 15:29:19,413 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:19,414 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:19,830 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpwq16ufzx
-2026-02-28 15:29:19,831 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:19,833 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:20,280 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp52srilb3
-2026-02-28 15:29:20,280 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:20,282 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:20,757 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpuhgmso06
-2026-02-28 15:29:20,757 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:20,760 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:21,267 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpfqlphuoq
-2026-02-28 15:29:21,268 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:21,277 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:21,684 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpentwwbdn
-2026-02-28 15:29:21,685 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:21,686 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:22,081 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpnuanfhfo
-2026-02-28 15:29:22,082 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:22,083 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:22,446 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp7zro2mhh
-2026-02-28 15:29:22,447 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:23,035 - dz_fastapi - INFO - Starting download_price_provider_task
-2026-02-28 15:29:23,094 - dz_fastapi - INFO - Created initial provider with id: 1
-2026-02-28 15:29:23,094 - dz_fastapi - INFO - Начинаем обработку писем провайдеров...
-2026-02-28 15:29:23,094 - dz_fastapi - INFO - get_emails() выполнена за 0.00 секунд
-2026-02-28 15:29:23,094 - dz_fastapi - INFO - Новых писем для обработки не найдено.
-2026-02-28 15:29:23,099 - dz_fastapi - INFO - Completed download_price_provider_task
-2026-02-28 15:29:23,213 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:23,484 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp2t3psavv
-2026-02-28 15:29:23,485 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:24,024 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:24,328 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpra3oxkwx
-2026-02-28 15:29:24,328 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:24,902 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:25,207 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpqs1cqp6k
-2026-02-28 15:29:25,207 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:25,677 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:26,083 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpil087izy
-2026-02-28 15:29:26,083 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:27,160 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:27,403 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpzo_5r01z
-2026-02-28 15:29:27,403 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:27,842 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:28,084 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpu6znpu3o
-2026-02-28 15:29:28,084 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:28,559 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
-2026-02-28 15:29:28,787 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpud357c_u
-2026-02-28 15:29:28,788 - dz_fastapi - DEBUG - Dependencies overridden for the test
-2026-02-28 15:29:29,239 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:32:49,069 - dz_fastapi - DEBUG - Calling send_pricelist
+2026-03-07 12:32:49,070 - dz_fastapi - DEBUG - Write headers on the second row
+2026-03-07 12:32:49,071 - dz_fastapi - DEBUG - Write data rows starting from the third row
+2026-03-07 12:32:49,074 - dz_fastapi - DEBUG - Workbook saved successfully. Size: 5170 bytes
+2026-03-07 12:32:49,074 - dz_fastapi - DEBUG - Send email with the Excel attachment
+2026-03-07 12:32:49,074 - dz_fastapi - DEBUG - Send the email asynchronously
+2026-03-07 12:32:49,076 - dz_fastapi - DEBUG - Inside send_email_with_attachment with len(attachment_bytes)=5170
+2026-03-07 12:32:50,505 - dz_fastapi - INFO - Email sent to test@example.com
+2026-03-07 12:32:50,507 - dz_fastapi - DEBUG - Final send email
+2026-03-07 12:32:50,517 - dz_fastapi - DEBUG - Finished send_pricelist
+2026-03-07 12:32:50,517 - dz_fastapi - DEBUG - Finished send_pricelist
+2026-03-07 12:32:50,831 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:32:51,246 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp5u3cfng4
+2026-03-07 12:32:51,246 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:32:51,788 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:32:52,069 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpo2e4g9xs
+2026-03-07 12:32:52,069 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:32:52,650 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:32:53,381 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp9rid3g12
+2026-03-07 12:32:53,381 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:32:53,383 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:32:53,939 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpiw76vge0
+2026-03-07 12:32:53,940 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:32:53,941 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:32:54,491 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpwzlelb3j
+2026-03-07 12:32:54,492 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:32:54,494 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:32:54,910 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpvgsg045v
+2026-03-07 12:32:54,911 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:32:54,912 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:32:55,321 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp7fq3gelj
+2026-03-07 12:32:55,322 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:32:55,323 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:32:55,856 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpjaz78vqn
+2026-03-07 12:32:55,857 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:32:55,858 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:32:56,291 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmplh11l15m
+2026-03-07 12:32:56,292 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:32:56,294 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:32:56,716 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp8_96l14k
+2026-03-07 12:32:56,716 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:32:56,718 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:32:57,130 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpkfgbxhbm
+2026-03-07 12:32:57,131 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:32:57,133 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:32:57,838 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpk4z0yc3v
+2026-03-07 12:32:57,838 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:32:57,840 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:32:58,364 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpqdu6i5dy
+2026-03-07 12:32:58,364 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:32:58,366 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:32:58,711 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp8_xqg6te
+2026-03-07 12:32:58,711 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:32:58,713 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:32:59,133 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmposps_clc
+2026-03-07 12:32:59,134 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:32:59,136 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:32:59,558 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpcsl3v33l
+2026-03-07 12:32:59,559 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:32:59,560 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:32:59,949 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpiln8dd8d
+2026-03-07 12:32:59,949 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:32:59,951 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:00,502 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpcr_qmqjz
+2026-03-07 12:33:00,502 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:00,504 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:00,951 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpncybzae2
+2026-03-07 12:33:00,951 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:00,953 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:01,358 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpv3e5rp4q
+2026-03-07 12:33:01,358 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:01,360 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:02,032 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpjvjv5rp_
+2026-03-07 12:33:02,033 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:02,035 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:02,667 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpyigu2amn
+2026-03-07 12:33:02,667 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:02,668 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:03,083 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpkcwzhzyu
+2026-03-07 12:33:03,084 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:03,086 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:03,506 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmph6_a4bok
+2026-03-07 12:33:03,506 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:03,508 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:03,926 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpmlt0ef05
+2026-03-07 12:33:03,926 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:03,928 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:04,369 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp99102p7p
+2026-03-07 12:33:04,369 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:04,371 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:04,782 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpblbojkb1
+2026-03-07 12:33:04,782 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:04,784 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:05,201 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpd8p9brww
+2026-03-07 12:33:05,202 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:05,203 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:05,751 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpyfxg14yr
+2026-03-07 12:33:05,751 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:05,753 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:06,195 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpuudzc7dv
+2026-03-07 12:33:06,196 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:06,197 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:06,632 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpyw8yo4iq
+2026-03-07 12:33:06,633 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:06,635 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:07,028 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpmnp7cnn3
+2026-03-07 12:33:07,028 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:07,030 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:07,466 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpyaomz9y_
+2026-03-07 12:33:07,467 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:07,469 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:07,891 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpn8d2vye3
+2026-03-07 12:33:07,891 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:07,893 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:08,365 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpnyf5ffbm
+2026-03-07 12:33:08,365 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:08,367 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:08,912 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpu4hhd3h2
+2026-03-07 12:33:08,912 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:08,914 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:09,337 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpwef0sgko
+2026-03-07 12:33:09,338 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:09,340 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:09,978 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpj3_mptg8
+2026-03-07 12:33:09,978 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:09,980 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:10,408 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmply8szt6n
+2026-03-07 12:33:10,408 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:10,410 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:10,856 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp7yeivj6l
+2026-03-07 12:33:10,857 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:10,859 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:11,308 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp1r0wojrq
+2026-03-07 12:33:11,308 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:11,310 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:11,754 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpmu21_6n3
+2026-03-07 12:33:11,754 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:11,756 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:12,176 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpys5eyhmb
+2026-03-07 12:33:12,176 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:12,178 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:12,592 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpph5jdv3l
+2026-03-07 12:33:12,592 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:12,594 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:13,101 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmph753rfyq
+2026-03-07 12:33:13,101 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:13,103 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:13,530 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpcjrsgcyd
+2026-03-07 12:33:13,531 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:13,532 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:14,104 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpc_ymuhuc
+2026-03-07 12:33:14,105 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:14,107 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:14,511 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmptohljwx0
+2026-03-07 12:33:14,512 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:14,519 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:14,951 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpta_2xqw0
+2026-03-07 12:33:14,951 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:14,953 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:15,401 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp3hnyfqjr
+2026-03-07 12:33:15,402 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:15,403 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:15,881 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmph1z1amv7
+2026-03-07 12:33:15,882 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:15,884 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:16,300 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp77eee184
+2026-03-07 12:33:16,301 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:16,302 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:16,691 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpyd49guv6
+2026-03-07 12:33:16,691 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:16,692 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:17,074 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp21ahpid7
+2026-03-07 12:33:17,075 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:17,076 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:17,482 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpkxagls81
+2026-03-07 12:33:17,482 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:17,484 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:18,103 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpc5stzmo0
+2026-03-07 12:33:18,104 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:18,106 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:18,533 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpp5a_4ktn
+2026-03-07 12:33:18,533 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:18,535 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:18,998 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpb7btyjhv
+2026-03-07 12:33:18,998 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:19,000 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:19,397 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp54hzthmj
+2026-03-07 12:33:19,397 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:19,399 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:19,859 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpkjqr7mnx
+2026-03-07 12:33:19,860 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:19,862 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:20,292 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpxrtw2g6k
+2026-03-07 12:33:20,292 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:20,295 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:20,709 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpjjfzofet
+2026-03-07 12:33:20,709 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:20,711 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:21,156 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpp8d43mrq
+2026-03-07 12:33:21,156 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:21,158 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:21,677 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpe5i57zyy
+2026-03-07 12:33:21,677 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:21,679 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:22,125 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpf8jmoivj
+2026-03-07 12:33:22,125 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:22,127 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:22,553 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpje3lh3v7
+2026-03-07 12:33:22,553 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:22,555 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:22,958 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpm_4wst6y
+2026-03-07 12:33:22,959 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:22,960 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:23,402 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp26dfmhlg
+2026-03-07 12:33:23,402 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:23,404 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:23,844 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp1n2n6ji1
+2026-03-07 12:33:23,844 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:23,847 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:24,296 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp2p92o6a7
+2026-03-07 12:33:24,297 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:24,298 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:24,711 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpb3em9w1w
+2026-03-07 12:33:24,711 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:24,712 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:25,149 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp3xa5c6lw
+2026-03-07 12:33:25,150 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:25,707 - dz_fastapi - INFO - Starting download_price_provider_task
+2026-03-07 12:33:25,765 - dz_fastapi - INFO - Created initial provider with id: 1
+2026-03-07 12:33:25,765 - dz_fastapi - INFO - Начинаем обработку писем провайдеров...
+2026-03-07 12:33:25,765 - dz_fastapi - INFO - get_emails() выполнена за 0.00 секунд
+2026-03-07 12:33:25,765 - dz_fastapi - INFO - Новых писем для обработки не найдено.
+2026-03-07 12:33:25,770 - dz_fastapi - INFO - Completed download_price_provider_task
+2026-03-07 12:33:25,891 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:26,151 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp6m09_7av
+2026-03-07 12:33:26,151 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:26,689 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:26,957 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpdvaltfri
+2026-03-07 12:33:26,957 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:27,521 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:28,110 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpdbqgq7hu
+2026-03-07 12:33:28,111 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:28,666 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:28,990 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmphn2b8hhj
+2026-03-07 12:33:28,990 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:30,092 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:30,702 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpte95p6vi
+2026-03-07 12:33:30,702 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:31,343 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:31,629 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmphn3t9002
+2026-03-07 12:33:31,630 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:32,200 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-03-07 12:33:32,543 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpzzknoj06
+2026-03-07 12:33:32,544 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-03-07 12:33:33,105 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test

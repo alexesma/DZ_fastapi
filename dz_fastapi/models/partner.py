@@ -204,10 +204,9 @@ class Customer(Client):
         back_populates='customer',
         cascade='all, delete-orphan',
     )
-    order_config = relationship(
+    order_configs = relationship(
         'CustomerOrderConfig',
         back_populates='customer',
-        uselist=False,
         cascade='all, delete-orphan',
     )
     customer_orders = relationship(
@@ -449,7 +448,7 @@ class CustomerOrderConfig(Base):
     is_active = Column(Boolean, default=True)
     last_uid = Column(Integer, default=0)
 
-    customer = relationship('Customer', back_populates='order_config')
+    customer = relationship('Customer', back_populates='order_configs')
     email_account = relationship('EmailAccount')
 
 
@@ -551,6 +550,7 @@ class SupplierOrderItem(Base):
 
     supplier_order = relationship('SupplierOrder', back_populates='items')
     customer_order_item = relationship('CustomerOrderItem')
+    autopart = relationship('AutoPart')
 
 
 class StockOrder(Base):

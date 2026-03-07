@@ -29,7 +29,8 @@ from dz_fastapi.models.autopart import (AutoPart, Category, StorageLocation,
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import (PriceList, PriceListAutoPartAssociation,
                                        Provider, ProviderPriceListConfig)
-from dz_fastapi.schemas.autopart import (AutoPartCreate, AutopartOfferRow,
+from dz_fastapi.schemas.autopart import (AutoPartCreate, AutoPartLookupItem,
+                                         AutopartOfferRow,
                                          AutopartOffersResponse,
                                          AutopartOrderRequest,
                                          AutoPartResponse, AutoPartUpdate,
@@ -169,6 +170,37 @@ async def get_autopart_offers(
     return AutopartOffersResponse(
         oem_number=normalized_oem, offers=offers
     )
+
+
+@router.get(
+    '/autoparts/lookup/',
+    tags=['autopart'],
+    summary='Поиск автозапчастей по OEM',
+    response_model=list[AutoPartLookupItem],
+)
+async def lookup_autoparts_by_oem(
+    oem: str = Query(..., description='OEM номер запчасти'),
+    limit: conint(ge=1, le=100) = 50,
+    session: AsyncSession = Depends(get_session),
+):
+    normalized_oem = preprocess_oem_number(oem)
+    stmt = (
+        select(
+            AutoPart.id.label('id'),
+            AutoPart.oem_number.label('oem_number'),
+            Brand.id.label('brand_id'),
+            Brand.name.label('brand'),
+            AutoPart.name.label('name'),
+        )
+        .select_from(AutoPart)
+        .join(Brand, Brand.id == AutoPart.brand_id)
+        .where(AutoPart.oem_number == normalized_oem)
+        .order_by(Brand.name.asc(), AutoPart.name.asc().nullslast())
+        .limit(limit)
+    )
+    result = await session.execute(stmt)
+    rows = result.mappings().all()
+    return [AutoPartLookupItem(**row) for row in rows]
 
 
 @router.get(
