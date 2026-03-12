@@ -69,7 +69,9 @@ def _recent_pct_from_coef(values: object) -> list[float]:
             coef = float(value)
         except (TypeError, ValueError):
             continue
-        result.append(round((coef - 1) * 100, 2))
+        if coef <= 0:
+            continue
+        result.append(round(((1 / coef) - 1) * 100, 2))
     return result
 
 

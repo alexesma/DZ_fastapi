@@ -512,41 +512,114 @@ async def _fetch_site_offers_with_brand_fallback(
     return []
 
 
+def _offer_row_from_series(row: pd.Series) -> OfferRow:
+    return OfferRow(
+        autopart_id=int(row.get('autopart_id')),
+        provider_config_id=int(row.get('provider_config_id')),
+        provider_id=(
+            int(row.get('provider_id'))
+            if row.get('provider_id') is not None
+            else None
+        ),
+        price=float(row.get('price') or 0),
+        base_price=float(
+            row.get('base_price') if row.get('base_price') is not None
+            else row.get('price') or 0
+        ),
+        quantity=int(row.get('quantity') or 0),
+        is_own_price=bool(row.get('is_own_price')),
+        brand=str(row.get('brand') or ''),
+        oem=str(row.get('oem_number') or ''),
+        name=str(row.get('name') or ''),
+    )
+
+
 async def _build_current_offers(
     session: AsyncSession, config: CustomerPriceListConfig
-) -> dict[tuple[str, str], OfferRow]:
+) -> tuple[
+    dict[tuple[str, str], OfferRow],
+    dict[tuple[int, tuple[str, str]], OfferRow],
+]:
     sources = await crud_customer_pricelist_source.get_by_config_id(
         config_id=config.id, session=session
     )
     combined = []
+    source_offers: dict[tuple[int, tuple[str, str]], OfferRow] = {}
     for source in sources:
         if not source.enabled:
+            logger.debug(
+                'Price control source skipped (disabled): '
+                'config=%s provider_config=%s',
+                config.id,
+                source.provider_config_id,
+            )
             continue
         latest_pl = await crud_pricelist.get_latest_pricelist_by_config(
             session=session, provider_config_id=source.provider_config_id
         )
         if not latest_pl:
+            logger.debug(
+                'Price control source skipped (no latest pricelist): '
+                'config=%s provider_config=%s',
+                config.id,
+                source.provider_config_id,
+            )
             continue
         associations = await crud_pricelist.fetch_pricelist_data(
             latest_pl.id, session
         )
         if not associations:
+            logger.debug(
+                'Price control source skipped (empty pricelist rows): '
+                'config=%s provider_config=%s pricelist_id=%s',
+                config.id,
+                source.provider_config_id,
+                latest_pl.id,
+            )
             continue
         df = await crud_pricelist.transform_to_dataframe(
             associations=associations, session=session
         )
+        source_rows_before_filters = len(df)
         df = _apply_source_filters(df, source)
         if df.empty:
+            logger.debug(
+                'Price control source skipped (filtered to empty): '
+                'config=%s provider_config=%s rows_before=%s',
+                config.id,
+                source.provider_config_id,
+                source_rows_before_filters,
+            )
             continue
         df['base_price'] = pd.to_numeric(df['price'], errors='coerce')
         df = crud_customer_pricelist.apply_coefficient(
             df, config, apply_general_markup=False
         )
         df = _apply_source_markups(df, config, source)
+        source_df = (
+            df.sort_values(by=['oem_number', 'brand', 'price'])
+            .drop_duplicates(subset=['oem_number', 'brand'], keep='first')
+        )
+        source_unique = 0
+        for _, row in source_df.iterrows():
+            key = _normalize_key(row.get('oem_number'), row.get('brand'))
+            source_offers[
+                (source.provider_config_id, key)
+            ] = _offer_row_from_series(row)
+            source_unique += 1
+        logger.info(
+            'Price control source prepared: config=%s provider_config=%s '
+            'rows_before=%s rows_after=%s unique_keys=%s',
+            config.id,
+            source.provider_config_id,
+            source_rows_before_filters,
+            len(df),
+            source_unique,
+        )
         combined.append(df)
 
     if not combined:
-        return {}
+        return {}, {}
 
     final_df = pd.concat(combined, ignore_index=True)
     if 'is_own_price' in final_df.columns:
@@ -567,25 +640,7 @@ async def _build_current_offers(
     offers: dict[tuple[str, str], OfferRow] = {}
     for _, row in final_df.iterrows():
         key = _normalize_key(row.get('oem_number'), row.get('brand'))
-        offers[key] = OfferRow(
-            autopart_id=int(row.get('autopart_id')),
-            provider_config_id=int(row.get('provider_config_id')),
-            provider_id=(
-                int(row.get('provider_id'))
-                if row.get('provider_id') is not None
-                else None
-            ),
-            price=float(row.get('price') or 0),
-            base_price=float(
-                row.get('base_price') if row.get('base_price') is not None
-                else row.get('price') or 0
-            ),
-            quantity=int(row.get('quantity') or 0),
-            is_own_price=bool(row.get('is_own_price')),
-            brand=str(row.get('brand') or ''),
-            oem=str(row.get('oem_number') or ''),
-            name=str(row.get('name') or ''),
-        )
+        offers[key] = _offer_row_from_series(row)
     overrides = await crud_customer_pricelist_override.get_for_config(
         session=session, config_id=config.id
     )
@@ -593,7 +648,10 @@ async def _build_current_offers(
         for offer in offers.values():
             if offer.autopart_id in overrides:
                 offer.price = float(overrides[offer.autopart_id])
-    return offers
+        for offer in source_offers.values():
+            if offer.autopart_id in overrides:
+                offer.price = float(overrides[offer.autopart_id])
+    return offers, source_offers
 
 
 def _allocate_counts(
@@ -694,6 +752,38 @@ def _pick_items_for_source(
     return selected
 
 
+def _pick_items_any_source(
+    df: pd.DataFrame,
+    count: int,
+    exclude: set[tuple[str, str]] | None = None,
+) -> list[tuple[str, str, int]]:
+    if count <= 0 or df.empty:
+        return []
+    if exclude is None:
+        exclude = set()
+    if 'quantity' in df.columns:
+        df = df.copy()
+        df['__qty'] = pd.to_numeric(df['quantity'], errors='coerce').fillna(0)
+        df = df.sort_values(
+            by=['__qty', 'provider_config_id', 'oem_number', 'brand'],
+            ascending=[False, True, True, True],
+        )
+    else:
+        df = df.sort_values(by=['provider_config_id', 'oem_number', 'brand'])
+    selected: list[tuple[str, str, int]] = []
+    for _, row in df.iterrows():
+        key = _normalize_key(row['oem_number'], row['brand'])
+        if key in exclude:
+            continue
+        selected.append(
+            (key[0], key[1], int(row['provider_config_id']))
+        )
+        exclude.add(key)
+        if len(selected) >= count:
+            break
+    return selected
+
+
 def _calc_cost_price(
     offer: OfferRow,
     config: PriceControlConfig,
@@ -767,8 +857,10 @@ async def run_price_control(
         sources=source_configs,
     )
 
-    offers = await _build_current_offers(session, pricelist_config)
-    if not offers:
+    offers, source_offers = await _build_current_offers(
+        session, pricelist_config
+    )
+    if not offers and not source_offers:
         run = await crud_price_control_run.create(
             session=session, config_id=config.id, total_items=0
         )
@@ -789,39 +881,66 @@ async def run_price_control(
 
     offer_df = pd.DataFrame([
         {
-            'oem_number': offer.oem,
-            'brand': offer.brand,
-            'provider_config_id': offer.provider_config_id,
+            'oem_number': key[1][0],
+            'brand': key[1][1],
+            'provider_config_id': key[0],
             'quantity': offer.quantity,
         }
-        for offer in offers.values()
+        for key, offer in source_offers.items()
     ])
 
-    selected_keys: list[tuple[str, str]] = []
-    selected_keys.extend(manual_items)
-    selected_set = set(selected_keys)
+    selected_items: list[tuple[str, str, int | None]] = []
+    selected_items.extend((oem, brand, None) for oem, brand in manual_items)
+    selected_set = {(oem, brand) for oem, brand in manual_items}
     auto_exclude = set(selected_set)
     auto_exclude.update(paused_auto_keys - selected_set)
 
+    source_pick_stats: list[tuple[int, int, int]] = []
     for provider_config_id, count in allocations.items():
         if count <= 0:
             continue
         df = offer_df[offer_df['provider_config_id'] == provider_config_id]
         picked = _pick_items_for_source(df, count, exclude=auto_exclude)
-        selected_keys.extend(picked)
+        selected_items.extend(
+            (oem, brand, provider_config_id) for oem, brand in picked
+        )
         auto_exclude.update(picked)
+        source_pick_stats.append(
+            (provider_config_id, int(count), len(picked))
+        )
 
-    # unique
-    selected_keys = list(dict.fromkeys(selected_keys))
+    auto_target = max(
+        int(config.total_daily_count or 0) - len(manual_items), 0
+    )
+    selected_auto = max(len(selected_items) - len(manual_items), 0)
+    if selected_auto < auto_target and not offer_df.empty:
+        fill_needed = auto_target - selected_auto
+        fallback_items = _pick_items_any_source(
+            offer_df,
+            fill_needed,
+            exclude=auto_exclude,
+        )
+        selected_items.extend(fallback_items)
+        auto_exclude.update((oem, brand) for oem, brand, _ in fallback_items)
+
+    unique_items: list[tuple[str, str, int | None]] = []
+    seen_keys: set[tuple[str, str]] = set()
+    for oem, brand, provider_config_id in selected_items:
+        key = _normalize_key(oem, brand)
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        unique_items.append((key[0], key[1], provider_config_id))
+    selected_items = unique_items
 
     if bool(getattr(config, 'exclude_dragonzap_non_dz', False)):
-        before = len(selected_keys)
-        selected_keys = [
+        before = len(selected_items)
+        selected_items = [
             item
-            for item in selected_keys
+            for item in selected_items
             if not _skip_dragonzap_without_dz(item[0], item[1])
         ]
-        skipped = before - len(selected_keys)
+        skipped = before - len(selected_items)
         if skipped:
             logger.info(
                 'Price control skip DRAGONZAP without '
@@ -837,12 +956,22 @@ async def run_price_control(
             config.id,
             int(getattr(state_profile, 'cooldown_hours', 0) or 0),
             len(paused_auto_keys),
-            len(selected_keys),
+            len(selected_items),
             len(manual_items),
+        )
+    if source_pick_stats:
+        logger.info(
+            'Price control source picks: config=%s %s',
+            config.id,
+            '; '.join(
+                'provider_config=%s allocated=%s picked=%s'
+                % (provider_id, allocated, picked)
+                for provider_id, allocated, picked in source_pick_stats
+            ),
         )
 
     run = await crud_price_control_run.create(
-        session=session, config_id=config.id, total_items=len(selected_keys)
+        session=session, config_id=config.id, total_items=len(selected_items)
     )
 
     api_key_env, key = resolve_site_api_key(
@@ -881,8 +1010,15 @@ async def run_price_control(
         api_key=key,
         verify_ssl=False,
     ) as client:
-        for oem, brand in selected_keys:
-            offer = offers.get((oem, brand))
+        for oem, brand, selected_provider_config_id in selected_items:
+            item_key = _normalize_key(oem, brand)
+            offer = None
+            if selected_provider_config_id is not None:
+                offer = source_offers.get(
+                    (selected_provider_config_id, item_key)
+                )
+            if not offer:
+                offer = offers.get(item_key)
             if not offer:
                 recommendations.append(
                     {
