@@ -828,11 +828,15 @@ async def get_price_history_plot(
         x='created_at',
         y='price',
         color='provider',
+        hover_data={
+            'quantity': True,
+        },
         title=f'Динамика цены по OEM {normalized_oem}',
         labels={
             'created_at': 'Дата',
             'price': 'Цена',
             'provider': 'Поставщик',
+            'quantity': 'Количество в прайсе',
         },
         markers=True,
     )

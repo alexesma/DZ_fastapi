@@ -375,6 +375,7 @@ async def analyze_autopart_allprices(
         select(
             AutoPartPriceHistory.created_at,
             AutoPartPriceHistory.price,
+            AutoPartPriceHistory.quantity,
             Provider.name.label('provider'),
         )
         .join(Provider, Provider.id == AutoPartPriceHistory.provider_id)
@@ -396,8 +397,12 @@ async def analyze_autopart_allprices(
             detail='Нет данных по этому артикулу в указанный период',
         )
 
-    df = pd.DataFrame(rows, columns=['created_at', 'price', 'provider'])
+    df = pd.DataFrame(
+        rows,
+        columns=['created_at', 'price', 'quantity', 'provider'],
+    )
     df['created_at'] = pd.to_datetime(df['created_at'])
     df['price'] = pd.to_numeric(df['price'], errors='coerce')
+    df['quantity'] = pd.to_numeric(df['quantity'], errors='coerce')
 
     return df

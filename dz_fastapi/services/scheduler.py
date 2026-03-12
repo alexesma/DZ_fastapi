@@ -713,6 +713,7 @@ async def check_provider_pricelist_staleness_task(app: FastAPI):
             stmt = (
                 select(ProviderPriceListConfig)
                 .options(selectinload(ProviderPriceListConfig.provider))
+                .where(ProviderPriceListConfig.is_active.is_(True))
             )
             configs = (await session.execute(stmt)).scalars().all()
 

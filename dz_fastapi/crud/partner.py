@@ -1847,13 +1847,18 @@ class CRUDProviderPriceListConfig(
     ]
 ):
     async def get_configs(
-        self, provider_id: int, session: AsyncSession, **kwargs
+        self,
+        provider_id: int,
+        session: AsyncSession,
+        only_active: bool = False,
+        **kwargs,
     ) -> List[ProviderPriceListConfig]:
-        stmt = (
-            select(ProviderPriceListConfig)
-            .where(ProviderPriceListConfig.provider_id == provider_id)
-            .order_by(ProviderPriceListConfig.id.asc())
+        stmt = select(ProviderPriceListConfig).where(
+            ProviderPriceListConfig.provider_id == provider_id
         )
+        if only_active:
+            stmt = stmt.where(ProviderPriceListConfig.is_active.is_(True))
+        stmt = stmt.order_by(ProviderPriceListConfig.id.asc())
         result = await session.execute(stmt)
         configs = result.scalars().all()
         return configs

@@ -3,7 +3,7 @@ import copy
 import logging
 from datetime import date, datetime
 from functools import partial
-from io import BytesIO, StringIO
+from io import BytesIO
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -189,17 +189,35 @@ def apply_price_overrides(
 
 
 def open_csv(file: bytes) -> pd.DataFrame:
-    file_decoder = file.decode('utf-8')
+    encodings = [
+        'utf-8-sig',
+        'utf-8',
+        'cp1251',
+        'windows-1251',
+        'koi8-r',
+        'cp866',
+        'latin1',
+    ]
     separators = [',', ';', '\t', '|']
-    for sep in separators:
-        try:
-            df = pd.read_csv(
-                StringIO(file_decoder), sep=sep, engine='python', header=None
-            )
-            if df.shape[1] > 1:
-                return df
-        except pd.errors.ParserError:
-            continue
+    for encoding in encodings:
+        for sep in separators:
+            try:
+                df = pd.read_csv(
+                    BytesIO(file),
+                    sep=sep,
+                    engine='python',
+                    header=None,
+                    encoding=encoding,
+                )
+                if df.shape[1] > 1:
+                    logger.debug(
+                        'CSV detected with encoding=%s, separator=%s',
+                        encoding,
+                        sep,
+                    )
+                    return df
+            except (UnicodeDecodeError, pd.errors.ParserError):
+                continue
     raise HTTPException(status_code=400, detail='Invalid CSV file.')
 
 

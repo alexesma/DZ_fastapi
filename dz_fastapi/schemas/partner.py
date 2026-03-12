@@ -316,6 +316,7 @@ class ProviderPriceListConfigBase(BaseModel):
     max_days_without_update: Optional[int] = Field(default=3, ge=0)
     min_delivery_day: Optional[int] = Field(default=1, ge=0)
     max_delivery_day: Optional[int] = Field(default=3, ge=0)
+    is_active: bool = True
 
 
 class ProviderPriceListConfigCreate(ProviderPriceListConfigBase):
@@ -340,6 +341,7 @@ class ProviderPriceListConfigUpdate(BaseModel):
     max_days_without_update: Optional[int] = Field(default=None, ge=0)
     min_delivery_day: Optional[int] = Field(default=None, ge=0)
     max_delivery_day: Optional[int] = Field(default=None, ge=0)
+    is_active: Optional[bool] = None
 
 
 class ProviderPriceListConfigResponse(ProviderPriceListConfigBase):
@@ -618,6 +620,7 @@ class ProviderPriceListConfigOut(BaseModel):
     max_days_without_update: int | None = 3
     min_delivery_day: int | None = 1
     max_delivery_day: int | None = 3
+    is_active: bool = True
     latest_pricelist: Optional[PriceListShort] = None
 
     model_config = ConfigDict(from_attributes=True)

@@ -52,7 +52,12 @@ def get_recursive_selectinloads(depth: int):
 
 class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
     async def create_autopart(
-        self, new_autopart: AutoPartCreate, brand: Brand, session: AsyncSession
+        self,
+        new_autopart: AutoPartCreate,
+        brand: Brand,
+        session: AsyncSession,
+        commit: bool = True,
+        rollback_on_error: bool = True,
     ) -> AutoPart:
         """
         Создает новую автозапчасть в базе данных.
@@ -109,12 +114,16 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                     )
                 autopart.storage_locations.append(storage_location)
             session.add(autopart)
-            await session.commit()
-            await session.refresh(autopart)
+            if commit:
+                await session.commit()
+                await session.refresh(autopart)
+            else:
+                await session.flush()
             logger.debug(f"Created new AutoPart: ID={autopart.id}")
             return autopart
         except SQLAlchemyError as error:
-            await session.rollback()
+            if rollback_on_error:
+                await session.rollback()
             raise SQLAlchemyError("Failed to create autopart") from error
 
     async def get_multi(
@@ -266,9 +275,14 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             )
             logger.debug(f'AutopartCreate data: {autopart_create_data}')
 
-            autopart = await self.create_autopart(
-                new_autopart=autopart_create_data, brand=brand, session=session
-            )
+            async with session.begin_nested():
+                autopart = await self.create_autopart(
+                    new_autopart=autopart_create_data,
+                    brand=brand,
+                    session=session,
+                    commit=False,
+                    rollback_on_error=False,
+                )
             logger.debug(f'Created autopart: {autopart}')
 
             return autopart

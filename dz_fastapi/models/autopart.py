@@ -82,6 +82,24 @@ def preprocess_oem_number(oem_number: str) -> str:
     return re.sub(r'[^a-zA-Z0-9]', '', oem_number).upper()
 
 
+def _truncate_if_needed(
+    value: str | None,
+    max_len: int,
+    field_name: str,
+) -> str | None:
+    if value is None:
+        return None
+    if len(value) <= max_len:
+        return value
+    logger.warning(
+        'AutoPart %s too long (%s > %s), truncating',
+        field_name,
+        len(value),
+        max_len,
+    )
+    return value[:max_len]
+
+
 class AutoPart(Base):
     '''
     Модель Автозапчасть
@@ -155,9 +173,19 @@ def preprocess_auto_part(mapper, connection, target):
         # Преобразовать oem_number в верхний регистр
         # и удалить специальные символы
         target.oem_number = preprocess_oem_number(target.oem_number)
+        target.oem_number = _truncate_if_needed(
+            target.oem_number,
+            MAX_LIGHT_OEM,
+            'oem_number',
+        )
 
         # Обработка имени
         target.name = change_string(target.name)
+        target.name = _truncate_if_needed(
+            target.name,
+            MAX_LIGHT_OEM,
+            'name',
+        )
 
         # Обработка описания
         if target.description:
@@ -170,6 +198,11 @@ def preprocess_auto_part(mapper, connection, target):
             if brand_name_result:
                 brand_name = brand_name_result[0]
                 target.barcode = f'{brand_name}{target.oem_number}'
+                target.barcode = _truncate_if_needed(
+                    target.barcode,
+                    MAX_LIGHT_BARCODE,
+                    'barcode',
+                )
             else:
                 raise ValueError('Brand not found')
         else:
@@ -185,9 +218,19 @@ def preprocess_auto_part_update(mapper, connection, target):
 
     if state.attrs.oem_number.history.has_changes():
         target.oem_number = preprocess_oem_number(target.oem_number)
+    target.oem_number = _truncate_if_needed(
+        target.oem_number,
+        MAX_LIGHT_OEM,
+        'oem_number',
+    )
 
     if state.attrs.name.history.has_changes():
         target.name = change_string(target.name)
+    target.name = _truncate_if_needed(
+        target.name,
+        MAX_LIGHT_OEM,
+        'name',
+    )
 
     if state.attrs.description.history.has_changes() and target.description:
         target.description = change_string(target.description)
@@ -201,6 +244,11 @@ def preprocess_auto_part_update(mapper, connection, target):
                 'Нельзя изменить автозапчасть без указания бренда.'
             )
         target.barcode = f'{target.brand.name}{target.oem_number}'
+    target.barcode = _truncate_if_needed(
+        target.barcode,
+        MAX_LIGHT_BARCODE,
+        'barcode',
+    )
 
 
 class Category(Base):

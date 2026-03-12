@@ -351,6 +351,7 @@ class ProviderPriceListConfig(Base):
     last_stale_alert_at = Column(DateTime(timezone=True), nullable=True)
     min_delivery_day = Column(Integer, nullable=True, default=1)
     max_delivery_day = Column(Integer, nullable=True, default=2)
+    is_active = Column(Boolean, default=True, nullable=False)
     provider = relationship('Provider', back_populates='pricelist_configs')
     price_lists = relationship(
         'PriceList', back_populates='config', lazy='selectin'

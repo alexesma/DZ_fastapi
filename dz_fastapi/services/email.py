@@ -439,7 +439,9 @@ async def get_emails(
 
         # Получаем все конфигурации для данного провайдера
         provider_confs = await crud_provider_pricelist_config.get_configs(
-            provider_id=provider.id, session=session
+            provider_id=provider.id,
+            session=session,
+            only_active=True,
         )
         if not provider_confs:
             logger.debug(
