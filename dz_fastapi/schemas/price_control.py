@@ -51,6 +51,7 @@ class PriceControlConfigBase(BaseModel):
     target_cheapest_pct: float = 60.0
     site_api_key_env: Optional[str] = None
     exclude_dragonzap_non_dz: bool = False
+    record_site_history_for_dz: bool = False
     cooldown_hours: int = 0
     our_offer_field: Optional[str] = None
     our_offer_match: Optional[str] = None
@@ -74,6 +75,7 @@ class PriceControlConfigUpdate(BaseModel):
     target_cheapest_pct: Optional[float] = None
     site_api_key_env: Optional[str] = None
     exclude_dragonzap_non_dz: Optional[bool] = None
+    record_site_history_for_dz: Optional[bool] = None
     cooldown_hours: Optional[int] = None
     our_offer_field: Optional[str] = None
     our_offer_match: Optional[str] = None
@@ -170,6 +172,34 @@ class PriceControlSourceRecommendationResponse(BaseModel):
     note: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PriceControlSourceDiagnosticResponse(BaseModel):
+    provider_config_id: int
+    provider_name: Optional[str] = None
+    provider_config_name: Optional[str] = None
+    expected_count: int = 0
+    checked_count: int = 0
+    with_competitor_count: int = 0
+    missing_competitor_count: int = 0
+    missing_in_pricelist_count: int = 0
+    below_min_markup_count: int = 0
+    below_cost_count: int = 0
+    cheapest_count: int = 0
+    lower_count: int = 0
+    raise_count: int = 0
+    keep_count: int = 0
+    coverage_pct: float = 0.0
+    note: Optional[str] = None
+
+
+class PriceControlRunDiagnosticsResponse(BaseModel):
+    run_id: int
+    config_id: int
+    total_items: int
+    manual_items: int = 0
+    auto_items: int = 0
+    sources: List[PriceControlSourceDiagnosticResponse] = []
 
 
 class PriceControlApplyRecommendations(BaseModel):

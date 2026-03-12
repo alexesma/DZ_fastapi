@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import hashlib
+import itertools
 import logging
 import os
 import re
@@ -71,6 +72,9 @@ ORDERS_REPORT_DIR = os.getenv(
     'CUSTOMER_ORDERS_REPORT_DIR', 'uploads/orders/reports'
 )
 ORDERS_RETENTION_DAYS = int(os.getenv('CUSTOMER_ORDERS_REPORT_DAYS', 7))
+CUSTOMER_ORDERS_FETCH_LIMIT = int(
+    os.getenv('CUSTOMER_ORDERS_FETCH_LIMIT', '200')
+)
 
 
 def _create_mailbox(server_mail: str, port: int, ssl: bool = True):
@@ -130,13 +134,16 @@ async def _fetch_order_messages(
             email_account, email_password
         ) as mailbox:
             mailbox.folder.set(folder)
-            return list(
-                mailbox.fetch(
-                    AND(date_gte=date_from, all=True),
-                    mark_seen=mark_seen,
-                    charset='utf-8',
-                )
+            fetched = mailbox.fetch(
+                AND(date_gte=date_from, all=True),
+                mark_seen=mark_seen,
+                charset='utf-8',
             )
+            if CUSTOMER_ORDERS_FETCH_LIMIT > 0:
+                fetched = itertools.islice(
+                    fetched, CUSTOMER_ORDERS_FETCH_LIMIT
+                )
+            return list(fetched)
 
     return await asyncio.to_thread(_fetch)
 
@@ -210,11 +217,15 @@ async def _fetch_gmail_messages(
     url = 'https://gmail.googleapis.com/gmail/v1/users/me/messages'
     messages: List[SimpleMessage] = []
     page_token = None
+    remaining = CUSTOMER_ORDERS_FETCH_LIMIT
     async with httpx.AsyncClient(timeout=20) as client:
         while True:
+            max_results = 200
+            if remaining > 0:
+                max_results = min(max_results, remaining)
             params = {
                 'q': query,
-                'maxResults': 200,
+                'maxResults': max_results,
             }
             if page_token:
                 params['pageToken'] = page_token
@@ -237,6 +248,10 @@ async def _fetch_gmail_messages(
                     continue
                 raw_bytes = base64.urlsafe_b64decode(raw_data + '==')
                 messages.append(_parse_raw_email(raw_bytes))
+                if remaining > 0:
+                    remaining -= 1
+                    if remaining <= 0:
+                        return messages
             page_token = payload.get('nextPageToken')
             if not page_token:
                 break

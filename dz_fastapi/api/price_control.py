@@ -19,9 +19,11 @@ from dz_fastapi.schemas.price_control import (
     PriceControlApplyRecommendations, PriceControlApplySourceRecommendations,
     PriceControlConfigCreate, PriceControlConfigResponse,
     PriceControlConfigUpdate, PriceControlManualItemResponse,
-    PriceControlRecommendationResponse, PriceControlRunResponse,
-    PriceControlSiteApiKeyOption, PriceControlSourceRecommendationResponse,
-    PriceControlSourceResponse, PriceControlStateProfileResponse)
+    PriceControlRecommendationResponse, PriceControlRunDiagnosticsResponse,
+    PriceControlRunResponse, PriceControlSiteApiKeyOption,
+    PriceControlSourceDiagnosticResponse,
+    PriceControlSourceRecommendationResponse, PriceControlSourceResponse,
+    PriceControlStateProfileResponse)
 from dz_fastapi.services.price_control import (apply_recommendations,
                                                apply_source_recommendations,
                                                list_site_api_key_env_names,
@@ -146,6 +148,9 @@ def _build_config_response(
         exclude_dragonzap_non_dz=bool(
             config.exclude_dragonzap_non_dz
         ),
+        record_site_history_for_dz=bool(
+            getattr(config, 'record_site_history_for_dz', False)
+        ),
         cooldown_hours=int(getattr(source, 'cooldown_hours', 0) or 0),
         our_offer_field=config.our_offer_field,
         our_offer_match=config.our_offer_match,
@@ -196,6 +201,204 @@ async def _load_config_response(
         manual_payloads,
         profile_payloads,
         active_profile,
+    )
+
+
+def _allocate_expected_counts(
+    total: int,
+    manual_count: int,
+    sources: list,
+) -> dict[int, int]:
+    remaining = max(total - manual_count, 0)
+    if remaining <= 0 or not sources:
+        return {
+            int(source.provider_config_id): 0 for source in sources
+        }
+
+    fixed = [source for source in sources if bool(source.locked)]
+    open_sources = [source for source in sources if not bool(source.locked)]
+    fixed_pct = sum(float(source.weight_pct or 0.0) for source in fixed)
+    fixed_pct = max(min(fixed_pct, 100.0), 0.0)
+    remaining_pct = max(100.0 - fixed_pct, 0.0)
+
+    open_weight = (
+        remaining_pct / len(open_sources) if open_sources else 0.0
+    )
+    allocations: dict[int, int] = {}
+    for source in sources:
+        weight_pct = (
+            float(source.weight_pct or 0.0)
+            if bool(source.locked)
+            else open_weight
+        )
+        provider_config_id = int(source.provider_config_id)
+        allocations[provider_config_id] = int(
+            round(remaining * weight_pct / 100.0)
+        )
+
+    diff = remaining - sum(allocations.values())
+    if diff != 0 and allocations:
+        keys = list(allocations.keys())
+        idx = 0
+        while diff != 0:
+            key = keys[idx % len(keys)]
+            if diff < 0 and allocations[key] <= 0:
+                idx += 1
+                continue
+            allocations[key] += 1 if diff > 0 else -1
+            diff += -1 if diff > 0 else 1
+            idx += 1
+    return allocations
+
+
+async def _build_run_diagnostics_response(
+    session: AsyncSession, run_id: int
+) -> PriceControlRunDiagnosticsResponse:
+    run = await session.get(PriceControlRun, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail='Run not found')
+
+    sources = await crud_price_control_source.list_by_config(
+        session=session, config_id=run.config_id
+    )
+    provider_map = await _provider_config_map(
+        session, [source.provider_config_id for source in sources]
+    )
+    recos = await crud_price_control_reco.list_by_run(
+        session=session, run_id=run.id
+    )
+    source_recos = await crud_price_control_source_reco.list_by_run(
+        session=session, run_id=run.id
+    )
+    source_reco_map = {
+        int(reco.provider_config_id): reco for reco in source_recos
+    }
+
+    manual_count = sum(
+        1 for reco in recos
+        if reco.provider_config_id is None
+    )
+    expected_map = _allocate_expected_counts(
+        total=int(run.total_items or 0),
+        manual_count=manual_count,
+        sources=sources,
+    )
+
+    stats: dict[int, dict] = {}
+    for source in sources:
+        provider_config_id = int(source.provider_config_id)
+        stats[provider_config_id] = {
+            'checked_count': 0,
+            'with_competitor_count': 0,
+            'missing_competitor_count': 0,
+            'missing_in_pricelist_count': 0,
+            'below_min_markup_count': 0,
+            'below_cost_count': 0,
+            'cheapest_count': 0,
+            'lower_count': 0,
+            'raise_count': 0,
+            'keep_count': 0,
+        }
+
+    for reco in recos:
+        provider_config_id = reco.provider_config_id
+        if provider_config_id is None:
+            continue
+        provider_config_id = int(provider_config_id)
+        row = stats.setdefault(
+            provider_config_id,
+            {
+                'checked_count': 0,
+                'with_competitor_count': 0,
+                'missing_competitor_count': 0,
+                'missing_in_pricelist_count': 0,
+                'below_min_markup_count': 0,
+                'below_cost_count': 0,
+                'cheapest_count': 0,
+                'lower_count': 0,
+                'raise_count': 0,
+                'keep_count': 0,
+            },
+        )
+        row['checked_count'] += 1
+        if reco.missing_in_pricelist:
+            row['missing_in_pricelist_count'] += 1
+        if reco.missing_competitor:
+            row['missing_competitor_count'] += 1
+        else:
+            row['with_competitor_count'] += 1
+        if reco.below_min_markup:
+            row['below_min_markup_count'] += 1
+        if reco.below_cost:
+            row['below_cost_count'] += 1
+        if reco.is_cheapest:
+            row['cheapest_count'] += 1
+        if reco.suggested_action == 'lower':
+            row['lower_count'] += 1
+        elif reco.suggested_action == 'raise':
+            row['raise_count'] += 1
+        else:
+            row['keep_count'] += 1
+
+    diagnostics: list[PriceControlSourceDiagnosticResponse] = []
+    for source in sources:
+        provider_config_id = int(source.provider_config_id)
+        provider_config = provider_map.get(provider_config_id)
+        provider = provider_config.provider if provider_config else None
+        row = stats.get(provider_config_id, {})
+        checked_count = int(row.get('checked_count', 0))
+        with_competitor_count = int(
+            row.get('with_competitor_count', 0)
+        )
+        coverage_pct = (
+            round((with_competitor_count / checked_count) * 100, 2)
+            if checked_count > 0
+            else 0.0
+        )
+        source_reco = source_reco_map.get(provider_config_id)
+        diagnostics.append(
+            PriceControlSourceDiagnosticResponse(
+                provider_config_id=provider_config_id,
+                provider_name=getattr(provider, 'name', None),
+                provider_config_name=getattr(
+                    provider_config, 'name_price', None
+                ),
+                expected_count=int(expected_map.get(provider_config_id, 0)),
+                checked_count=checked_count,
+                with_competitor_count=with_competitor_count,
+                missing_competitor_count=int(
+                    row.get('missing_competitor_count', 0)
+                ),
+                missing_in_pricelist_count=int(
+                    row.get('missing_in_pricelist_count', 0)
+                ),
+                below_min_markup_count=int(
+                    row.get('below_min_markup_count', 0)
+                ),
+                below_cost_count=int(row.get('below_cost_count', 0)),
+                cheapest_count=int(row.get('cheapest_count', 0)),
+                lower_count=int(row.get('lower_count', 0)),
+                raise_count=int(row.get('raise_count', 0)),
+                keep_count=int(row.get('keep_count', 0)),
+                coverage_pct=coverage_pct,
+                note=getattr(source_reco, 'note', None),
+            )
+        )
+
+    diagnostics.sort(
+        key=lambda item: (
+            -(item.checked_count or 0),
+            item.provider_name or '',
+            item.provider_config_name or '',
+        )
+    )
+    return PriceControlRunDiagnosticsResponse(
+        run_id=run.id,
+        config_id=run.config_id,
+        total_items=int(run.total_items or 0),
+        manual_items=manual_count,
+        auto_items=max(int(run.total_items or 0) - manual_count, 0),
+        sources=diagnostics,
     )
 
 
@@ -497,6 +700,22 @@ async def list_price_control_source_recommendations(
             )
         )
     return responses
+
+
+@router.get(
+    '/price-control/runs/{run_id}/source-diagnostics',
+    tags=['price-control'],
+    status_code=status.HTTP_200_OK,
+    response_model=PriceControlRunDiagnosticsResponse,
+    dependencies=[Depends(require_admin)],
+)
+async def get_price_control_source_diagnostics(
+    run_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    return await _build_run_diagnostics_response(
+        session=session, run_id=run_id
+    )
 
 
 @router.post(

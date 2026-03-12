@@ -25,6 +25,15 @@ class TYPE_PRICES(StrEnum):
 
     WHOLESALE = 'Wholesale'
     RETAIL = 'Retail'
+    CASH = 'Cash'
+
+
+@unique
+class PROVIDER_DELIVERY_METHOD(StrEnum):
+    DELIVERED = 'Delivered'
+    SELF_PICKUP = 'Self pickup'
+    COURIER_FOOT = 'Courier foot'
+    COURIER_CAR = 'Courier car'
 
 
 @unique
@@ -181,6 +190,14 @@ class Provider(Client):
     order_schedule_days = Column(JSON, default=[])
     order_schedule_times = Column(JSON, default=[])
     order_schedule_enabled = Column(Boolean, default=False)
+    default_delivery_method = Column(
+        SAEnum(
+            PROVIDER_DELIVERY_METHOD,
+            values_callable=lambda enum: [e.name for e in enum],
+            native_enum=True,
+        ),
+        default=PROVIDER_DELIVERY_METHOD.DELIVERED,
+    )
 
     @validates('email_incoming_price')
     def validate_email_incoming_price(self, key, email):

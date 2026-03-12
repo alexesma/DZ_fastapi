@@ -854,7 +854,8 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
     ) -> int:
         """
         Удаляет старые PriceList и их PriceListAutoPartAssociation,
-        оставляя последние keep_last_n прайсов на каждого provider_id.
+        оставляя последние keep_last_n прайсов на каждого
+        provider_config_id.
         Историю AutoPartPriceHistory НЕ трогаем.
 
         Возвращает: сколько прайс-листов удалено.
@@ -865,7 +866,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                 PriceList.id.label("id"),
                 func.row_number()
                 .over(
-                    partition_by=PriceList.provider_id,
+                    partition_by=PriceList.provider_config_id,
                     order_by=(
                         PriceList.date.desc().nullslast(),
                         PriceList.id.desc(),
@@ -873,7 +874,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                 )
                 .label("rn"),
             )
-            .where(PriceList.provider_id.is_not(None))
+            .where(PriceList.provider_config_id.is_not(None))
             .subquery()
         )
 

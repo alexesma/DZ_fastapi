@@ -46,6 +46,7 @@ class PriceControlConfig(Base):
 
     site_api_key_env = Column(String(128), nullable=True)
     exclude_dragonzap_non_dz = Column(Boolean, default=False)
+    record_site_history_for_dz = Column(Boolean, default=False)
 
     our_offer_field = Column(String(64), nullable=True)
     our_offer_match = Column(String(255), nullable=True)

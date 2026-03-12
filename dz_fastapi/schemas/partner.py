@@ -12,6 +12,14 @@ from dz_fastapi.schemas.autopart import AutoPartPricelist, AutoPartResponse
 class TypePrices(str, Enum):
     WHOLESALE = 'Wholesale'
     RETAIL = 'Retail'
+    CASH = 'Cash'
+
+
+class ProviderDeliveryMethod(str, Enum):
+    DELIVERED = 'Delivered'
+    SELF_PICKUP = 'Self pickup'
+    COURIER_FOOT = 'Courier foot'
+    COURIER_CAR = 'Courier car'
 
 
 class ClientBase(BaseModel):
@@ -40,6 +48,9 @@ class ProviderBase(ClientBase):
     order_schedule_days: Optional[List[str]] = None
     order_schedule_times: Optional[List[str]] = None
     order_schedule_enabled: Optional[bool] = None
+    default_delivery_method: Optional[
+        ProviderDeliveryMethod
+    ] = ProviderDeliveryMethod.DELIVERED
 
     @field_validator('email_incoming_price', mode='before')
     def validate_email_incoming_price(cls, v):
@@ -66,6 +77,7 @@ class ProviderUpdate(BaseModel):
     order_schedule_days: Optional[List[str]] = None
     order_schedule_times: Optional[List[str]] = None
     order_schedule_enabled: Optional[bool] = None
+    default_delivery_method: Optional[ProviderDeliveryMethod] = None
 
     @field_validator('email_contact', 'email_incoming_price', mode='before')
     def empty_to_none(cls, v):

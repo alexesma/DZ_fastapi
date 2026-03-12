@@ -12,6 +12,7 @@ from dz_fastapi.core.constants import (DEPTH_MONTHS_HISTORY_PRICE_FOR_ORDER,
                                        LIMIT_ORDER, URL_DZ_SEARCH)
 from dz_fastapi.core.db import AsyncSession, get_session
 from dz_fastapi.crud.autopart import crud_autopart_restock_decision
+from dz_fastapi.crud.brand import brand_crud
 from dz_fastapi.crud.order import crud_order, crud_order_item
 from dz_fastapi.http.dz_site_client import DZSiteClient
 from dz_fastapi.models.autopart import TYPE_SUPPLIER_DECISION_STATUS
@@ -32,6 +33,76 @@ logger = logging.getLogger('dz_fastapi')
 router = APIRouter(prefix='/order')
 
 
+def _merge_site_offers(offers_by_brand: list[list[dict]]) -> list[dict]:
+    merged: list[dict] = []
+    seen = set()
+    for offers in offers_by_brand:
+        for raw in offers or []:
+            key = (
+                raw.get('system_hash')
+                or raw.get('hash_key')
+                or (
+                    raw.get('oem'),
+                    raw.get('make_name'),
+                    raw.get('cost'),
+                    raw.get('qnt'),
+                    raw.get('price_name'),
+                    raw.get('sup_logo'),
+                    raw.get('min_delivery_day'),
+                    raw.get('max_delivery_day'),
+                )
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(raw)
+    return merged
+
+
+async def _expand_query_brands(
+    make_name: str, session: AsyncSession
+) -> list[str]:
+    normalized_input = str(make_name or '').strip().upper()
+    if not normalized_input:
+        return []
+
+    expanded = [normalized_input]
+    try:
+        main_brand = await brand_crud.get_brand_by_name_or_none(
+            brand_name=normalized_input,
+            session=session,
+        )
+        if not main_brand:
+            return expanded
+
+        related = await brand_crud.get_all_synonyms_bi_directional(
+            brand=main_brand,
+            session=session,
+        )
+        candidates = [str(main_brand.name).strip().upper()]
+        candidates.extend(
+            str(item.name).strip().upper()
+            for item in related
+            if str(getattr(item, 'name', '')).strip()
+        )
+        candidates.append(normalized_input)
+        unique = []
+        seen: set[str] = set()
+        for candidate in candidates:
+            if not candidate or candidate in seen:
+                continue
+            seen.add(candidate)
+            unique.append(candidate)
+        return unique
+    except Exception as exc:
+        logger.warning(
+            'Failed to expand brand synonyms for %s: %s',
+            normalized_input,
+            exc,
+        )
+        return expanded
+
+
 @router.get(
     '/get_offers_by_oem_and_make_name',
     tags=['offer'],
@@ -39,15 +110,34 @@ router = APIRouter(prefix='/order')
     summary='Получение предложений с сайта dragonzap по oem и brand name',
 )
 async def get_offers_by_oem_and_make_name(
-    oem: str, make_name: str, without_cross: bool = True
+    oem: str,
+    make_name: str,
+    without_cross: bool = True,
+    session: AsyncSession = Depends(get_session),
 ):
+    query_brands = await _expand_query_brands(
+        make_name=make_name,
+        session=session,
+    )
+    offers_by_brand: list[list[dict]] = []
     async with DZSiteClient(
         base_url=URL_DZ_SEARCH, api_key=KEY, verify_ssl=False
     ) as dz_site_client:
-        offers = await dz_site_client.get_offers(
-            oem=oem, brand=make_name, without_cross=without_cross
-        )
-        return offers
+        for brand_name in query_brands:
+            offers = await dz_site_client.get_offers(
+                oem=oem,
+                brand=brand_name,
+                without_cross=without_cross,
+            )
+            if not offers:
+                continue
+            for item in offers:
+                if isinstance(item, dict):
+                    item.setdefault('query_brand', brand_name)
+            offers_by_brand.append(offers)
+
+    merged = _merge_site_offers(offers_by_brand)
+    return {'data': merged, 'query_brands': query_brands}
 
 
 @router.get(

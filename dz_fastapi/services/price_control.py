@@ -4,15 +4,18 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import timedelta
+from decimal import ROUND_HALF_UP, Decimal
 
 import pandas as pd
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.time import now_moscow
+from dz_fastapi.crud.brand import brand_crud
 from dz_fastapi.crud.partner import (crud_customer_pricelist,
                                      crud_customer_pricelist_config,
                                      crud_customer_pricelist_source,
-                                     crud_pricelist)
+                                     crud_pricelist, crud_provider)
 from dz_fastapi.crud.price_control import (crud_customer_pricelist_override,
                                            crud_price_control_manual,
                                            crud_price_control_reco,
@@ -21,8 +24,9 @@ from dz_fastapi.crud.price_control import (crud_customer_pricelist_override,
                                            crud_price_control_source_reco,
                                            crud_price_control_state_profile)
 from dz_fastapi.http.dz_site_client import DZSiteClient
-from dz_fastapi.models.autopart import preprocess_oem_number
-from dz_fastapi.models.partner import CustomerPriceListConfig
+from dz_fastapi.models.autopart import (AutoPartPriceHistory,
+                                        preprocess_oem_number)
+from dz_fastapi.models.partner import CustomerPriceListConfig, Provider
 from dz_fastapi.models.price_control import (PriceControlConfig,
                                              PriceControlRun,
                                              PriceControlStateProfile)
@@ -45,6 +49,9 @@ BRAND_ALIASES = {
     'HAVAL': ['GREAT WALL'],
     'GREAT WALL': ['HAVAL'],
 }
+SITE_HISTORY_PROVIDER_NAME = 'Сайт Dragonzap'
+SITE_HISTORY_PRICELIST_ID = 0
+SITE_HISTORY_PRICE_STEP = Decimal('0.01')
 
 
 @dataclass
@@ -113,10 +120,88 @@ def resolve_site_api_key(
 
 
 def _skip_dragonzap_without_dz(oem: str, brand: str) -> bool:
-    if str(brand or '').strip().upper() != 'DRAGONZAP':
+    brand_raw = str(brand or '').strip().upper()
+    brand_compact = re.sub(r'[\s\-_]+', '', brand_raw)
+    if brand_compact == 'HOTPARTS':
+        return True
+    if brand_raw != 'DRAGONZAP':
         return False
     normalized_oem = preprocess_oem_number(str(oem or ''))
     return bool(normalized_oem) and not normalized_oem.startswith('DZ')
+
+
+def _normalize_site_history_price(value: float | Decimal) -> Decimal:
+    return Decimal(str(value)).quantize(
+        SITE_HISTORY_PRICE_STEP,
+        rounding=ROUND_HALF_UP,
+    )
+
+
+async def _get_site_history_provider(session: AsyncSession) -> Provider:
+    provider = await crud_provider.get_provider_or_none(
+        SITE_HISTORY_PROVIDER_NAME,
+        session,
+    )
+    if provider:
+        return provider
+    provider = Provider(
+        name=SITE_HISTORY_PROVIDER_NAME,
+        is_virtual=True,
+    )
+    session.add(provider)
+    await session.flush()
+    return provider
+
+
+async def _get_last_site_history_price(
+    session: AsyncSession,
+    autopart_id: int,
+    provider_id: int,
+) -> Decimal | None:
+    stmt = (
+        select(AutoPartPriceHistory.price)
+        .where(
+            AutoPartPriceHistory.autopart_id == autopart_id,
+            AutoPartPriceHistory.provider_id == provider_id,
+        )
+        .order_by(
+            AutoPartPriceHistory.created_at.desc(),
+            AutoPartPriceHistory.id.desc(),
+        )
+        .limit(1)
+    )
+    return (await session.execute(stmt)).scalar_one_or_none()
+
+
+async def _record_site_history_price(
+    session: AsyncSession,
+    provider: Provider,
+    autopart_id: int,
+    price: float,
+    quantity: int,
+    created_at,
+) -> bool:
+    normalized = _normalize_site_history_price(price)
+    last_price = await _get_last_site_history_price(
+        session=session,
+        autopart_id=autopart_id,
+        provider_id=provider.id,
+    )
+    if last_price is not None:
+        if _normalize_site_history_price(last_price) == normalized:
+            return False
+    session.add(
+        AutoPartPriceHistory(
+            autopart_id=autopart_id,
+            provider_id=provider.id,
+            provider_config_id=None,
+            pricelist_id=SITE_HISTORY_PRICELIST_ID,
+            created_at=created_at,
+            price=normalized,
+            quantity=max(int(quantity), 0),
+        )
+    )
+    return True
 
 
 def _normalize_offer(offer: dict) -> dict | None:
@@ -246,6 +331,55 @@ def _expand_brand_candidates(brands: list[str]) -> list[str]:
             if alias_norm and alias_norm not in seen:
                 expanded.append(alias_norm)
                 seen.add(alias_norm)
+    return expanded
+
+
+async def _expand_brands_with_synonyms(
+    session: AsyncSession,
+    brands: list[str],
+    cache: dict[str, list[str]],
+) -> list[str]:
+    expanded: list[str] = []
+    seen: set[str] = set()
+    base_candidates = _expand_brand_candidates(brands)
+    for candidate in base_candidates:
+        cache_key = candidate.strip().upper()
+        if not cache_key:
+            continue
+        synonyms = cache.get(cache_key)
+        if synonyms is None:
+            synonyms = [cache_key]
+            try:
+                brand = await brand_crud.get_brand_by_name_or_none(
+                    brand_name=cache_key,
+                    session=session,
+                )
+                if brand:
+                    related = await brand_crud.get_all_synonyms_bi_directional(
+                        brand=brand,
+                        session=session,
+                    )
+                    related_names = [
+                        str(item.name).strip().upper()
+                        for item in related
+                        if str(getattr(item, 'name', '')).strip()
+                    ]
+                    synonyms = _expand_brand_candidates(
+                        [cache_key, *related_names]
+                    )
+            except Exception as exc:
+                logger.warning(
+                    'Price control brand synonyms load failed for %s: %s',
+                    cache_key,
+                    exc,
+                )
+            cache[cache_key] = synonyms
+        for name in synonyms:
+            norm_name = str(name or '').strip().upper()
+            if not norm_name or norm_name in seen:
+                continue
+            seen.add(norm_name)
+            expanded.append(norm_name)
     return expanded
 
 
@@ -943,8 +1077,9 @@ async def run_price_control(
         skipped = before - len(selected_items)
         if skipped:
             logger.info(
-                'Price control skip DRAGONZAP without '
-                'DZ: config=%s skipped=%s',
+                'Price control skip by brand rules '
+                '(DRAGONZAP without DZ, HOT-PARTS): '
+                'config=%s skipped=%s',
                 config.id,
                 skipped,
             )
@@ -994,6 +1129,13 @@ async def run_price_control(
     recommendations = []
     source_reco_stats = defaultdict(list)
     client_coef_observations: list[float] = []
+    brand_synonyms_cache: dict[str, list[str]] = {}
+    record_site_history_for_dz = bool(
+        getattr(config, 'record_site_history_for_dz', False)
+    )
+    site_history_provider: Provider | None = None
+    site_history_saved = 0
+    run_created_at = now_moscow()
     recent_coef_history = _normalize_recent_coef(
         getattr(state_profile, 'client_markup_recent_coef', [])
     )
@@ -1038,6 +1180,13 @@ async def run_price_control(
                     oem=oem,
                     brand=brand,
                 )
+                expanded_query_brands = await _expand_brands_with_synonyms(
+                    session=session,
+                    brands=query_brands,
+                    cache=brand_synonyms_cache,
+                )
+                if expanded_query_brands:
+                    query_brands = expanded_query_brands
                 raw_offers = await _fetch_site_offers_for_brands(
                     client=client, oem=query_oem, brands=query_brands
                 )
@@ -1105,6 +1254,36 @@ async def run_price_control(
             own_site_price = (
                 own_site_offer['price'] if own_site_offer else None
             )
+            if (
+                record_site_history_for_dz
+                and is_dz_remap
+                and offer.autopart_id
+                and best
+                and best.get('price') is not None
+            ):
+                try:
+                    if site_history_provider is None:
+                        site_history_provider = (
+                            await _get_site_history_provider(session)
+                        )
+                    saved = await _record_site_history_price(
+                        session=session,
+                        provider=site_history_provider,
+                        autopart_id=int(offer.autopart_id),
+                        price=float(best['price']),
+                        quantity=int(best.get('qty') or 0),
+                        created_at=run_created_at,
+                    )
+                    if saved:
+                        site_history_saved += 1
+                except Exception as exc:
+                    logger.warning(
+                        'Price control site history save failed '
+                        'for %s/%s: %s',
+                        oem,
+                        brand,
+                        exc,
+                    )
             row_client_coef = None
             if (
                 own_site_price is not None
@@ -1257,9 +1436,12 @@ async def run_price_control(
     )
 
     source_recos = []
-    for provider_config_id, pairs in source_reco_stats.items():
-        if not pairs:
-            continue
+    for provider_config_id in source_map:
+        pairs = source_reco_stats.get(provider_config_id, [])
+        source_cfg = source_map.get(provider_config_id)
+        current_markup = current_markup_map.get(provider_config_id)
+        current_multiplier = normalize_markup(current_markup)
+
         cheaper_count = sum(
             1
             for item in pairs
@@ -1276,14 +1458,18 @@ async def run_price_control(
             required_markups, target_pct
         )
         suggested_multiplier = raw_suggested_multiplier
-        source_cfg = source_map.get(provider_config_id)
         min_markup_pct = (
             float(source_cfg.min_markup_pct) if source_cfg else 0.0
         )
         min_multiplier = normalize_markup(min_markup_pct)
         note = None
-        if raw_suggested_multiplier is None:
+
+        if not pairs:
+            note = 'Нет данных конкурентов'
+            suggested_multiplier = current_multiplier
+        elif raw_suggested_multiplier is None:
             note = 'Недостаточно данных'
+            suggested_multiplier = current_multiplier
         elif suggested_multiplier < min_multiplier:
             suggested_multiplier = min_multiplier
             if raw_suggested_multiplier < 1:
@@ -1294,7 +1480,7 @@ async def run_price_control(
                 )
             else:
                 note = 'Минимальная наценка'
-        current_markup = current_markup_map.get(provider_config_id)
+
         source_recos.append(
             {
                 'provider_config_id': provider_config_id,
@@ -1353,6 +1539,12 @@ async def run_price_control(
     config.cooldown_reset_at = state_profile.cooldown_reset_at
     config.last_run_at = now_moscow()
     session.add(config)
+    if record_site_history_for_dz:
+        logger.info(
+            'Price control site history saved: config=%s rows=%s',
+            config.id,
+            site_history_saved,
+        )
     await session.commit()
     return run.id
 
