@@ -135,7 +135,8 @@ class CUSTOMER_ORDER_SHIP_MODE(StrEnum):
 
 
 def set_date(mapper, connection, target):
-    target.date = now_moscow().date()
+    if not getattr(target, 'date', None):
+        target.date = now_moscow().date()
 
 
 class Client(Base):
