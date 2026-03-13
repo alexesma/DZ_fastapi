@@ -21,6 +21,7 @@ from dz_fastapi.core.constants import (
     FILENAME_EXCEL_MAIL_ANALYTIC_PRICE_PROVIDER,
     SUBJECT_MAIL_ANALYTIC_PRICE_PROVIDER)
 from dz_fastapi.core.db import get_session
+from dz_fastapi.crud.email_account import crud_email_account
 from dz_fastapi.crud.partner import (crud_customer, crud_customer_pricelist,
                                      crud_customer_pricelist_config,
                                      crud_customer_pricelist_source,
@@ -75,6 +76,25 @@ EMAIL_NAME_ANALYTIC = os.getenv('EMAIL_NAME_ANALYTIC')
 
 
 router = APIRouter()
+
+
+async def _validate_incoming_price_mailbox(
+    session: AsyncSession, mailbox_id: int | None
+):
+    if mailbox_id is None:
+        return
+    mailbox = await crud_email_account.get(session, mailbox_id)
+    if not mailbox:
+        raise HTTPException(
+            status_code=400,
+            detail='Selected mailbox for incoming pricelists not found',
+        )
+    purposes = [str(p).lower() for p in (mailbox.purposes or [])]
+    if 'prices_in' not in purposes:
+        raise HTTPException(
+            status_code=400,
+            detail='Selected mailbox must have purpose prices_in',
+        )
 
 
 @router.post(
@@ -763,6 +783,9 @@ async def set_provider_pricelist_config(
     )
     if not provider:
         raise HTTPException(status_code=404, detail='Provider not found')
+    await _validate_incoming_price_mailbox(
+        session, config_in.incoming_email_account_id
+    )
 
     new_config = await crud_provider_pricelist_config.create(
         provider_id=provider_id, config_in=config_in, session=session
@@ -796,6 +819,13 @@ async def update_provider_pricelist_config(
         raise HTTPException(
             status_code=404,
             detail=f'Config for provider {provider.name} not found',
+        )
+    if (
+        'incoming_email_account_id' in config_in.model_fields_set
+        and config_in.incoming_email_account_id is not None
+    ):
+        await _validate_incoming_price_mailbox(
+            session, config_in.incoming_email_account_id
         )
     update_config = await crud_provider_pricelist_config.update(
         db_obj=provider_config, obj_in=config_in, session=session

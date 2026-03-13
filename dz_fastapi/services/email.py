@@ -106,6 +106,36 @@ async def download_price_provider(
         logger.info(f'Created directory: {DOWNLOAD_FOLDER}')
 
     try:
+        mailbox_host = server_mail
+        mailbox_port = IMAP_SERVER
+        mailbox_folder = 'INBOX'
+        mailbox_login = email_account
+        mailbox_password = email_password
+
+        if provider_conf.incoming_email_account_id:
+            selected_account = await crud_email_account.get(
+                session, provider_conf.incoming_email_account_id
+            )
+            if selected_account:
+                mailbox_host = selected_account.imap_host or mailbox_host
+                mailbox_port = selected_account.imap_port or mailbox_port
+                mailbox_folder = selected_account.imap_folder or mailbox_folder
+                mailbox_login = selected_account.email
+                mailbox_password = selected_account.password
+                logger.debug(
+                    'Using configured mailbox for provider config %s: '
+                    'email_account_id=%s',
+                    provider_conf.id,
+                    provider_conf.incoming_email_account_id,
+                )
+            else:
+                logger.warning(
+                    'Configured mailbox %s is missing for '
+                    'provider config %s. Fallback to ENV mailbox.',
+                    provider_conf.incoming_email_account_id,
+                    provider_conf.id,
+                )
+
         since_date = date.today() - timedelta(days=DEPTH_DAY_EMAIL)
         logger.debug(
             f'Email criteria: from = {provider.email_incoming_price}, '
@@ -115,10 +145,10 @@ async def download_price_provider(
         last_uid = await get_last_uid(provider.id, session)
         logger.debug(f'Last UID: {last_uid}')
 
-        with _create_mailbox(server_mail, IMAP_SERVER, True).login(
-            email_account, email_password
+        with _create_mailbox(mailbox_host, mailbox_port, True).login(
+            mailbox_login, mailbox_password
         ) as mailbox:
-            mailbox.folder.set('INBOX')
+            mailbox.folder.set(mailbox_folder)
             all_emails = list(
                 mailbox.fetch(AND(date_gte=date.today(), all=True))
             )

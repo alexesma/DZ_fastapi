@@ -301,6 +301,7 @@ class PaginatedCustomersResponse(BaseModel):
 
 
 class ProviderPriceListConfigBase(BaseModel):
+    incoming_email_account_id: Optional[int] = Field(default=None, ge=1)
     start_row: int
     oem_col: int
     name_col: Optional[int] = None
@@ -327,6 +328,7 @@ class ProviderPriceListConfigCreate(ProviderPriceListConfigBase):
 
 
 class ProviderPriceListConfigUpdate(BaseModel):
+    incoming_email_account_id: Optional[int] = Field(default=None, ge=1)
     start_row: Optional[int] = Field(default=None, ge=0)
     oem_col: Optional[int] = Field(default=None, ge=0)
     name_col: Optional[int] = Field(default=None, ge=0)
@@ -607,6 +609,7 @@ class PriceListShort(BaseModel):
 
 class ProviderPriceListConfigOut(BaseModel):
     id: int
+    incoming_email_account_id: int | None = None
     name_price: str | None = None
     name_mail: str | None = None
     file_url: str | None = None

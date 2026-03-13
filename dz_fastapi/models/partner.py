@@ -376,6 +376,9 @@ event.listen(CustomerPriceList, 'before_insert', set_date)
 
 class ProviderPriceListConfig(Base):
     provider_id = Column(Integer, ForeignKey('provider.id'))
+    incoming_email_account_id = Column(
+        Integer, ForeignKey('emailaccount.id'), nullable=True
+    )
     start_row = Column(Integer, nullable=False)
     oem_col = Column(Integer, nullable=False)
     name_col = Column(Integer, nullable=True)
@@ -397,6 +400,7 @@ class ProviderPriceListConfig(Base):
     max_delivery_day = Column(Integer, nullable=True, default=2)
     is_active = Column(Boolean, default=True, nullable=False)
     provider = relationship('Provider', back_populates='pricelist_configs')
+    incoming_email_account = relationship('EmailAccount', lazy='selectin')
     price_lists = relationship(
         'PriceList', back_populates='config', lazy='selectin'
     )
