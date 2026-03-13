@@ -1,5 +1,6 @@
+from datetime import date
 from enum import StrEnum
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -96,6 +97,27 @@ class BrandResponse(BaseModel):
     id: int
     name: str
     synonyms: List[SynonymResponse]
+
+
+class MissingBrandByPricelist(BaseModel):
+    provider_id: int
+    provider_name: str
+    provider_config_id: int
+    provider_config_name: Optional[str] = None
+    pricelist_id: int
+    pricelist_date: Optional[date] = None
+    brand_name: str
+    positions_count: int
+
+
+class MissingBrandResolveRequest(BaseModel):
+    missing_brand_name: str
+    action: Literal['create_brand', 'set_synonym']
+    target_brand_id: Optional[int] = None
+    country_of_origin: CountryEnum = CountryEnum.CHINA
+    website: Optional[str] = None
+    description: Optional[str] = None
+    main_brand: bool = False
 
 
 class Engine(BaseModel):

@@ -11,18 +11,22 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.sql import and_
 
+from dz_fastapi.api.validators import change_brand_name
 from dz_fastapi.core.constants import DEFAULT_PAGE_SIZE
 from dz_fastapi.core.db import AsyncSession
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.autopart import crud_autopart
 from dz_fastapi.crud.base import CRUDBase
+from dz_fastapi.crud.brand import brand_crud
 from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
+from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import (TYPE_PRICES, Customer,
                                        CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
                                        CustomerPriceListConfig,
                                        CustomerPriceListSource, PriceList,
-                                       PriceListAutoPartAssociation, Provider,
+                                       PriceListAutoPartAssociation,
+                                       PriceListMissingBrand, Provider,
                                        ProviderAbbreviation,
                                        ProviderLastEmailUID,
                                        ProviderPriceListConfig)
@@ -897,6 +901,12 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             )
         )
 
+        await session.execute(
+            delete(PriceListMissingBrand).where(
+                PriceListMissingBrand.pricelist_id.in_(ids)
+            )
+        )
+
         # 2) сами прайсы
         await session.execute(
             delete(PriceList).where(PriceList.id.in_(ids))
@@ -915,12 +925,24 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             session.add(db_obj)
             await session.flush()
             default_brand = None
+            brand_cache: dict[str, Optional[Brand]] = {}
+            missing_brand_counts: dict[str, int] = {}
 
             bulk_insert_data = []
 
             provider_id = db_obj.provider_id
             provider_config_id = db_obj.provider_config_id
             created_at_ts = now_moscow()
+
+            # Держим только актуальный срез отсутствующих брендов
+            # для текущей конфигурации прайса.
+            if provider_config_id is not None:
+                await session.execute(
+                    delete(PriceListMissingBrand).where(
+                        PriceListMissingBrand.provider_config_id
+                        == provider_config_id
+                    )
+                )
 
             last_history_map = await self._get_last_history_snapshot(
                 session=session,
@@ -931,11 +953,41 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
 
             # ===== ОБРАБОТКА ВХОДЯЩИХ ДАННЫХ =====
             for autopart_assoc_data in autoparts_data:
-                autopart_data_dict = autopart_assoc_data['autopart']
+                autopart_data_dict = dict(autopart_assoc_data['autopart'])
                 quantity = autopart_assoc_data['quantity']
                 price = autopart_assoc_data['price']
 
                 logger.debug(f'Processing AutoPart data: {autopart_data_dict}')
+
+                item_default_brand = default_brand
+                raw_brand_name = autopart_data_dict.get('brand')
+                if raw_brand_name:
+                    normalized_brand_name = await change_brand_name(
+                        brand_name=str(raw_brand_name)
+                    )
+                    db_brand = brand_cache.get(normalized_brand_name)
+                    if db_brand is None and (
+                        normalized_brand_name not in brand_cache
+                    ):
+                        db_brand = await brand_crud.get_brand_by_name_or_none(
+                            brand_name=normalized_brand_name,
+                            session=session,
+                        )
+                        brand_cache[normalized_brand_name] = db_brand
+                    if db_brand is None:
+                        missing_brand_counts[normalized_brand_name] = (
+                            missing_brand_counts.get(
+                                normalized_brand_name, 0
+                            )
+                            + 1
+                        )
+                        logger.debug(
+                            'Missing brand in pricelist row: %s',
+                            normalized_brand_name,
+                        )
+                        continue
+                    item_default_brand = db_brand
+                    autopart_data_dict['brand'] = None
 
                 # Instantiate AutoPartPricelist
                 autopart_data = AutoPartPricelist(**autopart_data_dict)
@@ -943,7 +995,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                 autopart = await crud_autopart.create_autopart_from_price(
                     new_autopart=autopart_data,
                     session=session,
-                    default_brand=default_brand,
+                    default_brand=item_default_brand,
                 )
 
                 if not autopart:
@@ -1042,6 +1094,22 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                 )
                 await session.execute(
                     insert(AutoPartPriceHistory), bulk_insert_data_history
+                )
+
+            if provider_config_id is not None and missing_brand_counts:
+                missing_rows = [
+                    {
+                        'pricelist_id': db_obj.id,
+                        'provider_config_id': provider_config_id,
+                        'brand_name': brand_name,
+                        'positions_count': positions_count,
+                        'created_at': created_at_ts,
+                    }
+                    for brand_name, positions_count
+                    in missing_brand_counts.items()
+                ]
+                await session.execute(
+                    insert(PriceListMissingBrand), missing_rows
                 )
 
             await session.commit()

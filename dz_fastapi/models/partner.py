@@ -281,6 +281,47 @@ class PriceList(Base):
         back_populates='pricelist',
         cascade='all, delete-orphan',
     )
+    missing_brand_stats = relationship(
+        'PriceListMissingBrand',
+        back_populates='pricelist',
+        cascade='all, delete-orphan',
+    )
+
+
+class PriceListMissingBrand(Base):
+    pricelist_id = Column(
+        Integer,
+        ForeignKey('pricelist.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+    provider_config_id = Column(
+        Integer,
+        ForeignKey('providerpricelistconfig.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+    brand_name = Column(String(255), nullable=False)
+    positions_count = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
+
+    pricelist = relationship('PriceList', back_populates='missing_brand_stats')
+    provider_config = relationship(
+        'ProviderPriceListConfig', back_populates='missing_brand_stats'
+    )
+
+    __table_args__ = (
+        Index(
+            'ix_pricelistmissingbrand_provider_config_id',
+            'provider_config_id',
+        ),
+        Index(
+            'ix_pricelistmissingbrand_pricelist_id',
+            'pricelist_id',
+        ),
+        Index(
+            'ix_pricelistmissingbrand_brand_name',
+            'brand_name',
+        ),
+    )
 
 
 class CustomerPriceListAutoPartAssociation(Base):
@@ -356,6 +397,11 @@ class ProviderPriceListConfig(Base):
     provider = relationship('Provider', back_populates='pricelist_configs')
     price_lists = relationship(
         'PriceList', back_populates='config', lazy='selectin'
+    )
+    missing_brand_stats = relationship(
+        'PriceListMissingBrand',
+        back_populates='provider_config',
+        cascade='all, delete-orphan',
     )
 
 

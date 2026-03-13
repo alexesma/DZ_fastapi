@@ -5,26 +5,52 @@ from pathlib import Path
 import aiofiles
 from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 from PIL import Image
-from sqlalchemy import delete
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from dz_fastapi.api.validators import change_string
+from dz_fastapi.api.validators import change_brand_name, change_string
 from dz_fastapi.core.constants import (UPLOAD_DIR, get_max_file_size,
                                        get_upload_dir)
 from dz_fastapi.core.db import get_session
 from dz_fastapi.crud.brand import (brand_crud, brand_exists,
                                    duplicate_brand_name)
 from dz_fastapi.models.brand import Brand, brand_synonyms
+from dz_fastapi.models.partner import (PriceList, PriceListMissingBrand,
+                                       Provider, ProviderPriceListConfig)
 from dz_fastapi.schemas.brand import (BrandCreate, BrandCreateInDB,
                                       BrandResponse, BrandUpdate,
+                                      MissingBrandByPricelist,
+                                      MissingBrandResolveRequest,
                                       SynonymCreate)
 
 logger = logging.getLogger('dz_fastapi')
 
 router = APIRouter(prefix='/brand')
 UPLOAD_DIR = Path(UPLOAD_DIR)
+
+
+async def _serialize_brand_for_response(
+    brand: Brand, session: AsyncSession
+) -> BrandCreateInDB:
+    all_synonyms = await brand_crud.get_all_synonyms_bi_directional(
+        brand, session
+    )
+    return BrandCreateInDB(
+        id=brand.id,
+        name=brand.name,
+        description=brand.description,
+        main_brand=bool(brand.main_brand),
+        website=brand.website,
+        country_of_origin=brand.country_of_origin,
+        logo=brand.logo,
+        synonyms=[
+            {'id': syn.id, 'name': syn.name}
+            for syn in all_synonyms
+            if syn.id != brand.id
+        ],
+    )
 
 
 @router.get(
@@ -41,6 +67,147 @@ async def get_brands(session: AsyncSession = Depends(get_session)):
             brand, session
         )
     return brands
+
+
+@router.get(
+    '/missing-from-pricelists',
+    response_model=list[MissingBrandByPricelist],
+    tags=['brand'],
+    summary='Отсутствующие бренды из последних прайсов поставщиков',
+    response_model_exclude_none=True,
+)
+async def get_missing_brands_from_pricelists(
+    session: AsyncSession = Depends(get_session),
+):
+    latest_pricelist_subquery = (
+        select(
+            PriceList.provider_config_id.label('provider_config_id'),
+            PriceList.id.label('pricelist_id'),
+            PriceList.date.label('pricelist_date'),
+            func.row_number()
+            .over(
+                partition_by=PriceList.provider_config_id,
+                order_by=(PriceList.date.desc(), PriceList.id.desc()),
+            )
+            .label('row_number'),
+        )
+        .where(PriceList.provider_config_id.is_not(None))
+        .subquery()
+    )
+    stmt = (
+        select(
+            Provider.id.label('provider_id'),
+            Provider.name.label('provider_name'),
+            ProviderPriceListConfig.id.label('provider_config_id'),
+            ProviderPriceListConfig.name_price.label(
+                'provider_config_name'
+            ),
+            PriceListMissingBrand.pricelist_id.label('pricelist_id'),
+            latest_pricelist_subquery.c.pricelist_date.label(
+                'pricelist_date'
+            ),
+            PriceListMissingBrand.brand_name.label('brand_name'),
+            PriceListMissingBrand.positions_count.label(
+                'positions_count'
+            ),
+        )
+        .join(
+            latest_pricelist_subquery,
+            (
+                latest_pricelist_subquery.c.provider_config_id
+                == PriceListMissingBrand.provider_config_id
+            )
+            & (
+                latest_pricelist_subquery.c.pricelist_id
+                == PriceListMissingBrand.pricelist_id
+            )
+            & (latest_pricelist_subquery.c.row_number == 1),
+        )
+        .join(
+            ProviderPriceListConfig,
+            ProviderPriceListConfig.id
+            == PriceListMissingBrand.provider_config_id,
+        )
+        .join(Provider, Provider.id == ProviderPriceListConfig.provider_id)
+        .outerjoin(Brand, Brand.name == PriceListMissingBrand.brand_name)
+        .where(PriceListMissingBrand.positions_count > 0, Brand.id.is_(None))
+        .order_by(
+            Provider.name.asc(),
+            ProviderPriceListConfig.name_price.asc().nullslast(),
+            PriceListMissingBrand.positions_count.desc(),
+            PriceListMissingBrand.brand_name.asc(),
+        )
+    )
+    rows = (await session.execute(stmt)).mappings().all()
+    return [MissingBrandByPricelist(**row) for row in rows]
+
+
+@router.post(
+    '/missing-from-pricelists/resolve',
+    tags=['brand'],
+    summary='Разрешить отсутствующий бренд',
+    response_model=BrandCreateInDB,
+    response_model_exclude_none=True,
+)
+async def resolve_missing_brand(
+    payload: MissingBrandResolveRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    missing_brand_name = await change_brand_name(payload.missing_brand_name)
+    if not missing_brand_name:
+        raise HTTPException(
+            status_code=400, detail='Пустое имя отсутствующего бренда'
+        )
+
+    existing_missing_brand = await brand_crud.get_brand_by_name_or_none(
+        brand_name=missing_brand_name, session=session
+    )
+
+    if payload.action == 'create_brand':
+        if existing_missing_brand:
+            return await _serialize_brand_for_response(
+                existing_missing_brand, session
+            )
+        brand_in = BrandCreate(
+            name=missing_brand_name,
+            country_of_origin=payload.country_of_origin,
+            website=payload.website,
+            description=payload.description,
+            main_brand=payload.main_brand,
+            synonyms=[],
+        )
+        created = await brand_crud.create(brand=brand_in, session=session)
+        return await _serialize_brand_for_response(created, session)
+
+    if payload.target_brand_id is None:
+        raise HTTPException(
+            status_code=400,
+            detail='Не передан target_brand_id для действия set_synonym',
+        )
+
+    target_brand = await brand_exists(payload.target_brand_id, session)
+
+    if not existing_missing_brand:
+        missing_brand_in = BrandCreate(
+            name=missing_brand_name,
+            country_of_origin=payload.country_of_origin,
+            website=payload.website,
+            description=payload.description,
+            main_brand=False,
+            synonyms=[],
+        )
+        existing_missing_brand = await brand_crud.create(
+            brand=missing_brand_in, session=session
+        )
+    elif existing_missing_brand.id == target_brand.id:
+        return await _serialize_brand_for_response(target_brand, session)
+
+    await brand_crud.add_synonym(
+        brand=target_brand, synonym=existing_missing_brand, session=session
+    )
+    await session.commit()
+    await session.refresh(target_brand)
+    return await _serialize_brand_for_response(target_brand, session)
 
 
 @router.get(
