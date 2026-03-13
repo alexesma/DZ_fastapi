@@ -956,6 +956,9 @@ async def upload_provider_pricelist(
     name_col: Optional[int] = Form(
         None, description='Column number for name (0-indexed)'
     ),
+    multiplicity_col: Optional[int] = Form(
+        None, description='Column number for multiplicity (0-indexed)'
+    ),
     qty_col: Optional[int] = Form(
         None, description='Column number for quantity (0-indexed)'
     ),
@@ -994,6 +997,7 @@ async def upload_provider_pricelist(
         oem_col=oem_col,
         brand_col=brand_col,
         name_col=name_col,
+        multiplicity_col=multiplicity_col,
         qty_col=qty_col,
         price_col=price_col,
         session=session,
@@ -1700,6 +1704,7 @@ async def download_provider_pricelist(
             oem_col=None,
             brand_col=None,
             name_col=None,
+            multiplicity_col=None,
             qty_col=None,
             price_col=None,
             session=session,

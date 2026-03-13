@@ -397,26 +397,7 @@ async def update_brand(
                 )
             logger.debug(f'Updated brand: {updated_brand}')
 
-            await brand_crud.get_all_synonyms_bi_directional(
-                updated_brand, session
-            )
-            # brand_data = {
-            #     'id': updated_brand.id,
-            #     'name': updated_brand.name,
-            #     'country_of_origin':  updated_brand.country_of_origin,
-            #     'logo': updated_brand.logo,
-            #     'website': updated_brand.website,
-            #     'description': updated_brand.description,
-            #     'main_brand': updated_brand.main_brand,
-            #     'synonyms': [{
-            #     'id': syn.id,
-            #     'name': syn.name
-            #     } for syn in all_synonyms if syn.id != updated_brand.id]
-            # }
-            #
-            # return BrandCreateInDB(**brand_data)
-            brand_in_db = BrandCreateInDB.from_orm(updated_brand)
-            return brand_in_db
+            return await _serialize_brand_for_response(updated_brand, session)
 
     except Exception as e:
         logger.error(f'Error updating brand: {str(e)}')

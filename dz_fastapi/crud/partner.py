@@ -928,7 +928,8 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             brand_cache: dict[str, Optional[Brand]] = {}
             missing_brand_counts: dict[str, int] = {}
 
-            bulk_insert_data = []
+            bulk_insert_data: list[dict] = []
+            bulk_insert_map: dict[int, dict] = {}
 
             provider_id = db_obj.provider_id
             provider_config_id = db_obj.provider_config_id
@@ -1006,20 +1007,28 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                     continue
                 qty = int(quantity)
                 prc = money(price)
-                bulk_insert_data.append(
-                    {
-                        'pricelist_id': db_obj.id,
-                        'autopart_id': autopart.id,
-                        'quantity': qty,
-                        'price': prc,
-                    }
-                )
+                mult = int(autopart_assoc_data.get('multiplicity') or 1)
+                existing_assoc = bulk_insert_map.get(autopart.id)
+                if existing_assoc and existing_assoc['price'] < prc:
+                    continue
 
-                # Запоминаем текущую позицию
+                assoc_row = {
+                    'pricelist_id': db_obj.id,
+                    'autopart_id': autopart.id,
+                    'quantity': qty,
+                    'price': prc,
+                    'multiplicity': mult,
+                }
+                bulk_insert_map[autopart.id] = assoc_row
+
+                # Запоминаем актуальную позицию для истории изменений.
                 current_positions[autopart.id] = {
                     'price': prc,
-                    'quantity': qty
+                    'quantity': qty,
                 }
+
+            if bulk_insert_map:
+                bulk_insert_data = list(bulk_insert_map.values())
 
             # Шаг 4: Выполнение массовой вставки ассоциаций, если есть данные
             if bulk_insert_data:
@@ -1159,6 +1168,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                             autopart=assoc.autopart,
                             quantity=assoc.quantity,
                             price=float(assoc.price),
+                            multiplicity=assoc.multiplicity,
                         )
                         for assoc in db_obj.autopart_associations
                     ],

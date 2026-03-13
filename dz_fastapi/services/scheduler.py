@@ -258,6 +258,7 @@ async def _process_one(item, app: FastAPI, sem: asyncio.Semaphore):
                         oem_col=None,
                         brand_col=None,
                         name_col=None,
+                        multiplicity_col=None,
                         qty_col=None,
                         price_col=None,
                         session=session,

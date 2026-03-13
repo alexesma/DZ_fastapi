@@ -1,0 +1,1193 @@
+2026-03-13 16:12:07,389 - dz_fastapi - WARNING - Brand YAMMY not found. Skipping autopart creation.
+2026-03-13 16:12:07,415 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'YAMMY', 'oem_number': 'G015', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,415 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LYNXAUTO', 'oem_number': 'G12129LR', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,415 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LYNXAUTO' oem_number='G12129LR' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,416 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LYNXAUTO', 'oem_number': 'G12129LR', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,416 - dz_fastapi - DEBUG - Extracted brand_name: LYNXAUTO
+2026-03-13 16:12:07,416 - dz_fastapi - DEBUG - Changed brand_name: LYNXAUTO
+2026-03-13 16:12:07,418 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237731d0>
+2026-03-13 16:12:07,421 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb9820>
+2026-03-13 16:12:07,421 - dz_fastapi - DEBUG - Autopart already exists: ID 92573
+2026-03-13 16:12:07,421 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'EIKOSHA', 'oem_number': 'G50', 'name': 'Ароматизатор На Кондиционер GIGA', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,421 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='EIKOSHA' oem_number='G50' name='Ароматизатор На Кондиционер GIGA' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,421 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'EIKOSHA', 'oem_number': 'G50', 'name': 'Ароматизатор На Кондиционер GIGA', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,422 - dz_fastapi - DEBUG - Extracted brand_name: EIKOSHA
+2026-03-13 16:12:07,422 - dz_fastapi - DEBUG - Changed brand_name: EIKOSHA
+2026-03-13 16:12:07,423 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,423 - dz_fastapi - WARNING - Brand EIKOSHA not found. Skipping autopart creation.
+2026-03-13 16:12:07,423 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'EIKOSHA', 'oem_number': 'G50', 'name': 'Ароматизатор На Кондиционер GIGA', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,423 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'EIKOSHA', 'oem_number': 'G55', 'name': 'Ароматизатор На Кондиционер GIGA CLIP - SQUASH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,423 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='EIKOSHA' oem_number='G55' name='Ароматизатор На Кондиционер GIGA CLIP - SQUASH' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,423 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'EIKOSHA', 'oem_number': 'G55', 'name': 'Ароматизатор На Кондиционер GIGA CLIP - SQUASH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,424 - dz_fastapi - DEBUG - Extracted brand_name: EIKOSHA
+2026-03-13 16:12:07,424 - dz_fastapi - DEBUG - Changed brand_name: EIKOSHA
+2026-03-13 16:12:07,424 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,424 - dz_fastapi - WARNING - Brand EIKOSHA not found. Skipping autopart creation.
+2026-03-13 16:12:07,424 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'EIKOSHA', 'oem_number': 'G55', 'name': 'Ароматизатор На Кондиционер GIGA CLIP - SQUASH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,425 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'EIKOSHA', 'oem_number': 'I32', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,425 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='EIKOSHA' oem_number='I32' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,425 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'EIKOSHA', 'oem_number': 'I32', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,425 - dz_fastapi - DEBUG - Extracted brand_name: EIKOSHA
+2026-03-13 16:12:07,425 - dz_fastapi - DEBUG - Changed brand_name: EIKOSHA
+2026-03-13 16:12:07,426 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,426 - dz_fastapi - WARNING - Brand EIKOSHA not found. Skipping autopart creation.
+2026-03-13 16:12:07,426 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'EIKOSHA', 'oem_number': 'I32', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,426 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'EIKOSHA', 'oem_number': 'I52', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,426 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='EIKOSHA' oem_number='I52' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,426 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'EIKOSHA', 'oem_number': 'I52', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,426 - dz_fastapi - DEBUG - Extracted brand_name: EIKOSHA
+2026-03-13 16:12:07,426 - dz_fastapi - DEBUG - Changed brand_name: EIKOSHA
+2026-03-13 16:12:07,427 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,427 - dz_fastapi - WARNING - Brand EIKOSHA not found. Skipping autopart creation.
+2026-03-13 16:12:07,427 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'EIKOSHA', 'oem_number': 'I52', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,427 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'EIKOSHA', 'oem_number': 'I53', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,427 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='EIKOSHA' oem_number='I53' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,427 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'EIKOSHA', 'oem_number': 'I53', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,428 - dz_fastapi - DEBUG - Extracted brand_name: EIKOSHA
+2026-03-13 16:12:07,428 - dz_fastapi - DEBUG - Changed brand_name: EIKOSHA
+2026-03-13 16:12:07,428 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,428 - dz_fastapi - WARNING - Brand EIKOSHA not found. Skipping autopart creation.
+2026-03-13 16:12:07,428 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'EIKOSHA', 'oem_number': 'I53', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,428 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAA0002', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,428 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAA0002' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,429 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAA0002', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,429 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,429 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,430 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20454b60>
+2026-03-13 16:12:07,431 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5b478950>
+2026-03-13 16:12:07,431 - dz_fastapi - DEBUG - Autopart already exists: ID 92574
+2026-03-13 16:12:07,431 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAA0020', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,431 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAA0020' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,431 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAA0020', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,432 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,432 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,433 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefb64ae70>
+2026-03-13 16:12:07,434 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbed92b0>
+2026-03-13 16:12:07,434 - dz_fastapi - DEBUG - Autopart already exists: ID 3320
+2026-03-13 16:12:07,434 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAA0024', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,434 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAA0024' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,434 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAA0024', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,434 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,434 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,435 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7066dd60>
+2026-03-13 16:12:07,436 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de1880>
+2026-03-13 16:12:07,437 - dz_fastapi - DEBUG - Autopart already exists: ID 92575
+2026-03-13 16:12:07,437 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAA0026', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,437 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAA0026' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,437 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAA0026', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,437 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,437 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,438 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbe41e50>
+2026-03-13 16:12:07,439 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefb1f0620>
+2026-03-13 16:12:07,439 - dz_fastapi - DEBUG - Autopart already exists: ID 92576
+2026-03-13 16:12:07,439 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAA0057', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,440 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAA0057' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,440 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAA0057', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,440 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,440 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,441 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5148c290>
+2026-03-13 16:12:07,442 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbe400b0>
+2026-03-13 16:12:07,442 - dz_fastapi - DEBUG - Autopart already exists: ID 92577
+2026-03-13 16:12:07,442 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAA0111', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,442 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAA0111' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,442 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAA0111', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,443 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,443 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,443 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3a915f40>
+2026-03-13 16:12:07,445 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefb614650>
+2026-03-13 16:12:07,445 - dz_fastapi - DEBUG - Autopart already exists: ID 92578
+2026-03-13 16:12:07,445 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAA0272', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,445 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAA0272' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,445 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAA0272', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,445 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,445 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,446 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2add0b30>
+2026-03-13 16:12:07,447 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae45010>
+2026-03-13 16:12:07,447 - dz_fastapi - DEBUG - Autopart already exists: ID 92579
+2026-03-13 16:12:07,447 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAA0276', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,447 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAA0276' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,448 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAA0276', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,448 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,448 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,449 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff294b9af0>
+2026-03-13 16:12:07,450 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5b59e840>
+2026-03-13 16:12:07,450 - dz_fastapi - DEBUG - Autopart already exists: ID 92580
+2026-03-13 16:12:07,450 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAA0280', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,450 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAA0280' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,450 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAA0280', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,451 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,451 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,452 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3a915f40>
+2026-03-13 16:12:07,453 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20ccda30>
+2026-03-13 16:12:07,453 - dz_fastapi - DEBUG - Autopart already exists: ID 92581
+2026-03-13 16:12:07,453 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAA0385', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,453 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAA0385' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,453 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAA0385', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,454 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,454 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,455 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23743710>
+2026-03-13 16:12:07,456 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3940c740>
+2026-03-13 16:12:07,456 - dz_fastapi - DEBUG - Autopart already exists: ID 92582
+2026-03-13 16:12:07,456 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAA0440', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,456 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAA0440' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,456 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAA0440', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,456 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,456 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,457 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2add0b30>
+2026-03-13 16:12:07,458 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3b05f650>
+2026-03-13 16:12:07,458 - dz_fastapi - DEBUG - Autopart already exists: ID 92583
+2026-03-13 16:12:07,458 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAA0644', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,459 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAA0644' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,459 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAA0644', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,459 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,459 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,460 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4aafadb0>
+2026-03-13 16:12:07,461 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237d2750>
+2026-03-13 16:12:07,461 - dz_fastapi - DEBUG - Autopart already exists: ID 92584
+2026-03-13 16:12:07,461 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0000', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,461 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0000' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,461 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0000', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,461 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,461 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,462 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3a915f40>
+2026-03-13 16:12:07,464 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237731d0>
+2026-03-13 16:12:07,464 - dz_fastapi - DEBUG - Autopart already exists: ID 92585
+2026-03-13 16:12:07,464 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0001', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,464 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0001' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,464 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0001', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,464 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,464 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,465 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b478950>
+2026-03-13 16:12:07,466 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7066dd60>
+2026-03-13 16:12:07,466 - dz_fastapi - DEBUG - Autopart already exists: ID 92586
+2026-03-13 16:12:07,466 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0005', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,466 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0005' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,467 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0005', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,467 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,467 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,468 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2a543890>
+2026-03-13 16:12:07,469 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1de20>
+2026-03-13 16:12:07,469 - dz_fastapi - DEBUG - Autopart already exists: ID 92587
+2026-03-13 16:12:07,469 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0006', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,469 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0006' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,469 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0006', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,469 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,469 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,470 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1dfd0>
+2026-03-13 16:12:07,471 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20f4e480>
+2026-03-13 16:12:07,472 - dz_fastapi - DEBUG - Autopart already exists: ID 92588
+2026-03-13 16:12:07,472 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0011', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,472 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0011' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,472 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0011', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,472 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,472 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,473 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237731d0>
+2026-03-13 16:12:07,475 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbedb050>
+2026-03-13 16:12:07,475 - dz_fastapi - DEBUG - Autopart already exists: ID 92589
+2026-03-13 16:12:07,475 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0012', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,475 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0012' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,475 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0012', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,475 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,476 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,477 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff504931a0>
+2026-03-13 16:12:07,478 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff70bd37a0>
+2026-03-13 16:12:07,478 - dz_fastapi - DEBUG - Autopart already exists: ID 93909
+2026-03-13 16:12:07,478 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0015', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,478 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0015' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,478 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0015', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,478 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,478 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,479 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23771430>
+2026-03-13 16:12:07,480 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae45130>
+2026-03-13 16:12:07,480 - dz_fastapi - DEBUG - Autopart already exists: ID 92590
+2026-03-13 16:12:07,480 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0016', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,480 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0016' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,481 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0016', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,481 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,481 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,482 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237a7c50>
+2026-03-13 16:12:07,483 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff23743710>
+2026-03-13 16:12:07,483 - dz_fastapi - DEBUG - Autopart already exists: ID 92591
+2026-03-13 16:12:07,483 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0022', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,483 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0022' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,483 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0022', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,483 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,484 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,484 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f70b60>
+2026-03-13 16:12:07,485 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a697dd0>
+2026-03-13 16:12:07,485 - dz_fastapi - DEBUG - Autopart already exists: ID 92592
+2026-03-13 16:12:07,486 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0023', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,486 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0023' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,486 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0023', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,486 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,486 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,487 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4aafadb0>
+2026-03-13 16:12:07,488 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3a6faa50>
+2026-03-13 16:12:07,488 - dz_fastapi - DEBUG - Autopart already exists: ID 92593
+2026-03-13 16:12:07,488 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0028', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,488 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0028' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,488 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0028', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,488 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,488 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,489 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f71100>
+2026-03-13 16:12:07,490 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5148c530>
+2026-03-13 16:12:07,490 - dz_fastapi - DEBUG - Autopart already exists: ID 92594
+2026-03-13 16:12:07,491 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0029', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,491 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0029' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,491 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0029', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,491 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,491 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,492 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae47530>
+2026-03-13 16:12:07,493 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae448f0>
+2026-03-13 16:12:07,493 - dz_fastapi - DEBUG - Autopart already exists: ID 92595
+2026-03-13 16:12:07,493 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0030', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,494 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0030' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,494 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0030', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,494 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,494 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,495 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff504931a0>
+2026-03-13 16:12:07,496 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3a6faa50>
+2026-03-13 16:12:07,496 - dz_fastapi - DEBUG - Autopart already exists: ID 92596
+2026-03-13 16:12:07,496 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0031', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,496 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0031' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,496 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0031', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,496 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,496 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,497 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b1ce000>
+2026-03-13 16:12:07,498 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de1820>
+2026-03-13 16:12:07,498 - dz_fastapi - DEBUG - Autopart already exists: ID 92597
+2026-03-13 16:12:07,498 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0043', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,498 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0043' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,498 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0043', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,498 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,499 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,499 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefeeb80e0>
+2026-03-13 16:12:07,500 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39fd2ff0>
+2026-03-13 16:12:07,501 - dz_fastapi - DEBUG - Autopart already exists: ID 92598
+2026-03-13 16:12:07,501 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0044', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,501 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0044' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,501 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0044', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,501 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,501 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,502 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23743710>
+2026-03-13 16:12:07,503 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4820c2f0>
+2026-03-13 16:12:07,503 - dz_fastapi - DEBUG - Autopart already exists: ID 92599
+2026-03-13 16:12:07,503 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0049', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,503 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0049' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,503 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0049', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,503 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,504 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,504 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff26f16480>
+2026-03-13 16:12:07,505 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3a6faa50>
+2026-03-13 16:12:07,505 - dz_fastapi - DEBUG - Autopart already exists: ID 92600
+2026-03-13 16:12:07,506 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0050', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,506 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0050' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,506 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0050', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,506 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,506 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,507 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbe7b890>
+2026-03-13 16:12:07,508 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbe79af0>
+2026-03-13 16:12:07,508 - dz_fastapi - DEBUG - Autopart already exists: ID 93910
+2026-03-13 16:12:07,508 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0051', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,508 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0051' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,508 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0051', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,508 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,508 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,509 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23136240>
+2026-03-13 16:12:07,510 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237a7c50>
+2026-03-13 16:12:07,510 - dz_fastapi - DEBUG - Autopart already exists: ID 93911
+2026-03-13 16:12:07,510 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0052', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,510 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0052' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,511 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0052', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,511 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,511 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,512 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb8890>
+2026-03-13 16:12:07,513 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39fd2a80>
+2026-03-13 16:12:07,513 - dz_fastapi - DEBUG - Autopart already exists: ID 92601
+2026-03-13 16:12:07,513 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0054', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,513 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0054' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,513 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0054', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,513 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,514 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,514 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff482deab0>
+2026-03-13 16:12:07,516 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff513099d0>
+2026-03-13 16:12:07,516 - dz_fastapi - DEBUG - Autopart already exists: ID 92602
+2026-03-13 16:12:07,516 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0055', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,516 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0055' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,516 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0055', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,516 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,516 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,517 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff265e9550>
+2026-03-13 16:12:07,518 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3b7c5610>
+2026-03-13 16:12:07,518 - dz_fastapi - DEBUG - Autopart already exists: ID 92603
+2026-03-13 16:12:07,518 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0114', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,518 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0114' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,518 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0114', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,519 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,519 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,520 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefb614650>
+2026-03-13 16:12:07,521 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a697dd0>
+2026-03-13 16:12:07,521 - dz_fastapi - DEBUG - Autopart already exists: ID 92604
+2026-03-13 16:12:07,521 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0115', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,521 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0115' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,521 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0115', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,521 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,522 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,522 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23136240>
+2026-03-13 16:12:07,523 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a695010>
+2026-03-13 16:12:07,523 - dz_fastapi - DEBUG - Autopart already exists: ID 92605
+2026-03-13 16:12:07,524 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0116', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,524 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0116' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,524 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0116', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,524 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,524 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,525 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbe7b890>
+2026-03-13 16:12:07,527 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff504931a0>
+2026-03-13 16:12:07,527 - dz_fastapi - DEBUG - Autopart already exists: ID 93912
+2026-03-13 16:12:07,527 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0117', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,527 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0117' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,527 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0117', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,527 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,527 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,528 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a54f950>
+2026-03-13 16:12:07,529 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de1790>
+2026-03-13 16:12:07,529 - dz_fastapi - DEBUG - Autopart already exists: ID 92606
+2026-03-13 16:12:07,530 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0118', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,530 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0118' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,530 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0118', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,530 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,530 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,531 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a54d430>
+2026-03-13 16:12:07,532 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5130be00>
+2026-03-13 16:12:07,532 - dz_fastapi - DEBUG - Autopart already exists: ID 92607
+2026-03-13 16:12:07,532 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0119', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,532 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0119' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,532 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0119', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,532 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,532 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,533 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a54d5e0>
+2026-03-13 16:12:07,534 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff70bd37a0>
+2026-03-13 16:12:07,534 - dz_fastapi - DEBUG - Autopart already exists: ID 92608
+2026-03-13 16:12:07,535 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0120', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,535 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0120' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,535 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0120', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,535 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,535 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,536 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a54d5e0>
+2026-03-13 16:12:07,537 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f70b60>
+2026-03-13 16:12:07,537 - dz_fastapi - DEBUG - Autopart already exists: ID 92609
+2026-03-13 16:12:07,537 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0121', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,537 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0121' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,537 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0121', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,538 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,538 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,539 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefcbef650>
+2026-03-13 16:12:07,540 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff265e9550>
+2026-03-13 16:12:07,540 - dz_fastapi - DEBUG - Autopart already exists: ID 93913
+2026-03-13 16:12:07,540 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0122', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,540 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0122' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,540 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0122', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,540 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,540 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,541 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff70bd37a0>
+2026-03-13 16:12:07,542 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefb680b30>
+2026-03-13 16:12:07,542 - dz_fastapi - DEBUG - Autopart already exists: ID 92610
+2026-03-13 16:12:07,542 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0123', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,542 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0123' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,542 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0123', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,543 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,543 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,543 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb87d0>
+2026-03-13 16:12:07,544 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38ebbe90>
+2026-03-13 16:12:07,545 - dz_fastapi - DEBUG - Autopart already exists: ID 92611
+2026-03-13 16:12:07,545 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0174', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,545 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0174' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,545 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0174', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,545 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,545 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,546 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a07b740>
+2026-03-13 16:12:07,548 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefcbef650>
+2026-03-13 16:12:07,548 - dz_fastapi - DEBUG - Autopart already exists: ID 92612
+2026-03-13 16:12:07,548 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0175', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,548 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0175' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,548 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0175', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,548 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,548 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,550 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3940c740>
+2026-03-13 16:12:07,551 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff248d4410>
+2026-03-13 16:12:07,551 - dz_fastapi - DEBUG - Autopart already exists: ID 92613
+2026-03-13 16:12:07,551 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0261', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,551 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0261' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,551 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0261', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,551 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,551 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,552 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3a6faa50>
+2026-03-13 16:12:07,553 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3a915f40>
+2026-03-13 16:12:07,553 - dz_fastapi - DEBUG - Autopart already exists: ID 92614
+2026-03-13 16:12:07,553 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0262', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,553 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0262' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,554 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0262', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,554 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,554 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,555 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbe43e30>
+2026-03-13 16:12:07,556 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237d2750>
+2026-03-13 16:12:07,556 - dz_fastapi - DEBUG - Autopart already exists: ID 92615
+2026-03-13 16:12:07,556 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0289', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,556 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0289' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,556 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0289', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,556 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,556 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,557 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4aafadb0>
+2026-03-13 16:12:07,559 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff23136240>
+2026-03-13 16:12:07,559 - dz_fastapi - DEBUG - Autopart already exists: ID 92616
+2026-03-13 16:12:07,559 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0290', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,559 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0290' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,559 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0290', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,559 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,559 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,560 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff294b9af0>
+2026-03-13 16:12:07,561 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefb1f0620>
+2026-03-13 16:12:07,561 - dz_fastapi - DEBUG - Autopart already exists: ID 92617
+2026-03-13 16:12:07,561 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0296', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,561 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0296' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,562 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0296', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,562 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,562 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,563 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a697dd0>
+2026-03-13 16:12:07,564 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20454b60>
+2026-03-13 16:12:07,564 - dz_fastapi - DEBUG - Autopart already exists: ID 92618
+2026-03-13 16:12:07,564 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0362', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,564 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0362' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,564 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0362', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,564 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,564 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,565 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1dca0>
+2026-03-13 16:12:07,566 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39175af0>
+2026-03-13 16:12:07,566 - dz_fastapi - DEBUG - Autopart already exists: ID 93915
+2026-03-13 16:12:07,566 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0363', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,566 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0363' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,567 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0363', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,567 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,567 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,568 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefb1f0620>
+2026-03-13 16:12:07,569 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5130bbc0>
+2026-03-13 16:12:07,569 - dz_fastapi - DEBUG - Autopart already exists: ID 92619
+2026-03-13 16:12:07,569 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0385', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,569 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0385' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,569 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0385', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,569 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,569 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,570 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4820c2f0>
+2026-03-13 16:12:07,571 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff23dee1e0>
+2026-03-13 16:12:07,571 - dz_fastapi - DEBUG - Autopart already exists: ID 92620
+2026-03-13 16:12:07,571 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0450', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,571 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0450' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,571 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0450', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,572 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,572 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,572 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5086b4d0>
+2026-03-13 16:12:07,574 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbedb050>
+2026-03-13 16:12:07,574 - dz_fastapi - DEBUG - Autopart already exists: ID 92621
+2026-03-13 16:12:07,574 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0451', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,574 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0451' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,574 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0451', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,574 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,574 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,575 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39fd2ff0>
+2026-03-13 16:12:07,576 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefb614650>
+2026-03-13 16:12:07,576 - dz_fastapi - DEBUG - Autopart already exists: ID 92622
+2026-03-13 16:12:07,576 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0569', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,576 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0569' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,577 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0569', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,577 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,577 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,578 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff294f02f0>
+2026-03-13 16:12:07,579 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3a8ae030>
+2026-03-13 16:12:07,579 - dz_fastapi - DEBUG - Autopart already exists: ID 93916
+2026-03-13 16:12:07,579 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0570', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,579 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0570' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,579 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0570', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,579 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,579 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,580 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39f35a60>
+2026-03-13 16:12:07,581 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f71100>
+2026-03-13 16:12:07,581 - dz_fastapi - DEBUG - Autopart already exists: ID 92625
+2026-03-13 16:12:07,581 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0651', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,582 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0651' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,582 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0651', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,582 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,582 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,583 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefcbef650>
+2026-03-13 16:12:07,584 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a697dd0>
+2026-03-13 16:12:07,584 - dz_fastapi - DEBUG - Autopart already exists: ID 92626
+2026-03-13 16:12:07,584 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0652', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,584 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0652' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,584 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0652', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,584 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,584 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,585 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff70bd37a0>
+2026-03-13 16:12:07,586 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2add0b30>
+2026-03-13 16:12:07,586 - dz_fastapi - DEBUG - Autopart already exists: ID 92627
+2026-03-13 16:12:07,587 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0770', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,587 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0770' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,587 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0770', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,587 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,587 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,588 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae45010>
+2026-03-13 16:12:07,590 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae46810>
+2026-03-13 16:12:07,590 - dz_fastapi - DEBUG - Autopart already exists: ID 92628
+2026-03-13 16:12:07,590 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JAS0771', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,590 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JAS0771' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,590 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JAS0771', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,590 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:07,590 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:07,591 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefcbef650>
+2026-03-13 16:12:07,592 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38e374a0>
+2026-03-13 16:12:07,593 - dz_fastapi - DEBUG - Autopart already exists: ID 92629
+2026-03-13 16:12:07,593 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KAYABA', 'oem_number': 'KS1008', 'name': 'Амортизатор Рулевой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,593 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KAYABA' oem_number='KS1008' name='Амортизатор Рулевой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,593 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KAYABA', 'oem_number': 'KS1008', 'name': 'Амортизатор Рулевой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,593 - dz_fastapi - DEBUG - Extracted brand_name: KAYABA
+2026-03-13 16:12:07,593 - dz_fastapi - DEBUG - Changed brand_name: KAYABA
+2026-03-13 16:12:07,594 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,594 - dz_fastapi - WARNING - Brand KAYABA not found. Skipping autopart creation.
+2026-03-13 16:12:07,595 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'KAYABA', 'oem_number': 'KS1008', 'name': 'Амортизатор Рулевой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,595 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AUTOKAT', 'oem_number': 'KS1008', 'name': 'Амортизатор Рулевой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,595 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AUTOKAT' oem_number='KS1008' name='Амортизатор Рулевой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,595 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AUTOKAT', 'oem_number': 'KS1008', 'name': 'Амортизатор Рулевой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,595 - dz_fastapi - DEBUG - Extracted brand_name: AUTOKAT
+2026-03-13 16:12:07,595 - dz_fastapi - DEBUG - Changed brand_name: AUTOKAT
+2026-03-13 16:12:07,597 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,597 - dz_fastapi - WARNING - Brand AUTOKAT not found. Skipping autopart creation.
+2026-03-13 16:12:07,597 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'AUTOKAT', 'oem_number': 'KS1008', 'name': 'Амортизатор Рулевой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,597 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZEKKERT', 'oem_number': 'LD1387', 'name': 'Аммортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,597 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZEKKERT' oem_number='LD1387' name='Аммортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,597 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZEKKERT', 'oem_number': 'LD1387', 'name': 'Аммортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,597 - dz_fastapi - DEBUG - Extracted brand_name: ZEKKERT
+2026-03-13 16:12:07,597 - dz_fastapi - DEBUG - Changed brand_name: ZEKKERT
+2026-03-13 16:12:07,598 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20de1a00>
+2026-03-13 16:12:07,600 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de2ae0>
+2026-03-13 16:12:07,600 - dz_fastapi - DEBUG - Autopart already exists: ID 92630
+2026-03-13 16:12:07,600 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'YAMMY', 'oem_number': 'N011', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,600 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='YAMMY' oem_number='N011' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,600 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'YAMMY', 'oem_number': 'N011', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,600 - dz_fastapi - DEBUG - Extracted brand_name: YAMMY
+2026-03-13 16:12:07,600 - dz_fastapi - DEBUG - Changed brand_name: YAMMY
+2026-03-13 16:12:07,601 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,601 - dz_fastapi - WARNING - Brand YAMMY not found. Skipping autopart creation.
+2026-03-13 16:12:07,601 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'YAMMY', 'oem_number': 'N011', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,601 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'YAMMY', 'oem_number': 'N012', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,601 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='YAMMY' oem_number='N012' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,601 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'YAMMY', 'oem_number': 'N012', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,601 - dz_fastapi - DEBUG - Extracted brand_name: YAMMY
+2026-03-13 16:12:07,601 - dz_fastapi - DEBUG - Changed brand_name: YAMMY
+2026-03-13 16:12:07,602 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,602 - dz_fastapi - WARNING - Brand YAMMY not found. Skipping autopart creation.
+2026-03-13 16:12:07,602 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'YAMMY', 'oem_number': 'N012', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,602 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'YAMMY', 'oem_number': 'N013', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,602 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='YAMMY' oem_number='N013' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,602 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'YAMMY', 'oem_number': 'N013', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,602 - dz_fastapi - DEBUG - Extracted brand_name: YAMMY
+2026-03-13 16:12:07,603 - dz_fastapi - DEBUG - Changed brand_name: YAMMY
+2026-03-13 16:12:07,603 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,603 - dz_fastapi - WARNING - Brand YAMMY not found. Skipping autopart creation.
+2026-03-13 16:12:07,603 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'YAMMY', 'oem_number': 'N013', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,603 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'YAMMY', 'oem_number': 'N014', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,603 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='YAMMY' oem_number='N014' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,604 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'YAMMY', 'oem_number': 'N014', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,604 - dz_fastapi - DEBUG - Extracted brand_name: YAMMY
+2026-03-13 16:12:07,604 - dz_fastapi - DEBUG - Changed brand_name: YAMMY
+2026-03-13 16:12:07,604 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,604 - dz_fastapi - WARNING - Brand YAMMY not found. Skipping autopart creation.
+2026-03-13 16:12:07,604 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'YAMMY', 'oem_number': 'N014', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,604 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'YAMMY', 'oem_number': 'N015', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,605 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='YAMMY' oem_number='N015' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,605 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'YAMMY', 'oem_number': 'N015', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,605 - dz_fastapi - DEBUG - Extracted brand_name: YAMMY
+2026-03-13 16:12:07,605 - dz_fastapi - DEBUG - Changed brand_name: YAMMY
+2026-03-13 16:12:07,605 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,606 - dz_fastapi - WARNING - Brand YAMMY not found. Skipping autopart creation.
+2026-03-13 16:12:07,606 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'YAMMY', 'oem_number': 'N015', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,606 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'YAMMY', 'oem_number': 'N016', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,606 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='YAMMY' oem_number='N016' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,606 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'YAMMY', 'oem_number': 'N016', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,606 - dz_fastapi - DEBUG - Extracted brand_name: YAMMY
+2026-03-13 16:12:07,606 - dz_fastapi - DEBUG - Changed brand_name: YAMMY
+2026-03-13 16:12:07,607 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,607 - dz_fastapi - WARNING - Brand YAMMY not found. Skipping autopart creation.
+2026-03-13 16:12:07,607 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'YAMMY', 'oem_number': 'N016', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,607 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'YAMMY', 'oem_number': 'N017', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,607 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='YAMMY' oem_number='N017' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,607 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'YAMMY', 'oem_number': 'N017', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,607 - dz_fastapi - DEBUG - Extracted brand_name: YAMMY
+2026-03-13 16:12:07,607 - dz_fastapi - DEBUG - Changed brand_name: YAMMY
+2026-03-13 16:12:07,608 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,608 - dz_fastapi - WARNING - Brand YAMMY not found. Skipping autopart creation.
+2026-03-13 16:12:07,608 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'YAMMY', 'oem_number': 'N017', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,608 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'YAMMY', 'oem_number': 'N018', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,608 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='YAMMY' oem_number='N018' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,608 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'YAMMY', 'oem_number': 'N018', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,608 - dz_fastapi - DEBUG - Extracted brand_name: YAMMY
+2026-03-13 16:12:07,608 - dz_fastapi - DEBUG - Changed brand_name: YAMMY
+2026-03-13 16:12:07,609 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,609 - dz_fastapi - WARNING - Brand YAMMY not found. Skipping autopart creation.
+2026-03-13 16:12:07,609 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'YAMMY', 'oem_number': 'N018', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,610 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'YAMMY', 'oem_number': 'N019', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,610 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='YAMMY' oem_number='N019' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,610 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'YAMMY', 'oem_number': 'N019', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,610 - dz_fastapi - DEBUG - Extracted brand_name: YAMMY
+2026-03-13 16:12:07,610 - dz_fastapi - DEBUG - Changed brand_name: YAMMY
+2026-03-13 16:12:07,611 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,611 - dz_fastapi - WARNING - Brand YAMMY not found. Skipping autopart creation.
+2026-03-13 16:12:07,611 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'YAMMY', 'oem_number': 'N019', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,611 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'YAMMY', 'oem_number': 'N020', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,611 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='YAMMY' oem_number='N020' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,612 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'YAMMY', 'oem_number': 'N020', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,612 - dz_fastapi - DEBUG - Extracted brand_name: YAMMY
+2026-03-13 16:12:07,612 - dz_fastapi - DEBUG - Changed brand_name: YAMMY
+2026-03-13 16:12:07,612 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,612 - dz_fastapi - WARNING - Brand YAMMY not found. Skipping autopart creation.
+2026-03-13 16:12:07,613 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'YAMMY', 'oem_number': 'N020', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,613 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'YAMMY', 'oem_number': 'N021', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,613 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='YAMMY' oem_number='N021' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,613 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'YAMMY', 'oem_number': 'N021', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,613 - dz_fastapi - DEBUG - Extracted brand_name: YAMMY
+2026-03-13 16:12:07,613 - dz_fastapi - DEBUG - Changed brand_name: YAMMY
+2026-03-13 16:12:07,614 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,614 - dz_fastapi - WARNING - Brand YAMMY not found. Skipping autopart creation.
+2026-03-13 16:12:07,614 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'YAMMY', 'oem_number': 'N021', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,614 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'YAMMY', 'oem_number': 'N022', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,614 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='YAMMY' oem_number='N022' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,615 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'YAMMY', 'oem_number': 'N022', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,615 - dz_fastapi - DEBUG - Extracted brand_name: YAMMY
+2026-03-13 16:12:07,615 - dz_fastapi - DEBUG - Changed brand_name: YAMMY
+2026-03-13 16:12:07,616 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,616 - dz_fastapi - WARNING - Brand YAMMY not found. Skipping autopart creation.
+2026-03-13 16:12:07,616 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'YAMMY', 'oem_number': 'N022', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,616 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'YAMMY', 'oem_number': 'N023', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,616 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='YAMMY' oem_number='N023' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,616 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'YAMMY', 'oem_number': 'N023', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,616 - dz_fastapi - DEBUG - Extracted brand_name: YAMMY
+2026-03-13 16:12:07,616 - dz_fastapi - DEBUG - Changed brand_name: YAMMY
+2026-03-13 16:12:07,617 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,617 - dz_fastapi - WARNING - Brand YAMMY not found. Skipping autopart creation.
+2026-03-13 16:12:07,617 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'YAMMY', 'oem_number': 'N023', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,617 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'YAMMY', 'oem_number': 'N024', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,617 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='YAMMY' oem_number='N024' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,617 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'YAMMY', 'oem_number': 'N024', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,618 - dz_fastapi - DEBUG - Extracted brand_name: YAMMY
+2026-03-13 16:12:07,618 - dz_fastapi - DEBUG - Changed brand_name: YAMMY
+2026-03-13 16:12:07,618 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,618 - dz_fastapi - WARNING - Brand YAMMY not found. Skipping autopart creation.
+2026-03-13 16:12:07,618 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'YAMMY', 'oem_number': 'N024', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,619 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NARICHIN', 'oem_number': 'NAT1177', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,619 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NARICHIN' oem_number='NAT1177' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,619 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NARICHIN', 'oem_number': 'NAT1177', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,619 - dz_fastapi - DEBUG - Extracted brand_name: NARICHIN
+2026-03-13 16:12:07,619 - dz_fastapi - DEBUG - Changed brand_name: NARICHIN
+2026-03-13 16:12:07,620 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e9c0>
+2026-03-13 16:12:07,621 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3a8ae030>
+2026-03-13 16:12:07,621 - dz_fastapi - DEBUG - Autopart already exists: ID 92631
+2026-03-13 16:12:07,622 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NARICHIN', 'oem_number': 'NAT1003L', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,622 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NARICHIN' oem_number='NAT1003L' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,622 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NARICHIN', 'oem_number': 'NAT1003L', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,622 - dz_fastapi - DEBUG - Extracted brand_name: NARICHIN
+2026-03-13 16:12:07,622 - dz_fastapi - DEBUG - Changed brand_name: NARICHIN
+2026-03-13 16:12:07,623 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff51309ac0>
+2026-03-13 16:12:07,624 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefeacbaa0>
+2026-03-13 16:12:07,624 - dz_fastapi - DEBUG - Autopart already exists: ID 92632
+2026-03-13 16:12:07,624 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NARICHIN', 'oem_number': 'NAT1003R', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,624 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NARICHIN' oem_number='NAT1003R' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,624 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NARICHIN', 'oem_number': 'NAT1003R', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,625 - dz_fastapi - DEBUG - Extracted brand_name: NARICHIN
+2026-03-13 16:12:07,625 - dz_fastapi - DEBUG - Changed brand_name: NARICHIN
+2026-03-13 16:12:07,625 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5130a810>
+2026-03-13 16:12:07,627 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5b1ce000>
+2026-03-13 16:12:07,627 - dz_fastapi - DEBUG - Autopart already exists: ID 92633
+2026-03-13 16:12:07,627 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NARICHIN', 'oem_number': 'NAT1076', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,627 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NARICHIN' oem_number='NAT1076' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,627 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NARICHIN', 'oem_number': 'NAT1076', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,627 - dz_fastapi - DEBUG - Extracted brand_name: NARICHIN
+2026-03-13 16:12:07,627 - dz_fastapi - DEBUG - Changed brand_name: NARICHIN
+2026-03-13 16:12:07,629 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237a5eb0>
+2026-03-13 16:12:07,631 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39175af0>
+2026-03-13 16:12:07,631 - dz_fastapi - DEBUG - Autopart already exists: ID 92634
+2026-03-13 16:12:07,631 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NARICHIN', 'oem_number': 'NAT1190', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,631 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NARICHIN' oem_number='NAT1190' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,631 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NARICHIN', 'oem_number': 'NAT1190', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,632 - dz_fastapi - DEBUG - Extracted brand_name: NARICHIN
+2026-03-13 16:12:07,632 - dz_fastapi - DEBUG - Changed brand_name: NARICHIN
+2026-03-13 16:12:07,634 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23136240>
+2026-03-13 16:12:07,635 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20ccda30>
+2026-03-13 16:12:07,636 - dz_fastapi - DEBUG - Autopart already exists: ID 92635
+2026-03-13 16:12:07,636 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AURAMI', 'oem_number': 'ORG21', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,636 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AURAMI' oem_number='ORG21' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,636 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AURAMI', 'oem_number': 'ORG21', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,636 - dz_fastapi - DEBUG - Extracted brand_name: AURAMI
+2026-03-13 16:12:07,636 - dz_fastapi - DEBUG - Changed brand_name: AURAMI
+2026-03-13 16:12:07,637 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,637 - dz_fastapi - WARNING - Brand AURAMI not found. Skipping autopart creation.
+2026-03-13 16:12:07,637 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'AURAMI', 'oem_number': 'ORG21', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,637 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'PATRON', 'oem_number': 'PSA551106', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,637 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='PATRON' oem_number='PSA551106' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,637 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'PATRON', 'oem_number': 'PSA551106', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,637 - dz_fastapi - DEBUG - Extracted brand_name: PATRON
+2026-03-13 16:12:07,637 - dz_fastapi - DEBUG - Changed brand_name: PATRON
+2026-03-13 16:12:07,638 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbe41e50>
+2026-03-13 16:12:07,639 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f71100>
+2026-03-13 16:12:07,639 - dz_fastapi - DEBUG - Autopart already exists: ID 92636
+2026-03-13 16:12:07,640 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'PATRON', 'oem_number': 'PSA551107', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,640 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='PATRON' oem_number='PSA551107' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,640 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'PATRON', 'oem_number': 'PSA551107', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,640 - dz_fastapi - DEBUG - Extracted brand_name: PATRON
+2026-03-13 16:12:07,640 - dz_fastapi - DEBUG - Changed brand_name: PATRON
+2026-03-13 16:12:07,641 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39175af0>
+2026-03-13 16:12:07,642 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4820c2f0>
+2026-03-13 16:12:07,642 - dz_fastapi - DEBUG - Autopart already exists: ID 92637
+2026-03-13 16:12:07,642 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'PATRON', 'oem_number': 'PSA551108', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,643 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='PATRON' oem_number='PSA551108' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,643 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'PATRON', 'oem_number': 'PSA551108', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,643 - dz_fastapi - DEBUG - Extracted brand_name: PATRON
+2026-03-13 16:12:07,643 - dz_fastapi - DEBUG - Changed brand_name: PATRON
+2026-03-13 16:12:07,644 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff482deab0>
+2026-03-13 16:12:07,645 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefeeb80e0>
+2026-03-13 16:12:07,645 - dz_fastapi - DEBUG - Autopart already exists: ID 92638
+2026-03-13 16:12:07,645 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'EIKOSHA', 'oem_number': 'Q21', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,645 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='EIKOSHA' oem_number='Q21' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,645 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'EIKOSHA', 'oem_number': 'Q21', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,645 - dz_fastapi - DEBUG - Extracted brand_name: EIKOSHA
+2026-03-13 16:12:07,645 - dz_fastapi - DEBUG - Changed brand_name: EIKOSHA
+2026-03-13 16:12:07,646 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,646 - dz_fastapi - WARNING - Brand EIKOSHA not found. Skipping autopart creation.
+2026-03-13 16:12:07,646 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'EIKOSHA', 'oem_number': 'Q21', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,646 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'EIKOSHA', 'oem_number': 'Q23', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,646 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='EIKOSHA' oem_number='Q23' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,646 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'EIKOSHA', 'oem_number': 'Q23', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,646 - dz_fastapi - DEBUG - Extracted brand_name: EIKOSHA
+2026-03-13 16:12:07,646 - dz_fastapi - DEBUG - Changed brand_name: EIKOSHA
+2026-03-13 16:12:07,647 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,647 - dz_fastapi - WARNING - Brand EIKOSHA not found. Skipping autopart creation.
+2026-03-13 16:12:07,647 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'EIKOSHA', 'oem_number': 'Q23', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,647 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'EIKOSHA', 'oem_number': 'Q51', 'name': 'Ароматизатор На Кондиционер GIGA', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,647 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='EIKOSHA' oem_number='Q51' name='Ароматизатор На Кондиционер GIGA' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,647 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'EIKOSHA', 'oem_number': 'Q51', 'name': 'Ароматизатор На Кондиционер GIGA', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,647 - dz_fastapi - DEBUG - Extracted brand_name: EIKOSHA
+2026-03-13 16:12:07,647 - dz_fastapi - DEBUG - Changed brand_name: EIKOSHA
+2026-03-13 16:12:07,648 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,648 - dz_fastapi - WARNING - Brand EIKOSHA not found. Skipping autopart creation.
+2026-03-13 16:12:07,648 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'EIKOSHA', 'oem_number': 'Q51', 'name': 'Ароматизатор На Кондиционер GIGA', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,648 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'EIKOSHA', 'oem_number': 'R12', 'name': 'Набор - Ароматизатор Меловой SPIRIT REFILL + Холде', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,648 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='EIKOSHA' oem_number='R12' name='Набор - Ароматизатор Меловой SPIRIT REFILL + Холде' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,648 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'EIKOSHA', 'oem_number': 'R12', 'name': 'Набор - Ароматизатор Меловой SPIRIT REFILL + Холде', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,648 - dz_fastapi - DEBUG - Extracted brand_name: EIKOSHA
+2026-03-13 16:12:07,648 - dz_fastapi - DEBUG - Changed brand_name: EIKOSHA
+2026-03-13 16:12:07,649 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,649 - dz_fastapi - WARNING - Brand EIKOSHA not found. Skipping autopart creation.
+2026-03-13 16:12:07,650 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'EIKOSHA', 'oem_number': 'R12', 'name': 'Набор - Ароматизатор Меловой SPIRIT REFILL + Холде', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,650 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'RU731', 'name': 'Сайленблок Амортизатора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,651 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='RU731' name='Сайленблок Амортизатора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,651 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'RU731', 'name': 'Сайленблок Амортизатора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,651 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,651 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,653 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae46840>
+2026-03-13 16:12:07,655 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a697dd0>
+2026-03-13 16:12:07,655 - dz_fastapi - DEBUG - Autopart already exists: ID 92639
+2026-03-13 16:12:07,655 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'YAMMY', 'oem_number': 'S019', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,655 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='YAMMY' oem_number='S019' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,655 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'YAMMY', 'oem_number': 'S019', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,655 - dz_fastapi - DEBUG - Extracted brand_name: YAMMY
+2026-03-13 16:12:07,655 - dz_fastapi - DEBUG - Changed brand_name: YAMMY
+2026-03-13 16:12:07,656 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,656 - dz_fastapi - WARNING - Brand YAMMY not found. Skipping autopart creation.
+2026-03-13 16:12:07,657 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'YAMMY', 'oem_number': 'S019', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,657 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'YAMMY', 'oem_number': 'S028', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,657 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='YAMMY' oem_number='S028' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,658 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'YAMMY', 'oem_number': 'S028', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,658 - dz_fastapi - DEBUG - Extracted brand_name: YAMMY
+2026-03-13 16:12:07,658 - dz_fastapi - DEBUG - Changed brand_name: YAMMY
+2026-03-13 16:12:07,659 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,659 - dz_fastapi - WARNING - Brand YAMMY not found. Skipping autopart creation.
+2026-03-13 16:12:07,659 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'YAMMY', 'oem_number': 'S028', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,659 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZEKKERT', 'oem_number': 'SG2476', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,660 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZEKKERT' oem_number='SG2476' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,660 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZEKKERT', 'oem_number': 'SG2476', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,660 - dz_fastapi - DEBUG - Extracted brand_name: ZEKKERT
+2026-03-13 16:12:07,660 - dz_fastapi - DEBUG - Changed brand_name: ZEKKERT
+2026-03-13 16:12:07,661 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38ebbe90>
+2026-03-13 16:12:07,662 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4820c2f0>
+2026-03-13 16:12:07,663 - dz_fastapi - DEBUG - Autopart already exists: ID 92640
+2026-03-13 16:12:07,663 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZEKKERT', 'oem_number': 'SG2589', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,663 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZEKKERT' oem_number='SG2589' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,663 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZEKKERT', 'oem_number': 'SG2589', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,663 - dz_fastapi - DEBUG - Extracted brand_name: ZEKKERT
+2026-03-13 16:12:07,663 - dz_fastapi - DEBUG - Changed brand_name: ZEKKERT
+2026-03-13 16:12:07,664 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4aafadb0>
+2026-03-13 16:12:07,666 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff248d4410>
+2026-03-13 16:12:07,666 - dz_fastapi - DEBUG - Autopart already exists: ID 92641
+2026-03-13 16:12:07,666 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZEKKERT', 'oem_number': 'SG2838', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,666 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZEKKERT' oem_number='SG2838' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,666 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZEKKERT', 'oem_number': 'SG2838', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,666 - dz_fastapi - DEBUG - Extracted brand_name: ZEKKERT
+2026-03-13 16:12:07,666 - dz_fastapi - DEBUG - Changed brand_name: ZEKKERT
+2026-03-13 16:12:07,667 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff265eb5f0>
+2026-03-13 16:12:07,668 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb9fa0>
+2026-03-13 16:12:07,668 - dz_fastapi - DEBUG - Autopart already exists: ID 92642
+2026-03-13 16:12:07,668 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZEKKERT', 'oem_number': 'SG4899', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,668 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZEKKERT' oem_number='SG4899' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,668 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZEKKERT', 'oem_number': 'SG4899', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,668 - dz_fastapi - DEBUG - Extracted brand_name: ZEKKERT
+2026-03-13 16:12:07,668 - dz_fastapi - DEBUG - Changed brand_name: ZEKKERT
+2026-03-13 16:12:07,670 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a07b740>
+2026-03-13 16:12:07,671 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20454b60>
+2026-03-13 16:12:07,671 - dz_fastapi - DEBUG - Autopart already exists: ID 92643
+2026-03-13 16:12:07,672 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZEKKERT', 'oem_number': 'SG4900', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,672 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZEKKERT' oem_number='SG4900' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,672 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZEKKERT', 'oem_number': 'SG4900', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,672 - dz_fastapi - DEBUG - Extracted brand_name: ZEKKERT
+2026-03-13 16:12:07,672 - dz_fastapi - DEBUG - Changed brand_name: ZEKKERT
+2026-03-13 16:12:07,673 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23ee15b0>
+2026-03-13 16:12:07,674 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb87d0>
+2026-03-13 16:12:07,674 - dz_fastapi - DEBUG - Autopart already exists: ID 92644
+2026-03-13 16:12:07,674 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZEKKERT', 'oem_number': 'SG4993', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,674 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZEKKERT' oem_number='SG4993' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,675 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZEKKERT', 'oem_number': 'SG4993', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,675 - dz_fastapi - DEBUG - Extracted brand_name: ZEKKERT
+2026-03-13 16:12:07,675 - dz_fastapi - DEBUG - Changed brand_name: ZEKKERT
+2026-03-13 16:12:07,676 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2b0d79b0>
+2026-03-13 16:12:07,677 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbe400b0>
+2026-03-13 16:12:07,677 - dz_fastapi - DEBUG - Autopart already exists: ID 92645
+2026-03-13 16:12:07,677 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZEKKERT', 'oem_number': 'SG6155', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,677 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZEKKERT' oem_number='SG6155' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,677 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZEKKERT', 'oem_number': 'SG6155', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,677 - dz_fastapi - DEBUG - Extracted brand_name: ZEKKERT
+2026-03-13 16:12:07,678 - dz_fastapi - DEBUG - Changed brand_name: ZEKKERT
+2026-03-13 16:12:07,678 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b1ce000>
+2026-03-13 16:12:07,679 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb9b50>
+2026-03-13 16:12:07,679 - dz_fastapi - DEBUG - Autopart already exists: ID 92646
+2026-03-13 16:12:07,680 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZEKKERT', 'oem_number': 'SG6654', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,680 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZEKKERT' oem_number='SG6654' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,680 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZEKKERT', 'oem_number': 'SG6654', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,680 - dz_fastapi - DEBUG - Extracted brand_name: ZEKKERT
+2026-03-13 16:12:07,680 - dz_fastapi - DEBUG - Changed brand_name: ZEKKERT
+2026-03-13 16:12:07,681 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20de3830>
+2026-03-13 16:12:07,682 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff248d4410>
+2026-03-13 16:12:07,682 - dz_fastapi - DEBUG - Autopart already exists: ID 92647
+2026-03-13 16:12:07,682 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZEKKERT', 'oem_number': 'SG6655', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,682 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZEKKERT' oem_number='SG6655' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,682 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZEKKERT', 'oem_number': 'SG6655', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,682 - dz_fastapi - DEBUG - Extracted brand_name: ZEKKERT
+2026-03-13 16:12:07,683 - dz_fastapi - DEBUG - Changed brand_name: ZEKKERT
+2026-03-13 16:12:07,684 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb9b50>
+2026-03-13 16:12:07,685 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38ebbe90>
+2026-03-13 16:12:07,685 - dz_fastapi - DEBUG - Autopart already exists: ID 92648
+2026-03-13 16:12:07,685 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SENSEN', 'oem_number': 'SHU8218', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,685 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SENSEN' oem_number='SHU8218' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,685 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SENSEN', 'oem_number': 'SHU8218', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,685 - dz_fastapi - DEBUG - Extracted brand_name: SENSEN
+2026-03-13 16:12:07,685 - dz_fastapi - DEBUG - Changed brand_name: SENSEN
+2026-03-13 16:12:07,686 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,686 - dz_fastapi - WARNING - Brand SENSEN not found. Skipping autopart creation.
+2026-03-13 16:12:07,686 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'SENSEN', 'oem_number': 'SHU8218', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,686 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10101RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,686 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10101RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,686 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10101RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,686 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,687 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,687 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,687 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,687 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10101RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,687 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10105RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,687 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10105RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,687 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10105RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,688 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,688 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,688 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,688 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,688 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10105RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,688 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10106RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,689 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10106RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,689 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10106RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,689 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,689 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,689 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,689 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,689 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10106RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,689 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10155RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,689 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10155RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,690 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10155RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,690 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,690 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,690 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,690 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,690 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10155RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,690 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10189RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,691 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10189RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,691 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10189RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,691 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,691 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,691 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,692 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,692 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10189RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,692 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10210RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,692 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10210RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,692 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10210RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,692 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,692 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,693 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,693 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,693 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10210RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,693 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10228RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,694 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10228RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,694 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10228RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,694 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,694 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,695 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,695 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,695 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10228RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,695 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10262RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,695 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10262RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,697 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10262RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,697 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,697 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,698 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,698 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,698 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10262RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,698 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10282RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,698 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10282RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,698 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10282RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,698 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,698 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,699 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,699 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,699 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10282RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,699 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10290RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,699 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10290RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,699 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10290RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,700 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,700 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,700 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,700 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,700 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10290RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,700 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10311RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,701 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10311RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,701 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10311RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,701 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,701 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,701 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,701 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,702 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10311RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,702 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10312RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,702 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10312RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,702 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10312RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,702 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,702 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,703 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,703 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,703 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10312RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,703 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10316RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,703 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10316RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,703 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10316RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,703 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,703 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,704 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,704 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,704 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10316RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,704 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10317RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,704 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10317RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,704 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10317RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,705 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,705 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,705 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,705 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,705 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10317RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,705 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10319RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,706 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10319RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,706 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10319RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,706 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,706 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,706 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,706 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,706 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10319RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,707 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10320RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,707 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10320RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,707 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10320RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,707 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,707 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,708 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,708 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,708 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10320RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,708 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10324RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,708 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10324RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,708 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10324RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,708 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,708 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,709 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,709 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,709 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10324RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,709 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10338RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,709 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10338RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,710 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10338RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,710 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,710 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,710 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,710 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,710 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10338RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,710 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10348RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,711 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10348RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,711 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10348RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,711 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,711 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,711 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,711 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,712 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10348RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,712 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10397RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,712 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10397RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,712 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10397RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,712 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,712 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,713 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,713 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,713 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10397RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,713 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10433RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,713 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10433RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,713 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10433RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,713 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,713 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,714 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,714 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,714 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10433RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,714 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10435RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,714 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10435RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,714 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10435RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,714 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,715 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,715 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,715 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,715 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10435RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,715 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10476RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,715 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10476RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,715 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10476RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,716 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,716 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,716 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,716 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,716 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10476RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,716 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10574RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,716 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10574RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,717 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10574RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,717 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,717 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,717 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,717 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,717 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10574RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,718 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10945RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,718 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10945RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,718 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10945RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,718 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,718 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,719 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,719 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,719 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10945RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,719 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10967RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,719 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P10967RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,719 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10967RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,719 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,719 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,720 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,720 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,720 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P10967RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,720 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17037RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,720 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P17037RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,720 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17037RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,720 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,720 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,721 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,721 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,721 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17037RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,721 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17068RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,721 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P17068RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,721 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17068RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,722 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,722 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,722 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,722 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,722 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17068RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,722 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17121RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,722 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P17121RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,723 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17121RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,723 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,723 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,723 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,723 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,723 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17121RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,723 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17146RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,724 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P17146RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,724 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17146RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,724 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,724 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,724 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,724 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,724 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17146RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,724 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17152RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,724 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P17152RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,725 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17152RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,725 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,725 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,725 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,725 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,725 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17152RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,725 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17177RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,725 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P17177RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,725 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17177RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,726 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,726 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,726 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,726 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,726 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17177RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,726 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17303RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,727 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P17303RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,727 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17303RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,727 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,727 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,727 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,727 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,727 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17303RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,728 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17332RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,728 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P17332RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,728 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17332RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,728 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,728 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,729 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,729 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,729 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17332RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,729 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17343RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,729 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P17343RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,729 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17343RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,729 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,729 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,730 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,730 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,730 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17343RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,730 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17347RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,731 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P17347RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,731 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17347RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,731 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,731 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,732 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,733 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,733 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17347RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,733 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17357RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,733 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P17357RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,734 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17357RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,734 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,735 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,736 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,736 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,736 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P17357RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,736 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P19974RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,737 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='U1P19974RUSS' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,737 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P19974RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,738 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,738 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,740 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,741 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.

@@ -1,0 +1,1251 @@
+2026-03-13 16:12:07,742 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'U1P19974RUSS', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,770 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOKICO', 'oem_number': 'U2940', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,770 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOKICO' oem_number='U2940' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,770 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOKICO', 'oem_number': 'U2940', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,770 - dz_fastapi - DEBUG - Extracted brand_name: TOKICO
+2026-03-13 16:12:07,771 - dz_fastapi - DEBUG - Changed brand_name: TOKICO
+2026-03-13 16:12:07,773 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e840>
+2026-03-13 16:12:07,775 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3b7c5610>
+2026-03-13 16:12:07,775 - dz_fastapi - DEBUG - Autopart already exists: ID 92649
+2026-03-13 16:12:07,775 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOKICO', 'oem_number': 'U2980', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,775 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOKICO' oem_number='U2980' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,775 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOKICO', 'oem_number': 'U2980', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,776 - dz_fastapi - DEBUG - Extracted brand_name: TOKICO
+2026-03-13 16:12:07,776 - dz_fastapi - DEBUG - Changed brand_name: TOKICO
+2026-03-13 16:12:07,777 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39af0a10>
+2026-03-13 16:12:07,778 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20b9f5f0>
+2026-03-13 16:12:07,779 - dz_fastapi - DEBUG - Autopart already exists: ID 92650
+2026-03-13 16:12:07,779 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOKICO', 'oem_number': 'U3423', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,779 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOKICO' oem_number='U3423' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,779 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOKICO', 'oem_number': 'U3423', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,779 - dz_fastapi - DEBUG - Extracted brand_name: TOKICO
+2026-03-13 16:12:07,779 - dz_fastapi - DEBUG - Changed brand_name: TOKICO
+2026-03-13 16:12:07,780 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbed92b0>
+2026-03-13 16:12:07,782 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39175af0>
+2026-03-13 16:12:07,782 - dz_fastapi - DEBUG - Autopart already exists: ID 92651
+2026-03-13 16:12:07,782 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOKICO', 'oem_number': 'U3756', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,782 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOKICO' oem_number='U3756' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,782 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOKICO', 'oem_number': 'U3756', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,782 - dz_fastapi - DEBUG - Extracted brand_name: TOKICO
+2026-03-13 16:12:07,782 - dz_fastapi - DEBUG - Changed brand_name: TOKICO
+2026-03-13 16:12:07,783 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefeacbaa0>
+2026-03-13 16:12:07,785 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20f4e480>
+2026-03-13 16:12:07,785 - dz_fastapi - DEBUG - Autopart already exists: ID 75320
+2026-03-13 16:12:07,785 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOKICO', 'oem_number': 'U3768', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,785 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOKICO' oem_number='U3768' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,785 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOKICO', 'oem_number': 'U3768', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,785 - dz_fastapi - DEBUG - Extracted brand_name: TOKICO
+2026-03-13 16:12:07,785 - dz_fastapi - DEBUG - Changed brand_name: TOKICO
+2026-03-13 16:12:07,786 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3a6faa50>
+2026-03-13 16:12:07,787 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff248d4410>
+2026-03-13 16:12:07,787 - dz_fastapi - DEBUG - Autopart already exists: ID 92652
+2026-03-13 16:12:07,787 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOKICO', 'oem_number': 'U3785', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,788 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOKICO' oem_number='U3785' name='Амортизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,788 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOKICO', 'oem_number': 'U3785', 'name': 'Амортизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,788 - dz_fastapi - DEBUG - Extracted brand_name: TOKICO
+2026-03-13 16:12:07,788 - dz_fastapi - DEBUG - Changed brand_name: TOKICO
+2026-03-13 16:12:07,789 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38e374a0>
+2026-03-13 16:12:07,790 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae45010>
+2026-03-13 16:12:07,790 - dz_fastapi - DEBUG - Autopart already exists: ID 92653
+2026-03-13 16:12:07,790 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'UFC1781124', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,790 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='UFC1781124' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,790 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'UFC1781124', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,791 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,791 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,791 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,791 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,792 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'UFC1781124', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,792 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'UFC1781624', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,792 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='UFC1781624' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,792 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'UFC1781624', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,792 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,792 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,793 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,793 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,793 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'UFC1781624', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,793 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LITTLE-TREES', 'oem_number': 'UFC1788924', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,793 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LITTLE-TREES' oem_number='UFC1788924' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,793 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LITTLE-TREES', 'oem_number': 'UFC1788924', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,794 - dz_fastapi - DEBUG - Extracted brand_name: LITTLE-TREES
+2026-03-13 16:12:07,794 - dz_fastapi - DEBUG - Changed brand_name: LITTLE-TREES
+2026-03-13 16:12:07,794 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,794 - dz_fastapi - WARNING - Brand LITTLE-TREES not found. Skipping autopart creation.
+2026-03-13 16:12:07,795 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LITTLE-TREES', 'oem_number': 'UFC1788924', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,795 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'EIKOSHA', 'oem_number': 'W00', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,795 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='EIKOSHA' oem_number='W00' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,795 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'EIKOSHA', 'oem_number': 'W00', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,795 - dz_fastapi - DEBUG - Extracted brand_name: EIKOSHA
+2026-03-13 16:12:07,795 - dz_fastapi - DEBUG - Changed brand_name: EIKOSHA
+2026-03-13 16:12:07,796 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,796 - dz_fastapi - WARNING - Brand EIKOSHA not found. Skipping autopart creation.
+2026-03-13 16:12:07,796 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'EIKOSHA', 'oem_number': 'W00', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,796 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'EIKOSHA', 'oem_number': 'W02', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,796 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='EIKOSHA' oem_number='W02' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,796 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'EIKOSHA', 'oem_number': 'W02', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,797 - dz_fastapi - DEBUG - Extracted brand_name: EIKOSHA
+2026-03-13 16:12:07,797 - dz_fastapi - DEBUG - Changed brand_name: EIKOSHA
+2026-03-13 16:12:07,797 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,797 - dz_fastapi - WARNING - Brand EIKOSHA not found. Skipping autopart creation.
+2026-03-13 16:12:07,797 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'EIKOSHA', 'oem_number': 'W02', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,798 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'EIKOSHA', 'oem_number': 'W03', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,798 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='EIKOSHA' oem_number='W03' name='Ароматизатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,798 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'EIKOSHA', 'oem_number': 'W03', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,798 - dz_fastapi - DEBUG - Extracted brand_name: EIKOSHA
+2026-03-13 16:12:07,798 - dz_fastapi - DEBUG - Changed brand_name: EIKOSHA
+2026-03-13 16:12:07,799 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,799 - dz_fastapi - WARNING - Brand EIKOSHA not found. Skipping autopart creation.
+2026-03-13 16:12:07,799 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'EIKOSHA', 'oem_number': 'W03', 'name': 'Ароматизатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,799 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'EIKOSHA', 'oem_number': 'X9', 'name': 'Держатель Нескользящий NONSLIP HOLDER (Для Мелового Ароматизатора SPIRIT REFILL)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,799 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='EIKOSHA' oem_number='X9' name='Держатель Нескользящий NONSLIP HOLDER (Для Мелового Ароматизатора SPIRIT REFILL)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,799 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'EIKOSHA', 'oem_number': 'X9', 'name': 'Держатель Нескользящий NONSLIP HOLDER (Для Мелового Ароматизатора SPIRIT REFILL)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,800 - dz_fastapi - DEBUG - Extracted brand_name: EIKOSHA
+2026-03-13 16:12:07,800 - dz_fastapi - DEBUG - Changed brand_name: EIKOSHA
+2026-03-13 16:12:07,800 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,800 - dz_fastapi - WARNING - Brand EIKOSHA not found. Skipping autopart creation.
+2026-03-13 16:12:07,800 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'EIKOSHA', 'oem_number': 'X9', 'name': 'Держатель Нескользящий NONSLIP HOLDER (Для Мелового Ароматизатора SPIRIT REFILL)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,801 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'HKT', 'oem_number': 'GIP501', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,801 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='HKT' oem_number='GIP501' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,801 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'HKT', 'oem_number': 'GIP501', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,801 - dz_fastapi - DEBUG - Extracted brand_name: HKT
+2026-03-13 16:12:07,801 - dz_fastapi - DEBUG - Changed brand_name: HKT
+2026-03-13 16:12:07,801 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,802 - dz_fastapi - WARNING - Brand HKT not found. Skipping autopart creation.
+2026-03-13 16:12:07,802 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'HKT', 'oem_number': 'GIP501', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,802 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'HKT', 'oem_number': 'GIP502', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,802 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='HKT' oem_number='GIP502' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,802 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'HKT', 'oem_number': 'GIP502', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,802 - dz_fastapi - DEBUG - Extracted brand_name: HKT
+2026-03-13 16:12:07,802 - dz_fastapi - DEBUG - Changed brand_name: HKT
+2026-03-13 16:12:07,803 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,803 - dz_fastapi - WARNING - Brand HKT not found. Skipping autopart creation.
+2026-03-13 16:12:07,803 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'HKT', 'oem_number': 'GIP502', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,803 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'HKT', 'oem_number': 'GIP503', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,803 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='HKT' oem_number='GIP503' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,803 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'HKT', 'oem_number': 'GIP503', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,803 - dz_fastapi - DEBUG - Extracted brand_name: HKT
+2026-03-13 16:12:07,803 - dz_fastapi - DEBUG - Changed brand_name: HKT
+2026-03-13 16:12:07,804 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,804 - dz_fastapi - WARNING - Brand HKT not found. Skipping autopart creation.
+2026-03-13 16:12:07,804 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'HKT', 'oem_number': 'GIP503', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,804 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'HKT', 'oem_number': 'GIP514', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,804 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='HKT' oem_number='GIP514' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,805 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'HKT', 'oem_number': 'GIP514', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,805 - dz_fastapi - DEBUG - Extracted brand_name: HKT
+2026-03-13 16:12:07,805 - dz_fastapi - DEBUG - Changed brand_name: HKT
+2026-03-13 16:12:07,805 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,805 - dz_fastapi - WARNING - Brand HKT not found. Skipping autopart creation.
+2026-03-13 16:12:07,806 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'HKT', 'oem_number': 'GIP514', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,806 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'HKT', 'oem_number': 'GIP536', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,806 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='HKT' oem_number='GIP536' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,806 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'HKT', 'oem_number': 'GIP536', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,807 - dz_fastapi - DEBUG - Extracted brand_name: HKT
+2026-03-13 16:12:07,807 - dz_fastapi - DEBUG - Changed brand_name: HKT
+2026-03-13 16:12:07,808 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,808 - dz_fastapi - WARNING - Brand HKT not found. Skipping autopart creation.
+2026-03-13 16:12:07,808 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'HKT', 'oem_number': 'GIP536', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,808 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'HKT', 'oem_number': 'GIP601', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,809 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='HKT' oem_number='GIP601' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,809 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'HKT', 'oem_number': 'GIP601', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,809 - dz_fastapi - DEBUG - Extracted brand_name: HKT
+2026-03-13 16:12:07,809 - dz_fastapi - DEBUG - Changed brand_name: HKT
+2026-03-13 16:12:07,809 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,810 - dz_fastapi - WARNING - Brand HKT not found. Skipping autopart creation.
+2026-03-13 16:12:07,810 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'HKT', 'oem_number': 'GIP601', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,810 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'HKT', 'oem_number': 'GIP535', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,810 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='HKT' oem_number='GIP535' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,810 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'HKT', 'oem_number': 'GIP535', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,810 - dz_fastapi - DEBUG - Extracted brand_name: HKT
+2026-03-13 16:12:07,810 - dz_fastapi - DEBUG - Changed brand_name: HKT
+2026-03-13 16:12:07,811 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,811 - dz_fastapi - WARNING - Brand HKT not found. Skipping autopart creation.
+2026-03-13 16:12:07,811 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'HKT', 'oem_number': 'GIP535', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,811 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU101', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,811 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU101' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,811 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU101', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,811 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,812 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,813 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae45bb0>
+2026-03-13 16:12:07,814 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20b9d850>
+2026-03-13 16:12:07,814 - dz_fastapi - DEBUG - Autopart already exists: ID 3411
+2026-03-13 16:12:07,814 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU106C', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,814 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU106C' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,814 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU106C', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,814 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,815 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,815 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff231bd160>
+2026-03-13 16:12:07,817 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae45bb0>
+2026-03-13 16:12:07,817 - dz_fastapi - DEBUG - Autopart already exists: ID 92654
+2026-03-13 16:12:07,817 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU109', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,817 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU109' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,817 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU109', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,817 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,817 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,818 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1ea50>
+2026-03-13 16:12:07,819 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff248d7710>
+2026-03-13 16:12:07,820 - dz_fastapi - DEBUG - Autopart already exists: ID 92655
+2026-03-13 16:12:07,820 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU114C', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,820 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU114C' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,820 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU114C', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,820 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,820 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,821 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a697dd0>
+2026-03-13 16:12:07,822 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff248d4410>
+2026-03-13 16:12:07,822 - dz_fastapi - DEBUG - Autopart already exists: ID 92656
+2026-03-13 16:12:07,823 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU020', 'name': 'Сетка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,823 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU020' name='Сетка' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,823 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU020', 'name': 'Сетка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,823 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,823 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,824 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20454b60>
+2026-03-13 16:12:07,825 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237731d0>
+2026-03-13 16:12:07,825 - dz_fastapi - DEBUG - Autopart already exists: ID 92658
+2026-03-13 16:12:07,825 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU023', 'name': 'Сетка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,825 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU023' name='Сетка' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,825 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU023', 'name': 'Сетка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,826 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,826 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,827 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3a915f40>
+2026-03-13 16:12:07,828 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de3830>
+2026-03-13 16:12:07,828 - dz_fastapi - DEBUG - Autopart already exists: ID 92659
+2026-03-13 16:12:07,828 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU029', 'name': 'Сетка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,828 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU029' name='Сетка' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,828 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU029', 'name': 'Сетка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,828 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,828 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,829 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3b7c5610>
+2026-03-13 16:12:07,830 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff504931a0>
+2026-03-13 16:12:07,830 - dz_fastapi - DEBUG - Autopart already exists: ID 3423
+2026-03-13 16:12:07,830 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU041', 'name': 'Сетка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,830 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU041' name='Сетка' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,831 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU041', 'name': 'Сетка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,831 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,831 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,832 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23dee1e0>
+2026-03-13 16:12:07,833 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff294f02f0>
+2026-03-13 16:12:07,833 - dz_fastapi - DEBUG - Autopart already exists: ID 3432
+2026-03-13 16:12:07,833 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU051', 'name': 'Сетка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,833 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU051' name='Сетка' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,833 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU051', 'name': 'Сетка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,833 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,834 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,834 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23743710>
+2026-03-13 16:12:07,835 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefb680b30>
+2026-03-13 16:12:07,835 - dz_fastapi - DEBUG - Autopart already exists: ID 92660
+2026-03-13 16:12:07,836 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU053', 'name': 'Сетка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,836 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU053' name='Сетка' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,836 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU053', 'name': 'Сетка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,836 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,836 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,837 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbe79af0>
+2026-03-13 16:12:07,838 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff23ee15b0>
+2026-03-13 16:12:07,838 - dz_fastapi - DEBUG - Autopart already exists: ID 92661
+2026-03-13 16:12:07,838 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU061', 'name': 'Сетка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,838 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU061' name='Сетка' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,838 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU061', 'name': 'Сетка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,839 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,839 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,840 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237731d0>
+2026-03-13 16:12:07,841 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbe79af0>
+2026-03-13 16:12:07,841 - dz_fastapi - DEBUG - Autopart already exists: ID 92662
+2026-03-13 16:12:07,841 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU066', 'name': 'Сетка Бензонасоса', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,841 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU066' name='Сетка Бензонасоса' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,841 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU066', 'name': 'Сетка Бензонасоса', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,842 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,842 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,843 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae45010>
+2026-03-13 16:12:07,844 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae46c00>
+2026-03-13 16:12:07,844 - dz_fastapi - DEBUG - Autopart already exists: ID 92663
+2026-03-13 16:12:07,844 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU102', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,844 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU102' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,844 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU102', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,845 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,845 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,846 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38ebbfe0>
+2026-03-13 16:12:07,847 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20ccda30>
+2026-03-13 16:12:07,847 - dz_fastapi - DEBUG - Autopart already exists: ID 92664
+2026-03-13 16:12:07,847 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU103', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,847 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU103' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,847 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU103', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,847 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,847 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,848 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3940c740>
+2026-03-13 16:12:07,849 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de15e0>
+2026-03-13 16:12:07,849 - dz_fastapi - DEBUG - Autopart already exists: ID 92665
+2026-03-13 16:12:07,849 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU104', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,850 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU104' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,850 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU104', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,850 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,850 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,851 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39af0a10>
+2026-03-13 16:12:07,852 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5b59e840>
+2026-03-13 16:12:07,852 - dz_fastapi - DEBUG - Autopart already exists: ID 92666
+2026-03-13 16:12:07,852 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU105', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,852 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU105' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,852 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU105', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,852 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,853 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,853 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38e374a0>
+2026-03-13 16:12:07,855 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5148c290>
+2026-03-13 16:12:07,855 - dz_fastapi - DEBUG - Autopart already exists: ID 3412
+2026-03-13 16:12:07,855 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU106', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,855 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU106' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,855 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU106', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,855 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,855 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,856 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20de1a00>
+2026-03-13 16:12:07,857 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4820c2f0>
+2026-03-13 16:12:07,857 - dz_fastapi - DEBUG - Autopart already exists: ID 92667
+2026-03-13 16:12:07,858 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU107', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,858 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU107' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,858 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU107', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,858 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,858 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,859 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a54d430>
+2026-03-13 16:12:07,860 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a54f950>
+2026-03-13 16:12:07,860 - dz_fastapi - DEBUG - Autopart already exists: ID 92668
+2026-03-13 16:12:07,860 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU107C', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,860 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU107C' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,860 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU107C', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,861 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,861 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,862 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefcbef650>
+2026-03-13 16:12:07,863 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3b7c5610>
+2026-03-13 16:12:07,863 - dz_fastapi - DEBUG - Autopart already exists: ID 92669
+2026-03-13 16:12:07,863 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU108', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,863 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU108' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,863 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU108', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,863 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,864 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,865 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20b9d850>
+2026-03-13 16:12:07,866 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20b9f5f0>
+2026-03-13 16:12:07,866 - dz_fastapi - DEBUG - Autopart already exists: ID 3399
+2026-03-13 16:12:07,866 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU110', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,866 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU110' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,866 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU110', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,866 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,866 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,867 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbe400b0>
+2026-03-13 16:12:07,868 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de1820>
+2026-03-13 16:12:07,868 - dz_fastapi - DEBUG - Autopart already exists: ID 92670
+2026-03-13 16:12:07,868 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU111', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,869 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU111' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,869 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU111', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,869 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,869 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,870 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbed92b0>
+2026-03-13 16:12:07,871 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbe400b0>
+2026-03-13 16:12:07,871 - dz_fastapi - DEBUG - Autopart already exists: ID 92671
+2026-03-13 16:12:07,871 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU113B', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,871 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU113B' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,871 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU113B', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,871 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,871 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,872 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38e374a0>
+2026-03-13 16:12:07,873 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae47530>
+2026-03-13 16:12:07,873 - dz_fastapi - DEBUG - Autopart already exists: ID 92672
+2026-03-13 16:12:07,873 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU116', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,873 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU116' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,874 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU116', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,874 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,874 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,875 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbe7b890>
+2026-03-13 16:12:07,876 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb8bf0>
+2026-03-13 16:12:07,876 - dz_fastapi - DEBUG - Autopart already exists: ID 92673
+2026-03-13 16:12:07,876 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU118', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,876 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU118' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,876 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU118', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,877 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,877 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,878 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3940c740>
+2026-03-13 16:12:07,879 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a2aa9c0>
+2026-03-13 16:12:07,879 - dz_fastapi - DEBUG - Autopart already exists: ID 92674
+2026-03-13 16:12:07,879 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MPU119B', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,879 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MPU119B' name='Бензонасос' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,879 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MPU119B', 'name': 'Бензонасос', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,879 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:07,879 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:07,880 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefb614650>
+2026-03-13 16:12:07,881 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae46810>
+2026-03-13 16:12:07,881 - dz_fastapi - DEBUG - Autopart already exists: ID 92657
+2026-03-13 16:12:07,881 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '175', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,881 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='175' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,881 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '175', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,881 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,882 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,882 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39af0710>
+2026-03-13 16:12:07,884 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2add0b30>
+2026-03-13 16:12:07,884 - dz_fastapi - DEBUG - Autopart already exists: ID 92675
+2026-03-13 16:12:07,884 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '2245053101', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,884 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='2245053101' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,884 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '2245053101', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,884 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,884 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,885 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb9340>
+2026-03-13 16:12:07,886 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff231bd160>
+2026-03-13 16:12:07,886 - dz_fastapi - DEBUG - Autopart already exists: ID 92676
+2026-03-13 16:12:07,886 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '2245062S10', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,886 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='2245062S10' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,886 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '2245062S10', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,886 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,887 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,887 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39175af0>
+2026-03-13 16:12:07,888 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefb64ae70>
+2026-03-13 16:12:07,888 - dz_fastapi - DEBUG - Autopart already exists: ID 92677
+2026-03-13 16:12:07,889 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '50004', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,889 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='50004' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,889 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '50004', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,889 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,889 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,890 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3b05f650>
+2026-03-13 16:12:07,891 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff231bd160>
+2026-03-13 16:12:07,891 - dz_fastapi - DEBUG - Autopart already exists: ID 92678
+2026-03-13 16:12:07,891 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '50028', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,891 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='50028' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,891 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '50028', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,891 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,891 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,892 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefeacbaa0>
+2026-03-13 16:12:07,893 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5130bbc0>
+2026-03-13 16:12:07,893 - dz_fastapi - DEBUG - Autopart already exists: ID 92679
+2026-03-13 16:12:07,893 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '50032', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,893 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='50032' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,894 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '50032', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,894 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,894 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,895 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3a915f40>
+2026-03-13 16:12:07,896 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff281d6210>
+2026-03-13 16:12:07,896 - dz_fastapi - DEBUG - Autopart already exists: ID 92680
+2026-03-13 16:12:07,896 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '50033', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,896 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='50033' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,896 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '50033', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,896 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,896 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,897 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbe79af0>
+2026-03-13 16:12:07,898 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20454b60>
+2026-03-13 16:12:07,898 - dz_fastapi - DEBUG - Autopart already exists: ID 92681
+2026-03-13 16:12:07,898 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '50059', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,898 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='50059' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,898 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '50059', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,899 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,899 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,899 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefeeb80e0>
+2026-03-13 16:12:07,900 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237731d0>
+2026-03-13 16:12:07,901 - dz_fastapi - DEBUG - Autopart already exists: ID 92682
+2026-03-13 16:12:07,901 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '50067', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,901 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='50067' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,901 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '50067', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,901 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,901 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,902 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39fd2a80>
+2026-03-13 16:12:07,903 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de1820>
+2026-03-13 16:12:07,903 - dz_fastapi - DEBUG - Autopart already exists: ID 92683
+2026-03-13 16:12:07,903 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '50071', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,903 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='50071' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,903 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '50071', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,903 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,904 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,905 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb9820>
+2026-03-13 16:12:07,906 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefeacbaa0>
+2026-03-13 16:12:07,906 - dz_fastapi - DEBUG - Autopart already exists: ID 92684
+2026-03-13 16:12:07,906 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '50072', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,906 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='50072' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,906 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '50072', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,906 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,906 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,907 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39af0710>
+2026-03-13 16:12:07,908 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39af0a10>
+2026-03-13 16:12:07,908 - dz_fastapi - DEBUG - Autopart already exists: ID 92685
+2026-03-13 16:12:07,908 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '50078', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,908 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='50078' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,908 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '50078', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,908 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,909 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,910 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3a6faa50>
+2026-03-13 16:12:07,911 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20454b60>
+2026-03-13 16:12:07,911 - dz_fastapi - DEBUG - Autopart already exists: ID 92686
+2026-03-13 16:12:07,911 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '50088', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,911 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='50088' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,911 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '50088', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,911 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,911 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,912 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1df10>
+2026-03-13 16:12:07,913 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff265eb5f0>
+2026-03-13 16:12:07,913 - dz_fastapi - DEBUG - Autopart already exists: ID 92687
+2026-03-13 16:12:07,913 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '610', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,914 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='610' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,914 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '610', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,914 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,914 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,915 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237d2750>
+2026-03-13 16:12:07,916 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbedb050>
+2026-03-13 16:12:07,916 - dz_fastapi - DEBUG - Autopart already exists: ID 92688
+2026-03-13 16:12:07,916 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '612', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,916 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='612' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,917 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '612', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,917 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,917 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,918 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39af0a10>
+2026-03-13 16:12:07,919 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbed9070>
+2026-03-13 16:12:07,919 - dz_fastapi - DEBUG - Autopart already exists: ID 92689
+2026-03-13 16:12:07,919 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '63', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,919 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='63' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,919 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '63', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,919 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,919 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,920 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2b0d6090>
+2026-03-13 16:12:07,921 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237a7c50>
+2026-03-13 16:12:07,921 - dz_fastapi - DEBUG - Autopart already exists: ID 92690
+2026-03-13 16:12:07,921 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '70001', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,922 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='70001' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,922 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '70001', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,922 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,922 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,923 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5086b4d0>
+2026-03-13 16:12:07,924 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff51308d10>
+2026-03-13 16:12:07,924 - dz_fastapi - DEBUG - Autopart already exists: ID 92691
+2026-03-13 16:12:07,924 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '70035', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,924 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='70035' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,924 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '70035', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,924 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,924 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,925 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff248d4410>
+2026-03-13 16:12:07,926 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff504931a0>
+2026-03-13 16:12:07,926 - dz_fastapi - DEBUG - Autopart already exists: ID 92692
+2026-03-13 16:12:07,926 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '70106', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,926 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='70106' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,926 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '70106', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,927 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,927 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,927 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff51309ac0>
+2026-03-13 16:12:07,929 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20ccda30>
+2026-03-13 16:12:07,929 - dz_fastapi - DEBUG - Autopart already exists: ID 93881
+2026-03-13 16:12:07,929 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '71014', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,929 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='71014' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,929 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '71014', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,929 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,929 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,930 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f71100>
+2026-03-13 16:12:07,931 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2b0d6090>
+2026-03-13 16:12:07,931 - dz_fastapi - DEBUG - Autopart already exists: ID 92693
+2026-03-13 16:12:07,931 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '72016', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,931 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='72016' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,932 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '72016', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,932 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,932 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,933 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff265eb5f0>
+2026-03-13 16:12:07,934 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb87d0>
+2026-03-13 16:12:07,934 - dz_fastapi - DEBUG - Autopart already exists: ID 92694
+2026-03-13 16:12:07,934 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '72033', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,934 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='72033' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,934 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '72033', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,934 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,934 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,935 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f71100>
+2026-03-13 16:12:07,936 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbe400b0>
+2026-03-13 16:12:07,936 - dz_fastapi - DEBUG - Autopart already exists: ID 92695
+2026-03-13 16:12:07,936 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '725', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,936 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='725' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,936 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '725', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,936 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,937 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,937 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae45010>
+2026-03-13 16:12:07,938 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff294b9af0>
+2026-03-13 16:12:07,938 - dz_fastapi - DEBUG - Autopart already exists: ID 92696
+2026-03-13 16:12:07,939 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '74009', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,939 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='74009' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,939 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '74009', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,939 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,939 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,940 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23136240>
+2026-03-13 16:12:07,941 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb87d0>
+2026-03-13 16:12:07,941 - dz_fastapi - DEBUG - Autopart already exists: ID 92697
+2026-03-13 16:12:07,941 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '74010', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,941 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='74010' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,941 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '74010', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,941 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,942 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,942 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b59e840>
+2026-03-13 16:12:07,944 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39af0a10>
+2026-03-13 16:12:07,944 - dz_fastapi - DEBUG - Autopart already exists: ID 92698
+2026-03-13 16:12:07,944 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '74024', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,944 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='74024' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,944 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '74024', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,944 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,944 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,945 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23136240>
+2026-03-13 16:12:07,946 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f71100>
+2026-03-13 16:12:07,946 - dz_fastapi - DEBUG - Autopart already exists: ID 92699
+2026-03-13 16:12:07,946 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '74030', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,947 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='74030' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,947 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '74030', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,947 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,947 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,948 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff504931a0>
+2026-03-13 16:12:07,949 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38e374a0>
+2026-03-13 16:12:07,949 - dz_fastapi - DEBUG - Autopart already exists: ID 92700
+2026-03-13 16:12:07,949 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '77001', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,949 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='77001' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,949 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '77001', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,949 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,949 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,950 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a54d430>
+2026-03-13 16:12:07,951 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39fd2a80>
+2026-03-13 16:12:07,951 - dz_fastapi - DEBUG - Autopart already exists: ID 92701
+2026-03-13 16:12:07,951 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '77002', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,952 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='77002' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,952 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '77002', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,952 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,952 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,953 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237d2750>
+2026-03-13 16:12:07,954 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff482deab0>
+2026-03-13 16:12:07,954 - dz_fastapi - DEBUG - Autopart already exists: ID 92702
+2026-03-13 16:12:07,954 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '77003', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,954 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='77003' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,954 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '77003', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,954 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,954 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,955 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff231bd160>
+2026-03-13 16:12:07,956 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1db80>
+2026-03-13 16:12:07,956 - dz_fastapi - DEBUG - Autopart already exists: ID 92703
+2026-03-13 16:12:07,957 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '77009', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,957 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='77009' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,957 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '77009', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,957 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,957 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,958 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b1ce000>
+2026-03-13 16:12:07,959 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a697dd0>
+2026-03-13 16:12:07,959 - dz_fastapi - DEBUG - Autopart already exists: ID 92704
+2026-03-13 16:12:07,959 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '77010', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,959 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='77010' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,959 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '77010', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,959 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,959 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,960 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff231bd160>
+2026-03-13 16:12:07,961 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a696a80>
+2026-03-13 16:12:07,961 - dz_fastapi - DEBUG - Autopart already exists: ID 92705
+2026-03-13 16:12:07,961 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '77011', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,961 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='77011' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,962 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '77011', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,962 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,962 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,963 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefeeb80e0>
+2026-03-13 16:12:07,964 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb97c0>
+2026-03-13 16:12:07,964 - dz_fastapi - DEBUG - Autopart already exists: ID 92706
+2026-03-13 16:12:07,964 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '77012', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,964 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='77012' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,964 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '77012', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,964 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,964 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,965 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff504931a0>
+2026-03-13 16:12:07,966 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5130b200>
+2026-03-13 16:12:07,966 - dz_fastapi - DEBUG - Autopart already exists: ID 92707
+2026-03-13 16:12:07,966 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '78026', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,966 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='78026' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,966 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '78026', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,967 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,967 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,968 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20f4e480>
+2026-03-13 16:12:07,968 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae47920>
+2026-03-13 16:12:07,969 - dz_fastapi - DEBUG - Autopart already exists: ID 92708
+2026-03-13 16:12:07,969 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '78030', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,969 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='78030' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,969 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '78030', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,969 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,969 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,971 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a2aa9c0>
+2026-03-13 16:12:07,972 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20ccda30>
+2026-03-13 16:12:07,972 - dz_fastapi - DEBUG - Autopart already exists: ID 92709
+2026-03-13 16:12:07,972 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '7808', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,972 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='7808' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,972 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '7808', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,972 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,972 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,973 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39af0a10>
+2026-03-13 16:12:07,974 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38ebb620>
+2026-03-13 16:12:07,974 - dz_fastapi - DEBUG - Autopart already exists: ID 92710
+2026-03-13 16:12:07,974 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SEIWA', 'oem_number': '8381', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,975 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SEIWA' oem_number='8381' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,975 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SEIWA', 'oem_number': '8381', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,975 - dz_fastapi - DEBUG - Extracted brand_name: SEIWA
+2026-03-13 16:12:07,975 - dz_fastapi - DEBUG - Changed brand_name: SEIWA
+2026-03-13 16:12:07,976 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff70916960>
+2026-03-13 16:12:07,977 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff294b9af0>
+2026-03-13 16:12:07,977 - dz_fastapi - DEBUG - Autopart already exists: ID 92711
+2026-03-13 16:12:07,977 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DEKO', 'oem_number': 'D9091911007', 'name': 'Наконечник Катушки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,977 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DEKO' oem_number='D9091911007' name='Наконечник Катушки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,978 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DEKO', 'oem_number': 'D9091911007', 'name': 'Наконечник Катушки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,978 - dz_fastapi - DEBUG - Extracted brand_name: DEKO
+2026-03-13 16:12:07,978 - dz_fastapi - DEBUG - Changed brand_name: DEKO
+2026-03-13 16:12:07,979 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3a8ae030>
+2026-03-13 16:12:07,980 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5130b200>
+2026-03-13 16:12:07,980 - dz_fastapi - DEBUG - Autopart already exists: ID 92712
+2026-03-13 16:12:07,980 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ALFI PARTS', 'oem_number': 'IC2001', 'name': 'Наконечник Катушки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,980 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ALFI PARTS' oem_number='IC2001' name='Наконечник Катушки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,980 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ALFI PARTS', 'oem_number': 'IC2001', 'name': 'Наконечник Катушки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,980 - dz_fastapi - DEBUG - Extracted brand_name: ALFI PARTS
+2026-03-13 16:12:07,980 - dz_fastapi - DEBUG - Changed brand_name: ALFI PARTS
+2026-03-13 16:12:07,981 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39af0710>
+2026-03-13 16:12:07,982 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbe43bf0>
+2026-03-13 16:12:07,982 - dz_fastapi - DEBUG - Autopart already exists: ID 92713
+2026-03-13 16:12:07,982 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ALFI PARTS', 'oem_number': 'IC2003', 'name': 'Наконечник Катушки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,982 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ALFI PARTS' oem_number='IC2003' name='Наконечник Катушки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,983 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ALFI PARTS', 'oem_number': 'IC2003', 'name': 'Наконечник Катушки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,983 - dz_fastapi - DEBUG - Extracted brand_name: ALFI PARTS
+2026-03-13 16:12:07,983 - dz_fastapi - DEBUG - Changed brand_name: ALFI PARTS
+2026-03-13 16:12:07,983 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4aafadb0>
+2026-03-13 16:12:07,984 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a696a80>
+2026-03-13 16:12:07,985 - dz_fastapi - DEBUG - Autopart already exists: ID 92714
+2026-03-13 16:12:07,985 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'JAPAN CARS', 'oem_number': 'L32054', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,985 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='JAPAN CARS' oem_number='L32054' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,985 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'JAPAN CARS', 'oem_number': 'L32054', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,985 - dz_fastapi - DEBUG - Extracted brand_name: JAPAN CARS
+2026-03-13 16:12:07,985 - dz_fastapi - DEBUG - Changed brand_name: JAPAN CARS
+2026-03-13 16:12:07,986 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae46c00>
+2026-03-13 16:12:07,987 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff294f02f0>
+2026-03-13 16:12:07,987 - dz_fastapi - DEBUG - Autopart already exists: ID 92715
+2026-03-13 16:12:07,987 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NGK', 'oem_number': 'RCTE114', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,987 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NGK' oem_number='RCTE114' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,987 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NGK', 'oem_number': 'RCTE114', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,987 - dz_fastapi - DEBUG - Extracted brand_name: NGK
+2026-03-13 16:12:07,987 - dz_fastapi - DEBUG - Changed brand_name: NGK
+2026-03-13 16:12:07,988 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,988 - dz_fastapi - WARNING - Brand NGK not found. Skipping autopart creation.
+2026-03-13 16:12:07,988 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'NGK', 'oem_number': 'RCTE114', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,988 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NGK', 'oem_number': 'RCTE27', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,988 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NGK' oem_number='RCTE27' name='Высоковольтный Провод' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,989 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NGK', 'oem_number': 'RCTE27', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,989 - dz_fastapi - DEBUG - Extracted brand_name: NGK
+2026-03-13 16:12:07,989 - dz_fastapi - DEBUG - Changed brand_name: NGK
+2026-03-13 16:12:07,989 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:07,990 - dz_fastapi - WARNING - Brand NGK not found. Skipping autopart creation.
+2026-03-13 16:12:07,990 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'NGK', 'oem_number': 'RCTE27', 'name': 'Высоковольтный Провод', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,990 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TAIHO', 'oem_number': 'C042ASTD', 'name': 'Вкладыши На Распредвал', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,990 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TAIHO' oem_number='C042ASTD' name='Вкладыши На Распредвал' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,990 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TAIHO', 'oem_number': 'C042ASTD', 'name': 'Вкладыши На Распредвал', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,990 - dz_fastapi - DEBUG - Extracted brand_name: TAIHO
+2026-03-13 16:12:07,990 - dz_fastapi - DEBUG - Changed brand_name: TAIHO
+2026-03-13 16:12:07,991 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5130bbc0>
+2026-03-13 16:12:07,992 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5130b200>
+2026-03-13 16:12:07,992 - dz_fastapi - DEBUG - Autopart already exists: ID 92716
+2026-03-13 16:12:07,992 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TAIHO', 'oem_number': 'C706ASTD', 'name': 'Вкладыши На Распредвал', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,992 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TAIHO' oem_number='C706ASTD' name='Вкладыши На Распредвал' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,992 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TAIHO', 'oem_number': 'C706ASTD', 'name': 'Вкладыши На Распредвал', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,993 - dz_fastapi - DEBUG - Extracted brand_name: TAIHO
+2026-03-13 16:12:07,993 - dz_fastapi - DEBUG - Changed brand_name: TAIHO
+2026-03-13 16:12:07,994 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b59e840>
+2026-03-13 16:12:07,995 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5130bbc0>
+2026-03-13 16:12:07,995 - dz_fastapi - DEBUG - Autopart already exists: ID 92717
+2026-03-13 16:12:07,995 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TAIHO', 'oem_number': 'C709ASTD', 'name': 'Вкладыши На Распредвал', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,995 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TAIHO' oem_number='C709ASTD' name='Вкладыши На Распредвал' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,995 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TAIHO', 'oem_number': 'C709ASTD', 'name': 'Вкладыши На Распредвал', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,995 - dz_fastapi - DEBUG - Extracted brand_name: TAIHO
+2026-03-13 16:12:07,995 - dz_fastapi - DEBUG - Changed brand_name: TAIHO
+2026-03-13 16:12:07,996 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbe43e30>
+2026-03-13 16:12:07,997 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5130b200>
+2026-03-13 16:12:07,997 - dz_fastapi - DEBUG - Autopart already exists: ID 92718
+2026-03-13 16:12:07,997 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TAIHO', 'oem_number': 'C724ASTD', 'name': 'Вкладыши На Распредвал', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,997 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TAIHO' oem_number='C724ASTD' name='Вкладыши На Распредвал' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:07,998 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TAIHO', 'oem_number': 'C724ASTD', 'name': 'Вкладыши На Распредвал', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:07,998 - dz_fastapi - DEBUG - Extracted brand_name: TAIHO
+2026-03-13 16:12:07,998 - dz_fastapi - DEBUG - Changed brand_name: TAIHO
+2026-03-13 16:12:07,999 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7066dd60>
+2026-03-13 16:12:08,000 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5130bbc0>
+2026-03-13 16:12:08,000 - dz_fastapi - DEBUG - Autopart already exists: ID 26900
+2026-03-13 16:12:08,000 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TAIHO', 'oem_number': 'P042HSTD', 'name': 'Вкладыши На Палец Шатуна', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,000 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TAIHO' oem_number='P042HSTD' name='Вкладыши На Палец Шатуна' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,000 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TAIHO', 'oem_number': 'P042HSTD', 'name': 'Вкладыши На Палец Шатуна', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,000 - dz_fastapi - DEBUG - Extracted brand_name: TAIHO
+2026-03-13 16:12:08,000 - dz_fastapi - DEBUG - Changed brand_name: TAIHO
+2026-03-13 16:12:08,001 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5130b200>
+2026-03-13 16:12:08,002 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff513088c0>
+2026-03-13 16:12:08,002 - dz_fastapi - DEBUG - Autopart already exists: ID 92719
+2026-03-13 16:12:08,002 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TAIHO', 'oem_number': 'T018ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,002 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TAIHO' oem_number='T018ASTD' name='Полукольца' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,002 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TAIHO', 'oem_number': 'T018ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,002 - dz_fastapi - DEBUG - Extracted brand_name: TAIHO
+2026-03-13 16:12:08,003 - dz_fastapi - DEBUG - Changed brand_name: TAIHO
+2026-03-13 16:12:08,003 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39f35a60>
+2026-03-13 16:12:08,005 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a696a80>
+2026-03-13 16:12:08,005 - dz_fastapi - DEBUG - Autopart already exists: ID 92720
+2026-03-13 16:12:08,005 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TAIHO', 'oem_number': 'T027ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,005 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TAIHO' oem_number='T027ASTD' name='Полукольца' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,005 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TAIHO', 'oem_number': 'T027ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,005 - dz_fastapi - DEBUG - Extracted brand_name: TAIHO
+2026-03-13 16:12:08,005 - dz_fastapi - DEBUG - Changed brand_name: TAIHO
+2026-03-13 16:12:08,006 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1de50>
+2026-03-13 16:12:08,007 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de15e0>
+2026-03-13 16:12:08,007 - dz_fastapi - DEBUG - Autopart already exists: ID 92721
+2026-03-13 16:12:08,007 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TAIHO', 'oem_number': 'T710ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,007 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TAIHO' oem_number='T710ASTD' name='Полукольца' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,007 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TAIHO', 'oem_number': 'T710ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,008 - dz_fastapi - DEBUG - Extracted brand_name: TAIHO
+2026-03-13 16:12:08,008 - dz_fastapi - DEBUG - Changed brand_name: TAIHO
+2026-03-13 16:12:08,008 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f71100>
+2026-03-13 16:12:08,009 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3b7c5610>
+2026-03-13 16:12:08,009 - dz_fastapi - DEBUG - Autopart already exists: ID 92722
+2026-03-13 16:12:08,010 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TAIHO', 'oem_number': 'T715ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,010 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TAIHO' oem_number='T715ASTD' name='Полукольца' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,010 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TAIHO', 'oem_number': 'T715ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,010 - dz_fastapi - DEBUG - Extracted brand_name: TAIHO
+2026-03-13 16:12:08,010 - dz_fastapi - DEBUG - Changed brand_name: TAIHO
+2026-03-13 16:12:08,011 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20de3830>
+2026-03-13 16:12:08,012 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f70b60>
+2026-03-13 16:12:08,012 - dz_fastapi - DEBUG - Autopart already exists: ID 92723
+2026-03-13 16:12:08,012 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TAIHO', 'oem_number': 'T719ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,013 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TAIHO' oem_number='T719ASTD' name='Полукольца' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,013 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TAIHO', 'oem_number': 'T719ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,013 - dz_fastapi - DEBUG - Extracted brand_name: TAIHO
+2026-03-13 16:12:08,013 - dz_fastapi - DEBUG - Changed brand_name: TAIHO
+2026-03-13 16:12:08,014 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5148c290>
+2026-03-13 16:12:08,015 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff265e9550>
+2026-03-13 16:12:08,015 - dz_fastapi - DEBUG - Autopart already exists: ID 92724
+2026-03-13 16:12:08,015 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TAIHO', 'oem_number': 'T720ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,015 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TAIHO' oem_number='T720ASTD' name='Полукольца' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,015 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TAIHO', 'oem_number': 'T720ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,015 - dz_fastapi - DEBUG - Extracted brand_name: TAIHO
+2026-03-13 16:12:08,015 - dz_fastapi - DEBUG - Changed brand_name: TAIHO
+2026-03-13 16:12:08,016 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a54f950>
+2026-03-13 16:12:08,017 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff231bf110>
+2026-03-13 16:12:08,017 - dz_fastapi - DEBUG - Autopart already exists: ID 92725
+2026-03-13 16:12:08,017 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TAIHO', 'oem_number': 'T724ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,017 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TAIHO' oem_number='T724ASTD' name='Полукольца' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,017 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TAIHO', 'oem_number': 'T724ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,018 - dz_fastapi - DEBUG - Extracted brand_name: TAIHO
+2026-03-13 16:12:08,018 - dz_fastapi - DEBUG - Changed brand_name: TAIHO
+2026-03-13 16:12:08,019 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3a8ae030>
+2026-03-13 16:12:08,019 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff248d4410>
+2026-03-13 16:12:08,020 - dz_fastapi - DEBUG - Autopart already exists: ID 92726
+2026-03-13 16:12:08,020 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TAIHO', 'oem_number': 'T729ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,020 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TAIHO' oem_number='T729ASTD' name='Полукольца' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,020 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TAIHO', 'oem_number': 'T729ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,020 - dz_fastapi - DEBUG - Extracted brand_name: TAIHO
+2026-03-13 16:12:08,020 - dz_fastapi - DEBUG - Changed brand_name: TAIHO
+2026-03-13 16:12:08,021 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff231bf110>
+2026-03-13 16:12:08,021 - dz_fastapi - DEBUG - Existing autopart: None
+2026-03-13 16:12:08,022 - dz_fastapi - DEBUG - AutopartCreate data: brand_id=174 oem_number='T729ASTD' name='Полукольца' description=None width=None height=None length=None weight=None purchase_price=None retail_price=None wholesale_price=None multiplicity=None minimum_balance=None min_balance_auto=None min_balance_user=None comment=None barcode=None category_name=None storage_location_name=None
+2026-03-13 16:12:08,035 - dz_fastapi - DEBUG - Created new AutoPart: ID=94085
+2026-03-13 16:12:08,035 - dz_fastapi - DEBUG - Created autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefc1ad490>
+2026-03-13 16:12:08,036 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TAIHO', 'oem_number': 'T733ASTD', 'name': 'Полукольца  STD', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,036 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TAIHO' oem_number='T733ASTD' name='Полукольца  STD' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,036 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TAIHO', 'oem_number': 'T733ASTD', 'name': 'Полукольца  STD', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,036 - dz_fastapi - DEBUG - Extracted brand_name: TAIHO
+2026-03-13 16:12:08,036 - dz_fastapi - DEBUG - Changed brand_name: TAIHO
+2026-03-13 16:12:08,037 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20de1a00>
+2026-03-13 16:12:08,039 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a54fb90>
+2026-03-13 16:12:08,039 - dz_fastapi - DEBUG - Autopart already exists: ID 56047
+2026-03-13 16:12:08,039 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TAIHO', 'oem_number': 'T736ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,039 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TAIHO' oem_number='T736ASTD' name='Полукольца' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,039 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TAIHO', 'oem_number': 'T736ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,040 - dz_fastapi - DEBUG - Extracted brand_name: TAIHO
+2026-03-13 16:12:08,040 - dz_fastapi - DEBUG - Changed brand_name: TAIHO
+2026-03-13 16:12:08,040 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b1cfd70>
+2026-03-13 16:12:08,041 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f72780>
+2026-03-13 16:12:08,042 - dz_fastapi - DEBUG - Autopart already exists: ID 3688
+2026-03-13 16:12:08,042 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TAIHO', 'oem_number': 'T738ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,042 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TAIHO' oem_number='T738ASTD' name='Полукольца' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,042 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TAIHO', 'oem_number': 'T738ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,042 - dz_fastapi - DEBUG - Extracted brand_name: TAIHO
+2026-03-13 16:12:08,042 - dz_fastapi - DEBUG - Changed brand_name: TAIHO
+2026-03-13 16:12:08,043 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2bdc4080>
+2026-03-13 16:12:08,044 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff265e9550>
+2026-03-13 16:12:08,044 - dz_fastapi - DEBUG - Autopart already exists: ID 92727
+2026-03-13 16:12:08,044 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TAIHO', 'oem_number': 'T747ASTD', 'name': 'Полукольца  STD', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,044 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TAIHO' oem_number='T747ASTD' name='Полукольца  STD' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,044 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TAIHO', 'oem_number': 'T747ASTD', 'name': 'Полукольца  STD', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,045 - dz_fastapi - DEBUG - Extracted brand_name: TAIHO
+2026-03-13 16:12:08,045 - dz_fastapi - DEBUG - Changed brand_name: TAIHO
+2026-03-13 16:12:08,045 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb9b50>
+2026-03-13 16:12:08,046 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f71100>
+2026-03-13 16:12:08,046 - dz_fastapi - DEBUG - Autopart already exists: ID 3689
+2026-03-13 16:12:08,047 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TAIHO', 'oem_number': 'T748ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,047 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TAIHO' oem_number='T748ASTD' name='Полукольца' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,047 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TAIHO', 'oem_number': 'T748ASTD', 'name': 'Полукольца', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,047 - dz_fastapi - DEBUG - Extracted brand_name: TAIHO
+2026-03-13 16:12:08,047 - dz_fastapi - DEBUG - Changed brand_name: TAIHO
+2026-03-13 16:12:08,048 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb9fa0>
+2026-03-13 16:12:08,050 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5148c290>
+2026-03-13 16:12:08,050 - dz_fastapi - DEBUG - Autopart already exists: ID 92728
+2026-03-13 16:12:08,050 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DOKURO', 'oem_number': 'ETY5633', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,050 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DOKURO' oem_number='ETY5633' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,050 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DOKURO', 'oem_number': 'ETY5633', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,050 - dz_fastapi - DEBUG - Extracted brand_name: DOKURO
+2026-03-13 16:12:08,050 - dz_fastapi - DEBUG - Changed brand_name: DOKURO
+2026-03-13 16:12:08,051 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,051 - dz_fastapi - WARNING - Brand DOKURO not found. Skipping autopart creation.
+2026-03-13 16:12:08,051 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'DOKURO', 'oem_number': 'ETY5633', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,051 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AISAN', 'oem_number': 'EVN117021', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,051 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AISAN' oem_number='EVN117021' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,051 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AISAN', 'oem_number': 'EVN117021', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,051 - dz_fastapi - DEBUG - Extracted brand_name: AISAN
+2026-03-13 16:12:08,051 - dz_fastapi - DEBUG - Changed brand_name: AISAN
+2026-03-13 16:12:08,052 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefb680b30>
+2026-03-13 16:12:08,053 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2add0b30>
+2026-03-13 16:12:08,053 - dz_fastapi - DEBUG - Autopart already exists: ID 92729
+2026-03-13 16:12:08,053 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AISAN', 'oem_number': 'EVN121040', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,054 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AISAN' oem_number='EVN121040' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,054 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AISAN', 'oem_number': 'EVN121040', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,054 - dz_fastapi - DEBUG - Extracted brand_name: AISAN
+2026-03-13 16:12:08,054 - dz_fastapi - DEBUG - Changed brand_name: AISAN
+2026-03-13 16:12:08,055 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3b05f650>
+2026-03-13 16:12:08,056 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb87d0>
+2026-03-13 16:12:08,056 - dz_fastapi - DEBUG - Autopart already exists: ID 92730
+2026-03-13 16:12:08,056 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AISAN', 'oem_number': 'EVN128010', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,056 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AISAN' oem_number='EVN128010' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,056 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AISAN', 'oem_number': 'EVN128010', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,056 - dz_fastapi - DEBUG - Extracted brand_name: AISAN
+2026-03-13 16:12:08,056 - dz_fastapi - DEBUG - Changed brand_name: AISAN
+2026-03-13 16:12:08,057 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2bdc6060>
+2026-03-13 16:12:08,058 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2bdc4080>
+2026-03-13 16:12:08,058 - dz_fastapi - DEBUG - Autopart already exists: ID 92731
+2026-03-13 16:12:08,058 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AISAN', 'oem_number': 'EVN131071', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,058 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AISAN' oem_number='EVN131071' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,059 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AISAN', 'oem_number': 'EVN131071', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,059 - dz_fastapi - DEBUG - Extracted brand_name: AISAN
+2026-03-13 16:12:08,059 - dz_fastapi - DEBUG - Changed brand_name: AISAN
+2026-03-13 16:12:08,060 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb87d0>
+2026-03-13 16:12:08,061 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb8890>
+2026-03-13 16:12:08,061 - dz_fastapi - DEBUG - Autopart already exists: ID 92732
+2026-03-13 16:12:08,061 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AISAN', 'oem_number': 'EVN131090', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,061 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AISAN' oem_number='EVN131090' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,061 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AISAN', 'oem_number': 'EVN131090', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,061 - dz_fastapi - DEBUG - Extracted brand_name: AISAN
+2026-03-13 16:12:08,061 - dz_fastapi - DEBUG - Changed brand_name: AISAN
+2026-03-13 16:12:08,062 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb87d0>
+2026-03-13 16:12:08,063 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb9fa0>
+2026-03-13 16:12:08,064 - dz_fastapi - DEBUG - Autopart already exists: ID 92733
+2026-03-13 16:12:08,064 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AISAN', 'oem_number': 'EVN131101', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,064 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AISAN' oem_number='EVN131101' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,064 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AISAN', 'oem_number': 'EVN131101', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,064 - dz_fastapi - DEBUG - Extracted brand_name: AISAN
+2026-03-13 16:12:08,064 - dz_fastapi - DEBUG - Changed brand_name: AISAN
+2026-03-13 16:12:08,065 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff294f02f0>
+2026-03-13 16:12:08,066 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff23ee15b0>
+2026-03-13 16:12:08,066 - dz_fastapi - DEBUG - Autopart already exists: ID 92734
+2026-03-13 16:12:08,066 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AISAN', 'oem_number': 'EVN137020', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,066 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AISAN' oem_number='EVN137020' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,066 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AISAN', 'oem_number': 'EVN137020', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,067 - dz_fastapi - DEBUG - Extracted brand_name: AISAN
+2026-03-13 16:12:08,067 - dz_fastapi - DEBUG - Changed brand_name: AISAN
+2026-03-13 16:12:08,068 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2bdc6060>
+2026-03-13 16:12:08,069 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2bdc4080>
+2026-03-13 16:12:08,069 - dz_fastapi - DEBUG - Autopart already exists: ID 92735
+2026-03-13 16:12:08,069 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AISAN', 'oem_number': 'EVX517030', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,069 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AISAN' oem_number='EVX517030' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,069 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AISAN', 'oem_number': 'EVX517030', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,070 - dz_fastapi - DEBUG - Extracted brand_name: AISAN
+2026-03-13 16:12:08,070 - dz_fastapi - DEBUG - Changed brand_name: AISAN
+2026-03-13 16:12:08,071 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39f35a60>
+2026-03-13 16:12:08,072 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbe43bf0>
+2026-03-13 16:12:08,072 - dz_fastapi - DEBUG - Autopart already exists: ID 75450
+2026-03-13 16:12:08,072 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AISAN', 'oem_number': 'EVX522040', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,072 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AISAN' oem_number='EVX522040' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,072 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AISAN', 'oem_number': 'EVX522040', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,073 - dz_fastapi - DEBUG - Extracted brand_name: AISAN
+2026-03-13 16:12:08,073 - dz_fastapi - DEBUG - Changed brand_name: AISAN
+2026-03-13 16:12:08,074 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff231bf110>
+2026-03-13 16:12:08,075 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a54d430>
+2026-03-13 16:12:08,075 - dz_fastapi - DEBUG - Autopart already exists: ID 92736
+2026-03-13 16:12:08,075 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AISAN', 'oem_number': 'EVX528010', 'name': 'Клапан Выпускной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,075 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AISAN' oem_number='EVX528010' name='Клапан Выпускной' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,075 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AISAN', 'oem_number': 'EVX528010', 'name': 'Клапан Выпускной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,075 - dz_fastapi - DEBUG - Extracted brand_name: AISAN
+2026-03-13 16:12:08,075 - dz_fastapi - DEBUG - Changed brand_name: AISAN
+2026-03-13 16:12:08,076 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b1cfd70>
+2026-03-13 16:12:08,077 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2b0d6090>
+2026-03-13 16:12:08,077 - dz_fastapi - DEBUG - Autopart already exists: ID 92737
+2026-03-13 16:12:08,077 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AISAN', 'oem_number': 'EVX528040', 'name': 'Клапан Выпускной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,077 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AISAN' oem_number='EVX528040' name='Клапан Выпускной' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,077 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AISAN', 'oem_number': 'EVX528040', 'name': 'Клапан Выпускной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,078 - dz_fastapi - DEBUG - Extracted brand_name: AISAN
+2026-03-13 16:12:08,078 - dz_fastapi - DEBUG - Changed brand_name: AISAN
+2026-03-13 16:12:08,079 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b1cfd70>
+2026-03-13 16:12:08,080 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff248d7710>
+2026-03-13 16:12:08,080 - dz_fastapi - DEBUG - Autopart already exists: ID 92738
+2026-03-13 16:12:08,080 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AISAN', 'oem_number': 'EVX530030', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,081 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AISAN' oem_number='EVX530030' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,082 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AISAN', 'oem_number': 'EVX530030', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,083 - dz_fastapi - DEBUG - Extracted brand_name: AISAN
+2026-03-13 16:12:08,083 - dz_fastapi - DEBUG - Changed brand_name: AISAN
+2026-03-13 16:12:08,089 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38ebb620>
+2026-03-13 16:12:08,093 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a697dd0>
+2026-03-13 16:12:08,093 - dz_fastapi - DEBUG - Autopart already exists: ID 92739
+2026-03-13 16:12:08,094 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AISAN', 'oem_number': 'EVX564030', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,094 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AISAN' oem_number='EVX564030' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,094 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AISAN', 'oem_number': 'EVX564030', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,095 - dz_fastapi - DEBUG - Extracted brand_name: AISAN
+2026-03-13 16:12:08,095 - dz_fastapi - DEBUG - Changed brand_name: AISAN
+2026-03-13 16:12:08,097 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbe43bf0>
+2026-03-13 16:12:08,098 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de1790>
+2026-03-13 16:12:08,099 - dz_fastapi - DEBUG - Autopart already exists: ID 92740
+2026-03-13 16:12:08,099 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'H&Q', 'oem_number': 'HQ1375075020', 'name': 'Гидрокмпенсатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,099 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='H&Q' oem_number='HQ1375075020' name='Гидрокмпенсатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,099 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'H&Q', 'oem_number': 'HQ1375075020', 'name': 'Гидрокмпенсатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,100 - dz_fastapi - DEBUG - Extracted brand_name: H&Q
+2026-03-13 16:12:08,100 - dz_fastapi - DEBUG - Changed brand_name: HQ
+2026-03-13 16:12:08,102 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39f35a60>
+2026-03-13 16:12:08,103 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38ebbfe0>
+2026-03-13 16:12:08,104 - dz_fastapi - DEBUG - Autopart already exists: ID 93882
+2026-03-13 16:12:08,104 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DOKURO', 'oem_number': 'ITY0623', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,104 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DOKURO' oem_number='ITY0623' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,104 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DOKURO', 'oem_number': 'ITY0623', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,105 - dz_fastapi - DEBUG - Extracted brand_name: DOKURO
+2026-03-13 16:12:08,105 - dz_fastapi - DEBUG - Changed brand_name: DOKURO
+2026-03-13 16:12:08,106 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,107 - dz_fastapi - WARNING - Brand DOKURO not found. Skipping autopart creation.
+2026-03-13 16:12:08,107 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'DOKURO', 'oem_number': 'ITY0623', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,107 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Thermotec', 'oem_number': 'KTT140029', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,107 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Thermotec' oem_number='KTT140029' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,107 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Thermotec', 'oem_number': 'KTT140029', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,108 - dz_fastapi - DEBUG - Extracted brand_name: Thermotec
+2026-03-13 16:12:08,108 - dz_fastapi - DEBUG - Changed brand_name: THERMOTEC
+2026-03-13 16:12:08,109 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,109 - dz_fastapi - WARNING - Brand THERMOTEC not found. Skipping autopart creation.
+2026-03-13 16:12:08,110 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'Thermotec', 'oem_number': 'KTT140029', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,110 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LUZAR', 'oem_number': 'LTRV1990', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,110 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LUZAR' oem_number='LTRV1990' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,111 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LUZAR', 'oem_number': 'LTRV1990', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,111 - dz_fastapi - DEBUG - Extracted brand_name: LUZAR
+2026-03-13 16:12:08,111 - dz_fastapi - DEBUG - Changed brand_name: LUZAR
+2026-03-13 16:12:08,113 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,113 - dz_fastapi - WARNING - Brand LUZAR not found. Skipping autopart creation.
+2026-03-13 16:12:08,113 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LUZAR', 'oem_number': 'LTRV1990', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,113 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'JAPAN CARS', 'oem_number': 'O72003', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,114 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='JAPAN CARS' oem_number='O72003' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,114 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'JAPAN CARS', 'oem_number': 'O72003', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,115 - dz_fastapi - DEBUG - Extracted brand_name: JAPAN CARS
+2026-03-13 16:12:08,115 - dz_fastapi - DEBUG - Changed brand_name: JAPAN CARS
+2026-03-13 16:12:08,118 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefb1f0620>
+2026-03-13 16:12:08,121 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3940c740>
+2026-03-13 16:12:08,121 - dz_fastapi - DEBUG - Autopart already exists: ID 92741
+2026-03-13 16:12:08,121 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TA1150', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,121 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TA1150' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,122 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TA1150', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,122 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,122 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,124 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20de15e0>
+2026-03-13 16:12:08,125 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff70bd37a0>
+2026-03-13 16:12:08,125 - dz_fastapi - DEBUG - Autopart already exists: ID 92742
+2026-03-13 16:12:08,125 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TA1240', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,126 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TA1240' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,126 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TA1240', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,126 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,126 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,127 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237d09b0>
+2026-03-13 16:12:08,128 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237d2750>
+2026-03-13 16:12:08,128 - dz_fastapi - DEBUG - Autopart already exists: ID 6696
+2026-03-13 16:12:08,128 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TA1280', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,129 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TA1280' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,129 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TA1280', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,129 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,129 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,130 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb9340>
+2026-03-13 16:12:08,131 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38ebbfe0>
+2026-03-13 16:12:08,131 - dz_fastapi - DEBUG - Autopart already exists: ID 92743
+2026-03-13 16:12:08,131 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DOKURO', 'oem_number': 'TA1290', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,131 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DOKURO' oem_number='TA1290' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,132 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DOKURO', 'oem_number': 'TA1290', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,132 - dz_fastapi - DEBUG - Extracted brand_name: DOKURO
+2026-03-13 16:12:08,132 - dz_fastapi - DEBUG - Changed brand_name: DOKURO
+2026-03-13 16:12:08,133 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,133 - dz_fastapi - WARNING - Brand DOKURO not found. Skipping autopart creation.
+2026-03-13 16:12:08,133 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'DOKURO', 'oem_number': 'TA1290', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,133 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TA1340', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,133 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TA1340' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,133 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TA1340', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,133 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,133 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,134 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b47b4a0>
+2026-03-13 16:12:08,135 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38ebbfe0>
+2026-03-13 16:12:08,135 - dz_fastapi - DEBUG - Autopart already exists: ID 92744
+2026-03-13 16:12:08,136 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TA1360', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,136 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TA1360' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,136 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TA1360', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,136 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,136 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,137 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a696a80>
+2026-03-13 16:12:08,138 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38ebbe90>
+2026-03-13 16:12:08,138 - dz_fastapi - DEBUG - Autopart already exists: ID 92745
+2026-03-13 16:12:08,138 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TA1380', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,138 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TA1380' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,139 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TA1380', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,139 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,139 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,140 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39af0710>
+2026-03-13 16:12:08,141 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefb614650>
+2026-03-13 16:12:08,141 - dz_fastapi - DEBUG - Autopart already exists: ID 3566
+2026-03-13 16:12:08,141 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TA1410', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,142 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TA1410' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,142 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TA1410', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,142 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,142 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,143 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3a915f40>
+2026-03-13 16:12:08,144 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2a543890>
+2026-03-13 16:12:08,144 - dz_fastapi - DEBUG - Autopart already exists: ID 92746
+2026-03-13 16:12:08,144 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TA1420', 'name': 'Клапан 13711-31070', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,144 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TA1420' name='Клапан 13711-31070' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,145 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TA1420', 'name': 'Клапан 13711-31070', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,145 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,145 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,146 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5148c290>
+2026-03-13 16:12:08,147 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39f35a60>
+2026-03-13 16:12:08,147 - dz_fastapi - DEBUG - Autopart already exists: ID 3571
+2026-03-13 16:12:08,147 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TA1470', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,147 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TA1470' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,148 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TA1470', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,148 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,148 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,149 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f23170>
+2026-03-13 16:12:08,150 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbed9070>
+2026-03-13 16:12:08,150 - dz_fastapi - DEBUG - Autopart already exists: ID 3567
+2026-03-13 16:12:08,151 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TA530', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,151 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TA530' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,151 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TA530', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,151 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,151 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,152 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae47530>
+2026-03-13 16:12:08,154 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a696a80>
+2026-03-13 16:12:08,154 - dz_fastapi - DEBUG - Autopart already exists: ID 92747
+2026-03-13 16:12:08,154 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TA900', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,154 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TA900' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,155 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TA900', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,155 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,155 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,156 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e480>
+2026-03-13 16:12:08,157 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefc1ad490>
+2026-03-13 16:12:08,157 - dz_fastapi - DEBUG - Autopart already exists: ID 92748
+2026-03-13 16:12:08,157 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TA910', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,157 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TA910' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,157 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TA910', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,158 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,158 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,159 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff281d6210>
+2026-03-13 16:12:08,160 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39f35a60>
+2026-03-13 16:12:08,160 - dz_fastapi - DEBUG - Autopart already exists: ID 92749
+2026-03-13 16:12:08,160 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TA950', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,160 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TA950' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,160 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TA950', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,160 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,160 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,161 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20ccda30>
+2026-03-13 16:12:08,162 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237731d0>
+2026-03-13 16:12:08,162 - dz_fastapi - DEBUG - Autopart already exists: ID 3568
+2026-03-13 16:12:08,162 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TB1150', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,163 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TB1150' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,163 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TB1150', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,163 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,163 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,164 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f71100>
+2026-03-13 16:12:08,165 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38ebbe90>
+2026-03-13 16:12:08,165 - dz_fastapi - DEBUG - Autopart already exists: ID 92750
+2026-03-13 16:12:08,165 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TB1240', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,165 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TB1240' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,165 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TB1240', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,165 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,165 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,166 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a695010>
+2026-03-13 16:12:08,167 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae46810>
+2026-03-13 16:12:08,167 - dz_fastapi - DEBUG - Autopart already exists: ID 92751
+2026-03-13 16:12:08,168 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TB1280', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,168 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TB1280' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,168 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TB1280', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,168 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,168 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,169 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20ccda30>
+2026-03-13 16:12:08,170 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffeff803ce0>
+2026-03-13 16:12:08,171 - dz_fastapi - DEBUG - Autopart already exists: ID 3569
+2026-03-13 16:12:08,171 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TB1290', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,171 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TB1290' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,171 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TB1290', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,171 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,171 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,172 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3940c740>
+2026-03-13 16:12:08,173 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f71100>
+2026-03-13 16:12:08,173 - dz_fastapi - DEBUG - Autopart already exists: ID 92752
+2026-03-13 16:12:08,173 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TB1380', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,173 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TB1380' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,173 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TB1380', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,174 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,174 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,174 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2b0d79b0>
+2026-03-13 16:12:08,175 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5148c290>
+2026-03-13 16:12:08,176 - dz_fastapi - DEBUG - Autopart already exists: ID 92753
+2026-03-13 16:12:08,176 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TB1390', 'name': 'Клапан Выпускной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,176 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TB1390' name='Клапан Выпускной' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,176 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TB1390', 'name': 'Клапан Выпускной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,176 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,176 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,177 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2b0d6090>
+2026-03-13 16:12:08,178 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff482deab0>
+2026-03-13 16:12:08,178 - dz_fastapi - DEBUG - Autopart already exists: ID 6697
+2026-03-13 16:12:08,178 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TB1410', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,179 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TB1410' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,179 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TB1410', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,179 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,179 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,180 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb9b50>
+2026-03-13 16:12:08,181 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38ebb620>
+2026-03-13 16:12:08,181 - dz_fastapi - DEBUG - Autopart already exists: ID 73517
+2026-03-13 16:12:08,181 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TB1420', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,181 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TB1420' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,181 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TB1420', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,181 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,182 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,183 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff281d6210>
+2026-03-13 16:12:08,184 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb9fa0>
+2026-03-13 16:12:08,184 - dz_fastapi - DEBUG - Autopart already exists: ID 92754
+2026-03-13 16:12:08,184 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TB1470', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,184 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TB1470' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,184 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TB1470', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,184 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,184 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,185 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5130a810>
+2026-03-13 16:12:08,187 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff51308d10>
+2026-03-13 16:12:08,187 - dz_fastapi - DEBUG - Autopart already exists: ID 3570
+2026-03-13 16:12:08,187 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TB530', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,187 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TB530' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,187 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TB530', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,187 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,187 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,188 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b1cfd70>
+2026-03-13 16:12:08,189 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237d2750>
+2026-03-13 16:12:08,189 - dz_fastapi - DEBUG - Autopart already exists: ID 92755
+2026-03-13 16:12:08,189 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TB900', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,190 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TB900' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,190 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TB900', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,190 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,190 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,191 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff265e9550>
+2026-03-13 16:12:08,192 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff265eb5f0>
+2026-03-13 16:12:08,192 - dz_fastapi - DEBUG - Autopart already exists: ID 92756
+2026-03-13 16:12:08,192 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TB910', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,192 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TB910' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,192 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TB910', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,192 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,192 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,193 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbe7b890>
+2026-03-13 16:12:08,194 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3a6faa50>
+2026-03-13 16:12:08,194 - dz_fastapi - DEBUG - Autopart already exists: ID 92757
+2026-03-13 16:12:08,195 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ROCKY', 'oem_number': 'TB950', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,195 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ROCKY' oem_number='TB950' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,195 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ROCKY', 'oem_number': 'TB950', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,195 - dz_fastapi - DEBUG - Extracted brand_name: ROCKY
+2026-03-13 16:12:08,195 - dz_fastapi - DEBUG - Changed brand_name: ROCKY
+2026-03-13 16:12:08,196 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefb1f0620>
+2026-03-13 16:12:08,197 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237a5eb0>
+2026-03-13 16:12:08,197 - dz_fastapi - DEBUG - Autopart already exists: ID 92758
+2026-03-13 16:12:08,197 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'BEN', 'oem_number': 'TOX145', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,197 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='BEN' oem_number='TOX145' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,197 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'BEN', 'oem_number': 'TOX145', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,198 - dz_fastapi - DEBUG - Extracted brand_name: BEN
+2026-03-13 16:12:08,198 - dz_fastapi - DEBUG - Changed brand_name: BEN
+2026-03-13 16:12:08,198 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,198 - dz_fastapi - WARNING - Brand BEN not found. Skipping autopart creation.
+2026-03-13 16:12:08,198 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'BEN', 'oem_number': 'TOX145', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,198 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'BGA', 'oem_number': 'V998722', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,199 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='BGA' oem_number='V998722' name='Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,199 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'BGA', 'oem_number': 'V998722', 'name': 'Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,199 - dz_fastapi - DEBUG - Extracted brand_name: BGA
+2026-03-13 16:12:08,199 - dz_fastapi - DEBUG - Changed brand_name: BGA
+2026-03-13 16:12:08,200 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39f68170>
+2026-03-13 16:12:08,201 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb9fa0>
+2026-03-13 16:12:08,201 - dz_fastapi - DEBUG - Autopart already exists: ID 92759

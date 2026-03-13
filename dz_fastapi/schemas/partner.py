@@ -110,6 +110,7 @@ class PriceListAutoPartAssociationResponse(BaseModel):
     autopart: AutoPartResponse
     quantity: int
     price: float
+    multiplicity: int = 1
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -117,6 +118,7 @@ class PriceListAutoPartAssociationCreate(BaseModel):
     autopart: AutoPartPricelist
     quantity: int
     price: float
+    multiplicity: int = 1
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -303,6 +305,7 @@ class ProviderPriceListConfigBase(BaseModel):
     oem_col: int
     name_col: Optional[int] = None
     brand_col: Optional[int] = None
+    multiplicity_col: Optional[int] = None
     qty_col: int
     price_col: int
     name_price: Optional[str] = None
@@ -328,6 +331,7 @@ class ProviderPriceListConfigUpdate(BaseModel):
     oem_col: Optional[int] = Field(default=None, ge=0)
     name_col: Optional[int] = Field(default=None, ge=0)
     brand_col: Optional[int] = Field(default=None, ge=0)
+    multiplicity_col: Optional[int] = Field(default=None, ge=0)
     qty_col: Optional[int] = Field(default=None, ge=0)
     price_col: Optional[int] = Field(default=None, ge=0)
     name_price: Optional[str] = None
@@ -610,6 +614,7 @@ class ProviderPriceListConfigOut(BaseModel):
     oem_col: int
     name_col: int | None = None
     brand_col: int | None = None
+    multiplicity_col: int | None = None
     qty_col: int
     price_col: int
     min_price: float | None = None

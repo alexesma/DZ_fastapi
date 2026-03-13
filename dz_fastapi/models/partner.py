@@ -249,6 +249,7 @@ class PriceListAutoPartAssociation(Base):
     autopart_id = Column(Integer, ForeignKey('autopart.id'), primary_key=True)
     quantity = Column(Integer, nullable=False)
     price = Column(DECIMAL(10, 2), nullable=False)
+    multiplicity = Column(Integer, nullable=False, default=1)
 
     pricelist = relationship(
         'PriceList', back_populates='autopart_associations'
@@ -379,6 +380,7 @@ class ProviderPriceListConfig(Base):
     oem_col = Column(Integer, nullable=False)
     name_col = Column(Integer, nullable=True)
     brand_col = Column(Integer, nullable=True)
+    multiplicity_col = Column(Integer, nullable=True)
     qty_col = Column(Integer, nullable=False)
     price_col = Column(Integer, nullable=False)
     name_price = Column(String, nullable=True)

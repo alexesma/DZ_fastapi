@@ -1,0 +1,1189 @@
+2026-03-13 16:12:08,201 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LPR', 'oem_number': '01067', 'name': 'Колодка Стояночного Тормоза', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,225 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LPR' oem_number='01067' name='Колодка Стояночного Тормоза' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,226 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LPR', 'oem_number': '01067', 'name': 'Колодка Стояночного Тормоза', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,226 - dz_fastapi - DEBUG - Extracted brand_name: LPR
+2026-03-13 16:12:08,226 - dz_fastapi - DEBUG - Changed brand_name: LPR
+2026-03-13 16:12:08,227 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,227 - dz_fastapi - WARNING - Brand LPR not found. Skipping autopart creation.
+2026-03-13 16:12:08,227 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LPR', 'oem_number': '01067', 'name': 'Колодка Стояночного Тормоза', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,228 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'LPR', 'oem_number': '01084', 'name': 'Колодки Торм. Барабан.  К-Кт!!!', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,228 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='LPR' oem_number='01084' name='Колодки Торм. Барабан.  К-Кт!!!' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,228 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'LPR', 'oem_number': '01084', 'name': 'Колодки Торм. Барабан.  К-Кт!!!', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,228 - dz_fastapi - DEBUG - Extracted brand_name: LPR
+2026-03-13 16:12:08,228 - dz_fastapi - DEBUG - Changed brand_name: LPR
+2026-03-13 16:12:08,229 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,229 - dz_fastapi - WARNING - Brand LPR not found. Skipping autopart creation.
+2026-03-13 16:12:08,229 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'LPR', 'oem_number': '01084', 'name': 'Колодки Торм. Барабан.  К-Кт!!!', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,229 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AP', 'oem_number': '01084', 'name': 'Колодки Торм. Барабан.  К-Кт!!!', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,229 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AP' oem_number='01084' name='Колодки Торм. Барабан.  К-Кт!!!' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,229 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AP', 'oem_number': '01084', 'name': 'Колодки Торм. Барабан.  К-Кт!!!', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,229 - dz_fastapi - DEBUG - Extracted brand_name: AP
+2026-03-13 16:12:08,229 - dz_fastapi - DEBUG - Changed brand_name: AP
+2026-03-13 16:12:08,230 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb97c0>
+2026-03-13 16:12:08,232 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb9340>
+2026-03-13 16:12:08,232 - dz_fastapi - DEBUG - Autopart already exists: ID 92760
+2026-03-13 16:12:08,232 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'FEBI', 'oem_number': '176756', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,232 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='FEBI' oem_number='176756' name='Пластина Защитная' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,232 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'FEBI', 'oem_number': '176756', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,232 - dz_fastapi - DEBUG - Extracted brand_name: FEBI
+2026-03-13 16:12:08,232 - dz_fastapi - DEBUG - Changed brand_name: FEBI
+2026-03-13 16:12:08,233 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,233 - dz_fastapi - WARNING - Brand FEBI not found. Skipping autopart creation.
+2026-03-13 16:12:08,233 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'FEBI', 'oem_number': '176756', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,233 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'FEBI', 'oem_number': '176757', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,233 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='FEBI' oem_number='176757' name='Пластина Защитная' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,233 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'FEBI', 'oem_number': '176757', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,233 - dz_fastapi - DEBUG - Extracted brand_name: FEBI
+2026-03-13 16:12:08,234 - dz_fastapi - DEBUG - Changed brand_name: FEBI
+2026-03-13 16:12:08,234 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,234 - dz_fastapi - WARNING - Brand FEBI not found. Skipping autopart creation.
+2026-03-13 16:12:08,234 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'FEBI', 'oem_number': '176757', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,234 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASTERKIT', 'oem_number': '77AP021', 'name': 'Набор Пружин', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,234 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASTERKIT' oem_number='77AP021' name='Набор Пружин' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,235 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASTERKIT', 'oem_number': '77AP021', 'name': 'Набор Пружин', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,235 - dz_fastapi - DEBUG - Extracted brand_name: MASTERKIT
+2026-03-13 16:12:08,235 - dz_fastapi - DEBUG - Changed brand_name: MASTERKIT
+2026-03-13 16:12:08,236 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1ce60>
+2026-03-13 16:12:08,237 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2b0d79b0>
+2026-03-13 16:12:08,237 - dz_fastapi - DEBUG - Autopart already exists: ID 92761
+2026-03-13 16:12:08,237 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'REMSA', 'oem_number': '7945898', 'name': 'Набор Пружин', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,237 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='REMSA' oem_number='7945898' name='Набор Пружин' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,238 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'REMSA', 'oem_number': '7945898', 'name': 'Набор Пружин', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,238 - dz_fastapi - DEBUG - Extracted brand_name: REMSA
+2026-03-13 16:12:08,238 - dz_fastapi - DEBUG - Changed brand_name: REMSA
+2026-03-13 16:12:08,238 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,238 - dz_fastapi - WARNING - Brand REMSA not found. Skipping autopart creation.
+2026-03-13 16:12:08,238 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'REMSA', 'oem_number': '7945898', 'name': 'Набор Пружин', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,238 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NK', 'oem_number': '7945898', 'name': 'Набор Пружин', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,239 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NK' oem_number='7945898' name='Набор Пружин' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,239 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NK', 'oem_number': '7945898', 'name': 'Набор Пружин', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,239 - dz_fastapi - DEBUG - Extracted brand_name: NK
+2026-03-13 16:12:08,239 - dz_fastapi - DEBUG - Changed brand_name: NK
+2026-03-13 16:12:08,240 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20b9f5f0>
+2026-03-13 16:12:08,241 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2a68eb10>
+2026-03-13 16:12:08,241 - dz_fastapi - DEBUG - Autopart already exists: ID 92762
+2026-03-13 16:12:08,242 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ASUKI', 'oem_number': 'A2287', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,242 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ASUKI' oem_number='A2287' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,242 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ASUKI', 'oem_number': 'A2287', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,242 - dz_fastapi - DEBUG - Extracted brand_name: ASUKI
+2026-03-13 16:12:08,242 - dz_fastapi - DEBUG - Changed brand_name: ASUKI
+2026-03-13 16:12:08,242 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,242 - dz_fastapi - WARNING - Brand ASUKI not found. Skipping autopart creation.
+2026-03-13 16:12:08,243 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'ASUKI', 'oem_number': 'A2287', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,243 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'BLUE PRINT', 'oem_number': 'ADT34175', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,243 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='BLUE PRINT' oem_number='ADT34175' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,243 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'BLUE PRINT', 'oem_number': 'ADT34175', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,243 - dz_fastapi - DEBUG - Extracted brand_name: BLUE PRINT
+2026-03-13 16:12:08,243 - dz_fastapi - DEBUG - Changed brand_name: BLUE PRINT
+2026-03-13 16:12:08,244 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,244 - dz_fastapi - WARNING - Brand BLUE PRINT not found. Skipping autopart creation.
+2026-03-13 16:12:08,244 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'BLUE PRINT', 'oem_number': 'ADT34175', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,244 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZEKKERT', 'oem_number': 'BK4043', 'name': 'Колодки Ручника', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,244 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZEKKERT' oem_number='BK4043' name='Колодки Ручника' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,244 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZEKKERT', 'oem_number': 'BK4043', 'name': 'Колодки Ручника', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,245 - dz_fastapi - DEBUG - Extracted brand_name: ZEKKERT
+2026-03-13 16:12:08,245 - dz_fastapi - DEBUG - Changed brand_name: ZEKKERT
+2026-03-13 16:12:08,245 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23136240>
+2026-03-13 16:12:08,246 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237a5eb0>
+2026-03-13 16:12:08,246 - dz_fastapi - DEBUG - Autopart already exists: ID 92763
+2026-03-13 16:12:08,247 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZEKKERT', 'oem_number': 'BK4044', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,247 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZEKKERT' oem_number='BK4044' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,247 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZEKKERT', 'oem_number': 'BK4044', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,247 - dz_fastapi - DEBUG - Extracted brand_name: ZEKKERT
+2026-03-13 16:12:08,247 - dz_fastapi - DEBUG - Changed brand_name: ZEKKERT
+2026-03-13 16:12:08,248 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff231bc6b0>
+2026-03-13 16:12:08,249 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a54fb90>
+2026-03-13 16:12:08,249 - dz_fastapi - DEBUG - Autopart already exists: ID 92764
+2026-03-13 16:12:08,249 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZEKKERT', 'oem_number': 'BK4046', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,249 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZEKKERT' oem_number='BK4046' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,249 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZEKKERT', 'oem_number': 'BK4046', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,250 - dz_fastapi - DEBUG - Extracted brand_name: ZEKKERT
+2026-03-13 16:12:08,250 - dz_fastapi - DEBUG - Changed brand_name: ZEKKERT
+2026-03-13 16:12:08,251 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a2aa9c0>
+2026-03-13 16:12:08,252 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f71100>
+2026-03-13 16:12:08,252 - dz_fastapi - DEBUG - Autopart already exists: ID 92765
+2026-03-13 16:12:08,252 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZEKKERT', 'oem_number': 'BK4115', 'name': 'Колодки Торм. Барабан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,252 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZEKKERT' oem_number='BK4115' name='Колодки Торм. Барабан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,252 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZEKKERT', 'oem_number': 'BK4115', 'name': 'Колодки Торм. Барабан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,252 - dz_fastapi - DEBUG - Extracted brand_name: ZEKKERT
+2026-03-13 16:12:08,252 - dz_fastapi - DEBUG - Changed brand_name: ZEKKERT
+2026-03-13 16:12:08,253 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39af0710>
+2026-03-13 16:12:08,254 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbe43bf0>
+2026-03-13 16:12:08,254 - dz_fastapi - DEBUG - Autopart already exists: ID 92766
+2026-03-13 16:12:08,254 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZEKKERT', 'oem_number': 'BK4182', 'name': 'Колодки Торм. Барабан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,254 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZEKKERT' oem_number='BK4182' name='Колодки Торм. Барабан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,254 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZEKKERT', 'oem_number': 'BK4182', 'name': 'Колодки Торм. Барабан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,255 - dz_fastapi - DEBUG - Extracted brand_name: ZEKKERT
+2026-03-13 16:12:08,255 - dz_fastapi - DEBUG - Changed brand_name: ZEKKERT
+2026-03-13 16:12:08,255 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a54fb90>
+2026-03-13 16:12:08,257 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb97c0>
+2026-03-13 16:12:08,257 - dz_fastapi - DEBUG - Autopart already exists: ID 92767
+2026-03-13 16:12:08,257 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZEKKERT', 'oem_number': 'BK4318', 'name': 'Колодки Торм. Барабан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,257 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZEKKERT' oem_number='BK4318' name='Колодки Торм. Барабан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,257 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZEKKERT', 'oem_number': 'BK4318', 'name': 'Колодки Торм. Барабан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,257 - dz_fastapi - DEBUG - Extracted brand_name: ZEKKERT
+2026-03-13 16:12:08,257 - dz_fastapi - DEBUG - Changed brand_name: ZEKKERT
+2026-03-13 16:12:08,258 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4820c2f0>
+2026-03-13 16:12:08,259 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae46840>
+2026-03-13 16:12:08,259 - dz_fastapi - DEBUG - Autopart already exists: ID 92768
+2026-03-13 16:12:08,259 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZEKKERT', 'oem_number': 'BK4347', 'name': 'Колодка Стояночного Тормоза', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,259 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZEKKERT' oem_number='BK4347' name='Колодка Стояночного Тормоза' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,260 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZEKKERT', 'oem_number': 'BK4347', 'name': 'Колодка Стояночного Тормоза', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,260 - dz_fastapi - DEBUG - Extracted brand_name: ZEKKERT
+2026-03-13 16:12:08,260 - dz_fastapi - DEBUG - Changed brand_name: ZEKKERT
+2026-03-13 16:12:08,261 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff248d4410>
+2026-03-13 16:12:08,262 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff248d7710>
+2026-03-13 16:12:08,262 - dz_fastapi - DEBUG - Autopart already exists: ID 92769
+2026-03-13 16:12:08,262 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZEKKERT', 'oem_number': 'BK4421', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,262 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZEKKERT' oem_number='BK4421' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,262 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZEKKERT', 'oem_number': 'BK4421', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,263 - dz_fastapi - DEBUG - Extracted brand_name: ZEKKERT
+2026-03-13 16:12:08,263 - dz_fastapi - DEBUG - Changed brand_name: ZEKKERT
+2026-03-13 16:12:08,263 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefb6163f0>
+2026-03-13 16:12:08,265 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5b478950>
+2026-03-13 16:12:08,265 - dz_fastapi - DEBUG - Autopart already exists: ID 92770
+2026-03-13 16:12:08,265 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZEKKERT', 'oem_number': 'BK4463', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,265 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZEKKERT' oem_number='BK4463' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,265 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZEKKERT', 'oem_number': 'BK4463', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,265 - dz_fastapi - DEBUG - Extracted brand_name: ZEKKERT
+2026-03-13 16:12:08,265 - dz_fastapi - DEBUG - Changed brand_name: ZEKKERT
+2026-03-13 16:12:08,266 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f71160>
+2026-03-13 16:12:08,267 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f71100>
+2026-03-13 16:12:08,267 - dz_fastapi - DEBUG - Autopart already exists: ID 92771
+2026-03-13 16:12:08,267 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SB Nagamochi', 'oem_number': 'BS21003', 'name': 'Колодка Стояночного Тормоза', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,267 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SB Nagamochi' oem_number='BS21003' name='Колодка Стояночного Тормоза' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,268 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SB Nagamochi', 'oem_number': 'BS21003', 'name': 'Колодка Стояночного Тормоза', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,268 - dz_fastapi - DEBUG - Extracted brand_name: SB Nagamochi
+2026-03-13 16:12:08,268 - dz_fastapi - DEBUG - Changed brand_name: SB NAGAMOCHI
+2026-03-13 16:12:08,269 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,269 - dz_fastapi - WARNING - Brand SB NAGAMOCHI not found. Skipping autopart creation.
+2026-03-13 16:12:08,269 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'SB Nagamochi', 'oem_number': 'BS21003', 'name': 'Колодка Стояночного Тормоза', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,269 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'PARAUT', 'oem_number': 'D283644', 'name': 'Колодки Торм. Барабан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,269 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='PARAUT' oem_number='D283644' name='Колодки Торм. Барабан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,269 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'PARAUT', 'oem_number': 'D283644', 'name': 'Колодки Торм. Барабан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,269 - dz_fastapi - DEBUG - Extracted brand_name: PARAUT
+2026-03-13 16:12:08,269 - dz_fastapi - DEBUG - Changed brand_name: PARAUT
+2026-03-13 16:12:08,270 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,270 - dz_fastapi - WARNING - Brand PARAUT not found. Skipping autopart creation.
+2026-03-13 16:12:08,270 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'PARAUT', 'oem_number': 'D283644', 'name': 'Колодки Торм. Барабан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,270 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'FBK', 'oem_number': 'FN2276', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,270 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='FBK' oem_number='FN2276' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,270 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'FBK', 'oem_number': 'FN2276', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,271 - dz_fastapi - DEBUG - Extracted brand_name: FBK
+2026-03-13 16:12:08,271 - dz_fastapi - DEBUG - Changed brand_name: FBK
+2026-03-13 16:12:08,271 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,271 - dz_fastapi - WARNING - Brand FBK not found. Skipping autopart creation.
+2026-03-13 16:12:08,271 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'FBK', 'oem_number': 'FN2276', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,271 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MTP KEBONO', 'oem_number': 'FN2329', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,271 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MTP KEBONO' oem_number='FN2329' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,272 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MTP KEBONO', 'oem_number': 'FN2329', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,272 - dz_fastapi - DEBUG - Extracted brand_name: MTP KEBONO
+2026-03-13 16:12:08,272 - dz_fastapi - DEBUG - Changed brand_name: MTP KEBONO
+2026-03-13 16:12:08,272 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,272 - dz_fastapi - WARNING - Brand MTP KEBONO not found. Skipping autopart creation.
+2026-03-13 16:12:08,272 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'MTP KEBONO', 'oem_number': 'FN2329', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,273 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NIBK', 'oem_number': 'FN0567', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,273 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NIBK' oem_number='FN0567' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,273 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NIBK', 'oem_number': 'FN0567', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,273 - dz_fastapi - DEBUG - Extracted brand_name: NIBK
+2026-03-13 16:12:08,273 - dz_fastapi - DEBUG - Changed brand_name: NIBK
+2026-03-13 16:12:08,274 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,274 - dz_fastapi - WARNING - Brand NIBK not found. Skipping autopart creation.
+2026-03-13 16:12:08,274 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'NIBK', 'oem_number': 'FN0567', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,274 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NIBK', 'oem_number': 'FN0620', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,274 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NIBK' oem_number='FN0620' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,274 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NIBK', 'oem_number': 'FN0620', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,274 - dz_fastapi - DEBUG - Extracted brand_name: NIBK
+2026-03-13 16:12:08,274 - dz_fastapi - DEBUG - Changed brand_name: NIBK
+2026-03-13 16:12:08,275 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,275 - dz_fastapi - WARNING - Brand NIBK not found. Skipping autopart creation.
+2026-03-13 16:12:08,275 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'NIBK', 'oem_number': 'FN0620', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,275 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NIBK', 'oem_number': 'FN0633', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,275 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NIBK' oem_number='FN0633' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,275 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NIBK', 'oem_number': 'FN0633', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,275 - dz_fastapi - DEBUG - Extracted brand_name: NIBK
+2026-03-13 16:12:08,275 - dz_fastapi - DEBUG - Changed brand_name: NIBK
+2026-03-13 16:12:08,276 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,276 - dz_fastapi - WARNING - Brand NIBK not found. Skipping autopart creation.
+2026-03-13 16:12:08,276 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'NIBK', 'oem_number': 'FN0633', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,276 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NIBK', 'oem_number': 'FN0642', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,276 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NIBK' oem_number='FN0642' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,276 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NIBK', 'oem_number': 'FN0642', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,276 - dz_fastapi - DEBUG - Extracted brand_name: NIBK
+2026-03-13 16:12:08,277 - dz_fastapi - DEBUG - Changed brand_name: NIBK
+2026-03-13 16:12:08,277 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,277 - dz_fastapi - WARNING - Brand NIBK not found. Skipping autopart creation.
+2026-03-13 16:12:08,277 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'NIBK', 'oem_number': 'FN0642', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,277 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NIBK', 'oem_number': 'FN0647', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,278 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NIBK' oem_number='FN0647' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,278 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NIBK', 'oem_number': 'FN0647', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,278 - dz_fastapi - DEBUG - Extracted brand_name: NIBK
+2026-03-13 16:12:08,278 - dz_fastapi - DEBUG - Changed brand_name: NIBK
+2026-03-13 16:12:08,278 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,278 - dz_fastapi - WARNING - Brand NIBK not found. Skipping autopart creation.
+2026-03-13 16:12:08,279 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'NIBK', 'oem_number': 'FN0647', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,279 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NIBK', 'oem_number': 'FN0651', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,279 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NIBK' oem_number='FN0651' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,279 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NIBK', 'oem_number': 'FN0651', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,279 - dz_fastapi - DEBUG - Extracted brand_name: NIBK
+2026-03-13 16:12:08,279 - dz_fastapi - DEBUG - Changed brand_name: NIBK
+2026-03-13 16:12:08,280 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,280 - dz_fastapi - WARNING - Brand NIBK not found. Skipping autopart creation.
+2026-03-13 16:12:08,280 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'NIBK', 'oem_number': 'FN0651', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,280 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NIBK', 'oem_number': 'FN2405', 'name': 'Колодки Торм. Барабан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,280 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NIBK' oem_number='FN2405' name='Колодки Торм. Барабан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,280 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NIBK', 'oem_number': 'FN2405', 'name': 'Колодки Торм. Барабан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,280 - dz_fastapi - DEBUG - Extracted brand_name: NIBK
+2026-03-13 16:12:08,280 - dz_fastapi - DEBUG - Changed brand_name: NIBK
+2026-03-13 16:12:08,281 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,281 - dz_fastapi - WARNING - Brand NIBK not found. Skipping autopart creation.
+2026-03-13 16:12:08,281 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'NIBK', 'oem_number': 'FN2405', 'name': 'Колодки Торм. Барабан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,281 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GBS', 'oem_number': 'GC02266K', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,281 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GBS' oem_number='GC02266K' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,281 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GBS', 'oem_number': 'GC02266K', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,281 - dz_fastapi - DEBUG - Extracted brand_name: GBS
+2026-03-13 16:12:08,282 - dz_fastapi - DEBUG - Changed brand_name: GBS
+2026-03-13 16:12:08,282 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,282 - dz_fastapi - WARNING - Brand GBS not found. Skipping autopart creation.
+2026-03-13 16:12:08,282 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'GBS', 'oem_number': 'GC02266K', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,282 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'G-BRAKE', 'oem_number': 'GS02008', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,282 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='G-BRAKE' oem_number='GS02008' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,283 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'G-BRAKE', 'oem_number': 'GS02008', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,283 - dz_fastapi - DEBUG - Extracted brand_name: G-BRAKE
+2026-03-13 16:12:08,283 - dz_fastapi - DEBUG - Changed brand_name: G-BRAKE
+2026-03-13 16:12:08,284 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e9f0>
+2026-03-13 16:12:08,285 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de1820>
+2026-03-13 16:12:08,285 - dz_fastapi - DEBUG - Autopart already exists: ID 92772
+2026-03-13 16:12:08,285 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'G-BRAKE', 'oem_number': 'GS02335', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,285 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='G-BRAKE' oem_number='GS02335' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,285 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'G-BRAKE', 'oem_number': 'GS02335', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,285 - dz_fastapi - DEBUG - Extracted brand_name: G-BRAKE
+2026-03-13 16:12:08,286 - dz_fastapi - DEBUG - Changed brand_name: G-BRAKE
+2026-03-13 16:12:08,286 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23136240>
+2026-03-13 16:12:08,287 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20454b60>
+2026-03-13 16:12:08,288 - dz_fastapi - DEBUG - Autopart already exists: ID 92773
+2026-03-13 16:12:08,288 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TRW', 'oem_number': 'GS8716', 'name': 'Колодки Не На LC100/LX470', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,288 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TRW' oem_number='GS8716' name='Колодки Не На LC100/LX470' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,288 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TRW', 'oem_number': 'GS8716', 'name': 'Колодки Не На LC100/LX470', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,288 - dz_fastapi - DEBUG - Extracted brand_name: TRW
+2026-03-13 16:12:08,288 - dz_fastapi - DEBUG - Changed brand_name: TRW
+2026-03-13 16:12:08,289 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,289 - dz_fastapi - WARNING - Brand TRW not found. Skipping autopart creation.
+2026-03-13 16:12:08,289 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'TRW', 'oem_number': 'GS8716', 'name': 'Колодки Не На LC100/LX470', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,289 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CARLSON', 'oem_number': 'H7345', 'name': 'Набор Пружин', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,289 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='CARLSON' oem_number='H7345' name='Набор Пружин' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,289 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'CARLSON', 'oem_number': 'H7345', 'name': 'Набор Пружин', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,289 - dz_fastapi - DEBUG - Extracted brand_name: CARLSON
+2026-03-13 16:12:08,289 - dz_fastapi - DEBUG - Changed brand_name: CARLSON
+2026-03-13 16:12:08,290 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,290 - dz_fastapi - WARNING - Brand CARLSON not found. Skipping autopart creation.
+2026-03-13 16:12:08,290 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'CARLSON', 'oem_number': 'H7345', 'name': 'Набор Пружин', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,290 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NTY', 'oem_number': 'HSTTY088', 'name': 'Колодки Торм. Барабан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,290 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NTY' oem_number='HSTTY088' name='Колодки Торм. Барабан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,290 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NTY', 'oem_number': 'HSTTY088', 'name': 'Колодки Торм. Барабан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,291 - dz_fastapi - DEBUG - Extracted brand_name: NTY
+2026-03-13 16:12:08,291 - dz_fastapi - DEBUG - Changed brand_name: NTY
+2026-03-13 16:12:08,292 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b1ce000>
+2026-03-13 16:12:08,293 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f71100>
+2026-03-13 16:12:08,293 - dz_fastapi - DEBUG - Autopart already exists: ID 92774
+2026-03-13 16:12:08,293 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JBS0010', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,293 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JBS0010' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,293 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JBS0010', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,293 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:08,293 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:08,294 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff281d6210>
+2026-03-13 16:12:08,295 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3b05f650>
+2026-03-13 16:12:08,295 - dz_fastapi - DEBUG - Autopart already exists: ID 92775
+2026-03-13 16:12:08,296 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JBS0013', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,296 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JBS0013' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,296 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JBS0013', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,296 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:08,296 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:08,297 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb97c0>
+2026-03-13 16:12:08,298 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39f35a60>
+2026-03-13 16:12:08,298 - dz_fastapi - DEBUG - Autopart already exists: ID 92776
+2026-03-13 16:12:08,298 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JBS0020', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,299 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JBS0020' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,299 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JBS0020', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,299 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:08,299 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:08,300 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff294f02f0>
+2026-03-13 16:12:08,301 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2a543890>
+2026-03-13 16:12:08,301 - dz_fastapi - DEBUG - Autopart already exists: ID 92777
+2026-03-13 16:12:08,301 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JBS0022', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,301 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JBS0022' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,301 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JBS0022', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,301 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:08,301 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:08,302 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbe43bf0>
+2026-03-13 16:12:08,304 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff23136240>
+2026-03-13 16:12:08,304 - dz_fastapi - DEBUG - Autopart already exists: ID 92778
+2026-03-13 16:12:08,304 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JBS0023', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,304 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JBS0023' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,304 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JBS0023', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,304 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:08,304 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:08,305 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1dca0>
+2026-03-13 16:12:08,306 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d8b0>
+2026-03-13 16:12:08,306 - dz_fastapi - DEBUG - Autopart already exists: ID 92779
+2026-03-13 16:12:08,306 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JBS0117', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,306 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JBS0117' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,306 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JBS0117', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,306 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:08,307 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:08,307 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23ee15b0>
+2026-03-13 16:12:08,308 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a695010>
+2026-03-13 16:12:08,308 - dz_fastapi - DEBUG - Autopart already exists: ID 92780
+2026-03-13 16:12:08,309 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Just Drive', 'oem_number': 'JBS0123', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,309 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='Just Drive' oem_number='JBS0123' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,309 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'Just Drive', 'oem_number': 'JBS0123', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,309 - dz_fastapi - DEBUG - Extracted brand_name: Just Drive
+2026-03-13 16:12:08,309 - dz_fastapi - DEBUG - Changed brand_name: JUST DRIVE
+2026-03-13 16:12:08,310 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3b05f650>
+2026-03-13 16:12:08,311 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff23136240>
+2026-03-13 16:12:08,311 - dz_fastapi - DEBUG - Autopart already exists: ID 92781
+2026-03-13 16:12:08,311 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KASHIYAMA', 'oem_number': 'K2203', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,311 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KASHIYAMA' oem_number='K2203' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,311 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KASHIYAMA', 'oem_number': 'K2203', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,311 - dz_fastapi - DEBUG - Extracted brand_name: KASHIYAMA
+2026-03-13 16:12:08,312 - dz_fastapi - DEBUG - Changed brand_name: KASHIYAMA
+2026-03-13 16:12:08,312 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff706c4800>
+2026-03-13 16:12:08,314 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20b9d850>
+2026-03-13 16:12:08,314 - dz_fastapi - DEBUG - Autopart already exists: ID 92782
+2026-03-13 16:12:08,314 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KASHIYAMA', 'oem_number': 'K2252', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,314 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KASHIYAMA' oem_number='K2252' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,314 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KASHIYAMA', 'oem_number': 'K2252', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,314 - dz_fastapi - DEBUG - Extracted brand_name: KASHIYAMA
+2026-03-13 16:12:08,314 - dz_fastapi - DEBUG - Changed brand_name: KASHIYAMA
+2026-03-13 16:12:08,315 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff248d7710>
+2026-03-13 16:12:08,316 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff248d4410>
+2026-03-13 16:12:08,316 - dz_fastapi - DEBUG - Autopart already exists: ID 92783
+2026-03-13 16:12:08,316 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NWK', 'oem_number': 'K261', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,317 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NWK' oem_number='K261' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,317 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NWK', 'oem_number': 'K261', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,317 - dz_fastapi - DEBUG - Extracted brand_name: NWK
+2026-03-13 16:12:08,317 - dz_fastapi - DEBUG - Changed brand_name: NWK
+2026-03-13 16:12:08,318 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,318 - dz_fastapi - WARNING - Brand NWK not found. Skipping autopart creation.
+2026-03-13 16:12:08,318 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'NWK', 'oem_number': 'K261', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,318 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MK2500', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,318 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MK2500' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,318 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MK2500', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,318 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:08,318 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:08,319 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5130a9f0>
+2026-03-13 16:12:08,321 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a54d430>
+2026-03-13 16:12:08,321 - dz_fastapi - DEBUG - Autopart already exists: ID 92784
+2026-03-13 16:12:08,321 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MK2501', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,321 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MK2501' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,321 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MK2501', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,321 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:08,321 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:08,322 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b478950>
+2026-03-13 16:12:08,323 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff51309ac0>
+2026-03-13 16:12:08,323 - dz_fastapi - DEBUG - Autopart already exists: ID 92785
+2026-03-13 16:12:08,323 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MK2528', 'name': 'Колодки Торм. Барабан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,323 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MK2528' name='Колодки Торм. Барабан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,324 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MK2528', 'name': 'Колодки Торм. Барабан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,324 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:08,324 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:08,325 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff26f16480>
+2026-03-13 16:12:08,326 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefb614650>
+2026-03-13 16:12:08,326 - dz_fastapi - DEBUG - Autopart already exists: ID 92786
+2026-03-13 16:12:08,326 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MK2532', 'name': 'Колодка Стояночного Тормоза', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,326 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MK2532' name='Колодка Стояночного Тормоза' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,326 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MK2532', 'name': 'Колодка Стояночного Тормоза', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,326 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:08,326 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:08,327 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2a543890>
+2026-03-13 16:12:08,328 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae46810>
+2026-03-13 16:12:08,328 - dz_fastapi - DEBUG - Autopart already exists: ID 92787
+2026-03-13 16:12:08,328 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MK2533', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,328 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MK2533' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,328 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MK2533', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,329 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:08,329 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:08,330 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20de15e0>
+2026-03-13 16:12:08,331 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2a68eb10>
+2026-03-13 16:12:08,331 - dz_fastapi - DEBUG - Autopart already exists: ID 92788
+2026-03-13 16:12:08,331 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MASUMA', 'oem_number': 'MK2549', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,332 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MASUMA' oem_number='MK2549' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,332 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MASUMA', 'oem_number': 'MK2549', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,332 - dz_fastapi - DEBUG - Extracted brand_name: MASUMA
+2026-03-13 16:12:08,332 - dz_fastapi - DEBUG - Changed brand_name: MASUMA
+2026-03-13 16:12:08,333 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23743710>
+2026-03-13 16:12:08,334 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefb1f0620>
+2026-03-13 16:12:08,334 - dz_fastapi - DEBUG - Autopart already exists: ID 92789
+2026-03-13 16:12:08,334 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NARICHIN', 'oem_number': 'NKN2042', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,335 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NARICHIN' oem_number='NKN2042' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,335 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NARICHIN', 'oem_number': 'NKN2042', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,335 - dz_fastapi - DEBUG - Extracted brand_name: NARICHIN
+2026-03-13 16:12:08,335 - dz_fastapi - DEBUG - Changed brand_name: NARICHIN
+2026-03-13 16:12:08,336 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff26f16480>
+2026-03-13 16:12:08,337 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff294f02f0>
+2026-03-13 16:12:08,337 - dz_fastapi - DEBUG - Autopart already exists: ID 92790
+2026-03-13 16:12:08,337 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NARICHIN', 'oem_number': 'NKT2154', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,337 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NARICHIN' oem_number='NKT2154' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,337 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NARICHIN', 'oem_number': 'NKT2154', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,338 - dz_fastapi - DEBUG - Extracted brand_name: NARICHIN
+2026-03-13 16:12:08,338 - dz_fastapi - DEBUG - Changed brand_name: NARICHIN
+2026-03-13 16:12:08,338 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20de16a0>
+2026-03-13 16:12:08,340 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff294b9af0>
+2026-03-13 16:12:08,340 - dz_fastapi - DEBUG - Autopart already exists: ID 92791
+2026-03-13 16:12:08,340 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NARICHIN', 'oem_number': 'NKT2220', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,340 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NARICHIN' oem_number='NKT2220' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,340 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NARICHIN', 'oem_number': 'NKT2220', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,340 - dz_fastapi - DEBUG - Extracted brand_name: NARICHIN
+2026-03-13 16:12:08,340 - dz_fastapi - DEBUG - Changed brand_name: NARICHIN
+2026-03-13 16:12:08,341 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a697dd0>
+2026-03-13 16:12:08,342 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20454b60>
+2026-03-13 16:12:08,342 - dz_fastapi - DEBUG - Autopart already exists: ID 92792
+2026-03-13 16:12:08,342 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NARICHIN', 'oem_number': 'NKT2245', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,342 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NARICHIN' oem_number='NKT2245' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,342 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NARICHIN', 'oem_number': 'NKT2245', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,343 - dz_fastapi - DEBUG - Extracted brand_name: NARICHIN
+2026-03-13 16:12:08,343 - dz_fastapi - DEBUG - Changed brand_name: NARICHIN
+2026-03-13 16:12:08,344 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefb680b30>
+2026-03-13 16:12:08,345 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3b05f650>
+2026-03-13 16:12:08,345 - dz_fastapi - DEBUG - Autopart already exists: ID 92794
+2026-03-13 16:12:08,345 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NARICHIN', 'oem_number': 'NKT2421', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,345 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NARICHIN' oem_number='NKT2421' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,345 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NARICHIN', 'oem_number': 'NKT2421', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,345 - dz_fastapi - DEBUG - Extracted brand_name: NARICHIN
+2026-03-13 16:12:08,345 - dz_fastapi - DEBUG - Changed brand_name: NARICHIN
+2026-03-13 16:12:08,346 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3a8ae030>
+2026-03-13 16:12:08,347 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4820c2f0>
+2026-03-13 16:12:08,347 - dz_fastapi - DEBUG - Autopart already exists: ID 92795
+2026-03-13 16:12:08,347 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'PATRON', 'oem_number': 'PBS125', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,347 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='PATRON' oem_number='PBS125' name='Пластина Защитная' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,348 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'PATRON', 'oem_number': 'PBS125', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,348 - dz_fastapi - DEBUG - Extracted brand_name: PATRON
+2026-03-13 16:12:08,348 - dz_fastapi - DEBUG - Changed brand_name: PATRON
+2026-03-13 16:12:08,349 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbe41e50>
+2026-03-13 16:12:08,350 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff513088c0>
+2026-03-13 16:12:08,350 - dz_fastapi - DEBUG - Autopart already exists: ID 92796
+2026-03-13 16:12:08,350 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'PATRON', 'oem_number': 'PBS126', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,350 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='PATRON' oem_number='PBS126' name='Пластина Защитная' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,350 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'PATRON', 'oem_number': 'PBS126', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,350 - dz_fastapi - DEBUG - Extracted brand_name: PATRON
+2026-03-13 16:12:08,350 - dz_fastapi - DEBUG - Changed brand_name: PATRON
+2026-03-13 16:12:08,351 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff248d7710>
+2026-03-13 16:12:08,352 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff248d4410>
+2026-03-13 16:12:08,352 - dz_fastapi - DEBUG - Autopart already exists: ID 92797
+2026-03-13 16:12:08,352 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'PATRON', 'oem_number': 'PSRK0233', 'name': 'Набор Пружин', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,353 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='PATRON' oem_number='PSRK0233' name='Набор Пружин' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,353 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'PATRON', 'oem_number': 'PSRK0233', 'name': 'Набор Пружин', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,353 - dz_fastapi - DEBUG - Extracted brand_name: PATRON
+2026-03-13 16:12:08,353 - dz_fastapi - DEBUG - Changed brand_name: PATRON
+2026-03-13 16:12:08,354 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5130b200>
+2026-03-13 16:12:08,355 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2b0d6090>
+2026-03-13 16:12:08,355 - dz_fastapi - DEBUG - Autopart already exists: ID 92798
+2026-03-13 16:12:08,355 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'RENZO', 'oem_number': 'RFK084', 'name': 'Набор Пружин', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,355 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='RENZO' oem_number='RFK084' name='Набор Пружин' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,355 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'RENZO', 'oem_number': 'RFK084', 'name': 'Набор Пружин', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,355 - dz_fastapi - DEBUG - Extracted brand_name: RENZO
+2026-03-13 16:12:08,355 - dz_fastapi - DEBUG - Changed brand_name: RENZO
+2026-03-13 16:12:08,356 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,356 - dz_fastapi - WARNING - Brand RENZO not found. Skipping autopart creation.
+2026-03-13 16:12:08,356 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'RENZO', 'oem_number': 'RFK084', 'name': 'Набор Пружин', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,356 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'RENZO', 'oem_number': 'RFK101', 'name': 'Набор Пружин', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,356 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='RENZO' oem_number='RFK101' name='Набор Пружин' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,356 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'RENZO', 'oem_number': 'RFK101', 'name': 'Набор Пружин', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,357 - dz_fastapi - DEBUG - Extracted brand_name: RENZO
+2026-03-13 16:12:08,357 - dz_fastapi - DEBUG - Changed brand_name: RENZO
+2026-03-13 16:12:08,357 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,357 - dz_fastapi - WARNING - Brand RENZO not found. Skipping autopart creation.
+2026-03-13 16:12:08,357 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'RENZO', 'oem_number': 'RFK101', 'name': 'Набор Пружин', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,357 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SATA', 'oem_number': 'SAT09404', 'name': 'Набор Инструментов 101предмет', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,357 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SATA' oem_number='SAT09404' name='Набор Инструментов 101предмет' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,358 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SATA', 'oem_number': 'SAT09404', 'name': 'Набор Инструментов 101предмет', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,358 - dz_fastapi - DEBUG - Extracted brand_name: SATA
+2026-03-13 16:12:08,358 - dz_fastapi - DEBUG - Changed brand_name: SATA
+2026-03-13 16:12:08,358 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,358 - dz_fastapi - WARNING - Brand SATA not found. Skipping autopart creation.
+2026-03-13 16:12:08,358 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'SATA', 'oem_number': 'SAT09404', 'name': 'Набор Инструментов 101предмет', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,358 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SATA', 'oem_number': 'SAT09510', 'name': 'Набор Инструментов 150 Предметов', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,359 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SATA' oem_number='SAT09510' name='Набор Инструментов 150 Предметов' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,359 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SATA', 'oem_number': 'SAT09510', 'name': 'Набор Инструментов 150 Предметов', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,359 - dz_fastapi - DEBUG - Extracted brand_name: SATA
+2026-03-13 16:12:08,359 - dz_fastapi - DEBUG - Changed brand_name: SATA
+2026-03-13 16:12:08,359 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,359 - dz_fastapi - WARNING - Brand SATA not found. Skipping autopart creation.
+2026-03-13 16:12:08,360 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'SATA', 'oem_number': 'SAT09510', 'name': 'Набор Инструментов 150 Предметов', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,360 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SAT', 'oem_number': 'ST044950K120', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,360 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SAT' oem_number='ST044950K120' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,360 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SAT', 'oem_number': 'ST044950K120', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,360 - dz_fastapi - DEBUG - Extracted brand_name: SAT
+2026-03-13 16:12:08,360 - dz_fastapi - DEBUG - Changed brand_name: SAT
+2026-03-13 16:12:08,361 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5130acf0>
+2026-03-13 16:12:08,362 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a54d5e0>
+2026-03-13 16:12:08,362 - dz_fastapi - DEBUG - Autopart already exists: ID 92799
+2026-03-13 16:12:08,362 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SAT', 'oem_number': 'ST4650360100', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,362 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SAT' oem_number='ST4650360100' name='Пластина Защитная' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,362 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SAT', 'oem_number': 'ST4650360100', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,362 - dz_fastapi - DEBUG - Extracted brand_name: SAT
+2026-03-13 16:12:08,363 - dz_fastapi - DEBUG - Changed brand_name: SAT
+2026-03-13 16:12:08,363 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23743710>
+2026-03-13 16:12:08,365 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f71100>
+2026-03-13 16:12:08,365 - dz_fastapi - DEBUG - Autopart already exists: ID 92800
+2026-03-13 16:12:08,365 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SAT', 'oem_number': 'ST4650360131', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,365 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SAT' oem_number='ST4650360131' name='Пластина Защитная' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,365 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SAT', 'oem_number': 'ST4650360131', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,365 - dz_fastapi - DEBUG - Extracted brand_name: SAT
+2026-03-13 16:12:08,365 - dz_fastapi - DEBUG - Changed brand_name: SAT
+2026-03-13 16:12:08,366 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffeff803ce0>
+2026-03-13 16:12:08,367 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5130acf0>
+2026-03-13 16:12:08,367 - dz_fastapi - DEBUG - Autopart already exists: ID 92801
+2026-03-13 16:12:08,367 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SAT', 'oem_number': 'ST4650360221', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,367 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SAT' oem_number='ST4650360221' name='Пластина Защитная' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,367 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SAT', 'oem_number': 'ST4650360221', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,367 - dz_fastapi - DEBUG - Extracted brand_name: SAT
+2026-03-13 16:12:08,368 - dz_fastapi - DEBUG - Changed brand_name: SAT
+2026-03-13 16:12:08,369 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5148c290>
+2026-03-13 16:12:08,370 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de2ae0>
+2026-03-13 16:12:08,370 - dz_fastapi - DEBUG - Autopart already exists: ID 92802
+2026-03-13 16:12:08,370 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SAT', 'oem_number': 'ST4650460060', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,370 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SAT' oem_number='ST4650460060' name='Пластина Защитная' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,370 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SAT', 'oem_number': 'ST4650460060', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,370 - dz_fastapi - DEBUG - Extracted brand_name: SAT
+2026-03-13 16:12:08,370 - dz_fastapi - DEBUG - Changed brand_name: SAT
+2026-03-13 16:12:08,371 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b1cfd70>
+2026-03-13 16:12:08,372 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de1880>
+2026-03-13 16:12:08,372 - dz_fastapi - DEBUG - Autopart already exists: ID 92803
+2026-03-13 16:12:08,373 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SAT', 'oem_number': 'ST4650460091', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,373 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SAT' oem_number='ST4650460091' name='Пластина Защитная' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,373 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SAT', 'oem_number': 'ST4650460091', 'name': 'Пластина Защитная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,373 - dz_fastapi - DEBUG - Extracted brand_name: SAT
+2026-03-13 16:12:08,373 - dz_fastapi - DEBUG - Changed brand_name: SAT
+2026-03-13 16:12:08,374 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20454b60>
+2026-03-13 16:12:08,375 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb8bf0>
+2026-03-13 16:12:08,375 - dz_fastapi - DEBUG - Autopart already exists: ID 92804
+2026-03-13 16:12:08,375 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SAT', 'oem_number': 'ST4653034010', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,375 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SAT' oem_number='ST4653034010' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,375 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SAT', 'oem_number': 'ST4653034010', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,375 - dz_fastapi - DEBUG - Extracted brand_name: SAT
+2026-03-13 16:12:08,375 - dz_fastapi - DEBUG - Changed brand_name: SAT
+2026-03-13 16:12:08,376 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefb6163f0>
+2026-03-13 16:12:08,377 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae448f0>
+2026-03-13 16:12:08,377 - dz_fastapi - DEBUG - Autopart already exists: ID 92805
+2026-03-13 16:12:08,378 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'PARAUT', 'oem_number': 'T283042', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,378 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='PARAUT' oem_number='T283042' name='Колодки Торм. Барабан.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,378 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'PARAUT', 'oem_number': 'T283042', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,378 - dz_fastapi - DEBUG - Extracted brand_name: PARAUT
+2026-03-13 16:12:08,378 - dz_fastapi - DEBUG - Changed brand_name: PARAUT
+2026-03-13 16:12:08,378 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,379 - dz_fastapi - WARNING - Brand PARAUT not found. Skipping autopart creation.
+2026-03-13 16:12:08,379 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'PARAUT', 'oem_number': 'T283042', 'name': 'Колодки Торм. Барабан.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,379 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SCHNIEDER', 'oem_number': '0446548050', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,379 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SCHNIEDER' oem_number='0446548050' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,379 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SCHNIEDER', 'oem_number': '0446548050', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,379 - dz_fastapi - DEBUG - Extracted brand_name: SCHNIEDER
+2026-03-13 16:12:08,379 - dz_fastapi - DEBUG - Changed brand_name: SCHNIEDER
+2026-03-13 16:12:08,380 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,380 - dz_fastapi - WARNING - Brand SCHNIEDER not found. Skipping autopart creation.
+2026-03-13 16:12:08,380 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'SCHNIEDER', 'oem_number': '0446548050', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,380 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CENTRIC', 'oem_number': '10513030', 'name': 'Колодки Торм. Диск.В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,380 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='CENTRIC' oem_number='10513030' name='Колодки Торм. Диск.В Сборе' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,380 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'CENTRIC', 'oem_number': '10513030', 'name': 'Колодки Торм. Диск.В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,380 - dz_fastapi - DEBUG - Extracted brand_name: CENTRIC
+2026-03-13 16:12:08,380 - dz_fastapi - DEBUG - Changed brand_name: CENTRIC
+2026-03-13 16:12:08,381 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,381 - dz_fastapi - WARNING - Brand CENTRIC not found. Skipping autopart creation.
+2026-03-13 16:12:08,381 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'CENTRIC', 'oem_number': '10513030', 'name': 'Колодки Торм. Диск.В Сборе', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,381 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CENTRIC', 'oem_number': '10513040', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,381 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='CENTRIC' oem_number='10513040' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,381 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'CENTRIC', 'oem_number': '10513040', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,381 - dz_fastapi - DEBUG - Extracted brand_name: CENTRIC
+2026-03-13 16:12:08,381 - dz_fastapi - DEBUG - Changed brand_name: CENTRIC
+2026-03-13 16:12:08,382 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,382 - dz_fastapi - WARNING - Brand CENTRIC not found. Skipping autopart creation.
+2026-03-13 16:12:08,382 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'CENTRIC', 'oem_number': '10513040', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,382 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'REMSA', 'oem_number': '163610', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,382 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='REMSA' oem_number='163610' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,382 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'REMSA', 'oem_number': '163610', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,382 - dz_fastapi - DEBUG - Extracted brand_name: REMSA
+2026-03-13 16:12:08,382 - dz_fastapi - DEBUG - Changed brand_name: REMSA
+2026-03-13 16:12:08,383 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,383 - dz_fastapi - WARNING - Brand REMSA not found. Skipping autopart creation.
+2026-03-13 16:12:08,383 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'REMSA', 'oem_number': '163610', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,383 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'POWER STOP', 'oem_number': '171303', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,383 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='POWER STOP' oem_number='171303' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,383 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'POWER STOP', 'oem_number': '171303', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,383 - dz_fastapi - DEBUG - Extracted brand_name: POWER STOP
+2026-03-13 16:12:08,383 - dz_fastapi - DEBUG - Changed brand_name: POWER STOP
+2026-03-13 16:12:08,384 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,384 - dz_fastapi - WARNING - Brand POWER STOP not found. Skipping autopart creation.
+2026-03-13 16:12:08,384 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'POWER STOP', 'oem_number': '171303', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,384 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'POWER STOP', 'oem_number': '171304', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,384 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='POWER STOP' oem_number='171304' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,384 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'POWER STOP', 'oem_number': '171304', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,385 - dz_fastapi - DEBUG - Extracted brand_name: POWER STOP
+2026-03-13 16:12:08,385 - dz_fastapi - DEBUG - Changed brand_name: POWER STOP
+2026-03-13 16:12:08,385 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,385 - dz_fastapi - WARNING - Brand POWER STOP not found. Skipping autopart creation.
+2026-03-13 16:12:08,385 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'POWER STOP', 'oem_number': '171304', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,385 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'POWER STOP', 'oem_number': '17606', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,386 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='POWER STOP' oem_number='17606' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,386 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'POWER STOP', 'oem_number': '17606', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,386 - dz_fastapi - DEBUG - Extracted brand_name: POWER STOP
+2026-03-13 16:12:08,386 - dz_fastapi - DEBUG - Changed brand_name: POWER STOP
+2026-03-13 16:12:08,386 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,386 - dz_fastapi - WARNING - Brand POWER STOP not found. Skipping autopart creation.
+2026-03-13 16:12:08,386 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'POWER STOP', 'oem_number': '17606', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,386 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'POWER STOP', 'oem_number': '17976', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,387 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='POWER STOP' oem_number='17976' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,387 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'POWER STOP', 'oem_number': '17976', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,387 - dz_fastapi - DEBUG - Extracted brand_name: POWER STOP
+2026-03-13 16:12:08,387 - dz_fastapi - DEBUG - Changed brand_name: POWER STOP
+2026-03-13 16:12:08,387 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,387 - dz_fastapi - WARNING - Brand POWER STOP not found. Skipping autopart creation.
+2026-03-13 16:12:08,388 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'POWER STOP', 'oem_number': '17976', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,388 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'BOSCH', 'oem_number': '1987474465', 'name': 'Скобы Колодок', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,388 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='BOSCH' oem_number='1987474465' name='Скобы Колодок' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,388 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'BOSCH', 'oem_number': '1987474465', 'name': 'Скобы Колодок', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,388 - dz_fastapi - DEBUG - Extracted brand_name: BOSCH
+2026-03-13 16:12:08,388 - dz_fastapi - DEBUG - Changed brand_name: BOSCH
+2026-03-13 16:12:08,389 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4aafadb0>
+2026-03-13 16:12:08,390 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39af0710>
+2026-03-13 16:12:08,390 - dz_fastapi - DEBUG - Autopart already exists: ID 92806
+2026-03-13 16:12:08,390 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'SIFFERT', 'oem_number': '2061', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,390 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='SIFFERT' oem_number='2061' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,391 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'SIFFERT', 'oem_number': '2061', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,391 - dz_fastapi - DEBUG - Extracted brand_name: SIFFERT
+2026-03-13 16:12:08,391 - dz_fastapi - DEBUG - Changed brand_name: SIFFERT
+2026-03-13 16:12:08,391 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,391 - dz_fastapi - WARNING - Brand SIFFERT not found. Skipping autopart creation.
+2026-03-13 16:12:08,391 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'SIFFERT', 'oem_number': '2061', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,392 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZIMMERMANN', 'oem_number': '219471551', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,392 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZIMMERMANN' oem_number='219471551' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,392 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZIMMERMANN', 'oem_number': '219471551', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,394 - dz_fastapi - DEBUG - Extracted brand_name: ZIMMERMANN
+2026-03-13 16:12:08,394 - dz_fastapi - DEBUG - Changed brand_name: ZIMMERMANN
+2026-03-13 16:12:08,394 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,394 - dz_fastapi - WARNING - Brand ZIMMERMANN not found. Skipping autopart creation.
+2026-03-13 16:12:08,394 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'ZIMMERMANN', 'oem_number': '219471551', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,395 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZIMMERMANN', 'oem_number': '224341451', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,395 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZIMMERMANN' oem_number='224341451' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,395 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZIMMERMANN', 'oem_number': '224341451', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,395 - dz_fastapi - DEBUG - Extracted brand_name: ZIMMERMANN
+2026-03-13 16:12:08,395 - dz_fastapi - DEBUG - Changed brand_name: ZIMMERMANN
+2026-03-13 16:12:08,396 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,396 - dz_fastapi - WARNING - Brand ZIMMERMANN not found. Skipping autopart creation.
+2026-03-13 16:12:08,396 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'ZIMMERMANN', 'oem_number': '224341451', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,396 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZIMMERMANN', 'oem_number': '227681651', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,396 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZIMMERMANN' oem_number='227681651' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,396 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZIMMERMANN', 'oem_number': '227681651', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,396 - dz_fastapi - DEBUG - Extracted brand_name: ZIMMERMANN
+2026-03-13 16:12:08,396 - dz_fastapi - DEBUG - Changed brand_name: ZIMMERMANN
+2026-03-13 16:12:08,397 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,397 - dz_fastapi - WARNING - Brand ZIMMERMANN not found. Skipping autopart creation.
+2026-03-13 16:12:08,397 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'ZIMMERMANN', 'oem_number': '227681651', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,397 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZIMMERMANN', 'oem_number': '243861801', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,397 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZIMMERMANN' oem_number='243861801' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,397 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZIMMERMANN', 'oem_number': '243861801', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,397 - dz_fastapi - DEBUG - Extracted brand_name: ZIMMERMANN
+2026-03-13 16:12:08,397 - dz_fastapi - DEBUG - Changed brand_name: ZIMMERMANN
+2026-03-13 16:12:08,398 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,398 - dz_fastapi - WARNING - Brand ZIMMERMANN not found. Skipping autopart creation.
+2026-03-13 16:12:08,398 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'ZIMMERMANN', 'oem_number': '243861801', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,398 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZIMMERMANN', 'oem_number': '244521752', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,398 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZIMMERMANN' oem_number='244521752' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,398 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZIMMERMANN', 'oem_number': '244521752', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,398 - dz_fastapi - DEBUG - Extracted brand_name: ZIMMERMANN
+2026-03-13 16:12:08,399 - dz_fastapi - DEBUG - Changed brand_name: ZIMMERMANN
+2026-03-13 16:12:08,399 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,399 - dz_fastapi - WARNING - Brand ZIMMERMANN not found. Skipping autopart creation.
+2026-03-13 16:12:08,399 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'ZIMMERMANN', 'oem_number': '244521752', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,399 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZIMMERMANN', 'oem_number': '246531751', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,399 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZIMMERMANN' oem_number='246531751' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,400 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZIMMERMANN', 'oem_number': '246531751', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,400 - dz_fastapi - DEBUG - Extracted brand_name: ZIMMERMANN
+2026-03-13 16:12:08,400 - dz_fastapi - DEBUG - Changed brand_name: ZIMMERMANN
+2026-03-13 16:12:08,400 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,400 - dz_fastapi - WARNING - Brand ZIMMERMANN not found. Skipping autopart creation.
+2026-03-13 16:12:08,400 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'ZIMMERMANN', 'oem_number': '246531751', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,400 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'POWER STOP', 'oem_number': '361524', 'name': 'Колодки Торм. Диск.  A1N166', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,400 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='POWER STOP' oem_number='361524' name='Колодки Торм. Диск.  A1N166' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,400 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'POWER STOP', 'oem_number': '361524', 'name': 'Колодки Торм. Диск.  A1N166', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,401 - dz_fastapi - DEBUG - Extracted brand_name: POWER STOP
+2026-03-13 16:12:08,401 - dz_fastapi - DEBUG - Changed brand_name: POWER STOP
+2026-03-13 16:12:08,401 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,401 - dz_fastapi - WARNING - Brand POWER STOP not found. Skipping autopart creation.
+2026-03-13 16:12:08,402 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'POWER STOP', 'oem_number': '361524', 'name': 'Колодки Торм. Диск.  A1N166', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,402 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOTL', 'oem_number': '43KT', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,402 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOTL' oem_number='43KT' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,402 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOTL', 'oem_number': '43KT', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,402 - dz_fastapi - DEBUG - Extracted brand_name: KOTL
+2026-03-13 16:12:08,402 - dz_fastapi - DEBUG - Changed brand_name: KOTL
+2026-03-13 16:12:08,403 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,403 - dz_fastapi - WARNING - Brand KOTL not found. Skipping autopart creation.
+2026-03-13 16:12:08,403 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'KOTL', 'oem_number': '43KT', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,403 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'МАРКОН', 'oem_number': '45502177', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,403 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='МАРКОН' oem_number='45502177' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,403 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'МАРКОН', 'oem_number': '45502177', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,403 - dz_fastapi - DEBUG - Extracted brand_name: МАРКОН
+2026-03-13 16:12:08,404 - dz_fastapi - DEBUG - Changed brand_name: 
+2026-03-13 16:12:08,404 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,404 - dz_fastapi - WARNING - Brand  not found. Skipping autopart creation.
+2026-03-13 16:12:08,404 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'МАРКОН', 'oem_number': '45502177', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,404 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'МАРКОН', 'oem_number': '504000165', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,405 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='МАРКОН' oem_number='504000165' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,405 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'МАРКОН', 'oem_number': '504000165', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,405 - dz_fastapi - DEBUG - Extracted brand_name: МАРКОН
+2026-03-13 16:12:08,405 - dz_fastapi - DEBUG - Changed brand_name: 
+2026-03-13 16:12:08,405 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,405 - dz_fastapi - WARNING - Brand  not found. Skipping autopart creation.
+2026-03-13 16:12:08,405 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'МАРКОН', 'oem_number': '504000165', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,405 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TEXTAR', 'oem_number': '82515100', 'name': 'Скобы Колодок', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,406 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TEXTAR' oem_number='82515100' name='Скобы Колодок' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,406 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TEXTAR', 'oem_number': '82515100', 'name': 'Скобы Колодок', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,406 - dz_fastapi - DEBUG - Extracted brand_name: TEXTAR
+2026-03-13 16:12:08,406 - dz_fastapi - DEBUG - Changed brand_name: TEXTAR
+2026-03-13 16:12:08,406 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:08,406 - dz_fastapi - WARNING - Brand TEXTAR not found. Skipping autopart creation.
+2026-03-13 16:12:08,406 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'TEXTAR', 'oem_number': '82515100', 'name': 'Скобы Колодок', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,407 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ADVICS', 'oem_number': 'A1N034', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,407 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ADVICS' oem_number='A1N034' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,407 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ADVICS', 'oem_number': 'A1N034', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,407 - dz_fastapi - DEBUG - Extracted brand_name: ADVICS
+2026-03-13 16:12:08,407 - dz_fastapi - DEBUG - Changed brand_name: ADVICS
+2026-03-13 16:12:08,408 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3b7c5610>
+2026-03-13 16:12:08,409 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3a6faa50>
+2026-03-13 16:12:08,409 - dz_fastapi - DEBUG - Autopart already exists: ID 92807
+2026-03-13 16:12:08,409 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ADVICS', 'oem_number': 'A1N068', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,409 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ADVICS' oem_number='A1N068' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,409 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ADVICS', 'oem_number': 'A1N068', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,410 - dz_fastapi - DEBUG - Extracted brand_name: ADVICS
+2026-03-13 16:12:08,410 - dz_fastapi - DEBUG - Changed brand_name: ADVICS
+2026-03-13 16:12:08,410 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff231bf110>
+2026-03-13 16:12:08,411 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2add0b30>
+2026-03-13 16:12:08,412 - dz_fastapi - DEBUG - Autopart already exists: ID 92808
+2026-03-13 16:12:08,412 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ADVICS', 'oem_number': 'A1N073', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,412 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ADVICS' oem_number='A1N073' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,412 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ADVICS', 'oem_number': 'A1N073', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,412 - dz_fastapi - DEBUG - Extracted brand_name: ADVICS
+2026-03-13 16:12:08,412 - dz_fastapi - DEBUG - Changed brand_name: ADVICS
+2026-03-13 16:12:08,413 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff231bd160>
+2026-03-13 16:12:08,414 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefc1ad490>
+2026-03-13 16:12:08,414 - dz_fastapi - DEBUG - Autopart already exists: ID 92809
+2026-03-13 16:12:08,414 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ADVICS', 'oem_number': 'A1N155', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,414 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ADVICS' oem_number='A1N155' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,414 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ADVICS', 'oem_number': 'A1N155', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,415 - dz_fastapi - DEBUG - Extracted brand_name: ADVICS
+2026-03-13 16:12:08,415 - dz_fastapi - DEBUG - Changed brand_name: ADVICS
+2026-03-13 16:12:08,416 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3b7c5610>
+2026-03-13 16:12:08,417 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a54fb90>
+2026-03-13 16:12:08,417 - dz_fastapi - DEBUG - Autopart already exists: ID 92810
+2026-03-13 16:12:08,417 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ADVICS', 'oem_number': 'A1N192', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,417 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ADVICS' oem_number='A1N192' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,417 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ADVICS', 'oem_number': 'A1N192', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,417 - dz_fastapi - DEBUG - Extracted brand_name: ADVICS
+2026-03-13 16:12:08,417 - dz_fastapi - DEBUG - Changed brand_name: ADVICS
+2026-03-13 16:12:08,418 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff265eb5f0>
+2026-03-13 16:12:08,419 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20ccda30>
+2026-03-13 16:12:08,419 - dz_fastapi - DEBUG - Autopart already exists: ID 21
+2026-03-13 16:12:08,419 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ADVICS', 'oem_number': 'A2N004', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,419 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ADVICS' oem_number='A2N004' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,420 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ADVICS', 'oem_number': 'A2N004', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,420 - dz_fastapi - DEBUG - Extracted brand_name: ADVICS
+2026-03-13 16:12:08,420 - dz_fastapi - DEBUG - Changed brand_name: ADVICS
+2026-03-13 16:12:08,421 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3a915f40>
+2026-03-13 16:12:08,422 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff23136240>
+2026-03-13 16:12:08,422 - dz_fastapi - DEBUG - Autopart already exists: ID 22
+2026-03-13 16:12:08,422 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ADVICS', 'oem_number': 'A2N104', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,422 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ADVICS' oem_number='A2N104' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,422 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ADVICS', 'oem_number': 'A2N104', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,422 - dz_fastapi - DEBUG - Extracted brand_name: ADVICS
+2026-03-13 16:12:08,422 - dz_fastapi - DEBUG - Changed brand_name: ADVICS
+2026-03-13 16:12:08,423 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbed9070>
+2026-03-13 16:12:08,424 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff23771430>
+2026-03-13 16:12:08,424 - dz_fastapi - DEBUG - Autopart already exists: ID 92811
+2026-03-13 16:12:08,424 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ADVICS', 'oem_number': 'A2N118', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,424 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ADVICS' oem_number='A2N118' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,425 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ADVICS', 'oem_number': 'A2N118', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,425 - dz_fastapi - DEBUG - Extracted brand_name: ADVICS
+2026-03-13 16:12:08,425 - dz_fastapi - DEBUG - Changed brand_name: ADVICS
+2026-03-13 16:12:08,426 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffeff803ce0>
+2026-03-13 16:12:08,427 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f72780>
+2026-03-13 16:12:08,427 - dz_fastapi - DEBUG - Autopart already exists: ID 23
+2026-03-13 16:12:08,427 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ADVICS', 'oem_number': 'A2N232', 'name': 'Колодки Торм. Задние', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,427 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ADVICS' oem_number='A2N232' name='Колодки Торм. Задние' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,427 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ADVICS', 'oem_number': 'A2N232', 'name': 'Колодки Торм. Задние', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,427 - dz_fastapi - DEBUG - Extracted brand_name: ADVICS
+2026-03-13 16:12:08,427 - dz_fastapi - DEBUG - Changed brand_name: ADVICS
+2026-03-13 16:12:08,428 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff70916960>
+2026-03-13 16:12:08,429 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff482deab0>
+2026-03-13 16:12:08,429 - dz_fastapi - DEBUG - Autopart already exists: ID 92812
+2026-03-13 16:12:08,429 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TENACITY', 'oem_number': 'AAMTO1087', 'name': 'Сайлентблок', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,430 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TENACITY' oem_number='AAMTO1087' name='Сайлентблок' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,430 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TENACITY', 'oem_number': 'AAMTO1087', 'name': 'Сайлентблок', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,430 - dz_fastapi - DEBUG - Extracted brand_name: TENACITY
+2026-03-13 16:12:08,430 - dz_fastapi - DEBUG - Changed brand_name: TENACITY
+2026-03-13 16:12:08,431 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1df40>
+2026-03-13 16:12:08,432 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5b1cfd70>
+2026-03-13 16:12:08,432 - dz_fastapi - DEBUG - Autopart already exists: ID 92813
+2026-03-13 16:12:08,432 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN113K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,432 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN113K' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,432 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN113K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,432 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,433 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,433 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a54f950>
+2026-03-13 16:12:08,434 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff248d7710>
+2026-03-13 16:12:08,434 - dz_fastapi - DEBUG - Autopart already exists: ID 92814
+2026-03-13 16:12:08,435 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN322K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,435 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN322K' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,435 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN322K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,435 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,435 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,436 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4820c2f0>
+2026-03-13 16:12:08,438 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a2aa9c0>
+2026-03-13 16:12:08,438 - dz_fastapi - DEBUG - Autopart already exists: ID 92815
+2026-03-13 16:12:08,438 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN334K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,438 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN334K' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,438 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN334K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,438 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,438 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,439 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2bdc4080>
+2026-03-13 16:12:08,440 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f71100>
+2026-03-13 16:12:08,440 - dz_fastapi - DEBUG - Autopart already exists: ID 92816
+2026-03-13 16:12:08,440 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN336WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,440 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN336WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,441 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN336WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,441 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,441 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,442 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefb614650>
+2026-03-13 16:12:08,443 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb87d0>
+2026-03-13 16:12:08,443 - dz_fastapi - DEBUG - Autopart already exists: ID 92817
+2026-03-13 16:12:08,443 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN337K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,443 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN337K' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,443 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN337K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,443 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,443 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,444 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2a68eb10>
+2026-03-13 16:12:08,445 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae448f0>
+2026-03-13 16:12:08,445 - dz_fastapi - DEBUG - Autopart already exists: ID 62
+2026-03-13 16:12:08,446 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN369WK', 'name': 'Колодки Торм. Задние', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,446 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN369WK' name='Колодки Торм. Задние' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,446 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN369WK', 'name': 'Колодки Торм. Задние', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,446 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,446 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,447 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff294f02f0>
+2026-03-13 16:12:08,448 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3a6faa50>
+2026-03-13 16:12:08,448 - dz_fastapi - DEBUG - Autopart already exists: ID 92818
+2026-03-13 16:12:08,448 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN396K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,448 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN396K' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,448 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN396K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,449 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,449 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,450 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237d2750>
+2026-03-13 16:12:08,451 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb87d0>
+2026-03-13 16:12:08,451 - dz_fastapi - DEBUG - Autopart already exists: ID 92819
+2026-03-13 16:12:08,451 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN398WK', 'name': 'Колодки Торм. Задние', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,451 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN398WK' name='Колодки Торм. Задние' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,451 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN398WK', 'name': 'Колодки Торм. Задние', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,451 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,451 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,452 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3b7c5610>
+2026-03-13 16:12:08,453 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff23136240>
+2026-03-13 16:12:08,453 - dz_fastapi - DEBUG - Autopart already exists: ID 92820
+2026-03-13 16:12:08,453 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN406WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,453 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN406WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,454 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN406WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,454 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,454 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,454 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb87d0>
+2026-03-13 16:12:08,455 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5b478950>
+2026-03-13 16:12:08,456 - dz_fastapi - DEBUG - Autopart already exists: ID 92821
+2026-03-13 16:12:08,456 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN413WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,456 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN413WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,456 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN413WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,456 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,456 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,457 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff70bd37a0>
+2026-03-13 16:12:08,458 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a697dd0>
+2026-03-13 16:12:08,458 - dz_fastapi - DEBUG - Autopart already exists: ID 92822
+2026-03-13 16:12:08,458 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN420WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,458 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN420WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,458 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN420WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,458 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,459 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,460 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2bdc4080>
+2026-03-13 16:12:08,461 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb87d0>
+2026-03-13 16:12:08,461 - dz_fastapi - DEBUG - Autopart already exists: ID 92823
+2026-03-13 16:12:08,461 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN458WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,461 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN458WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,462 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN458WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,462 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,462 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,463 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3a915f40>
+2026-03-13 16:12:08,464 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20f4e480>
+2026-03-13 16:12:08,464 - dz_fastapi - DEBUG - Autopart already exists: ID 92824
+2026-03-13 16:12:08,464 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN467K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,464 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN467K' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,464 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN467K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,464 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,465 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,465 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a695010>
+2026-03-13 16:12:08,466 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a697dd0>
+2026-03-13 16:12:08,467 - dz_fastapi - DEBUG - Autopart already exists: ID 92825
+2026-03-13 16:12:08,467 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN469WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,467 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN469WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,467 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN469WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,467 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,467 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,468 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237d09b0>
+2026-03-13 16:12:08,469 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5b59e840>
+2026-03-13 16:12:08,469 - dz_fastapi - DEBUG - Autopart already exists: ID 92826
+2026-03-13 16:12:08,469 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN484WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,469 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN484WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,469 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN484WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,469 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,469 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,470 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a697dd0>
+2026-03-13 16:12:08,472 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a695010>
+2026-03-13 16:12:08,472 - dz_fastapi - DEBUG - Autopart already exists: ID 92827
+2026-03-13 16:12:08,472 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN489WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,472 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN489WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,472 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN489WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,472 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,472 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,473 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237a7c50>
+2026-03-13 16:12:08,474 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237a5eb0>
+2026-03-13 16:12:08,474 - dz_fastapi - DEBUG - Autopart already exists: ID 92828
+2026-03-13 16:12:08,475 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN498WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,475 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN498WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,475 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN498WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,475 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,475 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,476 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a697dd0>
+2026-03-13 16:12:08,477 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefeeb80e0>
+2026-03-13 16:12:08,477 - dz_fastapi - DEBUG - Autopart already exists: ID 67
+2026-03-13 16:12:08,477 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN499K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,478 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN499K' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,478 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN499K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,478 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,478 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,479 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff51309ac0>
+2026-03-13 16:12:08,480 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de1820>
+2026-03-13 16:12:08,480 - dz_fastapi - DEBUG - Autopart already exists: ID 63
+2026-03-13 16:12:08,480 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN547WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,480 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN547WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,480 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN547WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,480 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,480 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,481 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23dee1e0>
+2026-03-13 16:12:08,482 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f71160>
+2026-03-13 16:12:08,482 - dz_fastapi - DEBUG - Autopart already exists: ID 92829
+2026-03-13 16:12:08,482 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN569K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,483 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN569K' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,483 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN569K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,483 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,483 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,484 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a07b740>
+2026-03-13 16:12:08,485 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a695010>
+2026-03-13 16:12:08,485 - dz_fastapi - DEBUG - Autopart already exists: ID 92830
+2026-03-13 16:12:08,485 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN603K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,485 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN603K' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,485 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN603K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,485 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,485 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,486 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39af0710>
+2026-03-13 16:12:08,487 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff231bd160>
+2026-03-13 16:12:08,487 - dz_fastapi - DEBUG - Autopart already exists: ID 92831
+2026-03-13 16:12:08,487 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN604K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,487 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN604K' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,488 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN604K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,488 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,488 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,489 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefb614650>
+2026-03-13 16:12:08,490 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff23743710>
+2026-03-13 16:12:08,490 - dz_fastapi - DEBUG - Autopart already exists: ID 92832
+2026-03-13 16:12:08,490 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN606K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,490 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN606K' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,490 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN606K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,490 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,490 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,491 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefeeb80e0>
+2026-03-13 16:12:08,492 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237731d0>
+2026-03-13 16:12:08,492 - dz_fastapi - DEBUG - Autopart already exists: ID 92833
+2026-03-13 16:12:08,492 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN634WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,493 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN634WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,493 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN634WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,493 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,493 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,494 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff70b681d0>
+2026-03-13 16:12:08,495 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20ccda30>
+2026-03-13 16:12:08,495 - dz_fastapi - DEBUG - Autopart already exists: ID 92834
+2026-03-13 16:12:08,495 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN635WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,495 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN635WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,495 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN635WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,495 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,495 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,496 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff231be510>
+2026-03-13 16:12:08,497 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff51309ac0>
+2026-03-13 16:12:08,497 - dz_fastapi - DEBUG - Autopart already exists: ID 92835
+2026-03-13 16:12:08,497 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN636K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,498 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN636K' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,498 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN636K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,498 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,498 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,499 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20454b60>
+2026-03-13 16:12:08,500 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de15e0>
+2026-03-13 16:12:08,500 - dz_fastapi - DEBUG - Autopart already exists: ID 92836
+2026-03-13 16:12:08,500 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN638WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,500 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN638WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,500 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN638WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,500 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,501 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,501 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff281d6210>
+2026-03-13 16:12:08,502 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2a68eb10>
+2026-03-13 16:12:08,503 - dz_fastapi - DEBUG - Autopart already exists: ID 92837
+2026-03-13 16:12:08,503 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN639WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,503 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN639WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,503 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN639WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,503 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,503 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,504 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23743710>
+2026-03-13 16:12:08,505 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237a5eb0>
+2026-03-13 16:12:08,505 - dz_fastapi - DEBUG - Autopart already exists: ID 64
+2026-03-13 16:12:08,506 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN640K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,506 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN640K' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,506 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN640K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,506 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,506 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,507 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff265e9550>
+2026-03-13 16:12:08,508 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff265eb5f0>
+2026-03-13 16:12:08,508 - dz_fastapi - DEBUG - Autopart already exists: ID 92838
+2026-03-13 16:12:08,508 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN652K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,508 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN652K' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,508 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN652K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,509 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,509 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,509 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4820c2f0>
+2026-03-13 16:12:08,511 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237a5eb0>
+2026-03-13 16:12:08,511 - dz_fastapi - DEBUG - Autopart already exists: ID 65
+2026-03-13 16:12:08,511 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN658WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,511 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN658WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,511 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN658WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,511 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,511 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,512 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23ee15b0>
+2026-03-13 16:12:08,513 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae46810>
+2026-03-13 16:12:08,513 - dz_fastapi - DEBUG - Autopart already exists: ID 92839
+2026-03-13 16:12:08,513 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN659K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,513 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN659K' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,514 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN659K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,514 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,514 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,515 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2a543890>
+2026-03-13 16:12:08,516 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2a68eb10>
+2026-03-13 16:12:08,516 - dz_fastapi - DEBUG - Autopart already exists: ID 92840
+2026-03-13 16:12:08,516 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN670K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,516 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN670K' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,516 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN670K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,516 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,516 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,517 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20ccda30>
+2026-03-13 16:12:08,518 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff70bd37a0>
+2026-03-13 16:12:08,518 - dz_fastapi - DEBUG - Autopart already exists: ID 92841
+2026-03-13 16:12:08,518 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN671K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,518 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN671K' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,518 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN671K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,519 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,519 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,520 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2bdc4080>
+2026-03-13 16:12:08,521 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2bdc6060>
+2026-03-13 16:12:08,521 - dz_fastapi - DEBUG - Autopart already exists: ID 92842
+2026-03-13 16:12:08,521 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN678WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,521 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN678WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,521 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN678WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,521 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,521 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,522 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a07b740>
+2026-03-13 16:12:08,523 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff706c4800>
+2026-03-13 16:12:08,523 - dz_fastapi - DEBUG - Autopart already exists: ID 92843
+2026-03-13 16:12:08,523 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN687WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,523 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN687WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,524 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN687WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,524 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,524 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,525 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237731d0>
+2026-03-13 16:12:08,526 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffeff803ce0>
+2026-03-13 16:12:08,526 - dz_fastapi - DEBUG - Autopart already exists: ID 68
+2026-03-13 16:12:08,526 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN688WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,526 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN688WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,526 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN688WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,527 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,527 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,528 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb8bf0>
+2026-03-13 16:12:08,529 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff231bc6b0>
+2026-03-13 16:12:08,529 - dz_fastapi - DEBUG - Autopart already exists: ID 92844
+2026-03-13 16:12:08,529 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN690WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,529 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN690WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,529 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN690WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,529 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,530 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,531 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff70bd37a0>
+2026-03-13 16:12:08,532 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f71160>
+2026-03-13 16:12:08,532 - dz_fastapi - DEBUG - Autopart already exists: ID 73
+2026-03-13 16:12:08,532 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN699WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,532 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN699WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,532 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN699WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,532 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,532 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,533 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3b05f650>
+2026-03-13 16:12:08,534 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5b59e840>
+2026-03-13 16:12:08,534 - dz_fastapi - DEBUG - Autopart already exists: ID 92845
+2026-03-13 16:12:08,534 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN708WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,535 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN708WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,535 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN708WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,535 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,535 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,536 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefb1f0620>
+2026-03-13 16:12:08,537 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f71100>
+2026-03-13 16:12:08,537 - dz_fastapi - DEBUG - Autopart already exists: ID 92846
+2026-03-13 16:12:08,537 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN709WK', 'name': 'Колодки Торм. Задние', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,537 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN709WK' name='Колодки Торм. Задние' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,537 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN709WK', 'name': 'Колодки Торм. Задние', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,537 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,537 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,538 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a2aa9c0>
+2026-03-13 16:12:08,539 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de16a0>
+2026-03-13 16:12:08,539 - dz_fastapi - DEBUG - Autopart already exists: ID 92847
+2026-03-13 16:12:08,539 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN713WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,539 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN713WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,540 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN713WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,540 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,540 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,541 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b1cfd70>
+2026-03-13 16:12:08,542 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de3830>
+2026-03-13 16:12:08,542 - dz_fastapi - DEBUG - Autopart already exists: ID 92848
+2026-03-13 16:12:08,542 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN714K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,542 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN714K' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,542 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN714K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,543 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,543 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,544 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae45bb0>
+2026-03-13 16:12:08,545 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff23ee15b0>
+2026-03-13 16:12:08,545 - dz_fastapi - DEBUG - Autopart already exists: ID 92849
+2026-03-13 16:12:08,545 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN715K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,545 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN715K' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,545 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN715K', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,545 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,545 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,546 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b59e840>
+2026-03-13 16:12:08,547 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a2aa9c0>
+2026-03-13 16:12:08,547 - dz_fastapi - DEBUG - Autopart already exists: ID 92850
+2026-03-13 16:12:08,548 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN716WK', 'name': 'Колодки Торм. Задние', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,548 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN716WK' name='Колодки Торм. Задние' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,548 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN716WK', 'name': 'Колодки Торм. Задние', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,548 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,548 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO
+2026-03-13 16:12:08,549 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a07b740>
+2026-03-13 16:12:08,550 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff513099d0>
+2026-03-13 16:12:08,550 - dz_fastapi - DEBUG - Autopart already exists: ID 92851
+2026-03-13 16:12:08,550 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'AKEBONO', 'oem_number': 'AN722WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,550 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='AKEBONO' oem_number='AN722WK' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:08,550 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'AKEBONO', 'oem_number': 'AN722WK', 'name': 'Колодки Торм. Диск.', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:08,550 - dz_fastapi - DEBUG - Extracted brand_name: AKEBONO
+2026-03-13 16:12:08,550 - dz_fastapi - DEBUG - Changed brand_name: AKEBONO

@@ -1,0 +1,1268 @@
+2026-03-13 16:11:46,141 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888083717', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,181 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,181 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,183 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1de80>
+2026-03-13 16:11:46,185 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1dbe0>
+2026-03-13 16:11:46,185 - dz_fastapi - DEBUG - Autopart already exists: ID 86902
+2026-03-13 16:11:46,185 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888083885', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,185 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888083885' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,185 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888083885', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,185 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,185 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,186 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7e330>
+2026-03-13 16:11:46,188 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7ca70>
+2026-03-13 16:11:46,188 - dz_fastapi - DEBUG - Autopart already exists: ID 93810
+2026-03-13 16:11:46,188 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888083885GO', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,188 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888083885GO' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,188 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888083885GO', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,189 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,189 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,190 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7f290>
+2026-03-13 16:11:46,190 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7dd90>
+2026-03-13 16:11:46,191 - dz_fastapi - DEBUG - Autopart already exists: ID 86903
+2026-03-13 16:11:46,191 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888084081', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,191 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888084081' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,191 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888084081', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,191 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,191 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,192 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7c830>
+2026-03-13 16:11:46,193 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7cd10>
+2026-03-13 16:11:46,193 - dz_fastapi - DEBUG - Autopart already exists: ID 86904
+2026-03-13 16:11:46,194 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888084106', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,194 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888084106' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,194 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888084106', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,194 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,194 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,195 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7f290>
+2026-03-13 16:11:46,196 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7d340>
+2026-03-13 16:11:46,196 - dz_fastapi - DEBUG - Autopart already exists: ID 86905
+2026-03-13 16:11:46,196 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888084131', 'name': 'Масло 5W30 SP', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,196 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888084131' name='Масло 5W30 SP' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,197 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888084131', 'name': 'Масло 5W30 SP', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,197 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,197 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,198 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7c830>
+2026-03-13 16:11:46,199 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7fa70>
+2026-03-13 16:11:46,199 - dz_fastapi - DEBUG - Autopart already exists: ID 86906
+2026-03-13 16:11:46,199 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888084132', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,199 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888084132' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,199 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888084132', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,199 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,200 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,200 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7f290>
+2026-03-13 16:11:46,201 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7cf80>
+2026-03-13 16:11:46,201 - dz_fastapi - DEBUG - Autopart already exists: ID 86907
+2026-03-13 16:11:46,202 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888084355', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,202 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888084355' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,202 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888084355', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,202 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,202 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,203 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7c830>
+2026-03-13 16:11:46,204 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7cef0>
+2026-03-13 16:11:46,204 - dz_fastapi - DEBUG - Autopart already exists: ID 86908
+2026-03-13 16:11:46,204 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888084356', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,204 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888084356' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,204 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888084356', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,204 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,205 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,206 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7e060>
+2026-03-13 16:11:46,207 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7c4a0>
+2026-03-13 16:11:46,207 - dz_fastapi - DEBUG - Autopart already exists: ID 86909
+2026-03-13 16:11:46,207 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888085324', 'name': 'Масло  Дизель   PFE', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,207 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888085324' name='Масло  Дизель   PFE' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,207 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888085324', 'name': 'Масло  Дизель   PFE', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,207 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,207 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,208 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7e330>
+2026-03-13 16:11:46,209 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7fcb0>
+2026-03-13 16:11:46,209 - dz_fastapi - DEBUG - Autopart already exists: ID 86910
+2026-03-13 16:11:46,209 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888085326', 'name': 'Масло  Дизель   PFE', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,209 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888085326' name='Масло  Дизель   PFE' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,210 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888085326', 'name': 'Масло  Дизель   PFE', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,210 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,210 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,210 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7e2a0>
+2026-03-13 16:11:46,212 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7eb40>
+2026-03-13 16:11:46,212 - dz_fastapi - DEBUG - Autopart already exists: ID 86911
+2026-03-13 16:11:46,212 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888086074', 'name': 'Масло  Дизель   PFE', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,212 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888086074' name='Масло  Дизель   PFE' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,212 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888086074', 'name': 'Масло  Дизель   PFE', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,212 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,212 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,213 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7f350>
+2026-03-13 16:11:46,214 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7ffb0>
+2026-03-13 16:11:46,214 - dz_fastapi - DEBUG - Autopart already exists: ID 86912
+2026-03-13 16:11:46,214 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888086076', 'name': 'Масло  Дизель   PFE', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,214 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888086076' name='Масло  Дизель   PFE' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,215 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888086076', 'name': 'Масло  Дизель   PFE', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,215 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,215 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,216 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7c8c0>
+2026-03-13 16:11:46,217 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7c4a0>
+2026-03-13 16:11:46,217 - dz_fastapi - DEBUG - Autopart already exists: ID 86913
+2026-03-13 16:11:46,217 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888086294', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,217 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888086294' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,217 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888086294', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,218 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,218 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,219 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7f1d0>
+2026-03-13 16:11:46,220 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7c230>
+2026-03-13 16:11:46,220 - dz_fastapi - DEBUG - Autopart already exists: ID 86914
+2026-03-13 16:11:46,220 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888086296', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,220 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888086296' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,220 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888086296', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,220 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,220 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,221 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7e630>
+2026-03-13 16:11:46,222 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7fbc0>
+2026-03-13 16:11:46,222 - dz_fastapi - DEBUG - Autopart already exists: ID 86915
+2026-03-13 16:11:46,223 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888303105', 'name': 'Масло  Дизель  DL-1', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,223 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888303105' name='Масло  Дизель  DL-1' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,223 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888303105', 'name': 'Масло  Дизель  DL-1', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,223 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,223 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,224 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7cf80>
+2026-03-13 16:11:46,225 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7ecf0>
+2026-03-13 16:11:46,225 - dz_fastapi - DEBUG - Autopart already exists: ID 86916
+2026-03-13 16:11:46,225 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888502106', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,225 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888502106' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,225 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888502106', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,225 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,225 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,226 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7f1d0>
+2026-03-13 16:11:46,227 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7d0a0>
+2026-03-13 16:11:46,227 - dz_fastapi - DEBUG - Autopart already exists: ID 86917
+2026-03-13 16:11:46,227 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888502806', 'name': 'Масло LL80', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,227 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888502806' name='Масло LL80' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,228 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888502806', 'name': 'Масло LL80', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,228 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,228 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,229 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7db20>
+2026-03-13 16:11:46,230 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7c560>
+2026-03-13 16:11:46,230 - dz_fastapi - DEBUG - Autopart already exists: ID 86918
+2026-03-13 16:11:46,230 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888502906', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,230 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888502906' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,230 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888502906', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,230 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,231 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,231 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7ca70>
+2026-03-13 16:11:46,233 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7f6e0>
+2026-03-13 16:11:46,233 - dz_fastapi - DEBUG - Autopart already exists: ID 86919
+2026-03-13 16:11:46,233 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888503106', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,233 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888503106' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,233 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888503106', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,233 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,233 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,234 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1de80>
+2026-03-13 16:11:46,235 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1da00>
+2026-03-13 16:11:46,235 - dz_fastapi - DEBUG - Autopart already exists: ID 86920
+2026-03-13 16:11:46,235 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888503605', 'name': 'Масло LSD', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,235 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888503605' name='Масло LSD' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,236 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888503605', 'name': 'Масло LSD', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,236 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,236 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,237 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1dbe0>
+2026-03-13 16:11:46,238 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d2b0>
+2026-03-13 16:11:46,238 - dz_fastapi - DEBUG - Autopart already exists: ID 86921
+2026-03-13 16:11:46,238 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888509109', 'name': 'Масло ND-OIL8 C134A', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,238 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888509109' name='Масло ND-OIL8 C134A' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,238 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888509109', 'name': 'Масло ND-OIL8 C134A', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,238 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,238 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,239 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e450>
+2026-03-13 16:11:46,240 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d100>
+2026-03-13 16:11:46,240 - dz_fastapi - DEBUG - Autopart already exists: ID 86922
+2026-03-13 16:11:46,240 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888581001', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,240 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888581001' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,241 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888581001', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,241 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,241 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,242 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1cf80>
+2026-03-13 16:11:46,243 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e840>
+2026-03-13 16:11:46,243 - dz_fastapi - DEBUG - Autopart already exists: ID 86923
+2026-03-13 16:11:46,243 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888581060', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,243 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888581060' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,243 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888581060', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,243 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,243 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,244 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1de50>
+2026-03-13 16:11:46,245 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d580>
+2026-03-13 16:11:46,245 - dz_fastapi - DEBUG - Autopart already exists: ID 86924
+2026-03-13 16:11:46,245 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888581070', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,246 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888581070' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,246 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888581070', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,246 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,246 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,247 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d2b0>
+2026-03-13 16:11:46,248 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d4c0>
+2026-03-13 16:11:46,248 - dz_fastapi - DEBUG - Autopart already exists: ID 86925
+2026-03-13 16:11:46,248 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888581081', 'name': 'Масло 75W', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,248 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888581081' name='Масло 75W' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,248 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888581081', 'name': 'Масло 75W', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,248 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,249 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,249 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1cf80>
+2026-03-13 16:11:46,250 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e450>
+2026-03-13 16:11:46,250 - dz_fastapi - DEBUG - Autopart already exists: ID 86926
+2026-03-13 16:11:46,251 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888581086', 'name': 'Масло LL80', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,251 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888581086' name='Масло LL80' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,251 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888581086', 'name': 'Масло LL80', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,251 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,251 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,252 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d550>
+2026-03-13 16:11:46,253 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d9d0>
+2026-03-13 16:11:46,253 - dz_fastapi - DEBUG - Autopart already exists: ID 86927
+2026-03-13 16:11:46,253 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888581592', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,253 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888581592' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,253 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888581592', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,253 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,254 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,255 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e960>
+2026-03-13 16:11:46,256 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d6a0>
+2026-03-13 16:11:46,256 - dz_fastapi - DEBUG - Autopart already exists: ID 86928
+2026-03-13 16:11:46,256 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888581936', 'name': 'Масло LSD', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,256 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888581936' name='Масло LSD' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,256 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888581936', 'name': 'Масло LSD', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,256 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,257 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,257 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1deb0>
+2026-03-13 16:11:46,259 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1df70>
+2026-03-13 16:11:46,259 - dz_fastapi - DEBUG - Autopart already exists: ID 86929
+2026-03-13 16:11:46,259 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888601805', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,259 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888601805' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,259 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888601805', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,259 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,259 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,260 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d4c0>
+2026-03-13 16:11:46,261 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1da30>
+2026-03-13 16:11:46,261 - dz_fastapi - DEBUG - Autopart already exists: ID 86931
+2026-03-13 16:11:46,261 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888602503', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,261 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888602503' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,261 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888602503', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,261 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,262 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,263 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d550>
+2026-03-13 16:11:46,264 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e840>
+2026-03-13 16:11:46,264 - dz_fastapi - DEBUG - Autopart already exists: ID 86932
+2026-03-13 16:11:46,264 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888602605', 'name': 'Масло Для Гибридной Трансмисии', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,264 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888602605' name='Масло Для Гибридной Трансмисии' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,264 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888602605', 'name': 'Масло Для Гибридной Трансмисии', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,264 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,264 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,265 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e8d0>
+2026-03-13 16:11:46,266 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1da60>
+2026-03-13 16:11:46,266 - dz_fastapi - DEBUG - Autopart already exists: ID 93902
+2026-03-13 16:11:46,266 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888602803', 'name': 'Масло WS 20L', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,266 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888602803' name='Масло WS 20L' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,267 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888602803', 'name': 'Масло WS 20L', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,267 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,267 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,268 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d7f0>
+2026-03-13 16:11:46,269 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e960>
+2026-03-13 16:11:46,269 - dz_fastapi - DEBUG - Autopart already exists: ID 86933
+2026-03-13 16:11:46,269 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888602805', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,269 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888602805' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,269 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888602805', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,269 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,270 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,270 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e390>
+2026-03-13 16:11:46,271 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d280>
+2026-03-13 16:11:46,272 - dz_fastapi - DEBUG - Autopart already exists: ID 86934
+2026-03-13 16:11:46,272 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888602905', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,272 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888602905' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,272 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888602905', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,272 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,272 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,273 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e810>
+2026-03-13 16:11:46,274 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d6a0>
+2026-03-13 16:11:46,274 - dz_fastapi - DEBUG - Autopart already exists: ID 86935
+2026-03-13 16:11:46,274 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888603005', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,274 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888603005' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,274 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888603005', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,274 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,275 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,275 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d2e0>
+2026-03-13 16:11:46,276 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d4c0>
+2026-03-13 16:11:46,276 - dz_fastapi - DEBUG - Autopart already exists: ID 86936
+2026-03-13 16:11:46,277 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888680200', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,277 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888680200' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,277 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888680200', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,277 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,277 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,278 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d550>
+2026-03-13 16:11:46,279 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d580>
+2026-03-13 16:11:46,279 - dz_fastapi - DEBUG - Autopart already exists: ID 86937
+2026-03-13 16:11:46,279 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888680506', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,279 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888680506' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,279 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888680506', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,279 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,280 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,280 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7e3c0>
+2026-03-13 16:11:46,281 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7fe60>
+2026-03-13 16:11:46,281 - dz_fastapi - DEBUG - Autopart already exists: ID 86938
+2026-03-13 16:11:46,281 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888680807', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,281 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888680807' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,281 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888680807', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,282 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,282 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,282 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7d1c0>
+2026-03-13 16:11:46,283 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7e030>
+2026-03-13 16:11:46,283 - dz_fastapi - DEBUG - Autopart already exists: ID 86939
+2026-03-13 16:11:46,284 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888681210', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,284 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888681210' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,284 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888681210', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,284 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,284 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,285 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7e3c0>
+2026-03-13 16:11:46,286 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7c2f0>
+2026-03-13 16:11:46,286 - dz_fastapi - DEBUG - Autopart already exists: ID 86940
+2026-03-13 16:11:46,286 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888681250', 'name': 'Жидкость Для Гидроусилителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,286 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888681250' name='Жидкость Для Гидроусилителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,286 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888681250', 'name': 'Жидкость Для Гидроусилителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,286 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,287 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,287 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7d1c0>
+2026-03-13 16:11:46,289 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7c290>
+2026-03-13 16:11:46,289 - dz_fastapi - DEBUG - Autopart already exists: ID 86941
+2026-03-13 16:11:46,289 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888681260', 'name': 'Масло Гидравлическое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,289 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888681260' name='Масло Гидравлическое' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,289 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888681260', 'name': 'Масло Гидравлическое', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,289 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,289 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,290 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7e3c0>
+2026-03-13 16:11:46,291 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7d340>
+2026-03-13 16:11:46,291 - dz_fastapi - DEBUG - Autopart already exists: ID 86942
+2026-03-13 16:11:46,292 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888681855', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,292 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888681855' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,292 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888681855', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,292 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,292 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,293 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7d1c0>
+2026-03-13 16:11:46,294 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7f6e0>
+2026-03-13 16:11:46,294 - dz_fastapi - DEBUG - Autopart already exists: ID 93811
+2026-03-13 16:11:46,294 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888681875', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,295 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888681875' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,295 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888681875', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,295 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,295 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,296 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7e3c0>
+2026-03-13 16:11:46,297 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7e3f0>
+2026-03-13 16:11:46,297 - dz_fastapi - DEBUG - Autopart already exists: ID 86943
+2026-03-13 16:11:46,297 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888681886', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,297 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888681886' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,297 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888681886', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,297 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,297 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,298 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7d1c0>
+2026-03-13 16:11:46,299 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7cb90>
+2026-03-13 16:11:46,299 - dz_fastapi - DEBUG - Autopart already exists: ID 86944
+2026-03-13 16:11:46,299 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888681895', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,299 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888681895' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,299 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888681895', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,299 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,300 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,300 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7e3c0>
+2026-03-13 16:11:46,302 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7fcb0>
+2026-03-13 16:11:46,302 - dz_fastapi - DEBUG - Autopart already exists: ID 86945
+2026-03-13 16:11:46,302 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888681905', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,302 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888681905' name='Масло' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,302 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888681905', 'name': 'Масло', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,302 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,302 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,303 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7d100>
+2026-03-13 16:11:46,304 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7df70>
+2026-03-13 16:11:46,304 - dz_fastapi - DEBUG - Autopart already exists: ID 86946
+2026-03-13 16:11:46,304 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888780409', 'name': 'Смазка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,304 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888780409' name='Смазка' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,304 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888780409', 'name': 'Смазка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,304 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,305 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,306 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7d2b0>
+2026-03-13 16:11:46,307 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7e5a0>
+2026-03-13 16:11:46,307 - dz_fastapi - DEBUG - Autopart already exists: ID 86947
+2026-03-13 16:11:46,307 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888783010', 'name': 'Смазка Техническая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,307 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888783010' name='Смазка Техническая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,307 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888783010', 'name': 'Смазка Техническая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,307 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,307 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,308 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7ca40>
+2026-03-13 16:11:46,309 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7c350>
+2026-03-13 16:11:46,309 - dz_fastapi - DEBUG - Autopart already exists: ID 86948
+2026-03-13 16:11:46,309 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888980014', 'name': 'Антифриз', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,309 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888980014' name='Антифриз' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,309 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888980014', 'name': 'Антифриз', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,310 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,310 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,310 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7d220>
+2026-03-13 16:11:46,311 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7c800>
+2026-03-13 16:11:46,312 - dz_fastapi - DEBUG - Autopart already exists: ID 86949
+2026-03-13 16:11:46,312 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888980015', 'name': 'Антифриз', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,312 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888980015' name='Антифриз' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,312 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888980015', 'name': 'Антифриз', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,312 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,312 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,313 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7e450>
+2026-03-13 16:11:46,314 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7e780>
+2026-03-13 16:11:46,314 - dz_fastapi - DEBUG - Autopart already exists: ID 86950
+2026-03-13 16:11:46,314 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0888980490', 'name': 'Антифриз', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,314 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0888980490' name='Антифриз' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,314 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0888980490', 'name': 'Антифриз', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,314 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,314 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,315 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7c4d0>
+2026-03-13 16:11:46,316 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7f890>
+2026-03-13 16:11:46,316 - dz_fastapi - DEBUG - Autopart already exists: ID 86952
+2026-03-13 16:11:46,316 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0889081010', 'name': 'Мочевина AD BLUE', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,317 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0889081010' name='Мочевина AD BLUE' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,317 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0889081010', 'name': 'Мочевина AD BLUE', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,317 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,317 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,318 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7db50>
+2026-03-13 16:11:46,319 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7c7d0>
+2026-03-13 16:11:46,319 - dz_fastapi - DEBUG - Autopart already exists: ID 86953
+2026-03-13 16:11:46,319 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0889081020', 'name': 'Мочевина AD BLUE', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,319 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0889081020' name='Мочевина AD BLUE' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,319 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0889081020', 'name': 'Мочевина AD BLUE', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,319 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,320 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,320 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7c800>
+2026-03-13 16:11:46,322 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7d0a0>
+2026-03-13 16:11:46,322 - dz_fastapi - DEBUG - Autopart already exists: ID 86954
+2026-03-13 16:11:46,322 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0889280010', 'name': 'Клей С Вкраплениями Микроплёнки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,322 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0889280010' name='Клей С Вкраплениями Микроплёнки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,322 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0889280010', 'name': 'Клей С Вкраплениями Микроплёнки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,322 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,322 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,323 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7c4d0>
+2026-03-13 16:11:46,324 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7f200>
+2026-03-13 16:11:46,324 - dz_fastapi - DEBUG - Autopart already exists: ID 86955
+2026-03-13 16:11:46,324 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3537073013', 'name': 'Статор Акпп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,325 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3537073013' name='Статор Акпп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,325 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3537073013', 'name': 'Статор Акпп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,325 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,325 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,326 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1ea50>
+2026-03-13 16:11:46,327 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e1b0>
+2026-03-13 16:11:46,327 - dz_fastapi - DEBUG - Autopart already exists: ID 86956
+2026-03-13 16:11:46,327 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '7560642160C0', 'name': 'Молдинг', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,328 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='7560642160C0' name='Молдинг' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,328 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '7560642160C0', 'name': 'Молдинг', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,328 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,328 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,329 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e390>
+2026-03-13 16:11:46,330 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e510>
+2026-03-13 16:11:46,330 - dz_fastapi - DEBUG - Autopart already exists: ID 86957
+2026-03-13 16:11:46,330 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '7560678010', 'name': 'Молдинг', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,330 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='7560678010' name='Молдинг' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,330 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '7560678010', 'name': 'Молдинг', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,330 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,330 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,331 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1cf80>
+2026-03-13 16:11:46,332 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d760>
+2026-03-13 16:11:46,332 - dz_fastapi - DEBUG - Autopart already exists: ID 86958
+2026-03-13 16:11:46,332 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '0400032528', 'name': 'Р/К Охлаждения', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,332 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='0400032528' name='Р/К Охлаждения' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,333 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '0400032528', 'name': 'Р/К Охлаждения', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,333 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,333 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,334 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1ce60>
+2026-03-13 16:11:46,335 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e960>
+2026-03-13 16:11:46,335 - dz_fastapi - DEBUG - Autopart already exists: ID 86959
+2026-03-13 16:11:46,335 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3123612020', 'name': 'Кронштейн Вилки Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,335 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3123612020' name='Кронштейн Вилки Сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,335 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3123612020', 'name': 'Кронштейн Вилки Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,335 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,335 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,336 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1de50>
+2026-03-13 16:11:46,337 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d5b0>
+2026-03-13 16:11:46,337 - dz_fastapi - DEBUG - Autopart already exists: ID 70201
+2026-03-13 16:11:46,337 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3123630060', 'name': 'Кронштейн Вилки Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,337 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3123630060' name='Кронштейн Вилки Сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,337 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3123630060', 'name': 'Кронштейн Вилки Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,338 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,338 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,339 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e480>
+2026-03-13 16:11:46,340 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e120>
+2026-03-13 16:11:46,340 - dz_fastapi - DEBUG - Autopart already exists: ID 86960
+2026-03-13 16:11:46,340 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3123635030', 'name': 'Кронштейн Вилки Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,340 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3123635030' name='Кронштейн Вилки Сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,341 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3123635030', 'name': 'Кронштейн Вилки Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,341 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,341 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,342 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1ce60>
+2026-03-13 16:11:46,343 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1cf80>
+2026-03-13 16:11:46,343 - dz_fastapi - DEBUG - Autopart already exists: ID 86961
+2026-03-13 16:11:46,343 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '312500K061', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,343 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='312500K061' name='Диск Сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,343 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '312500K061', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,343 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,343 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,344 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d940>
+2026-03-13 16:11:46,345 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e870>
+2026-03-13 16:11:46,345 - dz_fastapi - DEBUG - Autopart already exists: ID 86962
+2026-03-13 16:11:46,345 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '312500K222', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,345 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='312500K222' name='Диск Сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,346 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '312500K222', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,346 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,346 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,347 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e150>
+2026-03-13 16:11:46,348 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e3c0>
+2026-03-13 16:11:46,348 - dz_fastapi - DEBUG - Autopart already exists: ID 86963
+2026-03-13 16:11:46,348 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '312500K281', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,348 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='312500K281' name='Диск Сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,348 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '312500K281', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,348 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,348 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,350 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e300>
+2026-03-13 16:11:46,351 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1cdd0>
+2026-03-13 16:11:46,351 - dz_fastapi - DEBUG - Autopart already exists: ID 86964
+2026-03-13 16:11:46,351 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3125012601', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,351 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3125012601' name='Диск Сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,351 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3125012601', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,351 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,351 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,352 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e120>
+2026-03-13 16:11:46,353 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e7e0>
+2026-03-13 16:11:46,353 - dz_fastapi - DEBUG - Autopart already exists: ID 70202
+2026-03-13 16:11:46,353 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3125019095', 'name': 'Диск Сцепления + Корзина', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,354 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3125019095' name='Диск Сцепления + Корзина' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,354 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3125019095', 'name': 'Диск Сцепления + Корзина', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,354 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,354 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,355 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d940>
+2026-03-13 16:11:46,356 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e960>
+2026-03-13 16:11:46,356 - dz_fastapi - DEBUG - Autopart already exists: ID 86965
+2026-03-13 16:11:46,356 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3125020353', 'name': 'Диск', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,356 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3125020353' name='Диск' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,356 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3125020353', 'name': 'Диск', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,356 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,356 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,357 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d880>
+2026-03-13 16:11:46,358 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e420>
+2026-03-13 16:11:46,358 - dz_fastapi - DEBUG - Autopart already exists: ID 86966
+2026-03-13 16:11:46,358 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3125026253', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,358 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3125026253' name='Диск Сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,358 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3125026253', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,358 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,359 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,359 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d2e0>
+2026-03-13 16:11:46,360 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e150>
+2026-03-13 16:11:46,360 - dz_fastapi - DEBUG - Autopart already exists: ID 86967
+2026-03-13 16:11:46,360 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3125033042', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,361 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3125033042' name='Диск Сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,361 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3125033042', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,361 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,361 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,362 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1df70>
+2026-03-13 16:11:46,363 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1dbb0>
+2026-03-13 16:11:46,363 - dz_fastapi - DEBUG - Autopart already exists: ID 70203
+2026-03-13 16:11:46,363 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3125042022', 'name': 'Диск', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,363 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3125042022' name='Диск' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,363 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3125042022', 'name': 'Диск', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,363 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,363 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,364 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1da00>
+2026-03-13 16:11:46,365 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e3c0>
+2026-03-13 16:11:46,365 - dz_fastapi - DEBUG - Autopart already exists: ID 4495
+2026-03-13 16:11:46,365 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3125042040', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,366 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3125042040' name='Диск Сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,366 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3125042040', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,366 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,366 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,367 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e450>
+2026-03-13 16:11:46,368 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e120>
+2026-03-13 16:11:46,368 - dz_fastapi - DEBUG - Autopart already exists: ID 26917
+2026-03-13 16:11:46,368 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3125060286', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,368 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3125060286' name='Диск Сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,368 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3125060286', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,368 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,368 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,369 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d940>
+2026-03-13 16:11:46,370 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d5b0>
+2026-03-13 16:11:46,370 - dz_fastapi - DEBUG - Autopart already exists: ID 86968
+2026-03-13 16:11:46,370 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3125060391', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,371 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3125060391' name='Диск Сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,371 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3125060391', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,371 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,371 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,372 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7c830>
+2026-03-13 16:11:46,373 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7ee70>
+2026-03-13 16:11:46,373 - dz_fastapi - DEBUG - Autopart already exists: ID 86969
+2026-03-13 16:11:46,373 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3127048030', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,373 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3127048030' name='Диск Сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,373 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3127048030', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,373 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,373 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,374 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7f110>
+2026-03-13 16:11:46,375 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7f920>
+2026-03-13 16:11:46,375 - dz_fastapi - DEBUG - Autopart already exists: ID 86971
+2026-03-13 16:11:46,375 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3129050010', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,375 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3129050010' name='Диск Сцепления' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,375 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3129050010', 'name': 'Диск Сцепления', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,375 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,376 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,376 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7c830>
+2026-03-13 16:11:46,378 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7df70>
+2026-03-13 16:11:46,378 - dz_fastapi - DEBUG - Autopart already exists: ID 86972
+2026-03-13 16:11:46,378 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '1634511010', 'name': 'Прокдадка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,378 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='1634511010' name='Прокдадка' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,378 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '1634511010', 'name': 'Прокдадка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,378 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,378 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,379 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7f110>
+2026-03-13 16:11:46,380 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7d640>
+2026-03-13 16:11:46,380 - dz_fastapi - DEBUG - Autopart already exists: ID 6744
+2026-03-13 16:11:46,380 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '1634551010', 'name': 'Прокдадка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,380 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='1634551010' name='Прокдадка' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,380 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '1634551010', 'name': 'Прокдадка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,380 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,381 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,381 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7c830>
+2026-03-13 16:11:46,382 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7fdd0>
+2026-03-13 16:11:46,382 - dz_fastapi - DEBUG - Autopart already exists: ID 86973
+2026-03-13 16:11:46,383 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3211620050', 'name': 'Прокладка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,383 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3211620050' name='Прокладка' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,383 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3211620050', 'name': 'Прокладка', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,383 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,383 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,384 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7f110>
+2026-03-13 16:11:46,385 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7ea80>
+2026-03-13 16:11:46,385 - dz_fastapi - DEBUG - Autopart already exists: ID 86975
+2026-03-13 16:11:46,385 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3510660H20', 'name': 'Поддон+Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,385 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3510660H20' name='Поддон+Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,385 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3510660H20', 'name': 'Поддон+Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,386 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,386 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,387 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7c830>
+2026-03-13 16:11:46,388 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7c080>
+2026-03-13 16:11:46,388 - dz_fastapi - DEBUG - Autopart already exists: ID 56084
+2026-03-13 16:11:46,388 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3512533100', 'name': 'Трубка Поддона Акпп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,388 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3512533100' name='Трубка Поддона Акпп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,388 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3512533100', 'name': 'Трубка Поддона Акпп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,388 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,388 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,389 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7f110>
+2026-03-13 16:11:46,390 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7f7a0>
+2026-03-13 16:11:46,390 - dz_fastapi - DEBUG - Autopart already exists: ID 86976
+2026-03-13 16:11:46,390 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3512573010', 'name': 'Трубка Поддона Акпп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,390 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3512573010' name='Трубка Поддона Акпп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,391 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3512573010', 'name': 'Трубка Поддона Акпп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,391 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,391 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,391 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7e180>
+2026-03-13 16:11:46,393 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7c440>
+2026-03-13 16:11:46,393 - dz_fastapi - DEBUG - Autopart already exists: ID 80460
+2026-03-13 16:11:46,393 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516812020', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,393 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516812020' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,393 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516812020', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,393 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,393 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,394 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7e600>
+2026-03-13 16:11:46,395 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7c4d0>
+2026-03-13 16:11:46,395 - dz_fastapi - DEBUG - Autopart already exists: ID 86977
+2026-03-13 16:11:46,395 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516812030', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,395 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516812030' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,395 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516812030', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,395 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,395 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,396 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7deb0>
+2026-03-13 16:11:46,397 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7f410>
+2026-03-13 16:11:46,397 - dz_fastapi - DEBUG - Autopart already exists: ID 86978
+2026-03-13 16:11:46,397 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516812060', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,398 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516812060' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,398 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516812060', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,398 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,398 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,399 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7fa40>
+2026-03-13 16:11:46,400 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7d9a0>
+2026-03-13 16:11:46,400 - dz_fastapi - DEBUG - Autopart already exists: ID 86979
+2026-03-13 16:11:46,401 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516812091', 'name': 'Прокладка Акп  -12091', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,401 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516812091' name='Прокладка Акп  -12091' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,401 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516812091', 'name': 'Прокладка Акп  -12091', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,401 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,401 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,402 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7dc70>
+2026-03-13 16:11:46,403 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7fdd0>
+2026-03-13 16:11:46,403 - dz_fastapi - DEBUG - Autopart already exists: ID 5625
+2026-03-13 16:11:46,403 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516820010', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,403 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516820010' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,403 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516820010', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,404 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,404 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,405 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7cb60>
+2026-03-13 16:11:46,406 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7e0f0>
+2026-03-13 16:11:46,406 - dz_fastapi - DEBUG - Autopart already exists: ID 86980
+2026-03-13 16:11:46,406 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516821011', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,406 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516821011' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,406 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516821011', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,406 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,407 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,407 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7c2c0>
+2026-03-13 16:11:46,408 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7d7c0>
+2026-03-13 16:11:46,409 - dz_fastapi - DEBUG - Autopart already exists: ID 86981
+2026-03-13 16:11:46,409 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516822011', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,409 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516822011' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,409 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516822011', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,409 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,409 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,410 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7d100>
+2026-03-13 16:11:46,411 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7d940>
+2026-03-13 16:11:46,411 - dz_fastapi - DEBUG - Autopart already exists: ID 86982
+2026-03-13 16:11:46,412 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516822020', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,412 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516822020' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,412 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516822020', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,412 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,412 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,413 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7cb60>
+2026-03-13 16:11:46,414 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7cb30>
+2026-03-13 16:11:46,414 - dz_fastapi - DEBUG - Autopart already exists: ID 86983
+2026-03-13 16:11:46,415 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516828020', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,415 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516828020' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,415 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516828020', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,415 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,415 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,416 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7c080>
+2026-03-13 16:11:46,417 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7ed80>
+2026-03-13 16:11:46,417 - dz_fastapi - DEBUG - Autopart already exists: ID 70229
+2026-03-13 16:11:46,417 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516830020', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,417 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516830020' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,417 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516830020', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,418 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,418 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,419 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e150>
+2026-03-13 16:11:46,420 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1de50>
+2026-03-13 16:11:46,420 - dz_fastapi - DEBUG - Autopart already exists: ID 86984
+2026-03-13 16:11:46,420 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516830030', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,420 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516830030' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,420 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516830030', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,420 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,420 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,421 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d4c0>
+2026-03-13 16:11:46,423 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e510>
+2026-03-13 16:11:46,423 - dz_fastapi - DEBUG - Autopart already exists: ID 6756
+2026-03-13 16:11:46,423 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516832010', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,423 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516832010' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,423 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516832010', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,423 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,423 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,424 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d6a0>
+2026-03-13 16:11:46,425 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d550>
+2026-03-13 16:11:46,425 - dz_fastapi - DEBUG - Autopart already exists: ID 5622
+2026-03-13 16:11:46,425 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516833020', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,425 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516833020' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,425 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516833020', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,425 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,426 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,426 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d3d0>
+2026-03-13 16:11:46,427 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1dfd0>
+2026-03-13 16:11:46,427 - dz_fastapi - DEBUG - Autopart already exists: ID 5623
+2026-03-13 16:11:46,428 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516833031', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,428 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516833031' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,428 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516833031', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,428 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,428 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,429 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1ea50>
+2026-03-13 16:11:46,430 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e390>
+2026-03-13 16:11:46,430 - dz_fastapi - DEBUG - Autopart already exists: ID 75869
+2026-03-13 16:11:46,430 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516833080', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,430 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516833080' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,430 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516833080', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,430 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,430 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,431 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1db80>
+2026-03-13 16:11:46,432 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d520>
+2026-03-13 16:11:46,432 - dz_fastapi - DEBUG - Autopart already exists: ID 86985
+2026-03-13 16:11:46,432 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516834020', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,432 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516834020' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,433 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516834020', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,433 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,433 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,434 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d3d0>
+2026-03-13 16:11:46,435 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e510>
+2026-03-13 16:11:46,435 - dz_fastapi - DEBUG - Autopart already exists: ID 86986
+2026-03-13 16:11:46,435 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516850010', 'name': 'Прокдадка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,435 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516850010' name='Прокдадка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,435 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516850010', 'name': 'Прокдадка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,435 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,436 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,436 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e120>
+2026-03-13 16:11:46,437 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1ea20>
+2026-03-13 16:11:46,437 - dz_fastapi - DEBUG - Autopart already exists: ID 86987
+2026-03-13 16:11:46,437 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516852010', 'name': 'Прокдадка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,438 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516852010' name='Прокдадка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,438 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516852010', 'name': 'Прокдадка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,438 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,438 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,439 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e540>
+2026-03-13 16:11:46,440 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1de80>
+2026-03-13 16:11:46,440 - dz_fastapi - DEBUG - Autopart already exists: ID 86988
+2026-03-13 16:11:46,440 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516852020', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,440 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516852020' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,440 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516852020', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,440 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,440 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,441 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1ce60>
+2026-03-13 16:11:46,442 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e810>
+2026-03-13 16:11:46,442 - dz_fastapi - DEBUG - Autopart already exists: ID 86989
+2026-03-13 16:11:46,442 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516852040', 'name': 'Прокдадка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,443 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516852040' name='Прокдадка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,443 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516852040', 'name': 'Прокдадка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,443 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,443 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,444 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d520>
+2026-03-13 16:11:46,445 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1da90>
+2026-03-13 16:11:46,445 - dz_fastapi - DEBUG - Autopart already exists: ID 86990
+2026-03-13 16:11:46,445 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516860010', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,445 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516860010' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,445 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516860010', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,445 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,446 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,446 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e120>
+2026-03-13 16:11:46,447 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1dfd0>
+2026-03-13 16:11:46,447 - dz_fastapi - DEBUG - Autopart already exists: ID 86991
+2026-03-13 16:11:46,448 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516860030', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,448 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516860030' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,448 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516860030', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,448 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,448 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,449 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d2b0>
+2026-03-13 16:11:46,450 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d280>
+2026-03-13 16:11:46,450 - dz_fastapi - DEBUG - Autopart already exists: ID 86992
+2026-03-13 16:11:46,450 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516860040', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,450 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516860040' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,450 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516860040', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,450 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,450 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,451 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e300>
+2026-03-13 16:11:46,452 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e540>
+2026-03-13 16:11:46,452 - dz_fastapi - DEBUG - Autopart already exists: ID 86993
+2026-03-13 16:11:46,453 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516863010', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,453 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516863010' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,453 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516863010', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,453 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,453 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,454 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d580>
+2026-03-13 16:11:46,455 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e900>
+2026-03-13 16:11:46,455 - dz_fastapi - DEBUG - Autopart already exists: ID 86994
+2026-03-13 16:11:46,455 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516871010', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,455 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516871010' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,455 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516871010', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,455 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,455 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,456 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e5d0>
+2026-03-13 16:11:46,457 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1de80>
+2026-03-13 16:11:46,457 - dz_fastapi - DEBUG - Autopart already exists: ID 86995
+2026-03-13 16:11:46,457 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3516873010', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,458 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3516873010' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,458 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3516873010', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,458 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,458 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,459 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d6a0>
+2026-03-13 16:11:46,460 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d520>
+2026-03-13 16:11:46,460 - dz_fastapi - DEBUG - Autopart already exists: ID 5624
+2026-03-13 16:11:46,460 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '35168B2020', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,460 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='35168B2020' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,460 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '35168B2020', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,460 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,460 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,461 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e120>
+2026-03-13 16:11:46,462 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e390>
+2026-03-13 16:11:46,462 - dz_fastapi - DEBUG - Autopart already exists: ID 86996
+2026-03-13 16:11:46,462 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '35168B2030', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,463 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='35168B2030' name='Прокладка Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,463 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '35168B2030', 'name': 'Прокладка Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,463 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,463 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,464 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7d3a0>
+2026-03-13 16:11:46,465 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7cc20>
+2026-03-13 16:11:46,465 - dz_fastapi - DEBUG - Autopart already exists: ID 80461
+2026-03-13 16:11:46,465 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3517830010', 'name': 'Кольцо Уплотнительное Сливного Отверстия', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,465 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3517830010' name='Кольцо Уплотнительное Сливного Отверстия' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,465 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3517830010', 'name': 'Кольцо Уплотнительное Сливного Отверстия', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,465 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,465 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,466 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7c830>
+2026-03-13 16:11:46,467 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7d340>
+2026-03-13 16:11:46,467 - dz_fastapi - DEBUG - Autopart already exists: ID 4751
+2026-03-13 16:11:46,467 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3517860010', 'name': 'Кольцо Уплотнительное', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,467 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3517860010' name='Кольцо Уплотнительное' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,467 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3517860010', 'name': 'Кольцо Уплотнительное', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,468 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,468 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,468 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7cf80>
+2026-03-13 16:11:46,470 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7d370>
+2026-03-13 16:11:46,470 - dz_fastapi - DEBUG - Autopart already exists: ID 86997
+2026-03-13 16:11:46,470 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3530048011', 'name': 'Насос Акпп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,470 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3530048011' name='Насос Акпп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,470 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3530048011', 'name': 'Насос Акпп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,470 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,470 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,471 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7c830>
+2026-03-13 16:11:46,472 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7e870>
+2026-03-13 16:11:46,472 - dz_fastapi - DEBUG - Autopart already exists: ID 86998
+2026-03-13 16:11:46,472 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3530330050', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,473 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3530330050' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,473 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3530330050', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,473 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,473 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,474 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7cf80>
+2026-03-13 16:11:46,475 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7c710>
+2026-03-13 16:11:46,475 - dz_fastapi - DEBUG - Autopart already exists: ID 86999
+2026-03-13 16:11:46,475 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '35303B2040', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,475 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='35303B2040' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,475 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '35303B2040', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,475 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,476 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,476 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7c830>
+2026-03-13 16:11:46,477 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7d670>
+2026-03-13 16:11:46,478 - dz_fastapi - DEBUG - Autopart already exists: ID 93812
+2026-03-13 16:11:46,478 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3531012200', 'name': 'Насос Акпп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,478 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3531012200' name='Насос Акпп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,478 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3531012200', 'name': 'Насос Акпп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,478 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,478 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,479 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7cf80>
+2026-03-13 16:11:46,480 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7e450>
+2026-03-13 16:11:46,480 - dz_fastapi - DEBUG - Autopart already exists: ID 87000
+2026-03-13 16:11:46,480 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533006010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,480 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533006010' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,480 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533006010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,480 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,481 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,481 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7c830>
+2026-03-13 16:11:46,483 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7f6e0>
+2026-03-13 16:11:46,483 - dz_fastapi - DEBUG - Autopart already exists: ID 87001
+2026-03-13 16:11:46,483 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533008010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,483 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533008010' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,483 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533008010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,483 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,483 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,484 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7d7c0>
+2026-03-13 16:11:46,485 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7ff20>
+2026-03-13 16:11:46,485 - dz_fastapi - DEBUG - Autopart already exists: ID 87002
+2026-03-13 16:11:46,485 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '353300C040', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,485 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='353300C040' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,485 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '353300C040', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,485 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,486 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,486 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7d100>
+2026-03-13 16:11:46,487 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7c440>
+2026-03-13 16:11:46,488 - dz_fastapi - DEBUG - Autopart already exists: ID 87003
+2026-03-13 16:11:46,488 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '353300W021', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,488 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='353300W021' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,488 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '353300W021', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,488 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,488 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,489 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7deb0>
+2026-03-13 16:11:46,490 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7ce30>
+2026-03-13 16:11:46,490 - dz_fastapi - DEBUG - Autopart already exists: ID 87004
+2026-03-13 16:11:46,490 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '353300W040', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,490 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='353300W040' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,490 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '353300W040', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,490 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,490 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,491 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7fb60>
+2026-03-13 16:11:46,492 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7f6e0>
+2026-03-13 16:11:46,492 - dz_fastapi - DEBUG - Autopart already exists: ID 6270
+2026-03-13 16:11:46,492 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '353300W060', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,493 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='353300W060' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,493 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '353300W060', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,493 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,493 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,494 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7cbc0>
+2026-03-13 16:11:46,495 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7fef0>
+2026-03-13 16:11:46,495 - dz_fastapi - DEBUG - Autopart already exists: ID 87005
+2026-03-13 16:11:46,495 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '353300W080', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,495 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='353300W080' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,495 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '353300W080', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,495 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,496 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,497 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7ea80>
+2026-03-13 16:11:46,498 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7c860>
+2026-03-13 16:11:46,498 - dz_fastapi - DEBUG - Autopart already exists: ID 87006
+2026-03-13 16:11:46,498 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '353300W090', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,498 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='353300W090' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,498 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '353300W090', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,498 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,498 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,499 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7dc70>
+2026-03-13 16:11:46,500 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7ddc0>
+2026-03-13 16:11:46,500 - dz_fastapi - DEBUG - Autopart already exists: ID 87007
+2026-03-13 16:11:46,500 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533011010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,500 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533011010' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,500 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533011010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,501 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,501 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,501 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7f6e0>
+2026-03-13 16:11:46,502 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7f230>
+2026-03-13 16:11:46,502 - dz_fastapi - DEBUG - Autopart already exists: ID 87008
+2026-03-13 16:11:46,503 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533012030', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,503 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533012030' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,503 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533012030', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,503 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,503 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,504 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7c6e0>
+2026-03-13 16:11:46,505 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7ec30>
+2026-03-13 16:11:46,505 - dz_fastapi - DEBUG - Autopart already exists: ID 87009
+2026-03-13 16:11:46,505 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533012040', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,505 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533012040' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,505 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533012040', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,506 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,506 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,507 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7e6f0>
+2026-03-13 16:11:46,508 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7ef00>
+2026-03-13 16:11:46,508 - dz_fastapi - DEBUG - Autopart already exists: ID 87010
+2026-03-13 16:11:46,508 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533012090', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,508 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533012090' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,508 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533012090', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,508 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,508 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,509 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e960>
+2026-03-13 16:11:46,510 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e270>
+2026-03-13 16:11:46,510 - dz_fastapi - DEBUG - Autopart already exists: ID 6271
+2026-03-13 16:11:46,511 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533022040', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,511 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533022040' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,511 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533022040', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,511 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,511 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,512 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1da60>
+2026-03-13 16:11:46,513 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d7c0>
+2026-03-13 16:11:46,513 - dz_fastapi - DEBUG - Autopart already exists: ID 87012
+2026-03-13 16:11:46,513 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533028010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,513 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533028010' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,513 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533028010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,513 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,513 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,515 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1dd30>
+2026-03-13 16:11:46,516 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d7f0>
+2026-03-13 16:11:46,516 - dz_fastapi - DEBUG - Autopart already exists: ID 87013
+2026-03-13 16:11:46,516 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533028020', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,516 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533028020' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,516 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533028020', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,517 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,517 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,517 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d100>
+2026-03-13 16:11:46,519 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e420>
+2026-03-13 16:11:46,519 - dz_fastapi - DEBUG - Autopart already exists: ID 3733
+2026-03-13 16:11:46,519 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533030070', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,519 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533030070' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,519 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533030070', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,519 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,519 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,520 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e9f0>
+2026-03-13 16:11:46,521 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e8d0>
+2026-03-13 16:11:46,521 - dz_fastapi - DEBUG - Autopart already exists: ID 87014
+2026-03-13 16:11:46,521 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533030080', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,521 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533030080' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,521 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533030080', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,522 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,522 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,523 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d850>
+2026-03-13 16:11:46,524 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1dc40>
+2026-03-13 16:11:46,524 - dz_fastapi - DEBUG - Autopart already exists: ID 70232
+2026-03-13 16:11:46,524 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533030090', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,524 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533030090' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,524 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533030090', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,524 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,524 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,525 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d100>
+2026-03-13 16:11:46,526 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d7c0>
+2026-03-13 16:11:46,526 - dz_fastapi - DEBUG - Autopart already exists: ID 87015
+2026-03-13 16:11:46,526 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533030100', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,526 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533030100' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,527 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533030100', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,527 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,527 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,528 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1de80>
+2026-03-13 16:11:46,529 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1df40>
+2026-03-13 16:11:46,529 - dz_fastapi - DEBUG - Autopart already exists: ID 87016
+2026-03-13 16:11:46,529 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533030110', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,529 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533030110' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,529 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533030110', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,529 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,529 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,530 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1ddf0>
+2026-03-13 16:11:46,531 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1deb0>
+2026-03-13 16:11:46,531 - dz_fastapi - DEBUG - Autopart already exists: ID 56119
+2026-03-13 16:11:46,531 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533033030', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,531 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533033030' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,532 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533033030', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,532 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,532 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,532 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d580>
+2026-03-13 16:11:46,533 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e5d0>
+2026-03-13 16:11:46,534 - dz_fastapi - DEBUG - Autopart already exists: ID 87017
+2026-03-13 16:11:46,534 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533048010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,534 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533048010' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,534 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533048010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,534 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,534 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,535 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1dc40>
+2026-03-13 16:11:46,536 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1dbe0>
+2026-03-13 16:11:46,536 - dz_fastapi - DEBUG - Autopart already exists: ID 80463
+2026-03-13 16:11:46,536 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533048020', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,536 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533048020' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,536 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533048020', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,536 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,537 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,538 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1de80>
+2026-03-13 16:11:46,539 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e420>
+2026-03-13 16:11:46,539 - dz_fastapi - DEBUG - Autopart already exists: ID 87018
+2026-03-13 16:11:46,539 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533048040', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,539 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533048040' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,539 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533048040', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,539 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,539 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,540 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d550>
+2026-03-13 16:11:46,541 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d4c0>
+2026-03-13 16:11:46,541 - dz_fastapi - DEBUG - Autopart already exists: ID 87019
+2026-03-13 16:11:46,541 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533050010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,541 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533050010' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,542 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533050010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,542 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,542 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,543 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d520>
+2026-03-13 16:11:46,544 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1ddf0>
+2026-03-13 16:11:46,544 - dz_fastapi - DEBUG - Autopart already exists: ID 87020
+2026-03-13 16:11:46,544 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533050030', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,544 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533050030' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,544 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533050030', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,544 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,544 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,545 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1da30>
+2026-03-13 16:11:46,546 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d5b0>
+2026-03-13 16:11:46,546 - dz_fastapi - DEBUG - Autopart already exists: ID 87021
+2026-03-13 16:11:46,546 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533050040', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,546 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533050040' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,547 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533050040', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,547 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,547 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,548 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e390>
+2026-03-13 16:11:46,549 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1deb0>
+2026-03-13 16:11:46,549 - dz_fastapi - DEBUG - Autopart already exists: ID 87022
+2026-03-13 16:11:46,549 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533052010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,549 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533052010' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,549 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533052010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,549 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,549 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,550 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1dd30>
+2026-03-13 16:11:46,551 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1dc40>
+2026-03-13 16:11:46,551 - dz_fastapi - DEBUG - Autopart already exists: ID 87023
+2026-03-13 16:11:46,551 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533053020', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,552 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533053020' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,552 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533053020', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,552 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,552 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,553 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1de80>
+2026-03-13 16:11:46,554 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1e8d0>
+2026-03-13 16:11:46,554 - dz_fastapi - DEBUG - Autopart already exists: ID 87024
+2026-03-13 16:11:46,554 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533060010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,554 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533060010' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,554 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533060010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,554 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,554 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,555 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7db80>
+2026-03-13 16:11:46,556 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7ddc0>
+2026-03-13 16:11:46,556 - dz_fastapi - DEBUG - Autopart already exists: ID 87025
+2026-03-13 16:11:46,556 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533060020', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,556 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533060020' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,556 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533060020', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,557 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,557 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,557 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7dd90>
+2026-03-13 16:11:46,558 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7ca40>
+2026-03-13 16:11:46,558 - dz_fastapi - DEBUG - Autopart already exists: ID 87026
+2026-03-13 16:11:46,559 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533060030', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,559 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533060030' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,559 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533060030', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,559 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,559 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,560 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7d820>
+2026-03-13 16:11:46,561 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7d1c0>
+2026-03-13 16:11:46,561 - dz_fastapi - DEBUG - Autopart already exists: ID 6268
+2026-03-13 16:11:46,561 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533060040', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,561 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533060040' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,561 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533060040', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,561 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,561 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,562 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7dd90>
+2026-03-13 16:11:46,563 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7c7d0>
+2026-03-13 16:11:46,563 - dz_fastapi - DEBUG - Autopart already exists: ID 87027
+2026-03-13 16:11:46,564 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533060050', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,564 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533060050' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,564 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533060050', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,564 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,564 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,565 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7d820>
+2026-03-13 16:11:46,566 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7e330>
+2026-03-13 16:11:46,566 - dz_fastapi - DEBUG - Autopart already exists: ID 87028
+2026-03-13 16:11:46,566 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533060060', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,566 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533060060' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,566 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533060060', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,566 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,566 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,567 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7dd90>
+2026-03-13 16:11:46,568 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7d370>
+2026-03-13 16:11:46,568 - dz_fastapi - DEBUG - Autopart already exists: ID 87029
+2026-03-13 16:11:46,568 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533060070', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,569 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533060070' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,569 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533060070', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,569 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,569 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,570 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7d820>
+2026-03-13 16:11:46,571 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7e5d0>
+2026-03-13 16:11:46,571 - dz_fastapi - DEBUG - Autopart already exists: ID 87030
+2026-03-13 16:11:46,571 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533060080', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,571 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533060080' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,571 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533060080', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,571 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,571 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,572 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7dd90>
+2026-03-13 16:11:46,573 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7e060>
+2026-03-13 16:11:46,573 - dz_fastapi - DEBUG - Autopart already exists: ID 6272
+2026-03-13 16:11:46,573 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533060120', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,574 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533060120' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,574 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533060120', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,574 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,574 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,575 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7e6f0>
+2026-03-13 16:11:46,576 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7dd60>
+2026-03-13 16:11:46,576 - dz_fastapi - DEBUG - Autopart already exists: ID 73462
+2026-03-13 16:11:46,576 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533071010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,576 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533071010' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,576 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533071010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,576 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,576 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,577 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7fdd0>
+2026-03-13 16:11:46,578 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7fc80>
+2026-03-13 16:11:46,578 - dz_fastapi - DEBUG - Autopart already exists: ID 73549
+2026-03-13 16:11:46,579 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533073010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,579 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533073010' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,579 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533073010', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,579 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,579 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,580 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7ff20>
+2026-03-13 16:11:46,581 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7ef60>
+2026-03-13 16:11:46,581 - dz_fastapi - DEBUG - Autopart already exists: ID 87031
+2026-03-13 16:11:46,581 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533073021', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,581 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533073021' name='Фильтр Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,581 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533073021', 'name': 'Фильтр Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,581 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,581 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,582 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7db50>
+2026-03-13 16:11:46,583 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7e330>
+2026-03-13 16:11:46,583 - dz_fastapi - DEBUG - Autopart already exists: ID 6269
+2026-03-13 16:11:46,583 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533928010', 'name': 'Прокладка Фильтра Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,584 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533928010' name='Прокладка Фильтра Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,584 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533928010', 'name': 'Прокладка Фильтра Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,584 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,584 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,585 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7f200>
+2026-03-13 16:11:46,586 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f7e6c0>
+2026-03-13 16:11:46,586 - dz_fastapi - DEBUG - Autopart already exists: ID 87032
+2026-03-13 16:11:46,586 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TOYOTA', 'oem_number': '3533928020', 'name': 'Прокладка Фильтра Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,586 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TOYOTA' oem_number='3533928020' name='Прокладка Фильтра Акп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:11:46,586 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TOYOTA', 'oem_number': '3533928020', 'name': 'Прокладка Фильтра Акп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:11:46,586 - dz_fastapi - DEBUG - Extracted brand_name: TOYOTA
+2026-03-13 16:11:46,586 - dz_fastapi - DEBUG - Changed brand_name: TOYOTA
+2026-03-13 16:11:46,587 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f7cf50>

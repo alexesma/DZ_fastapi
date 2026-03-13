@@ -230,6 +230,10 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
         )
         logger.debug(f'Атрибуты и методы бренда: {dir(brand)}')
         logger.debug(f'Атрибуты бренда: {vars(brand)}')
+        # Явно загружаем relationship в async-контексте, чтобы
+        # не провоцировать lazy-load вне greenlet.
+        await session.refresh(brand, attribute_names=['synonyms'])
+        await session.refresh(synonym, attribute_names=['synonyms'])
         if synonym not in brand.synonyms:
             brand.synonyms.append(synonym)
             logger.debug('Добавили синоним')

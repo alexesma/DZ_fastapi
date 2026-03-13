@@ -1,0 +1,1270 @@
+2026-03-13 16:12:10,196 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'RBI', 'oem_number': 'T0910FA', 'name': 'C/Б Подушки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,219 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='RBI' oem_number='T0910FA' name='C/Б Подушки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,219 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'RBI', 'oem_number': 'T0910FA', 'name': 'C/Б Подушки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,219 - dz_fastapi - DEBUG - Extracted brand_name: RBI
+2026-03-13 16:12:10,220 - dz_fastapi - DEBUG - Changed brand_name: RBI
+2026-03-13 16:12:10,221 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237d2750>
+2026-03-13 16:12:10,222 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2add0b30>
+2026-03-13 16:12:10,222 - dz_fastapi - DEBUG - Autopart already exists: ID 93247
+2026-03-13 16:12:10,222 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'RBI', 'oem_number': 'T0910FAZ', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,222 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='RBI' oem_number='T0910FAZ' name='Подушка Под Двигатель' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,222 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'RBI', 'oem_number': 'T0910FAZ', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,223 - dz_fastapi - DEBUG - Extracted brand_name: RBI
+2026-03-13 16:12:10,223 - dz_fastapi - DEBUG - Changed brand_name: RBI
+2026-03-13 16:12:10,224 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39fd2ff0>
+2026-03-13 16:12:10,225 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237d2750>
+2026-03-13 16:12:10,225 - dz_fastapi - DEBUG - Autopart already exists: ID 93248
+2026-03-13 16:12:10,225 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'RBI', 'oem_number': 'T0910RZ', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,225 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='RBI' oem_number='T0910RZ' name='Подушка Под Двигатель' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,225 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'RBI', 'oem_number': 'T0910RZ', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,225 - dz_fastapi - DEBUG - Extracted brand_name: RBI
+2026-03-13 16:12:10,225 - dz_fastapi - DEBUG - Changed brand_name: RBI
+2026-03-13 16:12:10,226 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237731d0>
+2026-03-13 16:12:10,227 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39175af0>
+2026-03-13 16:12:10,227 - dz_fastapi - DEBUG - Autopart already exists: ID 93249
+2026-03-13 16:12:10,227 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'RBI', 'oem_number': 'T09NC4LAZ', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,228 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='RBI' oem_number='T09NC4LAZ' name='Подушка Под Двигатель' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,228 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'RBI', 'oem_number': 'T09NC4LAZ', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,228 - dz_fastapi - DEBUG - Extracted brand_name: RBI
+2026-03-13 16:12:10,228 - dz_fastapi - DEBUG - Changed brand_name: RBI
+2026-03-13 16:12:10,229 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b59e840>
+2026-03-13 16:12:10,231 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de16a0>
+2026-03-13 16:12:10,231 - dz_fastapi - DEBUG - Autopart already exists: ID 93250
+2026-03-13 16:12:10,231 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'RBI', 'oem_number': 'T09RV1FAZ', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,231 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='RBI' oem_number='T09RV1FAZ' name='Подушка Под Двигатель' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,231 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'RBI', 'oem_number': 'T09RV1FAZ', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,231 - dz_fastapi - DEBUG - Extracted brand_name: RBI
+2026-03-13 16:12:10,232 - dz_fastapi - DEBUG - Changed brand_name: RBI
+2026-03-13 16:12:10,232 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237a5eb0>
+2026-03-13 16:12:10,233 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb9b50>
+2026-03-13 16:12:10,233 - dz_fastapi - DEBUG - Autopart already exists: ID 93251
+2026-03-13 16:12:10,234 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'RBI', 'oem_number': 'T09W110E', 'name': 'C/Б Подушки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,234 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='RBI' oem_number='T09W110E' name='C/Б Подушки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,234 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'RBI', 'oem_number': 'T09W110E', 'name': 'C/Б Подушки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,234 - dz_fastapi - DEBUG - Extracted brand_name: RBI
+2026-03-13 16:12:10,234 - dz_fastapi - DEBUG - Changed brand_name: RBI
+2026-03-13 16:12:10,235 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2a543890>
+2026-03-13 16:12:10,236 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3b05f650>
+2026-03-13 16:12:10,236 - dz_fastapi - DEBUG - Autopart already exists: ID 93252
+2026-03-13 16:12:10,236 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'RBI', 'oem_number': 'T09Z12FAZ', 'name': 'Подушка Под Коробку', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,236 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='RBI' oem_number='T09Z12FAZ' name='Подушка Под Коробку' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,236 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'RBI', 'oem_number': 'T09Z12FAZ', 'name': 'Подушка Под Коробку', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,236 - dz_fastapi - DEBUG - Extracted brand_name: RBI
+2026-03-13 16:12:10,236 - dz_fastapi - DEBUG - Changed brand_name: RBI
+2026-03-13 16:12:10,237 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20de16a0>
+2026-03-13 16:12:10,238 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff50b72750>
+2026-03-13 16:12:10,238 - dz_fastapi - DEBUG - Autopart already exists: ID 93253
+2026-03-13 16:12:10,238 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'RBI', 'oem_number': 'T09Z12FMZ', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,239 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='RBI' oem_number='T09Z12FMZ' name='Подушка Под Двигатель' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,239 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'RBI', 'oem_number': 'T09Z12FMZ', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,239 - dz_fastapi - DEBUG - Extracted brand_name: RBI
+2026-03-13 16:12:10,239 - dz_fastapi - DEBUG - Changed brand_name: RBI
+2026-03-13 16:12:10,240 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20de1790>
+2026-03-13 16:12:10,241 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff70bd37a0>
+2026-03-13 16:12:10,241 - dz_fastapi - DEBUG - Autopart already exists: ID 93254
+2026-03-13 16:12:10,241 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'RBI', 'oem_number': 'T09ZE121R', 'name': 'Сайлентблок Опоры Двигателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,241 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='RBI' oem_number='T09ZE121R' name='Сайлентблок Опоры Двигателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,241 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'RBI', 'oem_number': 'T09ZE121R', 'name': 'Сайлентблок Опоры Двигателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,242 - dz_fastapi - DEBUG - Extracted brand_name: RBI
+2026-03-13 16:12:10,242 - dz_fastapi - DEBUG - Changed brand_name: RBI
+2026-03-13 16:12:10,243 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb8bf0>
+2026-03-13 16:12:10,244 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb9b50>
+2026-03-13 16:12:10,244 - dz_fastapi - DEBUG - Autopart already exists: ID 93255
+2026-03-13 16:12:10,244 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'RBI', 'oem_number': 'T10W11R', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,244 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='RBI' oem_number='T10W11R' name='Подушка Под Двигатель' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,244 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'RBI', 'oem_number': 'T10W11R', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,244 - dz_fastapi - DEBUG - Extracted brand_name: RBI
+2026-03-13 16:12:10,244 - dz_fastapi - DEBUG - Changed brand_name: RBI
+2026-03-13 16:12:10,245 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff26f16480>
+2026-03-13 16:12:10,246 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb8bf0>
+2026-03-13 16:12:10,246 - dz_fastapi - DEBUG - Autopart already exists: ID 93256
+2026-03-13 16:12:10,246 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TIGUAR', 'oem_number': 'TG1237228200', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,246 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TIGUAR' oem_number='TG1237228200' name='Подушка Под Двигатель' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,247 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TIGUAR', 'oem_number': 'TG1237228200', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,247 - dz_fastapi - DEBUG - Extracted brand_name: TIGUAR
+2026-03-13 16:12:10,247 - dz_fastapi - DEBUG - Changed brand_name: TIGUAR
+2026-03-13 16:12:10,247 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:10,247 - dz_fastapi - WARNING - Brand TIGUAR not found. Skipping autopart creation.
+2026-03-13 16:12:10,247 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'TIGUAR', 'oem_number': 'TG1237228200', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,247 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ASVA', 'oem_number': 'TM076', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,248 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ASVA' oem_number='TM076' name='Подушка Под Двигатель' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,248 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ASVA', 'oem_number': 'TM076', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,248 - dz_fastapi - DEBUG - Extracted brand_name: ASVA
+2026-03-13 16:12:10,248 - dz_fastapi - DEBUG - Changed brand_name: ASVA
+2026-03-13 16:12:10,249 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb9b50>
+2026-03-13 16:12:10,250 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb9820>
+2026-03-13 16:12:10,250 - dz_fastapi - DEBUG - Autopart already exists: ID 93257
+2026-03-13 16:12:10,250 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'VTR', 'oem_number': 'TO5218M', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,250 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='VTR' oem_number='TO5218M' name='Подушка Под Двигатель' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,250 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'VTR', 'oem_number': 'TO5218M', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,251 - dz_fastapi - DEBUG - Extracted brand_name: VTR
+2026-03-13 16:12:10,251 - dz_fastapi - DEBUG - Changed brand_name: VTR
+2026-03-13 16:12:10,251 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb9b50>
+2026-03-13 16:12:10,252 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb8bf0>
+2026-03-13 16:12:10,252 - dz_fastapi - DEBUG - Autopart already exists: ID 93258
+2026-03-13 16:12:10,253 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NTY', 'oem_number': 'ZPSTY007', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,253 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NTY' oem_number='ZPSTY007' name='Подушка Под Двигатель' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,253 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NTY', 'oem_number': 'ZPSTY007', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,253 - dz_fastapi - DEBUG - Extracted brand_name: NTY
+2026-03-13 16:12:10,253 - dz_fastapi - DEBUG - Changed brand_name: NTY
+2026-03-13 16:12:10,254 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff706c4800>
+2026-03-13 16:12:10,255 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4aafadb0>
+2026-03-13 16:12:10,255 - dz_fastapi - DEBUG - Autopart already exists: ID 93259
+2026-03-13 16:12:10,255 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZZVF', 'oem_number': 'ZV0T010', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,256 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZZVF' oem_number='ZV0T010' name='Подушка Под Двигатель' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,256 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZZVF', 'oem_number': 'ZV0T010', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,256 - dz_fastapi - DEBUG - Extracted brand_name: ZZVF
+2026-03-13 16:12:10,256 - dz_fastapi - DEBUG - Changed brand_name: ZZVF
+2026-03-13 16:12:10,257 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae45bb0>
+2026-03-13 16:12:10,258 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de1820>
+2026-03-13 16:12:10,258 - dz_fastapi - DEBUG - Autopart already exists: ID 93260
+2026-03-13 16:12:10,258 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ZZVF', 'oem_number': 'ZV28210', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,258 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ZZVF' oem_number='ZV28210' name='Подушка Под Двигатель' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,258 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ZZVF', 'oem_number': 'ZV28210', 'name': 'Подушка Под Двигатель', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,259 - dz_fastapi - DEBUG - Extracted brand_name: ZZVF
+2026-03-13 16:12:10,259 - dz_fastapi - DEBUG - Changed brand_name: ZZVF
+2026-03-13 16:12:10,259 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20454b60>
+2026-03-13 16:12:10,260 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de16a0>
+2026-03-13 16:12:10,261 - dz_fastapi - DEBUG - Autopart already exists: ID 93261
+2026-03-13 16:12:10,261 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ASVA', 'oem_number': '', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,261 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ASVA' oem_number='' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,261 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ASVA', 'oem_number': '', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,261 - dz_fastapi - DEBUG - Extracted brand_name: ASVA
+2026-03-13 16:12:10,261 - dz_fastapi - DEBUG - Changed brand_name: ASVA
+2026-03-13 16:12:10,262 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2add0b30>
+2026-03-13 16:12:10,262 - dz_fastapi - ERROR - oem_number is missing in autopart_data
+2026-03-13 16:12:10,262 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'ASVA', 'oem_number': '', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,262 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '15BSW05A', 'name': 'Подшипник  90363-15006', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,262 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='15BSW05A' name='Подшипник  90363-15006' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,263 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '15BSW05A', 'name': 'Подшипник  90363-15006', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,263 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,263 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,264 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20de16a0>
+2026-03-13 16:12:10,265 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de15e0>
+2026-03-13 16:12:10,265 - dz_fastapi - DEBUG - Autopart already exists: ID 93262
+2026-03-13 16:12:10,265 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'STELLOX', 'oem_number': '2617168SX', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,265 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='STELLOX' oem_number='2617168SX' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,265 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'STELLOX', 'oem_number': '2617168SX', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,266 - dz_fastapi - DEBUG - Extracted brand_name: STELLOX
+2026-03-13 16:12:10,266 - dz_fastapi - DEBUG - Changed brand_name: STELLOX
+2026-03-13 16:12:10,266 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1df10>
+2026-03-13 16:12:10,268 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a54f950>
+2026-03-13 16:12:10,268 - dz_fastapi - DEBUG - Autopart already exists: ID 93263
+2026-03-13 16:12:10,268 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '30303D', 'name': 'Подшипник  TR0305C-9', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,268 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='30303D' name='Подшипник  TR0305C-9' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,268 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '30303D', 'name': 'Подшипник  TR0305C-9', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,268 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,268 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,269 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237a5eb0>
+2026-03-13 16:12:10,270 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff482deab0>
+2026-03-13 16:12:10,270 - dz_fastapi - DEBUG - Autopart already exists: ID 3508
+2026-03-13 16:12:10,270 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GMB', 'oem_number': '30304', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,270 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GMB' oem_number='30304' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,270 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GMB', 'oem_number': '30304', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,271 - dz_fastapi - DEBUG - Extracted brand_name: GMB
+2026-03-13 16:12:10,271 - dz_fastapi - DEBUG - Changed brand_name: GMB
+2026-03-13 16:12:10,272 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff70bd37a0>
+2026-03-13 16:12:10,273 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5086b4d0>
+2026-03-13 16:12:10,273 - dz_fastapi - DEBUG - Autopart already exists: ID 2954
+2026-03-13 16:12:10,273 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '30304AJ', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,273 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='30304AJ' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,273 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '30304AJ', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,273 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,273 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,274 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39af0560>
+2026-03-13 16:12:10,275 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbe41e50>
+2026-03-13 16:12:10,275 - dz_fastapi - DEBUG - Autopart already exists: ID 3345
+2026-03-13 16:12:10,275 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '30304AJR', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,275 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='30304AJR' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,276 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '30304AJR', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,276 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,276 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,277 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b59e840>
+2026-03-13 16:12:10,278 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbe400b0>
+2026-03-13 16:12:10,278 - dz_fastapi - DEBUG - Autopart already exists: ID 93264
+2026-03-13 16:12:10,278 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MRK', 'oem_number': '30304AJR', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,278 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MRK' oem_number='30304AJR' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,278 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MRK', 'oem_number': '30304AJR', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,278 - dz_fastapi - DEBUG - Extracted brand_name: MRK
+2026-03-13 16:12:10,278 - dz_fastapi - DEBUG - Changed brand_name: MRK
+2026-03-13 16:12:10,279 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:10,279 - dz_fastapi - WARNING - Brand MRK not found. Skipping autopart creation.
+2026-03-13 16:12:10,279 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'MRK', 'oem_number': '30304AJR', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,279 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MRK', 'oem_number': '30306DJ', 'name': 'Подшипник 90366-30022', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,279 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MRK' oem_number='30306DJ' name='Подшипник 90366-30022' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,279 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MRK', 'oem_number': '30306DJ', 'name': 'Подшипник 90366-30022', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,279 - dz_fastapi - DEBUG - Extracted brand_name: MRK
+2026-03-13 16:12:10,280 - dz_fastapi - DEBUG - Changed brand_name: MRK
+2026-03-13 16:12:10,280 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:10,280 - dz_fastapi - WARNING - Brand MRK not found. Skipping autopart creation.
+2026-03-13 16:12:10,280 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'MRK', 'oem_number': '30306DJ', 'name': 'Подшипник 90366-30022', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,280 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '30306DJR', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,281 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='30306DJR' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,281 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '30306DJR', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,281 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,281 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,282 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae46840>
+2026-03-13 16:12:10,283 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5130acf0>
+2026-03-13 16:12:10,283 - dz_fastapi - DEBUG - Autopart already exists: ID 93265
+2026-03-13 16:12:10,283 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '30307JR1', 'name': 'Подшипник  90366-35032 90366-35053', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,283 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='30307JR1' name='Подшипник  90366-35032 90366-35053' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,283 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '30307JR1', 'name': 'Подшипник  90366-35032 90366-35053', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,283 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,283 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,284 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3a8ae030>
+2026-03-13 16:12:10,285 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5130b200>
+2026-03-13 16:12:10,285 - dz_fastapi - DEBUG - Autopart already exists: ID 3352
+2026-03-13 16:12:10,285 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '30308DJR', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,285 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='30308DJR' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,285 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '30308DJR', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,286 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,286 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,286 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4aafadb0>
+2026-03-13 16:12:10,287 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2bdc4080>
+2026-03-13 16:12:10,287 - dz_fastapi - DEBUG - Autopart already exists: ID 93266
+2026-03-13 16:12:10,288 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NACHI', 'oem_number': '30BCDS3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,288 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NACHI' oem_number='30BCDS3' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,288 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NACHI', 'oem_number': '30BCDS3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,288 - dz_fastapi - DEBUG - Extracted brand_name: NACHI
+2026-03-13 16:12:10,288 - dz_fastapi - DEBUG - Changed brand_name: NACHI
+2026-03-13 16:12:10,289 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbe7b890>
+2026-03-13 16:12:10,290 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff70b681d0>
+2026-03-13 16:12:10,290 - dz_fastapi - DEBUG - Autopart already exists: ID 93267
+2026-03-13 16:12:10,290 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '30BD40T12DDUCG21', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,290 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='30BD40T12DDUCG21' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,290 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '30BD40T12DDUCG21', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,290 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,290 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,291 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20f4e480>
+2026-03-13 16:12:10,292 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237d09b0>
+2026-03-13 16:12:10,292 - dz_fastapi - DEBUG - Autopart already exists: ID 93268
+2026-03-13 16:12:10,293 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '30BD5222T1XDDUM01', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,293 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='30BD5222T1XDDUM01' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,293 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '30BD5222T1XDDUM01', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,293 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,293 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,294 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff294f02f0>
+2026-03-13 16:12:10,295 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae46840>
+2026-03-13 16:12:10,295 - dz_fastapi - DEBUG - Autopart already exists: ID 93269
+2026-03-13 16:12:10,295 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '32012JR', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,295 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='32012JR' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,295 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '32012JR', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,296 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,296 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,297 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5130b020>
+2026-03-13 16:12:10,298 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbedb050>
+2026-03-13 16:12:10,298 - dz_fastapi - DEBUG - Autopart already exists: ID 93270
+2026-03-13 16:12:10,298 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NTN / SNR', 'oem_number': '32012XU', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,298 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NTN / SNR' oem_number='32012XU' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,298 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NTN / SNR', 'oem_number': '32012XU', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,298 - dz_fastapi - DEBUG - Extracted brand_name: NTN / SNR
+2026-03-13 16:12:10,298 - dz_fastapi - DEBUG - Changed brand_name: NTN-SNR
+2026-03-13 16:12:10,299 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:10,299 - dz_fastapi - WARNING - Brand NTN-SNR not found. Skipping autopart creation.
+2026-03-13 16:12:10,299 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'NTN / SNR', 'oem_number': '32012XU', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,299 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '32012XU', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,299 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='32012XU' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,299 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '32012XU', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,299 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,300 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,300 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23136240>
+2026-03-13 16:12:10,301 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff248d7710>
+2026-03-13 16:12:10,301 - dz_fastapi - DEBUG - Autopart already exists: ID 93271
+2026-03-13 16:12:10,302 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '32BWD05CA105', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,302 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='32BWD05CA105' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,302 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '32BWD05CA105', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,302 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,302 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,303 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3b05f650>
+2026-03-13 16:12:10,304 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a1fc110>
+2026-03-13 16:12:10,304 - dz_fastapi - DEBUG - Autopart already exists: ID 93272
+2026-03-13 16:12:10,304 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '32BWD05CA75', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,304 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='32BWD05CA75' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,304 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '32BWD05CA75', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,305 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,305 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,306 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff70b681d0>
+2026-03-13 16:12:10,307 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5148c290>
+2026-03-13 16:12:10,307 - dz_fastapi - DEBUG - Autopart already exists: ID 93273
+2026-03-13 16:12:10,307 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '32TM03NXC3UR', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,308 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='32TM03NXC3UR' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,308 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '32TM03NXC3UR', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,308 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,308 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,309 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a54d430>
+2026-03-13 16:12:10,310 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a54f950>
+2026-03-13 16:12:10,310 - dz_fastapi - DEBUG - Autopart already exists: ID 93274
+2026-03-13 16:12:10,310 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NACHI', 'oem_number': '35BCD07S1', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,310 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NACHI' oem_number='35BCD07S1' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,310 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NACHI', 'oem_number': '35BCD07S1', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,310 - dz_fastapi - DEBUG - Extracted brand_name: NACHI
+2026-03-13 16:12:10,310 - dz_fastapi - DEBUG - Changed brand_name: NACHI
+2026-03-13 16:12:10,311 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39af0710>
+2026-03-13 16:12:10,312 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff294b9af0>
+2026-03-13 16:12:10,312 - dz_fastapi - DEBUG - Autopart already exists: ID 93275
+2026-03-13 16:12:10,313 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NACHI', 'oem_number': '35BCD08S6', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,313 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NACHI' oem_number='35BCD08S6' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,313 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NACHI', 'oem_number': '35BCD08S6', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,313 - dz_fastapi - DEBUG - Extracted brand_name: NACHI
+2026-03-13 16:12:10,313 - dz_fastapi - DEBUG - Changed brand_name: NACHI
+2026-03-13 16:12:10,314 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e840>
+2026-03-13 16:12:10,315 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff70bd37a0>
+2026-03-13 16:12:10,315 - dz_fastapi - DEBUG - Autopart already exists: ID 93276
+2026-03-13 16:12:10,315 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NACHI', 'oem_number': '35DTW08S4', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,315 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NACHI' oem_number='35DTW08S4' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,315 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NACHI', 'oem_number': '35DTW08S4', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,316 - dz_fastapi - DEBUG - Extracted brand_name: NACHI
+2026-03-13 16:12:10,316 - dz_fastapi - DEBUG - Changed brand_name: NACHI
+2026-03-13 16:12:10,317 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39f68170>
+2026-03-13 16:12:10,318 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefb6163f0>
+2026-03-13 16:12:10,318 - dz_fastapi - DEBUG - Autopart already exists: ID 93277
+2026-03-13 16:12:10,318 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '38BWD22', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,318 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='38BWD22' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,318 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '38BWD22', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,318 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,318 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,319 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefb614650>
+2026-03-13 16:12:10,320 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae46810>
+2026-03-13 16:12:10,320 - dz_fastapi - DEBUG - Autopart already exists: ID 93278
+2026-03-13 16:12:10,320 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '40BD45T12VVCG21', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,320 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='40BD45T12VVCG21' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,320 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '40BD45T12VVCG21', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,321 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,321 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,322 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a2aa9c0>
+2026-03-13 16:12:10,323 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb9b50>
+2026-03-13 16:12:10,323 - dz_fastapi - DEBUG - Autopart already exists: ID 93279
+2026-03-13 16:12:10,323 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NEWSUN', 'oem_number': '40D219V', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,323 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NEWSUN' oem_number='40D219V' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,323 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NEWSUN', 'oem_number': '40D219V', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,323 - dz_fastapi - DEBUG - Extracted brand_name: NEWSUN
+2026-03-13 16:12:10,323 - dz_fastapi - DEBUG - Changed brand_name: NEWSUN
+2026-03-13 16:12:10,324 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:10,324 - dz_fastapi - WARNING - Brand NEWSUN not found. Skipping autopart creation.
+2026-03-13 16:12:10,324 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'NEWSUN', 'oem_number': '40D219V', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,324 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '43BWD03CA133', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,324 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='43BWD03CA133' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,324 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '43BWD03CA133', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,324 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,324 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,325 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb9fa0>
+2026-03-13 16:12:10,326 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbe43e30>
+2026-03-13 16:12:10,327 - dz_fastapi - DEBUG - Autopart already exists: ID 93280
+2026-03-13 16:12:10,327 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '43BWD06BCA133', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,327 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='43BWD06BCA133' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,327 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '43BWD06BCA133', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,327 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,327 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,328 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbe43bf0>
+2026-03-13 16:12:10,329 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38ebbfe0>
+2026-03-13 16:12:10,329 - dz_fastapi - DEBUG - Autopart already exists: ID 93281
+2026-03-13 16:12:10,329 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '45TM04AANC3U401', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,329 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='45TM04AANC3U401' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,329 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '45TM04AANC3U401', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,329 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,330 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,330 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a54f950>
+2026-03-13 16:12:10,331 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20454b60>
+2026-03-13 16:12:10,331 - dz_fastapi - DEBUG - Autopart already exists: ID 93282
+2026-03-13 16:12:10,332 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '45TM04NC3U40A', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,332 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='45TM04NC3U40A' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,332 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '45TM04NC3U40A', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,332 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,332 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,333 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7066dd60>
+2026-03-13 16:12:10,334 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff513099d0>
+2026-03-13 16:12:10,334 - dz_fastapi - DEBUG - Autopart already exists: ID 93283
+2026-03-13 16:12:10,334 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '46T0806041LFTCS76', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,334 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='46T0806041LFTCS76' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,334 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '46T0806041LFTCS76', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,334 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,334 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,335 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3940c740>
+2026-03-13 16:12:10,336 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39f68170>
+2026-03-13 16:12:10,336 - dz_fastapi - DEBUG - Autopart already exists: ID 93284
+2026-03-13 16:12:10,336 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '46T090804ALFT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,337 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='46T090804ALFT' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,337 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '46T090804ALFT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,337 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,337 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,338 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3a915f40>
+2026-03-13 16:12:10,339 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae448f0>
+2026-03-13 16:12:10,339 - dz_fastapi - DEBUG - Autopart already exists: ID 93285
+2026-03-13 16:12:10,339 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '46T090805LFT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,339 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='46T090805LFT' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,339 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '46T090805LFT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,339 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,340 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,340 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2b0d6090>
+2026-03-13 16:12:10,341 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7066dd60>
+2026-03-13 16:12:10,341 - dz_fastapi - DEBUG - Autopart already exists: ID 93286
+2026-03-13 16:12:10,342 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '49BWD02ACA101', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,342 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='49BWD02ACA101' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,342 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '49BWD02ACA101', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,342 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,342 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,343 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2a68eb10>
+2026-03-13 16:12:10,344 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff231bc6b0>
+2026-03-13 16:12:10,344 - dz_fastapi - DEBUG - Autopart already exists: ID 93287
+2026-03-13 16:12:10,344 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NTN / SNR', 'oem_number': '4TJLM506849JLM02', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,344 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NTN / SNR' oem_number='4TJLM506849JLM02' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,344 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NTN / SNR', 'oem_number': '4TJLM506849JLM02', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,344 - dz_fastapi - DEBUG - Extracted brand_name: NTN / SNR
+2026-03-13 16:12:10,344 - dz_fastapi - DEBUG - Changed brand_name: NTN-SNR
+2026-03-13 16:12:10,345 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:10,345 - dz_fastapi - WARNING - Brand NTN-SNR not found. Skipping autopart creation.
+2026-03-13 16:12:10,345 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'NTN / SNR', 'oem_number': '4TJLM506849JLM02', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,345 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NACHI', 'oem_number': '50KB801LT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,346 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NACHI' oem_number='50KB801LT' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,346 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NACHI', 'oem_number': '50KB801LT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,346 - dz_fastapi - DEBUG - Extracted brand_name: NACHI
+2026-03-13 16:12:10,346 - dz_fastapi - DEBUG - Changed brand_name: NACHI
+2026-03-13 16:12:10,347 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a696a80>
+2026-03-13 16:12:10,348 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff248d7710>
+2026-03-13 16:12:10,348 - dz_fastapi - DEBUG - Autopart already exists: ID 73515
+2026-03-13 16:12:10,348 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NACHI', 'oem_number': '50KB8301', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,348 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NACHI' oem_number='50KB8301' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,348 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NACHI', 'oem_number': '50KB8301', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,348 - dz_fastapi - DEBUG - Extracted brand_name: NACHI
+2026-03-13 16:12:10,348 - dz_fastapi - DEBUG - Changed brand_name: NACHI
+2026-03-13 16:12:10,349 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23ee15b0>
+2026-03-13 16:12:10,350 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbed9070>
+2026-03-13 16:12:10,350 - dz_fastapi - DEBUG - Autopart already exists: ID 93288
+2026-03-13 16:12:10,350 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '50TM02NC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,350 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='50TM02NC3' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,350 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '50TM02NC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,350 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,351 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,351 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae47530>
+2026-03-13 16:12:10,352 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefc1ad490>
+2026-03-13 16:12:10,352 - dz_fastapi - DEBUG - Autopart already exists: ID 93289
+2026-03-13 16:12:10,353 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6003DDUC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,353 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6003DDUC3' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,353 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6003DDUC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,353 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,353 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,354 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38ebbe90>
+2026-03-13 16:12:10,355 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb9fa0>
+2026-03-13 16:12:10,355 - dz_fastapi - DEBUG - Autopart already exists: ID 3500
+2026-03-13 16:12:10,355 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6003DDUC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,355 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6003DDUC3E' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,355 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6003DDUC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,355 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,356 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,356 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefb614650>
+2026-03-13 16:12:10,357 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38ebbe90>
+2026-03-13 16:12:10,358 - dz_fastapi - DEBUG - Autopart already exists: ID 93290
+2026-03-13 16:12:10,358 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6003DDUCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,358 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6003DDUCM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,358 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6003DDUCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,358 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,358 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,359 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae448f0>
+2026-03-13 16:12:10,360 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de3830>
+2026-03-13 16:12:10,360 - dz_fastapi - DEBUG - Autopart already exists: ID 93291
+2026-03-13 16:12:10,360 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6003ZZC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,360 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6003ZZC3' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,360 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6003ZZC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,360 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,360 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,361 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1e390>
+2026-03-13 16:12:10,363 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbed9070>
+2026-03-13 16:12:10,363 - dz_fastapi - DEBUG - Autopart already exists: ID 93292
+2026-03-13 16:12:10,363 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '6006ZZC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,363 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='6006ZZC3' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,363 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '6006ZZC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,363 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,363 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,364 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1da30>
+2026-03-13 16:12:10,365 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1dd60>
+2026-03-13 16:12:10,365 - dz_fastapi - DEBUG - Autopart already exists: ID 93293
+2026-03-13 16:12:10,365 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6006ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,365 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6006ZZCM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,365 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6006ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,365 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,365 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,366 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2b0d6090>
+2026-03-13 16:12:10,367 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4aafadb0>
+2026-03-13 16:12:10,367 - dz_fastapi - DEBUG - Autopart already exists: ID 93294
+2026-03-13 16:12:10,368 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NTN / SNR', 'oem_number': '60082LLUC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,368 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NTN / SNR' oem_number='60082LLUC3' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,368 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NTN / SNR', 'oem_number': '60082LLUC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,368 - dz_fastapi - DEBUG - Extracted brand_name: NTN / SNR
+2026-03-13 16:12:10,368 - dz_fastapi - DEBUG - Changed brand_name: NTN-SNR
+2026-03-13 16:12:10,368 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:10,369 - dz_fastapi - WARNING - Brand NTN-SNR not found. Skipping autopart creation.
+2026-03-13 16:12:10,369 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'NTN / SNR', 'oem_number': '60082LLUC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,369 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6008DDUC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,369 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6008DDUC3E' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,369 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6008DDUC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,369 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,369 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,370 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff248d7710>
+2026-03-13 16:12:10,371 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5b59e840>
+2026-03-13 16:12:10,371 - dz_fastapi - DEBUG - Autopart already exists: ID 93295
+2026-03-13 16:12:10,371 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6200DDUC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,371 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6200DDUC3' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,371 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6200DDUC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,371 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,371 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,372 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a2aa9c0>
+2026-03-13 16:12:10,373 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff706c4800>
+2026-03-13 16:12:10,373 - dz_fastapi - DEBUG - Autopart already exists: ID 93296
+2026-03-13 16:12:10,373 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6200DDUC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,374 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6200DDUC3E' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,374 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6200DDUC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,374 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,374 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,375 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff70b681d0>
+2026-03-13 16:12:10,376 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a54d5e0>
+2026-03-13 16:12:10,376 - dz_fastapi - DEBUG - Autopart already exists: ID 3501
+2026-03-13 16:12:10,376 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6200DDUCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,376 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6200DDUCM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,376 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6200DDUCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,376 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,376 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,377 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff513088c0>
+2026-03-13 16:12:10,378 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237d09b0>
+2026-03-13 16:12:10,378 - dz_fastapi - DEBUG - Autopart already exists: ID 3502
+2026-03-13 16:12:10,378 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '62012RSCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,378 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='62012RSCM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,378 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '62012RSCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,379 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,379 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,379 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20de1880>
+2026-03-13 16:12:10,380 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a1fc110>
+2026-03-13 16:12:10,381 - dz_fastapi - DEBUG - Autopart already exists: ID 93297
+2026-03-13 16:12:10,381 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6201DDUC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,381 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6201DDUC3E' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,381 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6201DDUC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,381 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,381 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,382 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b1ce000>
+2026-03-13 16:12:10,383 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5b478950>
+2026-03-13 16:12:10,383 - dz_fastapi - DEBUG - Autopart already exists: ID 3503
+2026-03-13 16:12:10,383 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6201DDUCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,383 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6201DDUCM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,383 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6201DDUCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,383 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,384 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,384 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23ee15b0>
+2026-03-13 16:12:10,385 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff294f02f0>
+2026-03-13 16:12:10,385 - dz_fastapi - DEBUG - Autopart already exists: ID 93298
+2026-03-13 16:12:10,385 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6201ZZC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,386 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6201ZZC3' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,386 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6201ZZC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,386 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,386 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,387 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb9820>
+2026-03-13 16:12:10,388 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39175af0>
+2026-03-13 16:12:10,388 - dz_fastapi - DEBUG - Autopart already exists: ID 6695
+2026-03-13 16:12:10,388 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '6201ZZC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,388 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='6201ZZC3' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,388 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '6201ZZC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,388 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,389 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,389 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff294b9af0>
+2026-03-13 16:12:10,390 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb9820>
+2026-03-13 16:12:10,390 - dz_fastapi - DEBUG - Autopart already exists: ID 93299
+2026-03-13 16:12:10,390 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6201ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,391 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6201ZZCM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,391 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6201ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,391 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,391 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,392 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5148c290>
+2026-03-13 16:12:10,393 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237731d0>
+2026-03-13 16:12:10,393 - dz_fastapi - DEBUG - Autopart already exists: ID 93300
+2026-03-13 16:12:10,393 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '6201ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,393 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='6201ZZCM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,393 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '6201ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,393 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,393 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,394 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5130acf0>
+2026-03-13 16:12:10,395 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff23771430>
+2026-03-13 16:12:10,395 - dz_fastapi - DEBUG - Autopart already exists: ID 93301
+2026-03-13 16:12:10,395 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6202DDUC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,395 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6202DDUC3E' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,395 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6202DDUC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,396 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,396 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,397 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae448f0>
+2026-03-13 16:12:10,398 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae45130>
+2026-03-13 16:12:10,398 - dz_fastapi - DEBUG - Autopart already exists: ID 93302
+2026-03-13 16:12:10,398 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6202DDUCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,398 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6202DDUCM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,399 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6202DDUCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,399 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,399 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,400 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5086b4d0>
+2026-03-13 16:12:10,401 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb97c0>
+2026-03-13 16:12:10,401 - dz_fastapi - DEBUG - Autopart already exists: ID 3512
+2026-03-13 16:12:10,401 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '6202ZZC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,401 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='6202ZZC3' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,401 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '6202ZZC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,401 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,401 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,402 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23771430>
+2026-03-13 16:12:10,403 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb9820>
+2026-03-13 16:12:10,403 - dz_fastapi - DEBUG - Autopart already exists: ID 93303
+2026-03-13 16:12:10,403 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '6202ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,403 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='6202ZZCM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,404 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '6202ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,404 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,404 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,405 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3a8ae030>
+2026-03-13 16:12:10,406 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff7066dd60>
+2026-03-13 16:12:10,406 - dz_fastapi - DEBUG - Autopart already exists: ID 93304
+2026-03-13 16:12:10,406 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6203DDUC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,406 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6203DDUC3E' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,406 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6203DDUC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,406 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,406 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,407 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff70b681d0>
+2026-03-13 16:12:10,408 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff23dee1e0>
+2026-03-13 16:12:10,408 - dz_fastapi - DEBUG - Autopart already exists: ID 93305
+2026-03-13 16:12:10,408 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6203DDUCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,408 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6203DDUCM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,409 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6203DDUCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,409 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,409 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,410 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff706c46e0>
+2026-03-13 16:12:10,411 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefb680b30>
+2026-03-13 16:12:10,411 - dz_fastapi - DEBUG - Autopart already exists: ID 93306
+2026-03-13 16:12:10,411 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6203ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,411 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6203ZZCM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,411 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6203ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,411 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,411 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,412 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefeeb80e0>
+2026-03-13 16:12:10,413 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb97c0>
+2026-03-13 16:12:10,413 - dz_fastapi - DEBUG - Autopart already exists: ID 3513
+2026-03-13 16:12:10,413 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '6205ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,413 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='6205ZZCM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,413 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '6205ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,413 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,414 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,414 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20ccda30>
+2026-03-13 16:12:10,415 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff231bc6b0>
+2026-03-13 16:12:10,415 - dz_fastapi - DEBUG - Autopart already exists: ID 93307
+2026-03-13 16:12:10,416 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DKT', 'oem_number': '6206ZZC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,416 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DKT' oem_number='6206ZZC3' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,416 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DKT', 'oem_number': '6206ZZC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,416 - dz_fastapi - DEBUG - Extracted brand_name: DKT
+2026-03-13 16:12:10,416 - dz_fastapi - DEBUG - Changed brand_name: DKT
+2026-03-13 16:12:10,416 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:10,417 - dz_fastapi - WARNING - Brand DKT not found. Skipping autopart creation.
+2026-03-13 16:12:10,417 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'DKT', 'oem_number': '6206ZZC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,417 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NTN / SNR', 'oem_number': '6206ZZC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,417 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NTN / SNR' oem_number='6206ZZC3E' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,417 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NTN / SNR', 'oem_number': '6206ZZC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,417 - dz_fastapi - DEBUG - Extracted brand_name: NTN / SNR
+2026-03-13 16:12:10,417 - dz_fastapi - DEBUG - Changed brand_name: NTN-SNR
+2026-03-13 16:12:10,418 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:10,418 - dz_fastapi - WARNING - Brand NTN-SNR not found. Skipping autopart creation.
+2026-03-13 16:12:10,418 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'NTN / SNR', 'oem_number': '6206ZZC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,418 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6208CM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,418 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6208CM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,418 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6208CM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,418 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,418 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,419 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff231bd160>
+2026-03-13 16:12:10,420 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb9340>
+2026-03-13 16:12:10,420 - dz_fastapi - DEBUG - Autopart already exists: ID 93308
+2026-03-13 16:12:10,420 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NTN / SNR', 'oem_number': '6208CM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,421 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NTN / SNR' oem_number='6208CM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,421 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NTN / SNR', 'oem_number': '6208CM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,421 - dz_fastapi - DEBUG - Extracted brand_name: NTN / SNR
+2026-03-13 16:12:10,421 - dz_fastapi - DEBUG - Changed brand_name: NTN-SNR
+2026-03-13 16:12:10,421 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:10,421 - dz_fastapi - WARNING - Brand NTN-SNR not found. Skipping autopart creation.
+2026-03-13 16:12:10,421 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'NTN / SNR', 'oem_number': '6208CM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,422 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '6208CM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,422 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='6208CM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,422 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '6208CM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,422 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,422 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,423 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff231be510>
+2026-03-13 16:12:10,424 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3a8ae030>
+2026-03-13 16:12:10,424 - dz_fastapi - DEBUG - Autopart already exists: ID 3346
+2026-03-13 16:12:10,424 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NACHI', 'oem_number': '6208CM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,424 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NACHI' oem_number='6208CM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,424 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NACHI', 'oem_number': '6208CM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,425 - dz_fastapi - DEBUG - Extracted brand_name: NACHI
+2026-03-13 16:12:10,425 - dz_fastapi - DEBUG - Changed brand_name: NACHI
+2026-03-13 16:12:10,426 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a697dd0>
+2026-03-13 16:12:10,427 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237d09b0>
+2026-03-13 16:12:10,427 - dz_fastapi - DEBUG - Autopart already exists: ID 93309
+2026-03-13 16:12:10,427 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6208ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,427 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6208ZZCM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,427 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6208ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,427 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,427 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,428 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff26f16480>
+2026-03-13 16:12:10,429 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3b7c5610>
+2026-03-13 16:12:10,429 - dz_fastapi - DEBUG - Autopart already exists: ID 3505
+2026-03-13 16:12:10,429 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '6208ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,429 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='6208ZZCM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,430 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '6208ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,430 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,430 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,431 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff70916960>
+2026-03-13 16:12:10,432 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4820c2f0>
+2026-03-13 16:12:10,432 - dz_fastapi - DEBUG - Autopart already exists: ID 93310
+2026-03-13 16:12:10,432 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6232NRC3', 'name': 'Подшипник  97104-06232', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,432 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6232NRC3' name='Подшипник  97104-06232' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,432 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6232NRC3', 'name': 'Подшипник  97104-06232', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,432 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,432 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,433 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff248d4410>
+2026-03-13 16:12:10,435 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5b478950>
+2026-03-13 16:12:10,435 - dz_fastapi - DEBUG - Autopart already exists: ID 93311
+2026-03-13 16:12:10,435 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '6232NRC3', 'name': 'Подшипник  97104-06232', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,435 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='6232NRC3' name='Подшипник  97104-06232' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,435 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '6232NRC3', 'name': 'Подшипник  97104-06232', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,435 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,435 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,436 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae448f0>
+2026-03-13 16:12:10,437 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbe7b890>
+2026-03-13 16:12:10,437 - dz_fastapi - DEBUG - Autopart already exists: ID 93312
+2026-03-13 16:12:10,438 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6301ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,438 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6301ZZCM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,438 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6301ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,438 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,438 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,439 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae448f0>
+2026-03-13 16:12:10,440 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4aafadb0>
+2026-03-13 16:12:10,440 - dz_fastapi - DEBUG - Autopart already exists: ID 93313
+2026-03-13 16:12:10,440 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '63022RMX', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,440 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='63022RMX' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,440 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '63022RMX', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,441 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,441 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,442 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff7066dd60>
+2026-03-13 16:12:10,443 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff482deab0>
+2026-03-13 16:12:10,443 - dz_fastapi - DEBUG - Autopart already exists: ID 93314
+2026-03-13 16:12:10,443 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '63022RSC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,443 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='63022RSC3' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,443 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '63022RSC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,443 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,443 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,444 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff294f02f0>
+2026-03-13 16:12:10,445 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff23ee15b0>
+2026-03-13 16:12:10,445 - dz_fastapi - DEBUG - Autopart already exists: ID 93315
+2026-03-13 16:12:10,445 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '63022RSCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,445 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='63022RSCM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,446 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '63022RSCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,446 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,446 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,447 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff513099d0>
+2026-03-13 16:12:10,448 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb9fa0>
+2026-03-13 16:12:10,448 - dz_fastapi - DEBUG - Autopart already exists: ID 93316
+2026-03-13 16:12:10,449 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '6302ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,449 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='6302ZZCM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,449 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '6302ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,449 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,449 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,450 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2b0d6090>
+2026-03-13 16:12:10,451 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4820c2f0>
+2026-03-13 16:12:10,451 - dz_fastapi - DEBUG - Autopart already exists: ID 93317
+2026-03-13 16:12:10,451 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6302ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,451 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6302ZZCM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,451 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6302ZZCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,452 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,452 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,453 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2a543890>
+2026-03-13 16:12:10,454 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff26f16480>
+2026-03-13 16:12:10,454 - dz_fastapi - DEBUG - Autopart already exists: ID 93318
+2026-03-13 16:12:10,454 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6303DDUC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,454 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6303DDUC3E' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,454 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6303DDUC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,454 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,454 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,455 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20de2ae0>
+2026-03-13 16:12:10,456 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbe7b890>
+2026-03-13 16:12:10,456 - dz_fastapi - DEBUG - Autopart already exists: ID 3509
+2026-03-13 16:12:10,456 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6303DDUCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,456 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6303DDUCM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,456 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6303DDUCM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,457 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,457 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,457 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20de2ae0>
+2026-03-13 16:12:10,459 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20a1d7c0>
+2026-03-13 16:12:10,459 - dz_fastapi - DEBUG - Autopart already exists: ID 93319
+2026-03-13 16:12:10,459 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NACHI', 'oem_number': '6303ZZECM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,459 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NACHI' oem_number='6303ZZECM' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,459 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NACHI', 'oem_number': '6303ZZECM', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,459 - dz_fastapi - DEBUG - Extracted brand_name: NACHI
+2026-03-13 16:12:10,460 - dz_fastapi - DEBUG - Changed brand_name: NACHI
+2026-03-13 16:12:10,461 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d640>
+2026-03-13 16:12:10,462 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5b478950>
+2026-03-13 16:12:10,462 - dz_fastapi - DEBUG - Autopart already exists: ID 93320
+2026-03-13 16:12:10,462 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6304DDUC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,462 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6304DDUC3E' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,462 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6304DDUC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,462 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,462 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,463 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237731d0>
+2026-03-13 16:12:10,464 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff231bd160>
+2026-03-13 16:12:10,464 - dz_fastapi - DEBUG - Autopart already exists: ID 93321
+2026-03-13 16:12:10,464 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '6308DDUC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,464 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='6308DDUC3E' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,464 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '6308DDUC3E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,465 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,465 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,465 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a1fc110>
+2026-03-13 16:12:10,466 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f71160>
+2026-03-13 16:12:10,466 - dz_fastapi - DEBUG - Autopart already exists: ID 93322
+2026-03-13 16:12:10,467 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '6308W2RSHR4C5', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,467 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='6308W2RSHR4C5' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,467 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '6308W2RSHR4C5', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,467 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,467 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,468 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff70b681d0>
+2026-03-13 16:12:10,469 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5130a810>
+2026-03-13 16:12:10,469 - dz_fastapi - DEBUG - Autopart already exists: ID 93323
+2026-03-13 16:12:10,469 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '6312NR', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,469 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='6312NR' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,469 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '6312NR', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,470 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,470 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,471 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff294b9af0>
+2026-03-13 16:12:10,472 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39af0710>
+2026-03-13 16:12:10,472 - dz_fastapi - DEBUG - Autopart already exists: ID 93324
+2026-03-13 16:12:10,472 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NACHI', 'oem_number': '6328JC3', 'name': 'Подшипник На Деферинциал', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,472 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NACHI' oem_number='6328JC3' name='Подшипник На Деферинциал' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,472 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NACHI', 'oem_number': '6328JC3', 'name': 'Подшипник На Деферинциал', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,472 - dz_fastapi - DEBUG - Extracted brand_name: NACHI
+2026-03-13 16:12:10,472 - dz_fastapi - DEBUG - Changed brand_name: NACHI
+2026-03-13 16:12:10,473 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4aafadb0>
+2026-03-13 16:12:10,474 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff26f16480>
+2026-03-13 16:12:10,474 - dz_fastapi - DEBUG - Autopart already exists: ID 93325
+2026-03-13 16:12:10,474 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': '6332C3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,474 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='6332C3' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,474 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': '6332C3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,475 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,475 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,475 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2bdc6060>
+2026-03-13 16:12:10,476 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de1a00>
+2026-03-13 16:12:10,476 - dz_fastapi - DEBUG - Autopart already exists: ID 93326
+2026-03-13 16:12:10,477 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': '95DSF01', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,477 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='95DSF01' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,477 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': '95DSF01', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,477 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,477 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,478 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff70b681d0>
+2026-03-13 16:12:10,479 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de16a0>
+2026-03-13 16:12:10,479 - dz_fastapi - DEBUG - Autopart already exists: ID 93327
+2026-03-13 16:12:10,479 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TENACITY', 'oem_number': 'ABRTO1002', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,479 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TENACITY' oem_number='ABRTO1002' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,479 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TENACITY', 'oem_number': 'ABRTO1002', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,479 - dz_fastapi - DEBUG - Extracted brand_name: TENACITY
+2026-03-13 16:12:10,479 - dz_fastapi - DEBUG - Changed brand_name: TENACITY
+2026-03-13 16:12:10,480 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff231be510>
+2026-03-13 16:12:10,481 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5148c530>
+2026-03-13 16:12:10,481 - dz_fastapi - DEBUG - Autopart already exists: ID 3713
+2026-03-13 16:12:10,481 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TENACITY', 'oem_number': 'ABRTO1010', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,482 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='TENACITY' oem_number='ABRTO1010' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,482 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'TENACITY', 'oem_number': 'ABRTO1010', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,482 - dz_fastapi - DEBUG - Extracted brand_name: TENACITY
+2026-03-13 16:12:10,482 - dz_fastapi - DEBUG - Changed brand_name: TENACITY
+2026-03-13 16:12:10,483 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae46840>
+2026-03-13 16:12:10,484 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a2aa9c0>
+2026-03-13 16:12:10,484 - dz_fastapi - DEBUG - Autopart already exists: ID 93328
+2026-03-13 16:12:10,484 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'FEBEST', 'oem_number': 'AS6201RS', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,484 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='FEBEST' oem_number='AS6201RS' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,484 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'FEBEST', 'oem_number': 'AS6201RS', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,484 - dz_fastapi - DEBUG - Extracted brand_name: FEBEST
+2026-03-13 16:12:10,484 - dz_fastapi - DEBUG - Changed brand_name: FEBEST
+2026-03-13 16:12:10,485 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae46c00>
+2026-03-13 16:12:10,486 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb9fa0>
+2026-03-13 16:12:10,486 - dz_fastapi - DEBUG - Autopart already exists: ID 93329
+2026-03-13 16:12:10,486 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'MCB', 'oem_number': 'B1569T12DD', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,486 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='MCB' oem_number='B1569T12DD' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,487 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'MCB', 'oem_number': 'B1569T12DD', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,487 - dz_fastapi - DEBUG - Extracted brand_name: MCB
+2026-03-13 16:12:10,487 - dz_fastapi - DEBUG - Changed brand_name: MCB
+2026-03-13 16:12:10,488 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20f4e480>
+2026-03-13 16:12:10,489 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5130bbc0>
+2026-03-13 16:12:10,489 - dz_fastapi - DEBUG - Autopart already exists: ID 93330
+2026-03-13 16:12:10,489 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': 'B1569T12VVNCXCE', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,489 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='B1569T12VVNCXCE' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,489 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': 'B1569T12VVNCXCE', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,489 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,489 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,490 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff50b72750>
+2026-03-13 16:12:10,491 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20ccda30>
+2026-03-13 16:12:10,491 - dz_fastapi - DEBUG - Autopart already exists: ID 93331
+2026-03-13 16:12:10,491 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': 'B1569T1XDDW1NCXCE', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,491 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='B1569T1XDDW1NCXCE' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,492 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': 'B1569T1XDDW1NCXCE', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,492 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,492 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,492 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff70b681d0>
+2026-03-13 16:12:10,493 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2add0b30>
+2026-03-13 16:12:10,494 - dz_fastapi - DEBUG - Autopart already exists: ID 3506
+2026-03-13 16:12:10,494 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': 'B17102AT1XDDG3W01', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,494 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='B17102AT1XDDG3W01' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,494 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': 'B17102AT1XDDG3W01', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,494 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,494 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,495 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5130abd0>
+2026-03-13 16:12:10,496 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5130b020>
+2026-03-13 16:12:10,496 - dz_fastapi - DEBUG - Autopart already exists: ID 93332
+2026-03-13 16:12:10,496 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': 'B1799T1XDDG8CG16E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,496 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='B1799T1XDDG8CG16E' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,496 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': 'B1799T1XDDG8CG16E', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,497 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,497 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,497 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a695010>
+2026-03-13 16:12:10,498 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5130abd0>
+2026-03-13 16:12:10,499 - dz_fastapi - DEBUG - Autopart already exists: ID 93333
+2026-03-13 16:12:10,499 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': 'B24Z2C3UR', 'name': 'Подшипник  90363-25014/15', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,499 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='B24Z2C3UR' name='Подшипник  90363-25014/15' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,499 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': 'B24Z2C3UR', 'name': 'Подшипник  90363-25014/15', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,499 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,499 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,500 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb87d0>
+2026-03-13 16:12:10,501 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3940c740>
+2026-03-13 16:12:10,501 - dz_fastapi - DEBUG - Autopart already exists: ID 93334
+2026-03-13 16:12:10,501 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': 'B25163ZNXC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,501 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='B25163ZNXC3' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,501 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': 'B25163ZNXC3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,502 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,502 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,503 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff23ee15b0>
+2026-03-13 16:12:10,504 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbed9070>
+2026-03-13 16:12:10,504 - dz_fastapi - DEBUG - Autopart already exists: ID 93335
+2026-03-13 16:12:10,504 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'ASVA', 'oem_number': 'B874D', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,504 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='ASVA' oem_number='B874D' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,504 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'ASVA', 'oem_number': 'B874D', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,504 - dz_fastapi - DEBUG - Extracted brand_name: ASVA
+2026-03-13 16:12:10,504 - dz_fastapi - DEBUG - Changed brand_name: ASVA
+2026-03-13 16:12:10,506 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff706c4800>
+2026-03-13 16:12:10,507 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2b0d6090>
+2026-03-13 16:12:10,507 - dz_fastapi - DEBUG - Autopart already exists: ID 93336
+2026-03-13 16:12:10,507 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'BTM344017A', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,507 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='BTM344017A' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,507 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'BTM344017A', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,507 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,507 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,508 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a1fc110>
+2026-03-13 16:12:10,509 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20b9f5f0>
+2026-03-13 16:12:10,509 - dz_fastapi - DEBUG - Autopart already exists: ID 93337
+2026-03-13 16:12:10,509 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'C014', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,510 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='C014' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,510 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'C014', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,510 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,510 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,511 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff294b9af0>
+2026-03-13 16:12:10,513 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4aafadb0>
+2026-03-13 16:12:10,513 - dz_fastapi - DEBUG - Autopart already exists: ID 93338
+2026-03-13 16:12:10,513 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'C02112', 'name': 'Фиксатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,513 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='C02112' name='Фиксатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,514 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'C02112', 'name': 'Фиксатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,514 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,514 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,515 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39af0710>
+2026-03-13 16:12:10,516 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff5148c530>
+2026-03-13 16:12:10,516 - dz_fastapi - DEBUG - Autopart already exists: ID 93339
+2026-03-13 16:12:10,516 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'C06', 'name': 'Стопорное Кольцо', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,516 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='C06' name='Стопорное Кольцо' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,516 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'C06', 'name': 'Стопорное Кольцо', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,516 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,516 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,517 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff248d4410>
+2026-03-13 16:12:10,518 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237d2750>
+2026-03-13 16:12:10,518 - dz_fastapi - DEBUG - Autopart already exists: ID 93340
+2026-03-13 16:12:10,518 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'DAC3577W3CS80', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,519 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='DAC3577W3CS80' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,519 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'DAC3577W3CS80', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,519 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,519 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,520 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20b9d850>
+2026-03-13 16:12:10,521 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de3830>
+2026-03-13 16:12:10,521 - dz_fastapi - DEBUG - Autopart already exists: ID 93341
+2026-03-13 16:12:10,521 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'DAC3580WHR4CS0', 'name': 'Подшипник  90369-35060', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,521 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='DAC3580WHR4CS0' name='Подшипник  90369-35060' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,521 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'DAC3580WHR4CS0', 'name': 'Подшипник  90369-35060', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,521 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,521 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,522 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff3b7c5610>
+2026-03-13 16:12:10,523 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2b0d6090>
+2026-03-13 16:12:10,523 - dz_fastapi - DEBUG - Autopart already exists: ID 93342
+2026-03-13 16:12:10,523 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'DAC3871W2CS70', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,523 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='DAC3871W2CS70' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,524 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'DAC3871W2CS70', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,524 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,524 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,525 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38ebb620>
+2026-03-13 16:12:10,525 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de1820>
+2026-03-13 16:12:10,526 - dz_fastapi - DEBUG - Autopart already exists: ID 93343
+2026-03-13 16:12:10,526 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'DAC3871W3CS63', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,526 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='DAC3871W3CS63' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,526 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'DAC3871W3CS63', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,526 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,526 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,527 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4aafadb0>
+2026-03-13 16:12:10,528 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff23ee15b0>
+2026-03-13 16:12:10,528 - dz_fastapi - DEBUG - Autopart already exists: ID 93344
+2026-03-13 16:12:10,528 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'FEBEST', 'oem_number': 'DAC38803336KIT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,528 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='FEBEST' oem_number='DAC38803336KIT' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,528 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'FEBEST', 'oem_number': 'DAC38803336KIT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,528 - dz_fastapi - DEBUG - Extracted brand_name: FEBEST
+2026-03-13 16:12:10,528 - dz_fastapi - DEBUG - Changed brand_name: FEBEST
+2026-03-13 16:12:10,529 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb97c0>
+2026-03-13 16:12:10,530 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de1820>
+2026-03-13 16:12:10,530 - dz_fastapi - DEBUG - Autopart already exists: ID 93345
+2026-03-13 16:12:10,530 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'DAC4380ACS69', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,530 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='DAC4380ACS69' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,531 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'DAC4380ACS69', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,531 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,531 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,532 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae45130>
+2026-03-13 16:12:10,533 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f71100>
+2026-03-13 16:12:10,533 - dz_fastapi - DEBUG - Autopart already exists: ID 93346
+2026-03-13 16:12:10,533 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'DAC4382W3CS79', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,533 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='DAC4382W3CS79' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,533 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'DAC4382W3CS79', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,533 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,533 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,534 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5130bbc0>
+2026-03-13 16:12:10,535 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39f68170>
+2026-03-13 16:12:10,535 - dz_fastapi - DEBUG - Autopart already exists: ID 93347
+2026-03-13 16:12:10,535 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'DAC4584W1CS81', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,535 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='DAC4584W1CS81' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,536 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'DAC4584W1CS81', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,536 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,536 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,537 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff70916960>
+2026-03-13 16:12:10,538 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae46840>
+2026-03-13 16:12:10,538 - dz_fastapi - DEBUG - Autopart already exists: ID 93348
+2026-03-13 16:12:10,538 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DPI Bearings', 'oem_number': 'DAC4584W1CS81', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,538 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='DPI Bearings' oem_number='DAC4584W1CS81' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,538 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'DPI Bearings', 'oem_number': 'DAC4584W1CS81', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,538 - dz_fastapi - DEBUG - Extracted brand_name: DPI Bearings
+2026-03-13 16:12:10,538 - dz_fastapi - DEBUG - Changed brand_name: DPI BEARINGS
+2026-03-13 16:12:10,539 - dz_fastapi - DEBUG - Retrieved brand: None
+2026-03-13 16:12:10,539 - dz_fastapi - WARNING - Brand DPI BEARINGS not found. Skipping autopart creation.
+2026-03-13 16:12:10,539 - dz_fastapi - WARNING - Failed to create or retrieve AutoPart for data: {'brand': 'DPI Bearings', 'oem_number': 'DAC4584W1CS81', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,539 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'DAC4586W2CS69', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,539 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='DAC4586W2CS69' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,539 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'DAC4586W2CS69', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,539 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,539 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,540 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a54f950>
+2026-03-13 16:12:10,541 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a54e090>
+2026-03-13 16:12:10,541 - dz_fastapi - DEBUG - Autopart already exists: ID 93349
+2026-03-13 16:12:10,541 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'DAC4889W2RSCS94', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,541 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='DAC4889W2RSCS94' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,542 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'DAC4889W2RSCS94', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,542 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,542 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,543 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff39175af0>
+2026-03-13 16:12:10,544 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20b9f5f0>
+2026-03-13 16:12:10,544 - dz_fastapi - DEBUG - Autopart already exists: ID 93350
+2026-03-13 16:12:10,544 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'DAC4984WCS71', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,544 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='DAC4984WCS71' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,544 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'DAC4984WCS71', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,545 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,545 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,546 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff294f02f0>
+2026-03-13 16:12:10,547 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3a915f40>
+2026-03-13 16:12:10,547 - dz_fastapi - DEBUG - Autopart already exists: ID 93351
+2026-03-13 16:12:10,547 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'DG2568DNSH2C3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,547 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='DG2568DNSH2C3' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,547 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'DG2568DNSH2C3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,547 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,547 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,548 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4820c2f0>
+2026-03-13 16:12:10,549 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff70b681d0>
+2026-03-13 16:12:10,549 - dz_fastapi - DEBUG - Autopart already exists: ID 3348
+2026-03-13 16:12:10,549 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'DG2568HNSH2C3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,549 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='DG2568HNSH2C3' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,549 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'DG2568HNSH2C3', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,550 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,550 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,550 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefb1f0620>
+2026-03-13 16:12:10,552 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a54f950>
+2026-03-13 16:12:10,552 - dz_fastapi - DEBUG - Autopart already exists: ID 3349
+2026-03-13 16:12:10,552 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'DG3062DW2RSC4', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,552 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='DG3062DW2RSC4' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,552 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'DG3062DW2RSC4', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,552 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,552 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,553 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff20a1d820>
+2026-03-13 16:12:10,554 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff231bc6b0>
+2026-03-13 16:12:10,554 - dz_fastapi - DEBUG - Autopart already exists: ID 93352
+2026-03-13 16:12:10,554 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'DG357226W2RSC4', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,554 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='DG357226W2RSC4' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,555 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'DG357226W2RSC4', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,555 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,555 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,556 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbe41e50>
+2026-03-13 16:12:10,556 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff3940c740>
+2026-03-13 16:12:10,557 - dz_fastapi - DEBUG - Autopart already exists: ID 93353
+2026-03-13 16:12:10,557 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'DG4094W12RSHR4SH2C5', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,557 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='DG4094W12RSHR4SH2C5' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,557 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'DG4094W12RSHR4SH2C5', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,557 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,557 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,558 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38eb97c0>
+2026-03-13 16:12:10,559 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a54e090>
+2026-03-13 16:12:10,559 - dz_fastapi - DEBUG - Autopart already exists: ID 93354
+2026-03-13 16:12:10,559 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GMB', 'oem_number': 'GH0025R0', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,559 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GMB' oem_number='GH0025R0' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,559 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GMB', 'oem_number': 'GH0025R0', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,559 - dz_fastapi - DEBUG - Extracted brand_name: GMB
+2026-03-13 16:12:10,560 - dz_fastapi - DEBUG - Changed brand_name: GMB
+2026-03-13 16:12:10,560 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237a5eb0>
+2026-03-13 16:12:10,562 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff23771430>
+2026-03-13 16:12:10,562 - dz_fastapi - DEBUG - Autopart already exists: ID 93355
+2026-03-13 16:12:10,562 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GMB', 'oem_number': 'GH032030', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,562 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GMB' oem_number='GH032030' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,562 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GMB', 'oem_number': 'GH032030', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,562 - dz_fastapi - DEBUG - Extracted brand_name: GMB
+2026-03-13 16:12:10,562 - dz_fastapi - DEBUG - Changed brand_name: GMB
+2026-03-13 16:12:10,563 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a697dd0>
+2026-03-13 16:12:10,564 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39af0710>
+2026-03-13 16:12:10,564 - dz_fastapi - DEBUG - Autopart already exists: ID 93356
+2026-03-13 16:12:10,564 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GMB', 'oem_number': 'GH038042', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,564 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GMB' oem_number='GH038042' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,564 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GMB', 'oem_number': 'GH038042', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,564 - dz_fastapi - DEBUG - Extracted brand_name: GMB
+2026-03-13 16:12:10,564 - dz_fastapi - DEBUG - Changed brand_name: GMB
+2026-03-13 16:12:10,565 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b1cfd70>
+2026-03-13 16:12:10,566 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237d2750>
+2026-03-13 16:12:10,566 - dz_fastapi - DEBUG - Autopart already exists: ID 93357
+2026-03-13 16:12:10,566 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GMB', 'oem_number': 'GH038110', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,567 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GMB' oem_number='GH038110' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,567 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GMB', 'oem_number': 'GH038110', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,567 - dz_fastapi - DEBUG - Extracted brand_name: GMB
+2026-03-13 16:12:10,567 - dz_fastapi - DEBUG - Changed brand_name: GMB
+2026-03-13 16:12:10,567 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5130bbc0>
+2026-03-13 16:12:10,568 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de16a0>
+2026-03-13 16:12:10,569 - dz_fastapi - DEBUG - Autopart already exists: ID 93358
+2026-03-13 16:12:10,569 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GMB', 'oem_number': 'GH040050', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,569 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GMB' oem_number='GH040050' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,569 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GMB', 'oem_number': 'GH040050', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,569 - dz_fastapi - DEBUG - Extracted brand_name: GMB
+2026-03-13 16:12:10,569 - dz_fastapi - DEBUG - Changed brand_name: GMB
+2026-03-13 16:12:10,570 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff4a697dd0>
+2026-03-13 16:12:10,571 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4a2aa9c0>
+2026-03-13 16:12:10,571 - dz_fastapi - DEBUG - Autopart already exists: ID 93359
+2026-03-13 16:12:10,571 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'GMB', 'oem_number': 'GH045050', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,571 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='GMB' oem_number='GH045050' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,571 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'GMB', 'oem_number': 'GH045050', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,571 - dz_fastapi - DEBUG - Extracted brand_name: GMB
+2026-03-13 16:12:10,571 - dz_fastapi - DEBUG - Changed brand_name: GMB
+2026-03-13 16:12:10,572 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff70bd37a0>
+2026-03-13 16:12:10,573 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20f4e480>
+2026-03-13 16:12:10,573 - dz_fastapi - DEBUG - Autopart already exists: ID 93360
+2026-03-13 16:12:10,574 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NACHI', 'oem_number': 'H128020', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,574 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NACHI' oem_number='H128020' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,574 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NACHI', 'oem_number': 'H128020', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,574 - dz_fastapi - DEBUG - Extracted brand_name: NACHI
+2026-03-13 16:12:10,574 - dz_fastapi - DEBUG - Changed brand_name: NACHI
+2026-03-13 16:12:10,575 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5148c290>
+2026-03-13 16:12:10,576 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae45130>
+2026-03-13 16:12:10,576 - dz_fastapi - DEBUG - Autopart already exists: ID 93361
+2026-03-13 16:12:10,576 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'HC46T090804ALFT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,576 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='HC46T090804ALFT' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,576 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'HC46T090804ALFT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,576 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,577 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,577 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5b1ce000>
+2026-03-13 16:12:10,578 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xfffefbed9070>
+2026-03-13 16:12:10,579 - dz_fastapi - DEBUG - Autopart already exists: ID 93362
+2026-03-13 16:12:10,579 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'HCDU54966LFT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,579 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='HCDU54966LFT' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,579 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'HCDU54966LFT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,579 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,579 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,580 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff5148c290>
+2026-03-13 16:12:10,581 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff70916960>
+2026-03-13 16:12:10,581 - dz_fastapi - DEBUG - Autopart already exists: ID 93363
+2026-03-13 16:12:10,581 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'HCST3568LFT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,581 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='HCST3568LFT' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,581 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'HCST3568LFT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,581 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,581 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,582 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38ebb620>
+2026-03-13 16:12:10,583 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2a68eb10>
+2026-03-13 16:12:10,583 - dz_fastapi - DEBUG - Autopart already exists: ID 93364
+2026-03-13 16:12:10,583 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'HCSTA30721LFT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,584 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='HCSTA30721LFT' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,584 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'HCSTA30721LFT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,584 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,584 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,585 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefc1ad490>
+2026-03-13 16:12:10,586 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39af0710>
+2026-03-13 16:12:10,586 - dz_fastapi - DEBUG - Autopart already exists: ID 93365
+2026-03-13 16:12:10,586 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'HCSTB5080LFT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,586 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='HCSTB5080LFT' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,586 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'HCSTB5080LFT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,586 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,586 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,587 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237d2750>
+2026-03-13 16:12:10,588 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff237d09b0>
+2026-03-13 16:12:10,588 - dz_fastapi - DEBUG - Autopart already exists: ID 93366
+2026-03-13 16:12:10,588 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'HCTR070803C', 'name': 'Подшипник 90366-35044  HCTR070803C', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,588 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='HCTR070803C' name='Подшипник 90366-35044  HCTR070803C' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,589 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'HCTR070803C', 'name': 'Подшипник 90366-35044  HCTR070803C', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,589 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,589 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,590 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2ae45bb0>
+2026-03-13 16:12:10,591 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff2ae45130>
+2026-03-13 16:12:10,591 - dz_fastapi - DEBUG - Autopart already exists: ID 3355
+2026-03-13 16:12:10,591 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'HCTRA0607RYR', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,591 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='HCTRA0607RYR' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,591 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'HCTRA0607RYR', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,591 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,591 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,592 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefe8d9880>
+2026-03-13 16:12:10,593 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff39fd2ff0>
+2026-03-13 16:12:10,593 - dz_fastapi - DEBUG - Autopart already exists: ID 93367
+2026-03-13 16:12:10,593 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'HICAP0247420', 'name': 'Подшипник   90368-28001', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,593 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='HICAP0247420' name='Подшипник   90368-28001' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,594 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'HICAP0247420', 'name': 'Подшипник   90368-28001', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,594 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,594 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,595 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff50b72750>
+2026-03-13 16:12:10,596 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff23771430>
+2026-03-13 16:12:10,596 - dz_fastapi - DEBUG - Autopart already exists: ID 93368
+2026-03-13 16:12:10,596 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'HICAPDU4080', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,596 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='HICAPDU4080' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,596 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'HICAPDU4080', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,596 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,596 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,597 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237a5eb0>
+2026-03-13 16:12:10,598 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38f70b60>
+2026-03-13 16:12:10,598 - dz_fastapi - DEBUG - Autopart already exists: ID 93369
+2026-03-13 16:12:10,598 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'HICAPHM8864910', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,598 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='HICAPHM8864910' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,598 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'HICAPHM8864910', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,598 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,598 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,599 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff2b0d79b0>
+2026-03-13 16:12:10,600 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff23771430>
+2026-03-13 16:12:10,600 - dz_fastapi - DEBUG - Autopart already exists: ID 3354
+2026-03-13 16:12:10,600 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'HICAPL6814910', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,601 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='HICAPL6814910' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,601 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'HICAPL6814910', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,601 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,601 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,602 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff38f70b60>
+2026-03-13 16:12:10,603 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff38eb9340>
+2026-03-13 16:12:10,603 - dz_fastapi - DEBUG - Autopart already exists: ID 93370
+2026-03-13 16:12:10,603 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'KOYO', 'oem_number': 'HICAPST3062ALFT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,603 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='KOYO' oem_number='HICAPST3062ALFT' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,603 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'KOYO', 'oem_number': 'HICAPST3062ALFT', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,603 - dz_fastapi - DEBUG - Extracted brand_name: KOYO
+2026-03-13 16:12:10,603 - dz_fastapi - DEBUG - Changed brand_name: KOYO
+2026-03-13 16:12:10,604 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xffff237731d0>
+2026-03-13 16:12:10,605 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff20de1a00>
+2026-03-13 16:12:10,605 - dz_fastapi - DEBUG - Autopart already exists: ID 93371
+2026-03-13 16:12:10,605 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'NSK', 'oem_number': 'HR30209J', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,605 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand='NSK' oem_number='HR30209J' name='Подшипник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-03-13 16:12:10,606 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': 'NSK', 'oem_number': 'HR30209J', 'name': 'Подшипник', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-03-13 16:12:10,606 - dz_fastapi - DEBUG - Extracted brand_name: NSK
+2026-03-13 16:12:10,606 - dz_fastapi - DEBUG - Changed brand_name: NSK
+2026-03-13 16:12:10,607 - dz_fastapi - DEBUG - Retrieved brand: <dz_fastapi.models.brand.Brand object at 0xfffefbedb050>

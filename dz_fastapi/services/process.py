@@ -94,6 +94,8 @@ def deduplicate_autoparts_data(
                 continue
             unique_map[key]['quantity'] = row['quantity']
             unique_map[key]['price'] = row['price']
+            if 'multiplicity' in row:
+                unique_map[key]['multiplicity'] = row.get('multiplicity')
     return list(unique_map.values())
 
 
@@ -277,6 +279,7 @@ def _prepare_pricelist_data(
     oem_col: int,
     brand_col: Optional[int],
     name_col: Optional[int],
+    multiplicity_col: Optional[int],
     qty_col: int,
     price_col: int,
 ):
@@ -288,6 +291,7 @@ def _prepare_pricelist_data(
         'oem_number': oem_col,
         'brand': brand_col,
         'name': name_col,
+        'multiplicity': multiplicity_col,
         'quantity': qty_col,
         'price': price_col,
     }
@@ -321,6 +325,16 @@ def _prepare_pricelist_data(
         .str.replace(',', '.', regex=False)
         .str.replace(r'[^\d\.]', '', regex=True)
     )
+    if 'multiplicity' in data_df.columns:
+        data_df['multiplicity'] = (
+            data_df['multiplicity']
+            .astype(str)
+            .str.replace(',', '.', regex=False)
+            .str.replace(r'[^\d\.]', '', regex=True)
+        )
+    else:
+        # Если колонка кратности не задана в конфигурации, используем 1.
+        data_df['multiplicity'] = 1
     data_df['price'] = (
         data_df['price']
         .astype(str)
@@ -328,6 +342,11 @@ def _prepare_pricelist_data(
         .str.replace(r'[^\d\.]', '', regex=True)
     )
     data_df['quantity'] = pd.to_numeric(data_df['quantity'], errors='coerce')
+    data_df['multiplicity'] = pd.to_numeric(
+        data_df['multiplicity'], errors='coerce'
+    )
+    data_df.loc[data_df['multiplicity'] <= 0, 'multiplicity'] = None
+    data_df['multiplicity'] = data_df['multiplicity'].fillna(1).apply(int)
     data_df['price'] = pd.to_numeric(data_df['price'], errors='coerce')
     data_df.dropna(subset=['quantity', 'price'], inplace=True)
     MAX_PRICE = 99999999.99
@@ -442,6 +461,7 @@ async def process_provider_pricelist(
     oem_col: Optional[int],
     brand_col: Optional[int],
     name_col: Optional[int],
+    multiplicity_col: Optional[int],
     qty_col: Optional[int],
     price_col: Optional[int],
     session: AsyncSession,
@@ -463,6 +483,7 @@ async def process_provider_pricelist(
         oem_col = provider_list_conf.oem_col
         brand_col = provider_list_conf.brand_col
         name_col = provider_list_conf.name_col
+        multiplicity_col = provider_list_conf.multiplicity_col
         qty_col = provider_list_conf.qty_col
         price_col = provider_list_conf.price_col
     else:
@@ -480,6 +501,7 @@ async def process_provider_pricelist(
             oem_col,
             brand_col,
             name_col,
+            multiplicity_col,
             qty_col,
             price_col,
         )
@@ -523,6 +545,7 @@ async def process_provider_pricelist(
             autopart=autopart_data,
             quantity=int(item['quantity']),
             price=float(item['price']),
+            multiplicity=int(item.get('multiplicity') or 1),
         )
         pricelist_in.autoparts.append(autopart_assoc)
 
