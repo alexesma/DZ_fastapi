@@ -488,7 +488,9 @@ class CustomerOrderConfig(Base):
 
     order_start_row = Column(Integer, default=1)
     order_number_column = Column(Integer, nullable=True)
+    order_number_row = Column(Integer, nullable=True)
     order_date_column = Column(Integer, nullable=True)
+    order_date_row = Column(Integer, nullable=True)
     order_number_regex_subject = Column(String(255), nullable=True)
     order_number_regex_filename = Column(String(255), nullable=True)
     order_number_regex_body = Column(String(255), nullable=True)

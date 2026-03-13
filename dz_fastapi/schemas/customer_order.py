@@ -23,7 +23,9 @@ class CustomerOrderConfigBase(BaseModel):
 
     order_start_row: int = 1
     order_number_column: Optional[int] = None
+    order_number_row: Optional[int] = Field(default=None, ge=1)
     order_date_column: Optional[int] = None
+    order_date_row: Optional[int] = Field(default=None, ge=1)
     order_number_regex_subject: Optional[str] = None
     order_number_regex_filename: Optional[str] = None
     order_number_regex_body: Optional[str] = None
@@ -75,7 +77,9 @@ class CustomerOrderConfigUpdate(BaseModel):
 
     order_start_row: Optional[int] = None
     order_number_column: Optional[int] = None
+    order_number_row: Optional[int] = Field(default=None, ge=1)
     order_date_column: Optional[int] = None
+    order_date_row: Optional[int] = Field(default=None, ge=1)
     order_number_regex_subject: Optional[str] = None
     order_number_regex_filename: Optional[str] = None
     order_number_regex_body: Optional[str] = None

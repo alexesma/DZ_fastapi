@@ -75,6 +75,14 @@ ORDERS_RETENTION_DAYS = int(os.getenv('CUSTOMER_ORDERS_REPORT_DAYS', 7))
 CUSTOMER_ORDERS_FETCH_LIMIT = int(
     os.getenv('CUSTOMER_ORDERS_FETCH_LIMIT', '200')
 )
+CUSTOMER_ORDERS_IMAP_RETRIES = max(
+    1,
+    int(os.getenv('CUSTOMER_ORDERS_IMAP_RETRIES', '3')),
+)
+CUSTOMER_ORDERS_IMAP_RETRY_DELAY_SEC = max(
+    1,
+    int(os.getenv('CUSTOMER_ORDERS_IMAP_RETRY_DELAY_SEC', '5')),
+)
 
 
 def _create_mailbox(server_mail: str, port: int, ssl: bool = True):
@@ -145,7 +153,26 @@ async def _fetch_order_messages(
                 )
             return list(fetched)
 
-    return await asyncio.to_thread(_fetch)
+    for attempt in range(1, CUSTOMER_ORDERS_IMAP_RETRIES + 1):
+        try:
+            return await asyncio.to_thread(_fetch)
+        except Exception as exc:
+            if (
+                not _is_too_many_connections_error(exc)
+                or attempt >= CUSTOMER_ORDERS_IMAP_RETRIES
+            ):
+                raise
+            delay = CUSTOMER_ORDERS_IMAP_RETRY_DELAY_SEC * attempt
+            logger.warning(
+                'IMAP connection limit for %s. '
+                'Retry %s/%s in %ss.',
+                email_account,
+                attempt,
+                CUSTOMER_ORDERS_IMAP_RETRIES,
+                delay,
+            )
+            await asyncio.sleep(delay)
+    return []
 
 
 def _decode_header_value(value: Optional[str]) -> str:
@@ -274,6 +301,14 @@ def _extract_email(value: Optional[str]) -> str:
         return ''
     match = re.search(r'[\\w\\.-]+@[\\w\\.-]+\\.[\\w]+', value)
     return match.group(0).lower() if match else value.lower()
+
+
+def _is_too_many_connections_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    return (
+        'too many simultaneous connections' in text
+        or 'too many connections' in text
+    )
 
 
 async def _get_out_account(
@@ -439,17 +474,37 @@ def _parse_excel_order(
         if config.order_date_column is not None
         else None
     )
+    order_date_row = (
+        int(config.order_date_row)
+        if config.order_date_row is not None
+        else None
+    )
     order_number_col = (
         config.order_number_column + 1
         if config.order_number_column is not None
         else None
     )
+    order_number_row = (
+        int(config.order_number_row)
+        if config.order_number_row is not None
+        else None
+    )
 
     start_row = max(1, int(config.order_start_row or 1))
     for row_idx, row in enumerate(ws.iter_rows(values_only=True), start=1):
-        if order_date is None and order_date_col is not None:
+        if (
+            order_date is None
+            and order_date_col is not None
+            and (order_date_row is None or row_idx == order_date_row)
+            and order_date_col - 1 < len(row)
+        ):
             order_date = _parse_date(row[order_date_col - 1])
-        if order_number is None and order_number_col is not None:
+        if (
+            order_number is None
+            and order_number_col is not None
+            and (order_number_row is None or row_idx == order_number_row)
+            and order_number_col - 1 < len(row)
+        ):
             value = row[order_number_col - 1]
             if value is not None and str(value).strip():
                 order_number = str(value).strip()
@@ -498,10 +553,29 @@ def _parse_csv_order(
     order_number: Optional[str] = None
 
     start_row = max(1, int(config.order_start_row or 1))
+    order_date_row = (
+        int(config.order_date_row)
+        if config.order_date_row is not None
+        else None
+    )
+    order_number_row = (
+        int(config.order_number_row)
+        if config.order_number_row is not None
+        else None
+    )
     for idx, row in df.iterrows():
-        if order_date is None and config.order_date_column is not None:
+        row_num = idx + 1
+        if (
+            order_date is None
+            and config.order_date_column is not None
+            and (order_date_row is None or row_num == order_date_row)
+        ):
             order_date = _parse_date(row[config.order_date_column])
-        if order_number is None and config.order_number_column is not None:
+        if (
+            order_number is None
+            and config.order_number_column is not None
+            and (order_number_row is None or row_num == order_number_row)
+        ):
             value = row[config.order_number_column]
             if not pd.isna(value) and str(value).strip():
                 order_number = str(value).strip()
@@ -552,10 +626,29 @@ def _parse_xls_order(
     order_number: Optional[str] = None
 
     start_row = max(1, int(config.order_start_row or 1))
+    order_date_row = (
+        int(config.order_date_row)
+        if config.order_date_row is not None
+        else None
+    )
+    order_number_row = (
+        int(config.order_number_row)
+        if config.order_number_row is not None
+        else None
+    )
     for idx, row in df.iterrows():
-        if order_date is None and config.order_date_column is not None:
+        row_num = idx + 1
+        if (
+            order_date is None
+            and config.order_date_column is not None
+            and (order_date_row is None or row_num == order_date_row)
+        ):
             order_date = _parse_date(row[config.order_date_column])
-        if order_number is None and config.order_number_column is not None:
+        if (
+            order_number is None
+            and config.order_number_column is not None
+            and (order_number_row is None or row_num == order_number_row)
+        ):
             value = row[config.order_number_column]
             if not pd.isna(value) and str(value).strip():
                 order_number = str(value).strip()
@@ -1390,6 +1483,20 @@ async def process_customer_orders(session: AsyncSession) -> None:
 
     messages: list[tuple[object, Optional[object]]] = []
     if order_accounts:
+        unique_accounts = {}
+        for account in order_accounts:
+            host = (
+                account.imap_host or EMAIL_HOST_ORDER or ''
+            ).strip().lower()
+            folder = (
+                account.imap_folder or EMAIL_FOLDER_ORDER or 'INBOX'
+            ).strip().lower()
+            port = account.imap_port or IMAP_SERVER
+            key = (account.email.strip().lower(), host, folder, port)
+            if key not in unique_accounts:
+                unique_accounts[key] = account
+        order_accounts = list(unique_accounts.values())
+
         for account in order_accounts:
             host = account.imap_host or EMAIL_HOST_ORDER
             label = account.imap_folder or EMAIL_FOLDER_ORDER
@@ -1424,12 +1531,19 @@ async def process_customer_orders(session: AsyncSession) -> None:
                 )
                 messages.extend([(msg, account) for msg in account_messages])
             except Exception as exc:
-                logger.error(
-                    'Order inbox fetch failed for %s: %s',
-                    account.email,
-                    exc,
-                    exc_info=True,
-                )
+                if _is_too_many_connections_error(exc):
+                    logger.warning(
+                        'Order inbox fetch throttled for %s: %s',
+                        account.email,
+                        exc,
+                    )
+                else:
+                    logger.error(
+                        'Order inbox fetch failed for %s: %s',
+                        account.email,
+                        exc,
+                        exc_info=True,
+                    )
                 continue
     else:
         try:
