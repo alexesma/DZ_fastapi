@@ -10,7 +10,7 @@ import rarfile
 from fastapi import (APIRouter, BackgroundTasks, Body, Depends, File, Form,
                      HTTPException, Query, UploadFile, status)
 from pydantic import conint
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -196,6 +196,51 @@ async def lookup_autoparts_by_oem(
         .join(Brand, Brand.id == AutoPart.brand_id)
         .where(AutoPart.oem_number == normalized_oem)
         .order_by(Brand.name.asc(), AutoPart.name.asc().nullslast())
+        .limit(limit)
+    )
+    result = await session.execute(stmt)
+    rows = result.mappings().all()
+    return [AutoPartLookupItem(**row) for row in rows]
+
+
+@router.get(
+    '/autoparts/search/',
+    tags=['autopart'],
+    summary='Поиск автозапчастей по артикулу',
+    response_model=list[AutoPartLookupItem],
+)
+async def search_autoparts_by_oem(
+    q: str = Query(..., min_length=1, description='Часть артикула OEM'),
+    limit: conint(ge=1, le=100) = 50,
+    session: AsyncSession = Depends(get_session),
+):
+    normalized_oem = preprocess_oem_number(q)
+    if not normalized_oem:
+        return []
+
+    startswith_pattern = f'{normalized_oem}%'
+    contains_pattern = f'%{normalized_oem}%'
+    stmt = (
+        select(
+            AutoPart.id.label('id'),
+            AutoPart.oem_number.label('oem_number'),
+            Brand.id.label('brand_id'),
+            Brand.name.label('brand'),
+            AutoPart.name.label('name'),
+        )
+        .select_from(AutoPart)
+        .join(Brand, Brand.id == AutoPart.brand_id)
+        .where(AutoPart.oem_number.ilike(contains_pattern))
+        .order_by(
+            case(
+                (AutoPart.oem_number == normalized_oem, 0),
+                (AutoPart.oem_number.ilike(startswith_pattern), 1),
+                else_=2,
+            ),
+            AutoPart.oem_number.asc(),
+            Brand.name.asc(),
+            AutoPart.id.asc(),
+        )
         .limit(limit)
     )
     result = await session.execute(stmt)

@@ -20,8 +20,8 @@ from dz_fastapi.models.brand import Brand, brand_synonyms
 from dz_fastapi.models.partner import (PriceList, PriceListMissingBrand,
                                        Provider, ProviderPriceListConfig)
 from dz_fastapi.schemas.brand import (BrandCreate, BrandCreateInDB,
-                                      BrandResponse, BrandUpdate,
-                                      MissingBrandByPricelist,
+                                      BrandLookupItem, BrandResponse,
+                                      BrandUpdate, MissingBrandByPricelist,
                                       MissingBrandResolveRequest,
                                       SynonymCreate)
 
@@ -67,6 +67,26 @@ async def get_brands(session: AsyncSession = Depends(get_session)):
             brand, session
         )
     return brands
+
+
+@router.get(
+    '/lookup/',
+    response_model=list[BrandLookupItem],
+    tags=['brand'],
+    summary='Поиск брендов по имени',
+)
+async def lookup_brands(
+    q: str = '',
+    limit: int = 50,
+    session: AsyncSession = Depends(get_session),
+):
+    normalized = await change_brand_name(q) if q else ''
+    stmt = select(Brand.id, Brand.name).order_by(Brand.name.asc())
+    if normalized:
+        stmt = stmt.where(Brand.name.ilike(f'%{normalized}%'))
+    stmt = stmt.limit(max(1, min(limit, 200)))
+    rows = (await session.execute(stmt)).all()
+    return [BrandLookupItem(id=row.id, name=row.name) for row in rows]
 
 
 @router.get(

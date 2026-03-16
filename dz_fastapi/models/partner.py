@@ -458,10 +458,14 @@ class CustomerPriceListConfig(Base):
     schedule_days = Column(JSON, default=[])
     schedule_times = Column(JSON, default=[])
     emails = Column(JSON, default=[])
+    outgoing_email_account_id = Column(
+        Integer, ForeignKey('emailaccount.id'), nullable=True
+    )
     is_active = Column(Boolean, default=True)
     last_sent_at = Column(DateTime(timezone=True), nullable=True)
 
     customer = relationship('Customer', back_populates='pricelist_configs')
+    outgoing_email_account = relationship('EmailAccount', lazy='selectin')
     sources = relationship(
         'CustomerPriceListSource',
         back_populates='config',

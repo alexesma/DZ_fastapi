@@ -97,6 +97,25 @@ async def _validate_incoming_price_mailbox(
         )
 
 
+async def _validate_outgoing_price_mailbox(
+    session: AsyncSession, mailbox_id: int | None
+):
+    if mailbox_id is None:
+        return
+    mailbox = await crud_email_account.get(session, mailbox_id)
+    if not mailbox:
+        raise HTTPException(
+            status_code=400,
+            detail='Selected mailbox for outgoing pricelists not found',
+        )
+    purposes = [str(p).lower() for p in (mailbox.purposes or [])]
+    if 'prices_out' not in purposes:
+        raise HTTPException(
+            status_code=400,
+            detail='Selected mailbox must have purpose prices_out',
+        )
+
+
 @router.post(
     '/providers/',
     tags=['providers'],
@@ -1179,6 +1198,9 @@ async def create_customer_pricelist_config(
     )
     if not customer:
         raise HTTPException(status_code=404, detail='Customer not found')
+    await _validate_outgoing_price_mailbox(
+        session, config_in.outgoing_email_account_id
+    )
 
     try:
         # Вызываем метод из CRUD-класса для создания конфигурации
@@ -1219,6 +1241,13 @@ async def update_customer_pricelist_config(
     if not config or config.customer_id != customer_id:
         raise HTTPException(
             status_code=404, detail='Configuration not found for this customer'
+        )
+    if (
+        'outgoing_email_account_id' in config_in.model_fields_set
+        and config_in.outgoing_email_account_id is not None
+    ):
+        await _validate_outgoing_price_mailbox(
+            session, config_in.outgoing_email_account_id
         )
 
     update_data = config_in.model_dump(exclude_unset=True)

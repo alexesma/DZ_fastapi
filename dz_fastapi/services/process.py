@@ -1026,6 +1026,7 @@ async def send_pricelist(
     session: AsyncSession,
     df_excel: pd.DataFrame,
     customer: Customer,
+    config: CustomerPriceListConfig,
     to_emails: Optional[List[str]],
     subject: str,
     body: str,
@@ -1089,13 +1090,36 @@ async def send_pricelist(
     # Send the email asynchronously
     logger.debug('Send the email asynchronously')
     loop = asyncio.get_running_loop()
-    account = await crud_email_account.get_active_by_purpose(
-        session=session,
-        purpose='prices_out',
-    )
+    account = None
+    if config.outgoing_email_account_id:
+        selected = await crud_email_account.get(
+            session, config.outgoing_email_account_id
+        )
+        if not selected:
+            logger.warning(
+                'Configured outgoing mailbox not found: id=%s',
+                config.outgoing_email_account_id,
+            )
+        else:
+            purposes = [str(p).lower() for p in (selected.purposes or [])]
+            if selected.is_active and 'prices_out' in purposes:
+                account = selected
+            else:
+                logger.warning(
+                    'Configured outgoing mailbox is inactive or '
+                    'missing prices_out purpose: id=%s',
+                    config.outgoing_email_account_id,
+                )
+    if account is None:
+        accounts = await crud_email_account.get_active_by_purpose(
+            session=session,
+            purpose='prices_out',
+        )
+        if accounts:
+            account = accounts[0]
+
     kwargs = {}
     if account:
-        account = account[0]
         kwargs = {
             'smtp_host': account.smtp_host,
             'smtp_port': account.smtp_port,
@@ -1357,6 +1381,7 @@ async def process_customer_pricelist(
     await send_pricelist(
         session=session,
         customer=customer,
+        config=config,
         to_emails=recipients,
         df_excel=df_excel,
         subject=f'Прайс лист {customer_pricelist.date}',

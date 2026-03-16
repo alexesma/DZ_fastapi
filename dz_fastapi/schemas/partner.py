@@ -455,6 +455,7 @@ class CustomerPriceListConfigBase(BaseModel):
     schedule_days: Optional[List[str]] = Field(default_factory=list)
     schedule_times: Optional[List[str]] = Field(default_factory=list)
     emails: Optional[List[EmailStr]] = Field(default_factory=list)
+    outgoing_email_account_id: Optional[int] = Field(default=None, ge=1)
     is_active: Optional[bool] = True
 
 
@@ -489,6 +490,7 @@ class CustomerPriceListConfigUpdate(BaseModel):
     schedule_days: Optional[List[str]] = None
     schedule_times: Optional[List[str]] = None
     emails: Optional[List[EmailStr]] = None
+    outgoing_email_account_id: Optional[int] = Field(default=None, ge=1)
     is_active: Optional[bool] = None
 
 

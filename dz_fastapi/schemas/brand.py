@@ -84,6 +84,13 @@ class BrandUpdateInDB(BrandBase):
     pass
 
 
+class BrandLookupItem(BaseModel):
+    id: int
+    name: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class SynonymCreate(BaseModel):
     names: List[str]
 
