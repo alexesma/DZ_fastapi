@@ -1,3 +1,4 @@
+import html
 import logging
 import os
 from decimal import ROUND_HALF_UP, Decimal
@@ -19,6 +20,7 @@ logger = logging.getLogger('dz_fastapi')
 SITE_PROVIDER_NAME = 'Сайт Dragonzap'
 SITE_PRICELIST_ID = 0
 PRICE_STEP = Decimal('0.01')
+TOP_SITE_OFFERS_LIMIT = 3
 
 
 def _notify_immediately() -> bool:
@@ -186,7 +188,9 @@ async def _record_site_price_history(
 
 
 def _collect_top_offers(
-    offers: list[dict], max_price: float | None, limit: int = 5
+    offers: list[dict],
+    max_price: float | None,
+    limit: int = TOP_SITE_OFFERS_LIMIT,
 ) -> list[dict]:
     normalized: list[dict] = []
     for offer in offers:
@@ -214,10 +218,14 @@ def _format_delivery(
     return f'{min_label} - {max_label}'
 
 
-def format_top_offer_lines(offers: list[dict]) -> list[str]:
+def format_top_offer_lines(
+    offers: list[dict], html_mode: bool = False
+) -> list[str]:
     lines = []
     for idx, offer in enumerate(offers, start=1):
         supplier = offer.get('supplier_name') or '—'
+        if html_mode:
+            supplier = html.escape(str(supplier))
         delivery = _format_delivery(
             offer.get('min_delivery_day'), offer.get('max_delivery_day')
         )
@@ -274,7 +282,9 @@ async def check_watchlist_site(session):
                     )
 
             top_offers = _collect_top_offers(
-                offers, item.max_price, limit=5
+                offers,
+                item.max_price,
+                limit=TOP_SITE_OFFERS_LIMIT,
             )
             if not top_offers:
                 continue
@@ -291,14 +301,21 @@ async def check_watchlist_site(session):
                 )
                 if should_notify:
                     message_lines = [
-                        f'Позиция найдена на сайте: '
-                        f'{_norm(item.brand)} {_norm(item.oem)}',
-                        'Топ 5 предложений:',
+                        '<b>Позиция найдена на сайте:</b>',
+                        (
+                            f'<b>{html.escape(_norm(item.brand))} '
+                            f'{html.escape(_norm(item.oem))}</b>'
+                        ),
+                        f'<b>Топ {TOP_SITE_OFFERS_LIMIT} предложения:</b>',
                     ]
-                    message_lines.extend(format_top_offer_lines(top_offers))
+                    message_lines.extend(
+                        format_top_offer_lines(top_offers, html_mode=True)
+                    )
                     message = '\n'.join(message_lines)
                     try:
-                        await send_message_to_telegram(message)
+                        await send_message_to_telegram(
+                            message, parse_mode='HTML'
+                        )
                         item.last_notified_site_at = now
                     except Exception as e:
                         logger.error(

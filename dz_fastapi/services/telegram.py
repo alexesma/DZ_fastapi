@@ -46,7 +46,11 @@ async def send_file_to_telegram(
                 )
 
 
-async def send_message_to_telegram(text: str, chat_id: str | None = None):
+async def send_message_to_telegram(
+    text: str,
+    chat_id: str | None = None,
+    parse_mode: str | None = None,
+):
     if not TELEGRAM_BOT_TOKEN:
         raise Exception('TELEGRAM_TOKEN is not configured')
     chat_id = chat_id or TELEGRAM_CHAT_ID
@@ -56,6 +60,8 @@ async def send_message_to_telegram(text: str, chat_id: str | None = None):
         'chat_id': chat_id,
         'text': text,
     }
+    if parse_mode:
+        payload['parse_mode'] = parse_mode
     async with aiohttp.ClientSession() as session:
         async with session.post(TELEGRAM_MSG_URL, data=payload) as response:
             if response.status != 200:

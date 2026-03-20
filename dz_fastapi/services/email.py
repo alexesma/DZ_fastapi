@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import smtplib
+import socket
 import unicodedata
 from datetime import date, timedelta
 from email.message import EmailMessage
@@ -44,6 +45,32 @@ SMTP_PASSWORD = os.getenv('EMAIL_PASSWORD')
 
 DOWNLOAD_FOLDER = 'uploads/pricelistprovider'
 PROCESSED_FOLDER = 'processed'
+
+
+def _resolve_smtp_host(host: str) -> tuple[str, str]:
+    try:
+        addrinfo = socket.getaddrinfo(
+            host,
+            None,
+            type=socket.SOCK_STREAM,
+        )
+    except OSError as exc:
+        logger.warning('SMTP host resolve failed for %s: %s', host, exc)
+        return host, 'unresolved'
+
+    ipv4_hosts = []
+    ipv6_hosts = []
+    for family, _, _, _, sockaddr in addrinfo:
+        if family == socket.AF_INET:
+            ipv4_hosts.append(sockaddr[0])
+        elif family == socket.AF_INET6:
+            ipv6_hosts.append(sockaddr[0])
+
+    if ipv4_hosts:
+        return ipv4_hosts[0], 'ipv4'
+    if ipv6_hosts:
+        return ipv6_hosts[0], 'ipv6'
+    return host, 'unknown'
 
 
 def _create_mailbox(server_mail: str, port: int, ssl: bool = True):
@@ -287,6 +314,8 @@ def send_email_with_attachment(
         logger.error('Email credentials are not set.')
         return
 
+    resolved_host, resolved_family = _resolve_smtp_host(smtp_host)
+
     msg = EmailMessage()
     msg['Subject'] = subject
     msg['From'] = from_email
@@ -305,17 +334,45 @@ def send_email_with_attachment(
     )
 
     try:
+        logger.info(
+            'Sending email via SMTP host=%s resolved_host=%s family=%s '
+            'port=%s user=%s ssl=%s to=%s',
+            smtp_host,
+            resolved_host,
+            resolved_family,
+            smtp_port,
+            smtp_user,
+            use_ssl,
+            to_email,
+        )
         if use_ssl:
-            smtp_ctx = smtplib.SMTP_SSL(smtp_host, smtp_port)
+            smtp_ctx = smtplib.SMTP_SSL(
+                resolved_host, smtp_port, timeout=20
+            )
         else:
-            smtp_ctx = smtplib.SMTP(smtp_host, smtp_port)
+            smtp_ctx = smtplib.SMTP(
+                resolved_host, smtp_port, timeout=20
+            )
         with smtp_ctx as smtp:
             smtp.set_debuglevel(1)
+            if not use_ssl:
+                smtp.ehlo()
+                smtp.starttls()
+                smtp.ehlo()
             smtp.login(smtp_user, smtp_password)
             smtp.send_message(msg)
         logger.info(f'Email sent to {to_email}')
     except Exception as e:
-        logger.error(f'Failed to send email: {e}')
+        logger.error(
+            'Failed to send email via host=%s resolved_host=%s port=%s '
+            'user=%s ssl=%s: %s',
+            smtp_host,
+            resolved_host,
+            smtp_port,
+            smtp_user,
+            use_ssl,
+            e,
+        )
 
 
 async def download_new_price_provider(

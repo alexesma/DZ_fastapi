@@ -68,7 +68,8 @@ from dz_fastapi.schemas.partner import (AutoPartInPricelist,
                                         CustomerPriceListResponse,
                                         PriceListAutoPartAssociationCreate,
                                         PriceListCreate)
-from dz_fastapi.services.email import send_email_with_attachment
+from dz_fastapi.services.email import (EMAIL_NAME, SMTP_PORT, SMTP_SERVER,
+                                       send_email_with_attachment)
 from dz_fastapi.services.utils import (brand_filters, normalize_markup,
                                        normalize_mixed_cyrillic,
                                        position_exclude, position_filters,
@@ -1102,12 +1103,17 @@ async def send_pricelist(
             )
         else:
             purposes = [str(p).lower() for p in (selected.purposes or [])]
-            if selected.is_active and 'prices_out' in purposes:
+            can_send_prices = (
+                'prices_out' in purposes
+                or 'orders_out' in purposes
+                or 'orders_in' in purposes
+            )
+            if selected.is_active and can_send_prices:
                 account = selected
             else:
                 logger.warning(
                     'Configured outgoing mailbox is inactive or '
-                    'missing prices_out purpose: id=%s',
+                    'missing prices_out/orders_out/orders_in purpose: id=%s',
                     config.outgoing_email_account_id,
                 )
     if account is None:
@@ -1115,11 +1121,32 @@ async def send_pricelist(
             session=session,
             purpose='prices_out',
         )
+        if not accounts:
+            accounts = await crud_email_account.get_active_by_purpose(
+                session=session,
+                purpose='orders_out',
+            )
+        if not accounts:
+            accounts = await crud_email_account.get_active_by_purpose(
+                session=session,
+                purpose='orders_in',
+            )
         if accounts:
             account = accounts[0]
 
     kwargs = {}
     if account:
+        logger.info(
+            'Using configured outgoing email account for pricelist send: '
+            'config=%s account_id=%s email=%s smtp_host=%s smtp_port=%s '
+            'smtp_ssl=%s',
+            config.id,
+            account.id,
+            account.email,
+            account.smtp_host,
+            account.smtp_port,
+            bool(account.smtp_use_ssl),
+        )
         kwargs = {
             'smtp_host': account.smtp_host,
             'smtp_port': account.smtp_port,
@@ -1128,6 +1155,15 @@ async def send_pricelist(
             'from_email': account.email,
             'use_ssl': bool(account.smtp_use_ssl),
         }
+    else:
+        logger.info(
+            'Using ENV SMTP settings for pricelist send: config=%s host=%s '
+            'port=%s user=%s',
+            config.id,
+            SMTP_SERVER,
+            SMTP_PORT,
+            EMAIL_NAME,
+        )
 
     await loop.run_in_executor(
         None,

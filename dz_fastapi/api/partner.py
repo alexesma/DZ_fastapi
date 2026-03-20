@@ -109,10 +109,14 @@ async def _validate_outgoing_price_mailbox(
             detail='Selected mailbox for outgoing pricelists not found',
         )
     purposes = [str(p).lower() for p in (mailbox.purposes or [])]
-    if 'prices_out' not in purposes:
+    allowed_purposes = {'prices_out', 'orders_out', 'orders_in'}
+    if not any(purpose in allowed_purposes for purpose in purposes):
         raise HTTPException(
             status_code=400,
-            detail='Selected mailbox must have purpose prices_out',
+            detail=(
+                'Selected mailbox must have purpose '
+                'prices_out, orders_out or orders_in'
+            ),
         )
 
 

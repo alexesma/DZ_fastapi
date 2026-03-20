@@ -1,3 +1,4 @@
+import html
 import logging
 import os
 from datetime import datetime
@@ -11,10 +12,12 @@ from dz_fastapi.crud.watchlist import crud_price_watch_item
 from dz_fastapi.http.dz_site_client import DZSiteClient
 from dz_fastapi.models.partner import Client, Provider, ProviderPriceListConfig
 from dz_fastapi.services.telegram import send_message_to_telegram
-from dz_fastapi.services.watchlist_site import (_collect_top_offers,
+from dz_fastapi.services.watchlist_site import (TOP_SITE_OFFERS_LIMIT,
+                                                _collect_top_offers,
                                                 format_top_offer_lines)
 
 logger = logging.getLogger('dz_fastapi')
+SITE_ITEM_SEPARATOR = '--------------------'
 
 
 def _notify_immediately() -> bool:
@@ -129,19 +132,8 @@ async def send_watchlist_daily_notifications(session: AsyncSession):
         )
         provider_map = {row[0]: row[1] for row in rows.all()}
 
-    lines: list[str] = []
-    if provider_items:
-        lines.append('Позиции в прайсах:')
-        for item in provider_items:
-            provider_label = provider_map.get(
-                item.last_seen_provider_id, ''
-            ) or str(item.last_seen_provider_id)
-            lines.append(
-                f'- {_norm(item.brand)} {_norm(item.oem)} | '
-                f'Цена {item.last_seen_provider_price} | '
-                f'Поставщик {provider_label}'
-            )
-
+    provider_by_id = {item.id: item for item in provider_items}
+    site_by_id = {item.id: item for item in site_items}
     if site_items:
         site_offer_map: dict[int, list[dict]] = {}
         key = os.getenv('KEY_FOR_WEBSITE')
@@ -162,28 +154,60 @@ async def send_watchlist_daily_notifications(session: AsyncSession):
                     if not offers:
                         continue
                     top_offers = _collect_top_offers(
-                        offers, item.max_price, limit=5
+                        offers,
+                        item.max_price,
+                        limit=TOP_SITE_OFFERS_LIMIT,
                     )
                     if top_offers:
                         site_offer_map[item.id] = top_offers
-        if lines:
+
+    notify_items = [
+        item
+        for item in watch_items
+        if item.id in provider_by_id or item.id in site_by_id
+    ]
+    lines: list[str] = ['<b>Отслеживаемые позиции:</b>']
+    for idx, item in enumerate(notify_items):
+        if idx > 0:
             lines.append('')
-        lines.append('Позиции на сайте:')
-        for item in site_items:
-            lines.append(f'- {_norm(item.brand)} {_norm(item.oem)}')
+            lines.append(SITE_ITEM_SEPARATOR)
+            lines.append('')
+        lines.append(
+            f'<b>{html.escape(_norm(item.brand))} '
+            f'{html.escape(_norm(item.oem))}</b>'
+        )
+
+        provider_item = provider_by_id.get(item.id)
+        if provider_item:
+            provider_label = provider_map.get(
+                provider_item.last_seen_provider_id, ''
+            ) or str(provider_item.last_seen_provider_id)
+            lines.append(
+                f'  <b>Прайс:</b> Цена '
+                f'{provider_item.last_seen_provider_price} | '
+                f'Поставщик {html.escape(str(provider_label))}'
+            )
+
+        site_item = site_by_id.get(item.id)
+        if site_item:
+            lines.append('  <b>Сайт:</b>')
             top_offers = site_offer_map.get(item.id)
             if top_offers:
-                for line in format_top_offer_lines(top_offers):
-                    lines.append(f'  {line}')
+                for line in format_top_offer_lines(
+                    top_offers, html_mode=True
+                ):
+                    lines.append(f'    {line}')
             else:
-                qty = item.last_seen_site_qty
+                qty = site_item.last_seen_site_qty
                 qty_part = f' | Кол-во {qty}' if qty is not None else ''
                 lines.append(
-                    f'  Цена {item.last_seen_site_price}{qty_part}'
+                    f'    Цена {site_item.last_seen_site_price}{qty_part}'
                 )
 
     try:
-        await send_message_to_telegram('\n'.join(lines))
+        await send_message_to_telegram(
+            '\n'.join(lines), parse_mode='HTML'
+        )
     except Exception as e:
         logger.error(f'Failed to send watchlist telegram: {e}')
         return
