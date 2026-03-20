@@ -16,6 +16,8 @@ from dz_fastapi.schemas.email_account import (EmailAccountCreate,
                                               EmailAccountTestRequest,
                                               EmailAccountTestResponse,
                                               EmailAccountUpdate)
+from dz_fastapi.services.email import (build_email_delivery_kwargs,
+                                       send_test_outbound_email)
 from dz_fastapi.services.email_account_checks import (test_imap_connection,
                                                       test_smtp_connection)
 from dz_fastapi.services.google_oauth import (build_google_auth_url,
@@ -107,6 +109,7 @@ async def test_email_account(
         raise HTTPException(status_code=404, detail='Account not found')
 
     response = EmailAccountTestResponse()
+    response.outbound_transport = account.transport or 'smtp'
     if payload.imap:
         if account.oauth_provider == 'google' and account.oauth_refresh_token:
             try:
@@ -140,7 +143,29 @@ async def test_email_account(
                 response.imap_error = str(exc)
 
     if payload.smtp:
-        if not account.smtp_host:
+        if (account.transport or 'smtp') == 'http_api':
+            provider = (account.http_api_provider or '').strip().lower()
+            api_url = account.http_api_url
+            api_key = account.http_api_key
+            if provider not in {'resend', 'brevo'}:
+                response.smtp_ok = False
+                response.smtp_error = (
+                    'Не выбран поддерживаемый HTTP API провайдер'
+                )
+            elif not api_key:
+                response.smtp_ok = False
+                response.smtp_error = 'API ключ не указан'
+            else:
+                response.smtp_ok = True
+                response.outbound_note = (
+                    'HTTP API настроен. Реальная отправка тестового письма '
+                    'не выполнялась.'
+                )
+                if not api_url:
+                    response.outbound_note += (
+                        ' Используется стандартный URL провайдера.'
+                    )
+        elif not account.smtp_host:
             response.smtp_ok = False
             response.smtp_error = 'SMTP host не указан'
         else:
@@ -159,9 +184,39 @@ async def test_email_account(
                     use_ssl,
                 )
                 response.smtp_ok = True
+                response.outbound_note = 'SMTP авторизация успешна'
             except Exception as exc:
                 response.smtp_ok = False
                 response.smtp_error = str(exc)
+
+        if payload.real_send:
+            if not payload.to_email:
+                response.smtp_ok = False
+                response.smtp_error = 'Укажите email получателя для теста'
+            elif response.smtp_ok is False:
+                pass
+            else:
+                kwargs = build_email_delivery_kwargs(account)
+                try:
+                    sent = await asyncio.to_thread(
+                        send_test_outbound_email,
+                        to_email=str(payload.to_email),
+                        **kwargs,
+                    )
+                    if sent:
+                        response.smtp_ok = True
+                        response.outbound_note = (
+                            f'Тестовое письмо отправлено на {payload.to_email}'
+                        )
+                    else:
+                        response.smtp_ok = False
+                        response.smtp_error = (
+                            'Тестовая отправка не удалась. '
+                            'Смотрите backend-логи.'
+                        )
+                except Exception as exc:
+                    response.smtp_ok = False
+                    response.smtp_error = str(exc)
 
     return response
 

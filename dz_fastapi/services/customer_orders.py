@@ -51,7 +51,8 @@ from dz_fastapi.models.partner import (CUSTOMER_ORDER_ITEM_STATUS,
                                        PriceListAutoPartAssociation, Provider,
                                        StockOrder, StockOrderItem,
                                        SupplierOrder, SupplierOrderItem)
-from dz_fastapi.services.email import send_email_with_attachment
+from dz_fastapi.services.email import (build_email_delivery_kwargs,
+                                       send_email_with_attachment)
 from dz_fastapi.services.google_oauth import refresh_google_access_token
 from dz_fastapi.services.process import (_apply_source_filters,
                                          _apply_source_markups)
@@ -954,14 +955,7 @@ async def _send_reject_report(
         account = await _get_out_account(session, 'reports_out')
         kwargs = {}
         if account:
-            kwargs = {
-                'smtp_host': account.smtp_host,
-                'smtp_port': account.smtp_port,
-                'smtp_user': account.email,
-                'smtp_password': account.password,
-                'from_email': account.email,
-                'use_ssl': bool(account.smtp_use_ssl),
-            }
+            kwargs = build_email_delivery_kwargs(account)
         try:
             await asyncio.get_running_loop().run_in_executor(
                 None,
@@ -1916,14 +1910,7 @@ async def process_customer_orders(session: AsyncSession) -> None:
                 account = await _get_out_account(session, 'orders_out')
                 kwargs = {}
                 if account:
-                    kwargs = {
-                        'smtp_host': account.smtp_host,
-                        'smtp_port': account.smtp_port,
-                        'smtp_user': account.email,
-                        'smtp_password': account.password,
-                        'from_email': account.email,
-                        'use_ssl': bool(account.smtp_use_ssl),
-                    }
+                    kwargs = build_email_delivery_kwargs(account)
                 await asyncio.get_running_loop().run_in_executor(
                     None,
                     send_email_with_attachment,
@@ -1978,14 +1965,7 @@ async def send_supplier_orders(
     account = await _get_out_account(session, 'orders_out')
     smtp_kwargs = {}
     if account:
-        smtp_kwargs = {
-            'smtp_host': account.smtp_host,
-            'smtp_port': account.smtp_port,
-            'smtp_user': account.email,
-            'smtp_password': account.password,
-            'from_email': account.email,
-            'use_ssl': bool(account.smtp_use_ssl),
-        }
+        smtp_kwargs = build_email_delivery_kwargs(account)
 
     for order in orders:
         provider = order.provider

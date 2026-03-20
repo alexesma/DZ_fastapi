@@ -1,5 +1,7 @@
 import asyncio
+import base64
 import logging
+import mimetypes
 import os
 import re
 import smtplib
@@ -42,9 +44,20 @@ SMTP_SERVER = os.getenv('SMTP_SERVER')
 SMTP_PORT = int(os.getenv('SMTP_PORT', 465))
 SMTP_USERNAME = os.getenv('EMAIL_NAME')
 SMTP_PASSWORD = os.getenv('EMAIL_PASSWORD')
+EMAIL_TRANSPORT = os.getenv('EMAIL_TRANSPORT', 'smtp').strip().lower()
+EMAIL_HTTP_API_PROVIDER = (
+    os.getenv('EMAIL_HTTP_API_PROVIDER', '').strip().lower() or None
+)
+EMAIL_HTTP_API_URL = os.getenv('EMAIL_HTTP_API_URL')
+EMAIL_HTTP_API_KEY = os.getenv('EMAIL_HTTP_API_KEY')
+EMAIL_HTTP_API_TIMEOUT = int(os.getenv('EMAIL_HTTP_API_TIMEOUT', 20))
 
 DOWNLOAD_FOLDER = 'uploads/pricelistprovider'
 PROCESSED_FOLDER = 'processed'
+HTTP_API_DEFAULT_URLS = {
+    'resend': 'https://api.resend.com/emails',
+    'brevo': 'https://api.brevo.com/v3/smtp/email',
+}
 
 
 class _ResolvedHostSMTP(smtplib.SMTP):
@@ -113,6 +126,323 @@ def _extract_email(value: Optional[str]) -> str:
         return ''
     match = re.search(r'[\\w\\.-]+@[\\w\\.-]+\\.[\\w]+', value)
     return match.group(0).lower() if match else value.lower()
+
+
+def _normalize_recipients(
+    to_email: str | list[str] | tuple[str, ...]
+) -> list[str]:
+    if isinstance(to_email, (list, tuple)):
+        raw_values = list(to_email)
+    else:
+        raw_values = re.split(r'[;,]', str(to_email or ''))
+    recipients = []
+    for value in raw_values:
+        email = _extract_email(str(value).strip())
+        if email:
+            recipients.append(email)
+    return recipients
+
+
+def build_email_delivery_kwargs(account) -> dict:
+    transport = getattr(account, 'transport', 'smtp') or 'smtp'
+    transport = transport.strip().lower()
+    if transport == 'http_api':
+        return {
+            'transport': 'http_api',
+            'from_email': account.email,
+            'http_api_provider': getattr(account, 'http_api_provider', None),
+            'http_api_url': getattr(account, 'http_api_url', None),
+            'http_api_key': getattr(account, 'http_api_key', None),
+            'http_api_timeout': getattr(account, 'http_api_timeout', None),
+        }
+    return {
+        'transport': 'smtp',
+        'smtp_host': account.smtp_host,
+        'smtp_port': account.smtp_port,
+        'smtp_user': account.email,
+        'smtp_password': account.password,
+        'from_email': account.email,
+        'use_ssl': bool(account.smtp_use_ssl),
+    }
+
+
+def describe_email_delivery(account) -> str:
+    transport = getattr(account, 'transport', 'smtp') or 'smtp'
+    transport = transport.strip().lower()
+    if transport == 'http_api':
+        return (
+            'transport=http_api provider=%s url=%s timeout=%s'
+            % (
+                getattr(account, 'http_api_provider', None),
+                getattr(account, 'http_api_url', None)
+                or HTTP_API_DEFAULT_URLS.get(
+                    getattr(account, 'http_api_provider', '') or ''
+                ),
+                getattr(account, 'http_api_timeout', None),
+            )
+        )
+    return (
+        'transport=smtp smtp_host=%s smtp_port=%s smtp_ssl=%s'
+        % (
+            getattr(account, 'smtp_host', None),
+            getattr(account, 'smtp_port', None),
+            bool(getattr(account, 'smtp_use_ssl', True)),
+        )
+    )
+
+
+def _send_email_via_http_api(
+    *,
+    to_email,
+    subject,
+    body,
+    attachment_bytes,
+    attachment_filename,
+    is_html: bool,
+    from_email: str,
+    http_api_provider: str | None,
+    http_api_url: str | None,
+    http_api_key: str | None,
+    http_api_timeout: int | None,
+) -> bool:
+    provider = (
+        (http_api_provider or EMAIL_HTTP_API_PROVIDER or '')
+        .strip()
+        .lower()
+    )
+    api_key = http_api_key or EMAIL_HTTP_API_KEY
+    timeout = http_api_timeout or EMAIL_HTTP_API_TIMEOUT
+    api_url = (
+        http_api_url
+        or EMAIL_HTTP_API_URL
+        or HTTP_API_DEFAULT_URLS.get(provider)
+    )
+    recipients = _normalize_recipients(to_email)
+
+    if provider not in HTTP_API_DEFAULT_URLS:
+        logger.error('Unsupported HTTP API email provider: %s', provider)
+        return False
+    if not api_key or not api_url or not from_email:
+        logger.error(
+            'HTTP API email settings are incomplete: provider=%s url=%s '
+            'from_email=%s has_key=%s',
+            provider,
+            api_url,
+            from_email,
+            bool(api_key),
+        )
+        return False
+    if not recipients:
+        logger.error(
+            'No valid recipients for HTTP API email send: %s',
+            to_email,
+        )
+        return False
+
+    attachment_content = base64.b64encode(attachment_bytes).decode('ascii')
+    if provider == 'resend':
+        headers = {
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json',
+        }
+        payload = {
+            'from': from_email,
+            'to': recipients,
+            'subject': subject,
+            'attachments': [
+                {
+                    'filename': attachment_filename,
+                    'content': attachment_content,
+                }
+            ],
+        }
+        if is_html:
+            payload['html'] = body
+        else:
+            payload['text'] = body
+    else:
+        headers = {
+            'api-key': api_key,
+            'Content-Type': 'application/json',
+        }
+        payload = {
+            'sender': {'email': from_email},
+            'to': [{'email': email} for email in recipients],
+            'subject': subject,
+            'attachment': [
+                {
+                    'name': attachment_filename,
+                    'content': attachment_content,
+                }
+            ],
+        }
+        if is_html:
+            payload['htmlContent'] = body
+        else:
+            payload['textContent'] = body
+
+    try:
+        logger.info(
+            'Sending email via HTTP API provider=%s url=%s timeout=%s '
+            'from=%s to=%s',
+            provider,
+            api_url,
+            timeout,
+            from_email,
+            ','.join(recipients),
+        )
+        response = httpx.post(
+            api_url,
+            json=payload,
+            headers=headers,
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        logger.info(
+            'HTTP API email sent successfully provider=%s status=%s',
+            provider,
+            response.status_code,
+        )
+        return True
+    except Exception as exc:
+        logger.error(
+            'Failed to send email via HTTP API provider=%s url=%s: %s',
+            provider,
+            api_url,
+            exc,
+        )
+        return False
+
+
+def _create_email_message(
+    *,
+    to_email,
+    subject,
+    body,
+    attachment_bytes,
+    attachment_filename,
+    from_email: str,
+    is_html: bool,
+) -> EmailMessage:
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = from_email
+    msg['To'] = to_email
+    if is_html:
+        msg.add_alternative(body, subtype='html')
+    else:
+        msg.set_content(body)
+
+    content_type, _ = mimetypes.guess_type(attachment_filename)
+    if content_type and '/' in content_type:
+        maintype, subtype = content_type.split('/', 1)
+    else:
+        maintype = 'application'
+        subtype = (
+            'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+
+    msg.add_attachment(
+        attachment_bytes,
+        maintype=maintype,
+        subtype=subtype,
+        filename=attachment_filename,
+    )
+    return msg
+
+
+def _send_email_via_smtp(
+    *,
+    to_email,
+    subject,
+    body,
+    attachment_bytes,
+    attachment_filename,
+    is_html: bool,
+    smtp_host: str | None = None,
+    smtp_port: int | None = None,
+    smtp_user: str | None = None,
+    smtp_password: str | None = None,
+    from_email: str | None = None,
+    use_ssl: bool = True,
+) -> bool:
+    smtp_user = smtp_user or EMAIL_NAME
+    smtp_password = smtp_password or EMAIL_PASSWORD
+    smtp_host = smtp_host or SMTP_SERVER
+    smtp_port = smtp_port or SMTP_PORT
+    from_email = from_email or EMAIL_NAME
+
+    if not smtp_user or not smtp_password or not smtp_host:
+        logger.error('Email credentials are not set.')
+        return False
+
+    resolved_host, resolved_family = _resolve_smtp_host(smtp_host)
+    msg = _create_email_message(
+        to_email=to_email,
+        subject=subject,
+        body=body,
+        attachment_bytes=attachment_bytes,
+        attachment_filename=attachment_filename,
+        from_email=from_email,
+        is_html=is_html,
+    )
+
+    try:
+        logger.info(
+            'Sending email via SMTP host=%s resolved_host=%s family=%s '
+            'port=%s user=%s ssl=%s to=%s',
+            smtp_host,
+            resolved_host,
+            resolved_family,
+            smtp_port,
+            smtp_user,
+            use_ssl,
+            to_email,
+        )
+        if use_ssl:
+            smtp_ctx = _ResolvedHostSMTP_SSL(
+                smtp_host,
+                smtp_port,
+                timeout=20,
+                resolved_host=resolved_host,
+            )
+        else:
+            smtp_ctx = _ResolvedHostSMTP(
+                smtp_host,
+                smtp_port,
+                timeout=20,
+                resolved_host=resolved_host,
+            )
+        with smtp_ctx as smtp:
+            smtp.set_debuglevel(1)
+            logger.debug(
+                'SMTP connection established for host=%s',
+                smtp_host,
+            )
+            if not use_ssl:
+                smtp.ehlo()
+                smtp.starttls()
+                smtp.ehlo()
+            logger.debug('SMTP login start for user=%s', smtp_user)
+            smtp.login(smtp_user, smtp_password)
+            logger.debug('SMTP login ok for user=%s', smtp_user)
+            logger.debug('SMTP send start to=%s', to_email)
+            smtp.send_message(msg)
+            logger.debug('SMTP send ok to=%s', to_email)
+        logger.info('Email sent to %s', to_email)
+        return True
+    except Exception as exc:
+        logger.error(
+            'Failed to send email via host=%s resolved_host=%s port=%s '
+            'user=%s ssl=%s: %s',
+            smtp_host,
+            resolved_host,
+            smtp_port,
+            smtp_user,
+            use_ssl,
+            exc,
+        )
+        return False
 
 
 # os.makedirs(PROCESSED_FOLDER, exist_ok=True)
@@ -327,92 +657,137 @@ def send_email_with_attachment(
     smtp_password: str | None = None,
     from_email: str | None = None,
     use_ssl: bool = True,
-):
+    transport: str | None = None,
+    http_api_provider: str | None = None,
+    http_api_url: str | None = None,
+    http_api_key: str | None = None,
+    http_api_timeout: int | None = None,
+) -> bool:
     logger.debug(
         'Inside send_email_with_attachment with len(attachment_bytes)=%d',
         len(attachment_bytes),
     )
 
-    smtp_user = smtp_user or EMAIL_NAME
-    smtp_password = smtp_password or EMAIL_PASSWORD
-    smtp_host = smtp_host or SMTP_SERVER
-    smtp_port = smtp_port or SMTP_PORT
+    transport = (transport or EMAIL_TRANSPORT or 'smtp').strip().lower()
+    if transport not in {'smtp', 'http_api'}:
+        logger.warning(
+            'Unknown email transport %s, fallback to smtp',
+            transport,
+        )
+        transport = 'smtp'
     from_email = from_email or EMAIL_NAME
 
-    if not smtp_user or not smtp_password or not smtp_host:
-        logger.error('Email credentials are not set.')
-        return
+    if transport == 'http_api':
+        sent = _send_email_via_http_api(
+            to_email=to_email,
+            subject=subject,
+            body=body,
+            attachment_bytes=attachment_bytes,
+            attachment_filename=attachment_filename,
+            is_html=is_html,
+            from_email=from_email,
+            http_api_provider=http_api_provider,
+            http_api_url=http_api_url,
+            http_api_key=http_api_key,
+            http_api_timeout=http_api_timeout,
+        )
+        if sent:
+            return True
 
-    resolved_host, resolved_family = _resolve_smtp_host(smtp_host)
+        resolved_smtp_user = smtp_user or EMAIL_NAME
+        resolved_smtp_password = smtp_password or EMAIL_PASSWORD
+        resolved_smtp_host = smtp_host or SMTP_SERVER
+        can_fallback_to_smtp = (
+            bool(resolved_smtp_user)
+            and bool(resolved_smtp_password)
+            and bool(resolved_smtp_host)
+            and (
+                any(
+                    value is not None
+                    for value in (
+                        smtp_host,
+                        smtp_port,
+                        smtp_user,
+                        smtp_password,
+                    )
+                )
+                or from_email == resolved_smtp_user
+            )
+        )
+        if can_fallback_to_smtp:
+            logger.warning(
+                'HTTP API email send failed, fallback to SMTP '
+                'host=%s user=%s',
+                resolved_smtp_host,
+                resolved_smtp_user,
+            )
+            return _send_email_via_smtp(
+                to_email=to_email,
+                subject=subject,
+                body=body,
+                attachment_bytes=attachment_bytes,
+                attachment_filename=attachment_filename,
+                is_html=is_html,
+                smtp_host=smtp_host,
+                smtp_port=smtp_port,
+                smtp_user=smtp_user,
+                smtp_password=smtp_password,
+                from_email=from_email,
+                use_ssl=use_ssl,
+            )
+        return False
 
-    msg = EmailMessage()
-    msg['Subject'] = subject
-    msg['From'] = from_email
-    msg['To'] = to_email
-    if is_html:
-        msg.add_alternative(body, subtype='html')
-    else:
-        msg.set_content(body)
-
-    # Add the attachment
-    msg.add_attachment(
-        attachment_bytes,
-        maintype='application',
-        subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        filename=attachment_filename,
+    return _send_email_via_smtp(
+        to_email=to_email,
+        subject=subject,
+        body=body,
+        attachment_bytes=attachment_bytes,
+        attachment_filename=attachment_filename,
+        is_html=is_html,
+        smtp_host=smtp_host,
+        smtp_port=smtp_port,
+        smtp_user=smtp_user,
+        smtp_password=smtp_password,
+        from_email=from_email,
+        use_ssl=use_ssl,
     )
 
-    try:
-        logger.info(
-            'Sending email via SMTP host=%s resolved_host=%s family=%s '
-            'port=%s user=%s ssl=%s to=%s',
-            smtp_host,
-            resolved_host,
-            resolved_family,
-            smtp_port,
-            smtp_user,
-            use_ssl,
-            to_email,
-        )
-        if use_ssl:
-            smtp_ctx = _ResolvedHostSMTP_SSL(
-                smtp_host,
-                smtp_port,
-                timeout=20,
-                resolved_host=resolved_host,
-            )
-        else:
-            smtp_ctx = _ResolvedHostSMTP(
-                smtp_host,
-                smtp_port,
-                timeout=20,
-                resolved_host=resolved_host,
-            )
-        with smtp_ctx as smtp:
-            smtp.set_debuglevel(1)
-            logger.debug('SMTP connection established for host=%s', smtp_host)
-            if not use_ssl:
-                smtp.ehlo()
-                smtp.starttls()
-                smtp.ehlo()
-            logger.debug('SMTP login start for user=%s', smtp_user)
-            smtp.login(smtp_user, smtp_password)
-            logger.debug('SMTP login ok for user=%s', smtp_user)
-            logger.debug('SMTP send start to=%s', to_email)
-            smtp.send_message(msg)
-            logger.debug('SMTP send ok to=%s', to_email)
-        logger.info(f'Email sent to {to_email}')
-    except Exception as e:
-        logger.error(
-            'Failed to send email via host=%s resolved_host=%s port=%s '
-            'user=%s ssl=%s: %s',
-            smtp_host,
-            resolved_host,
-            smtp_port,
-            smtp_user,
-            use_ssl,
-            e,
-        )
+
+def send_test_outbound_email(
+    to_email: str,
+    from_email: str | None = None,
+    transport: str | None = None,
+    smtp_host: str | None = None,
+    smtp_port: int | None = None,
+    smtp_user: str | None = None,
+    smtp_password: str | None = None,
+    use_ssl: bool = True,
+    http_api_provider: str | None = None,
+    http_api_url: str | None = None,
+    http_api_key: str | None = None,
+    http_api_timeout: int | None = None,
+) -> bool:
+    return send_email_with_attachment(
+        to_email=to_email,
+        subject='Тест исходящей почты',
+        body=(
+            'Это тестовое письмо из DZ_fastapi. '
+            'Если вы его получили, исходящая почта настроена.'
+        ),
+        attachment_bytes=b'Test email from DZ_fastapi',
+        attachment_filename='email_test.txt',
+        from_email=from_email,
+        transport=transport,
+        smtp_host=smtp_host,
+        smtp_port=smtp_port,
+        smtp_user=smtp_user,
+        smtp_password=smtp_password,
+        use_ssl=use_ssl,
+        http_api_provider=http_api_provider,
+        http_api_url=http_api_url,
+        http_api_key=http_api_key,
+        http_api_timeout=http_api_timeout,
+    )
 
 
 async def download_new_price_provider(
