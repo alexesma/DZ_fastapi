@@ -47,6 +47,35 @@ DOWNLOAD_FOLDER = 'uploads/pricelistprovider'
 PROCESSED_FOLDER = 'processed'
 
 
+class _ResolvedHostSMTP(smtplib.SMTP):
+    def __init__(self, *args, resolved_host: str | None = None, **kwargs):
+        self._resolved_host = resolved_host
+        super().__init__(*args, **kwargs)
+
+    def _get_socket(self, host, port, timeout):
+        target_host = self._resolved_host or host
+        if self.debuglevel > 0:
+            self._print_debug('connect:', (target_host, port))
+        return socket.create_connection(
+            (target_host, port), timeout, self.source_address
+        )
+
+
+class _ResolvedHostSMTP_SSL(smtplib.SMTP_SSL):
+    def __init__(self, *args, resolved_host: str | None = None, **kwargs):
+        self._resolved_host = resolved_host
+        super().__init__(*args, **kwargs)
+
+    def _get_socket(self, host, port, timeout):
+        target_host = self._resolved_host or host
+        if self.debuglevel > 0:
+            self._print_debug('connect:', (target_host, port))
+        new_socket = socket.create_connection(
+            (target_host, port), timeout, self.source_address
+        )
+        return self.context.wrap_socket(new_socket, server_hostname=host)
+
+
 def _resolve_smtp_host(host: str) -> tuple[str, str]:
     try:
         addrinfo = socket.getaddrinfo(
@@ -346,21 +375,32 @@ def send_email_with_attachment(
             to_email,
         )
         if use_ssl:
-            smtp_ctx = smtplib.SMTP_SSL(
-                resolved_host, smtp_port, timeout=20
+            smtp_ctx = _ResolvedHostSMTP_SSL(
+                smtp_host,
+                smtp_port,
+                timeout=20,
+                resolved_host=resolved_host,
             )
         else:
-            smtp_ctx = smtplib.SMTP(
-                resolved_host, smtp_port, timeout=20
+            smtp_ctx = _ResolvedHostSMTP(
+                smtp_host,
+                smtp_port,
+                timeout=20,
+                resolved_host=resolved_host,
             )
         with smtp_ctx as smtp:
             smtp.set_debuglevel(1)
+            logger.debug('SMTP connection established for host=%s', smtp_host)
             if not use_ssl:
                 smtp.ehlo()
                 smtp.starttls()
                 smtp.ehlo()
+            logger.debug('SMTP login start for user=%s', smtp_user)
             smtp.login(smtp_user, smtp_password)
+            logger.debug('SMTP login ok for user=%s', smtp_user)
+            logger.debug('SMTP send start to=%s', to_email)
             smtp.send_message(msg)
+            logger.debug('SMTP send ok to=%s', to_email)
         logger.info(f'Email sent to {to_email}')
     except Exception as e:
         logger.error(
