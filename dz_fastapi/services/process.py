@@ -68,8 +68,8 @@ from dz_fastapi.schemas.partner import (AutoPartInPricelist,
                                         CustomerPriceListResponse,
                                         PriceListAutoPartAssociationCreate,
                                         PriceListCreate)
-from dz_fastapi.services.email import (EMAIL_HTTP_API_PROVIDER, EMAIL_NAME,
-                                       EMAIL_TRANSPORT, SMTP_PORT, SMTP_SERVER,
+from dz_fastapi.services.email import (EMAIL_NAME, EMAIL_TRANSPORT, SMTP_PORT,
+                                       SMTP_SERVER,
                                        build_email_delivery_kwargs,
                                        describe_email_delivery,
                                        send_email_with_attachment)
@@ -1151,13 +1151,12 @@ async def send_pricelist(
     else:
         logger.info(
             'Using ENV email settings for pricelist send: config=%s '
-            'transport=%s host=%s port=%s user=%s provider=%s',
+            'transport=%s host=%s port=%s user=%s',
             config.id,
             EMAIL_TRANSPORT,
             SMTP_SERVER,
             SMTP_PORT,
             EMAIL_NAME,
-            EMAIL_HTTP_API_PROVIDER,
         )
 
     await loop.run_in_executor(

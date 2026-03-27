@@ -8,17 +8,15 @@ class EmailAccountBase(BaseModel):
     name: str
     email: EmailStr
     password: str = ''
-    transport: Literal['smtp', 'http_api'] = 'smtp'
+    transport: Literal['smtp', 'gmail_api', 'resend_api'] = 'smtp'
+    resend_api_key: Optional[str] = None
+    resend_timeout: int = 20
     imap_host: Optional[str] = None
     imap_port: int = 993
     imap_folder: Optional[str] = None
     smtp_host: Optional[str] = None
     smtp_port: int = 465
     smtp_use_ssl: bool = True
-    http_api_provider: Optional[Literal['resend', 'brevo']] = None
-    http_api_url: Optional[str] = None
-    http_api_key: Optional[str] = None
-    http_api_timeout: int = 20
     purposes: List[str] = Field(default_factory=list)
     is_active: bool = True
 
@@ -45,17 +43,15 @@ class EmailAccountUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     password: Optional[str] = None
-    transport: Optional[Literal['smtp', 'http_api']] = None
+    transport: Optional[Literal['smtp', 'gmail_api', 'resend_api']] = None
+    resend_api_key: Optional[str] = None
+    resend_timeout: Optional[int] = None
     imap_host: Optional[str] = None
     imap_port: Optional[int] = None
     imap_folder: Optional[str] = None
     smtp_host: Optional[str] = None
     smtp_port: Optional[int] = None
     smtp_use_ssl: Optional[bool] = None
-    http_api_provider: Optional[Literal['resend', 'brevo']] = None
-    http_api_url: Optional[str] = None
-    http_api_key: Optional[str] = None
-    http_api_timeout: Optional[int] = None
     purposes: Optional[List[str]] = None
     is_active: Optional[bool] = None
 
@@ -64,8 +60,10 @@ class EmailAccountUpdate(BaseModel):
 
 class EmailAccountResponse(EmailAccountBase):
     id: int
+    transport: Literal['smtp', 'gmail_api', 'resend_api'] = 'smtp'
     oauth_provider: Optional[str] = None
     oauth_connected_at: Optional[datetime] = None
+    resend_last_received_at: Optional[datetime] = None
 
 
 class EmailAccountTestRequest(BaseModel):
@@ -79,7 +77,12 @@ class EmailAccountTestRequest(BaseModel):
 class EmailAccountTestResponse(BaseModel):
     imap_ok: Optional[bool] = None
     imap_error: Optional[str] = None
+    inbound_note: Optional[str] = None
     smtp_ok: Optional[bool] = None
     smtp_error: Optional[str] = None
     outbound_transport: Optional[str] = None
     outbound_note: Optional[str] = None
+
+
+class EmailAccountGoogleTokenRequest(BaseModel):
+    refresh_token: str

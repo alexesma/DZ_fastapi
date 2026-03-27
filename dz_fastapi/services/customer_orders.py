@@ -56,6 +56,7 @@ from dz_fastapi.services.email import (build_email_delivery_kwargs,
 from dz_fastapi.services.google_oauth import refresh_google_access_token
 from dz_fastapi.services.process import (_apply_source_filters,
                                          _apply_source_markups)
+from dz_fastapi.services.resend_api import fetch_received_emails_for_address
 from dz_fastapi.services.telegram import send_message_to_telegram
 
 logger = logging.getLogger('dz_fastapi')
@@ -126,6 +127,8 @@ class SimpleMessage:
     attachments: List[SimpleAttachment]
     text: Optional[str]
     html: Optional[str]
+    external_id: Optional[str] = None
+    received_at: Optional[datetime] = None
 
 
 async def _fetch_order_messages(
@@ -222,6 +225,8 @@ def _parse_raw_email(raw_bytes: bytes) -> SimpleMessage:
         attachments=attachments,
         text=text,
         html=html,
+        external_id=None,
+        received_at=None,
     )
 
 
@@ -283,6 +288,54 @@ async def _fetch_gmail_messages(
             page_token = payload.get('nextPageToken')
             if not page_token:
                 break
+    return messages
+
+
+def _safe_uid_as_int(value: Optional[str]) -> Optional[int]:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text.isdigit():
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
+async def _fetch_resend_messages(
+    account,
+    date_from: date,
+) -> List[SimpleMessage]:
+    if not account.resend_api_key:
+        return []
+    emails = await fetch_received_emails_for_address(
+        api_key=account.resend_api_key,
+        email=account.email,
+        date_from=date_from,
+        received_after=getattr(account, 'resend_last_received_at', None),
+        timeout=getattr(account, 'resend_timeout', None),
+    )
+    messages: List[SimpleMessage] = []
+    for item in emails:
+        messages.append(
+            SimpleMessage(
+                uid=None,
+                from_=_extract_email(item.get('from')),
+                subject=str(item.get('subject') or ''),
+                attachments=[
+                    SimpleAttachment(
+                        att.get('filename'),
+                        att.get('payload') or b'',
+                    )
+                    for att in (item.get('attachments') or [])
+                ],
+                text=item.get('text'),
+                html=item.get('html'),
+                external_id=str(item.get('id') or ''),
+                received_at=item.get('created_at'),
+            )
+        )
     return messages
 
 
@@ -1494,6 +1547,24 @@ async def process_customer_orders(session: AsyncSession) -> None:
         for account in order_accounts:
             host = account.imap_host or EMAIL_HOST_ORDER
             label = account.imap_folder or EMAIL_FOLDER_ORDER
+            transport = (account.transport or 'smtp').strip().lower()
+            if transport == 'resend_api':
+                try:
+                    account_messages = await _fetch_resend_messages(
+                        account,
+                        date_from,
+                    )
+                    messages.extend(
+                        [(msg, account) for msg in account_messages]
+                    )
+                except Exception as exc:
+                    logger.error(
+                        'Order inbox fetch failed for Resend %s: %s',
+                        account.email,
+                        exc,
+                        exc_info=True,
+                    )
+                continue
             if account.oauth_provider == 'google':
                 try:
                     account_messages = await _fetch_gmail_messages(
@@ -1583,7 +1654,11 @@ async def process_customer_orders(session: AsyncSession) -> None:
                         candidate.id,
                     )
                     continue
-                if msg.uid and int(msg.uid) <= int(candidate.last_uid or 0):
+                msg_uid_int = _safe_uid_as_int(msg.uid)
+                if (
+                    msg_uid_int is not None
+                    and msg_uid_int <= int(candidate.last_uid or 0)
+                ):
                     continue
                 if not _match_pattern(
                     candidate.order_subject_pattern, msg.subject
@@ -1609,6 +1684,15 @@ async def process_customer_orders(session: AsyncSession) -> None:
                     logger.info(
                         'No attachment for order email uid=%s', msg.uid
                     )
+                if (
+                    account
+                    and (account.transport or '').strip().lower()
+                    == 'resend_api'
+                    and msg.received_at
+                ):
+                    account.resend_last_received_at = msg.received_at
+                    session.add(account)
+                    await session.commit()
                 continue
 
             filename = attachment.filename or 'order.xlsx'
@@ -1620,6 +1704,15 @@ async def process_customer_orders(session: AsyncSession) -> None:
 
             if file_ext not in ('xlsx', 'xls', 'csv'):
                 logger.warning('Unsupported order file type: %s', file_ext)
+                if (
+                    account
+                    and (account.transport or '').strip().lower()
+                    == 'resend_api'
+                    and msg.received_at
+                ):
+                    account.resend_last_received_at = msg.received_at
+                    session.add(account)
+                    await session.commit()
                 continue
 
             if file_ext == 'csv':
@@ -1646,6 +1739,15 @@ async def process_customer_orders(session: AsyncSession) -> None:
 
             if not parsed_rows:
                 logger.info('No order rows found in %s', filename)
+                if (
+                    account
+                    and (account.transport or '').strip().lower()
+                    == 'resend_api'
+                    and msg.received_at
+                ):
+                    account.resend_last_received_at = msg.received_at
+                    session.add(account)
+                    await session.commit()
                 continue
 
             order_number = _extract_order_number(
@@ -1680,7 +1782,17 @@ async def process_customer_orders(session: AsyncSession) -> None:
                 )
             )
             if existing.scalars().first():
-                config.last_uid = int(msg.uid) if msg.uid else config.last_uid
+                msg_uid_int = _safe_uid_as_int(msg.uid)
+                if msg_uid_int is not None:
+                    config.last_uid = msg_uid_int
+                if (
+                    account
+                    and (account.transport or '').strip().lower()
+                    == 'resend_api'
+                    and msg.received_at
+                ):
+                    account.resend_last_received_at = msg.received_at
+                    session.add(account)
                 await session.commit()
                 continue
             order = CustomerOrder(
@@ -1688,7 +1800,7 @@ async def process_customer_orders(session: AsyncSession) -> None:
                 status=CUSTOMER_ORDER_STATUS.NEW,
                 received_at=now_moscow(),
                 source_email=sender,
-                source_uid=int(msg.uid) if msg.uid else None,
+                source_uid=_safe_uid_as_int(msg.uid),
                 source_subject=msg.subject,
                 source_filename=filename,
                 order_number=order_number,
@@ -1929,7 +2041,17 @@ async def process_customer_orders(session: AsyncSession) -> None:
                 )
                 order.status = CUSTOMER_ORDER_STATUS.ERROR
 
-            config.last_uid = int(msg.uid) if msg.uid else config.last_uid
+            msg_uid_int = _safe_uid_as_int(msg.uid)
+            if msg_uid_int is not None:
+                config.last_uid = msg_uid_int
+            if (
+                account
+                and (account.transport or '').strip().lower()
+                == 'resend_api'
+                and msg.received_at
+            ):
+                account.resend_last_received_at = msg.received_at
+                session.add(account)
             await session.commit()
         except Exception as exc:
             logger.error(

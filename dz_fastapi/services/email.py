@@ -7,7 +7,8 @@ import re
 import smtplib
 import socket
 import unicodedata
-from datetime import date, timedelta
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta
 from email.message import EmailMessage
 from io import BytesIO
 from typing import Optional
@@ -31,6 +32,9 @@ from dz_fastapi.crud.partner import (crud_provider,
                                      crud_provider_pricelist_config,
                                      get_last_uid, set_last_uid)
 from dz_fastapi.models.partner import Order, Provider, ProviderPriceListConfig
+from dz_fastapi.services.google_oauth import refresh_google_access_token_sync
+from dz_fastapi.services.resend_api import (fetch_received_emails_for_address,
+                                            send_email_via_resend)
 from dz_fastapi.services.utils import normalize_str
 
 logger = logging.getLogger('dz_fastapi')
@@ -45,19 +49,17 @@ SMTP_PORT = int(os.getenv('SMTP_PORT', 465))
 SMTP_USERNAME = os.getenv('EMAIL_NAME')
 SMTP_PASSWORD = os.getenv('EMAIL_PASSWORD')
 EMAIL_TRANSPORT = os.getenv('EMAIL_TRANSPORT', 'smtp').strip().lower()
-EMAIL_HTTP_API_PROVIDER = (
-    os.getenv('EMAIL_HTTP_API_PROVIDER', '').strip().lower() or None
-)
-EMAIL_HTTP_API_URL = os.getenv('EMAIL_HTTP_API_URL')
-EMAIL_HTTP_API_KEY = os.getenv('EMAIL_HTTP_API_KEY')
-EMAIL_HTTP_API_TIMEOUT = int(os.getenv('EMAIL_HTTP_API_TIMEOUT', 20))
+GOOGLE_OAUTH_REFRESH_TOKEN = os.getenv('GOOGLE_OAUTH_REFRESH_TOKEN')
+GMAIL_API_TIMEOUT = int(os.getenv('GMAIL_API_TIMEOUT', 20))
+RESEND_API_KEY = os.getenv('RESEND_API_KEY')
+RESEND_TIMEOUT = int(os.getenv('RESEND_API_TIMEOUT', '20'))
+RESEND_FROM_EMAIL = os.getenv('RESEND_FROM_EMAIL')
 
 DOWNLOAD_FOLDER = 'uploads/pricelistprovider'
 PROCESSED_FOLDER = 'processed'
-HTTP_API_DEFAULT_URLS = {
-    'resend': 'https://api.resend.com/emails',
-    'brevo': 'https://api.brevo.com/v3/smtp/email',
-}
+GMAIL_API_SEND_URL = (
+    'https://gmail.googleapis.com/gmail/v1/users/me/messages/send'
+)
 
 
 class _ResolvedHostSMTP(smtplib.SMTP):
@@ -87,6 +89,21 @@ class _ResolvedHostSMTP_SSL(smtplib.SMTP_SSL):
             (target_host, port), timeout, self.source_address
         )
         return self.context.wrap_socket(new_socket, server_hostname=host)
+
+
+@dataclass
+class _FetchedAttachment:
+    filename: Optional[str]
+    payload: bytes
+
+
+@dataclass
+class _FetchedInboxMessage:
+    uid: Optional[str]
+    from_: str
+    subject: str
+    attachments: list[_FetchedAttachment]
+    date: Optional[datetime] = None
 
 
 def _resolve_smtp_host(host: str) -> tuple[str, str]:
@@ -146,14 +163,20 @@ def _normalize_recipients(
 def build_email_delivery_kwargs(account) -> dict:
     transport = getattr(account, 'transport', 'smtp') or 'smtp'
     transport = transport.strip().lower()
-    if transport == 'http_api':
+    if transport == 'gmail_api':
         return {
-            'transport': 'http_api',
+            'transport': 'gmail_api',
             'from_email': account.email,
-            'http_api_provider': getattr(account, 'http_api_provider', None),
-            'http_api_url': getattr(account, 'http_api_url', None),
-            'http_api_key': getattr(account, 'http_api_key', None),
-            'http_api_timeout': getattr(account, 'http_api_timeout', None),
+            'oauth_refresh_token': getattr(
+                account, 'oauth_refresh_token', None
+            ),
+        }
+    if transport == 'resend_api':
+        return {
+            'transport': 'resend_api',
+            'from_email': account.email,
+            'resend_api_key': getattr(account, 'resend_api_key', None),
+            'resend_timeout': getattr(account, 'resend_timeout', None),
         }
     return {
         'transport': 'smtp',
@@ -169,17 +192,15 @@ def build_email_delivery_kwargs(account) -> dict:
 def describe_email_delivery(account) -> str:
     transport = getattr(account, 'transport', 'smtp') or 'smtp'
     transport = transport.strip().lower()
-    if transport == 'http_api':
-        return (
-            'transport=http_api provider=%s url=%s timeout=%s'
-            % (
-                getattr(account, 'http_api_provider', None),
-                getattr(account, 'http_api_url', None)
-                or HTTP_API_DEFAULT_URLS.get(
-                    getattr(account, 'http_api_provider', '') or ''
-                ),
-                getattr(account, 'http_api_timeout', None),
-            )
+    if transport == 'gmail_api':
+        return 'transport=gmail_api oauth_provider=%s has_refresh_token=%s' % (
+            getattr(account, 'oauth_provider', None),
+            bool(getattr(account, 'oauth_refresh_token', None)),
+        )
+    if transport == 'resend_api':
+        return 'transport=resend_api has_api_key=%s timeout=%s' % (
+            bool(getattr(account, 'resend_api_key', None)),
+            getattr(account, 'resend_timeout', None),
         )
     return (
         'transport=smtp smtp_host=%s smtp_port=%s smtp_ssl=%s'
@@ -191,127 +212,110 @@ def describe_email_delivery(account) -> str:
     )
 
 
-def _send_email_via_http_api(
+def _send_email_via_gmail_api(
     *,
     to_email,
     subject,
     body,
-    attachment_bytes,
-    attachment_filename,
+    attachment_bytes=None,
+    attachment_filename: str | None = None,
     is_html: bool,
     from_email: str,
-    http_api_provider: str | None,
-    http_api_url: str | None,
-    http_api_key: str | None,
-    http_api_timeout: int | None,
+    oauth_refresh_token: str | None = None,
 ) -> bool:
-    provider = (
-        (http_api_provider or EMAIL_HTTP_API_PROVIDER or '')
-        .strip()
-        .lower()
-    )
-    api_key = http_api_key or EMAIL_HTTP_API_KEY
-    timeout = http_api_timeout or EMAIL_HTTP_API_TIMEOUT
-    api_url = (
-        http_api_url
-        or EMAIL_HTTP_API_URL
-        or HTTP_API_DEFAULT_URLS.get(provider)
-    )
     recipients = _normalize_recipients(to_email)
+    refresh_token = oauth_refresh_token or GOOGLE_OAUTH_REFRESH_TOKEN
 
-    if provider not in HTTP_API_DEFAULT_URLS:
-        logger.error('Unsupported HTTP API email provider: %s', provider)
-        return False
-    if not api_key or not api_url or not from_email:
+    if not refresh_token or not from_email:
         logger.error(
-            'HTTP API email settings are incomplete: provider=%s url=%s '
-            'from_email=%s has_key=%s',
-            provider,
-            api_url,
+            'Gmail API settings are incomplete: '
+            'from_email=%s has_refresh_token=%s',
             from_email,
-            bool(api_key),
+            bool(refresh_token),
         )
         return False
     if not recipients:
         logger.error(
-            'No valid recipients for HTTP API email send: %s',
+            'No valid recipients for Gmail API email send: %s',
             to_email,
         )
         return False
 
-    attachment_content = base64.b64encode(attachment_bytes).decode('ascii')
-    if provider == 'resend':
-        headers = {
-            'Authorization': f'Bearer {api_key}',
-            'Content-Type': 'application/json',
-        }
-        payload = {
-            'from': from_email,
-            'to': recipients,
-            'subject': subject,
-            'attachments': [
-                {
-                    'filename': attachment_filename,
-                    'content': attachment_content,
-                }
-            ],
-        }
-        if is_html:
-            payload['html'] = body
-        else:
-            payload['text'] = body
-    else:
-        headers = {
-            'api-key': api_key,
-            'Content-Type': 'application/json',
-        }
-        payload = {
-            'sender': {'email': from_email},
-            'to': [{'email': email} for email in recipients],
-            'subject': subject,
-            'attachment': [
-                {
-                    'name': attachment_filename,
-                    'content': attachment_content,
-                }
-            ],
-        }
-        if is_html:
-            payload['htmlContent'] = body
-        else:
-            payload['textContent'] = body
-
     try:
+        token_data = refresh_google_access_token_sync(refresh_token)
+        access_token = token_data.get('access_token')
+        if not access_token:
+            logger.error('Google OAuth access token not returned')
+            return False
+        msg = _create_email_message(
+            to_email=', '.join(recipients),
+            subject=subject,
+            body=body,
+            attachment_bytes=attachment_bytes,
+            attachment_filename=attachment_filename,
+            from_email=from_email,
+            is_html=is_html,
+        )
+        raw_message = base64.urlsafe_b64encode(msg.as_bytes()).decode(
+            'ascii'
+        ).rstrip('=')
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Content-Type': 'application/json',
+        }
+        payload = {'raw': raw_message}
         logger.info(
-            'Sending email via HTTP API provider=%s url=%s timeout=%s '
+            'Sending email via Gmail API timeout=%s '
             'from=%s to=%s',
-            provider,
-            api_url,
-            timeout,
+            GMAIL_API_TIMEOUT,
             from_email,
             ','.join(recipients),
         )
         response = httpx.post(
-            api_url,
+            GMAIL_API_SEND_URL,
             json=payload,
             headers=headers,
-            timeout=timeout,
+            timeout=GMAIL_API_TIMEOUT,
         )
         response.raise_for_status()
         logger.info(
-            'HTTP API email sent successfully provider=%s status=%s',
-            provider,
+            'Gmail API email sent successfully status=%s',
             response.status_code,
         )
         return True
     except Exception as exc:
         logger.error(
-            'Failed to send email via HTTP API provider=%s url=%s: %s',
-            provider,
-            api_url,
+            'Failed to send email via Gmail API: %s',
             exc,
         )
         return False
+
+
+def _send_email_via_resend(
+    *,
+    to_email,
+    subject,
+    body,
+    attachment_bytes=None,
+    attachment_filename: str | None = None,
+    is_html: bool,
+    from_email: str | None = None,
+    resend_api_key: str | None = None,
+    resend_timeout: int | None = None,
+) -> bool:
+    recipients = _normalize_recipients(to_email)
+    resolved_from_email = from_email or RESEND_FROM_EMAIL or EMAIL_NAME
+    return send_email_via_resend(
+        api_key=resend_api_key or RESEND_API_KEY,
+        from_email=resolved_from_email,
+        to_email=recipients,
+        subject=subject,
+        body=body,
+        is_html=is_html,
+        attachment_bytes=attachment_bytes,
+        attachment_filename=attachment_filename,
+        timeout=resend_timeout or RESEND_TIMEOUT,
+    )
 
 
 def _create_email_message(
@@ -319,8 +323,8 @@ def _create_email_message(
     to_email,
     subject,
     body,
-    attachment_bytes,
-    attachment_filename,
+    attachment_bytes=None,
+    attachment_filename: str | None = None,
     from_email: str,
     is_html: bool,
 ) -> EmailMessage:
@@ -333,21 +337,22 @@ def _create_email_message(
     else:
         msg.set_content(body)
 
-    content_type, _ = mimetypes.guess_type(attachment_filename)
-    if content_type and '/' in content_type:
-        maintype, subtype = content_type.split('/', 1)
-    else:
-        maintype = 'application'
-        subtype = (
-            'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        )
+    if attachment_bytes is not None and attachment_filename:
+        content_type, _ = mimetypes.guess_type(attachment_filename)
+        if content_type and '/' in content_type:
+            maintype, subtype = content_type.split('/', 1)
+        else:
+            maintype = 'application'
+            subtype = (
+                'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
 
-    msg.add_attachment(
-        attachment_bytes,
-        maintype=maintype,
-        subtype=subtype,
-        filename=attachment_filename,
-    )
+        msg.add_attachment(
+            attachment_bytes,
+            maintype=maintype,
+            subtype=subtype,
+            filename=attachment_filename,
+        )
     return msg
 
 
@@ -356,8 +361,8 @@ def _send_email_via_smtp(
     to_email,
     subject,
     body,
-    attachment_bytes,
-    attachment_filename,
+    attachment_bytes=None,
+    attachment_filename: str | None = None,
     is_html: bool,
     smtp_host: str | None = None,
     smtp_port: int | None = None,
@@ -559,7 +564,12 @@ async def download_price_provider(
                 )
             )
             logger.debug(f'Found {len(email_list)} emails matching criteria.')
-            emails = [msg for msg in email_list if int(msg.uid) > last_uid]
+            emails = [
+                msg
+                for msg in email_list
+                if (_safe_uid_as_int(getattr(msg, 'uid', None)) or 0)
+                > last_uid
+            ]
             logger.debug(
                 f'{len(emails)} emails have UID greater than {last_uid}.'
             )
@@ -605,8 +615,10 @@ async def download_price_provider(
                             f.write(att.payload)
                         logger.debug(f'Downloaded attachment: {filepath}')
                         mailbox.flag(msg.uid, [r'\Seen'], True)
-                        current_uid = int(msg.uid)
-                        if current_uid > last_uid:
+                        current_uid = _safe_uid_as_int(
+                            getattr(msg, 'uid', None)
+                        )
+                        if current_uid is not None and current_uid > last_uid:
                             await set_last_uid(
                                 provider.id, current_uid, session
                             )
@@ -622,8 +634,10 @@ async def download_price_provider(
                             filepath,
                         )
                         mailbox.flag(msg.uid, [r'\Seen'], True)
-                        current_uid = int(msg.uid)
-                        if current_uid > last_uid:
+                        current_uid = _safe_uid_as_int(
+                            getattr(msg, 'uid', None)
+                        )
+                        if current_uid is not None and current_uid > last_uid:
                             await set_last_uid(
                                 provider.id, current_uid, session
                             )
@@ -648,8 +662,8 @@ def send_email_with_attachment(
     to_email,
     subject,
     body,
-    attachment_bytes,
-    attachment_filename,
+    attachment_bytes=None,
+    attachment_filename: str | None = None,
     is_html: bool = False,
     smtp_host: str | None = None,
     smtp_port: int | None = None,
@@ -658,18 +672,18 @@ def send_email_with_attachment(
     from_email: str | None = None,
     use_ssl: bool = True,
     transport: str | None = None,
-    http_api_provider: str | None = None,
-    http_api_url: str | None = None,
-    http_api_key: str | None = None,
-    http_api_timeout: int | None = None,
+    oauth_refresh_token: str | None = None,
+    resend_api_key: str | None = None,
+    resend_timeout: int | None = None,
 ) -> bool:
     logger.debug(
-        'Inside send_email_with_attachment with len(attachment_bytes)=%d',
-        len(attachment_bytes),
+        'Inside send_email_with_attachment with attachment=%s size=%s',
+        bool(attachment_bytes is not None and attachment_filename),
+        len(attachment_bytes) if attachment_bytes is not None else 0,
     )
 
     transport = (transport or EMAIL_TRANSPORT or 'smtp').strip().lower()
-    if transport not in {'smtp', 'http_api'}:
+    if transport not in {'smtp', 'gmail_api', 'resend_api'}:
         logger.warning(
             'Unknown email transport %s, fallback to smtp',
             transport,
@@ -677,8 +691,8 @@ def send_email_with_attachment(
         transport = 'smtp'
     from_email = from_email or EMAIL_NAME
 
-    if transport == 'http_api':
-        sent = _send_email_via_http_api(
+    if transport == 'resend_api':
+        return _send_email_via_resend(
             to_email=to_email,
             subject=subject,
             body=body,
@@ -686,10 +700,20 @@ def send_email_with_attachment(
             attachment_filename=attachment_filename,
             is_html=is_html,
             from_email=from_email,
-            http_api_provider=http_api_provider,
-            http_api_url=http_api_url,
-            http_api_key=http_api_key,
-            http_api_timeout=http_api_timeout,
+            resend_api_key=resend_api_key,
+            resend_timeout=resend_timeout,
+        )
+
+    if transport == 'gmail_api':
+        sent = _send_email_via_gmail_api(
+            to_email=to_email,
+            subject=subject,
+            body=body,
+            attachment_bytes=attachment_bytes,
+            attachment_filename=attachment_filename,
+            is_html=is_html,
+            from_email=from_email,
+            oauth_refresh_token=oauth_refresh_token,
         )
         if sent:
             return True
@@ -716,7 +740,7 @@ def send_email_with_attachment(
         )
         if can_fallback_to_smtp:
             logger.warning(
-                'HTTP API email send failed, fallback to SMTP '
+                'Gmail API email send failed, fallback to SMTP '
                 'host=%s user=%s',
                 resolved_smtp_host,
                 resolved_smtp_user,
@@ -762,10 +786,9 @@ def send_test_outbound_email(
     smtp_user: str | None = None,
     smtp_password: str | None = None,
     use_ssl: bool = True,
-    http_api_provider: str | None = None,
-    http_api_url: str | None = None,
-    http_api_key: str | None = None,
-    http_api_timeout: int | None = None,
+    oauth_refresh_token: str | None = None,
+    resend_api_key: str | None = None,
+    resend_timeout: int | None = None,
 ) -> bool:
     return send_email_with_attachment(
         to_email=to_email,
@@ -783,10 +806,45 @@ def send_test_outbound_email(
         smtp_user=smtp_user,
         smtp_password=smtp_password,
         use_ssl=use_ssl,
-        http_api_provider=http_api_provider,
-        http_api_url=http_api_url,
-        http_api_key=http_api_key,
-        http_api_timeout=http_api_timeout,
+        oauth_refresh_token=oauth_refresh_token,
+        resend_api_key=resend_api_key,
+        resend_timeout=resend_timeout,
+    )
+
+
+def send_email_message(
+    to_email,
+    subject,
+    body,
+    is_html: bool = False,
+    smtp_host: str | None = None,
+    smtp_port: int | None = None,
+    smtp_user: str | None = None,
+    smtp_password: str | None = None,
+    from_email: str | None = None,
+    use_ssl: bool = True,
+    transport: str | None = None,
+    oauth_refresh_token: str | None = None,
+    resend_api_key: str | None = None,
+    resend_timeout: int | None = None,
+) -> bool:
+    return send_email_with_attachment(
+        to_email=to_email,
+        subject=subject,
+        body=body,
+        attachment_bytes=None,
+        attachment_filename=None,
+        is_html=is_html,
+        smtp_host=smtp_host,
+        smtp_port=smtp_port,
+        smtp_user=smtp_user,
+        smtp_password=smtp_password,
+        from_email=from_email,
+        use_ssl=use_ssl,
+        transport=transport,
+        oauth_refresh_token=oauth_refresh_token,
+        resend_api_key=resend_api_key,
+        resend_timeout=resend_timeout,
     )
 
 
@@ -824,11 +882,12 @@ async def download_new_price_provider(
                 async with aiofiles.open(filepath, 'wb') as f:
                     await f.write(resp.content)
                 logger.debug(f'Загрузка файла из URL: {filepath}')
-                current_uid = int(msg.uid)
-                last_uid = await get_last_uid(provider.id, session)
-                logger.debug(f'Last UID: {last_uid}')
-                if current_uid > last_uid:
-                    await set_last_uid(provider.id, current_uid, session)
+                current_uid = _safe_uid_as_int(getattr(msg, 'uid', None))
+                if current_uid is not None:
+                    last_uid = await get_last_uid(provider.id, session)
+                    logger.debug(f'Last UID: {last_uid}')
+                    if current_uid > last_uid:
+                        await set_last_uid(provider.id, current_uid, session)
                 return filepath
         except Exception as e:
             logger.exception(
@@ -854,11 +913,12 @@ async def download_new_price_provider(
                 logger.exception(f'Ошибка записи файла {filepath}: {e}')
                 continue
             logger.debug(f'Downloaded attachment: {filepath}')
-            current_uid = int(msg.uid)
-            last_uid = await get_last_uid(provider.id, session)
-            logger.debug(f'Last UID: {last_uid}')
-            if current_uid > last_uid:
-                await set_last_uid(provider.id, current_uid, session)
+            current_uid = _safe_uid_as_int(getattr(msg, 'uid', None))
+            if current_uid is not None:
+                last_uid = await get_last_uid(provider.id, session)
+                logger.debug(f'Last UID: {last_uid}')
+                if current_uid > last_uid:
+                    await set_last_uid(provider.id, current_uid, session)
             return filepath
     logger.debug(
         f'В письме uid={msg.uid} нет вложений, соответствующих критерию'
@@ -886,6 +946,49 @@ def _fetch_mailbox_messages(
         )
 
 
+def _safe_uid_as_int(value: str | None) -> int | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text.isdigit():
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
+async def _fetch_resend_price_messages(
+    account,
+) -> tuple[list[_FetchedInboxMessage], datetime | None]:
+    emails = await fetch_received_emails_for_address(
+        api_key=account.resend_api_key,
+        email=account.email,
+        date_from=date.today(),
+        received_after=getattr(account, 'resend_last_received_at', None),
+        timeout=getattr(account, 'resend_timeout', None),
+    )
+    messages = []
+    for item in emails:
+        messages.append(
+            _FetchedInboxMessage(
+                uid=None,
+                from_=_extract_email(item.get('from')),
+                subject=str(item.get('subject') or ''),
+                attachments=[
+                    _FetchedAttachment(
+                        att.get('filename'),
+                        att.get('payload') or b'',
+                    )
+                    for att in (item.get('attachments') or [])
+                ],
+                date=item.get('created_at'),
+            )
+        )
+    last_received_at = emails[-1].get('created_at') if emails else None
+    return messages, last_received_at
+
+
 async def get_emails(
     session: AsyncSession,
     server_mail: str = EMAIL_HOST,
@@ -895,11 +998,28 @@ async def get_emails(
 ) -> list[tuple[Provider, str]]:
     downloaded_files = []
     all_emails = []
+    resend_cursors: dict[int, object] = {}
     accounts = await crud_email_account.get_active_by_purpose(
         session, 'prices_in'
     )
     if accounts:
         for account in accounts:
+            if (account.transport or '').strip().lower() == 'resend_api':
+                if not account.resend_api_key:
+                    logger.warning(
+                        'Resend API key is missing '
+                        'for prices_in account id=%s',
+                        account.id,
+                    )
+                    continue
+                (
+                    messages,
+                    last_received_at,
+                ) = await _fetch_resend_price_messages(account)
+                all_emails.extend(messages)
+                if last_received_at is not None:
+                    resend_cursors[account.id] = last_received_at
+                continue
             host = account.imap_host or server_mail
             if not host:
                 continue
@@ -952,7 +1072,8 @@ async def get_emails(
             )
             continue
         last_uid = await get_last_uid(provider_id=provider.id, session=session)
-        if last_uid >= int(msg.uid):
+        msg_uid_int = _safe_uid_as_int(getattr(msg, 'uid', None))
+        if msg_uid_int is not None and last_uid >= msg_uid_int:
             logger.debug(f'Старое UID = {msg.uid}, пропускаем письмо')
             continue  # Если UID записанное равно или больше,
             # пропускаем письмо
@@ -975,6 +1096,12 @@ async def get_emails(
             logger.debug(
                 f'Письмо uid={msg.uid} не удовлетворило условиям загрузки'
             )
+    if resend_cursors:
+        for account in accounts:
+            if account.id in resend_cursors:
+                account.resend_last_received_at = resend_cursors[account.id]
+                session.add(account)
+        await session.commit()
     return downloaded_files
 
 

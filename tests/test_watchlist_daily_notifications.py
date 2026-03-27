@@ -81,3 +81,51 @@ async def test_watchlist_daily_notification_site_separator_and_top3(
     assert "<b>Сайт:</b>" in sent_messages[0]
     assert "<b>BBB 222</b>" in sent_messages[0]
     assert "4. " not in sent_messages[0]
+
+
+@pytest.mark.asyncio
+async def test_watchlist_daily_notification_falls_back_to_email(
+    test_session,
+    monkeypatch,
+):
+    monkeypatch.setenv("WATCHLIST_NOTIFY_MODE", "daily")
+    monkeypatch.setenv("EMAIL_NAME_ANALYTIC", "analytic@example.com")
+
+    item = await crud_price_watch_item.create(
+        test_session,
+        brand="CCC",
+        oem="333",
+        max_price=500.0,
+    )
+    now = now_moscow()
+    item.last_seen_site_at = now
+    item.last_seen_site_price = 123.0
+    item.last_seen_site_qty = 4
+    test_session.add(item)
+    await test_session.commit()
+
+    async def fake_send_message(*args, **kwargs):
+        raise TimeoutError("telegram timeout")
+
+    email_calls = []
+
+    def fake_send_email_message(**kwargs):
+        email_calls.append(kwargs)
+        return True
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.watchlist.send_message_to_telegram",
+        fake_send_message,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.watchlist.send_email_message",
+        fake_send_email_message,
+    )
+
+    await send_watchlist_daily_notifications(test_session)
+    await test_session.refresh(item)
+
+    assert len(email_calls) == 1
+    assert email_calls[0]["to_email"] == "analytic@example.com"
+    assert email_calls[0]["is_html"] is True
+    assert item.last_notified_site_at is not None

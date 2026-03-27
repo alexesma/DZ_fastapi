@@ -1,3 +1,4 @@
+import asyncio
 import html
 import logging
 import os
@@ -11,6 +12,7 @@ from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.watchlist import crud_price_watch_item
 from dz_fastapi.http.dz_site_client import DZSiteClient
 from dz_fastapi.models.partner import Client, Provider, ProviderPriceListConfig
+from dz_fastapi.services.email import send_email_message
 from dz_fastapi.services.telegram import send_message_to_telegram
 from dz_fastapi.services.watchlist_site import (TOP_SITE_OFFERS_LIMIT,
                                                 _collect_top_offers,
@@ -18,6 +20,7 @@ from dz_fastapi.services.watchlist_site import (TOP_SITE_OFFERS_LIMIT,
 
 logger = logging.getLogger('dz_fastapi')
 SITE_ITEM_SEPARATOR = '--------------------'
+WATCHLIST_EMAIL_SUBJECT = 'Отчет по отслеживаемым позициям'
 
 
 def _notify_immediately() -> bool:
@@ -204,12 +207,39 @@ async def send_watchlist_daily_notifications(session: AsyncSession):
                     f'    Цена {site_item.last_seen_site_price}{qty_part}'
                 )
 
+    message_html = '\n'.join(lines)
+    delivered = False
     try:
-        await send_message_to_telegram(
-            '\n'.join(lines), parse_mode='HTML'
-        )
+        await send_message_to_telegram(message_html, parse_mode='HTML')
+        delivered = True
     except Exception as e:
         logger.error(f'Failed to send watchlist telegram: {e}')
+
+    analytics_email = os.getenv('EMAIL_NAME_ANALYTIC')
+    if analytics_email:
+        try:
+            email_sent = await asyncio.to_thread(
+                send_email_message,
+                to_email=analytics_email,
+                subject=WATCHLIST_EMAIL_SUBJECT,
+                body=message_html,
+                is_html=True,
+            )
+            if email_sent:
+                delivered = True
+            else:
+                logger.error(
+                    'Failed to send watchlist email report to %s',
+                    analytics_email,
+                )
+        except Exception as e:
+            logger.error(f'Failed to send watchlist email report: {e}')
+    else:
+        logger.warning(
+            'EMAIL_NAME_ANALYTIC not set; watchlist email copy skipped'
+        )
+
+    if not delivered:
         return
 
     for item in provider_items:

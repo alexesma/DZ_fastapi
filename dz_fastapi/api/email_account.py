@@ -12,6 +12,7 @@ from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.email_account import crud_email_account
 from dz_fastapi.models.email_account import EmailAccount
 from dz_fastapi.schemas.email_account import (EmailAccountCreate,
+                                              EmailAccountGoogleTokenRequest,
                                               EmailAccountResponse,
                                               EmailAccountTestRequest,
                                               EmailAccountTestResponse,
@@ -24,6 +25,7 @@ from dz_fastapi.services.google_oauth import (build_google_auth_url,
                                               exchange_code_for_tokens,
                                               parse_oauth_state,
                                               test_google_gmail_access)
+from dz_fastapi.services.resend_api import test_resend_api_access
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -111,7 +113,27 @@ async def test_email_account(
     response = EmailAccountTestResponse()
     response.outbound_transport = account.transport or 'smtp'
     if payload.imap:
-        if account.oauth_provider == 'google' and account.oauth_refresh_token:
+        transport = (account.transport or 'smtp').strip().lower()
+        if transport == 'resend_api':
+            try:
+                domain = await test_resend_api_access(
+                    api_key=account.resend_api_key,
+                    email=account.email,
+                    timeout=account.resend_timeout,
+                    require_receiving=True,
+                )
+                response.imap_ok = True
+                response.inbound_note = (
+                    'Resend receiving включен для домена '
+                    f'{domain.get("name")}'
+                )
+            except Exception as exc:
+                response.imap_ok = False
+                response.imap_error = str(exc)
+        elif (
+            account.oauth_provider == 'google'
+            and account.oauth_refresh_token
+        ):
             try:
                 await test_google_gmail_access(account.oauth_refresh_token)
                 response.imap_ok = True
@@ -143,28 +165,42 @@ async def test_email_account(
                 response.imap_error = str(exc)
 
     if payload.smtp:
-        if (account.transport or 'smtp') == 'http_api':
-            provider = (account.http_api_provider or '').strip().lower()
-            api_url = account.http_api_url
-            api_key = account.http_api_key
-            if provider not in {'resend', 'brevo'}:
+        transport = (account.transport or 'smtp').strip().lower()
+        if transport == 'gmail_api':
+            if (
+                account.oauth_provider != 'google'
+                or not account.oauth_refresh_token
+            ):
                 response.smtp_ok = False
                 response.smtp_error = (
-                    'Не выбран поддерживаемый HTTP API провайдер'
+                    'Для Gmail API подключите Google OAuth'
                 )
-            elif not api_key:
-                response.smtp_ok = False
-                response.smtp_error = 'API ключ не указан'
             else:
+                try:
+                    await test_google_gmail_access(
+                        account.oauth_refresh_token
+                    )
+                    response.smtp_ok = True
+                    response.outbound_note = 'Gmail API OAuth подключён'
+                except Exception as exc:
+                    response.smtp_ok = False
+                    response.smtp_error = str(exc)
+        elif transport == 'resend_api':
+            try:
+                domain = await test_resend_api_access(
+                    api_key=account.resend_api_key,
+                    email=account.email,
+                    timeout=account.resend_timeout,
+                    require_receiving=False,
+                )
                 response.smtp_ok = True
                 response.outbound_note = (
-                    'HTTP API настроен. Реальная отправка тестового письма '
-                    'не выполнялась.'
+                    'Resend API подключен, домен '
+                    f'{domain.get("name")} подтвержден'
                 )
-                if not api_url:
-                    response.outbound_note += (
-                        ' Используется стандартный URL провайдера.'
-                    )
+            except Exception as exc:
+                response.smtp_ok = False
+                response.smtp_error = str(exc)
         elif not account.smtp_host:
             response.smtp_ok = False
             response.smtp_error = 'SMTP host не указан'
@@ -253,6 +289,41 @@ async def disconnect_google_oauth(
     account.oauth_provider = None
     account.oauth_refresh_token = None
     account.oauth_connected_at = None
+    session.add(account)
+    await session.commit()
+    await session.refresh(account)
+    return EmailAccountResponse.model_validate(account)
+
+
+@router.post(
+    '/{account_id}/google-oauth/token',
+    response_model=EmailAccountResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def save_google_oauth_token(
+    account_id: int,
+    payload: EmailAccountGoogleTokenRequest,
+    session: AsyncSession = Depends(get_session),
+    _: EmailAccount = Depends(require_admin),
+):
+    account = await crud_email_account.get(session, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail='Account not found')
+    refresh_token = str(payload.refresh_token or '').strip()
+    if not refresh_token:
+        raise HTTPException(
+            status_code=400, detail='Refresh token is required'
+        )
+    try:
+        await test_google_gmail_access(refresh_token)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f'Google refresh token invalid: {exc}',
+        ) from exc
+    account.oauth_provider = 'google'
+    account.oauth_refresh_token = refresh_token
+    account.oauth_connected_at = now_moscow()
     session.add(account)
     await session.commit()
     await session.refresh(account)

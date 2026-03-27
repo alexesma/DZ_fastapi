@@ -12,18 +12,30 @@ from dz_fastapi.core.config import settings
 
 GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
-GOOGLE_GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly'
+GOOGLE_GMAIL_SCOPES = [
+    'https://www.googleapis.com/auth/gmail.readonly',
+    'https://www.googleapis.com/auth/gmail.send',
+]
+
+
+def _get_google_client_credentials() -> tuple[str, str]:
+    client_id = os.getenv('GOOGLE_OAUTH_CLIENT_ID')
+    client_secret = os.getenv('GOOGLE_OAUTH_CLIENT_SECRET')
+    if not client_id or not client_secret:
+        raise RuntimeError(
+            'Google OAuth env not configured. '
+            'Set GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET.'
+        )
+    return client_id, client_secret
 
 
 def _get_google_oauth_config() -> tuple[str, str, str]:
-    client_id = os.getenv('GOOGLE_OAUTH_CLIENT_ID')
-    client_secret = os.getenv('GOOGLE_OAUTH_CLIENT_SECRET')
+    client_id, client_secret = _get_google_client_credentials()
     redirect_uri = os.getenv('GOOGLE_OAUTH_REDIRECT_URI')
-    if not client_id or not client_secret or not redirect_uri:
+    if not redirect_uri:
         raise RuntimeError(
             'Google OAuth env not configured. '
-            'Set GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, '
-            'GOOGLE_OAUTH_REDIRECT_URI.'
+            'Set GOOGLE_OAUTH_REDIRECT_URI.'
         )
     return client_id, client_secret, redirect_uri
 
@@ -63,7 +75,7 @@ def build_google_auth_url(account_id: int) -> str:
         'client_id': client_id,
         'redirect_uri': redirect_uri,
         'response_type': 'code',
-        'scope': GOOGLE_GMAIL_SCOPE,
+        'scope': ' '.join(GOOGLE_GMAIL_SCOPES),
         'access_type': 'offline',
         'prompt': 'consent',
         'include_granted_scopes': 'true',
@@ -88,7 +100,7 @@ async def exchange_code_for_tokens(code: str) -> dict:
 
 
 async def refresh_google_access_token(refresh_token: str) -> dict:
-    client_id, client_secret, _redirect_uri = _get_google_oauth_config()
+    client_id, client_secret = _get_google_client_credentials()
     payload = {
         'client_id': client_id,
         'client_secret': client_secret,
@@ -99,6 +111,19 @@ async def refresh_google_access_token(refresh_token: str) -> dict:
         response = await client.post(GOOGLE_TOKEN_URL, data=payload)
         response.raise_for_status()
         return response.json()
+
+
+def refresh_google_access_token_sync(refresh_token: str) -> dict:
+    client_id, client_secret = _get_google_client_credentials()
+    payload = {
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'refresh_token': refresh_token,
+        'grant_type': 'refresh_token',
+    }
+    response = httpx.post(GOOGLE_TOKEN_URL, data=payload, timeout=15)
+    response.raise_for_status()
+    return response.json()
 
 
 async def test_google_gmail_access(refresh_token: str) -> None:
