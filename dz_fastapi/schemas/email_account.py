@@ -32,6 +32,13 @@ class EmailAccountBase(BaseModel):
             return ''
         return str(v)
 
+    @field_validator('imap_host', 'imap_folder', 'smtp_host', mode='before')
+    def strip_optional_mail_fields(cls, v):
+        if v is None:
+            return None
+        value = str(v).strip()
+        return value or None
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -54,6 +61,19 @@ class EmailAccountUpdate(BaseModel):
     smtp_use_ssl: Optional[bool] = None
     purposes: Optional[List[str]] = None
     is_active: Optional[bool] = None
+
+    @field_validator(
+        'name',
+        'password',
+        'imap_host',
+        'imap_folder',
+        'smtp_host',
+        mode='before',
+    )
+    def strip_update_mail_fields(cls, v):
+        if v is None:
+            return None
+        return str(v).strip()
 
     model_config = ConfigDict(from_attributes=True)
 

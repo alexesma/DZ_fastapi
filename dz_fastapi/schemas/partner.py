@@ -609,6 +609,54 @@ class PriceListShort(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PricelistTurnoverItem(BaseModel):
+    autopart_id: int
+    oem_number: Optional[str] = None
+    brand: Optional[str] = None
+    name: Optional[str] = None
+    old_quantity: int
+    new_quantity: int
+    quantity_drop: int
+    old_price: float
+    new_price: float
+
+
+class PricelistPriceChangeItem(BaseModel):
+    autopart_id: int
+    oem_number: Optional[str] = None
+    brand: Optional[str] = None
+    name: Optional[str] = None
+    old_price: float
+    new_price: float
+    price_diff: float
+    price_diff_pct: float
+    old_quantity: int
+    new_quantity: int
+
+
+class ProviderPricelistAnalysisResponse(BaseModel):
+    config_id: int
+    config_name: Optional[str] = None
+    ready: bool
+    note: Optional[str] = None
+    latest_pricelist_id: Optional[int] = None
+    latest_pricelist_date: Optional[date] = None
+    previous_pricelist_id: Optional[int] = None
+    previous_pricelist_date: Optional[date] = None
+    latest_positions_count: int = 0
+    previous_positions_count: int = 0
+    new_positions_count: int = 0
+    removed_positions_count: int = 0
+    changed_price_count: int = 0
+    changed_quantity_count: int = 0
+    top_turnover_positions: List[PricelistTurnoverItem] = Field(
+        default_factory=list
+    )
+    sharpest_price_changes: List[PricelistPriceChangeItem] = Field(
+        default_factory=list
+    )
+
+
 class ProviderPriceListConfigOut(BaseModel):
     id: int
     incoming_email_account_id: int | None = None

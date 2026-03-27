@@ -1,11 +1,10 @@
 import asyncio
 import logging
-import os
 from math import ceil
 from typing import List, Optional
 
-from fastapi import (APIRouter, BackgroundTasks, Body, Depends, File, Form,
-                     HTTPException, Query, UploadFile, status)
+from fastapi import (APIRouter, Body, Depends, File, Form, HTTPException,
+                     Query, UploadFile, status)
 from httpx import Response
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -14,12 +13,8 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from dz_fastapi.analytics.price_history import (analyze_autopart_popularity,
-                                                create_autopart_analysis_excel)
+                                                get_pricelist_change_summary)
 from dz_fastapi.api.validators import change_brand_name, change_customer_name
-from dz_fastapi.core.constants import (
-    BODY_MAIL_ANALYTIC_PRICE_PROVIDER,
-    FILENAME_EXCEL_MAIL_ANALYTIC_PRICE_PROVIDER,
-    SUBJECT_MAIL_ANALYTIC_PRICE_PROVIDER)
 from dz_fastapi.core.db import get_session
 from dz_fastapi.crud.email_account import crud_email_account
 from dz_fastapi.crud.partner import (crud_customer, crud_customer_pricelist,
@@ -27,7 +22,8 @@ from dz_fastapi.crud.partner import (crud_customer, crud_customer_pricelist,
                                      crud_customer_pricelist_source,
                                      crud_pricelist, crud_provider,
                                      crud_provider_abbreviation,
-                                     crud_provider_pricelist_config)
+                                     crud_provider_pricelist_config,
+                                     set_last_uid)
 from dz_fastapi.models.partner import (TYPE_PRICES, Customer,
                                        CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
@@ -59,22 +55,19 @@ from dz_fastapi.schemas.partner import (AutoPartInPricelist,
                                         PriceListResponse, PriceListSummary,
                                         ProviderAbbreviationOut,
                                         ProviderCreate, ProviderPageResponse,
+                                        ProviderPricelistAnalysisResponse,
                                         ProviderPriceListConfigCreate,
                                         ProviderPriceListConfigOption,
                                         ProviderPriceListConfigOut,
                                         ProviderPriceListConfigUpdate,
                                         ProviderResponse, ProviderUpdate)
-from dz_fastapi.services.email import (download_price_provider,
-                                       send_email_with_attachment)
+from dz_fastapi.services.email import download_price_provider
 from dz_fastapi.services.process import (check_start_and_finish_date,
                                          parse_exclude_positions_file,
                                          process_customer_pricelist,
                                          process_provider_pricelist)
 
 logger = logging.getLogger('dz_fastapi')
-EMAIL_NAME_ANALYTIC = os.getenv('EMAIL_NAME_ANALYTIC')
-
-
 router = APIRouter()
 
 
@@ -850,9 +843,28 @@ async def update_provider_pricelist_config(
         await _validate_incoming_price_mailbox(
             session, config_in.incoming_email_account_id
         )
+    previous_mailbox_id = provider_config.incoming_email_account_id
+    should_reset_last_uid = (
+        'incoming_email_account_id' in config_in.model_fields_set
+        and config_in.incoming_email_account_id != previous_mailbox_id
+    )
     update_config = await crud_provider_pricelist_config.update(
         db_obj=provider_config, obj_in=config_in, session=session
     )
+    if should_reset_last_uid:
+        await set_last_uid(
+            provider_id=provider_id,
+            last_uid=0,
+            session=session,
+            provider_config_id=config_id,
+        )
+        logger.info(
+            'Reset last_uid for provider_config_id=%s after mailbox change '
+            '%s -> %s',
+            config_id,
+            previous_mailbox_id,
+            config_in.incoming_email_account_id,
+        )
     return ProviderPriceListConfigOut.model_validate(update_config)
 
 
@@ -1792,13 +1804,58 @@ async def download_provider_pricelist(
 
 
 @router.get(
+    '/providers/{provider_id}/pricelist-analytics',
+    tags=['providers', 'analytic'],
+    status_code=status.HTTP_200_OK,
+    summary='Сводный анализ последних прайсов поставщика',
+    response_model=List[ProviderPricelistAnalysisResponse],
+)
+async def get_provider_pricelist_analytics(
+    provider_id: int,
+    top_n: int = Query(
+        20,
+        ge=1,
+        le=100,
+        description='Количество позиций в каждом блоке анализа',
+    ),
+    session: AsyncSession = Depends(get_session),
+):
+    provider_page = await crud_provider.get_full_by_id(
+        provider_id=provider_id,
+        session=session,
+    )
+    if provider_page is None:
+        raise HTTPException(status_code=404, detail='Provider not found')
+
+    analyses: list[ProviderPricelistAnalysisResponse] = []
+    for config in provider_page.pricelist_configs:
+        summary = await get_pricelist_change_summary(
+            session=session,
+            provider_id=provider_id,
+            provider_config_id=config.id,
+            top_n=top_n,
+        )
+        analyses.append(
+            ProviderPricelistAnalysisResponse(
+                config_id=config.id,
+                config_name=config.name_price,
+                **summary,
+            )
+        )
+
+    analyses.sort(
+        key=lambda item: (item.config_name is None, item.config_name or '')
+    )
+    return analyses
+
+
+@router.get(
     '/providers/{provider_id}/popularity/',
     tags=['providers', 'analytic'],
     status_code=status.HTTP_200_OK,
     summary='Get analytic autoparts for provider',
 )
 async def get_autopart_popularity(
-    background_tasks: BackgroundTasks,
     provider_id: Optional[int],
     date_start: Optional[str] = Query(
         default=None, description='Start date in format YYYY-MM-DD'
@@ -1816,18 +1873,22 @@ async def get_autopart_popularity(
         date_start=start_dt,
         date_finish=finish_dt,
     )
-    excel_file = create_autopart_analysis_excel(df=df)
+    top_df = df.head(20).copy()
+    items = []
+    for row in top_df.to_dict(orient='records'):
+        row['last_seen'] = (
+            row['last_seen'].isoformat()
+            if getattr(row.get('last_seen'), 'isoformat', None)
+            else row.get('last_seen')
+        )
+        items.append(row)
 
-    background_tasks.add_task(
-        send_email_with_attachment,
-        to_email=EMAIL_NAME_ANALYTIC,
-        subject=SUBJECT_MAIL_ANALYTIC_PRICE_PROVIDER,
-        body=BODY_MAIL_ANALYTIC_PRICE_PROVIDER,
-        attachment_filename=FILENAME_EXCEL_MAIL_ANALYTIC_PRICE_PROVIDER,
-        attachment_bytes=excel_file.getvalue(),
-    )
-
-    return {'message': f'Отчёт отправлен на почту {EMAIL_NAME_ANALYTIC}'}
+    return {
+        'provider_id': provider_id,
+        'date_start': start_dt.date().isoformat(),
+        'date_finish': finish_dt.date().isoformat(),
+        'items': items,
+    }
 
 
 @router.post(

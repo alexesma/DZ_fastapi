@@ -3,7 +3,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from dz_fastapi.analytics.price_history import _get_previous_pricelist
+from dz_fastapi.analytics.price_history import (_get_previous_pricelist,
+                                                build_pricelist_change_summary)
 from dz_fastapi.crud.partner import crud_pricelist
 from dz_fastapi.models.partner import PriceList, ProviderPriceListConfig
 
@@ -78,3 +79,71 @@ def test_get_previous_pricelist_skips_current_pricelist():
     resolved = _get_previous_pricelist(current, [current, previous])
 
     assert resolved is previous
+
+
+@pytest.mark.asyncio
+async def test_build_pricelist_change_summary(monkeypatch):
+    async def fake_get_autopart_details(session, autopart_ids):
+        return {
+            1: {
+                'oem_number': 'OEM-1',
+                'name': 'Part 1',
+                'brand': 'BRAND-1',
+            },
+            2: {
+                'oem_number': 'OEM-2',
+                'name': 'Part 2',
+                'brand': 'BRAND-2',
+            },
+            3: {
+                'oem_number': 'OEM-3',
+                'name': 'Part 3',
+                'brand': 'BRAND-3',
+            },
+        }
+
+    monkeypatch.setattr(
+        'dz_fastapi.analytics.price_history._get_autopart_details',
+        fake_get_autopart_details,
+    )
+
+    old_pl = SimpleNamespace(
+        id=100,
+        date=date(2026, 3, 26),
+        autopart_associations=[
+            SimpleNamespace(autopart_id=1, price=100, quantity=10),
+            SimpleNamespace(autopart_id=2, price=200, quantity=20),
+        ],
+    )
+    new_pl = SimpleNamespace(
+        id=101,
+        date=date(2026, 3, 27),
+        autopart_associations=[
+            SimpleNamespace(autopart_id=1, price=130, quantity=4),
+            SimpleNamespace(autopart_id=2, price=180, quantity=18),
+            SimpleNamespace(autopart_id=3, price=50, quantity=7),
+        ],
+    )
+
+    summary = await build_pricelist_change_summary(
+        new_pl=new_pl,
+        old_pl=old_pl,
+        session=None,
+        top_n=20,
+    )
+
+    assert summary['latest_positions_count'] == 3
+    assert summary['previous_positions_count'] == 2
+    assert summary['new_positions_count'] == 1
+    assert summary['removed_positions_count'] == 0
+    assert summary['changed_price_count'] == 2
+    assert summary['changed_quantity_count'] == 2
+
+    assert summary['top_turnover_positions'][0]['autopart_id'] == 1
+    assert summary['top_turnover_positions'][0]['quantity_drop'] == 6
+
+    assert summary['sharpest_price_changes'][0]['autopart_id'] == 1
+    assert (
+        round(summary['sharpest_price_changes'][0]['price_diff_pct'], 2)
+        == 30.0
+    )

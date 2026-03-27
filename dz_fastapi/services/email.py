@@ -62,6 +62,13 @@ GMAIL_API_SEND_URL = (
 )
 
 
+def _clean_mail_setting(value: str | None) -> str | None:
+    if value is None:
+        return None
+    cleaned = str(value).strip()
+    return cleaned or None
+
+
 class _ResolvedHostSMTP(smtplib.SMTP):
     def __init__(self, *args, resolved_host: str | None = None, **kwargs):
         self._resolved_host = resolved_host
@@ -344,7 +351,11 @@ def _send_email_via_resend(
     resend_timeout: int | None = None,
 ) -> bool:
     recipients = _normalize_recipients(to_email)
-    resolved_from_email = from_email or RESEND_FROM_EMAIL or EMAIL_NAME
+    resolved_from_email = (
+        _clean_mail_setting(from_email)
+        or _clean_mail_setting(RESEND_FROM_EMAIL)
+        or _clean_mail_setting(EMAIL_NAME)
+    )
     return send_email_via_resend(
         api_key=resend_api_key or RESEND_API_KEY,
         from_email=resolved_from_email,
@@ -411,11 +422,17 @@ def _send_email_via_smtp(
     from_email: str | None = None,
     use_ssl: bool = True,
 ) -> bool:
-    smtp_user = smtp_user or EMAIL_NAME
+    smtp_user = _clean_mail_setting(smtp_user) or _clean_mail_setting(
+        EMAIL_NAME
+    )
     smtp_password = smtp_password or EMAIL_PASSWORD
-    smtp_host = smtp_host or SMTP_SERVER
+    smtp_host = _clean_mail_setting(smtp_host) or _clean_mail_setting(
+        SMTP_SERVER
+    )
     smtp_port = smtp_port or SMTP_PORT
-    from_email = from_email or EMAIL_NAME
+    from_email = _clean_mail_setting(from_email) or _clean_mail_setting(
+        EMAIL_NAME
+    )
 
     if not smtp_user or not smtp_password or not smtp_host:
         logger.error('Email credentials are not set.')
@@ -537,10 +554,10 @@ async def download_price_provider(
         logger.info(f'Created directory: {DOWNLOAD_FOLDER}')
 
     try:
-        mailbox_host = server_mail
+        mailbox_host = _clean_mail_setting(server_mail)
         mailbox_port = IMAP_SERVER
         mailbox_folder = 'INBOX'
-        mailbox_login = email_account
+        mailbox_login = _clean_mail_setting(email_account)
         mailbox_password = email_password
 
         if provider_conf.incoming_email_account_id:
@@ -548,10 +565,16 @@ async def download_price_provider(
                 session, provider_conf.incoming_email_account_id
             )
             if selected_account:
-                mailbox_host = selected_account.imap_host or mailbox_host
+                mailbox_host = (
+                    _clean_mail_setting(selected_account.imap_host)
+                    or mailbox_host
+                )
                 mailbox_port = selected_account.imap_port or mailbox_port
-                mailbox_folder = selected_account.imap_folder or mailbox_folder
-                mailbox_login = selected_account.email
+                mailbox_folder = (
+                    _clean_mail_setting(selected_account.imap_folder)
+                    or mailbox_folder
+                )
+                mailbox_login = _clean_mail_setting(selected_account.email)
                 mailbox_password = selected_account.password
                 logger.debug(
                     'Using configured mailbox for provider config %s: '
@@ -697,7 +720,18 @@ async def download_price_provider(
         logger.error(f'Ошибка обработки писем: {e}')
         raise HTTPException(status_code=400, detail='Invalid email data')
     except Exception as e:
-        logger.exception(f'Unexpected error while processing emails: {e}')
+        logger.exception(
+            'Unexpected error while processing emails for provider_id=%s '
+            'provider_config_id=%s mailbox_login=%s mailbox_host=%s '
+            'mailbox_port=%s mailbox_folder=%s: %s',
+            provider.id if provider else None,
+            provider_conf.id if provider_conf else None,
+            mailbox_login,
+            mailbox_host,
+            mailbox_port,
+            mailbox_folder,
+            e,
+        )
         raise HTTPException(
             status_code=500, detail='Error fetching provider emails'
         )
@@ -734,7 +768,9 @@ def send_email_with_attachment(
             transport,
         )
         transport = 'smtp'
-    from_email = from_email or EMAIL_NAME
+    from_email = _clean_mail_setting(from_email) or _clean_mail_setting(
+        EMAIL_NAME
+    )
 
     if transport == 'resend_api':
         return _send_email_via_resend(
@@ -763,9 +799,13 @@ def send_email_with_attachment(
         if sent:
             return True
 
-        resolved_smtp_user = smtp_user or EMAIL_NAME
+        resolved_smtp_user = _clean_mail_setting(
+            smtp_user
+        ) or _clean_mail_setting(EMAIL_NAME)
         resolved_smtp_password = smtp_password or EMAIL_PASSWORD
-        resolved_smtp_host = smtp_host or SMTP_SERVER
+        resolved_smtp_host = _clean_mail_setting(
+            smtp_host
+        ) or _clean_mail_setting(SMTP_SERVER)
         can_fallback_to_smtp = (
             bool(resolved_smtp_user)
             and bool(resolved_smtp_password)
