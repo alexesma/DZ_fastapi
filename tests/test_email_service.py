@@ -1,8 +1,10 @@
 import base64
 from types import SimpleNamespace
 
+import pytest
+
 from dz_fastapi.services.email import (GMAIL_API_SEND_URL,
-                                       build_email_delivery_kwargs,
+                                       build_email_delivery_kwargs, get_emails,
                                        send_email_message,
                                        send_email_with_attachment)
 
@@ -209,3 +211,56 @@ def test_send_email_with_attachment_resend_api(monkeypatch):
     assert captured['subject'] == 'Resend test'
     assert captured['attachment_filename'] == 'report.txt'
     assert captured['timeout'] == 15
+
+
+@pytest.mark.asyncio
+async def test_get_emails_continues_after_account_fetch_error(monkeypatch):
+    accounts = [
+        SimpleNamespace(
+            id=1,
+            email='broken@example.com',
+            transport='smtp',
+            imap_host='broken.host',
+            password='secret',
+            imap_folder='INBOX',
+            imap_port=993,
+        ),
+        SimpleNamespace(
+            id=2,
+            email='ok@example.com',
+            transport='smtp',
+            imap_host='ok.host',
+            password='secret',
+            imap_folder='INBOX',
+            imap_port=993,
+        ),
+    ]
+
+    def fake_fetch_mailbox_messages(
+        server_mail,
+        email_account,
+        email_password,
+        main_box,
+        port,
+        ssl,
+    ):
+        if email_account == 'broken@example.com':
+            raise OSError('[Errno -2] Name or service not known')
+        return []
+
+    async def fake_get_active_by_purpose(session, purpose):
+        assert purpose == 'prices_in'
+        return accounts
+
+    monkeypatch.setattr(
+        'dz_fastapi.services.email._fetch_mailbox_messages',
+        fake_fetch_mailbox_messages,
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.email.crud_email_account.get_active_by_purpose',
+        fake_get_active_by_purpose,
+    )
+
+    result = await get_emails(session=None)
+
+    assert result == []
