@@ -409,6 +409,12 @@ class ProviderPriceListConfig(Base):
         back_populates='provider_config',
         cascade='all, delete-orphan',
     )
+    last_email_uid = relationship(
+        'ProviderConfigLastEmailUID',
+        back_populates='provider_config',
+        uselist=False,
+        cascade='all, delete-orphan',
+    )
 
 
 class CustomerPriceListConfig(Base):
@@ -714,6 +720,23 @@ class ProviderLastEmailUID(Base):
         DateTime(timezone=True), default=now_moscow, onupdate=now_moscow
     )
     provider = relationship('Provider', back_populates='provider_last_uid')
+
+
+class ProviderConfigLastEmailUID(Base):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    provider_config_id = Column(
+        Integer,
+        ForeignKey('providerpricelistconfig.id', ondelete='CASCADE'),
+        nullable=False,
+        unique=True,
+    )
+    last_uid = Column(Integer, nullable=False, default=0)
+    updated_at = Column(
+        DateTime(timezone=True), default=now_moscow, onupdate=now_moscow
+    )
+    provider_config = relationship(
+        'ProviderPriceListConfig', back_populates='last_email_uid'
+    )
 
 
 class ProviderAbbreviation(Base):

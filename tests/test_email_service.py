@@ -1,4 +1,5 @@
 import base64
+from datetime import datetime
 from types import SimpleNamespace
 
 import pytest
@@ -264,3 +265,110 @@ async def test_get_emails_continues_after_account_fetch_error(monkeypatch):
     result = await get_emails(session=None)
 
     assert result == []
+
+
+@pytest.mark.asyncio
+async def test_get_emails_uses_only_latest_message_per_provider_config(
+    monkeypatch,
+):
+    account = SimpleNamespace(
+        id=1,
+        email='prices@example.com',
+        transport='smtp',
+        imap_host='ok.host',
+        password='secret',
+        imap_folder='INBOX',
+        imap_port=993,
+    )
+    provider = SimpleNamespace(
+        id=10,
+        email_incoming_price='supplier@example.com',
+    )
+    provider_conf = SimpleNamespace(
+        id=38,
+        provider_id=provider.id,
+        name_mail='Остатки товаров',
+        name_price='alyprice',
+        file_url=None,
+    )
+    older = SimpleNamespace(
+        uid='101',
+        from_='supplier@example.com',
+        subject='Остатки товаров',
+        attachments=[
+            SimpleNamespace(
+                filename='alyprice_old.xls',
+                payload=b'1',
+            )
+        ],
+        date=datetime(2026, 3, 27, 10, 0, 0),
+    )
+    newer = SimpleNamespace(
+        uid='105',
+        from_='supplier@example.com',
+        subject='Остатки товаров',
+        attachments=[
+            SimpleNamespace(
+                filename='alyprice_new.xls',
+                payload=b'2',
+            )
+        ],
+        date=datetime(2026, 3, 27, 11, 0, 0),
+    )
+    downloaded = []
+
+    async def fake_get_active_by_purpose(session, purpose):
+        assert purpose == 'prices_in'
+        return [account]
+
+    def fake_fetch_mailbox_messages(*args, **kwargs):
+        return [older, newer]
+
+    async def fake_get_provider_by_email(session, email):
+        assert email == 'supplier@example.com'
+        return provider
+
+    async def fake_get_configs(provider_id, session, only_active):
+        assert provider_id == provider.id
+        assert only_active is True
+        return [provider_conf]
+
+    async def fake_get_last_uid(provider_id, session, provider_config_id=None):
+        assert provider_id == provider.id
+        assert provider_config_id == provider_conf.id
+        return 100
+
+    async def fake_download(msg, provider, provider_conf, session):
+        downloaded.append(msg.uid)
+        return f'/tmp/{msg.uid}.xls'
+
+    monkeypatch.setattr(
+        'dz_fastapi.services.email.crud_email_account.get_active_by_purpose',
+        fake_get_active_by_purpose,
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.email._fetch_mailbox_messages',
+        fake_fetch_mailbox_messages,
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.email.crud_provider.get_by_email_incoming_price',
+        fake_get_provider_by_email,
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.email.'
+        'crud_provider_pricelist_config.get_configs',
+        fake_get_configs,
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.email.get_last_uid',
+        fake_get_last_uid,
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.email.download_new_price_provider',
+        fake_download,
+    )
+
+    result = await get_emails(session=None)
+
+    assert downloaded == ['105']
+    assert result == [(provider, '/tmp/105.xls', provider_conf)]

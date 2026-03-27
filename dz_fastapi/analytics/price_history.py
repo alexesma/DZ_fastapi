@@ -119,7 +119,9 @@ async def analyze_new_pricelist(new_pl: PriceList, session: AsyncSession):
 
     # 1) Найти все прайс-листы этого поставщика
     all_pls = await crud_pricelist.get_last_pricelists_by_provider(
-        provider_id=provider_id, session=session
+        provider_id=provider_id,
+        provider_config_id=new_pl.provider_config_id,
+        session=session,
     )
     logger.debug(f'Прайс-листов поставщика {len(all_pls)}')
 

@@ -152,9 +152,9 @@ async def get_missing_brands_from_pricelists(
         .outerjoin(Brand, Brand.name == PriceListMissingBrand.brand_name)
         .where(PriceListMissingBrand.positions_count > 0, Brand.id.is_(None))
         .order_by(
+            PriceListMissingBrand.positions_count.desc(),
             Provider.name.asc(),
             ProviderPriceListConfig.name_price.asc().nullslast(),
-            PriceListMissingBrand.positions_count.desc(),
             PriceListMissingBrand.brand_name.asc(),
         )
     )

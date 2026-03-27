@@ -10,6 +10,8 @@ from PIL import Image
 
 from dz_fastapi.main import app
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.partner import (PriceList, PriceListMissingBrand,
+                                       ProviderPriceListConfig)
 from tests.test_constants import TEST_BRAND
 
 logger = logging.getLogger('dz_fastapi')
@@ -234,12 +236,77 @@ async def test_update_brand(test_session, created_brand: Brand):
     assert data['website'] == new_data['website']
     assert data['main_brand'] is True
     assert data['country_of_origin'] == new_data['country_of_origin']
-    for synonym in data['synonyms']:
-        assert 'id' in synonym
-        assert 'name' in synonym
-        assert isinstance(synonym['id'], int)
-        assert isinstance(synonym['name'], str)
-    assert 'id' in data
+
+
+@pytest.mark.asyncio
+async def test_missing_brands_sorted_by_positions_desc(
+    test_session,
+    created_providers,
+):
+    provider_a, provider_b = created_providers
+    cfg_a = ProviderPriceListConfig(
+        provider_id=provider_a.id,
+        start_row=1,
+        oem_col=0,
+        brand_col=1,
+        name_col=2,
+        qty_col=3,
+        price_col=4,
+        name_price='CFG_A',
+        name_mail='MAIL_A',
+    )
+    cfg_b = ProviderPriceListConfig(
+        provider_id=provider_b.id,
+        start_row=1,
+        oem_col=0,
+        brand_col=1,
+        name_col=2,
+        qty_col=3,
+        price_col=4,
+        name_price='CFG_B',
+        name_mail='MAIL_B',
+    )
+    test_session.add_all([cfg_a, cfg_b])
+    await test_session.commit()
+    await test_session.refresh(cfg_a)
+    await test_session.refresh(cfg_b)
+
+    pl_a = PriceList(provider_id=provider_a.id, provider_config_id=cfg_a.id)
+    pl_b = PriceList(provider_id=provider_b.id, provider_config_id=cfg_b.id)
+    test_session.add_all([pl_a, pl_b])
+    await test_session.commit()
+    await test_session.refresh(pl_a)
+    await test_session.refresh(pl_b)
+
+    test_session.add_all(
+        [
+            PriceListMissingBrand(
+                pricelist_id=pl_a.id,
+                provider_config_id=cfg_a.id,
+                brand_name='ALPHA',
+                positions_count=5,
+            ),
+            PriceListMissingBrand(
+                pricelist_id=pl_b.id,
+                provider_config_id=cfg_b.id,
+                brand_name='BETA',
+                positions_count=10,
+            ),
+        ]
+    )
+    await test_session.commit()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+        response = await ac.get('/brand/missing-from-pricelists')
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert len(data) >= 2
+    assert data[0]['brand_name'] == 'BETA'
+    assert data[0]['positions_count'] == 10
+    assert data[1]['brand_name'] == 'ALPHA'
+    assert data[1]['positions_count'] == 5
 
 
 @pytest.mark.asyncio

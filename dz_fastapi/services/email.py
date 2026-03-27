@@ -106,6 +106,46 @@ class _FetchedInboxMessage:
     date: Optional[datetime] = None
 
 
+def _message_sort_key(msg: _FetchedInboxMessage) -> tuple[int, float]:
+    uid = _safe_uid_as_int(getattr(msg, 'uid', None))
+    if uid is not None:
+        return (1, float(uid))
+    msg_date = getattr(msg, 'date', None)
+    if isinstance(msg_date, datetime):
+        try:
+            return (0, msg_date.timestamp())
+        except Exception:
+            return (0, 0.0)
+    return (0, 0.0)
+
+
+def _message_matches_provider_config(
+    msg: _FetchedInboxMessage,
+    provider_conf: ProviderPriceListConfig,
+) -> bool:
+    subject = str(getattr(msg, 'subject', '') or '')
+    if provider_conf.name_mail and (
+        normalize_str(provider_conf.name_mail) not in normalize_str(subject)
+    ):
+        return False
+    if provider_conf.file_url:
+        return True
+    attachments = getattr(msg, 'attachments', []) or []
+    if not attachments:
+        return False
+    if not provider_conf.name_price:
+        return True
+    name_price_norm = normalize_str(provider_conf.name_price)
+    for att in attachments:
+        filename_norm = normalize_str(getattr(att, 'filename', '') or '')
+        if (
+            name_price_norm in filename_norm
+            or filename_norm in name_price_norm
+        ):
+            return True
+    return False
+
+
 def _resolve_smtp_host(host: str) -> tuple[str, str]:
     try:
         addrinfo = socket.getaddrinfo(
@@ -533,7 +573,11 @@ async def download_price_provider(
             f'need name_mail = {provider_conf.name_mail}, '
             f'need name_price = {provider_conf.name_price}'
         )
-        last_uid = await get_last_uid(provider.id, session)
+        last_uid = await get_last_uid(
+            provider.id,
+            session,
+            provider_config_id=provider_conf.id,
+        )
         logger.debug(f'Last UID: {last_uid}')
 
         with _create_mailbox(mailbox_host, mailbox_port, True).login(
@@ -574,79 +618,80 @@ async def download_price_provider(
                 f'{len(emails)} emails have UID greater than {last_uid}.'
             )
 
-            for msg in emails:
-                subject = msg.subject
-                logger.debug('All headers:')
-                for k, v in msg.headers.items():
-                    logger.debug(f'{k}: {v}')
-                raw_subject = msg.obj.get('Subject')
-                if raw_subject is None:
-                    logger.debug('No Subject found for this email.')
+            matching_emails = [
+                msg
+                for msg in emails
+                if _message_matches_provider_config(msg, provider_conf)
+            ]
+            if not matching_emails:
+                logger.debug('No matching attachments found.')
+                return None
 
-                # logger.debug(f'all data {msg.__dict__}')
-                # logger.debug(f'Subject: {msg.subject},
-                # From: {msg.from_}, To: {msg.to}, Date: {msg.date}')
-                # logger.debug(f'Processing email with subject: {subject}')
+            msg = max(matching_emails, key=_message_sort_key)
+            logger.debug(
+                'Selected latest matching email uid=%s for provider config %s',
+                getattr(msg, 'uid', None),
+                provider_conf.id,
+            )
+            logger.debug('All headers:')
+            for k, v in msg.headers.items():
+                logger.debug(f'{k}: {v}')
+            raw_subject = msg.obj.get('Subject')
+            if raw_subject is None:
+                logger.debug('No Subject found for this email.')
+
+            for att in msg.attachments:
+                logger.debug(f'Found attachment: {att.filename}')
+                filename_norm = normalize_str(att.filename).lower()
+                name_price_norm = normalize_str(
+                    provider_conf.name_price or ''
+                ).lower()
                 if (
-                    provider_conf.name_mail
-                    and provider_conf.name_mail.lower() not in subject.lower()
-                ):
-                    logger.debug(
-                        f'Subject {subject} does not '
-                        f'contain {provider_conf.name_mail.lower()}, skipping.'
+                    name_price_norm
+                    and (
+                        name_price_norm in filename_norm
+                        or filename_norm in name_price_norm
                     )
-                    continue
-
-                for att in msg.attachments:
-                    logger.debug(f'Found attachment: {att.filename}')
-                    filename_norm = normalize_str(att.filename).lower()
-                    name_price_norm = normalize_str(
-                        provider_conf.name_price or ''
-                    ).lower()
-                    if (
-                        name_price_norm
-                        and (
-                            name_price_norm in filename_norm
-                            or filename_norm in name_price_norm
+                ):
+                    filepath = os.path.join(DOWNLOAD_FOLDER, att.filename)
+                    with open(filepath, 'wb') as f:
+                        f.write(att.payload)
+                    logger.debug(f'Downloaded attachment: {filepath}')
+                    mailbox.flag(msg.uid, [r'\Seen'], True)
+                    current_uid = _safe_uid_as_int(
+                        getattr(msg, 'uid', None)
+                    )
+                    if current_uid is not None and current_uid > last_uid:
+                        await set_last_uid(
+                            provider.id,
+                            current_uid,
+                            session,
+                            provider_config_id=provider_conf.id,
                         )
-                    ):
-                        filepath = os.path.join(DOWNLOAD_FOLDER, att.filename)
-                        with open(filepath, 'wb') as f:
-                            f.write(att.payload)
-                        logger.debug(f'Downloaded attachment: {filepath}')
-                        mailbox.flag(msg.uid, [r'\Seen'], True)
-                        current_uid = _safe_uid_as_int(
-                            getattr(msg, 'uid', None)
+                    return filepath
+                if not name_price_norm:
+                    filepath = os.path.join(DOWNLOAD_FOLDER, att.filename)
+                    with open(filepath, 'wb') as f:
+                        f.write(att.payload)
+                    logger.debug(
+                        'name_price is empty, '
+                        'downloaded first attachment: '
+                        '%s',
+                        filepath,
+                    )
+                    mailbox.flag(msg.uid, [r'\Seen'], True)
+                    current_uid = _safe_uid_as_int(
+                        getattr(msg, 'uid', None)
+                    )
+                    if current_uid is not None and current_uid > last_uid:
+                        await set_last_uid(
+                            provider.id,
+                            current_uid,
+                            session,
+                            provider_config_id=provider_conf.id,
                         )
-                        if current_uid is not None and current_uid > last_uid:
-                            await set_last_uid(
-                                provider.id, current_uid, session
-                            )
-                        return filepath
-                    if not name_price_norm:
-                        filepath = os.path.join(DOWNLOAD_FOLDER, att.filename)
-                        with open(filepath, 'wb') as f:
-                            f.write(att.payload)
-                        logger.debug(
-                            'name_price is empty, '
-                            'downloaded first attachment: '
-                            '%s',
-                            filepath,
-                        )
-                        mailbox.flag(msg.uid, [r'\Seen'], True)
-                        current_uid = _safe_uid_as_int(
-                            getattr(msg, 'uid', None)
-                        )
-                        if current_uid is not None and current_uid > last_uid:
-                            await set_last_uid(
-                                provider.id, current_uid, session
-                            )
-                        return filepath
+                    return filepath
             logger.debug('No matching attachments found.')
-            # if emails:
-            #     max_uid = max(int(msg.uid) for msg in emails)
-            #     if max_uid > last_uid:
-            #         await set_last_uid(provider.id, max_uid, session)
             return None
     except ValueError as e:
         logger.error(f'Ошибка обработки писем: {e}')
@@ -884,10 +929,19 @@ async def download_new_price_provider(
                 logger.debug(f'Загрузка файла из URL: {filepath}')
                 current_uid = _safe_uid_as_int(getattr(msg, 'uid', None))
                 if current_uid is not None:
-                    last_uid = await get_last_uid(provider.id, session)
+                    last_uid = await get_last_uid(
+                        provider.id,
+                        session,
+                        provider_config_id=provider_conf.id,
+                    )
                     logger.debug(f'Last UID: {last_uid}')
                     if current_uid > last_uid:
-                        await set_last_uid(provider.id, current_uid, session)
+                        await set_last_uid(
+                            provider.id,
+                            current_uid,
+                            session,
+                            provider_config_id=provider_conf.id,
+                        )
                 return filepath
         except Exception as e:
             logger.exception(
@@ -915,10 +969,19 @@ async def download_new_price_provider(
             logger.debug(f'Downloaded attachment: {filepath}')
             current_uid = _safe_uid_as_int(getattr(msg, 'uid', None))
             if current_uid is not None:
-                last_uid = await get_last_uid(provider.id, session)
+                last_uid = await get_last_uid(
+                    provider.id,
+                    session,
+                    provider_config_id=provider_conf.id,
+                )
                 logger.debug(f'Last UID: {last_uid}')
                 if current_uid > last_uid:
-                    await set_last_uid(provider.id, current_uid, session)
+                    await set_last_uid(
+                        provider.id,
+                        current_uid,
+                        session,
+                        provider_config_id=provider_conf.id,
+                    )
             return filepath
     logger.debug(
         f'В письме uid={msg.uid} нет вложений, соответствующих критерию'
@@ -999,6 +1062,13 @@ async def get_emails(
     downloaded_files = []
     all_emails = []
     resend_cursors: dict[int, object] = {}
+    selected_candidates: dict[
+        int,
+        tuple[Provider, ProviderPriceListConfig, _FetchedInboxMessage],
+    ] = {}
+    provider_cache: dict[str, Provider | None] = {}
+    provider_configs_cache: dict[int, list[ProviderPriceListConfig]] = {}
+    config_last_uid_cache: dict[int, int] = {}
     accounts = await crud_email_account.get_active_by_purpose(
         session, 'prices_in'
     )
@@ -1062,9 +1132,14 @@ async def get_emails(
             f'Письмо: uid={msg.uid}, from={msg.from_}, '
             f'date={msg.date}, subject={msg.subject}'
         )
-        provider = await crud_provider.get_by_email_incoming_price(
-            session=session, email=_extract_email(msg.from_)
-        )
+        sender_email = _extract_email(msg.from_)
+        if sender_email not in provider_cache:
+            provider_cache[sender_email] = (
+                await crud_provider.get_by_email_incoming_price(
+                    session=session, email=sender_email
+                )
+            )
+        provider = provider_cache[sender_email]
         if not provider:
             logger.debug(
                 f'Провайдер для email {msg.from_} '
@@ -1073,42 +1148,68 @@ async def get_emails(
             continue  # Если провайдера нет, пропускаем письмо
 
         # Получаем все конфигурации для данного провайдера
-        provider_confs = await crud_provider_pricelist_config.get_configs(
-            provider_id=provider.id,
-            session=session,
-            only_active=True,
-        )
+        if provider.id not in provider_configs_cache:
+            provider_configs_cache[provider.id] = (
+                await crud_provider_pricelist_config.get_configs(
+                    provider_id=provider.id,
+                    session=session,
+                    only_active=True,
+                )
+            )
+        provider_confs = provider_configs_cache[provider.id]
         if not provider_confs:
             logger.debug(
                 f'Конфигураций для провайдера {provider.id} не найдена, '
                 f'пропускаем письмо uid={msg.uid}'
             )
             continue
-        last_uid = await get_last_uid(provider_id=provider.id, session=session)
-        msg_uid_int = _safe_uid_as_int(getattr(msg, 'uid', None))
-        if msg_uid_int is not None and last_uid >= msg_uid_int:
-            logger.debug(f'Старое UID = {msg.uid}, пропускаем письмо')
-            continue  # Если UID записанное равно или больше,
-            # пропускаем письмо
-        file_downloaded = False
 
         for provider_conf in provider_confs:
-            logger.debug(f'Config: {provider_conf}')
-            filepath = await download_new_price_provider(
-                msg=msg,
-                provider=provider,
-                provider_conf=provider_conf,
-                session=session,
-            )
-            if filepath:
-                # Если файл успешно скачан, помечаем письмо как прочитанное
-                # mailbox.flag(msg.uid, [r'\Seen'], True)
-                downloaded_files.append((provider, filepath, provider_conf))
-                file_downloaded = True
-        if not file_downloaded:
+            logger.debug('Config: %s', provider_conf)
+            if not _message_matches_provider_config(msg, provider_conf):
+                continue
+            if provider_conf.id not in config_last_uid_cache:
+                config_last_uid_cache[provider_conf.id] = await get_last_uid(
+                    provider_id=provider.id,
+                    provider_config_id=provider_conf.id,
+                    session=session,
+                )
+            last_uid = config_last_uid_cache[provider_conf.id]
+            msg_uid_int = _safe_uid_as_int(getattr(msg, 'uid', None))
+            if msg_uid_int is not None and last_uid >= msg_uid_int:
+                logger.debug(
+                    'Старое UID = %s для config_id=%s, пропускаем письмо',
+                    msg.uid,
+                    provider_conf.id,
+                )
+                continue
+            current = selected_candidates.get(provider_conf.id)
+            if (
+                current is None
+                or _message_sort_key(msg) > _message_sort_key(current[2])
+            ):
+                selected_candidates[provider_conf.id] = (
+                    provider,
+                    provider_conf,
+                    msg,
+                )
+        if not any(
+            provider_conf.id in selected_candidates
+            and selected_candidates[provider_conf.id][2] is msg
+            for provider_conf in provider_confs
+        ):
             logger.debug(
                 f'Письмо uid={msg.uid} не удовлетворило условиям загрузки'
             )
+    for provider, provider_conf, msg in selected_candidates.values():
+        filepath = await download_new_price_provider(
+            msg=msg,
+            provider=provider,
+            provider_conf=provider_conf,
+            session=session,
+        )
+        if filepath:
+            downloaded_files.append((provider, filepath, provider_conf))
     if resend_cursors:
         for account in accounts:
             if account.id in resend_cursors:

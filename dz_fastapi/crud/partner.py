@@ -28,6 +28,7 @@ from dz_fastapi.models.partner import (TYPE_PRICES, Customer,
                                        PriceListAutoPartAssociation,
                                        PriceListMissingBrand, Provider,
                                        ProviderAbbreviation,
+                                       ProviderConfigLastEmailUID,
                                        ProviderLastEmailUID,
                                        ProviderPriceListConfig)
 from dz_fastapi.schemas.autopart import AutoPartPricelist
@@ -1348,22 +1349,36 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         return result.scalars().first()
 
     async def get_last_pricelists_by_provider(
-        self, session: AsyncSession, provider_id: int, limit_last_n: int = 2
+        self,
+        session: AsyncSession,
+        provider_id: int,
+        limit_last_n: int = 2,
+        provider_config_id: int | None = None,
     ) -> List[PriceList]:
         """
         Возвращает прайс-листы провайдера limit_last_n = 2,
         отсортированные по дате (или id).
         """
+        stmt = select(PriceList).where(PriceList.provider_id == provider_id)
+        if provider_config_id is not None:
+            stmt = stmt.where(
+                PriceList.provider_config_id == provider_config_id
+            )
         stmt = (
-            select(PriceList)
-            .where(PriceList.provider_id == provider_id)
-            .order_by(PriceList.date.desc())
+            stmt.order_by(
+                PriceList.date.desc().nullslast(),
+                PriceList.id.desc(),
+            )
             .limit(limit_last_n)
             .options(selectinload(PriceList.autopart_associations))
         )
         result = await session.execute(stmt)
         pricelists = result.scalars().all()
-        logger.debug(f'Fetching pricelists for provider_id={provider_id}')
+        logger.debug(
+            'Fetching pricelists for provider_id=%s provider_config_id=%s',
+            provider_id,
+            provider_config_id,
+        )
         return pricelists
 
 
@@ -2152,7 +2167,22 @@ crud_customer_pricelist_source = CRUDCustomerPriceListSource(
 )
 
 
-async def get_last_uid(provider_id: int, session: AsyncSession) -> int:
+async def get_last_uid(
+    provider_id: int,
+    session: AsyncSession,
+    provider_config_id: int | None = None,
+) -> int:
+    if provider_config_id is not None:
+        result = await session.execute(
+            select(ProviderConfigLastEmailUID).where(
+                ProviderConfigLastEmailUID.provider_config_id
+                == provider_config_id
+            )
+        )
+        record = result.scalar_one_or_none()
+        if record:
+            return record.last_uid
+
     result = await session.execute(
         select(ProviderLastEmailUID).where(
             ProviderLastEmailUID.provider_id == provider_id
@@ -2164,7 +2194,33 @@ async def get_last_uid(provider_id: int, session: AsyncSession) -> int:
     return 0
 
 
-async def set_last_uid(provider_id: int, last_uid: int, session: AsyncSession):
+async def set_last_uid(
+    provider_id: int,
+    last_uid: int,
+    session: AsyncSession,
+    provider_config_id: int | None = None,
+):
+    if provider_config_id is not None:
+        result = await session.execute(
+            select(ProviderConfigLastEmailUID).where(
+                ProviderConfigLastEmailUID.provider_config_id
+                == provider_config_id
+            )
+        )
+        record = result.scalar_one_or_none()
+
+        if record:
+            record.last_uid = last_uid
+        else:
+            record = ProviderConfigLastEmailUID(
+                provider_config_id=provider_config_id,
+                last_uid=last_uid,
+            )
+            session.add(record)
+
+        await session.commit()
+        return
+
     result = await session.execute(
         select(ProviderLastEmailUID).where(
             ProviderLastEmailUID.provider_id == provider_id
