@@ -1,7 +1,9 @@
 from datetime import date
+from types import SimpleNamespace
 
 import pytest
 
+from dz_fastapi.analytics.price_history import _get_previous_pricelist
 from dz_fastapi.crud.partner import crud_pricelist
 from dz_fastapi.models.partner import PriceList, ProviderPriceListConfig
 
@@ -67,3 +69,12 @@ async def test_get_last_pricelists_by_provider_scopes_to_config_and_newest_ids(
 
     assert [pl.id for pl in pricelists] == [newest_same_day.id, older.id]
     assert all(pl.provider_config_id == cfg_a.id for pl in pricelists)
+
+
+def test_get_previous_pricelist_skips_current_pricelist():
+    current = SimpleNamespace(id=10)
+    previous = SimpleNamespace(id=9)
+
+    resolved = _get_previous_pricelist(current, [current, previous])
+
+    assert resolved is previous

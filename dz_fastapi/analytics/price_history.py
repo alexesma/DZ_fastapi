@@ -19,6 +19,16 @@ from dz_fastapi.services.email import send_email_with_attachment
 logger = logging.getLogger('dz_fastapi')
 
 
+def _get_previous_pricelist(
+    new_pl: PriceList,
+    recent_pricelists: list[PriceList],
+) -> Optional[PriceList]:
+    for pricelist in recent_pricelists:
+        if pricelist.id != new_pl.id:
+            return pricelist
+    return None
+
+
 async def get_time_series_for_autopart_df(
     session: AsyncSession,
     autopart_id: int,
@@ -132,7 +142,16 @@ async def analyze_new_pricelist(new_pl: PriceList, session: AsyncSession):
             f'{new_pl.provider.name}, ничего сравнивать.'
         )
         return
-    old_pl = all_pls[-2]
+    old_pl = _get_previous_pricelist(new_pl, all_pls)
+    if old_pl is None:
+        logger.info(
+            'Не удалось определить предыдущий прайс-лист для '
+            'provider_id=%s provider_config_id=%s pricelist_id=%s',
+            new_pl.provider_id,
+            new_pl.provider_config_id,
+            new_pl.id,
+        )
+        return
     # 2) Создаём карты (dict) autopart_id => (price, quantity)
     old_map = {}
     for assoc in old_pl.autopart_associations:
