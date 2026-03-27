@@ -2,7 +2,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import (BaseModel, ConfigDict, EmailStr, Field, field_serializer,
+                      field_validator)
 
 from dz_fastapi.models.partner import (CUSTOMER_ORDER_ITEM_STATUS,
                                        CUSTOMER_ORDER_SHIP_MODE,
@@ -10,6 +11,33 @@ from dz_fastapi.models.partner import (CUSTOMER_ORDER_ITEM_STATUS,
                                        STOCK_ORDER_STATUS,
                                        SUPPLIER_ORDER_STATUS)
 from dz_fastapi.schemas.autopart import AutoPartResponse
+
+ORDER_CONFIG_COLUMN_FIELDS = (
+    'order_number_column',
+    'order_date_column',
+    'oem_col',
+    'brand_col',
+    'name_col',
+    'qty_col',
+    'price_col',
+    'ship_qty_col',
+    'reject_qty_col',
+)
+
+
+def _to_zero_based_column(value: int | str | None) -> int | None:
+    if value is None or value == '':
+        return None
+    parsed = int(value)
+    if parsed < 1:
+        raise ValueError('Column numbers must start from 1')
+    return parsed - 1
+
+
+def _to_one_based_column(value: int | None) -> int | None:
+    if value is None:
+        return None
+    return int(value) + 1
 
 
 class CustomerOrderConfigBase(BaseModel):
@@ -65,6 +93,10 @@ class CustomerOrderConfigBase(BaseModel):
 class CustomerOrderConfigCreate(CustomerOrderConfigBase):
     customer_id: int
 
+    @field_validator(*ORDER_CONFIG_COLUMN_FIELDS, mode='before')
+    def columns_to_zero_based(cls, value):
+        return _to_zero_based_column(value)
+
 
 class CustomerOrderConfigUpdate(BaseModel):
     order_email: Optional[EmailStr] = None
@@ -117,6 +149,10 @@ class CustomerOrderConfigUpdate(BaseModel):
             return None
         return v
 
+    @field_validator(*ORDER_CONFIG_COLUMN_FIELDS, mode='before')
+    def columns_to_zero_based(cls, value):
+        return _to_zero_based_column(value)
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -125,6 +161,10 @@ class CustomerOrderConfigResponse(CustomerOrderConfigBase):
     customer_id: int
     last_uid: int = 0
     pricelist_config_name: Optional[str] = None
+
+    @field_serializer(*ORDER_CONFIG_COLUMN_FIELDS)
+    def columns_to_one_based(self, value):
+        return _to_one_based_column(value)
 
 
 class CustomerOrderItemResponse(BaseModel):

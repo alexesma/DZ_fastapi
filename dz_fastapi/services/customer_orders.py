@@ -924,6 +924,71 @@ def _compute_price_diff_pct(
     return ((expected_price - offered_price) / expected_price) * 100
 
 
+def _compute_order_requested_total(
+    parsed_rows: List[ParsedOrderRow],
+) -> Optional[float]:
+    total = 0.0
+    has_price = False
+    for row in parsed_rows:
+        if row.requested_price is None:
+            continue
+        has_price = True
+        total += float(row.requested_price) * int(row.requested_qty or 0)
+    if not has_price:
+        return None
+    return round(total, 2)
+
+
+def _format_order_amount(value: Optional[float]) -> str:
+    if value is None:
+        return 'не определена'
+    return f'{value:,.2f}'.replace(',', ' ')
+
+
+async def _send_order_import_notification(
+    config: CustomerOrderConfig,
+    sender: str,
+    subject: Optional[str],
+    filename: Optional[str],
+    *,
+    success: bool,
+    reason: Optional[str] = None,
+    order_number: Optional[str] = None,
+    total_amount: Optional[float] = None,
+    rows_count: Optional[int] = None,
+):
+    customer_name = (
+        getattr(getattr(config, 'customer', None), 'name', None)
+        or str(config.customer_id)
+    )
+    lines = [
+        'Заказ загружен' if success else 'Заказ не загружен',
+        f'Клиент: {customer_name}',
+        f'Конфиг заказа: {config.id}',
+        f'Отправитель: {sender}',
+    ]
+    if subject:
+        lines.append(f'Тема: {subject}')
+    if filename:
+        lines.append(f'Файл: {filename}')
+    if order_number:
+        lines.append(f'Номер заказа: {order_number}')
+    if rows_count is not None:
+        lines.append(f'Строк заказа: {rows_count}')
+    lines.append(f'Сумма заказа: {_format_order_amount(total_amount)}')
+    if reason:
+        lines.append(f'Причина: {reason}')
+    try:
+        await send_message_to_telegram('\n'.join(lines))
+    except Exception as exc:
+        logger.error(
+            'Order import telegram failed for config %s: %s',
+            config.id,
+            exc,
+            exc_info=True,
+        )
+
+
 async def _send_price_warning(
     order: CustomerOrder,
     item: CustomerOrderItem,
@@ -1637,16 +1702,38 @@ async def process_customer_orders(session: AsyncSession) -> None:
 
     logger.debug('Получено %d писем с заказами', len(messages))
 
-    for msg, account in messages:
+    for msg, inbox_account in messages:
+        config = None
+        attachment = None
         try:
             sender = _extract_email(msg.from_)
             configs_for_sender = config_by_email.get(sender) or []
-            account_id = account.id if account else None
+            account_id = inbox_account.id if inbox_account else None
+            logger.debug(
+                'Processing order email sender=%s subject=%s account_id=%s '
+                'attachments=%s uid=%s',
+                sender,
+                getattr(msg, 'subject', ''),
+                account_id,
+                len(getattr(msg, 'attachments', []) or []),
+                getattr(msg, 'uid', None),
+            )
+            if not configs_for_sender:
+                logger.debug(
+                    'No order config found for sender=%s account_id=%s',
+                    sender,
+                    account_id,
+                )
             candidate_configs = _pick_configs_for_account(
                 configs_for_sender, account_id
             )
-            config = None
-            attachment = None
+            if configs_for_sender and not candidate_configs:
+                logger.debug(
+                    'Sender=%s matched configs=%s but none for account_id=%s',
+                    sender,
+                    [cfg.id for cfg in configs_for_sender],
+                    account_id,
+                )
             for candidate in candidate_configs:
                 if not candidate.pricelist_config_id:
                     logger.warning(
@@ -1659,10 +1746,26 @@ async def process_customer_orders(session: AsyncSession) -> None:
                     msg_uid_int is not None
                     and msg_uid_int <= int(candidate.last_uid or 0)
                 ):
+                    logger.debug(
+                        'Skip order config %s for sender=%s: '
+                        'msg_uid=%s <= last_uid=%s',
+                        candidate.id,
+                        sender,
+                        msg_uid_int,
+                        candidate.last_uid,
+                    )
                     continue
                 if not _match_pattern(
                     candidate.order_subject_pattern, msg.subject
                 ):
+                    logger.debug(
+                        'Skip order config %s for sender=%s: '
+                        'subject mismatch pattern=%r subject=%r',
+                        candidate.id,
+                        sender,
+                        candidate.order_subject_pattern,
+                        getattr(msg, 'subject', None),
+                    )
                     continue
                 candidate_attachment = None
                 for att in msg.attachments:
@@ -1674,6 +1777,13 @@ async def process_customer_orders(session: AsyncSession) -> None:
                 if candidate_attachment is None and msg.attachments:
                     candidate_attachment = msg.attachments[0]
                 if candidate_attachment is None:
+                    logger.debug(
+                        'Skip order config %s for sender=%s: '
+                        'no suitable attachment filename_pattern=%r',
+                        candidate.id,
+                        sender,
+                        candidate.order_filename_pattern,
+                    )
                     continue
                 config = candidate
                 attachment = candidate_attachment
@@ -1685,13 +1795,13 @@ async def process_customer_orders(session: AsyncSession) -> None:
                         'No attachment for order email uid=%s', msg.uid
                     )
                 if (
-                    account
-                    and (account.transport or '').strip().lower()
+                    inbox_account
+                    and (inbox_account.transport or '').strip().lower()
                     == 'resend_api'
                     and msg.received_at
                 ):
-                    account.resend_last_received_at = msg.received_at
-                    session.add(account)
+                    inbox_account.resend_last_received_at = msg.received_at
+                    session.add(inbox_account)
                     await session.commit()
                 continue
 
@@ -1704,14 +1814,22 @@ async def process_customer_orders(session: AsyncSession) -> None:
 
             if file_ext not in ('xlsx', 'xls', 'csv'):
                 logger.warning('Unsupported order file type: %s', file_ext)
+                await _send_order_import_notification(
+                    config,
+                    sender,
+                    getattr(msg, 'subject', None),
+                    filename,
+                    success=False,
+                    reason=f'Неподдерживаемый тип файла: {file_ext}',
+                )
                 if (
-                    account
-                    and (account.transport or '').strip().lower()
+                    inbox_account
+                    and (inbox_account.transport or '').strip().lower()
                     == 'resend_api'
                     and msg.received_at
                 ):
-                    account.resend_last_received_at = msg.received_at
-                    session.add(account)
+                    inbox_account.resend_last_received_at = msg.received_at
+                    session.add(inbox_account)
                     await session.commit()
                 continue
 
@@ -1737,16 +1855,26 @@ async def process_customer_orders(session: AsyncSession) -> None:
                     file_buffer,
                 ) = _parse_excel_order(file_bytes, config)
 
+            requested_total = _compute_order_requested_total(parsed_rows)
             if not parsed_rows:
                 logger.info('No order rows found in %s', filename)
+                await _send_order_import_notification(
+                    config,
+                    sender,
+                    getattr(msg, 'subject', None),
+                    filename,
+                    success=False,
+                    reason='Не удалось распознать строки заказа',
+                    total_amount=requested_total,
+                )
                 if (
-                    account
-                    and (account.transport or '').strip().lower()
+                    inbox_account
+                    and (inbox_account.transport or '').strip().lower()
                     == 'resend_api'
                     and msg.received_at
                 ):
-                    account.resend_last_received_at = msg.received_at
-                    session.add(account)
+                    inbox_account.resend_last_received_at = msg.received_at
+                    session.add(inbox_account)
                     await session.commit()
                 continue
 
@@ -1786,13 +1914,24 @@ async def process_customer_orders(session: AsyncSession) -> None:
                 if msg_uid_int is not None:
                     config.last_uid = msg_uid_int
                 if (
-                    account
-                    and (account.transport or '').strip().lower()
+                    inbox_account
+                    and (inbox_account.transport or '').strip().lower()
                     == 'resend_api'
                     and msg.received_at
                 ):
-                    account.resend_last_received_at = msg.received_at
-                    session.add(account)
+                    inbox_account.resend_last_received_at = msg.received_at
+                    session.add(inbox_account)
+                await _send_order_import_notification(
+                    config,
+                    sender,
+                    getattr(msg, 'subject', None),
+                    filename,
+                    success=False,
+                    reason='Дубликат файла: заказ уже загружен ранее',
+                    order_number=order_number,
+                    total_amount=requested_total,
+                    rows_count=len(parsed_rows),
+                )
                 await session.commit()
                 continue
             order = CustomerOrder(
@@ -2011,6 +2150,17 @@ async def process_customer_orders(session: AsyncSession) -> None:
 
             await session.commit()
 
+            await _send_order_import_notification(
+                config,
+                sender,
+                getattr(msg, 'subject', None),
+                filename,
+                success=True,
+                order_number=order.order_number,
+                total_amount=requested_total,
+                rows_count=len(parsed_rows),
+            )
+
             await _send_reject_report(session, order, rejected_items)
 
             recipients = set([sender])
@@ -2019,10 +2169,10 @@ async def process_customer_orders(session: AsyncSession) -> None:
             to_email = ','.join(sorted(recipients))
 
             try:
-                account = await _get_out_account(session, 'orders_out')
+                out_account = await _get_out_account(session, 'orders_out')
                 kwargs = {}
-                if account:
-                    kwargs = build_email_delivery_kwargs(account)
+                if out_account:
+                    kwargs = build_email_delivery_kwargs(out_account)
                 await asyncio.get_running_loop().run_in_executor(
                     None,
                     send_email_with_attachment,
@@ -2045,15 +2195,24 @@ async def process_customer_orders(session: AsyncSession) -> None:
             if msg_uid_int is not None:
                 config.last_uid = msg_uid_int
             if (
-                account
-                and (account.transport or '').strip().lower()
+                inbox_account
+                and (inbox_account.transport or '').strip().lower()
                 == 'resend_api'
                 and msg.received_at
             ):
-                account.resend_last_received_at = msg.received_at
-                session.add(account)
+                inbox_account.resend_last_received_at = msg.received_at
+                session.add(inbox_account)
             await session.commit()
         except Exception as exc:
+            if config and attachment:
+                await _send_order_import_notification(
+                    config,
+                    sender,
+                    getattr(msg, 'subject', None),
+                    getattr(attachment, 'filename', None),
+                    success=False,
+                    reason=f'Ошибка обработки: {exc}',
+                )
             logger.error(
                 'Failed to process order email uid=%s: %s',
                 getattr(msg, 'uid', None),

@@ -603,17 +603,52 @@ async def download_price_provider(
         )
         logger.debug(f'Last UID: {last_uid}')
 
+        logger.debug(
+            'Connecting to mailbox host=%s port=%s folder=%s login=%s '
+            'for provider_config_id=%s',
+            mailbox_host,
+            mailbox_port,
+            mailbox_folder,
+            mailbox_login,
+            provider_conf.id if provider_conf else None,
+        )
         with _create_mailbox(mailbox_host, mailbox_port, True).login(
             mailbox_login, mailbox_password
         ) as mailbox:
-            mailbox.folder.set(mailbox_folder)
-            all_emails = list(
-                mailbox.fetch(AND(date_gte=date.today(), all=True))
+            logger.debug(
+                'Mailbox login successful for provider_config_id=%s',
+                provider_conf.id if provider_conf else None,
             )
-            for msg in all_emails:
+            mailbox.folder.set(mailbox_folder)
+            logger.debug(
+                'Mailbox folder selected for provider_config_id=%s',
+                provider_conf.id if provider_conf else None,
+            )
+            logger.debug(
+                'Fetching recent mailbox headers for diagnostics '
+                'provider_config_id=%s',
+                provider_conf.id if provider_conf else None,
+            )
+            debug_emails = list(
+                mailbox.fetch(
+                    AND(date_gte=date.today(), all=True),
+                    headers_only=True,
+                    limit=20,
+                    reverse=True,
+                )
+            )
+            logger.debug(
+                'Fetched %s recent mailbox headers for provider_config_id=%s',
+                len(debug_emails),
+                provider_conf.id if provider_conf else None,
+            )
+            for msg in debug_emails:
                 logger.debug(
-                    f'Uid: {msg.uid}, from: {msg.from_}, '
-                    f'date: {msg.date}, subject: {msg.subject}, all: {msg}'
+                    'Uid: %s, from: %s, date: %s, subject: %s',
+                    msg.uid,
+                    msg.from_,
+                    msg.date,
+                    msg.subject,
                 )
             criteria_kwargs = {'date_gte': since_date}
             if provider.email_incoming_price:
@@ -623,12 +658,20 @@ async def download_price_provider(
             criteria = AND(**criteria_kwargs)
             logger.debug(f'Using criteria: {criteria}')
 
+            logger.debug(
+                'Fetching candidate emails for provider_config_id=%s',
+                provider_conf.id if provider_conf else None,
+            )
             email_list = list(
                 mailbox.fetch(
                     criteria,
                     charset='utf-8',
                     # limit=max_emails
                 )
+            )
+            logger.debug(
+                'Fetched candidate emails for provider_config_id=%s',
+                provider_conf.id if provider_conf else None,
             )
             logger.debug(f'Found {len(email_list)} emails matching criteria.')
             emails = [

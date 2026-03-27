@@ -64,6 +64,57 @@ def money(x) -> Decimal:
     return Decimal(str(x)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 
+def _build_provider_last_email_uid(
+    provider: Provider,
+) -> Optional[Dict[str, Any]]:
+    active_configs = [
+        config
+        for config in (provider.pricelist_configs or [])
+        if getattr(config, 'is_active', False)
+    ]
+    config_records = []
+    for config in active_configs:
+        record = getattr(config, 'last_email_uid', None)
+        if record is not None:
+            config_records.append(record)
+
+    dated_records = [
+        record
+        for record in config_records
+        if getattr(record, 'updated_at', None) is not None
+    ]
+    if dated_records:
+        # Show the stalest active config at provider level so the list
+        # highlights providers whose active pricelist flow needs attention.
+        latest_record = min(
+            dated_records, key=lambda record: record.updated_at
+        )
+        return {
+            'uid': latest_record.last_uid,
+            'updated_at': latest_record.updated_at,
+        }
+
+    if config_records:
+        latest_record = min(
+            config_records, key=lambda record: getattr(record, 'last_uid', 0)
+        )
+        return {
+            'uid': latest_record.last_uid,
+            'updated_at': getattr(latest_record, 'updated_at', None),
+        }
+
+    if active_configs:
+        return None
+
+    if provider.provider_last_uid is not None:
+        return {
+            'uid': provider.provider_last_uid.last_uid,
+            'updated_at': provider.provider_last_uid.updated_at,
+        }
+
+    return None
+
+
 class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
     async def get_provider_or_none(
         self, provider: str, session: AsyncSession
@@ -117,7 +168,9 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                 .where(Provider.id == provider_id)
                 .options(
                     selectinload(Provider.provider_last_uid),
-                    selectinload(Provider.pricelist_configs),
+                    selectinload(Provider.pricelist_configs).selectinload(
+                        ProviderPriceListConfig.last_email_uid
+                    ),
                     selectinload(Provider.price_lists),
                     selectinload(Provider.abbreviations),
                 )
@@ -176,6 +229,9 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                         seen_configs.add(row.provider_config_id)
             # ---------- собрать ответ ----------
             provider_core = ProviderCoreOut.model_validate(provider)
+            provider_core.last_email_uid = _build_provider_last_email_uid(
+                provider
+            )
             abbreviations = [
                 ProviderAbbreviationOut.model_validate(abbreviation)
                 for abbreviation in (provider.abbreviations or [])
@@ -375,7 +431,9 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
 
         stmt = (
             base.options(
-                selectinload(Provider.pricelist_configs),
+                selectinload(Provider.pricelist_configs).selectinload(
+                    ProviderPriceListConfig.last_email_uid
+                ),
                 selectinload(Provider.provider_last_uid),
                 selectinload(Provider.price_lists).selectinload(
                     PriceList.config
@@ -436,14 +494,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                         )
                     ],
                     'last_email_uid': (
-                        None
-                        if provider.provider_last_uid is None
-                        else {
-                            'uid': provider.provider_last_uid.last_uid,
-                            'updated_at': (
-                                provider.provider_last_uid.updated_at
-                            ),
-                        }
+                        _build_provider_last_email_uid(provider)
                     ),
                     'price_lists': [
                         {

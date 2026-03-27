@@ -36,9 +36,9 @@ async def test_customer_order_config_crud(
     payload = {
         'customer_id': customer.id,
         'order_email': 'orders@client.com',
-        'oem_col': 0,
-        'brand_col': 1,
-        'qty_col': 2,
+        'oem_col': 1,
+        'brand_col': 2,
+        'qty_col': 3,
         'price_tolerance_pct': 2,
         'price_warning_pct': 5,
     }
@@ -47,6 +47,9 @@ async def test_customer_order_config_crud(
     assert response.status_code == 201
     config = response.json()
     assert config['customer_id'] == customer.id
+    assert config['oem_col'] == 1
+    assert config['brand_col'] == 2
+    assert config['qty_col'] == 3
 
     response = await async_client.get(
         f'/customer-orders/config/{customer.id}'

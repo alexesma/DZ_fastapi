@@ -80,8 +80,14 @@ class CRUDCustomerOrderConfig:
         config: CustomerOrderConfig,
         data: dict,
     ) -> CustomerOrderConfig:
+        should_reset_last_uid = (
+            'email_account_id' in data
+            and data.get('email_account_id') != config.email_account_id
+        )
         for key, value in data.items():
             setattr(config, key, value)
+        if should_reset_last_uid:
+            config.last_uid = 0
         await session.commit()
         await session.refresh(config)
         return config
@@ -105,8 +111,14 @@ class CRUDCustomerOrderConfig:
             config = CustomerOrderConfig(customer_id=customer_id, **data)
             session.add(config)
         else:
+            should_reset_last_uid = (
+                'email_account_id' in data
+                and data.get('email_account_id') != config.email_account_id
+            )
             for key, value in data.items():
                 setattr(config, key, value)
+            if should_reset_last_uid:
+                config.last_uid = 0
         await session.commit()
         await session.refresh(config)
         return config
