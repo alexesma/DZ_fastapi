@@ -5,6 +5,7 @@ import os
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
+from functools import partial
 
 import aiofiles
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -19,6 +20,7 @@ from dz_fastapi.core.constants import (CONFIG_DATA_CUSTOMER,
                                        CUSTOMER_IN, PROVIDER_IN)
 from dz_fastapi.core.scheduler_settings import SCHEDULER_SETTING_DEFAULTS
 from dz_fastapi.core.time import now_moscow
+from dz_fastapi.crud.email_account import crud_email_account
 from dz_fastapi.crud.partner import (crud_customer, crud_customer_pricelist,
                                      crud_customer_pricelist_config,
                                      crud_pricelist, crud_provider,
@@ -40,7 +42,8 @@ from dz_fastapi.schemas.partner import (CustomerCreate,
 from dz_fastapi.services.customer_orders import (
     cleanup_order_reports, process_customer_orders,
     send_scheduled_supplier_orders)
-from dz_fastapi.services.email import get_emails
+from dz_fastapi.services.email import (build_email_delivery_kwargs, get_emails,
+                                       send_email_message)
 from dz_fastapi.services.monitoring import (build_snapshot_payload,
                                             get_monitor_summary)
 from dz_fastapi.services.price_control import run_price_control
@@ -57,6 +60,70 @@ EMAIL_HOST_ORDER = os.getenv('EMAIL_HOST_ORDERS')
 PRICELIST_STALE_ALERT_RETENTION_DAYS = int(
     os.getenv('PRICELIST_STALE_ALERT_RETENTION_DAYS', '7')
 )
+
+
+async def _notify_scheduler_issue(
+    session: AsyncSession,
+    *,
+    subject: str,
+    text: str,
+) -> None:
+    delivered = False
+    try:
+        await send_message_to_telegram(text)
+        delivered = True
+    except Exception as exc:
+        logger.error(
+            'Failed to send scheduler Telegram alert: %s',
+            exc,
+            exc_info=True,
+        )
+
+    analytics_email = os.getenv('EMAIL_NAME_ANALYTIC')
+    if analytics_email:
+        kwargs = {}
+        try:
+            accounts = await crud_email_account.get_active_by_purpose(
+                session, 'reports_out'
+            )
+            if accounts:
+                kwargs = build_email_delivery_kwargs(accounts[0])
+        except Exception as exc:
+            logger.error(
+                'Failed to resolve reports_out email account: %s',
+                exc,
+                exc_info=True,
+            )
+        try:
+            email_sent = await asyncio.to_thread(
+                partial(
+                    send_email_message,
+                    to_email=analytics_email,
+                    subject=subject,
+                    body=text,
+                    **kwargs,
+                )
+            )
+            if email_sent:
+                delivered = True
+            else:
+                logger.error(
+                    'Failed to send scheduler alert email to %s',
+                    analytics_email,
+                )
+        except Exception as exc:
+            logger.error(
+                'Failed to send scheduler alert email: %s',
+                exc,
+                exc_info=True,
+            )
+    else:
+        logger.warning(
+            'EMAIL_NAME_ANALYTIC not set; scheduler email alert skipped'
+        )
+
+    if not delivered:
+        logger.warning('Scheduler alert was not delivered by any channel')
 
 
 def start_scheduler(app: FastAPI):
@@ -194,7 +261,7 @@ def start_scheduler(app: FastAPI):
     scheduler.add_job(
         func=cleanup_order_reports_task,
         trigger='cron',
-        args=[],
+        args=[app],
         id='cleanup_order_reports',
         name='Cleanup order reports',
         hour=3,
@@ -372,6 +439,14 @@ async def download_customer_orders_task(app: FastAPI):
             logger.error(
                 f'Error processing customer orders: {e}', exc_info=True
             )
+            await _notify_scheduler_issue(
+                session,
+                subject='Ошибка регламента обработки заказов',
+                text=(
+                    'Ошибка при автоматической обработке заказов клиентов.\n'
+                    f'Текст ошибки: {e}'
+                ),
+            )
 
 
 async def send_scheduled_supplier_orders_task(app: FastAPI):
@@ -385,11 +460,36 @@ async def send_scheduled_supplier_orders_task(app: FastAPI):
                 f'Error sending scheduled supplier orders: {e}',
                 exc_info=True,
             )
+            await _notify_scheduler_issue(
+                session,
+                subject='Ошибка регламента отправки заказов поставщикам',
+                text=(
+                    'Ошибка при автоматической отправке заказов '
+                    f'поставщикам.\nТекст ошибки: {e}'
+                ),
+            )
 
 
-def cleanup_order_reports_task():
-    removed = cleanup_order_reports()
-    logger.info('Cleanup order reports removed %s files', removed)
+async def cleanup_order_reports_task(app: FastAPI):
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            removed = await asyncio.to_thread(cleanup_order_reports)
+            logger.info('Cleanup order reports removed %s files', removed)
+        except Exception as e:
+            logger.error(
+                'Error in cleanup_order_reports_task: %s',
+                e,
+                exc_info=True,
+            )
+            await _notify_scheduler_issue(
+                session,
+                subject='Ошибка регламента очистки отчетов заказов',
+                text=(
+                    'Ошибка при автоматической очистке отчетов по заказам.\n'
+                    f'Текст ошибки: {e}'
+                ),
+            )
 
 
 def _day_key(now: datetime) -> str:
@@ -452,37 +552,69 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
     time_key = now.strftime('%H:%M')
 
     async with async_session_factory() as session:
-        stmt = (
-            select(CustomerPriceListConfig)
-            .options(selectinload(CustomerPriceListConfig.customer))
-            .where(CustomerPriceListConfig.is_active.is_(True))
-        )
-        configs = (await session.execute(stmt)).scalars().all()
+        try:
+            stmt = (
+                select(CustomerPriceListConfig)
+                .options(selectinload(CustomerPriceListConfig.customer))
+                .where(CustomerPriceListConfig.is_active.is_(True))
+            )
+            configs = (await session.execute(stmt)).scalars().all()
 
-        for config in configs:
-            if not config.schedule_days or not config.schedule_times:
-                continue
-            if day_key not in (config.schedule_days or []):
-                continue
-            if time_key not in (config.schedule_times or []):
-                continue
-            if config.last_sent_at:
-                last_key = config.last_sent_at.strftime('%Y-%m-%d %H:%M')
-                now_key = now.strftime('%Y-%m-%d %H:%M')
-                if last_key == now_key:
+            for config in configs:
+                if not config.schedule_days or not config.schedule_times:
+                    continue
+                if day_key not in (config.schedule_days or []):
+                    continue
+                if time_key not in (config.schedule_times or []):
+                    continue
+                if config.last_sent_at:
+                    last_key = config.last_sent_at.strftime('%Y-%m-%d %H:%M')
+                    now_key = now.strftime('%Y-%m-%d %H:%M')
+                    if last_key == now_key:
+                        continue
+
+                customer = config.customer
+                if not customer:
                     continue
 
-            customer = config.customer
-            if not customer:
-                continue
-
-            request = CustomerPriceListCreate(
-                customer_id=customer.id,
-                config_id=config.id,
-                items=[],
+                request = CustomerPriceListCreate(
+                    customer_id=customer.id,
+                    config_id=config.id,
+                    items=[],
+                )
+                try:
+                    await process_customer_pricelist(
+                        customer=customer, request=request, session=session
+                    )
+                except Exception as exc:
+                    logger.error(
+                        'Error in send_scheduled_customer_pricelists_task '
+                        'for config %s: %s',
+                        config.id,
+                        exc,
+                        exc_info=True,
+                    )
+                    await _notify_scheduler_issue(
+                        session,
+                        subject='Ошибка регламента отправки прайсов клиентам',
+                        text=(
+                            'Ошибка при автоматической отправке прайса '
+                            f'клиенту для config_id={config.id}.\n'
+                            f'Текст ошибки: {exc}'
+                        ),
+                    )
+        except Exception as e:
+            logger.error(
+                f'Error in send_scheduled_customer_pricelists_task: {e}',
+                exc_info=True,
             )
-            await process_customer_pricelist(
-                customer=customer, request=request, session=session
+            await _notify_scheduler_issue(
+                session,
+                subject='Ошибка регламента отправки прайсов клиентам',
+                text=(
+                    'Ошибка при автоматической отправке прайсов клиентам.\n'
+                    f'Текст ошибки: {e}'
+                ),
             )
 
 
@@ -520,11 +652,28 @@ async def price_control_run_task(app: FastAPI):
                         exc,
                         exc_info=True,
                     )
+                    await _notify_scheduler_issue(
+                        session,
+                        subject='Ошибка регламента контроля цен',
+                        text=(
+                            'Ошибка при автоматическом контроле цен '
+                            f'для config_id={config.id}.\n'
+                            f'Текст ошибки: {exc}'
+                        ),
+                    )
             logger.info('Completed price_control_run_task')
         except Exception as exc:
             logger.error(
                 f'Error in price_control_run_task: {exc}',
                 exc_info=True,
+            )
+            await _notify_scheduler_issue(
+                session,
+                subject='Ошибка регламента контроля цен',
+                text=(
+                    'Ошибка при автоматическом запуске контроля цен.\n'
+                    f'Текст ошибки: {exc}'
+                ),
             )
 
 
@@ -646,6 +795,15 @@ async def download_price_provider_task(app: FastAPI):
             raise
         except Exception as e:
             logger.error(f'Error in download_price_provider_task: {e}')
+            await _notify_scheduler_issue(
+                session,
+                subject='Ошибка регламента загрузки прайсов',
+                text=(
+                    'Ошибка при автоматической загрузке прайсов '
+                    'поставщиков.\n'
+                    f'Текст ошибки: {e}'
+                ),
+            )
             try:
                 await crud_price_check_log.create(
                     session=session,
@@ -701,6 +859,14 @@ async def cleanup_old_pricelists_task(app: FastAPI):
             logger.error(
                 f'Error in cleanup_old_pricelists_task: {e}',
                 exc_info=True
+            )
+            await _notify_scheduler_issue(
+                session,
+                subject='Ошибка регламента очистки прайсов',
+                text=(
+                    'Ошибка при автоматической очистке старых прайсов.\n'
+                    f'Текст ошибки: {e}'
+                ),
             )
             await session.rollback()
 
@@ -758,6 +924,14 @@ async def check_provider_pricelist_staleness_task(app: FastAPI):
             logger.error(
                 f'Error in check_provider_pricelist_staleness_task: {e}',
                 exc_info=True
+            )
+            await _notify_scheduler_issue(
+                session,
+                subject='Ошибка регламента проверки устаревших прайсов',
+                text=(
+                    'Ошибка при автоматической проверке давности прайсов.\n'
+                    f'Текст ошибки: {e}'
+                ),
             )
             await session.rollback()
 
@@ -826,6 +1000,14 @@ async def notify_pricelist_stale_task(app: FastAPI):
                 f'Error in notify_pricelist_stale_task: {e}',
                 exc_info=True
             )
+            await _notify_scheduler_issue(
+                session,
+                subject='Ошибка регламента уведомлений об устаревших прайсах',
+                text=(
+                    'Ошибка при автоматической отправке уведомлений '
+                    f'об устаревших прайсах.\nТекст ошибки: {e}'
+                ),
+            )
 
 
 async def cleanup_pricelist_stale_alerts_task(app: FastAPI):
@@ -856,6 +1038,14 @@ async def cleanup_pricelist_stale_alerts_task(app: FastAPI):
                 f'Error in cleanup_pricelist_stale_alerts_task: {e}',
                 exc_info=True
             )
+            await _notify_scheduler_issue(
+                session,
+                subject='Ошибка регламента очистки алертов по прайсам',
+                text=(
+                    'Ошибка при автоматической очистке алертов '
+                    f'по прайсам.\nТекст ошибки: {e}'
+                ),
+            )
             await session.rollback()
 
 
@@ -882,6 +1072,14 @@ async def collect_system_metrics_snapshot_task(app: FastAPI):
                 f'Error in collect_system_metrics_snapshot_task: {e}',
                 exc_info=True
             )
+            await _notify_scheduler_issue(
+                session,
+                subject='Ошибка регламента сбора системных метрик',
+                text=(
+                    'Ошибка при автоматическом сборе системных метрик.\n'
+                    f'Текст ошибки: {e}'
+                ),
+            )
 
 
 async def check_watchlist_site_task(app: FastAPI):
@@ -900,6 +1098,14 @@ async def check_watchlist_site_task(app: FastAPI):
                 await _mark_scheduler_ran(session, setting, now_moscow())
         except Exception as e:
             logger.error(f'Error in check_watchlist_site_task: {e}')
+            await _notify_scheduler_issue(
+                session,
+                subject='Ошибка регламента проверки watchlist сайта',
+                text=(
+                    'Ошибка при автоматической проверке watchlist сайта.\n'
+                    f'Текст ошибки: {e}'
+                ),
+            )
 
 
 async def notify_watchlist_task(app: FastAPI):
@@ -918,3 +1124,11 @@ async def notify_watchlist_task(app: FastAPI):
                 await _mark_scheduler_ran(session, setting, now_moscow())
         except Exception as e:
             logger.error(f'Error in notify_watchlist_task: {e}')
+            await _notify_scheduler_issue(
+                session,
+                subject='Ошибка регламента уведомлений watchlist',
+                text=(
+                    'Ошибка при автоматической отправке уведомлений '
+                    f'watchlist.\nТекст ошибки: {e}'
+                ),
+            )

@@ -1004,35 +1004,48 @@ async def get_emails(
     )
     if accounts:
         for account in accounts:
-            if (account.transport or '').strip().lower() == 'resend_api':
-                if not account.resend_api_key:
-                    logger.warning(
-                        'Resend API key is missing '
-                        'for prices_in account id=%s',
-                        account.id,
-                    )
+            try:
+                if (account.transport or '').strip().lower() == 'resend_api':
+                    if not account.resend_api_key:
+                        logger.warning(
+                            'Resend API key is missing '
+                            'for prices_in account id=%s',
+                            account.id,
+                        )
+                        continue
+                    (
+                        messages,
+                        last_received_at,
+                    ) = await _fetch_resend_price_messages(account)
+                    all_emails.extend(messages)
+                    if last_received_at is not None:
+                        resend_cursors[account.id] = last_received_at
                     continue
-                (
-                    messages,
-                    last_received_at,
-                ) = await _fetch_resend_price_messages(account)
+                host = account.imap_host or server_mail
+                if not host:
+                    continue
+                messages = await asyncio.to_thread(
+                    _fetch_mailbox_messages,
+                    host,
+                    account.email,
+                    account.password,
+                    account.imap_folder or main_box,
+                    account.imap_port or IMAP_SERVER,
+                    True,
+                )
                 all_emails.extend(messages)
-                if last_received_at is not None:
-                    resend_cursors[account.id] = last_received_at
+            except Exception as exc:
+                logger.error(
+                    'Price inbox fetch failed for account id=%s email=%s '
+                    'transport=%s host=%s: %s',
+                    getattr(account, 'id', None),
+                    getattr(account, 'email', None),
+                    getattr(account, 'transport', None),
+                    getattr(account, 'imap_host', None) or server_mail,
+                    exc,
+                    exc_info=True,
+                )
                 continue
-            host = account.imap_host or server_mail
-            if not host:
-                continue
-            messages = await asyncio.to_thread(
-                _fetch_mailbox_messages,
-                host,
-                account.email,
-                account.password,
-                account.imap_folder or main_box,
-                account.imap_port or IMAP_SERVER,
-                True,
-            )
-            all_emails.extend(messages)
     else:
         all_emails = await asyncio.to_thread(
             _fetch_mailbox_messages,
