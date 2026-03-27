@@ -916,12 +916,28 @@ async def _build_current_offers(
     return offers
 
 
+def _resolve_customer_target_price(
+    expected_price: Optional[float],
+    requested_price: Optional[float],
+    offer: Optional[OfferRow],
+) -> Optional[float]:
+    if requested_price is not None and requested_price > 0:
+        return float(requested_price)
+    if expected_price is not None and expected_price > 0:
+        return float(expected_price)
+    if offer and offer.price and offer.price > 0:
+        return float(offer.price)
+    return None
+
+
 def _compute_price_diff_pct(
-        expected_price: float, offered_price: float
+    customer_price: float, offered_price: float
 ) -> float:
-    if expected_price <= 0:
+    if customer_price <= 0 or offered_price <= 0:
         return 0.0
-    return ((expected_price - offered_price) / expected_price) * 100
+    if customer_price >= offered_price:
+        return 0.0
+    return ((offered_price - customer_price) / offered_price) * 100
 
 
 def _compute_order_requested_total(
@@ -992,7 +1008,7 @@ async def _send_order_import_notification(
 async def _send_price_warning(
     order: CustomerOrder,
     item: CustomerOrderItem,
-    expected_price: float,
+    customer_price: float,
     offered_price: float,
     diff_pct: float,
     critical: bool,
@@ -1002,7 +1018,8 @@ async def _send_price_warning(
         f'{label} Отклонение цены по заказу клиента {order.customer_id} '
         f'({order.order_number or order.id})\n'
         f'Позиция: {item.oem} / {item.brand}\n'
-        f'Цена прайса: {expected_price:.2f}, текущая: {offered_price:.2f}, '
+        f'Цена клиента/прайса: {customer_price:.2f}, текущая: '
+        f'{offered_price:.2f}, '
         f'отклонение: {diff_pct:.2f}%'
     )
     try:
@@ -1144,15 +1161,9 @@ async def _process_manual_rows(
         expected_price = expected_prices.get(key)
         offer = offers.get(key)
         requested_price = row.requested_price
-
-        if (expected_price is None or expected_price <= 0) and requested_price:
-            try:
-                expected_price = float(requested_price)
-            except (TypeError, ValueError):
-                expected_price = expected_price
-        if (expected_price is None or expected_price <= 0) and offer:
-            if offer.price and offer.price > 0:
-                expected_price = float(offer.price)
+        customer_price = _resolve_customer_target_price(
+            expected_price, requested_price, offer
+        )
 
         item = CustomerOrderItem(
             order_id=order.id,
@@ -1164,14 +1175,14 @@ async def _process_manual_rows(
             requested_price=requested_price,
             status=CUSTOMER_ORDER_ITEM_STATUS.NEW,
         )
-        if not offer or not expected_price or expected_price <= 0:
+        if not offer or not customer_price or customer_price <= 0:
             item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
             item.ship_qty = 0
             item.reject_qty = row.requested_qty
         else:
             offered_price = offer.price
             diff_pct = _compute_price_diff_pct(
-                expected_price, offered_price
+                customer_price, offered_price
             )
             item.price_diff_pct = diff_pct
             item.matched_price = offered_price
@@ -1184,7 +1195,7 @@ async def _process_manual_rows(
                     await _send_price_warning(
                         order,
                         item,
-                        expected_price,
+                        customer_price,
                         offered_price,
                         diff_pct,
                         critical=True,
@@ -1196,7 +1207,7 @@ async def _process_manual_rows(
                     await _send_price_warning(
                         order,
                         item,
-                        expected_price,
+                        customer_price,
                         offered_price,
                         diff_pct,
                         critical=True,
@@ -1206,7 +1217,7 @@ async def _process_manual_rows(
                     await _send_price_warning(
                         order,
                         item,
-                        expected_price,
+                        customer_price,
                         offered_price,
                         diff_pct,
                         critical=False,
@@ -1959,16 +1970,9 @@ async def process_customer_orders(session: AsyncSession) -> None:
                 expected_price = expected_prices.get(key)
                 offer = offers.get(key)
                 requested_price = row.requested_price
-                if (
-                        expected_price is None or expected_price <= 0
-                ) and requested_price:
-                    try:
-                        expected_price = float(requested_price)
-                    except (TypeError, ValueError):
-                        expected_price = expected_price
-                if (expected_price is None or expected_price <= 0) and offer:
-                    if offer.price and offer.price > 0:
-                        expected_price = float(offer.price)
+                customer_price = _resolve_customer_target_price(
+                    expected_price, requested_price, offer
+                )
 
                 item = CustomerOrderItem(
                     order_id=order.id,
@@ -1980,14 +1984,14 @@ async def process_customer_orders(session: AsyncSession) -> None:
                     requested_price=requested_price,
                     status=CUSTOMER_ORDER_ITEM_STATUS.NEW,
                 )
-                if not offer or not expected_price or expected_price <= 0:
+                if not offer or not customer_price or customer_price <= 0:
                     item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
                     item.ship_qty = 0
                     item.reject_qty = row.requested_qty
                 else:
                     offered_price = offer.price
                     diff_pct = _compute_price_diff_pct(
-                        expected_price, offered_price
+                        customer_price, offered_price
                     )
                     item.price_diff_pct = diff_pct
                     item.matched_price = offered_price
@@ -2000,7 +2004,7 @@ async def process_customer_orders(session: AsyncSession) -> None:
                             await _send_price_warning(
                                 order,
                                 item,
-                                expected_price,
+                                customer_price,
                                 offered_price,
                                 diff_pct,
                                 critical=True,
@@ -2012,7 +2016,7 @@ async def process_customer_orders(session: AsyncSession) -> None:
                             await _send_price_warning(
                                 order,
                                 item,
-                                expected_price,
+                                customer_price,
                                 offered_price,
                                 diff_pct,
                                 critical=True,
@@ -2022,7 +2026,7 @@ async def process_customer_orders(session: AsyncSession) -> None:
                             await _send_price_warning(
                                 order,
                                 item,
-                                expected_price,
+                                customer_price,
                                 offered_price,
                                 diff_pct,
                                 critical=False,
