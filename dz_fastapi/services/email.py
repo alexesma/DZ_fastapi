@@ -65,6 +65,69 @@ GMAIL_API_SEND_URL = (
 )
 
 
+async def _get_last_uid_compat(
+    provider_id: int,
+    session: AsyncSession,
+    provider_config_id: int | None = None,
+    folder: str | None = None,
+) -> int:
+    if folder is None:
+        return await get_last_uid(
+            provider_id,
+            session,
+            provider_config_id=provider_config_id,
+        )
+    try:
+        return await get_last_uid(
+            provider_id,
+            session,
+            provider_config_id=provider_config_id,
+            folder=folder,
+        )
+    except TypeError as exc:
+        if folder is None or 'folder' not in str(exc):
+            raise
+        return await get_last_uid(
+            provider_id,
+            session,
+            provider_config_id=provider_config_id,
+        )
+
+
+async def _set_last_uid_compat(
+    provider_id: int,
+    last_uid: int,
+    session: AsyncSession,
+    provider_config_id: int | None = None,
+    folder: str | None = None,
+) -> None:
+    if folder is None:
+        await set_last_uid(
+            provider_id,
+            last_uid,
+            session,
+            provider_config_id=provider_config_id,
+        )
+        return
+    try:
+        await set_last_uid(
+            provider_id,
+            last_uid,
+            session,
+            provider_config_id=provider_config_id,
+            folder=folder,
+        )
+    except TypeError as exc:
+        if folder is None or 'folder' not in str(exc):
+            raise
+        await set_last_uid(
+            provider_id,
+            last_uid,
+            session,
+            provider_config_id=provider_config_id,
+        )
+
+
 def _clean_mail_setting(value: str | None) -> str | None:
     if value is None:
         return None
@@ -724,7 +787,7 @@ async def download_price_provider(
                         msg.date,
                         msg.subject,
                     )
-                last_uid = await get_last_uid(
+                last_uid = await _get_last_uid_compat(
                     provider.id,
                     session,
                     provider_config_id=provider_conf.id,
@@ -823,7 +886,7 @@ async def download_price_provider(
                         getattr(msg, 'uid', None)
                     )
                     if current_uid is not None:
-                        await set_last_uid(
+                        await _set_last_uid_compat(
                             provider.id,
                             current_uid,
                             session,
@@ -846,7 +909,7 @@ async def download_price_provider(
                         getattr(msg, 'uid', None)
                     )
                     if current_uid is not None:
-                        await set_last_uid(
+                        await _set_last_uid_compat(
                             provider.id,
                             current_uid,
                             session,
@@ -1109,7 +1172,7 @@ async def download_new_price_provider(
                 logger.debug(f'Загрузка файла из URL: {filepath}')
                 current_uid = _safe_uid_as_int(getattr(msg, 'uid', None))
                 if current_uid is not None:
-                    await set_last_uid(
+                    await _set_last_uid_compat(
                         provider.id,
                         current_uid,
                         session,
@@ -1143,7 +1206,7 @@ async def download_new_price_provider(
             logger.debug(f'Downloaded attachment: {filepath}')
             current_uid = _safe_uid_as_int(getattr(msg, 'uid', None))
             if current_uid is not None:
-                await set_last_uid(
+                await _set_last_uid_compat(
                     provider.id,
                     current_uid,
                     session,
@@ -1357,7 +1420,7 @@ async def get_emails(
             folder_name = getattr(msg, 'folder_name', None)
             cache_key = (provider_conf.id, folder_name)
             if cache_key not in config_last_uid_cache:
-                config_last_uid_cache[cache_key] = await get_last_uid(
+                config_last_uid_cache[cache_key] = await _get_last_uid_compat(
                     provider_id=provider.id,
                     provider_config_id=provider_conf.id,
                     session=session,
