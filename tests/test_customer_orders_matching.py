@@ -6,7 +6,8 @@ from dz_fastapi.api.validators import normalize_brand_name
 from dz_fastapi.crud.partner import crud_customer_pricelist
 from dz_fastapi.services.customer_orders import (_canonicalize_brand_key,
                                                  _normalize_key,
-                                                 _normalize_oem_key)
+                                                 _normalize_oem_key,
+                                                 _repair_cp1251_mojibake)
 from dz_fastapi.services.process import _apply_source_filters
 
 
@@ -112,3 +113,16 @@ def test_apply_coefficient_can_ignore_price_and_quantity_thresholds():
     assert filtered.empty
     assert len(ignored) == 1
     assert float(ignored.iloc[0]['price']) == 70.0
+
+
+def test_repair_cp1251_mojibake_fixes_garbled_russian_name():
+    assert (
+        _repair_cp1251_mojibake('ÏÎÄÊÐÛËÎÊ ÊÎË¨ÑÍÎÉ ÀÐÊÈ T19C')
+        == 'ПОДКРЫЛОК КОЛЁСНОЙ АРКИ T19C'
+    )
+
+
+def test_repair_cp1251_mojibake_keeps_normal_text():
+    assert _repair_cp1251_mojibake('Подкрылок колесной арки T19C') == (
+        'Подкрылок колесной арки T19C'
+    )

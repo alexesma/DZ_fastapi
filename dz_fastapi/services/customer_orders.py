@@ -527,6 +527,31 @@ def _normalize_key(
     )
 
 
+def _repair_cp1251_mojibake(
+    value: Optional[object],
+) -> Optional[str]:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    if re.search(r'[А-Яа-яЁё]', text):
+        return text
+
+    latin1_like_count = len(re.findall(r'[À-ÿ]', text))
+    if latin1_like_count < 3:
+        return text
+
+    for source_encoding in ('latin1', 'cp1252'):
+        try:
+            repaired = text.encode(source_encoding).decode('cp1251')
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            continue
+        if len(re.findall(r'[А-Яа-яЁё]', repaired)) >= latin1_like_count:
+            return repaired
+    return text
+
+
 async def _load_brand_alias_map(
     session: AsyncSession,
 ) -> Dict[str, str]:
@@ -705,8 +730,7 @@ def _parse_excel_order(
         name = None
         if name_col is not None and name_col - 1 < len(row):
             name = row[name_col - 1]
-            if name is not None:
-                name = str(name).strip()
+            name = _repair_cp1251_mojibake(name)
         requested_price = None
         if price_col is not None and price_col - 1 < len(row):
             requested_price = _safe_float(row[price_col - 1])
@@ -777,7 +801,7 @@ def _parse_csv_order(
         if config.name_col is not None:
             value = row[config.name_col]
             if not pd.isna(value):
-                name = str(value).strip()
+                name = _repair_cp1251_mojibake(value)
         requested_price = None
         if config.price_col is not None:
             value = row[config.price_col]
@@ -850,7 +874,7 @@ def _parse_xls_order(
         if config.name_col is not None:
             value = row[config.name_col]
             if not pd.isna(value):
-                name = str(value).strip()
+                name = _repair_cp1251_mojibake(value)
         requested_price = None
         if config.price_col is not None:
             value = row[config.price_col]
@@ -2248,7 +2272,7 @@ async def create_manual_customer_order(
     for item in items or []:
         oem = (item.get('oem') or '').strip()
         brand = (item.get('brand') or '').strip()
-        name = (item.get('name') or '').strip() or None
+        name = _repair_cp1251_mojibake(item.get('name'))
         try:
             quantity = int(item.get('quantity') or 0)
         except (TypeError, ValueError):
