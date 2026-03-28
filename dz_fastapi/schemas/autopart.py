@@ -188,6 +188,7 @@ class AutopartOfferRow(BaseModel):
 class AutopartOffersResponse(BaseModel):
     oem_number: str
     offers: List[AutopartOfferRow] = Field(default_factory=list)
+    historical_offers: List[AutopartOfferRow] = Field(default_factory=list)
 
 
 # Base schema with shared fields

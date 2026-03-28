@@ -252,6 +252,7 @@ async def test_get_autopart_offers_latest_pricelist(
     data = response.json()
     assert data['oem_number'] == created_autopart.oem_number
     assert len(data['offers']) == 1
+    assert data['historical_offers'] == []
     offer = data['offers'][0]
     assert offer['provider_id'] == provider.id
     assert offer['provider_config_id'] == created_pricelist_config.id
@@ -261,6 +262,62 @@ async def test_get_autopart_offers_latest_pricelist(
     assert offer['min_delivery_day'] == 2
     assert offer['max_delivery_day'] == 5
     assert offer['is_own_price'] is True
+
+
+@pytest.mark.asyncio
+async def test_get_autopart_offers_separates_history_when_missing_in_latest(
+    test_session,
+    created_autopart: AutoPart,
+    created_pricelist_config,
+    created_providers,
+):
+    provider = created_providers[0]
+    test_session.add_all([provider, created_pricelist_config])
+
+    historical_pricelist = PriceList(
+        provider_id=provider.id,
+        provider_config_id=created_pricelist_config.id,
+        date=date(2024, 1, 10),
+    )
+    latest_pricelist = PriceList(
+        provider_id=provider.id,
+        provider_config_id=created_pricelist_config.id,
+        date=date(2024, 2, 10),
+    )
+    test_session.add_all([historical_pricelist, latest_pricelist])
+    await test_session.commit()
+    await test_session.refresh(historical_pricelist)
+    await test_session.refresh(latest_pricelist)
+
+    assoc_historical = PriceListAutoPartAssociation(
+        pricelist_id=historical_pricelist.id,
+        autopart_id=created_autopart.id,
+        quantity=1,
+        price=120.0,
+    )
+    test_session.add(assoc_historical)
+    await test_session.commit()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+        response = await ac.get(
+            '/autoparts/offers/',
+            params={'oem': created_autopart.oem_number},
+        )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data['oem_number'] == created_autopart.oem_number
+    assert data['offers'] == []
+    assert len(data['historical_offers']) == 1
+    historical_offer = data['historical_offers'][0]
+    assert historical_offer['provider_id'] == provider.id
+    assert historical_offer['provider_config_id'] == (
+        created_pricelist_config.id
+    )
+    assert historical_offer['price'] == 120.0
+    assert historical_offer['quantity'] == 1
+    assert historical_offer['pricelist_id'] == historical_pricelist.id
+    assert historical_offer['pricelist_date'] == '2024-01-10'
 
 
 @pytest.mark.asyncio
@@ -278,6 +335,7 @@ async def test_get_autopart_offers_empty(
     data = response.json()
     assert data['oem_number'] == 'NONEXISTENT123'
     assert data['offers'] == []
+    assert data['historical_offers'] == []
 
 
 @pytest.mark.asyncio

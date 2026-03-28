@@ -77,18 +77,34 @@ async def get_autopart_offers(
     session: AsyncSession = Depends(get_session),
 ):
     normalized_oem = preprocess_oem_number(oem)
+    if not normalized_oem:
+        return AutopartOffersResponse(
+            oem_number=normalized_oem,
+            offers=[],
+            historical_offers=[],
+        )
+
     partition_key = func.coalesce(
         PriceList.provider_config_id, PriceList.provider_id
-    )
-    row_number = func.row_number().over(
-        partition_by=(
-            PriceListAutoPartAssociation.autopart_id,
-            partition_key,
-        ),
+    ).label('partition_key')
+    latest_pricelist_rank = func.row_number().over(
+        partition_by=partition_key,
         order_by=(PriceList.date.desc(), PriceList.id.desc()),
-    ).label('rn')
+    ).label('latest_rn')
 
-    stmt = (
+    latest_pricelists = (
+        select(
+            PriceList.id.label('pricelist_id'),
+            partition_key,
+            PriceList.date.label('pricelist_date'),
+            latest_pricelist_rank,
+        )
+        .select_from(PriceList)
+        .where(PriceList.is_active.is_(True))
+        .subquery()
+    )
+
+    current_stmt = (
         select(
             AutoPart.id.label('autopart_id'),
             AutoPart.oem_number.label('oem_number'),
@@ -111,7 +127,76 @@ async def get_autopart_offers(
             ),
             PriceList.id.label('pricelist_id'),
             PriceList.date.label('pricelist_date'),
-            row_number,
+            latest_pricelists.c.partition_key.label('partition_key'),
+        )
+        .select_from(latest_pricelists)
+        .join(PriceList, PriceList.id == latest_pricelists.c.pricelist_id)
+        .join(
+            PriceListAutoPartAssociation,
+            PriceListAutoPartAssociation.pricelist_id == PriceList.id,
+        )
+        .join(
+            AutoPart,
+            AutoPart.id == PriceListAutoPartAssociation.autopart_id,
+        )
+        .join(Brand, Brand.id == AutoPart.brand_id)
+        .join(Provider, Provider.id == PriceList.provider_id)
+        .outerjoin(
+            ProviderPriceListConfig,
+            ProviderPriceListConfig.id == PriceList.provider_config_id,
+        )
+        .where(latest_pricelists.c.latest_rn == 1)
+        .where(AutoPart.oem_number == normalized_oem)
+        .order_by(
+            Provider.name.asc(),
+            ProviderPriceListConfig.name_price.asc().nullslast(),
+            PriceListAutoPartAssociation.price.asc(),
+        )
+    )
+    current_rows = (await session.execute(current_stmt)).mappings().all()
+    current_partitions = {
+        row['partition_key']
+        for row in current_rows
+        if row.get('partition_key') is not None
+    }
+
+    history_rank = func.row_number().over(
+        partition_by=(
+            PriceListAutoPartAssociation.autopart_id,
+            func.coalesce(
+                PriceList.provider_config_id, PriceList.provider_id
+            ),
+        ),
+        order_by=(PriceList.date.desc(), PriceList.id.desc()),
+    ).label('history_rn')
+
+    historical_subq = (
+        select(
+            AutoPart.id.label('autopart_id'),
+            AutoPart.oem_number.label('oem_number'),
+            AutoPart.name.label('autopart_name'),
+            Brand.name.label('brand_name'),
+            Provider.id.label('provider_id'),
+            Provider.name.label('provider_name'),
+            Provider.is_own_price.label('is_own_price'),
+            ProviderPriceListConfig.id.label('provider_config_id'),
+            ProviderPriceListConfig.name_price.label(
+                'provider_config_name'
+            ),
+            PriceListAutoPartAssociation.price.label('price'),
+            PriceListAutoPartAssociation.quantity.label('quantity'),
+            ProviderPriceListConfig.min_delivery_day.label(
+                'min_delivery_day'
+            ),
+            ProviderPriceListConfig.max_delivery_day.label(
+                'max_delivery_day'
+            ),
+            PriceList.id.label('pricelist_id'),
+            PriceList.date.label('pricelist_date'),
+            func.coalesce(
+                PriceList.provider_config_id, PriceList.provider_id
+            ).label('partition_key'),
+            history_rank,
         )
         .select_from(PriceListAutoPartAssociation)
         .join(
@@ -128,24 +213,25 @@ async def get_autopart_offers(
             ProviderPriceListConfig,
             ProviderPriceListConfig.id == PriceList.provider_config_id,
         )
+        .where(PriceList.is_active.is_(True))
         .where(AutoPart.oem_number == normalized_oem)
+        .subquery()
     )
 
-    subq = stmt.subquery()
-    final_stmt = (
-        select(subq)
-        .where(subq.c.rn == 1)
+    history_stmt = (
+        select(historical_subq)
+        .where(historical_subq.c.history_rn == 1)
         .order_by(
-            subq.c.provider_name.asc(),
-            subq.c.provider_config_name.asc().nullslast(),
-            subq.c.price.asc(),
+            historical_subq.c.provider_name.asc(),
+            historical_subq.c.provider_config_name.asc().nullslast(),
+            historical_subq.c.pricelist_date.desc(),
+            historical_subq.c.price.asc(),
         )
     )
-    result = await session.execute(final_stmt)
-    rows = result.mappings().all()
+    historical_rows = (await session.execute(history_stmt)).mappings().all()
 
     offers = []
-    for row in rows:
+    for row in current_rows:
         price_value = row.get('price')
         offers.append(
             AutopartOfferRow(
@@ -167,8 +253,35 @@ async def get_autopart_offers(
             )
         )
 
+    historical_offers = []
+    for row in historical_rows:
+        if row.get('partition_key') in current_partitions:
+            continue
+        price_value = row.get('price')
+        historical_offers.append(
+            AutopartOfferRow(
+                autopart_id=row['autopart_id'],
+                oem_number=row['oem_number'],
+                brand_name=row.get('brand_name'),
+                name=row.get('autopart_name'),
+                provider_id=row['provider_id'],
+                provider_name=row['provider_name'],
+                provider_config_id=row.get('provider_config_id'),
+                provider_config_name=row.get('provider_config_name'),
+                price=float(price_value) if price_value is not None else 0.0,
+                quantity=row.get('quantity') or 0,
+                min_delivery_day=row.get('min_delivery_day'),
+                max_delivery_day=row.get('max_delivery_day'),
+                pricelist_id=row['pricelist_id'],
+                pricelist_date=row.get('pricelist_date'),
+                is_own_price=bool(row.get('is_own_price')),
+            )
+        )
+
     return AutopartOffersResponse(
-        oem_number=normalized_oem, offers=offers
+        oem_number=normalized_oem,
+        offers=offers,
+        historical_offers=historical_offers,
     )
 
 
