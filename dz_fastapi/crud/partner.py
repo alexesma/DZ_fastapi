@@ -2178,6 +2178,21 @@ class CRUDCustomerPriceListSource(
         )
         return result.scalars().all()
 
+    async def get_by_config_and_provider_config(
+        self,
+        config_id: int,
+        provider_config_id: int,
+        session: AsyncSession,
+    ) -> Optional[CustomerPriceListSource]:
+        result = await session.execute(
+            select(CustomerPriceListSource).where(
+                CustomerPriceListSource.customer_config_id == config_id,
+                CustomerPriceListSource.provider_config_id
+                == provider_config_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def create_source(
         self,
         config_id: int,

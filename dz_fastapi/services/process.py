@@ -120,10 +120,29 @@ def extract_first_file_from_archive(file_content: bytes) -> (str, bytes):
     return extracted_extension, extracted_content
 
 
-def _apply_source_filters(df: pd.DataFrame, source) -> pd.DataFrame:
+def _sanitize_positive_price_quantity(
+    df: pd.DataFrame, context: str = ''
+) -> pd.DataFrame:
+    if df.empty:
+        return df
     df = df.copy()
+    original_len = len(df)
     df['price'] = pd.to_numeric(df['price'], errors='coerce')
     df['quantity'] = pd.to_numeric(df['quantity'], errors='coerce')
+    df = df[df['price'].notna() & df['quantity'].notna()]
+    df = df[(df['price'] > 0) & (df['quantity'] > 0)]
+    dropped = original_len - len(df)
+    if dropped > 0:
+        logger.debug(
+            'Dropped %s rows with non-positive price/quantity%s',
+            dropped,
+            f' ({context})' if context else '',
+        )
+    return df
+
+
+def _apply_source_filters(df: pd.DataFrame, source) -> pd.DataFrame:
+    df = _sanitize_positive_price_quantity(df, context='source_filters')
 
     def _to_int_list(values):
         cleaned = []
@@ -154,7 +173,9 @@ def _apply_source_filters(df: pd.DataFrame, source) -> pd.DataFrame:
     if source.max_quantity is not None:
         df = df[df['quantity'] <= int(source.max_quantity)]
 
-    return df
+    return _sanitize_positive_price_quantity(
+        df, context='source_filters_after_limits'
+    )
 
 
 def _apply_source_markups(
@@ -181,7 +202,7 @@ def _apply_source_markups(
         ),
         axis=1,
     )
-    return df
+    return _sanitize_positive_price_quantity(df, context='source_markups')
 
 
 def apply_price_overrides(
@@ -191,7 +212,7 @@ def apply_price_overrides(
         return df
     df = df.copy()
     df['price'] = df['autopart_id'].map(overrides).fillna(df['price'])
-    return df
+    return _sanitize_positive_price_quantity(df, context='price_overrides')
 
 
 def open_csv(file: bytes) -> pd.DataFrame:

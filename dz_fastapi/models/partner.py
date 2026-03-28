@@ -7,7 +7,8 @@ from uuid import uuid4
 from email_validator import EmailNotValidError, validate_email
 from sqlalchemy import DECIMAL, JSON, Boolean, Column, Date, DateTime
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text, event
+from sqlalchemy import (Float, ForeignKey, Index, Integer, String, Text,
+                        UniqueConstraint, event)
 from sqlalchemy.orm import relationship, validates
 
 from dz_fastapi.core.db import Base
@@ -702,6 +703,11 @@ class CustomerPriceListSource(Base):
     )
 
     __table_args__ = (
+        UniqueConstraint(
+            'customer_config_id',
+            'provider_config_id',
+            name='uq_customer_pricelist_source_config_provider',
+        ),
         Index(
             'ix_customer_pricelist_source_config',
             'customer_config_id',

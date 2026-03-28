@@ -1370,6 +1370,18 @@ async def create_customer_pricelist_source(
         raise HTTPException(
             status_code=404, detail='Provider config not found'
         )
+    existing_source = (
+        await crud_customer_pricelist_source.get_by_config_and_provider_config(
+            config_id=config_id,
+            provider_config_id=source_in.provider_config_id,
+            session=session,
+        )
+    )
+    if existing_source:
+        raise HTTPException(
+            status_code=409,
+            detail='This source is already added to the customer pricelist',
+        )
 
     new_source = await crud_customer_pricelist_source.create_source(
         config_id=config_id, source_in=source_in, session=session
@@ -1410,13 +1422,27 @@ async def update_customer_pricelist_source(
     if not source or source.customer_config_id != config_id:
         raise HTTPException(status_code=404, detail='Source not found')
 
-    if source_in.provider_config_id:
+    if source_in.provider_config_id is not None:
         provider_config = await crud_provider_pricelist_config.get_by_id(
             config_id=source_in.provider_config_id, session=session
         )
         if not provider_config:
             raise HTTPException(
                 status_code=404, detail='Provider config not found'
+            )
+        existing_source = await (
+            crud_customer_pricelist_source.get_by_config_and_provider_config(
+                config_id=config_id,
+                provider_config_id=source_in.provider_config_id,
+                session=session,
+            )
+        )
+        if existing_source and existing_source.id != source.id:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    'This source is already added to the customer pricelist'
+                ),
             )
 
     updated = await crud_customer_pricelist_source.update_source(

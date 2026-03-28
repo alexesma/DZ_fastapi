@@ -653,19 +653,33 @@ async def download_price_provider(
             criteria_kwargs = {'date_gte': since_date}
             if provider.email_incoming_price:
                 criteria_kwargs['from_'] = provider.email_incoming_price
-            if provider_conf.name_mail:
+            use_local_subject_filter = (
+                (mailbox_host or '').strip().lower() == 'imap.gmail.com'
+                and bool(provider_conf.name_mail)
+            )
+            if provider_conf.name_mail and not use_local_subject_filter:
                 criteria_kwargs['subject'] = provider_conf.name_mail
             criteria = AND(**criteria_kwargs)
             logger.debug(f'Using criteria: {criteria}')
+            if use_local_subject_filter:
+                logger.debug(
+                    'Skipping IMAP SUBJECT search for Gmail '
+                    'provider_config_id=%s; local subject filter=%r',
+                    provider_conf.id if provider_conf else None,
+                    provider_conf.name_mail,
+                )
 
             logger.debug(
                 'Fetching candidate emails for provider_config_id=%s',
                 provider_conf.id if provider_conf else None,
             )
+            fetch_kwargs = {}
+            if not use_local_subject_filter:
+                fetch_kwargs['charset'] = 'utf-8'
             email_list = list(
                 mailbox.fetch(
                     criteria,
-                    charset='utf-8',
+                    **fetch_kwargs,
                     # limit=max_emails
                 )
             )
