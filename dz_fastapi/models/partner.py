@@ -515,6 +515,7 @@ class CustomerOrderConfig(Base):
     qty_col = Column(Integer, nullable=False)
     price_col = Column(Integer, nullable=True)
     ship_qty_col = Column(Integer, nullable=True)
+    ship_price_col = Column(Integer, nullable=True)
     reject_qty_col = Column(Integer, nullable=True)
     ship_mode = Column(
         SAEnum(

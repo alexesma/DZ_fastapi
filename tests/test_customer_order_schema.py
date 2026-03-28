@@ -24,11 +24,13 @@ def test_customer_order_config_update_converts_columns_to_zero_based():
         order_number_column=4,
         order_date_column=5,
         ship_qty_col=9,
+        ship_price_col=10,
     )
 
     assert payload.order_number_column == 3
     assert payload.order_date_column == 4
     assert payload.ship_qty_col == 8
+    assert payload.ship_price_col == 9
 
 
 def test_customer_order_config_response_serializes_columns_to_one_based():
@@ -40,6 +42,7 @@ def test_customer_order_config_response_serializes_columns_to_one_based():
         brand_col=1,
         qty_col=7,
         price_col=5,
+        ship_price_col=6,
         last_uid=0,
     )
 
@@ -49,3 +52,4 @@ def test_customer_order_config_response_serializes_columns_to_one_based():
     assert data['brand_col'] == 2
     assert data['qty_col'] == 8
     assert data['price_col'] == 6
+    assert data['ship_price_col'] == 7

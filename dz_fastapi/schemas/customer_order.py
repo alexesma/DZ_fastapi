@@ -21,6 +21,7 @@ ORDER_CONFIG_COLUMN_FIELDS = (
     'qty_col',
     'price_col',
     'ship_qty_col',
+    'ship_price_col',
     'reject_qty_col',
 )
 
@@ -67,6 +68,7 @@ class CustomerOrderConfigBase(BaseModel):
     qty_col: int
     price_col: Optional[int] = None
     ship_qty_col: Optional[int] = None
+    ship_price_col: Optional[int] = None
     reject_qty_col: Optional[int] = None
     ship_mode: CUSTOMER_ORDER_SHIP_MODE = CUSTOMER_ORDER_SHIP_MODE.REPLACE_QTY
 
@@ -125,6 +127,7 @@ class CustomerOrderConfigUpdate(BaseModel):
     qty_col: Optional[int] = None
     price_col: Optional[int] = None
     ship_qty_col: Optional[int] = None
+    ship_price_col: Optional[int] = None
     reject_qty_col: Optional[int] = None
     ship_mode: Optional[CUSTOMER_ORDER_SHIP_MODE] = None
 

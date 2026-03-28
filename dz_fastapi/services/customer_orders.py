@@ -1,7 +1,6 @@
 import asyncio
 import base64
 import hashlib
-import itertools
 import logging
 import os
 import re
@@ -81,7 +80,7 @@ ORDERS_ERROR_DIR = os.getenv(
 ORDERS_RETENTION_DAYS = int(os.getenv('CUSTOMER_ORDERS_REPORT_DAYS', 7))
 ORDER_ERROR_DETAIL_MAX_LEN = 500
 CUSTOMER_ORDERS_FETCH_LIMIT = int(
-    os.getenv('CUSTOMER_ORDERS_FETCH_LIMIT', '200')
+    os.getenv('CUSTOMER_ORDERS_FETCH_LIMIT') or '0'
 )
 CUSTOMER_ORDERS_IMAP_RETRIES = max(
     1,
@@ -157,10 +156,6 @@ async def _fetch_order_messages(
                 mark_seen=mark_seen,
                 charset='utf-8',
             )
-            if CUSTOMER_ORDERS_FETCH_LIMIT > 0:
-                fetched = itertools.islice(
-                    fetched, CUSTOMER_ORDERS_FETCH_LIMIT
-                )
             return list(fetched)
 
     for attempt in range(1, CUSTOMER_ORDERS_IMAP_RETRIES + 1):
@@ -256,12 +251,9 @@ async def _fetch_gmail_messages(
     url = 'https://gmail.googleapis.com/gmail/v1/users/me/messages'
     messages: List[SimpleMessage] = []
     page_token = None
-    remaining = CUSTOMER_ORDERS_FETCH_LIMIT
     async with httpx.AsyncClient(timeout=20) as client:
         while True:
             max_results = 200
-            if remaining > 0:
-                max_results = min(max_results, remaining)
             params = {
                 'q': query,
                 'maxResults': max_results,
@@ -287,10 +279,6 @@ async def _fetch_gmail_messages(
                     continue
                 raw_bytes = base64.urlsafe_b64decode(raw_data + '==')
                 messages.append(_parse_raw_email(raw_bytes))
-                if remaining > 0:
-                    remaining -= 1
-                    if remaining <= 0:
-                        return messages
             page_token = payload.get('nextPageToken')
             if not page_token:
                 break
@@ -397,6 +385,42 @@ def _pick_configs_for_account(configs, account_id: Optional[int]):
             return matched
         return [cfg for cfg in configs if cfg.email_account_id is None]
     return [cfg for cfg in configs if cfg.email_account_id is None]
+
+
+def _filter_messages_by_senders(
+    messages: List[object],
+    allowed_senders: set[str],
+) -> List[object]:
+    if not allowed_senders:
+        return list(messages)
+    return [
+        msg
+        for msg in messages
+        if _extract_email(getattr(msg, 'from_', None)) in allowed_senders
+    ]
+
+
+def _message_sort_key(item: tuple[object, Optional[object]]) -> tuple:
+    msg, inbox_account = item
+    account_id = inbox_account.id if inbox_account else 0
+    uid = _safe_uid_as_int(getattr(msg, 'uid', None))
+    message_dt = (
+        getattr(msg, 'received_at', None)
+        or getattr(msg, 'date', None)
+        or datetime.min
+    )
+    if hasattr(message_dt, 'isoformat'):
+        message_dt = message_dt.isoformat()
+    else:
+        message_dt = str(message_dt)
+    external_id = str(getattr(msg, 'external_id', '') or '')
+    return (
+        account_id,
+        0 if uid is not None else 1,
+        uid if uid is not None else 0,
+        message_dt,
+        external_id,
+    )
 
 
 def _strip_html(text: str) -> str:
@@ -834,6 +858,11 @@ def _apply_response_updates_excel(
         if config.ship_qty_col is not None
         else None
     )
+    ship_price_col = (
+        config.ship_price_col + 1
+        if config.ship_price_col is not None
+        else None
+    )
     reject_col = (
         config.reject_qty_col + 1
         if config.reject_qty_col is not None
@@ -862,6 +891,10 @@ def _apply_response_updates_excel(
             ws.cell(row=row_index, column=reject_col).value = (
                 item.reject_qty or 0
             )
+        if ship_price_col is not None:
+            ws.cell(row=row_index, column=ship_price_col).value = (
+                _get_response_ship_price_value(item)
+            )
 
     output = BytesIO()
     wb.save(output)
@@ -876,6 +909,8 @@ def _apply_response_updates_csv(
 ):
     file_bytes.seek(0)
     df = pd.read_csv(file_bytes, header=None)
+    if config.ship_price_col is not None:
+        df[config.ship_price_col] = df[config.ship_price_col].astype(object)
     for item in items:
         row_index = item.row_index
         if row_index is None:
@@ -892,6 +927,10 @@ def _apply_response_updates_csv(
                     'reject_qty_col is required for WRITE_REJECT_QTY'
                 )
             df.iat[row_index, config.reject_qty_col] = item.reject_qty or 0
+        if config.ship_price_col is not None:
+            df.iat[row_index, config.ship_price_col] = (
+                _get_response_ship_price_value(item, blank_value='')
+            )
 
     output = BytesIO()
     df.to_csv(output, index=False, header=False)
@@ -1057,6 +1096,17 @@ def _compute_order_requested_total(
     if not has_price:
         return None
     return round(total, 2)
+
+
+def _get_response_ship_price_value(
+    item: CustomerOrderItem,
+    blank_value=None,
+):
+    if not (item.ship_qty and item.ship_qty > 0):
+        return blank_value
+    if item.requested_price is None:
+        return blank_value
+    return float(item.requested_price)
 
 
 def _format_order_amount(value: Optional[float]) -> str:
@@ -2233,12 +2283,20 @@ async def process_customer_orders(
         ]
 
     config_by_email: dict[str, list[CustomerOrderConfig]] = {}
+    global_sender_filter: set[str] = set()
+    account_sender_filter: dict[int, set[str]] = {}
     for config in configs:
         emails = _normalize_email_list(config.order_emails)
         if config.order_email:
             emails.append(config.order_email.lower())
         for email in emails:
             config_by_email.setdefault(email, []).append(config)
+            if config.email_account_id is None:
+                global_sender_filter.add(email)
+            else:
+                account_sender_filter.setdefault(
+                    int(config.email_account_id), set()
+                ).add(email)
 
     inbox_settings = await crud_customer_order_inbox_settings.get_or_create(
         session
@@ -2267,11 +2325,27 @@ async def process_customer_orders(
             host = account.imap_host or EMAIL_HOST_ORDER
             label = account.imap_folder or EMAIL_FOLDER_ORDER
             transport = (account.transport or 'smtp').strip().lower()
+            allowed_senders = set(global_sender_filter)
+            allowed_senders.update(
+                account_sender_filter.get(int(account.id), set())
+            )
             if transport == 'resend_api':
                 try:
                     account_messages = await _fetch_resend_messages(
                         account,
                         date_from,
+                    )
+                    fetched_count = len(account_messages)
+                    account_messages = _filter_messages_by_senders(
+                        account_messages, allowed_senders
+                    )
+                    logger.debug(
+                        'Order inbox %s transport=%s fetched=%s '
+                        'matched_sender=%s',
+                        account.email,
+                        transport,
+                        fetched_count,
+                        len(account_messages),
                     )
                     messages.extend(
                         [(msg, account) for msg in account_messages]
@@ -2288,6 +2362,18 @@ async def process_customer_orders(
                 try:
                     account_messages = await _fetch_gmail_messages(
                         account, date_from, label=label
+                    )
+                    fetched_count = len(account_messages)
+                    account_messages = _filter_messages_by_senders(
+                        account_messages, allowed_senders
+                    )
+                    logger.debug(
+                        'Order inbox %s transport=%s fetched=%s '
+                        'matched_sender=%s',
+                        account.email,
+                        transport,
+                        fetched_count,
+                        len(account_messages),
                     )
                     messages.extend(
                         [(msg, account) for msg in account_messages]
@@ -2312,6 +2398,17 @@ async def process_customer_orders(
                     mark_seen,
                     port=account.imap_port or IMAP_SERVER,
                     ssl=True,
+                )
+                fetched_count = len(account_messages)
+                account_messages = _filter_messages_by_senders(
+                    account_messages, allowed_senders
+                )
+                logger.debug(
+                    'Order inbox %s transport=imap fetched=%s '
+                    'matched_sender=%s',
+                    account.email,
+                    fetched_count,
+                    len(account_messages),
                 )
                 messages.extend([(msg, account) for msg in account_messages])
             except Exception as exc:
@@ -2341,6 +2438,15 @@ async def process_customer_orders(
                 port=IMAP_SERVER,
                 ssl=True,
             )
+            fetched_count = len(fallback_messages)
+            fallback_messages = _filter_messages_by_senders(
+                fallback_messages, global_sender_filter
+            )
+            logger.debug(
+                'Fallback order inbox fetched=%s matched_sender=%s',
+                fetched_count,
+                len(fallback_messages),
+            )
             messages = [(msg, None) for msg in fallback_messages]
         except Exception as exc:
             logger.error(
@@ -2354,7 +2460,12 @@ async def process_customer_orders(
         logger.info('No order emails found.')
         return
 
-    logger.debug('Получено %d писем с заказами', len(messages))
+    messages.sort(key=_message_sort_key)
+
+    logger.debug(
+        'Получено %d писем-кандидатов после фильтра по отправителю',
+        len(messages),
+    )
 
     for msg, inbox_account in messages:
         config = None
