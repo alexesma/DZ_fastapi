@@ -1109,6 +1109,187 @@ def _get_response_ship_price_value(
     return float(item.requested_price)
 
 
+def _set_reject_reason(
+    item: CustomerOrderItem,
+    code: Optional[str],
+    text: Optional[str],
+) -> None:
+    item.reject_reason_code = (code or None)
+    item.reject_reason_text = _truncate_error_details(text)
+
+
+def _clear_reject_reason(item: CustomerOrderItem) -> None:
+    _set_reject_reason(item, None, None)
+
+
+def _source_display_name(source) -> str:
+    provider_config = getattr(source, 'provider_config', None)
+    provider = getattr(provider_config, 'provider', None)
+    provider_name = getattr(provider, 'name', None) or (
+        f'provider_config_id={source.provider_config_id}'
+    )
+    config_name = getattr(provider_config, 'name_price', None)
+    if config_name:
+        return f'{provider_name} / {config_name}'
+    return provider_name
+
+
+def _describe_source_filter_rules(source) -> str:
+    parts: List[str] = []
+    if source.brand_filters:
+        parts.append('brand_filters')
+    if source.position_filters:
+        parts.append('position_filters')
+    if source.min_price is not None:
+        parts.append(f'min_price={float(source.min_price):.2f}')
+    if source.max_price is not None:
+        parts.append(f'max_price={float(source.max_price):.2f}')
+    if source.min_quantity is not None:
+        parts.append(f'min_quantity={int(source.min_quantity)}')
+    if source.max_quantity is not None:
+        parts.append(f'max_quantity={int(source.max_quantity)}')
+    if source.additional_filters:
+        parts.append('additional_filters')
+    return ', '.join(parts) if parts else 'неизвестные правила'
+
+
+def _normalize_offer_dataframe_keys(
+    df: pd.DataFrame,
+    brand_aliases: Optional[Dict[str, str]] = None,
+) -> pd.DataFrame:
+    if df.empty:
+        return df.copy()
+    normalized = df.copy()
+    normalized['__normalized_oem'] = normalized['oem_number'].map(
+        _normalize_oem_key
+    )
+    normalized['__normalized_brand'] = normalized['brand'].map(
+        lambda brand: _canonicalize_brand_key(brand, brand_aliases)
+    )
+    return normalized
+
+
+async def _diagnose_missing_offer_reason(
+    session: AsyncSession,
+    pricelist_config: Optional[CustomerPriceListConfig],
+    row: ParsedOrderRow,
+    brand_aliases: Optional[Dict[str, str]] = None,
+) -> tuple[str, str]:
+    if not pricelist_config:
+        return (
+            'NO_LINKED_PRICELIST',
+            'К заказу не привязана конфигурация клиентского прайса.',
+        )
+
+    sources = await crud_customer_pricelist_source.get_by_config_id(
+        config_id=pricelist_config.id,
+        session=session,
+    )
+    enabled_sources = [source for source in sources if source.enabled]
+    if not enabled_sources:
+        return (
+            'NO_LINKED_SOURCE',
+            'У клиентского прайса нет активных источников предложений.',
+        )
+
+    key = _normalize_key(row.oem, row.brand, brand_aliases)
+    diagnostics: List[str] = []
+    filtered_out = False
+    nonpositive_offer = False
+
+    for source in enabled_sources:
+        latest_pl = await crud_pricelist.get_latest_pricelist_by_config(
+            session=session,
+            provider_config_id=source.provider_config_id,
+        )
+        if not latest_pl:
+            continue
+        associations = await crud_pricelist.fetch_pricelist_data(
+            latest_pl.id, session
+        )
+        if not associations:
+            continue
+
+        raw_df = await crud_pricelist.transform_to_dataframe(
+            associations=associations,
+            session=session,
+        )
+        if raw_df.empty:
+            continue
+
+        raw_df = _normalize_offer_dataframe_keys(raw_df, brand_aliases)
+        raw_match = raw_df[
+            (raw_df['__normalized_oem'] == key[0])
+            & (raw_df['__normalized_brand'] == key[1])
+        ]
+        if raw_match.empty:
+            continue
+
+        source_name = _source_display_name(source)
+        numeric_raw = raw_match.copy()
+        numeric_raw['price'] = pd.to_numeric(
+            numeric_raw['price'], errors='coerce'
+        )
+        numeric_raw['quantity'] = pd.to_numeric(
+            numeric_raw['quantity'], errors='coerce'
+        )
+        positive_raw = numeric_raw[
+            (numeric_raw['price'] > 0) & (numeric_raw['quantity'] > 0)
+        ]
+        if positive_raw.empty:
+            diagnostics.append(
+                f'{source_name}: предложение найдено, но цена или остаток '
+                'неположительные.'
+            )
+            nonpositive_offer = True
+            continue
+
+        filtered_df = _apply_source_filters(raw_df, source)
+        filtered_df = _normalize_offer_dataframe_keys(
+            filtered_df, brand_aliases
+        )
+        filtered_match = filtered_df[
+            (filtered_df['__normalized_oem'] == key[0])
+            & (filtered_df['__normalized_brand'] == key[1])
+        ]
+        if filtered_match.empty:
+            diagnostics.append(
+                f'{source_name}: позиция исключена фильтрами источника '
+                f'({_describe_source_filter_rules(source)}).'
+            )
+            filtered_out = True
+            continue
+
+        final_df = crud_customer_pricelist.apply_coefficient(
+            filtered_df, pricelist_config, apply_general_markup=False
+        )
+        final_df = _apply_source_markups(final_df, pricelist_config, source)
+        final_df = _normalize_offer_dataframe_keys(final_df, brand_aliases)
+        final_match = final_df[
+            (final_df['__normalized_oem'] == key[0])
+            & (final_df['__normalized_brand'] == key[1])
+        ]
+        if final_match.empty:
+            diagnostics.append(
+                f'{source_name}: предложение найдено, но не попало в '
+                'итоговый набор офферов после обработки.'
+            )
+            continue
+
+        diagnostics.append(
+            f'{source_name}: предложение найдено, но не было выбрано '
+            'для строки заказа.'
+        )
+
+    if filtered_out:
+        return 'FILTERED_BY_SOURCE_RULE', ' '.join(diagnostics[:2])
+    if nonpositive_offer:
+        return 'NONPOSITIVE_OFFER', ' '.join(diagnostics[:2])
+    if diagnostics:
+        return 'OFFER_MATCH_DIAGNOSTIC', ' '.join(diagnostics[:2])
+    return 'NO_OFFER', 'Нет предложения в подключенных источниках клиента.'
+
+
 def _format_order_amount(value: Optional[float]) -> str:
     if value is None:
         return 'не определена'
@@ -1402,7 +1583,7 @@ async def _prepare_customer_order_context(
         if pricelist_config
         else {}
     )
-    return expected_prices, offers, brand_aliases
+    return expected_prices, offers, brand_aliases, pricelist_config
 
 
 async def _process_manual_rows(
@@ -1415,6 +1596,7 @@ async def _process_manual_rows(
         expected_prices,
         offers,
         brand_aliases,
+        pricelist_config,
     ) = await _prepare_customer_order_context(session, config)
 
     order_items: List[CustomerOrderItem] = []
@@ -1441,10 +1623,27 @@ async def _process_manual_rows(
             requested_price=requested_price,
             status=CUSTOMER_ORDER_ITEM_STATUS.NEW,
         )
-        if not offer or not customer_price or customer_price <= 0:
+        if not offer:
             item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
             item.ship_qty = 0
             item.reject_qty = row.requested_qty
+            reason_code, reason_text = await _diagnose_missing_offer_reason(
+                session,
+                pricelist_config,
+                row,
+                brand_aliases,
+            )
+            _set_reject_reason(item, reason_code, reason_text)
+        elif not customer_price or customer_price <= 0:
+            item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
+            item.ship_qty = 0
+            item.reject_qty = row.requested_qty
+            _set_reject_reason(
+                item,
+                'NO_TARGET_PRICE',
+                'Не удалось определить целевую цену для строки заказа: '
+                'нет цены в заказе и нет цены в клиентском прайсе.',
+            )
         else:
             offered_price = offer.price
             diff_pct = _compute_price_diff_pct(
@@ -1470,6 +1669,13 @@ async def _process_manual_rows(
                     item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
                     item.ship_qty = 0
                     item.reject_qty = row.requested_qty
+                    _set_reject_reason(
+                        item,
+                        'PRICE_TOO_HIGH',
+                        'Цена предложения выше допустимой для клиента: '
+                        f'{offered_price:.2f} против {customer_price:.2f} '
+                        f'({diff_pct:.2f}%).',
+                    )
                     await _send_price_warning(
                         order,
                         item,
@@ -1509,6 +1715,20 @@ async def _process_manual_rows(
                     item.supplier_id = offer.provider_id
                 if ship_qty == 0:
                     item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
+                    _set_reject_reason(
+                        item,
+                        'ZERO_STOCK',
+                        'Предложение найдено, но доступный остаток равен 0.',
+                    )
+                elif reject_qty > 0:
+                    _set_reject_reason(
+                        item,
+                        'PARTIAL_STOCK',
+                        'Частичная отгрузка: доступно '
+                        f'{ship_qty} из {row.requested_qty}.',
+                    )
+                else:
+                    _clear_reject_reason(item)
 
         order_items.append(item)
         session.add(item)
@@ -3002,6 +3222,11 @@ async def update_customer_order_item_manual(
         item.supplier_id = None
         item.ship_qty = 0
         item.reject_qty = item.requested_qty
+        _set_reject_reason(
+            item,
+            'MANUAL_REJECT',
+            'Позиция отклонена вручную пользователем.',
+        )
         await session.commit()
         await session.refresh(item)
         return item
@@ -3071,6 +3296,7 @@ async def update_customer_order_item_manual(
         item.supplier_id = None
         item.ship_qty = item.requested_qty
         item.reject_qty = 0
+        _clear_reject_reason(item)
 
         await session.commit()
         await session.refresh(item)
@@ -3164,6 +3390,7 @@ async def update_customer_order_item_manual(
     item.supplier_id = supplier_id
     item.ship_qty = item.requested_qty
     item.reject_qty = 0
+    _clear_reject_reason(item)
 
     await session.commit()
     await session.refresh(item)

@@ -634,6 +634,7 @@ async def download_price_provider(
                     AND(date_gte=date.today(), all=True),
                     headers_only=True,
                     limit=20,
+                    mark_seen=False,
                     reverse=True,
                 )
             )
@@ -679,6 +680,7 @@ async def download_price_provider(
             email_list = list(
                 mailbox.fetch(
                     criteria,
+                    mark_seen=False,
                     **fetch_kwargs,
                     # limit=max_emails
                 )
@@ -1102,6 +1104,7 @@ def _fetch_mailbox_messages(
             mailbox.fetch(
                 AND(date_gte=date.today(), all=True),
                 charset='utf-8',
+                mark_seen=False,
             )
         )
 

@@ -506,6 +506,30 @@ class CustomerPriceListSourceBase(BaseModel):
     max_quantity: Optional[int] = None
     additional_filters: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
+    @field_validator('min_price', 'max_price', mode='before')
+    def normalize_optional_positive_decimal(cls, value):
+        if value in (None, ''):
+            return None
+        try:
+            numeric = Decimal(str(value))
+        except Exception:
+            return value
+        if numeric <= 0:
+            return None
+        return numeric
+
+    @field_validator('min_quantity', 'max_quantity', mode='before')
+    def normalize_optional_positive_int(cls, value):
+        if value in (None, ''):
+            return None
+        try:
+            numeric = int(value)
+        except Exception:
+            return value
+        if numeric <= 0:
+            return None
+        return numeric
+
 
 class CustomerPriceListSourceCreate(CustomerPriceListSourceBase):
     pass
@@ -522,6 +546,30 @@ class CustomerPriceListSourceUpdate(BaseModel):
     min_quantity: Optional[int] = None
     max_quantity: Optional[int] = None
     additional_filters: Optional[Dict[str, Any]] = None
+
+    @field_validator('min_price', 'max_price', mode='before')
+    def normalize_optional_positive_decimal(cls, value):
+        if value in (None, ''):
+            return None
+        try:
+            numeric = Decimal(str(value))
+        except Exception:
+            return value
+        if numeric <= 0:
+            return None
+        return numeric
+
+    @field_validator('min_quantity', 'max_quantity', mode='before')
+    def normalize_optional_positive_int(cls, value):
+        if value in (None, ''):
+            return None
+        try:
+            numeric = int(value)
+        except Exception:
+            return value
+        if numeric <= 0:
+            return None
+        return numeric
 
 
 class CustomerPriceListSourceResponse(CustomerPriceListSourceBase):

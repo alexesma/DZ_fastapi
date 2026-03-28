@@ -184,6 +184,8 @@ class CustomerOrderItemResponse(BaseModel):
     autopart_id: Optional[int]
     matched_price: Optional[Decimal]
     price_diff_pct: Optional[float]
+    reject_reason_code: Optional[str] = None
+    reject_reason_text: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

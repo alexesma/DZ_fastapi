@@ -14,7 +14,7 @@ from dz_fastapi.crud.customer_order import (crud_customer_order,
                                             crud_supplier_order)
 from dz_fastapi.crud.partner import crud_customer_pricelist_config
 from dz_fastapi.models.partner import CUSTOMER_ORDER_ITEM_STATUS
-from dz_fastapi.models.user import User
+from dz_fastapi.models.user import User, UserRole
 from dz_fastapi.schemas.customer_order import (CustomerOrderConfigCreate,
                                                CustomerOrderConfigResponse,
                                                CustomerOrderConfigUpdate,
@@ -37,6 +37,33 @@ from dz_fastapi.services.customer_orders import (
 logger = logging.getLogger('dz_fastapi')
 
 router = APIRouter(prefix='/customer-orders', tags=['customer-orders'])
+
+
+def _serialize_customer_order_item_for_user(
+    item,
+    current_user: User,
+) -> CustomerOrderItemResponse:
+    model = CustomerOrderItemResponse.model_validate(item)
+    if current_user.role != UserRole.ADMIN:
+        return model.model_copy(
+            update={
+                'reject_reason_code': None,
+                'reject_reason_text': None,
+            }
+        )
+    return model
+
+
+def _serialize_customer_order_for_user(
+    order,
+    current_user: User,
+) -> CustomerOrderResponse:
+    model = CustomerOrderResponse.model_validate(order)
+    items = [
+        _serialize_customer_order_item_for_user(item, current_user)
+        for item in (order.items or [])
+    ]
+    return model.model_copy(update={'items': items})
 
 
 @router.post(
@@ -267,7 +294,10 @@ async def list_customer_orders(
         skip=skip,
         limit=limit,
     )
-    return [CustomerOrderResponse.model_validate(o) for o in orders]
+    return [
+        _serialize_customer_order_for_user(order, current_user)
+        for order in orders
+    ]
 
 
 @router.get(
@@ -362,7 +392,7 @@ async def get_customer_order(
     )
     if not order:
         raise HTTPException(status_code=404, detail='Order not found')
-    return CustomerOrderResponse.model_validate(order)
+    return _serialize_customer_order_for_user(order, current_user)
 
 
 @router.post(
@@ -393,7 +423,7 @@ async def create_manual_order(
     )
     if not order:
         raise HTTPException(status_code=404, detail='Order not found')
-    return CustomerOrderResponse.model_validate(order)
+    return _serialize_customer_order_for_user(order, current_user)
 
 
 @router.post(
@@ -420,7 +450,7 @@ async def process_manual_order_endpoint(
     )
     if not order:
         raise HTTPException(status_code=404, detail='Order not found')
-    return CustomerOrderResponse.model_validate(order)
+    return _serialize_customer_order_for_user(order, current_user)
 
 
 @router.patch(
@@ -445,7 +475,7 @@ async def update_customer_order_item(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return CustomerOrderItemResponse.model_validate(item)
+    return _serialize_customer_order_item_for_user(item, current_user)
 
 
 @router.post(
@@ -523,7 +553,7 @@ async def retry_order(
     )
     if not order:
         raise HTTPException(status_code=404, detail='Order not found')
-    return CustomerOrderResponse.model_validate(order)
+    return _serialize_customer_order_for_user(order, current_user)
 
 
 @router.get(

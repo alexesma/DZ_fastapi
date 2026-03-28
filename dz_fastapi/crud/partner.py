@@ -2145,6 +2145,31 @@ class CRUDCustomerPriceListSource(
         CustomerPriceListSourceUpdate,
     ]
 ):
+    @staticmethod
+    def _normalize_threshold_fields(
+        update_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        normalized = dict(update_data)
+        for field in (
+            'min_price',
+            'max_price',
+            'min_quantity',
+            'max_quantity',
+        ):
+            if field not in normalized:
+                continue
+            value = normalized.get(field)
+            if value is None or value == '':
+                normalized[field] = None
+                continue
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError):
+                continue
+            if numeric <= 0:
+                normalized[field] = None
+        return normalized
+
     async def get_by_id(
         self, source_id: int, session: AsyncSession
     ) -> Optional[CustomerPriceListSource]:
@@ -2199,9 +2224,12 @@ class CRUDCustomerPriceListSource(
         source_in: CustomerPriceListSourceCreate,
         session: AsyncSession,
     ) -> CustomerPriceListSource:
+        create_data = self._normalize_threshold_fields(
+            source_in.model_dump(exclude_unset=True)
+        )
         new_source = CustomerPriceListSource(
             customer_config_id=config_id,
-            **source_in.model_dump(exclude_unset=True),
+            **create_data,
         )
         session.add(new_source)
         await session.commit()
@@ -2218,6 +2246,7 @@ class CRUDCustomerPriceListSource(
             update_data = obj_in
         else:
             update_data = obj_in.model_dump(exclude_unset=True)
+        update_data = self._normalize_threshold_fields(update_data)
 
         for field, value in update_data.items():
             setattr(db_obj, field, value)

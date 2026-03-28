@@ -599,6 +599,8 @@ class CustomerOrderItem(Base):
     autopart_id = Column(Integer, ForeignKey('autopart.id'), nullable=True)
     matched_price = Column(DECIMAL(10, 2), nullable=True)
     price_diff_pct = Column(Float, nullable=True)
+    reject_reason_code = Column(String(64), nullable=True)
+    reject_reason_text = Column(String(500), nullable=True)
 
     order = relationship('CustomerOrder', back_populates='items')
     supplier = relationship('Provider')
