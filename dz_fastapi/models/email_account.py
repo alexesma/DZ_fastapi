@@ -15,7 +15,8 @@ class EmailAccount(Base):
 
     imap_host = Column(String(255), nullable=True)
     imap_port = Column(Integer, default=993)
-    imap_folder = Column(String(255), nullable=True)
+    imap_folder = Column(String(255), nullable=True, default='INBOX')
+    imap_additional_folders = Column(JSON, default=[])
 
     smtp_host = Column(String(255), nullable=True)
     smtp_port = Column(Integer, default=465)

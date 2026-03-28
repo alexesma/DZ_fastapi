@@ -28,6 +28,9 @@ from sqlalchemy.sql import func
 
 from dz_fastapi.api.validators import normalize_brand_name
 from dz_fastapi.core.constants import IMAP_SERVER
+from dz_fastapi.core.email_folders import (DEFAULT_IMAP_FOLDER,
+                                           normalize_imap_folder,
+                                           resolve_imap_folders)
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.brand import brand_crud
 from dz_fastapi.crud.customer_order import (crud_customer_order,
@@ -134,6 +137,7 @@ class SimpleMessage:
     html: Optional[str]
     external_id: Optional[str] = None
     received_at: Optional[datetime] = None
+    folder_name: Optional[str] = None
 
 
 async def _fetch_order_messages(
@@ -156,7 +160,11 @@ async def _fetch_order_messages(
                 mark_seen=mark_seen,
                 charset='utf-8',
             )
-            return list(fetched)
+            messages = list(fetched)
+            folder_name = normalize_imap_folder(folder)
+            for message in messages:
+                setattr(message, 'folder_name', folder_name)
+            return messages
 
     for attempt in range(1, CUSTOMER_ORDERS_IMAP_RETRIES + 1):
         try:
@@ -279,6 +287,8 @@ async def _fetch_gmail_messages(
                     continue
                 raw_bytes = base64.urlsafe_b64decode(raw_data + '==')
                 messages.append(_parse_raw_email(raw_bytes))
+                messages[-1].external_id = str(message_id)
+                messages[-1].folder_name = normalize_imap_folder(label)
             page_token = payload.get('nextPageToken')
             if not page_token:
                 break
@@ -421,6 +431,49 @@ def _message_sort_key(item: tuple[object, Optional[object]]) -> tuple:
         message_dt,
         external_id,
     )
+
+
+def _message_identity_key(item: tuple[object, Optional[object]]) -> tuple:
+    msg, inbox_account = item
+    account_id = inbox_account.id if inbox_account else 0
+    external_id = str(getattr(msg, 'external_id', '') or '').strip()
+    if external_id:
+        return ('external', account_id, external_id)
+    message_dt = (
+        getattr(msg, 'received_at', None)
+        or getattr(msg, 'date', None)
+        or ''
+    )
+    if hasattr(message_dt, 'isoformat'):
+        message_dt = message_dt.isoformat()
+    attachments = tuple(
+        sorted(
+            str(getattr(att, 'filename', '') or '').strip().lower()
+            for att in (getattr(msg, 'attachments', None) or [])
+        )
+    )
+    return (
+        'fallback',
+        account_id,
+        _extract_email(getattr(msg, 'from_', None)).lower(),
+        str(getattr(msg, 'subject', '') or '').strip(),
+        str(message_dt),
+        attachments,
+    )
+
+
+def _dedupe_order_messages(
+    items: list[tuple[object, Optional[object]]]
+) -> list[tuple[object, Optional[object]]]:
+    deduped: dict[tuple, tuple[object, Optional[object]]] = {}
+    for item in items:
+        key = _message_identity_key(item)
+        current = deduped.get(key)
+        if current is None or _message_sort_key(item) > _message_sort_key(
+            current
+        ):
+            deduped[key] = item
+    return list(deduped.values())
 
 
 def _strip_html(text: str) -> str:
@@ -997,11 +1050,19 @@ async def _build_current_offers(
         df = await crud_pricelist.transform_to_dataframe(
             associations=associations, session=session
         )
-        df = _apply_source_filters(df, source)
+        # For order matching we ignore price/quantity thresholds from the
+        # outbound pricelist. A valid offer should still match even if it
+        # would be hidden from the mailed pricelist by stock/price limits.
+        df = _apply_source_filters(
+            df, source, ignore_price_quantity_filters=True
+        )
         if df.empty:
             continue
         df = crud_customer_pricelist.apply_coefficient(
-            df, config, apply_general_markup=False
+            df,
+            config,
+            apply_general_markup=False,
+            ignore_price_quantity_filters=True,
         )
         df = _apply_source_markups(df, config, source)
         combined_data.append(df)
@@ -1153,6 +1214,77 @@ def _describe_source_filter_rules(source) -> str:
     return ', '.join(parts) if parts else 'неизвестные правила'
 
 
+def _merge_pricelist_filter_blocks(
+    base: dict,
+    override: Optional[dict],
+) -> dict:
+    merged = dict(base)
+    if not override:
+        return merged
+    for key, value in override.items():
+        merged[key] = value
+    return merged
+
+
+def _resolve_pricelist_filters_for_offer(
+    config: CustomerPriceListConfig,
+    provider_id: Optional[int],
+    is_own_price: bool,
+) -> dict:
+    if config.default_filters:
+        base = dict(config.default_filters)
+    else:
+        base = {
+            'brand_filters': config.brand_filters,
+            'category_filter': config.category_filter,
+            'price_intervals': config.price_intervals,
+            'position_filters': config.position_filters,
+            'supplier_quantity_filters': (
+                config.supplier_quantity_filters
+            ),
+            'additional_filters': config.additional_filters,
+        }
+
+    if is_own_price:
+        return _merge_pricelist_filter_blocks(base, config.own_filters)
+
+    supplier_filters = config.supplier_filters or {}
+    if provider_id is not None:
+        override = supplier_filters.get(provider_id)
+        if override is None:
+            override = supplier_filters.get(str(provider_id))
+        if override:
+            return _merge_pricelist_filter_blocks(base, override)
+    return _merge_pricelist_filter_blocks(base, config.other_filters)
+
+
+def _describe_pricelist_filter_rules(filters_cfg: dict) -> str:
+    parts: List[str] = []
+    if filters_cfg.get('brand_filters'):
+        parts.append('brand_filters')
+    if filters_cfg.get('position_filters'):
+        parts.append('position_filters')
+    if filters_cfg.get('price_intervals'):
+        parts.append('price_intervals')
+    if filters_cfg.get('supplier_quantity_filters'):
+        parts.append('supplier_quantity_filters')
+    min_price = filters_cfg.get('min_price')
+    if min_price is not None:
+        parts.append(f'min_price={float(min_price):.2f}')
+    max_price = filters_cfg.get('max_price')
+    if max_price is not None:
+        parts.append(f'max_price={float(max_price):.2f}')
+    min_qty = filters_cfg.get('min_quantity')
+    if min_qty is not None:
+        parts.append(f'min_quantity={int(min_qty)}')
+    max_qty = filters_cfg.get('max_quantity')
+    if max_qty is not None:
+        parts.append(f'max_quantity={int(max_qty)}')
+    if filters_cfg.get('additional_filters'):
+        parts.append('additional_filters')
+    return ', '.join(parts) if parts else 'неизвестные правила'
+
+
 def _normalize_offer_dataframe_keys(
     df: pd.DataFrame,
     brand_aliases: Optional[Dict[str, str]] = None,
@@ -1244,7 +1376,9 @@ async def _diagnose_missing_offer_reason(
             nonpositive_offer = True
             continue
 
-        filtered_df = _apply_source_filters(raw_df, source)
+        filtered_df = _apply_source_filters(
+            raw_df, source, ignore_price_quantity_filters=True
+        )
         filtered_df = _normalize_offer_dataframe_keys(
             filtered_df, brand_aliases
         )
@@ -1260,10 +1394,51 @@ async def _diagnose_missing_offer_reason(
             filtered_out = True
             continue
 
-        final_df = crud_customer_pricelist.apply_coefficient(
-            filtered_df, pricelist_config, apply_general_markup=False
+        first_match = positive_raw.iloc[0]
+        provider_id_value = first_match.get('provider_id')
+        own_flag_value = first_match.get('is_own_price')
+        provider_id = (
+            int(provider_id_value)
+            if pd.notna(provider_id_value)
+            else None
         )
-        final_df = _apply_source_markups(final_df, pricelist_config, source)
+        own_flag = (
+            bool(own_flag_value)
+            if pd.notna(own_flag_value)
+            else False
+        )
+
+        config_filtered_df = crud_customer_pricelist.apply_coefficient(
+            filtered_df,
+            pricelist_config,
+            apply_general_markup=False,
+            provider_id=provider_id,
+            is_own_price=own_flag,
+            ignore_price_quantity_filters=True,
+        )
+        config_filtered_df = _normalize_offer_dataframe_keys(
+            config_filtered_df, brand_aliases
+        )
+        config_match = config_filtered_df[
+            (config_filtered_df['__normalized_oem'] == key[0])
+            & (config_filtered_df['__normalized_brand'] == key[1])
+        ]
+        if config_match.empty:
+            pricelist_filters = _resolve_pricelist_filters_for_offer(
+                pricelist_config,
+                provider_id=provider_id,
+                is_own_price=own_flag,
+            )
+            diagnostics.append(
+                f'{source_name}: позиция исключена фильтрами клиентского '
+                'прайса '
+                f'({_describe_pricelist_filter_rules(pricelist_filters)}).'
+            )
+            continue
+
+        final_df = _apply_source_markups(
+            config_filtered_df, pricelist_config, source
+        )
         final_df = _normalize_offer_dataframe_keys(final_df, brand_aliases)
         final_match = final_df[
             (final_df['__normalized_oem'] == key[0])
@@ -1286,6 +1461,8 @@ async def _diagnose_missing_offer_reason(
     if nonpositive_offer:
         return 'NONPOSITIVE_OFFER', ' '.join(diagnostics[:2])
     if diagnostics:
+        if any('фильтрами клиентского прайса' in item for item in diagnostics):
+            return 'FILTERED_BY_PRICE_CONFIG', ' '.join(diagnostics[:2])
         return 'OFFER_MATCH_DIAGNOSTIC', ' '.join(diagnostics[:2])
     return 'NO_OFFER', 'Нет предложения в подключенных источниках клиента.'
 
@@ -1357,12 +1534,32 @@ def _mark_inbox_account_received_at(
 def _advance_config_last_uid(
     config: CustomerOrderConfig,
     uid: Optional[object],
+    folder_name: Optional[str] = None,
 ) -> bool:
     msg_uid_int = _safe_uid_as_int(uid)
     if msg_uid_int is None:
         return False
-    config.last_uid = msg_uid_int
+    config.last_uid = max(int(config.last_uid or 0), msg_uid_int)
+    if folder_name:
+        folder_uids = dict(config.folder_last_uids or {})
+        folder_uids[normalize_imap_folder(folder_name)] = msg_uid_int
+        config.folder_last_uids = folder_uids
     return True
+
+
+def _get_config_last_uid(
+    config: CustomerOrderConfig,
+    folder_name: Optional[str] = None,
+) -> int:
+    if folder_name:
+        folder_uids = dict(config.folder_last_uids or {})
+        folder_uid = folder_uids.get(normalize_imap_folder(folder_name))
+        if folder_uid is not None:
+            try:
+                return int(folder_uid)
+            except (TypeError, ValueError):
+                pass
+    return int(config.last_uid or 0)
 
 
 def _mark_order_error(
@@ -1934,7 +2131,11 @@ def _apply_matched_email_state(
     msg,
     inbox_account,
 ) -> None:
-    _advance_config_last_uid(config, getattr(msg, 'uid', None))
+    _advance_config_last_uid(
+        config,
+        getattr(msg, 'uid', None),
+        getattr(msg, 'folder_name', None),
+    )
     session.add(config)
     if _mark_inbox_account_received_at(
         inbox_account, getattr(msg, 'received_at', None)
@@ -2532,19 +2733,28 @@ async def process_customer_orders(
             host = (
                 account.imap_host or EMAIL_HOST_ORDER or ''
             ).strip().lower()
-            folder = (
-                account.imap_folder or EMAIL_FOLDER_ORDER or 'INBOX'
-            ).strip().lower()
+            folders = tuple(
+                folder.casefold()
+                for folder in resolve_imap_folders(
+                    account.imap_folder,
+                    getattr(account, 'imap_additional_folders', None),
+                    default=EMAIL_FOLDER_ORDER or DEFAULT_IMAP_FOLDER,
+                )
+            )
             port = account.imap_port or IMAP_SERVER
-            key = (account.email.strip().lower(), host, folder, port)
+            key = (account.email.strip().lower(), host, folders, port)
             if key not in unique_accounts:
                 unique_accounts[key] = account
         order_accounts = list(unique_accounts.values())
 
         for account in order_accounts:
             host = account.imap_host or EMAIL_HOST_ORDER
-            label = account.imap_folder or EMAIL_FOLDER_ORDER
             transport = (account.transport or 'smtp').strip().lower()
+            folders = resolve_imap_folders(
+                account.imap_folder,
+                getattr(account, 'imap_additional_folders', None),
+                default=EMAIL_FOLDER_ORDER or DEFAULT_IMAP_FOLDER,
+            )
             allowed_senders = set(global_sender_filter)
             allowed_senders.update(
                 account_sender_filter.get(int(account.id), set())
@@ -2580,9 +2790,13 @@ async def process_customer_orders(
                 continue
             if account.oauth_provider == 'google':
                 try:
-                    account_messages = await _fetch_gmail_messages(
-                        account, date_from, label=label
-                    )
+                    account_messages = []
+                    for label in folders:
+                        account_messages.extend(
+                            await _fetch_gmail_messages(
+                                account, date_from, label=label
+                            )
+                        )
                     fetched_count = len(account_messages)
                     account_messages = _filter_messages_by_senders(
                         account_messages, allowed_senders
@@ -2609,16 +2823,20 @@ async def process_customer_orders(
             if not host:
                 continue
             try:
-                account_messages = await _fetch_order_messages(
-                    host,
-                    account.email,
-                    account.password,
-                    label,
-                    date_from,
-                    mark_seen,
-                    port=account.imap_port or IMAP_SERVER,
-                    ssl=True,
-                )
+                account_messages = []
+                for folder in folders:
+                    account_messages.extend(
+                        await _fetch_order_messages(
+                            host,
+                            account.email,
+                            account.password,
+                            folder,
+                            date_from,
+                            mark_seen,
+                            port=account.imap_port or IMAP_SERVER,
+                            ssl=True,
+                        )
+                    )
                 fetched_count = len(account_messages)
                 account_messages = _filter_messages_by_senders(
                     account_messages, allowed_senders
@@ -2680,6 +2898,7 @@ async def process_customer_orders(
         logger.info('No order emails found.')
         return
 
+    messages = _dedupe_order_messages(messages)
     messages.sort(key=_message_sort_key)
 
     logger.debug(
@@ -2734,17 +2953,22 @@ async def process_customer_orders(
                     )
                     continue
                 msg_uid_int = _safe_uid_as_int(msg.uid)
+                folder_last_uid = _get_config_last_uid(
+                    candidate,
+                    getattr(msg, 'folder_name', None),
+                )
                 if (
                     msg_uid_int is not None
-                    and msg_uid_int <= int(candidate.last_uid or 0)
+                    and msg_uid_int <= folder_last_uid
                 ):
                     logger.debug(
                         'Skip order config %s for sender=%s: '
-                        'msg_uid=%s <= last_uid=%s',
+                        'msg_uid=%s <= last_uid=%s folder=%s',
                         candidate.id,
                         sender,
                         msg_uid_int,
-                        candidate.last_uid,
+                        folder_last_uid,
+                        getattr(msg, 'folder_name', None),
                     )
                     continue
                 if not _match_pattern(

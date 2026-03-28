@@ -3,6 +3,10 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from dz_fastapi.core.email_folders import (DEFAULT_IMAP_FOLDER,
+                                           normalize_imap_folder,
+                                           parse_imap_additional_folders)
+
 
 class EmailAccountBase(BaseModel):
     name: str
@@ -13,7 +17,8 @@ class EmailAccountBase(BaseModel):
     resend_timeout: int = 20
     imap_host: Optional[str] = None
     imap_port: int = 993
-    imap_folder: Optional[str] = None
+    imap_folder: Optional[str] = DEFAULT_IMAP_FOLDER
+    imap_additional_folders: List[str] = Field(default_factory=list)
     smtp_host: Optional[str] = None
     smtp_port: int = 465
     smtp_use_ssl: bool = True
@@ -32,12 +37,20 @@ class EmailAccountBase(BaseModel):
             return ''
         return str(v)
 
-    @field_validator('imap_host', 'imap_folder', 'smtp_host', mode='before')
+    @field_validator('imap_host', 'smtp_host', mode='before')
     def strip_optional_mail_fields(cls, v):
         if v is None:
             return None
         value = str(v).strip()
         return value or None
+
+    @field_validator('imap_folder', mode='before')
+    def normalize_imap_folder_value(cls, v):
+        return normalize_imap_folder(v)
+
+    @field_validator('imap_additional_folders', mode='before')
+    def normalize_imap_additional_folders(cls, v):
+        return parse_imap_additional_folders(v)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -56,6 +69,7 @@ class EmailAccountUpdate(BaseModel):
     imap_host: Optional[str] = None
     imap_port: Optional[int] = None
     imap_folder: Optional[str] = None
+    imap_additional_folders: Optional[List[str]] = None
     smtp_host: Optional[str] = None
     smtp_port: Optional[int] = None
     smtp_use_ssl: Optional[bool] = None
@@ -66,7 +80,6 @@ class EmailAccountUpdate(BaseModel):
         'name',
         'password',
         'imap_host',
-        'imap_folder',
         'smtp_host',
         mode='before',
     )
@@ -74,6 +87,18 @@ class EmailAccountUpdate(BaseModel):
         if v is None:
             return None
         return str(v).strip()
+
+    @field_validator('imap_folder', mode='before')
+    def normalize_update_imap_folder(cls, v):
+        if v is None:
+            return None
+        return normalize_imap_folder(v)
+
+    @field_validator('imap_additional_folders', mode='before')
+    def normalize_update_imap_additional_folders(cls, v):
+        if v is None:
+            return None
+        return parse_imap_additional_folders(v)
 
     model_config = ConfigDict(from_attributes=True)
 

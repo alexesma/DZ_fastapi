@@ -185,7 +185,9 @@ class CRUDStockOrder:
             .options(
                 joinedload(
                     StockOrder.items
-                ).joinedload(StockOrderItem.autopart)
+                )
+                .joinedload(StockOrderItem.autopart)
+                .selectinload(AutoPart.storage_locations)
             )
             .order_by(StockOrder.created_at.desc())
         )

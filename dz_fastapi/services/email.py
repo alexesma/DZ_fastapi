@@ -27,6 +27,9 @@ from jinja2 import Environment, FileSystemLoader
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.constants import DEPTH_DAY_EMAIL, IMAP_SERVER
+from dz_fastapi.core.email_folders import (DEFAULT_IMAP_FOLDER,
+                                           normalize_imap_folder,
+                                           resolve_imap_folders)
 from dz_fastapi.crud.email_account import crud_email_account
 from dz_fastapi.crud.partner import (crud_provider,
                                      crud_provider_pricelist_config,
@@ -111,6 +114,7 @@ class _FetchedInboxMessage:
     subject: str
     attachments: list[_FetchedAttachment]
     date: Optional[datetime] = None
+    folder_name: Optional[str] = None
 
 
 def _message_sort_key(msg: _FetchedInboxMessage) -> tuple[int, float]:
@@ -124,6 +128,38 @@ def _message_sort_key(msg: _FetchedInboxMessage) -> tuple[int, float]:
         except Exception:
             return (0, 0.0)
     return (0, 0.0)
+
+
+def _message_identity_key(msg: _FetchedInboxMessage) -> tuple:
+    msg_date = getattr(msg, 'date', None)
+    if hasattr(msg_date, 'isoformat'):
+        msg_date = msg_date.isoformat()
+    attachments = tuple(
+        sorted(
+            str(getattr(att, 'filename', '') or '').strip().lower()
+            for att in (getattr(msg, 'attachments', None) or [])
+        )
+    )
+    return (
+        _extract_email(getattr(msg, 'from_', None)).lower(),
+        str(getattr(msg, 'subject', '') or '').strip(),
+        str(msg_date or ''),
+        attachments,
+    )
+
+
+def _dedupe_fetched_messages(
+    messages: list[_FetchedInboxMessage],
+) -> list[_FetchedInboxMessage]:
+    deduped: dict[tuple, _FetchedInboxMessage] = {}
+    for msg in messages:
+        key = _message_identity_key(msg)
+        current = deduped.get(key)
+        if current is None or _message_sort_key(msg) > _message_sort_key(
+            current
+        ):
+            deduped[key] = msg
+    return list(deduped.values())
 
 
 def _message_matches_provider_config(
@@ -556,7 +592,8 @@ async def download_price_provider(
     try:
         mailbox_host = _clean_mail_setting(server_mail)
         mailbox_port = IMAP_SERVER
-        mailbox_folder = 'INBOX'
+        mailbox_folder = DEFAULT_IMAP_FOLDER
+        mailbox_folders = [mailbox_folder]
         mailbox_login = _clean_mail_setting(email_account)
         mailbox_password = email_password
 
@@ -576,6 +613,13 @@ async def download_price_provider(
                 )
                 mailbox_login = _clean_mail_setting(selected_account.email)
                 mailbox_password = selected_account.password
+                mailbox_folders = resolve_imap_folders(
+                    selected_account.imap_folder,
+                    getattr(
+                        selected_account, 'imap_additional_folders', None
+                    ),
+                    default=mailbox_folder,
+                )
                 logger.debug(
                     'Using configured mailbox for provider config %s: '
                     'email_account_id=%s',
@@ -589,6 +633,12 @@ async def download_price_provider(
                     provider_conf.incoming_email_account_id,
                     provider_conf.id,
                 )
+        else:
+            mailbox_folders = resolve_imap_folders(
+                mailbox_folder,
+                None,
+                default=mailbox_folder,
+            )
 
         since_date = date.today() - timedelta(days=DEPTH_DAY_EMAIL)
         logger.debug(
@@ -596,19 +646,13 @@ async def download_price_provider(
             f'need name_mail = {provider_conf.name_mail}, '
             f'need name_price = {provider_conf.name_price}'
         )
-        last_uid = await get_last_uid(
-            provider.id,
-            session,
-            provider_config_id=provider_conf.id,
-        )
-        logger.debug(f'Last UID: {last_uid}')
 
         logger.debug(
-            'Connecting to mailbox host=%s port=%s folder=%s login=%s '
+            'Connecting to mailbox host=%s port=%s folders=%s login=%s '
             'for provider_config_id=%s',
             mailbox_host,
             mailbox_port,
-            mailbox_folder,
+            mailbox_folders,
             mailbox_login,
             provider_conf.id if provider_conf else None,
         )
@@ -619,38 +663,6 @@ async def download_price_provider(
                 'Mailbox login successful for provider_config_id=%s',
                 provider_conf.id if provider_conf else None,
             )
-            mailbox.folder.set(mailbox_folder)
-            logger.debug(
-                'Mailbox folder selected for provider_config_id=%s',
-                provider_conf.id if provider_conf else None,
-            )
-            logger.debug(
-                'Fetching recent mailbox headers for diagnostics '
-                'provider_config_id=%s',
-                provider_conf.id if provider_conf else None,
-            )
-            debug_emails = list(
-                mailbox.fetch(
-                    AND(date_gte=date.today(), all=True),
-                    headers_only=True,
-                    limit=20,
-                    mark_seen=False,
-                    reverse=True,
-                )
-            )
-            logger.debug(
-                'Fetched %s recent mailbox headers for provider_config_id=%s',
-                len(debug_emails),
-                provider_conf.id if provider_conf else None,
-            )
-            for msg in debug_emails:
-                logger.debug(
-                    'Uid: %s, from: %s, date: %s, subject: %s',
-                    msg.uid,
-                    msg.from_,
-                    msg.date,
-                    msg.subject,
-                )
             criteria_kwargs = {'date_gte': since_date}
             if provider.email_incoming_price:
                 criteria_kwargs['from_'] = provider.email_incoming_price
@@ -670,50 +682,117 @@ async def download_price_provider(
                     provider_conf.name_mail,
                 )
 
-            logger.debug(
-                'Fetching candidate emails for provider_config_id=%s',
-                provider_conf.id if provider_conf else None,
-            )
             fetch_kwargs = {}
             if not use_local_subject_filter:
                 fetch_kwargs['charset'] = 'utf-8'
-            email_list = list(
-                mailbox.fetch(
-                    criteria,
-                    mark_seen=False,
-                    **fetch_kwargs,
-                    # limit=max_emails
+            selected_msg = None
+            selected_folder = None
+            for folder in mailbox_folders:
+                mailbox.folder.set(folder)
+                logger.debug(
+                    'Mailbox folder selected=%s for provider_config_id=%s',
+                    folder,
+                    provider_conf.id if provider_conf else None,
                 )
-            )
-            logger.debug(
-                'Fetched candidate emails for provider_config_id=%s',
-                provider_conf.id if provider_conf else None,
-            )
-            logger.debug(f'Found {len(email_list)} emails matching criteria.')
-            emails = [
-                msg
-                for msg in email_list
-                if (_safe_uid_as_int(getattr(msg, 'uid', None)) or 0)
-                > last_uid
-            ]
-            logger.debug(
-                f'{len(emails)} emails have UID greater than {last_uid}.'
-            )
+                logger.debug(
+                    'Fetching recent mailbox headers for diagnostics '
+                    'provider_config_id=%s folder=%s',
+                    provider_conf.id if provider_conf else None,
+                    folder,
+                )
+                debug_emails = list(
+                    mailbox.fetch(
+                        AND(date_gte=date.today(), all=True),
+                        headers_only=True,
+                        limit=20,
+                        mark_seen=False,
+                        reverse=True,
+                    )
+                )
+                logger.debug(
+                    'Fetched %s recent mailbox headers '
+                    'for provider_config_id=%s folder=%s',
+                    len(debug_emails),
+                    provider_conf.id if provider_conf else None,
+                    folder,
+                )
+                for msg in debug_emails:
+                    logger.debug(
+                        'Uid: %s, from: %s, date: %s, subject: %s',
+                        msg.uid,
+                        msg.from_,
+                        msg.date,
+                        msg.subject,
+                    )
+                last_uid = await get_last_uid(
+                    provider.id,
+                    session,
+                    provider_config_id=provider_conf.id,
+                    folder=folder,
+                )
+                logger.debug('Last UID for folder %s: %s', folder, last_uid)
+                logger.debug(
+                    'Fetching candidate emails '
+                    'for provider_config_id=%s folder=%s',
+                    provider_conf.id if provider_conf else None,
+                    folder,
+                )
+                email_list = list(
+                    mailbox.fetch(
+                        criteria,
+                        mark_seen=False,
+                        **fetch_kwargs,
+                    )
+                )
+                for msg in email_list:
+                    setattr(msg, 'folder_name', folder)
+                logger.debug(
+                    'Fetched %s candidate emails '
+                    'for provider_config_id=%s folder=%s',
+                    len(email_list),
+                    provider_conf.id if provider_conf else None,
+                    folder,
+                )
+                emails = [
+                    msg
+                    for msg in email_list
+                    if (_safe_uid_as_int(getattr(msg, 'uid', None)) or 0)
+                    > last_uid
+                ]
+                logger.debug(
+                    '%s emails have UID greater than %s in folder=%s.',
+                    len(emails),
+                    last_uid,
+                    folder,
+                )
+                matching_emails = [
+                    msg
+                    for msg in emails
+                    if _message_matches_provider_config(msg, provider_conf)
+                ]
+                if not matching_emails:
+                    continue
+                candidate_msg = max(matching_emails, key=_message_sort_key)
+                if (
+                    selected_msg is None
+                    or _message_sort_key(candidate_msg)
+                    > _message_sort_key(selected_msg)
+                ):
+                    selected_msg = candidate_msg
+                    selected_folder = folder
 
-            matching_emails = [
-                msg
-                for msg in emails
-                if _message_matches_provider_config(msg, provider_conf)
-            ]
-            if not matching_emails:
+            if selected_msg is None:
                 logger.debug('No matching attachments found.')
                 return None
 
-            msg = max(matching_emails, key=_message_sort_key)
+            msg = selected_msg
+            mailbox.folder.set(selected_folder or mailbox_folder)
             logger.debug(
-                'Selected latest matching email uid=%s for provider config %s',
+                'Selected latest matching email uid=%s '
+                'for provider config %s folder=%s',
                 getattr(msg, 'uid', None),
                 provider_conf.id,
+                selected_folder,
             )
             logger.debug('All headers:')
             for k, v in msg.headers.items():
@@ -743,12 +822,13 @@ async def download_price_provider(
                     current_uid = _safe_uid_as_int(
                         getattr(msg, 'uid', None)
                     )
-                    if current_uid is not None and current_uid > last_uid:
+                    if current_uid is not None:
                         await set_last_uid(
                             provider.id,
                             current_uid,
                             session,
                             provider_config_id=provider_conf.id,
+                            folder=getattr(msg, 'folder_name', None),
                         )
                     return filepath
                 if not name_price_norm:
@@ -765,12 +845,13 @@ async def download_price_provider(
                     current_uid = _safe_uid_as_int(
                         getattr(msg, 'uid', None)
                     )
-                    if current_uid is not None and current_uid > last_uid:
+                    if current_uid is not None:
                         await set_last_uid(
                             provider.id,
                             current_uid,
                             session,
                             provider_config_id=provider_conf.id,
+                            folder=getattr(msg, 'folder_name', None),
                         )
                     return filepath
             logger.debug('No matching attachments found.')
@@ -1028,19 +1109,13 @@ async def download_new_price_provider(
                 logger.debug(f'Загрузка файла из URL: {filepath}')
                 current_uid = _safe_uid_as_int(getattr(msg, 'uid', None))
                 if current_uid is not None:
-                    last_uid = await get_last_uid(
+                    await set_last_uid(
                         provider.id,
+                        current_uid,
                         session,
                         provider_config_id=provider_conf.id,
+                        folder=getattr(msg, 'folder_name', None),
                     )
-                    logger.debug(f'Last UID: {last_uid}')
-                    if current_uid > last_uid:
-                        await set_last_uid(
-                            provider.id,
-                            current_uid,
-                            session,
-                            provider_config_id=provider_conf.id,
-                        )
                 return filepath
         except Exception as e:
             logger.exception(
@@ -1068,19 +1143,13 @@ async def download_new_price_provider(
             logger.debug(f'Downloaded attachment: {filepath}')
             current_uid = _safe_uid_as_int(getattr(msg, 'uid', None))
             if current_uid is not None:
-                last_uid = await get_last_uid(
+                await set_last_uid(
                     provider.id,
+                    current_uid,
                     session,
                     provider_config_id=provider_conf.id,
+                    folder=getattr(msg, 'folder_name', None),
                 )
-                logger.debug(f'Last UID: {last_uid}')
-                if current_uid > last_uid:
-                    await set_last_uid(
-                        provider.id,
-                        current_uid,
-                        session,
-                        provider_config_id=provider_conf.id,
-                    )
             return filepath
     logger.debug(
         f'В письме uid={msg.uid} нет вложений, соответствующих критерию'
@@ -1100,13 +1169,17 @@ def _fetch_mailbox_messages(
         email_account, email_password
     ) as mailbox:
         mailbox.folder.set(main_box)
-        return list(
+        messages = list(
             mailbox.fetch(
                 AND(date_gte=date.today(), all=True),
                 charset='utf-8',
                 mark_seen=False,
             )
         )
+        folder_name = normalize_imap_folder(main_box)
+        for message in messages:
+            setattr(message, 'folder_name', folder_name)
+        return messages
 
 
 def _safe_uid_as_int(value: str | None) -> int | None:
@@ -1168,7 +1241,7 @@ async def get_emails(
     ] = {}
     provider_cache: dict[str, Provider | None] = {}
     provider_configs_cache: dict[int, list[ProviderPriceListConfig]] = {}
-    config_last_uid_cache: dict[int, int] = {}
+    config_last_uid_cache: dict[tuple[int, str | None], int] = {}
     accounts = await crud_email_account.get_active_by_purpose(
         session, 'prices_in'
     )
@@ -1194,15 +1267,25 @@ async def get_emails(
                 host = account.imap_host or server_mail
                 if not host:
                     continue
-                messages = await asyncio.to_thread(
-                    _fetch_mailbox_messages,
-                    host,
-                    account.email,
-                    account.password,
-                    account.imap_folder or main_box,
-                    account.imap_port or IMAP_SERVER,
-                    True,
+                messages = []
+                folders = resolve_imap_folders(
+                    account.imap_folder,
+                    getattr(account, 'imap_additional_folders', None),
+                    default=main_box or DEFAULT_IMAP_FOLDER,
                 )
+                for folder in folders:
+                    messages.extend(
+                        await asyncio.to_thread(
+                            _fetch_mailbox_messages,
+                            host,
+                            account.email,
+                            account.password,
+                            folder,
+                            account.imap_port or IMAP_SERVER,
+                            True,
+                        )
+                    )
+                messages = _dedupe_fetched_messages(messages)
                 all_emails.extend(messages)
             except Exception as exc:
                 logger.error(
@@ -1217,15 +1300,18 @@ async def get_emails(
                 )
                 continue
     else:
-        all_emails = await asyncio.to_thread(
-            _fetch_mailbox_messages,
-            server_mail,
-            email_account,
-            email_password,
-            main_box,
-            IMAP_SERVER,
-            True,
+        all_emails = _dedupe_fetched_messages(
+            await asyncio.to_thread(
+                _fetch_mailbox_messages,
+                server_mail,
+                email_account,
+                email_password,
+                main_box,
+                IMAP_SERVER,
+                True,
+            )
         )
+    all_emails = _dedupe_fetched_messages(all_emails)
     logger.debug(f'Получено {len(all_emails)} писем за сегодня')
     for msg in all_emails:
         logger.debug(
@@ -1268,13 +1354,16 @@ async def get_emails(
             logger.debug('Config: %s', provider_conf)
             if not _message_matches_provider_config(msg, provider_conf):
                 continue
-            if provider_conf.id not in config_last_uid_cache:
-                config_last_uid_cache[provider_conf.id] = await get_last_uid(
+            folder_name = getattr(msg, 'folder_name', None)
+            cache_key = (provider_conf.id, folder_name)
+            if cache_key not in config_last_uid_cache:
+                config_last_uid_cache[cache_key] = await get_last_uid(
                     provider_id=provider.id,
                     provider_config_id=provider_conf.id,
                     session=session,
+                    folder=folder_name,
                 )
-            last_uid = config_last_uid_cache[provider_conf.id]
+            last_uid = config_last_uid_cache[cache_key]
             msg_uid_int = _safe_uid_as_int(getattr(msg, 'uid', None))
             if msg_uid_int is not None and last_uid >= msg_uid_int:
                 logger.debug(

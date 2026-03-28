@@ -141,7 +141,12 @@ def _sanitize_positive_price_quantity(
     return df
 
 
-def _apply_source_filters(df: pd.DataFrame, source) -> pd.DataFrame:
+def _apply_source_filters(
+    df: pd.DataFrame,
+    source,
+    *,
+    ignore_price_quantity_filters: bool = False,
+) -> pd.DataFrame:
     df = _sanitize_positive_price_quantity(df, context='source_filters')
 
     def _to_int_list(values):
@@ -164,14 +169,15 @@ def _apply_source_filters(df: pd.DataFrame, source) -> pd.DataFrame:
             normalized['autoparts'] = _to_int_list(normalized.get('autoparts'))
         df = position_filters(position_filters=normalized, df=df)
 
-    if source.min_price is not None:
-        df = df[df['price'] >= float(source.min_price)]
-    if source.max_price is not None:
-        df = df[df['price'] <= float(source.max_price)]
-    if source.min_quantity is not None:
-        df = df[df['quantity'] >= int(source.min_quantity)]
-    if source.max_quantity is not None:
-        df = df[df['quantity'] <= int(source.max_quantity)]
+    if not ignore_price_quantity_filters:
+        if source.min_price is not None:
+            df = df[df['price'] >= float(source.min_price)]
+        if source.max_price is not None:
+            df = df[df['price'] <= float(source.max_price)]
+        if source.min_quantity is not None:
+            df = df[df['quantity'] >= int(source.min_quantity)]
+        if source.max_quantity is not None:
+            df = df[df['quantity'] <= int(source.max_quantity)]
 
     return _sanitize_positive_price_quantity(
         df, context='source_filters_after_limits'

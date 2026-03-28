@@ -1672,6 +1672,7 @@ class CRUDCustomerPriceList(
         apply_general_markup: bool = True,
         provider_id: int | None = None,
         is_own_price: bool | None = None,
+        ignore_price_quantity_filters: bool = False,
     ) -> pd.DataFrame:
         logger.debug(
             f'Into apply_coefficient data df:{df}, cofig: {config.__dict__}'
@@ -1757,30 +1758,42 @@ class CRUDCustomerPriceList(
                     position_filters=position_cfg, df=block_df
                 )
 
-            intervals_cfg = filters_cfg.get('price_intervals')
-            if intervals_cfg:
-                block_df = price_intervals(
-                    price_intervals=intervals_cfg, df=block_df
-                )
+            if not ignore_price_quantity_filters:
+                intervals_cfg = filters_cfg.get('price_intervals')
+                if intervals_cfg:
+                    block_df = price_intervals(
+                        price_intervals=intervals_cfg, df=block_df
+                    )
 
-            supplier_qty_cfg = filters_cfg.get('supplier_quantity_filters')
-            if supplier_qty_cfg:
-                block_df = supplier_quantity_filters(
-                    supplier_quantity_filters=supplier_qty_cfg, df=block_df
+                supplier_qty_cfg = filters_cfg.get(
+                    'supplier_quantity_filters'
                 )
+                if supplier_qty_cfg:
+                    block_df = supplier_quantity_filters(
+                        supplier_quantity_filters=supplier_qty_cfg,
+                        df=block_df,
+                    )
 
-            min_price = filters_cfg.get('min_price')
-            max_price = filters_cfg.get('max_price')
-            min_qty = filters_cfg.get('min_quantity')
-            max_qty = filters_cfg.get('max_quantity')
-            if min_price is not None:
-                block_df = block_df[block_df['price'] >= float(min_price)]
-            if max_price is not None:
-                block_df = block_df[block_df['price'] <= float(max_price)]
-            if min_qty is not None:
-                block_df = block_df[block_df['quantity'] >= int(min_qty)]
-            if max_qty is not None:
-                block_df = block_df[block_df['quantity'] <= int(max_qty)]
+                min_price = filters_cfg.get('min_price')
+                max_price = filters_cfg.get('max_price')
+                min_qty = filters_cfg.get('min_quantity')
+                max_qty = filters_cfg.get('max_quantity')
+                if min_price is not None:
+                    block_df = block_df[
+                        block_df['price'] >= float(min_price)
+                    ]
+                if max_price is not None:
+                    block_df = block_df[
+                        block_df['price'] <= float(max_price)
+                    ]
+                if min_qty is not None:
+                    block_df = block_df[
+                        block_df['quantity'] >= int(min_qty)
+                    ]
+                if max_qty is not None:
+                    block_df = block_df[
+                        block_df['quantity'] <= int(max_qty)
+                    ]
 
             return block_df
 
@@ -2266,6 +2279,7 @@ async def get_last_uid(
     provider_id: int,
     session: AsyncSession,
     provider_config_id: int | None = None,
+    folder: str | None = None,
 ) -> int:
     if provider_config_id is not None:
         result = await session.execute(
@@ -2276,6 +2290,14 @@ async def get_last_uid(
         )
         record = result.scalar_one_or_none()
         if record:
+            if folder:
+                folder_uids = getattr(record, 'folder_last_uids', None) or {}
+                folder_uid = folder_uids.get(str(folder))
+                if folder_uid is not None:
+                    try:
+                        return int(folder_uid)
+                    except (TypeError, ValueError):
+                        pass
             return record.last_uid
 
     result = await session.execute(
@@ -2285,6 +2307,14 @@ async def get_last_uid(
     )
     record = result.scalar_one_or_none()
     if record:
+        if folder:
+            folder_uids = getattr(record, 'folder_last_uids', None) or {}
+            folder_uid = folder_uids.get(str(folder))
+            if folder_uid is not None:
+                try:
+                    return int(folder_uid)
+                except (TypeError, ValueError):
+                    pass
         return record.last_uid
     return 0
 
@@ -2294,6 +2324,7 @@ async def set_last_uid(
     last_uid: int,
     session: AsyncSession,
     provider_config_id: int | None = None,
+    folder: str | None = None,
 ):
     if provider_config_id is not None:
         result = await session.execute(
@@ -2312,6 +2343,11 @@ async def set_last_uid(
                 last_uid=last_uid,
             )
             session.add(record)
+        if folder:
+            folder_uids = dict(getattr(record, 'folder_last_uids', None) or {})
+            folder_uids[str(folder)] = int(last_uid)
+            record.folder_last_uids = folder_uids
+            record.last_uid = max(int(record.last_uid or 0), int(last_uid))
 
         await session.commit()
         return
@@ -2330,5 +2366,10 @@ async def set_last_uid(
             provider_id=provider_id, last_uid=last_uid
         )
         session.add(record)
+    if folder:
+        folder_uids = dict(getattr(record, 'folder_last_uids', None) or {})
+        folder_uids[str(folder)] = int(last_uid)
+        record.folder_last_uids = folder_uids
+        record.last_uid = max(int(record.last_uid or 0), int(last_uid))
 
     await session.commit()

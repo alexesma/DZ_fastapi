@@ -532,6 +532,7 @@ class CustomerOrderConfig(Base):
 
     is_active = Column(Boolean, default=True)
     last_uid = Column(Integer, default=0)
+    folder_last_uids = Column(JSON, default=dict)
 
     customer = relationship('Customer', back_populates='order_configs')
     email_account = relationship('EmailAccount')
@@ -730,6 +731,7 @@ class ProviderLastEmailUID(Base):
         Integer, ForeignKey('provider.id'), primary_key=True, unique=True
     )
     last_uid = Column(Integer, nullable=False, default=0)
+    folder_last_uids = Column(JSON, default=dict)
     updated_at = Column(
         DateTime(timezone=True), default=now_moscow, onupdate=now_moscow
     )
@@ -745,6 +747,7 @@ class ProviderConfigLastEmailUID(Base):
         unique=True,
     )
     last_uid = Column(Integer, nullable=False, default=0)
+    folder_last_uids = Column(JSON, default=dict)
     updated_at = Column(
         DateTime(timezone=True), default=now_moscow, onupdate=now_moscow
     )
