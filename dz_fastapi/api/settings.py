@@ -162,6 +162,10 @@ async def update_customer_order_inbox_settings(
     data = payload.model_dump(exclude_unset=True)
     if 'lookback_days' in data:
         data['lookback_days'] = max(1, int(data['lookback_days']))
+    if 'error_file_retention_days' in data:
+        data['error_file_retention_days'] = max(
+            1, int(data['error_file_retention_days'])
+        )
     setting = await crud_customer_order_inbox_settings.update(
         session=session, data=data
     )

@@ -37,6 +37,7 @@ class SchedulerSetting(Base):
 class CustomerOrderInboxSettings(Base):
     lookback_days = Column(Integer, default=1)
     mark_seen = Column(Boolean, default=False)
+    error_file_retention_days = Column(Integer, default=5)
     updated_at = Column(
         DateTime(timezone=True),
         default=now_moscow,

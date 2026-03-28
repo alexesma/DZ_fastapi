@@ -27,8 +27,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import func
 
+from dz_fastapi.api.validators import normalize_brand_name
 from dz_fastapi.core.constants import IMAP_SERVER
 from dz_fastapi.core.time import now_moscow
+from dz_fastapi.crud.brand import brand_crud
 from dz_fastapi.crud.customer_order import (crud_customer_order,
                                             crud_customer_order_config)
 from dz_fastapi.crud.email_account import crud_email_account
@@ -37,7 +39,7 @@ from dz_fastapi.crud.partner import (crud_customer_pricelist,
                                      crud_customer_pricelist_source,
                                      crud_pricelist)
 from dz_fastapi.crud.settings import crud_customer_order_inbox_settings
-from dz_fastapi.models.autopart import AutoPart
+from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import (CUSTOMER_ORDER_ITEM_STATUS,
                                        CUSTOMER_ORDER_SHIP_MODE,
@@ -73,7 +75,11 @@ ORDERS_RESPONSE_DIR = os.getenv(
 ORDERS_REPORT_DIR = os.getenv(
     'CUSTOMER_ORDERS_REPORT_DIR', 'uploads/orders/reports'
 )
+ORDERS_ERROR_DIR = os.getenv(
+    'CUSTOMER_ORDERS_ERROR_DIR', 'uploads/orders/errors'
+)
 ORDERS_RETENTION_DAYS = int(os.getenv('CUSTOMER_ORDERS_REPORT_DAYS', 7))
+ORDER_ERROR_DETAIL_MAX_LEN = 500
 CUSTOMER_ORDERS_FETCH_LIMIT = int(
     os.getenv('CUSTOMER_ORDERS_FETCH_LIMIT', '200')
 )
@@ -414,8 +420,55 @@ def _find_order_number_in_text(
     return None
 
 
-def _normalize_key(oem: str, brand: str) -> Tuple[str, str]:
-    return (str(oem).strip().upper(), str(brand).strip().upper())
+def _normalize_oem_key(oem: Optional[str]) -> str:
+    value = str(oem or '').strip()
+    if not value:
+        return ''
+    return preprocess_oem_number(value)
+
+
+def _canonicalize_brand_key(
+    brand: Optional[str],
+    brand_aliases: Optional[Dict[str, str]] = None,
+) -> str:
+    normalized = normalize_brand_name(str(brand or ''))
+    if not normalized:
+        return ''
+    if not brand_aliases:
+        return normalized
+    return brand_aliases.get(normalized, normalized)
+
+
+def _normalize_key(
+    oem: Optional[str],
+    brand: Optional[str],
+    brand_aliases: Optional[Dict[str, str]] = None,
+) -> Tuple[str, str]:
+    return (
+        _normalize_oem_key(oem),
+        _canonicalize_brand_key(brand, brand_aliases),
+    )
+
+
+async def _load_brand_alias_map(
+    session: AsyncSession,
+) -> Dict[str, str]:
+    alias_map: Dict[str, str] = {}
+    for brand in await brand_crud.get_multi_with_synonyms(session):
+        related = [brand, *(brand.synonyms or [])]
+        canonical = next(
+            (candidate for candidate in related if candidate.main_brand),
+            brand,
+        )
+        canonical_name = normalize_brand_name(canonical.name)
+        if not canonical_name:
+            continue
+        alias_map[canonical_name] = canonical_name
+        for candidate in related:
+            alias = normalize_brand_name(candidate.name)
+            if alias:
+                alias_map[alias] = canonical_name
+    return alias_map
 
 
 def _safe_int(value: Optional[object]) -> Optional[int]:
@@ -743,6 +796,31 @@ def _parse_xls_order(
     return parsed_rows, order_date, order_number, output
 
 
+def _parse_order_attachment(
+    file_bytes: bytes,
+    filename: str,
+    config: CustomerOrderConfig,
+) -> Tuple[List[ParsedOrderRow], Optional[date], Optional[str], BytesIO, str]:
+    file_ext = (filename.rsplit('.', 1)[-1] if '.' in filename else '').lower()
+    if file_ext == 'csv':
+        parsed_rows, order_date, order_number, file_buffer = (
+            _parse_csv_order(file_bytes, config)
+        )
+    elif file_ext == 'xls':
+        parsed_rows, order_date, order_number, file_buffer = (
+            _parse_xls_order(file_bytes, config)
+        )
+    elif file_ext == 'xlsx':
+        parsed_rows, order_date, order_number, file_buffer = (
+            _parse_excel_order(file_bytes, config)
+        )
+    else:
+        raise ValueError(
+            f'Неподдерживаемый тип файла: {file_ext or "unknown"}'
+        )
+    return parsed_rows, order_date, order_number, file_buffer, file_ext
+
+
 def _apply_response_updates_excel(
     file_bytes: BytesIO,
     config: CustomerOrderConfig,
@@ -839,19 +917,26 @@ async def _load_latest_customer_pricelist(
     return result.scalars().first()
 
 
-def _build_expected_price_map(pricelist: CustomerPriceList) -> Dict:
+def _build_expected_price_map(
+    pricelist: CustomerPriceList,
+    brand_aliases: Optional[Dict[str, str]] = None,
+) -> Dict:
     expected = {}
     for assoc in pricelist.autopart_associations:
         autopart = assoc.autopart
         if not autopart or not autopart.brand:
             continue
-        key = _normalize_key(autopart.oem_number, autopart.brand.name)
+        key = _normalize_key(
+            autopart.oem_number, autopart.brand.name, brand_aliases
+        )
         expected[key] = float(assoc.price or 0)
     return expected
 
 
 async def _build_current_offers(
-    session: AsyncSession, config: CustomerPriceListConfig
+    session: AsyncSession,
+    config: CustomerPriceListConfig,
+    brand_aliases: Optional[Dict[str, str]] = None,
 ) -> Dict[Tuple[str, str], OfferRow]:
     sources = await crud_customer_pricelist_source.get_by_config_id(
         config_id=config.id, session=session
@@ -886,25 +971,44 @@ async def _build_current_offers(
         return {}
 
     final_df = pd.concat(combined_data, ignore_index=True)
+    final_df['__normalized_oem'] = final_df['oem_number'].map(
+        _normalize_oem_key
+    )
+    final_df['__normalized_brand'] = final_df['brand'].map(
+        lambda brand: _canonicalize_brand_key(brand, brand_aliases)
+    )
 
     if 'is_own_price' in final_df.columns:
         final_df['__own_rank'] = final_df['is_own_price'].astype(int)
         final_df = (
             final_df.sort_values(
-                by=['oem_number', 'brand', '__own_rank', 'price'],
+                by=[
+                    '__normalized_oem',
+                    '__normalized_brand',
+                    '__own_rank',
+                    'price',
+                ],
                 ascending=[True, True, False, True],
             )
-            .drop_duplicates(subset=['oem_number', 'brand'], keep='first')
+            .drop_duplicates(
+                subset=['__normalized_oem', '__normalized_brand'],
+                keep='first',
+            )
             .drop(columns=['__own_rank'])
         )
     else:
         final_df = final_df.sort_values(
-            by=['oem_number', 'brand', 'price']
-        ).drop_duplicates(subset=['oem_number', 'brand'], keep='first')
+            by=['__normalized_oem', '__normalized_brand', 'price']
+        ).drop_duplicates(
+            subset=['__normalized_oem', '__normalized_brand'], keep='first'
+        )
 
     offers = {}
     for _, row in final_df.iterrows():
-        key = _normalize_key(row.get('oem_number'), row.get('brand'))
+        key = (
+            str(row.get('__normalized_oem') or ''),
+            str(row.get('__normalized_brand') or ''),
+        )
         offers[key] = OfferRow(
             autopart_id=int(row.get('autopart_id')),
             provider_id=int(row.get('provider_id')),
@@ -959,6 +1063,117 @@ def _format_order_amount(value: Optional[float]) -> str:
     if value is None:
         return 'не определена'
     return f'{value:,.2f}'.replace(',', ' ')
+
+
+def _truncate_error_details(reason: Optional[str]) -> Optional[str]:
+    if not reason:
+        return None
+    reason = str(reason).strip()
+    if not reason:
+        return None
+    return reason[:ORDER_ERROR_DETAIL_MAX_LEN]
+
+
+def _order_source_storage_name(order_id: int, filename: Optional[str]) -> str:
+    safe_name = os.path.basename(filename or 'order.xlsx') or 'order.xlsx'
+    return f'{order_id}_{safe_name}'
+
+
+def _order_source_storage_path(order: CustomerOrder) -> Optional[str]:
+    if not order.id or not order.source_filename:
+        return None
+    return os.path.join(
+        ORDERS_ERROR_DIR,
+        _order_source_storage_name(order.id, order.source_filename),
+    )
+
+
+async def _save_order_source_file(
+    order: CustomerOrder,
+    payload: bytes,
+) -> Optional[str]:
+    path = _order_source_storage_path(order)
+    if not path:
+        return None
+    os.makedirs(ORDERS_ERROR_DIR, exist_ok=True)
+    async with aiofiles.open(path, 'wb') as f:
+        await f.write(payload)
+    return path
+
+
+async def _load_order_source_file(order: CustomerOrder) -> Optional[bytes]:
+    path = _order_source_storage_path(order)
+    if not path or not os.path.isfile(path):
+        return None
+    async with aiofiles.open(path, 'rb') as f:
+        return await f.read()
+
+
+def _mark_inbox_account_received_at(
+    inbox_account,
+    received_at: Optional[datetime],
+) -> bool:
+    if (
+        not inbox_account
+        or (inbox_account.transport or '').strip().lower() != 'resend_api'
+        or not received_at
+    ):
+        return False
+    inbox_account.resend_last_received_at = received_at
+    return True
+
+
+def _advance_config_last_uid(
+    config: CustomerOrderConfig,
+    uid: Optional[object],
+) -> bool:
+    msg_uid_int = _safe_uid_as_int(uid)
+    if msg_uid_int is None:
+        return False
+    config.last_uid = msg_uid_int
+    return True
+
+
+def _mark_order_error(
+    order: CustomerOrder,
+    reason: Optional[str],
+) -> None:
+    order.status = CUSTOMER_ORDER_STATUS.ERROR
+    order.processed_at = now_moscow()
+    order.error_details = _truncate_error_details(reason)
+
+
+def _build_order_reply_recipients(
+    sender: Optional[str],
+    config: CustomerOrderConfig,
+) -> str:
+    recipients = set()
+    if sender:
+        recipients.add(sender)
+    for email in _normalize_email_list(config.order_reply_emails):
+        recipients.add(email)
+    return ','.join(sorted(recipients))
+
+
+async def _send_email_attachment_async(
+    to_email: str,
+    subject: str,
+    body: str,
+    attachment: bytes,
+    filename: str,
+    use_tls: bool,
+    **kwargs,
+):
+    await asyncio.to_thread(
+        send_email_with_attachment,
+        to_email,
+        subject,
+        body,
+        attachment,
+        filename,
+        use_tls,
+        **kwargs,
+    )
 
 
 async def _send_order_import_notification(
@@ -1092,9 +1307,7 @@ async def _send_reject_report(
         if account:
             kwargs = build_email_delivery_kwargs(account)
         try:
-            await asyncio.get_running_loop().run_in_executor(
-                None,
-                send_email_with_attachment,
+            await _send_email_attachment_async(
                 report_email,
                 f'Отчет по отказам заказа {order.order_number or order.id}',
                 'Во вложении отчет по отказам.',
@@ -1124,21 +1337,22 @@ async def _prepare_customer_order_context(
     session: AsyncSession,
     config: CustomerOrderConfig,
 ):
+    brand_aliases = await _load_brand_alias_map(session)
     last_pricelist = await _load_latest_customer_pricelist(
         session, config.customer_id
     )
     expected_prices = (
-        _build_expected_price_map(last_pricelist)
+        _build_expected_price_map(last_pricelist, brand_aliases)
         if last_pricelist
         else {}
     )
     pricelist_config = await _resolve_pricelist_config(session, config)
     offers = (
-        await _build_current_offers(session, pricelist_config)
+        await _build_current_offers(session, pricelist_config, brand_aliases)
         if pricelist_config
         else {}
     )
-    return expected_prices, offers
+    return expected_prices, offers, brand_aliases
 
 
 async def _process_manual_rows(
@@ -1147,9 +1361,11 @@ async def _process_manual_rows(
     order: CustomerOrder,
     parsed_rows: List[ParsedOrderRow],
 ):
-    expected_prices, offers = await _prepare_customer_order_context(
-        session, config
-    )
+    (
+        expected_prices,
+        offers,
+        brand_aliases,
+    ) = await _prepare_customer_order_context(session, config)
 
     order_items: List[CustomerOrderItem] = []
     supplier_items: Dict[int, List[CustomerOrderItem]] = {}
@@ -1157,7 +1373,7 @@ async def _process_manual_rows(
     rejected_items: List[CustomerOrderItem] = []
 
     for row in parsed_rows:
-        key = _normalize_key(row.oem, row.brand)
+        key = _normalize_key(row.oem, row.brand, brand_aliases)
         expected_price = expected_prices.get(key)
         offer = offers.get(key)
         requested_price = row.requested_price
@@ -1318,6 +1534,234 @@ async def _process_manual_rows(
     order.processed_at = now_moscow()
     await session.commit()
     return order_items, rejected_items
+
+
+def _build_order_response_buffer(
+    file_ext: str,
+    file_buffer,
+    config: CustomerOrderConfig,
+    order_items: List[CustomerOrderItem],
+):
+    if file_ext == 'csv':
+        return _apply_response_updates_csv(file_buffer, config, order_items)
+    return _apply_response_updates_excel(file_buffer, config, order_items)
+
+
+async def _write_order_response_file(
+    order: CustomerOrder,
+    filename: str,
+    file_ext: str,
+    response_buffer: BytesIO,
+) -> tuple[str, str]:
+    os.makedirs(ORDERS_RESPONSE_DIR, exist_ok=True)
+    if file_ext == 'xls':
+        base = filename.rsplit('.', 1)[0]
+        response_name = f'{base}.xlsx'
+    else:
+        response_name = filename
+    response_path = os.path.join(
+        ORDERS_RESPONSE_DIR,
+        f'{order.id}_{response_name}',
+    )
+    async with aiofiles.open(response_path, 'wb') as f:
+        await f.write(response_buffer.getvalue())
+    order.response_file_path = response_path
+    order.response_file_name = response_name
+    return response_path, response_name
+
+
+async def _send_order_response_email(
+    session: AsyncSession,
+    config: CustomerOrderConfig,
+    order: CustomerOrder,
+    attachment_bytes: Optional[bytes] = None,
+) -> None:
+    if attachment_bytes is None:
+        if not order.response_file_path or not os.path.isfile(
+            order.response_file_path
+        ):
+            raise ValueError('Response file is missing')
+        async with aiofiles.open(order.response_file_path, 'rb') as f:
+            attachment_bytes = await f.read()
+    if not attachment_bytes:
+        raise ValueError('Response file is empty')
+    if not order.response_file_name:
+        raise ValueError('Response filename is missing')
+
+    to_email = _build_order_reply_recipients(order.source_email, config)
+    if not to_email:
+        raise ValueError('No recipients for order response')
+
+    try:
+        out_account = await _get_out_account(session, 'orders_out')
+        kwargs = {}
+        if out_account:
+            kwargs = build_email_delivery_kwargs(out_account)
+        await _send_email_attachment_async(
+            to_email,
+            f'Ответ по заказу {order.order_number or order.id}',
+            'Во вложении файл с подтвержденными количествами.',
+            attachment_bytes,
+            order.response_file_name,
+            False,
+            **kwargs,
+        )
+        order.status = CUSTOMER_ORDER_STATUS.SENT
+        order.error_details = None
+    except Exception as exc:
+        logger.error(
+            'Failed to send order response: %s', exc, exc_info=True
+        )
+        _mark_order_error(order, f'Ошибка отправки ответа: {exc}')
+    await session.commit()
+
+
+async def _complete_imported_order_processing(
+    session: AsyncSession,
+    config: CustomerOrderConfig,
+    order: CustomerOrder,
+    parsed_rows: List[ParsedOrderRow],
+    file_buffer,
+    file_ext: str,
+    filename: str,
+    total_amount: Optional[float],
+) -> CustomerOrder:
+    order_items, rejected_items = await _process_manual_rows(
+        session, config, order, parsed_rows
+    )
+    response_buffer = _build_order_response_buffer(
+        file_ext, file_buffer, config, order_items
+    )
+    await _write_order_response_file(
+        order, filename, file_ext, response_buffer
+    )
+    order.error_details = None
+    await session.commit()
+
+    await _send_order_import_notification(
+        config,
+        order.source_email or '',
+        order.source_subject,
+        filename,
+        success=True,
+        order_number=order.order_number,
+        total_amount=total_amount,
+        rows_count=len(parsed_rows),
+    )
+    await _send_reject_report(session, order, rejected_items)
+    await _send_order_response_email(
+        session,
+        config,
+        order,
+        attachment_bytes=response_buffer.getvalue(),
+    )
+    return order
+
+
+def _apply_matched_email_state(
+    session: AsyncSession,
+    config: CustomerOrderConfig,
+    msg,
+    inbox_account,
+) -> None:
+    _advance_config_last_uid(config, getattr(msg, 'uid', None))
+    session.add(config)
+    if _mark_inbox_account_received_at(
+        inbox_account, getattr(msg, 'received_at', None)
+    ):
+        session.add(inbox_account)
+
+
+async def _create_import_order_stub(
+    session: AsyncSession,
+    config: CustomerOrderConfig,
+    sender: str,
+    msg,
+    filename: str,
+    file_hash: str,
+    order_number: Optional[str] = None,
+    order_date: Optional[date] = None,
+) -> CustomerOrder:
+    order = CustomerOrder(
+        customer_id=config.customer_id,
+        order_config_id=config.id,
+        status=CUSTOMER_ORDER_STATUS.NEW,
+        received_at=getattr(msg, 'received_at', None) or now_moscow(),
+        source_email=sender,
+        source_uid=_safe_uid_as_int(getattr(msg, 'uid', None)),
+        source_subject=getattr(msg, 'subject', None),
+        source_filename=filename,
+        order_number=order_number,
+        order_date=order_date,
+        file_hash=file_hash,
+    )
+    session.add(order)
+    await session.commit()
+    await session.refresh(order)
+    return order
+
+
+async def _ensure_import_order_stub(
+    session: AsyncSession,
+    *,
+    order_id: Optional[int],
+    config: CustomerOrderConfig,
+    sender: str,
+    msg,
+    filename: str,
+    file_hash: str,
+    order_number: Optional[str] = None,
+    order_date: Optional[date] = None,
+) -> CustomerOrder:
+    if order_id is not None:
+        order = await session.get(CustomerOrder, order_id)
+        if order:
+            if order_number and not order.order_number:
+                order.order_number = order_number
+            if order_date and not order.order_date:
+                order.order_date = order_date
+            return order
+    return await _create_import_order_stub(
+        session,
+        config,
+        sender,
+        msg,
+        filename,
+        file_hash,
+        order_number=order_number,
+        order_date=order_date,
+    )
+
+
+async def _store_import_error(
+    session: AsyncSession,
+    config: CustomerOrderConfig,
+    order: CustomerOrder,
+    msg,
+    inbox_account,
+    file_bytes: bytes,
+    *,
+    reason: str,
+    total_amount: Optional[float] = None,
+    rows_count: Optional[int] = None,
+) -> CustomerOrder:
+    _mark_order_error(order, reason)
+    await _save_order_source_file(order, file_bytes)
+    _apply_matched_email_state(session, config, msg, inbox_account)
+    session.add(order)
+    await session.commit()
+    await _send_order_import_notification(
+        config,
+        order.source_email or '',
+        order.source_subject,
+        order.source_filename,
+        success=False,
+        reason=reason,
+        order_number=order.order_number,
+        total_amount=total_amount,
+        rows_count=rows_count,
+    )
+    return order
 
 
 async def create_manual_customer_order(
@@ -1488,6 +1932,182 @@ async def process_manual_customer_order(
     return order
 
 
+async def retry_customer_order(
+    session: AsyncSession,
+    order_id: int,
+) -> CustomerOrder:
+    order = await crud_customer_order.get_by_id(
+        session=session, order_id=order_id
+    )
+    if not order:
+        raise LookupError('Order not found')
+    if order.status != CUSTOMER_ORDER_STATUS.ERROR:
+        raise ValueError('Only errored orders can be retried')
+    if not order.order_config_id:
+        raise ValueError('Order is not linked to an order config')
+
+    config = await crud_customer_order_config.get_by_id(
+        session=session, config_id=order.order_config_id
+    )
+    if not config:
+        raise ValueError('Order config not found')
+
+    if order.response_file_path and os.path.isfile(order.response_file_path):
+        await _send_order_response_email(session, config, order)
+        await session.refresh(order)
+        if order.status == CUSTOMER_ORDER_STATUS.ERROR:
+            raise ValueError(
+                order.error_details or 'Не удалось повторно отправить ответ'
+            )
+        return order
+
+    source_bytes = await _load_order_source_file(order)
+    if not source_bytes:
+        reason = (
+            'Исходный файл заказа больше недоступен. '
+            'Проверьте письмо вручную и загрузите заказ заново.'
+        )
+        _mark_order_error(order, reason)
+        session.add(order)
+        await session.commit()
+        raise ValueError(reason)
+
+    filename = order.source_filename or 'order.xlsx'
+    try:
+        (
+            parsed_rows,
+            order_date,
+            order_number_file,
+            file_buffer,
+            file_ext,
+        ) = _parse_order_attachment(source_bytes, filename, config)
+    except Exception as exc:
+        reason = f'Ошибка повторного разбора файла: {exc}'
+        _mark_order_error(order, reason)
+        session.add(order)
+        await session.commit()
+        raise ValueError(reason) from exc
+
+    if order.order_date is None and order_date:
+        order.order_date = order_date
+    if not order.order_number and order_number_file:
+        order.order_number = order_number_file
+
+    if order.items:
+        try:
+            response_buffer = _build_order_response_buffer(
+                file_ext, file_buffer, config, order.items
+            )
+            await _write_order_response_file(
+                order, filename, file_ext, response_buffer
+            )
+            order.error_details = None
+            session.add(order)
+            await session.commit()
+            await _send_order_response_email(
+                session,
+                config,
+                order,
+                attachment_bytes=response_buffer.getvalue(),
+            )
+        except Exception as exc:
+            reason = f'Ошибка повторной отправки ответа: {exc}'
+            _mark_order_error(order, reason)
+            session.add(order)
+            await session.commit()
+            raise ValueError(reason) from exc
+        await session.refresh(order)
+        if order.status == CUSTOMER_ORDER_STATUS.ERROR:
+            raise ValueError(
+                order.error_details or 'Не удалось повторно отправить ответ'
+            )
+        return order
+
+    requested_total = _compute_order_requested_total(parsed_rows)
+    if not parsed_rows:
+        reason = 'Не удалось распознать строки заказа'
+        _mark_order_error(order, reason)
+        session.add(order)
+        await session.commit()
+        raise ValueError(reason)
+
+    order.status = CUSTOMER_ORDER_STATUS.NEW
+    order.processed_at = None
+    order.error_details = None
+    session.add(order)
+    await session.commit()
+
+    try:
+        await _complete_imported_order_processing(
+            session,
+            config,
+            order,
+            parsed_rows,
+            file_buffer,
+            file_ext,
+            filename,
+            requested_total,
+        )
+    except Exception as exc:
+        await session.rollback()
+        order = await session.get(CustomerOrder, order.id)
+        if not order:
+            raise ValueError('Order not found after retry rollback') from exc
+        reason = f'Ошибка повторной обработки: {exc}'
+        _mark_order_error(order, reason)
+        session.add(order)
+        await session.commit()
+        raise ValueError(reason) from exc
+
+    await session.refresh(order)
+    if order.status == CUSTOMER_ORDER_STATUS.ERROR:
+        raise ValueError(
+            order.error_details or 'Не удалось завершить повторную обработку'
+        )
+    return order
+
+
+async def retry_customer_order_errors_for_config(
+    session: AsyncSession,
+    config_id: int,
+) -> Dict[str, int]:
+    config = await crud_customer_order_config.get_by_id(
+        session=session, config_id=config_id
+    )
+    if not config:
+        raise LookupError('Config not found')
+
+    result = await session.execute(
+        select(CustomerOrder.id)
+        .where(
+            CustomerOrder.order_config_id == config_id,
+            CustomerOrder.status == CUSTOMER_ORDER_STATUS.ERROR,
+        )
+        .order_by(CustomerOrder.received_at.asc(), CustomerOrder.id.asc())
+    )
+    order_ids = list(result.scalars().all())
+    stats = {
+        'config_id': config_id,
+        'total': len(order_ids),
+        'retried': 0,
+        'succeeded': 0,
+        'failed': 0,
+    }
+    for order_id in order_ids:
+        stats['retried'] += 1
+        try:
+            await retry_customer_order(session, order_id)
+            stats['succeeded'] += 1
+        except Exception as exc:
+            logger.warning(
+                'Retry failed for customer order %s: %s',
+                order_id,
+                exc,
+            )
+            stats['failed'] += 1
+    return stats
+
+
 async def create_manual_supplier_order(
     session: AsyncSession,
     provider_id: int,
@@ -1567,7 +2187,11 @@ async def create_manual_supplier_order(
     return supplier_order
 
 
-async def process_customer_orders(session: AsyncSession) -> None:
+async def process_customer_orders(
+    session: AsyncSession,
+    customer_id: Optional[int] = None,
+    config_id: Optional[int] = None,
+) -> None:
     order_accounts = await crud_email_account.get_active_by_purpose(
         session, 'orders_in'
     )
@@ -1579,15 +2203,34 @@ async def process_customer_orders(session: AsyncSession) -> None:
         logger.warning('Order email credentials are not configured.')
         return
 
-    configs = await session.execute(
+    config_stmt = (
         select(CustomerOrderConfig)
         .where(CustomerOrderConfig.is_active.is_(True))
         .options(joinedload(CustomerOrderConfig.customer))
     )
+    if customer_id is not None:
+        config_stmt = config_stmt.where(
+            CustomerOrderConfig.customer_id == customer_id
+        )
+    if config_id is not None:
+        config_stmt = config_stmt.where(CustomerOrderConfig.id == config_id)
+    configs = await session.execute(config_stmt)
     configs = configs.scalars().all()
     if not configs:
         logger.info('No active customer order configs found.')
         return
+
+    specific_account_ids = {
+        cfg.email_account_id
+        for cfg in configs
+        if cfg.email_account_id is not None
+    }
+    if order_accounts and specific_account_ids:
+        order_accounts = [
+            account
+            for account in order_accounts
+            if account.id in specific_account_ids
+        ]
 
     config_by_email: dict[str, list[CustomerOrderConfig]] = {}
     for config in configs:
@@ -1716,8 +2359,15 @@ async def process_customer_orders(session: AsyncSession) -> None:
     for msg, inbox_account in messages:
         config = None
         attachment = None
+        order = None
+        sender = _extract_email(msg.from_)
+        filename = None
+        file_bytes = b''
+        file_hash = ''
+        requested_total = None
+        parsed_rows: List[ParsedOrderRow] | None = None
+        order_number_hint = None
         try:
-            sender = _extract_email(msg.from_)
             configs_for_sender = config_by_email.get(sender) or []
             account_id = inbox_account.id if inbox_account else None
             logger.debug(
@@ -1817,121 +2467,24 @@ async def process_customer_orders(session: AsyncSession) -> None:
                 continue
 
             filename = attachment.filename or 'order.xlsx'
-            file_bytes = attachment.payload
-            file_ext = filename.split('.')[-1].lower()
+            file_bytes = attachment.payload or b''
+            file_hash = hashlib.sha256(file_bytes).hexdigest()
             body_text = msg.text or ''
             if not body_text and msg.html:
                 body_text = _strip_html(msg.html)
-
-            if file_ext not in ('xlsx', 'xls', 'csv'):
-                logger.warning('Unsupported order file type: %s', file_ext)
-                await _send_order_import_notification(
-                    config,
-                    sender,
-                    getattr(msg, 'subject', None),
-                    filename,
-                    success=False,
-                    reason=f'Неподдерживаемый тип файла: {file_ext}',
-                )
-                if (
-                    inbox_account
-                    and (inbox_account.transport or '').strip().lower()
-                    == 'resend_api'
-                    and msg.received_at
-                ):
-                    inbox_account.resend_last_received_at = msg.received_at
-                    session.add(inbox_account)
-                    await session.commit()
-                continue
-
-            if file_ext == 'csv':
-                (
-                    parsed_rows,
-                    order_date,
-                    order_number_file,
-                    file_buffer,
-                ) = _parse_csv_order(file_bytes, config)
-            elif file_ext == 'xls':
-                (
-                    parsed_rows,
-                    order_date,
-                    order_number_file,
-                    file_buffer,
-                ) = _parse_xls_order(file_bytes, config)
-            else:
-                (
-                    parsed_rows,
-                    order_date,
-                    order_number_file,
-                    file_buffer,
-                ) = _parse_excel_order(file_bytes, config)
-
-            requested_total = _compute_order_requested_total(parsed_rows)
-            if not parsed_rows:
-                logger.info('No order rows found in %s', filename)
-                await _send_order_import_notification(
-                    config,
-                    sender,
-                    getattr(msg, 'subject', None),
-                    filename,
-                    success=False,
-                    reason='Не удалось распознать строки заказа',
-                    total_amount=requested_total,
-                )
-                if (
-                    inbox_account
-                    and (inbox_account.transport or '').strip().lower()
-                    == 'resend_api'
-                    and msg.received_at
-                ):
-                    inbox_account.resend_last_received_at = msg.received_at
-                    session.add(inbox_account)
-                    await session.commit()
-                continue
-
-            order_number = _extract_order_number(
+            order_number_hint = _extract_order_number(
                 config, msg.subject, filename, body_text
             )
-            if not order_number:
-                order_number = order_number_file
 
-            last_pricelist = await _load_latest_customer_pricelist(
-                session, config.customer_id
-            )
-            expected_prices = (
-                _build_expected_price_map(last_pricelist)
-                if last_pricelist
-                else {}
-            )
-
-            pricelist_config = await _resolve_pricelist_config(
-                session, config
-            )
-            offers = (
-                await _build_current_offers(session, pricelist_config)
-                if pricelist_config
-                else {}
-            )
-
-            file_hash = hashlib.sha256(file_bytes).hexdigest()
             existing = await session.execute(
                 select(CustomerOrder).where(
                     CustomerOrder.customer_id == config.customer_id,
                     CustomerOrder.file_hash == file_hash,
                 )
             )
-            if existing.scalars().first():
-                msg_uid_int = _safe_uid_as_int(msg.uid)
-                if msg_uid_int is not None:
-                    config.last_uid = msg_uid_int
-                if (
-                    inbox_account
-                    and (inbox_account.transport or '').strip().lower()
-                    == 'resend_api'
-                    and msg.received_at
-                ):
-                    inbox_account.resend_last_received_at = msg.received_at
-                    session.add(inbox_account)
+            existing_order = existing.scalars().first()
+            if existing_order:
+                _apply_matched_email_state(session, config, msg, inbox_account)
                 await _send_order_import_notification(
                     config,
                     sender,
@@ -1939,284 +2492,165 @@ async def process_customer_orders(session: AsyncSession) -> None:
                     filename,
                     success=False,
                     reason='Дубликат файла: заказ уже загружен ранее',
-                    order_number=order_number,
-                    total_amount=requested_total,
-                    rows_count=len(parsed_rows),
+                    order_number=(
+                        existing_order.order_number or order_number_hint
+                    ),
                 )
                 await session.commit()
                 continue
-            order = CustomerOrder(
-                customer_id=config.customer_id,
-                status=CUSTOMER_ORDER_STATUS.NEW,
-                received_at=now_moscow(),
-                source_email=sender,
-                source_uid=_safe_uid_as_int(msg.uid),
-                source_subject=msg.subject,
-                source_filename=filename,
-                order_number=order_number,
-                order_date=order_date,
-                file_hash=file_hash,
-            )
-            session.add(order)
-            await session.flush()
 
-            order_items: List[CustomerOrderItem] = []
-            supplier_items: Dict[int, List[CustomerOrderItem]] = {}
-            stock_items: List[CustomerOrderItem] = []
-            rejected_items: List[CustomerOrderItem] = []
-
-            for row in parsed_rows:
-                key = _normalize_key(row.oem, row.brand)
-                expected_price = expected_prices.get(key)
-                offer = offers.get(key)
-                requested_price = row.requested_price
-                customer_price = _resolve_customer_target_price(
-                    expected_price, requested_price, offer
-                )
-
-                item = CustomerOrderItem(
-                    order_id=order.id,
-                    row_index=row.row_index,
-                    oem=row.oem,
-                    brand=row.brand,
-                    name=row.name,
-                    requested_qty=row.requested_qty,
-                    requested_price=requested_price,
-                    status=CUSTOMER_ORDER_ITEM_STATUS.NEW,
-                )
-                if not offer or not customer_price or customer_price <= 0:
-                    item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
-                    item.ship_qty = 0
-                    item.reject_qty = row.requested_qty
-                else:
-                    offered_price = offer.price
-                    diff_pct = _compute_price_diff_pct(
-                        customer_price, offered_price
-                    )
-                    item.price_diff_pct = diff_pct
-                    item.matched_price = offered_price
-
-                    warning_pct = config.price_warning_pct or 5.0
-                    tolerance_pct = config.price_tolerance_pct or 2.0
-                    if diff_pct > warning_pct:
-                        if offer.is_own_price:
-                            item.status = CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK
-                            await _send_price_warning(
-                                order,
-                                item,
-                                customer_price,
-                                offered_price,
-                                diff_pct,
-                                critical=True,
-                            )
-                        else:
-                            item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
-                            item.ship_qty = 0
-                            item.reject_qty = row.requested_qty
-                            await _send_price_warning(
-                                order,
-                                item,
-                                customer_price,
-                                offered_price,
-                                diff_pct,
-                                critical=True,
-                            )
-                    else:
-                        if diff_pct > tolerance_pct:
-                            await _send_price_warning(
-                                order,
-                                item,
-                                customer_price,
-                                offered_price,
-                                diff_pct,
-                                critical=False,
-                            )
-                        item.status = (
-                            CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK
-                            if offer.is_own_price
-                            else CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
-                        )
-
-                    if item.status != CUSTOMER_ORDER_ITEM_STATUS.REJECTED:
-                        available_qty = int(offer.quantity or 0)
-                        if available_qty < 0:
-                            available_qty = 0
-                        ship_qty = min(row.requested_qty, available_qty)
-                        reject_qty = max(row.requested_qty - ship_qty, 0)
-                        item.ship_qty = ship_qty
-                        item.reject_qty = reject_qty
-                        item.autopart_id = offer.autopart_id
-                        if offer.is_own_price:
-                            item.supplier_id = None
-                        else:
-                            item.supplier_id = offer.provider_id
-                        if ship_qty == 0:
-                            item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
-
-                order_items.append(item)
-                session.add(item)
-                await session.flush()
-
-                if (
-                    item.status == CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK
-                    and item.ship_qty
-                ):
-                    stock_items.append(item)
-                elif (
-                    item.status == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
-                    and item.ship_qty
-                ):
-                    supplier_items.setdefault(
-                        item.supplier_id, []
-                    ).append(item)
-                elif item.status == CUSTOMER_ORDER_ITEM_STATUS.REJECTED:
-                    rejected_items.append(item)
-
-            if stock_items:
-                stock_order = StockOrder(
-                    customer_id=config.customer_id,
-                    status=STOCK_ORDER_STATUS.NEW,
-                )
-                session.add(stock_order)
-                await session.flush()
-                for item in stock_items:
-                    session.add(
-                        StockOrderItem(
-                            stock_order_id=stock_order.id,
-                            customer_order_item_id=item.id,
-                            autopart_id=item.autopart_id,
-                            quantity=item.ship_qty or 0,
-                        )
-                    )
-
-            for provider_id, items in supplier_items.items():
-                order_stmt = (
-                    select(SupplierOrder)
-                    .where(
-                        SupplierOrder.provider_id == provider_id,
-                        SupplierOrder.status.in_(
-                            [
-                                SUPPLIER_ORDER_STATUS.NEW,
-                                SUPPLIER_ORDER_STATUS.SCHEDULED,
-                            ]
-                        ),
-                    )
-                    .order_by(SupplierOrder.created_at.asc())
-                    .limit(1)
-                )
-                supplier_order = (
-                    await session.execute(order_stmt)
-                ).scalar_one_or_none()
-                if not supplier_order:
-                    supplier_order = SupplierOrder(
-                        provider_id=provider_id,
-                        status=SUPPLIER_ORDER_STATUS.NEW,
-                    )
-                    session.add(supplier_order)
-                    await session.flush()
-                for item in items:
-                    session.add(
-                        SupplierOrderItem(
-                            supplier_order_id=supplier_order.id,
-                            customer_order_item_id=item.id,
-                            autopart_id=item.autopart_id,
-                            quantity=item.ship_qty or 0,
-                            price=item.matched_price,
-                        )
-                    )
-
-            if file_ext == 'csv':
-                response_buffer = _apply_response_updates_csv(
-                    file_buffer, config, order_items
-                )
-            else:
-                response_buffer = _apply_response_updates_excel(
-                    file_buffer, config, order_items
-                )
-
-            os.makedirs(ORDERS_RESPONSE_DIR, exist_ok=True)
-            if file_ext == 'xls':
-                base = filename.rsplit('.', 1)[0]
-                response_name = f'{base}.xlsx'
-            else:
-                response_name = filename
-            response_path = os.path.join(
-                ORDERS_RESPONSE_DIR,
-                f'{order.id}_{response_name}',
-            )
-            async with aiofiles.open(response_path, 'wb') as f:
-                await f.write(response_buffer.getvalue())
-
-            order.response_file_path = response_path
-            order.response_file_name = response_name
-            order.status = CUSTOMER_ORDER_STATUS.PROCESSED
-            order.processed_at = now_moscow()
-
-            await session.commit()
-
-            await _send_order_import_notification(
+            order = await _create_import_order_stub(
+                session,
                 config,
                 sender,
-                getattr(msg, 'subject', None),
+                msg,
                 filename,
-                success=True,
-                order_number=order.order_number,
-                total_amount=requested_total,
-                rows_count=len(parsed_rows),
+                file_hash,
+                order_number=order_number_hint,
             )
 
-            await _send_reject_report(session, order, rejected_items)
-
-            recipients = set([sender])
-            for email in _normalize_email_list(config.order_reply_emails):
-                recipients.add(email)
-            to_email = ','.join(sorted(recipients))
-
             try:
-                out_account = await _get_out_account(session, 'orders_out')
-                kwargs = {}
-                if out_account:
-                    kwargs = build_email_delivery_kwargs(out_account)
-                await asyncio.get_running_loop().run_in_executor(
-                    None,
-                    send_email_with_attachment,
-                    to_email,
-                    f'Ответ по заказу {order.order_number or order.id}',
-                    'Во вложении файл с подтвержденными количествами.',
-                    response_buffer.getvalue(),
-                    response_name,
-                    False,
-                    **kwargs,
-                )
-                order.status = CUSTOMER_ORDER_STATUS.SENT
+                (
+                    parsed_rows,
+                    order_date,
+                    order_number_file,
+                    file_buffer,
+                    file_ext,
+                ) = _parse_order_attachment(file_bytes, filename, config)
             except Exception as exc:
                 logger.error(
-                    'Failed to send order response: %s', exc, exc_info=True
+                    'Failed to parse order email uid=%s: %s',
+                    getattr(msg, 'uid', None),
+                    exc,
+                    exc_info=True,
                 )
-                order.status = CUSTOMER_ORDER_STATUS.ERROR
-
-            msg_uid_int = _safe_uid_as_int(msg.uid)
-            if msg_uid_int is not None:
-                config.last_uid = msg_uid_int
-            if (
-                inbox_account
-                and (inbox_account.transport or '').strip().lower()
-                == 'resend_api'
-                and msg.received_at
-            ):
-                inbox_account.resend_last_received_at = msg.received_at
-                session.add(inbox_account)
-            await session.commit()
-        except Exception as exc:
-            if config and attachment:
-                await _send_order_import_notification(
+                order = await _ensure_import_order_stub(
+                    session,
+                    order_id=getattr(order, 'id', None),
+                    config=config,
+                    sender=sender,
+                    msg=msg,
+                    filename=filename,
+                    file_hash=file_hash,
+                    order_number=order_number_hint,
+                )
+                await _store_import_error(
+                    session,
                     config,
-                    sender,
-                    getattr(msg, 'subject', None),
-                    getattr(attachment, 'filename', None),
-                    success=False,
-                    reason=f'Ошибка обработки: {exc}',
+                    order,
+                    msg,
+                    inbox_account,
+                    file_bytes,
+                    reason=(
+                        str(exc)
+                        if str(exc).startswith('Неподдерживаемый тип файла:')
+                        else f'Ошибка разбора файла: {exc}'
+                    ),
                 )
+                continue
+
+            if order.order_date is None and order_date:
+                order.order_date = order_date
+            if not order.order_number:
+                order.order_number = order_number_file or order_number_hint
+            session.add(order)
+            await session.commit()
+
+            requested_total = _compute_order_requested_total(parsed_rows)
+            if not parsed_rows:
+                logger.info('No order rows found in %s', filename)
+                await _store_import_error(
+                    session,
+                    config,
+                    order,
+                    msg,
+                    inbox_account,
+                    file_bytes,
+                    reason='Не удалось распознать строки заказа',
+                    total_amount=requested_total,
+                    rows_count=0,
+                )
+                continue
+
+            try:
+                await _complete_imported_order_processing(
+                    session,
+                    config,
+                    order,
+                    parsed_rows,
+                    file_buffer,
+                    file_ext,
+                    filename,
+                    requested_total,
+                )
+                _apply_matched_email_state(session, config, msg, inbox_account)
+                await session.commit()
+            except Exception as exc:
+                await session.rollback()
+                logger.error(
+                    'Failed to process order email uid=%s: %s',
+                    getattr(msg, 'uid', None),
+                    exc,
+                    exc_info=True,
+                )
+                order = await _ensure_import_order_stub(
+                    session,
+                    order_id=getattr(order, 'id', None),
+                    config=config,
+                    sender=sender,
+                    msg=msg,
+                    filename=filename,
+                    file_hash=file_hash,
+                    order_number=order_number_file or order_number_hint,
+                    order_date=order_date,
+                )
+                await _store_import_error(
+                    session,
+                    config,
+                    order,
+                    msg,
+                    inbox_account,
+                    file_bytes,
+                    reason=f'Ошибка обработки: {exc}',
+                    total_amount=requested_total,
+                    rows_count=len(parsed_rows),
+                )
+        except Exception as exc:
+            await session.rollback()
+            if config and attachment and filename is not None:
+                try:
+                    order = await _ensure_import_order_stub(
+                        session,
+                        order_id=getattr(order, 'id', None),
+                        config=config,
+                        sender=sender,
+                        msg=msg,
+                        filename=filename,
+                        file_hash=(
+                            file_hash
+                            or hashlib.sha256(file_bytes).hexdigest()
+                        ),
+                        order_number=order_number_hint,
+                    )
+                    await _store_import_error(
+                        session,
+                        config,
+                        order,
+                        msg,
+                        inbox_account,
+                        file_bytes,
+                        reason=f'Ошибка обработки: {exc}',
+                        total_amount=requested_total,
+                        rows_count=len(parsed_rows or []),
+                    )
+                except Exception as persist_exc:
+                    await session.rollback()
+                    logger.error(
+                        'Failed to persist order import error uid=%s: %s',
+                        getattr(msg, 'uid', None),
+                        persist_exc,
+                        exc_info=True,
+                    )
             logger.error(
                 'Failed to process order email uid=%s: %s',
                 getattr(msg, 'uid', None),
@@ -2279,9 +2713,7 @@ async def send_supplier_orders(
         pd.DataFrame(rows).to_excel(buffer, index=False)
         buffer.seek(0)
         try:
-            await asyncio.get_running_loop().run_in_executor(
-                None,
-                send_email_with_attachment,
+            await _send_email_attachment_async(
                 to_email,
                 f'Заказ поставщику #{order.id}',
                 'Во вложении заказ на поставку.',
@@ -2643,4 +3075,27 @@ def cleanup_order_reports(days: int = ORDERS_RETENTION_DAYS) -> int:
                     removed += 1
             except Exception as exc:
                 logger.error('Failed to remove report %s: %s', path, exc)
+    return removed
+
+
+def cleanup_order_error_files(days: int) -> int:
+    if days <= 0:
+        return 0
+    cutoff = now_moscow().timestamp() - days * 86400
+    if not os.path.isdir(ORDERS_ERROR_DIR):
+        return 0
+    removed = 0
+    for root, _, files in os.walk(ORDERS_ERROR_DIR):
+        for name in files:
+            path = os.path.join(root, name)
+            try:
+                if os.path.getmtime(path) < cutoff:
+                    os.remove(path)
+                    removed += 1
+            except Exception as exc:
+                logger.error(
+                    'Failed to remove order error file %s: %s',
+                    path,
+                    exc,
+                )
     return removed

@@ -25,7 +25,8 @@ from dz_fastapi.crud.partner import (crud_customer, crud_customer_pricelist,
                                      crud_customer_pricelist_config,
                                      crud_pricelist, crud_provider,
                                      crud_provider_pricelist_config)
-from dz_fastapi.crud.settings import (crud_price_check_log,
+from dz_fastapi.crud.settings import (crud_customer_order_inbox_settings,
+                                      crud_price_check_log,
                                       crud_price_check_schedule,
                                       crud_price_stale_alert,
                                       crud_scheduler_setting,
@@ -40,7 +41,7 @@ from dz_fastapi.schemas.partner import (CustomerCreate,
                                         ProviderCreate,
                                         ProviderPriceListConfigCreate)
 from dz_fastapi.services.customer_orders import (
-    cleanup_order_reports, process_customer_orders,
+    cleanup_order_error_files, cleanup_order_reports, process_customer_orders,
     send_scheduled_supplier_orders)
 from dz_fastapi.services.email import (build_email_delivery_kwargs, get_emails,
                                        send_email_message)
@@ -60,6 +61,9 @@ EMAIL_HOST_ORDER = os.getenv('EMAIL_HOST_ORDERS')
 PRICELIST_STALE_ALERT_RETENTION_DAYS = int(
     os.getenv('PRICELIST_STALE_ALERT_RETENTION_DAYS', '7')
 )
+ENABLE_LEGACY_ZZAP_AUTO_SEND = os.getenv(
+    'ENABLE_LEGACY_ZZAP_AUTO_SEND', '0'
+).strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
 async def _notify_scheduler_issue(
@@ -68,10 +72,9 @@ async def _notify_scheduler_issue(
     subject: str,
     text: str,
 ) -> None:
-    delivered = False
     try:
         await send_message_to_telegram(text)
-        delivered = True
+        return
     except Exception as exc:
         logger.error(
             'Failed to send scheduler Telegram alert: %s',
@@ -104,9 +107,7 @@ async def _notify_scheduler_issue(
                     **kwargs,
                 )
             )
-            if email_sent:
-                delivered = True
-            else:
+            if not email_sent:
                 logger.error(
                     'Failed to send scheduler alert email to %s',
                     analytics_email,
@@ -121,9 +122,6 @@ async def _notify_scheduler_issue(
         logger.warning(
             'EMAIL_NAME_ANALYTIC not set; scheduler email alert skipped'
         )
-
-    if not delivered:
-        logger.warning('Scheduler alert was not delivered by any channel')
 
 
 def start_scheduler(app: FastAPI):
@@ -335,7 +333,18 @@ async def _process_one(item, app: FastAPI, sem: asyncio.Semaphore):
                     )
 
                     if provider.name == PROVIDER_IN['name']:
-                        await send_price_list_task(app)
+                        if ENABLE_LEGACY_ZZAP_AUTO_SEND:
+                            logger.info(
+                                'Legacy ZZAP auto-send is enabled; '
+                                'running send_price_list_task'
+                            )
+                            await send_price_list_task(app)
+                        else:
+                            logger.info(
+                                'Legacy ZZAP auto-send is disabled; '
+                                'skip send_price_list_task and use '
+                                'CustomerPriceListConfig schedule instead'
+                            )
             except Exception as e:
                 logger.error(
                     f'Ошибка обработки прайса для провайдера {provider.id}: '
@@ -474,8 +483,23 @@ async def cleanup_order_reports_task(app: FastAPI):
     async_session_factory = app.state.session_factory
     async with async_session_factory() as session:
         try:
-            removed = await asyncio.to_thread(cleanup_order_reports)
-            logger.info('Cleanup order reports removed %s files', removed)
+            inbox_settings = (
+                await crud_customer_order_inbox_settings.get_or_create(
+                    session
+                )
+            )
+            reports_removed = await asyncio.to_thread(cleanup_order_reports)
+            error_days = max(
+                1, int(inbox_settings.error_file_retention_days or 5)
+            )
+            error_removed = await asyncio.to_thread(
+                cleanup_order_error_files, error_days
+            )
+            logger.info(
+                'Cleanup order reports removed %s reports and %s error files',
+                reports_removed,
+                error_removed,
+            )
         except Exception as e:
             logger.error(
                 'Error in cleanup_order_reports_task: %s',

@@ -221,6 +221,7 @@ class SupplierOrderManualCreate(BaseModel):
 class CustomerOrderResponse(BaseModel):
     id: int
     customer_id: int
+    order_config_id: Optional[int] = None
     status: CUSTOMER_ORDER_STATUS
     received_at: datetime
     processed_at: Optional[datetime]
@@ -235,6 +236,7 @@ class CustomerOrderResponse(BaseModel):
 
     response_file_path: Optional[str]
     response_file_name: Optional[str]
+    error_details: Optional[str] = None
 
     items: List[CustomerOrderItemResponse] = Field(default_factory=list)
 

@@ -537,6 +537,9 @@ class CustomerOrderConfig(Base):
 
 class CustomerOrder(Base):
     customer_id = Column(Integer, ForeignKey('customer.id'), nullable=False)
+    order_config_id = Column(
+        Integer, ForeignKey('customerorderconfig.id'), nullable=True
+    )
     status = Column(
         SAEnum(
             CUSTOMER_ORDER_STATUS,
@@ -560,8 +563,10 @@ class CustomerOrder(Base):
 
     response_file_path = Column(String(255), nullable=True)
     response_file_name = Column(String(255), nullable=True)
+    error_details = Column(String(500), nullable=True)
 
     customer = relationship('Customer', back_populates='customer_orders')
+    order_config = relationship('CustomerOrderConfig')
     items = relationship(
         'CustomerOrderItem',
         back_populates='order',

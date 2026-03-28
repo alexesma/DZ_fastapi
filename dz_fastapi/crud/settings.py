@@ -147,7 +147,11 @@ class CRUDCustomerOrderInboxSettings:
         setting = result.scalar_one_or_none()
         if setting:
             return setting
-        setting = CustomerOrderInboxSettings(lookback_days=1, mark_seen=False)
+        setting = CustomerOrderInboxSettings(
+            lookback_days=1,
+            mark_seen=False,
+            error_file_retention_days=5,
+        )
         session.add(setting)
         await session.commit()
         await session.refresh(setting)

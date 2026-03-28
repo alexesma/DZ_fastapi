@@ -60,6 +60,7 @@ class CustomerOrderInboxSettingsOut(BaseModel):
     id: int
     lookback_days: int = 1
     mark_seen: bool = False
+    error_file_retention_days: int = 5
     updated_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
@@ -67,6 +68,7 @@ class CustomerOrderInboxSettingsOut(BaseModel):
 class CustomerOrderInboxSettingsUpdate(BaseModel):
     lookback_days: Optional[int] = None
     mark_seen: Optional[bool] = None
+    error_file_retention_days: Optional[int] = None
 
 
 class SystemMetricSnapshotOut(BaseModel):

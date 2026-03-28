@@ -30,6 +30,7 @@ from dz_fastapi.schemas.customer_order import (CustomerOrderConfigCreate,
 from dz_fastapi.services.customer_orders import (
     create_manual_customer_order, create_manual_supplier_order,
     process_customer_orders, process_manual_customer_order,
+    retry_customer_order, retry_customer_order_errors_for_config,
     send_scheduled_supplier_orders, send_supplier_orders,
     update_customer_order_item_manual)
 
@@ -457,6 +458,72 @@ async def process_orders(
 ):
     await process_customer_orders(session)
     return {'status': 'ok'}
+
+
+@router.post(
+    '/configs/{config_id}/process',
+    status_code=status.HTTP_200_OK,
+)
+async def process_orders_for_config(
+    config_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    config = await crud_customer_order_config.get_by_id(
+        session=session, config_id=config_id
+    )
+    if not config:
+        raise HTTPException(status_code=404, detail='Config not found')
+    await process_customer_orders(
+        session,
+        customer_id=config.customer_id,
+        config_id=config_id,
+    )
+    return {'status': 'ok', 'config_id': config_id}
+
+
+@router.post(
+    '/configs/{config_id}/retry-errors',
+    status_code=status.HTTP_200_OK,
+)
+async def retry_config_errors(
+    config_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        result = await retry_customer_order_errors_for_config(
+            session=session,
+            config_id=config_id,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return result
+
+
+@router.post(
+    '/{order_id}/retry',
+    response_model=CustomerOrderResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def retry_order(
+    order_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        order = await retry_customer_order(session=session, order_id=order_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    order = await crud_customer_order.get_by_id(
+        session=session,
+        order_id=order.id,
+    )
+    if not order:
+        raise HTTPException(status_code=404, detail='Order not found')
+    return CustomerOrderResponse.model_validate(order)
 
 
 @router.get(

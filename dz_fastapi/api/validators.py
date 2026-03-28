@@ -16,7 +16,7 @@ async def change_string(old_string: str) -> str:
     return new_string
 
 
-async def change_brand_name(brand_name: str) -> str:
+def normalize_brand_name(brand_name: str) -> str:
     '''
     Функция для изменения имени бренда
     "АВТОЗАПЧАСТ�� ДЛЯ Haval f7" в "Автозапчасть для HAVAL F7"
@@ -35,6 +35,10 @@ async def change_brand_name(brand_name: str) -> str:
     # Удаление начальных и конечных пробелов или дефисов
     brand_name = brand_name.strip(' -')
     return brand_name
+
+
+async def change_brand_name(brand_name: str) -> str:
+    return normalize_brand_name(brand_name)
 
 
 def _is_cyrillic(char: str) -> bool:
