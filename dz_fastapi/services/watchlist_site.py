@@ -13,8 +13,9 @@ from dz_fastapi.crud.partner import crud_provider
 from dz_fastapi.crud.watchlist import crud_price_watch_item
 from dz_fastapi.http.dz_site_client import DZSiteClient
 from dz_fastapi.models.autopart import AutoPartPriceHistory
+from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import Provider
-from dz_fastapi.services.telegram import send_message_to_telegram
+from dz_fastapi.services.notifications import create_admin_notifications
 
 logger = logging.getLogger('dz_fastapi')
 SITE_PROVIDER_NAME = 'Сайт Dragonzap'
@@ -301,25 +302,28 @@ async def check_watchlist_site(session):
                 )
                 if should_notify:
                     message_lines = [
-                        '<b>Позиция найдена на сайте:</b>',
-                        (
-                            f'<b>{html.escape(_norm(item.brand))} '
-                            f'{html.escape(_norm(item.oem))}</b>'
-                        ),
-                        f'<b>Топ {TOP_SITE_OFFERS_LIMIT} предложения:</b>',
+                        'Позиция найдена на сайте:',
+                        f'{_norm(item.brand)} {_norm(item.oem)}',
+                        f'Топ {TOP_SITE_OFFERS_LIMIT} предложения:',
                     ]
                     message_lines.extend(
-                        format_top_offer_lines(top_offers, html_mode=True)
+                        format_top_offer_lines(top_offers)
                     )
                     message = '\n'.join(message_lines)
                     try:
-                        await send_message_to_telegram(
-                            message, parse_mode='HTML'
+                        await create_admin_notifications(
+                            session=session,
+                            title='Watchlist: позиция найдена на сайте',
+                            message=message,
+                            level=AppNotificationLevel.INFO,
+                            link='/watchlist',
+                            commit=False,
                         )
                         item.last_notified_site_at = now
                     except Exception as e:
                         logger.error(
-                            f'Failed to send site watch telegram: {e}'
+                            'Failed to create site watch app notification: %s',
+                            e,
                         )
             session.add(item)
         await session.commit()

@@ -43,6 +43,7 @@ from dz_fastapi.crud.partner import (crud_customer_pricelist,
 from dz_fastapi.crud.settings import crud_customer_order_inbox_settings
 from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import (CUSTOMER_ORDER_ITEM_STATUS,
                                        CUSTOMER_ORDER_SHIP_MODE,
                                        CUSTOMER_ORDER_STATUS,
@@ -58,10 +59,10 @@ from dz_fastapi.models.partner import (CUSTOMER_ORDER_ITEM_STATUS,
 from dz_fastapi.services.email import (build_email_delivery_kwargs,
                                        send_email_with_attachment)
 from dz_fastapi.services.google_oauth import refresh_google_access_token
+from dz_fastapi.services.notifications import create_admin_notifications
 from dz_fastapi.services.process import (_apply_source_filters,
                                          _apply_source_markups)
 from dz_fastapi.services.resend_api import fetch_received_emails_for_address
-from dz_fastapi.services.telegram import send_message_to_telegram
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -93,6 +94,32 @@ CUSTOMER_ORDERS_IMAP_RETRY_DELAY_SEC = max(
     1,
     int(os.getenv('CUSTOMER_ORDERS_IMAP_RETRY_DELAY_SEC', '5')),
 )
+
+
+async def _notify_admins(
+    session: AsyncSession,
+    *,
+    title: str,
+    message: str,
+    level: str = AppNotificationLevel.INFO,
+    link: str | None = None,
+    commit: bool = False,
+) -> None:
+    try:
+        await create_admin_notifications(
+            session=session,
+            title=title,
+            message=message,
+            level=level,
+            link=link,
+            commit=commit,
+        )
+    except Exception as exc:
+        logger.error(
+            'Failed to create admin notification: %s',
+            exc,
+            exc_info=True,
+        )
 
 
 def _create_mailbox(server_mail: str, port: int, ssl: bool = True):
@@ -1629,6 +1656,7 @@ async def _send_email_attachment_async(
 
 
 async def _send_order_import_notification(
+    session: AsyncSession,
     config: CustomerOrderConfig,
     sender: str,
     subject: Optional[str],
@@ -1661,18 +1689,26 @@ async def _send_order_import_notification(
     lines.append(f'Сумма заказа: {_format_order_amount(total_amount)}')
     if reason:
         lines.append(f'Причина: {reason}')
-    try:
-        await send_message_to_telegram('\n'.join(lines))
-    except Exception as exc:
-        logger.error(
-            'Order import telegram failed for config %s: %s',
-            config.id,
-            exc,
-            exc_info=True,
-        )
+    await _notify_admins(
+        session,
+        title=(
+            'Импорт заказа клиента'
+            if success
+            else 'Ошибка импорта заказа клиента'
+        ),
+        message='\n'.join(lines),
+        level=(
+            AppNotificationLevel.SUCCESS
+            if success
+            else AppNotificationLevel.ERROR
+        ),
+        link='/customer-orders',
+        commit=True,
+    )
 
 
 async def _send_price_warning(
+    session: AsyncSession,
     order: CustomerOrder,
     item: CustomerOrderItem,
     customer_price: float,
@@ -1689,10 +1725,17 @@ async def _send_price_warning(
         f'{offered_price:.2f}, '
         f'отклонение: {diff_pct:.2f}%'
     )
-    try:
-        await send_message_to_telegram(text)
-    except Exception as exc:
-        logger.error('Telegram warning failed: %s', exc, exc_info=True)
+    await _notify_admins(
+        session,
+        title='Отклонение цены по заказу клиента',
+        message=text,
+        level=(
+            AppNotificationLevel.ERROR
+            if critical
+            else AppNotificationLevel.WARNING
+        ),
+        link=f'/customer-orders/{order.id}',
+    )
 
 
 async def _send_reject_report(
@@ -1702,7 +1745,6 @@ async def _send_reject_report(
 ):
     if not rejected_items:
         return
-    report_email = os.getenv('EMAIL_NAME_ANALYTIC')
     result = await session.execute(
         select(Customer.name).where(Customer.id == order.customer_id)
     )
@@ -1726,50 +1768,14 @@ async def _send_reject_report(
             f'- {item.oem} / {item.brand} / {name} — '
             f'{qty} шт, {price_text}'
         )
-    chat_id = os.getenv('TELEGRAM_TO')
-    try:
-        if chat_id:
-            await send_message_to_telegram('\n'.join(lines))
-    except Exception as exc:
-        logger.error('Reject report telegram failed: %s', exc, exc_info=True)
-
-    if report_email:
-        rows = []
-        for item in rejected_items:
-            rows.append(
-                {
-                    'OEM': item.oem,
-                    'Brand': item.brand,
-                    'Name': item.name or '',
-                    'Requested Qty': item.requested_qty,
-                    'Rejected Qty': item.reject_qty or 0,
-                    'Reason': item.status.value,
-                }
-            )
-        buffer = BytesIO()
-        pd.DataFrame(rows).to_excel(buffer, index=False)
-        buffer.seek(0)
-        os.makedirs(ORDERS_REPORT_DIR, exist_ok=True)
-        filename = f'reject_report_{order.id}.xlsx'
-        path = os.path.join(ORDERS_REPORT_DIR, filename)
-        async with aiofiles.open(path, 'wb') as f:
-            await f.write(buffer.getvalue())
-        account = await _get_out_account(session, 'reports_out')
-        kwargs = {}
-        if account:
-            kwargs = build_email_delivery_kwargs(account)
-        try:
-            await _send_email_attachment_async(
-                report_email,
-                f'Отчет по отказам заказа {order.order_number or order.id}',
-                'Во вложении отчет по отказам.',
-                buffer.getvalue(),
-                filename,
-                False,
-                **kwargs,
-            )
-        except Exception as exc:
-            logger.error('Reject report email failed: %s', exc, exc_info=True)
+    await _notify_admins(
+        session,
+        title='Отказы по заказу клиента',
+        message='\n'.join(lines),
+        level=AppNotificationLevel.WARNING,
+        link=f'/customer-orders/{order.id}',
+        commit=True,
+    )
 
 
 async def _resolve_pricelist_config(
@@ -1879,6 +1885,7 @@ async def _process_manual_rows(
                 if offer.is_own_price:
                     item.status = CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK
                     await _send_price_warning(
+                        session,
                         order,
                         item,
                         customer_price,
@@ -1898,6 +1905,7 @@ async def _process_manual_rows(
                         f'({diff_pct:.2f}%).',
                     )
                     await _send_price_warning(
+                        session,
                         order,
                         item,
                         customer_price,
@@ -1908,6 +1916,7 @@ async def _process_manual_rows(
             else:
                 if diff_pct > tolerance_pct:
                     await _send_price_warning(
+                        session,
                         order,
                         item,
                         customer_price,
@@ -2130,6 +2139,7 @@ async def _complete_imported_order_processing(
     await session.commit()
 
     await _send_order_import_notification(
+        session,
         config,
         order.source_email or '',
         order.source_subject,
@@ -2246,6 +2256,7 @@ async def _store_import_error(
     session.add(order)
     await session.commit()
     await _send_order_import_notification(
+        session,
         config,
         order.source_email or '',
         order.source_subject,
@@ -2613,16 +2624,28 @@ async def create_manual_supplier_order(
         raise ValueError('Supplier not found')
     cleaned_items: list[dict] = []
     for item in items or []:
+        autopart_id = item.get('autopart_id')
         oem = (item.get('oem') or '').strip()
         brand = (item.get('brand') or '').strip()
         try:
             quantity = int(item.get('quantity') or 0)
         except (TypeError, ValueError):
             quantity = 0
+        price_raw = item.get('price')
+        try:
+            price_value = float(price_raw) if price_raw is not None else None
+        except (TypeError, ValueError):
+            price_value = None
         if not oem or not brand or quantity <= 0:
             continue
         cleaned_items.append(
-            {'oem': oem, 'brand': brand, 'quantity': quantity}
+            {
+                'autopart_id': autopart_id,
+                'oem': oem,
+                'brand': brand,
+                'quantity': quantity,
+                'price': price_value,
+            }
         )
     if not cleaned_items:
         raise ValueError('Items list is empty')
@@ -2634,22 +2657,29 @@ async def create_manual_supplier_order(
     await session.flush()
 
     for item in cleaned_items:
+        autopart_id = item.get('autopart_id')
         oem = item['oem']
         brand = item['brand']
         brand_key = brand.lower()
         quantity = item['quantity']
-        autopart_stmt = (
-            select(AutoPart)
-            .join(Brand)
-            .where(
-                AutoPart.oem_number == oem,
-                func.lower(Brand.name) == brand_key,
+        autopart = None
+        if autopart_id is not None:
+            autopart = await session.get(AutoPart, autopart_id)
+        if autopart is None:
+            autopart_stmt = (
+                select(AutoPart)
+                .join(Brand)
+                .where(
+                    AutoPart.oem_number == oem,
+                    func.lower(Brand.name) == brand_key,
+                )
+                .limit(1)
             )
-            .limit(1)
-        )
-        autopart = (await session.execute(autopart_stmt)).scalar_one_or_none()
-        price_value = 0.0
-        if autopart:
+            autopart = (
+                await session.execute(autopart_stmt)
+            ).scalar_one_or_none()
+        price_value = item.get('price')
+        if price_value is None and autopart:
             price_stmt = (
                 select(PriceListAutoPartAssociation.price)
                 .join(PriceList)
@@ -2666,6 +2696,8 @@ async def create_manual_supplier_order(
             price_value = (
                 (await session.execute(price_stmt)).scalar_one_or_none()
             ) or 0.0
+        elif price_value is None:
+            price_value = 0.0
 
         session.add(
             SupplierOrderItem(
@@ -3065,6 +3097,7 @@ async def process_customer_orders(
             if existing_order:
                 _apply_matched_email_state(session, config, msg, inbox_account)
                 await _send_order_import_notification(
+                    session,
                     config,
                     sender,
                     getattr(msg, 'subject', None),

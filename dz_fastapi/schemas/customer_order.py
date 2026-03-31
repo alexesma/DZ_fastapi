@@ -213,9 +213,11 @@ class CustomerOrderManualCreate(BaseModel):
 
 
 class SupplierOrderManualItemCreate(BaseModel):
+    autopart_id: Optional[int] = None
     oem: str
     brand: str
     quantity: int = Field(gt=0)
+    price: Optional[Decimal] = None
 
 
 class SupplierOrderManualCreate(BaseModel):

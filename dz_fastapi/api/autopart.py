@@ -74,6 +74,9 @@ async def create_autopart_endpoint(
 )
 async def get_autopart_offers(
     oem: str = Query(..., description='OEM номер запчасти'),
+    partial: bool = Query(
+        False, description='Искать по части OEM номера'
+    ),
     session: AsyncSession = Depends(get_session),
 ):
     normalized_oem = preprocess_oem_number(oem)
@@ -83,6 +86,18 @@ async def get_autopart_offers(
             offers=[],
             historical_offers=[],
         )
+    startswith_pattern = f'{normalized_oem}%'
+    contains_pattern = f'%{normalized_oem}%'
+    oem_filter = (
+        AutoPart.oem_number.ilike(contains_pattern)
+        if partial
+        else AutoPart.oem_number == normalized_oem
+    )
+    oem_rank = case(
+        (AutoPart.oem_number == normalized_oem, 0),
+        (AutoPart.oem_number.ilike(startswith_pattern), 1),
+        else_=2,
+    )
 
     partition_key = func.coalesce(
         PriceList.provider_config_id, PriceList.provider_id
@@ -146,16 +161,18 @@ async def get_autopart_offers(
             ProviderPriceListConfig.id == PriceList.provider_config_id,
         )
         .where(latest_pricelists.c.latest_rn == 1)
-        .where(AutoPart.oem_number == normalized_oem)
+        .where(oem_filter)
         .order_by(
+            oem_rank,
+            AutoPart.oem_number.asc(),
             Provider.name.asc(),
             ProviderPriceListConfig.name_price.asc().nullslast(),
             PriceListAutoPartAssociation.price.asc(),
         )
     )
     current_rows = (await session.execute(current_stmt)).mappings().all()
-    current_partitions = {
-        row['partition_key']
+    current_offer_keys = {
+        (row['partition_key'], row['oem_number'])
         for row in current_rows
         if row.get('partition_key') is not None
     }
@@ -214,7 +231,7 @@ async def get_autopart_offers(
             ProviderPriceListConfig.id == PriceList.provider_config_id,
         )
         .where(PriceList.is_active.is_(True))
-        .where(AutoPart.oem_number == normalized_oem)
+        .where(oem_filter)
         .subquery()
     )
 
@@ -222,6 +239,15 @@ async def get_autopart_offers(
         select(historical_subq)
         .where(historical_subq.c.history_rn == 1)
         .order_by(
+            case(
+                (historical_subq.c.oem_number == normalized_oem, 0),
+                (
+                    historical_subq.c.oem_number.ilike(startswith_pattern),
+                    1,
+                ),
+                else_=2,
+            ),
+            historical_subq.c.oem_number.asc(),
             historical_subq.c.provider_name.asc(),
             historical_subq.c.provider_config_name.asc().nullslast(),
             historical_subq.c.pricelist_date.desc(),
@@ -255,7 +281,10 @@ async def get_autopart_offers(
 
     historical_offers = []
     for row in historical_rows:
-        if row.get('partition_key') in current_partitions:
+        if (
+            row.get('partition_key'),
+            row.get('oem_number'),
+        ) in current_offer_keys:
             continue
         price_value = row.get('price')
         historical_offers.append(

@@ -5,7 +5,6 @@ import os
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from functools import partial
 
 import aiofiles
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -20,7 +19,6 @@ from dz_fastapi.core.constants import (CONFIG_DATA_CUSTOMER,
                                        CUSTOMER_IN, PROVIDER_IN)
 from dz_fastapi.core.scheduler_settings import SCHEDULER_SETTING_DEFAULTS
 from dz_fastapi.core.time import now_moscow
-from dz_fastapi.crud.email_account import crud_email_account
 from dz_fastapi.crud.partner import (crud_customer, crud_customer_pricelist,
                                      crud_customer_pricelist_config,
                                      crud_pricelist, crud_provider,
@@ -43,14 +41,13 @@ from dz_fastapi.schemas.partner import (CustomerCreate,
 from dz_fastapi.services.customer_orders import (
     cleanup_order_error_files, cleanup_order_reports, process_customer_orders,
     send_scheduled_supplier_orders)
-from dz_fastapi.services.email import (build_email_delivery_kwargs, get_emails,
-                                       send_email_message)
+from dz_fastapi.services.email import get_emails
 from dz_fastapi.services.monitoring import (build_snapshot_payload,
                                             get_monitor_summary)
+from dz_fastapi.services.notifications import create_admin_notifications
 from dz_fastapi.services.price_control import run_price_control
 from dz_fastapi.services.process import (process_customer_pricelist,
                                          process_provider_pricelist)
-from dz_fastapi.services.telegram import send_message_to_telegram
 from dz_fastapi.services.watchlist import send_watchlist_daily_notifications
 from dz_fastapi.services.watchlist_site import check_watchlist_site
 
@@ -73,54 +70,19 @@ async def _notify_scheduler_issue(
     text: str,
 ) -> None:
     try:
-        await send_message_to_telegram(text)
-        return
+        await session.rollback()
+        await create_admin_notifications(
+            session=session,
+            title=subject,
+            message=text,
+            level='error',
+            link='/admin/settings',
+        )
     except Exception as exc:
         logger.error(
-            'Failed to send scheduler Telegram alert: %s',
+            'Failed to create scheduler app notification: %s',
             exc,
             exc_info=True,
-        )
-
-    analytics_email = os.getenv('EMAIL_NAME_ANALYTIC')
-    if analytics_email:
-        kwargs = {}
-        try:
-            accounts = await crud_email_account.get_active_by_purpose(
-                session, 'reports_out'
-            )
-            if accounts:
-                kwargs = build_email_delivery_kwargs(accounts[0])
-        except Exception as exc:
-            logger.error(
-                'Failed to resolve reports_out email account: %s',
-                exc,
-                exc_info=True,
-            )
-        try:
-            email_sent = await asyncio.to_thread(
-                partial(
-                    send_email_message,
-                    to_email=analytics_email,
-                    subject=subject,
-                    body=text,
-                    **kwargs,
-                )
-            )
-            if not email_sent:
-                logger.error(
-                    'Failed to send scheduler alert email to %s',
-                    analytics_email,
-                )
-        except Exception as exc:
-            logger.error(
-                'Failed to send scheduler alert email: %s',
-                exc,
-                exc_info=True,
-            )
-    else:
-        logger.warning(
-            'EMAIL_NAME_ANALYTIC not set; scheduler email alert skipped'
         )
 
 
@@ -1015,8 +977,16 @@ async def notify_pricelist_stale_task(app: FastAPI):
                     f'- {provider.name} ({config_label}) — '
                     f'{alert.days_diff} дн. Последний: {alert.last_price_date}'
                 )
-            await send_message_to_telegram('\n'.join(lines))
-            logger.info('Sent stale pricelist notification')
+            await create_admin_notifications(
+                session=session,
+                title='Проблемы с обновлением прайсов',
+                message='\n'.join(lines),
+                level='warning',
+                link='/admin/settings',
+                commit=False,
+            )
+            await session.commit()
+            logger.info('Sent stale pricelist notification to admins')
             if setting:
                 await _mark_scheduler_ran(session, setting, now)
         except Exception as e:

@@ -8,6 +8,7 @@ from dz_fastapi.analytics.restock_logic import (
     evaluate_supplier_offers, fetch_supplier_offers,
     get_autoparts_below_min_balance, get_historical_min_price,
     save_restock_decision)
+from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.core.constants import (DEPTH_MONTHS_HISTORY_PRICE_FOR_ORDER,
                                        LIMIT_ORDER, URL_DZ_SEARCH)
 from dz_fastapi.core.db import AsyncSession, get_session
@@ -16,7 +17,9 @@ from dz_fastapi.crud.brand import brand_crud
 from dz_fastapi.crud.order import crud_order, crud_order_item
 from dz_fastapi.http.dz_site_client import DZSiteClient
 from dz_fastapi.models.autopart import TYPE_SUPPLIER_DECISION_STATUS
+from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import TYPE_ORDER_ITEM_STATUS, TYPE_STATUS_ORDER
+from dz_fastapi.models.user import User
 from dz_fastapi.schemas.order import (ConfirmedOfferOut,
                                       ConfirmedOffersResponse, OrderItemOut,
                                       OrderOut, OrderPositionOut,
@@ -24,6 +27,7 @@ from dz_fastapi.schemas.order import (ConfirmedOfferOut,
                                       SupplierOffersResponse, SupplierOrderOut,
                                       UpdatePositionStatusRequest,
                                       UpdatePositionStatusResponse)
+from dz_fastapi.services.notifications import create_notification
 
 KEY = os.getenv('KEY_FOR_WEBSITE')
 
@@ -31,6 +35,32 @@ logger = logging.getLogger('dz_fastapi')
 
 
 router = APIRouter(prefix='/order')
+
+
+async def _notify_current_user(
+    session: AsyncSession,
+    current_user: User,
+    *,
+    title: str,
+    message: str,
+    level: str = AppNotificationLevel.INFO,
+    link: str | None = None,
+) -> None:
+    try:
+        await create_notification(
+            session=session,
+            user_id=current_user.id,
+            title=title,
+            message=message,
+            level=level,
+            link=link,
+        )
+    except Exception:
+        await session.rollback()
+        logger.exception(
+            'Failed to create app notification for user %s',
+            current_user.id,
+        )
 
 
 def _merge_site_offers(offers_by_brand: list[list[dict]]) -> list[dict]:
@@ -281,6 +311,7 @@ async def send_api(
     request: list[OrderPositionOut],
     customer_id: int = 2,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     if not request:
         raise HTTPException(
@@ -432,6 +463,22 @@ async def send_api(
             order.status = TYPE_STATUS_ORDER.ERROR
 
         await session.commit()
+        await _notify_current_user(
+            session,
+            current_user,
+            title='Заказ на Dragonzap оформлен',
+            message=(
+                f'Создан заказ #{order.id}'
+                f' на {len(request)} поз.'
+                f' Успешно: {successful_count}, ошибок: {failed_count}.'
+            ),
+            level=(
+                AppNotificationLevel.WARNING
+                if failed_count
+                else AppNotificationLevel.SUCCESS
+            ),
+            link='/orders',
+        )
         return SendApiResponse(
             total_items=len(request),
             successful_items=successful_count,

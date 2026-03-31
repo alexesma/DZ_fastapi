@@ -1,5 +1,3 @@
-import asyncio
-import html
 import logging
 import os
 from datetime import datetime
@@ -11,16 +9,15 @@ from dz_fastapi.core.constants import URL_DZ_SEARCH
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.watchlist import crud_price_watch_item
 from dz_fastapi.http.dz_site_client import DZSiteClient
+from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import Client, Provider, ProviderPriceListConfig
-from dz_fastapi.services.email import send_email_message
-from dz_fastapi.services.telegram import send_message_to_telegram
+from dz_fastapi.services.notifications import create_admin_notifications
 from dz_fastapi.services.watchlist_site import (TOP_SITE_OFFERS_LIMIT,
                                                 _collect_top_offers,
                                                 format_top_offer_lines)
 
 logger = logging.getLogger('dz_fastapi')
 SITE_ITEM_SEPARATOR = '--------------------'
-WATCHLIST_EMAIL_SUBJECT = 'Отчет по отслеживаемым позициям'
 
 
 def _notify_immediately() -> bool:
@@ -83,10 +80,20 @@ async def handle_provider_pricelist_watch(
                     f'Поставщик {provider.name}'
                 )
                 try:
-                    await send_message_to_telegram(message)
+                    await create_admin_notifications(
+                        session=session,
+                        title='Watchlist: позиция найдена в прайсе',
+                        message=message,
+                        level=AppNotificationLevel.INFO,
+                        link='/watchlist',
+                        commit=False,
+                    )
                     item.last_notified_provider_at = now
                 except Exception as e:
-                    logger.error(f'Failed to send watchlist telegram: {e}')
+                    logger.error(
+                        'Failed to create watchlist app notification: %s',
+                        e,
+                    )
         session.add(item)
     await session.commit()
 
@@ -169,15 +176,14 @@ async def send_watchlist_daily_notifications(session: AsyncSession):
         for item in watch_items
         if item.id in provider_by_id or item.id in site_by_id
     ]
-    lines: list[str] = ['<b>Отслеживаемые позиции:</b>']
+    lines: list[str] = ['Отслеживаемые позиции:']
     for idx, item in enumerate(notify_items):
         if idx > 0:
             lines.append('')
             lines.append(SITE_ITEM_SEPARATOR)
             lines.append('')
         lines.append(
-            f'<b>{html.escape(_norm(item.brand))} '
-            f'{html.escape(_norm(item.oem))}</b>'
+            f'{_norm(item.brand)} {_norm(item.oem)}'
         )
 
         provider_item = provider_by_id.get(item.id)
@@ -186,19 +192,17 @@ async def send_watchlist_daily_notifications(session: AsyncSession):
                 provider_item.last_seen_provider_id, ''
             ) or str(provider_item.last_seen_provider_id)
             lines.append(
-                f'  <b>Прайс:</b> Цена '
+                f'  Прайс: цена '
                 f'{provider_item.last_seen_provider_price} | '
-                f'Поставщик {html.escape(str(provider_label))}'
+                f'Поставщик {provider_label}'
             )
 
         site_item = site_by_id.get(item.id)
         if site_item:
-            lines.append('  <b>Сайт:</b>')
+            lines.append('  Сайт:')
             top_offers = site_offer_map.get(item.id)
             if top_offers:
-                for line in format_top_offer_lines(
-                    top_offers, html_mode=True
-                ):
+                for line in format_top_offer_lines(top_offers):
                     lines.append(f'    {line}')
             else:
                 qty = site_item.last_seen_site_qty
@@ -207,39 +211,18 @@ async def send_watchlist_daily_notifications(session: AsyncSession):
                     f'    Цена {site_item.last_seen_site_price}{qty_part}'
                 )
 
-    message_html = '\n'.join(lines)
-    delivered = False
+    message_text = '\n'.join(lines)
     try:
-        await send_message_to_telegram(message_html, parse_mode='HTML')
-        delivered = True
-    except Exception as e:
-        logger.error(f'Failed to send watchlist telegram: {e}')
-
-    analytics_email = os.getenv('EMAIL_NAME_ANALYTIC')
-    if analytics_email:
-        try:
-            email_sent = await asyncio.to_thread(
-                send_email_message,
-                to_email=analytics_email,
-                subject=WATCHLIST_EMAIL_SUBJECT,
-                body=message_html,
-                is_html=True,
-            )
-            if email_sent:
-                delivered = True
-            else:
-                logger.error(
-                    'Failed to send watchlist email report to %s',
-                    analytics_email,
-                )
-        except Exception as e:
-            logger.error(f'Failed to send watchlist email report: {e}')
-    else:
-        logger.warning(
-            'EMAIL_NAME_ANALYTIC not set; watchlist email copy skipped'
+        await create_admin_notifications(
+            session=session,
+            title='Watchlist: сводка по найденным позициям',
+            message=message_text,
+            level=AppNotificationLevel.INFO,
+            link='/watchlist',
+            commit=False,
         )
-
-    if not delivered:
+    except Exception as e:
+        logger.error('Failed to create watchlist app notification: %s', e)
         return
 
     for item in provider_items:

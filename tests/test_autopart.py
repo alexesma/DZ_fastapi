@@ -339,6 +339,67 @@ async def test_get_autopart_offers_empty(
 
 
 @pytest.mark.asyncio
+async def test_get_autopart_offers_partial_search(
+    test_session,
+    created_autopart: AutoPart,
+    created_brand: Brand,
+    created_pricelist_config,
+    created_providers,
+):
+    provider = created_providers[0]
+    test_session.add_all([provider, created_pricelist_config])
+
+    extra_autopart = AutoPart(
+        name='TEST AUTOPART EXTRA',
+        brand_id=created_brand.id,
+        oem_number='ZZE4G163611091X',
+        description='Extra autopart for partial search',
+    )
+    test_session.add(extra_autopart)
+    await test_session.commit()
+    await test_session.refresh(extra_autopart)
+
+    latest_pricelist = PriceList(
+        provider_id=provider.id,
+        provider_config_id=created_pricelist_config.id,
+        date=date(2024, 2, 10),
+    )
+    test_session.add(latest_pricelist)
+    await test_session.commit()
+    await test_session.refresh(latest_pricelist)
+
+    test_session.add_all(
+        [
+            PriceListAutoPartAssociation(
+                pricelist_id=latest_pricelist.id,
+                autopart_id=created_autopart.id,
+                quantity=5,
+                price=98.5,
+            ),
+            PriceListAutoPartAssociation(
+                pricelist_id=latest_pricelist.id,
+                autopart_id=extra_autopart.id,
+                quantity=3,
+                price=105.0,
+            ),
+        ]
+    )
+    await test_session.commit()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+        response = await ac.get(
+            '/autoparts/offers/',
+            params={'oem': 'E4G1636', 'partial': True},
+        )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    found_oems = [row['oem_number'] for row in data['offers']]
+    assert created_autopart.oem_number in found_oems
+    assert extra_autopart.oem_number in found_oems
+
+
+@pytest.mark.asyncio
 async def test_update_autopart_not_found(test_session, created_brand: Brand):
     transport = ASGITransport(app=app)
     invalid_autopart_id = 9999

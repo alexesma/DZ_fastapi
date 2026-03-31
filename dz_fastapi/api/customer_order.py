@@ -13,6 +13,7 @@ from dz_fastapi.crud.customer_order import (crud_customer_order,
                                             crud_stock_order,
                                             crud_supplier_order)
 from dz_fastapi.crud.partner import crud_customer_pricelist_config
+from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import CUSTOMER_ORDER_ITEM_STATUS
 from dz_fastapi.models.user import User, UserRole
 from dz_fastapi.schemas.customer_order import (CustomerOrderConfigCreate,
@@ -33,10 +34,37 @@ from dz_fastapi.services.customer_orders import (
     retry_customer_order, retry_customer_order_errors_for_config,
     send_scheduled_supplier_orders, send_supplier_orders,
     update_customer_order_item_manual)
+from dz_fastapi.services.notifications import create_notification
 
 logger = logging.getLogger('dz_fastapi')
 
 router = APIRouter(prefix='/customer-orders', tags=['customer-orders'])
+
+
+async def _notify_current_user(
+    session: AsyncSession,
+    current_user: User,
+    *,
+    title: str,
+    message: str,
+    level: str = AppNotificationLevel.INFO,
+    link: str | None = None,
+) -> None:
+    try:
+        await create_notification(
+            session=session,
+            user_id=current_user.id,
+            title=title,
+            message=message,
+            level=level,
+            link=link,
+        )
+    except Exception:
+        await session.rollback()
+        logger.exception(
+            'Failed to create app notification for user %s',
+            current_user.id,
+        )
 
 
 def _serialize_customer_order_item_for_user(
@@ -487,6 +515,17 @@ async def process_orders(
     current_user: User = Depends(get_current_user),
 ):
     await process_customer_orders(session)
+    await _notify_current_user(
+        session,
+        current_user,
+        title='Проверка почты завершена',
+        message=(
+            'Импорт заказов клиентов завершен для всех активных'
+            ' конфигураций.'
+        ),
+        level=AppNotificationLevel.SUCCESS,
+        link='/customer-orders',
+    )
     return {'status': 'ok'}
 
 
@@ -509,6 +548,17 @@ async def process_orders_for_config(
         customer_id=config.customer_id,
         config_id=config_id,
     )
+    await _notify_current_user(
+        session,
+        current_user,
+        title='Проверка почты завершена',
+        message=(
+            f'Импорт заказов завершен для конфигурации #{config_id}'
+            f' клиента #{config.customer_id}.'
+        ),
+        level=AppNotificationLevel.SUCCESS,
+        link='/customer-orders',
+    )
     return {'status': 'ok', 'config_id': config_id}
 
 
@@ -528,6 +578,18 @@ async def retry_config_errors(
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    retried_count = result.get('retried', 0)
+    await _notify_current_user(
+        session,
+        current_user,
+        title='Повторная обработка ошибок завершена',
+        message=(
+            f'Для конфигурации #{config_id} повторно обработано'
+            f' {retried_count} заказов с ошибками.'
+        ),
+        level=AppNotificationLevel.SUCCESS,
+        link='/customer-orders',
+    )
     return result
 
 
@@ -553,6 +615,14 @@ async def retry_order(
     )
     if not order:
         raise HTTPException(status_code=404, detail='Order not found')
+    await _notify_current_user(
+        session,
+        current_user,
+        title='Заказ перепроверен',
+        message=f'Заказ клиента #{order.id} был перепроверен.',
+        level=AppNotificationLevel.SUCCESS,
+        link=f'/customer-orders/{order.id}',
+    )
     return _serialize_customer_order_for_user(order, current_user)
 
 
@@ -858,6 +928,17 @@ async def create_manual_supplier_order_endpoint(
     )
     if not order:
         raise HTTPException(status_code=404, detail='Order not found')
+    await _notify_current_user(
+        session,
+        current_user,
+        title='Создан заказ поставщику',
+        message=(
+            f'Создан заказ поставщику #{order.id}'
+            f' на {len(order.items or [])} поз.'
+        ),
+        level=AppNotificationLevel.SUCCESS,
+        link=f'/customer-orders/suppliers/{order.id}',
+    )
 
     items = []
     for item in order.items or []:
@@ -905,6 +986,23 @@ async def send_supplier_orders_endpoint(
     result = await send_supplier_orders(
         session=session, supplier_order_ids=supplier_order_ids
     )
+    sent_count = result.get('sent', 0)
+    error_count = result.get('failed', 0)
+    await _notify_current_user(
+        session,
+        current_user,
+        title='Отправка заказов поставщикам завершена',
+        message=(
+            f'Успешно отправлено: {sent_count}.'
+            f' С ошибкой: {error_count}.'
+        ),
+        level=(
+            AppNotificationLevel.WARNING
+            if error_count
+            else AppNotificationLevel.SUCCESS
+        ),
+        link='/customer-orders/suppliers',
+    )
     return result
 
 
@@ -917,4 +1015,21 @@ async def send_scheduled_supplier_orders_endpoint(
     current_user: User = Depends(get_current_user),
 ):
     result = await send_scheduled_supplier_orders(session)
+    sent_count = result.get('sent', 0)
+    error_count = result.get('failed', 0)
+    await _notify_current_user(
+        session,
+        current_user,
+        title='Плановая отправка заказов завершена',
+        message=(
+            f'Успешно отправлено: {sent_count}.'
+            f' С ошибкой: {error_count}.'
+        ),
+        level=(
+            AppNotificationLevel.WARNING
+            if error_count
+            else AppNotificationLevel.SUCCESS
+        ),
+        link='/customer-orders/suppliers',
+    )
     return result

@@ -66,7 +66,9 @@ class ConfirmedOffersResponse(BaseModel):
 
 
 class OrderPositionOut(BaseModel):
-    autopart_id: int = Field(..., description='ID автозапчасти')
+    autopart_id: Optional[int] = Field(
+        None, description='ID автозапчасти'
+    )
     oem_number: str = Field(..., description='OEM номер детали')
     brand_name: str = Field(..., description='Имя бренда')
     autopart_name: Optional[str] = Field(None, description='Название детали')
