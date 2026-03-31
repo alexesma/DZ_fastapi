@@ -1,11 +1,12 @@
 import pytest
 
+from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import Provider, ProviderPriceListConfig
 from dz_fastapi.services.watchlist import handle_provider_pricelist_watch
 
 
 @pytest.mark.asyncio
-async def test_watchlist_provider_telegram(
+async def test_watchlist_provider_creates_admin_notification(
         async_client, test_session, monkeypatch
 ):
     monkeypatch.setenv("WATCHLIST_NOTIFY_MODE", "immediate")
@@ -35,15 +36,15 @@ async def test_watchlist_provider_telegram(
     await test_session.commit()
     await test_session.refresh(config)
 
-    calls = {"count": 0}
+    sent = {}
 
-    async def fake_send_message(text, chat_id=None):
-        calls["count"] += 1
-        assert "TESTBRAND" in text
+    async def fake_create_admin_notifications(**kwargs):
+        sent.update(kwargs)
+        return []
 
     monkeypatch.setattr(
-        "dz_fastapi.services.watchlist.send_message_to_telegram",
-        fake_send_message,
+        "dz_fastapi.services.watchlist.create_admin_notifications",
+        fake_create_admin_notifications,
     )
 
     items = [
@@ -61,4 +62,9 @@ async def test_watchlist_provider_telegram(
         items=items,
     )
 
-    assert calls["count"] == 1
+    assert sent["session"] is test_session
+    assert sent["title"] == "Watchlist: позиция найдена в прайсе"
+    assert sent["level"] == AppNotificationLevel.INFO
+    assert sent["link"] == "/watchlist"
+    assert sent["commit"] is False
+    assert "TESTBRAND OEM123" in sent["message"]

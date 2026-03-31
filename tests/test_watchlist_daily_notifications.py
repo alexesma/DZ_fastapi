@@ -2,6 +2,7 @@ import pytest
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.watchlist import crud_price_watch_item
+from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.services.watchlist import (SITE_ITEM_SEPARATOR,
                                            send_watchlist_daily_notifications)
 
@@ -56,40 +57,43 @@ async def test_watchlist_daily_notification_site_separator_and_top3(
                 {"cost": "103", "qnt": "4", "price_name": "S4"},
             ]
 
-    sent_messages = []
+    sent = {}
 
-    async def fake_send_message(text, chat_id=None, parse_mode=None):
-        sent_messages.append(text)
-        assert parse_mode == "HTML"
+    async def fake_create_admin_notifications(**kwargs):
+        sent.update(kwargs)
+        return []
 
     monkeypatch.setattr(
         "dz_fastapi.services.watchlist.DZSiteClient",
         lambda *args, **kwargs: FakeClient(),
     )
     monkeypatch.setattr(
-        "dz_fastapi.services.watchlist.send_message_to_telegram",
-        fake_send_message,
+        "dz_fastapi.services.watchlist.create_admin_notifications",
+        fake_create_admin_notifications,
     )
 
     await send_watchlist_daily_notifications(test_session)
 
-    assert len(sent_messages) == 1
-    assert "<b>Отслеживаемые позиции:</b>" in sent_messages[0]
-    assert SITE_ITEM_SEPARATOR in sent_messages[0]
-    assert "<b>AAA 111</b>" in sent_messages[0]
-    assert "<b>Прайс:</b> Цена 95.0 | Поставщик 77" in sent_messages[0]
-    assert "<b>Сайт:</b>" in sent_messages[0]
-    assert "<b>BBB 222</b>" in sent_messages[0]
-    assert "4. " not in sent_messages[0]
+    assert sent["session"] is test_session
+    assert sent["title"] == "Watchlist: сводка по найденным позициям"
+    assert sent["level"] == AppNotificationLevel.INFO
+    assert sent["link"] == "/watchlist"
+    assert sent["commit"] is False
+    assert "Отслеживаемые позиции:" in sent["message"]
+    assert SITE_ITEM_SEPARATOR in sent["message"]
+    assert "AAA 111" in sent["message"]
+    assert "Прайс: цена 95.0 | Поставщик 77" in sent["message"]
+    assert "Сайт:" in sent["message"]
+    assert "BBB 222" in sent["message"]
+    assert "4. " not in sent["message"]
 
 
 @pytest.mark.asyncio
-async def test_watchlist_daily_notification_falls_back_to_email(
+async def test_watchlist_daily_notification_marks_items_after_notification(
     test_session,
     monkeypatch,
 ):
     monkeypatch.setenv("WATCHLIST_NOTIFY_MODE", "daily")
-    monkeypatch.setenv("EMAIL_NAME_ANALYTIC", "analytic@example.com")
 
     item = await crud_price_watch_item.create(
         test_session,
@@ -104,28 +108,20 @@ async def test_watchlist_daily_notification_falls_back_to_email(
     test_session.add(item)
     await test_session.commit()
 
-    async def fake_send_message(*args, **kwargs):
-        raise TimeoutError("telegram timeout")
+    sent = {}
 
-    email_calls = []
-
-    def fake_send_email_message(**kwargs):
-        email_calls.append(kwargs)
-        return True
+    async def fake_create_admin_notifications(**kwargs):
+        sent.update(kwargs)
+        return []
 
     monkeypatch.setattr(
-        "dz_fastapi.services.watchlist.send_message_to_telegram",
-        fake_send_message,
-    )
-    monkeypatch.setattr(
-        "dz_fastapi.services.watchlist.send_email_message",
-        fake_send_email_message,
+        "dz_fastapi.services.watchlist.create_admin_notifications",
+        fake_create_admin_notifications,
     )
 
     await send_watchlist_daily_notifications(test_session)
     await test_session.refresh(item)
 
-    assert len(email_calls) == 1
-    assert email_calls[0]["to_email"] == "analytic@example.com"
-    assert email_calls[0]["is_html"] is True
+    assert sent["title"] == "Watchlist: сводка по найденным позициям"
+    assert "CCC 333" in sent["message"]
     assert item.last_notified_site_at is not None

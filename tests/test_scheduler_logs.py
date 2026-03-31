@@ -29,53 +29,35 @@ async def test_scheduler_logs_skip(async_client, test_session, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_notify_scheduler_issue_falls_back_to_email(monkeypatch):
+async def test_notify_scheduler_issue_creates_admin_notification(
+    monkeypatch,
+):
     sent = {}
+    rolled_back = {'value': False}
 
-    async def fake_telegram(text):
-        raise RuntimeError('telegram down')
+    class FakeSession:
+        async def rollback(self):
+            rolled_back['value'] = True
 
-    async def fake_accounts(session, purpose):
-        assert purpose == 'reports_out'
-        return [
-            SimpleNamespace(
-                email='reports@example.com',
-                transport='smtp',
-                smtp_host='smtp.example.com',
-                smtp_port=465,
-                smtp_use_ssl=True,
-                password='smtp-pass',
-            )
-        ]
-
-    def fake_send_email_message(**kwargs):
+    async def fake_create_admin_notifications(**kwargs):
         sent.update(kwargs)
-        return True
+        return [SimpleNamespace(id=1)]
 
-    monkeypatch.setenv('EMAIL_NAME_ANALYTIC', 'analytic@example.com')
     monkeypatch.setattr(
-        'dz_fastapi.services.scheduler.send_message_to_telegram',
-        fake_telegram,
-    )
-    monkeypatch.setattr(
-        (
-            'dz_fastapi.services.scheduler.'
-            'crud_email_account.get_active_by_purpose'
-        ),
-        fake_accounts,
-    )
-    monkeypatch.setattr(
-        'dz_fastapi.services.scheduler.send_email_message',
-        fake_send_email_message,
+        'dz_fastapi.services.scheduler.create_admin_notifications',
+        fake_create_admin_notifications,
     )
 
+    session = FakeSession()
     await _notify_scheduler_issue(
-        session=None,
+        session=session,
         subject='Broken task',
         text='Something failed',
     )
 
-    assert sent['to_email'] == 'analytic@example.com'
-    assert sent['subject'] == 'Broken task'
-    assert sent['body'] == 'Something failed'
-    assert sent['smtp_host'] == 'smtp.example.com'
+    assert rolled_back['value'] is True
+    assert sent['session'] is session
+    assert sent['title'] == 'Broken task'
+    assert sent['message'] == 'Something failed'
+    assert sent['level'] == 'error'
+    assert sent['link'] == '/admin/settings'

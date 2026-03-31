@@ -1,10 +1,11 @@
 import pytest
 
+from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.services.watchlist_site import check_watchlist_site
 
 
 @pytest.mark.asyncio
-async def test_watchlist_site_telegram(
+async def test_watchlist_site_creates_admin_notification(
         async_client, test_session, monkeypatch
 ):
     monkeypatch.setenv("WATCHLIST_NOTIFY_MODE", "immediate")
@@ -32,23 +33,27 @@ async def test_watchlist_site_telegram(
                 {"cost": "153", "qnt": "5", "price_name": "S4"},
             ]
 
-    calls = {"count": 0}
+    sent = {}
 
-    async def fake_send_message(text, chat_id=None, parse_mode=None):
-        calls["count"] += 1
-        assert "SITEBRAND" in text
-        assert "<b>Топ 3 предложения:</b>" in text
-        assert "4. " not in text
-        assert parse_mode == "HTML"
+    async def fake_create_admin_notifications(**kwargs):
+        sent.update(kwargs)
+        return []
 
     monkeypatch.setattr(
         "dz_fastapi.services.watchlist_site.DZSiteClient",
         lambda *args, **kwargs: FakeClient(),
     )
     monkeypatch.setattr(
-        "dz_fastapi.services.watchlist_site.send_message_to_telegram",
-        fake_send_message,
+        "dz_fastapi.services.watchlist_site.create_admin_notifications",
+        fake_create_admin_notifications,
     )
 
     await check_watchlist_site(test_session)
-    assert calls["count"] == 1
+    assert sent["session"] is test_session
+    assert sent["title"] == "Watchlist: позиция найдена на сайте"
+    assert sent["level"] == AppNotificationLevel.INFO
+    assert sent["link"] == "/watchlist"
+    assert sent["commit"] is False
+    assert "SITEBRAND SITE123" in sent["message"]
+    assert "Топ 3 предложения:" in sent["message"]
+    assert "4. " not in sent["message"]
