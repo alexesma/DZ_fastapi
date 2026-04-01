@@ -15,10 +15,12 @@ from dz_fastapi.core.db import AsyncSession, get_session
 from dz_fastapi.crud.autopart import crud_autopart_restock_decision
 from dz_fastapi.crud.brand import brand_crud
 from dz_fastapi.crud.order import crud_order, crud_order_item
+from dz_fastapi.crud.partner import crud_provider
 from dz_fastapi.http.dz_site_client import DZSiteClient
 from dz_fastapi.models.autopart import TYPE_SUPPLIER_DECISION_STATUS
 from dz_fastapi.models.notification import AppNotificationLevel
-from dz_fastapi.models.partner import TYPE_ORDER_ITEM_STATUS, TYPE_STATUS_ORDER
+from dz_fastapi.models.partner import (TYPE_ORDER_ITEM_STATUS, TYPE_PRICES,
+                                       TYPE_STATUS_ORDER, Provider)
 from dz_fastapi.models.user import User
 from dz_fastapi.schemas.order import (ConfirmedOfferOut,
                                       ConfirmedOffersResponse, OrderItemOut,
@@ -35,6 +37,47 @@ logger = logging.getLogger('dz_fastapi')
 
 
 router = APIRouter(prefix='/order')
+
+
+async def _resolve_site_provider_id(
+    session: AsyncSession,
+    item: OrderPositionOut,
+    provider_cache: dict[str, int],
+) -> int:
+    if item.supplier_id is not None:
+        return item.supplier_id
+
+    supplier_name = (item.supplier_name or '').strip()
+    if not supplier_name:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                'У позиции отсутствуют supplier_id и supplier_name. '
+                'Невозможно определить поставщика для заказа на сайт.'
+            ),
+        )
+
+    cache_key = supplier_name.casefold()
+    cached_provider_id = provider_cache.get(cache_key)
+    if cached_provider_id is not None:
+        return cached_provider_id
+
+    provider = await crud_provider.get_provider_or_none(
+        supplier_name, session
+    )
+    if provider is None:
+        provider = Provider(
+            name=supplier_name,
+            is_virtual=True,
+            type_prices=TYPE_PRICES.WHOLESALE,
+            description='Created automatically from Dragonzap site order',
+            comment='Automatically created provider from site basket send',
+        )
+        session.add(provider)
+        await session.flush()
+
+    provider_cache[cache_key] = provider.id
+    return provider.id
 
 
 async def _notify_current_user(
@@ -318,12 +361,16 @@ async def send_api(
             status_code=400, detail='Список позиций не может быть пустым'
         )
     # 1) Определяем поставщика из позиций
-    provider_ids = {
-        item.supplier_id for item in request if item.supplier_id is not None
-    }
+    provider_cache: dict[str, int] = {}
+    provider_ids: set[int] = set()
+    for item in request:
+        provider_ids.add(
+            await _resolve_site_provider_id(session, item, provider_cache)
+        )
     if not provider_ids:
         raise HTTPException(
-            status_code=400, detail='У позиций отсутствует supplier_id'
+            status_code=400,
+            detail='У позиций отсутствует supplier_id или supplier_name',
         )
     if len(provider_ids) > 1:
         raise HTTPException(

@@ -73,6 +73,9 @@ class OrderPositionOut(BaseModel):
     brand_name: str = Field(..., description='Имя бренда')
     autopart_name: Optional[str] = Field(None, description='Название детали')
     supplier_id: Optional[int] = Field(None, description='ID поставщика')
+    supplier_name: Optional[str] = Field(
+        None, description='Имя поставщика'
+    )
     quantity: int = Field(..., description='Количество к заказу')
     confirmed_price: float = Field(..., description='Цена за штуку')
     min_delivery_day: Optional[int] = Field(
