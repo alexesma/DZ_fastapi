@@ -1,0 +1,1101 @@
+2026-04-01 11:01:42,432 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA113707140GA', 'name': 'Провод В/В', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,443 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZA113707140GA' name='Провод В/В' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,443 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZA113707140GA', 'name': 'Провод В/В', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,443 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,443 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,444 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611250>
+2026-04-01 11:01:42,444 - dz_fastapi - DEBUG - Autopart already exists: ID 1684
+2026-04-01 11:01:42,444 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSMW250506', 'name': 'Провод В/В', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,444 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZSMW250506' name='Провод В/В' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,444 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZSMW250506', 'name': 'Провод В/В', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,444 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,445 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,446 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610ce0>
+2026-04-01 11:01:42,446 - dz_fastapi - DEBUG - Autopart already exists: ID 75676
+2026-04-01 11:01:42,446 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'SMW250506', 'name': 'Провод В/В', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,446 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='SMW250506' name='Провод В/В' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,446 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'SMW250506', 'name': 'Провод В/В', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,446 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,446 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,447 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612d80>
+2026-04-01 11:01:42,447 - dz_fastapi - DEBUG - Autopart already exists: ID 75677
+2026-04-01 11:01:42,447 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1016050269', 'name': 'Провод В/В GEELY VISION, EMGRAND 4 Цилиндр', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,448 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1016050269' name='Провод В/В GEELY VISION, EMGRAND 4 Цилиндр' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,448 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1016050269', 'name': 'Провод В/В GEELY VISION, EMGRAND 4 Цилиндр', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,448 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,448 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,449 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610fb0>
+2026-04-01 11:01:42,449 - dz_fastapi - DEBUG - Autopart already exists: ID 7371
+2026-04-01 11:01:42,449 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1016050269', 'name': 'Провод В/В GEELY VISION, EMGRAND 4 Цилиндр', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,449 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1016050269' name='Провод В/В GEELY VISION, EMGRAND 4 Цилиндр' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,449 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1016050269', 'name': 'Провод В/В GEELY VISION, EMGRAND 4 Цилиндр', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,449 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,449 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,450 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612960>
+2026-04-01 11:01:42,450 - dz_fastapi - DEBUG - Autopart already exists: ID 1687
+2026-04-01 11:01:42,450 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT113550050BA', 'name': 'Провод Датчика ABS TIGGO 4X2', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,450 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZT113550050BA' name='Провод Датчика ABS TIGGO 4X2' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,450 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZT113550050BA', 'name': 'Провод Датчика ABS TIGGO 4X2', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,450 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,450 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,451 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613020>
+2026-04-01 11:01:42,451 - dz_fastapi - DEBUG - Autopart already exists: ID 1689
+2026-04-01 11:01:42,451 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'T113550050BA', 'name': 'Провод Датчика ABS TIGGO 4X2', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,452 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T113550050BA' name='Провод Датчика ABS TIGGO 4X2' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,452 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T113550050BA', 'name': 'Провод Датчика ABS TIGGO 4X2', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,452 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,452 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,453 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613470>
+2026-04-01 11:01:42,453 - dz_fastapi - DEBUG - Autopart already exists: ID 54655
+2026-04-01 11:01:42,453 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1016052126', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,453 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1016052126' name='Провода В/В Комплект (Основной)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,453 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1016052126', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,453 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,453 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,454 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611a90>
+2026-04-01 11:01:42,454 - dz_fastapi - DEBUG - Autopart already exists: ID 7373
+2026-04-01 11:01:42,454 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1106013241', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,454 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1106013241' name='Провода В/В Комплект (Основной)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,454 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1106013241', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,454 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,454 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,455 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610ce0>
+2026-04-01 11:01:42,455 - dz_fastapi - DEBUG - Autopart already exists: ID 62134
+2026-04-01 11:01:42,455 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1016052126', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,455 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1016052126' name='Провода В/В Комплект (Основной)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,455 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1016052126', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,455 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,456 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,456 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476107a0>
+2026-04-01 11:01:42,457 - dz_fastapi - DEBUG - Autopart already exists: ID 1691
+2026-04-01 11:01:42,457 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1106013241', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,457 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1106013241' name='Провода В/В Комплект (Основной)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,457 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1106013241', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,457 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,457 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,458 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612f30>
+2026-04-01 11:01:42,458 - dz_fastapi - DEBUG - Autopart already exists: ID 62135
+2026-04-01 11:01:42,458 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZE120200008', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,458 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZE120200008' name='Провода В/В Комплект (Основной)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,458 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZE120200008', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,458 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,458 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,459 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611190>
+2026-04-01 11:01:42,459 - dz_fastapi - DEBUG - Autopart already exists: ID 54656
+2026-04-01 11:01:42,459 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZLF479Q13707000A', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,459 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZLF479Q13707000A' name='Провода В/В Комплект (Основной)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,459 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZLF479Q13707000A', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,459 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,459 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,460 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610a10>
+2026-04-01 11:01:42,460 - dz_fastapi - DEBUG - Autopart already exists: ID 1695
+2026-04-01 11:01:42,460 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSMW250506070809', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,460 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZSMW250506070809' name='Провода В/В Комплект (Основной)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,461 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZSMW250506070809', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,461 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,461 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,461 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476110a0>
+2026-04-01 11:01:42,462 - dz_fastapi - DEBUG - Autopart already exists: ID 1696
+2026-04-01 11:01:42,462 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'E120200008', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,462 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='E120200008' name='Провода В/В Комплект (Основной)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,462 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'E120200008', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,462 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,462 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,463 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610500>
+2026-04-01 11:01:42,463 - dz_fastapi - DEBUG - Autopart already exists: ID 54657
+2026-04-01 11:01:42,463 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'LF479Q13707000A', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,463 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='LF479Q13707000A' name='Провода В/В Комплект (Основной)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,463 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'LF479Q13707000A', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,463 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,463 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,464 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610ce0>
+2026-04-01 11:01:42,464 - dz_fastapi - DEBUG - Autopart already exists: ID 54658
+2026-04-01 11:01:42,464 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'SMW250506070809', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,465 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='SMW250506070809' name='Провода В/В Комплект (Основной)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,465 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'SMW250506070809', 'name': 'Провода В/В Комплект (Основной)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,465 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,465 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,466 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613320>
+2026-04-01 11:01:42,466 - dz_fastapi - DEBUG - Autopart already exists: ID 54659
+2026-04-01 11:01:42,466 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1016050868', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,466 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1016050868' name='Прокладка Впускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,466 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1016050868', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,466 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,466 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,467 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612d80>
+2026-04-01 11:01:42,467 - dz_fastapi - DEBUG - Autopart already exists: ID 7377
+2026-04-01 11:01:42,467 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1016055007', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,467 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1016055007' name='Прокладка Впускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,467 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1016055007', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,467 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,467 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,468 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610fb0>
+2026-04-01 11:01:42,468 - dz_fastapi - DEBUG - Autopart already exists: ID 7378
+2026-04-01 11:01:42,468 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1136000214', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,468 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1136000214' name='Прокладка Впускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,468 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1136000214', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,468 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,468 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,469 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610a10>
+2026-04-01 11:01:42,469 - dz_fastapi - DEBUG - Autopart already exists: ID 54661
+2026-04-01 11:01:42,469 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '477F1008018BA', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,469 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='477F1008018BA' name='Прокладка Впускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,469 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '477F1008018BA', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,469 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,469 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,470 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476102c0>
+2026-04-01 11:01:42,470 - dz_fastapi - DEBUG - Autopart already exists: ID 75678
+2026-04-01 11:01:42,470 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1016050868', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,470 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1016050868' name='Прокладка Впускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,470 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1016050868', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,470 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,470 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,471 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613020>
+2026-04-01 11:01:42,471 - dz_fastapi - DEBUG - Autopart already exists: ID 54662
+2026-04-01 11:01:42,471 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1016055007', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,471 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1016055007' name='Прокладка Впускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,471 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1016055007', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,471 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,471 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,472 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613470>
+2026-04-01 11:01:42,473 - dz_fastapi - DEBUG - Autopart already exists: ID 1699
+2026-04-01 11:01:42,473 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1136000214', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,473 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1136000214' name='Прокладка Впускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,473 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1136000214', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,473 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,473 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,474 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611a90>
+2026-04-01 11:01:42,474 - dz_fastapi - DEBUG - Autopart already exists: ID 1700
+2026-04-01 11:01:42,474 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ477F1008018BA', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,474 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ477F1008018BA' name='Прокладка Впускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,474 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ477F1008018BA', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,474 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,474 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,475 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476120c0>
+2026-04-01 11:01:42,475 - dz_fastapi - DEBUG - Autopart already exists: ID 75679
+2026-04-01 11:01:42,475 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZLF479Q31008227A', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,475 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZLF479Q31008227A' name='Прокладка Впускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,475 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZLF479Q31008227A', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,475 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,475 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,476 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610500>
+2026-04-01 11:01:42,476 - dz_fastapi - DEBUG - Autopart already exists: ID 1701
+2026-04-01 11:01:42,476 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZLFB479Q1008014A', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,476 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZLFB479Q1008014A' name='Прокладка Впускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,476 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZLFB479Q1008014A', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,476 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,476 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,477 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476133b0>
+2026-04-01 11:01:42,477 - dz_fastapi - DEBUG - Autopart already exists: ID 1702
+2026-04-01 11:01:42,477 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSMD193224', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,477 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZSMD193224' name='Прокладка Впускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,477 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZSMD193224', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,477 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,477 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,478 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613320>
+2026-04-01 11:01:42,478 - dz_fastapi - DEBUG - Autopart already exists: ID 1703
+2026-04-01 11:01:42,478 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'LF479Q31008227A', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,478 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='LF479Q31008227A' name='Прокладка Впускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,478 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'LF479Q31008227A', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,478 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,478 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,479 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611ee0>
+2026-04-01 11:01:42,479 - dz_fastapi - DEBUG - Autopart already exists: ID 54663
+2026-04-01 11:01:42,479 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'LFB479Q1008014A', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,479 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='LFB479Q1008014A' name='Прокладка Впускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,479 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'LFB479Q1008014A', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,479 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,479 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,480 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612330>
+2026-04-01 11:01:42,480 - dz_fastapi - DEBUG - Autopart already exists: ID 54664
+2026-04-01 11:01:42,480 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'SMD193224', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,480 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='SMD193224' name='Прокладка Впускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,480 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'SMD193224', 'name': 'Прокладка Впускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,480 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,480 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,481 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613470>
+2026-04-01 11:01:42,481 - dz_fastapi - DEBUG - Autopart already exists: ID 54665
+2026-04-01 11:01:42,481 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '4721008021', 'name': 'Прокладка Впускного Коллектора CH QQ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,481 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='4721008021' name='Прокладка Впускного Коллектора CH QQ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,481 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '4721008021', 'name': 'Прокладка Впускного Коллектора CH QQ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,481 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,481 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,482 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476110a0>
+2026-04-01 11:01:42,482 - dz_fastapi - DEBUG - Autopart already exists: ID 75680
+2026-04-01 11:01:42,482 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ4721008021', 'name': 'Прокладка Впускного Коллектора CH QQ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,482 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ4721008021' name='Прокладка Впускного Коллектора CH QQ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,482 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ4721008021', 'name': 'Прокладка Впускного Коллектора CH QQ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,482 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,482 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,483 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610200>
+2026-04-01 11:01:42,483 - dz_fastapi - DEBUG - Autopart already exists: ID 75681
+2026-04-01 11:01:42,483 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '473F1008023', 'name': 'Прокладка Впускного Коллектора Кольцо', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,483 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='473F1008023' name='Прокладка Впускного Коллектора Кольцо' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,483 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '473F1008023', 'name': 'Прокладка Впускного Коллектора Кольцо', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,483 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,483 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,484 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612f30>
+2026-04-01 11:01:42,484 - dz_fastapi - DEBUG - Autopart already exists: ID 74786
+2026-04-01 11:01:42,484 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ473F1008023', 'name': 'Прокладка Впускного Коллектора Кольцо', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,484 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ473F1008023' name='Прокладка Впускного Коллектора Кольцо' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,485 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ473F1008023', 'name': 'Прокладка Впускного Коллектора Кольцо', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,485 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,485 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,486 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611940>
+2026-04-01 11:01:42,486 - dz_fastapi - DEBUG - Autopart already exists: ID 74787
+2026-04-01 11:01:42,486 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1086000476', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,486 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1086000476' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,486 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1086000476', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,486 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,486 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,487 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611ee0>
+2026-04-01 11:01:42,487 - dz_fastapi - DEBUG - Autopart already exists: ID 63279
+2026-04-01 11:01:42,487 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '477F1008130', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,487 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='477F1008130' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,487 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '477F1008130', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,487 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,487 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,488 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610fe0>
+2026-04-01 11:01:42,488 - dz_fastapi - DEBUG - Autopart already exists: ID 7383
+2026-04-01 11:01:42,488 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '4801008130', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,488 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='4801008130' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,488 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '4801008130', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,488 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,488 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,489 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613bf0>
+2026-04-01 11:01:42,489 - dz_fastapi - DEBUG - Autopart already exists: ID 7385
+2026-04-01 11:01:42,489 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '480EF1008130', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,490 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='480EF1008130' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,490 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '480EF1008130', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,490 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,490 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,491 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476120c0>
+2026-04-01 11:01:42,491 - dz_fastapi - DEBUG - Autopart already exists: ID 63280
+2026-04-01 11:01:42,491 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '481H1008026', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,491 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='481H1008026' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,491 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '481H1008026', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,491 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,491 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,492 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611a90>
+2026-04-01 11:01:42,492 - dz_fastapi - DEBUG - Autopart already exists: ID 7384
+2026-04-01 11:01:42,492 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1086000476', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,492 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1086000476' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,492 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1086000476', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,492 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,492 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,493 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611d00>
+2026-04-01 11:01:42,493 - dz_fastapi - DEBUG - Autopart already exists: ID 63281
+2026-04-01 11:01:42,493 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ477F1008130', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,493 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ477F1008130' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,493 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ477F1008130', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,493 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,493 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,494 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611970>
+2026-04-01 11:01:42,494 - dz_fastapi - DEBUG - Autopart already exists: ID 1709
+2026-04-01 11:01:42,494 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ4801008130', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,494 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ4801008130' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,495 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ4801008130', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,495 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,495 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,495 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611ee0>
+2026-04-01 11:01:42,496 - dz_fastapi - DEBUG - Autopart already exists: ID 1713
+2026-04-01 11:01:42,496 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ480EF1008130', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,496 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ480EF1008130' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,496 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ480EF1008130', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,496 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,496 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,497 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611b80>
+2026-04-01 11:01:42,497 - dz_fastapi - DEBUG - Autopart already exists: ID 63282
+2026-04-01 11:01:42,497 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ481H1008026', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,497 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ481H1008026' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,497 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ481H1008026', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,497 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,497 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,498 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612330>
+2026-04-01 11:01:42,498 - dz_fastapi - DEBUG - Autopart already exists: ID 1710
+2026-04-01 11:01:42,498 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZE010001401', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,498 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZE010001401' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,498 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZE010001401', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,498 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,498 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,499 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613470>
+2026-04-01 11:01:42,499 - dz_fastapi - DEBUG - Autopart already exists: ID 1711
+2026-04-01 11:01:42,499 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZLF479Q11008013A', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,499 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZLF479Q11008013A' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,499 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZLF479Q11008013A', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,499 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,499 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,500 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611a90>
+2026-04-01 11:01:42,500 - dz_fastapi - DEBUG - Autopart already exists: ID 63283
+2026-04-01 11:01:42,500 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZLF479Q11008013B', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,500 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZLF479Q11008013B' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,501 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZLF479Q11008013B', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,501 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,501 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,502 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476116d0>
+2026-04-01 11:01:42,502 - dz_fastapi - DEBUG - Autopart already exists: ID 63284
+2026-04-01 11:01:42,502 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSMD181032', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,502 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZSMD181032' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,502 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZSMD181032', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,502 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,502 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,503 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610200>
+2026-04-01 11:01:42,503 - dz_fastapi - DEBUG - Autopart already exists: ID 1712
+2026-04-01 11:01:42,503 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSMW250951', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,503 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZSMW250951' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,503 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZSMW250951', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,503 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,503 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,504 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612f30>
+2026-04-01 11:01:42,504 - dz_fastapi - DEBUG - Autopart already exists: ID 26872
+2026-04-01 11:01:42,504 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'E010001401', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,504 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='E010001401' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,504 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'E010001401', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,504 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,504 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,505 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611940>
+2026-04-01 11:01:42,505 - dz_fastapi - DEBUG - Autopart already exists: ID 54666
+2026-04-01 11:01:42,505 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'LF479Q11008013A', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,506 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='LF479Q11008013A' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,506 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'LF479Q11008013A', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,506 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,506 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,506 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476122d0>
+2026-04-01 11:01:42,507 - dz_fastapi - DEBUG - Autopart already exists: ID 63285
+2026-04-01 11:01:42,507 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'LF479Q11008013B', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,507 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='LF479Q11008013B' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,507 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'LF479Q11008013B', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,507 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,507 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,508 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611970>
+2026-04-01 11:01:42,508 - dz_fastapi - DEBUG - Autopart already exists: ID 63286
+2026-04-01 11:01:42,508 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'SMD181032', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,508 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='SMD181032' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,508 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'SMD181032', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,508 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,508 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,509 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613fe0>
+2026-04-01 11:01:42,509 - dz_fastapi - DEBUG - Autopart already exists: ID 54667
+2026-04-01 11:01:42,509 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'SMW250951', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,509 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='SMW250951' name='Прокладка Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,509 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'SMW250951', 'name': 'Прокладка Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,509 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,509 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,510 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611b80>
+2026-04-01 11:01:42,510 - dz_fastapi - DEBUG - Autopart already exists: ID 54668
+2026-04-01 11:01:42,510 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1022004500', 'name': 'Прокладка Гайки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,510 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1022004500' name='Прокладка Гайки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,510 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1022004500', 'name': 'Прокладка Гайки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,511 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,511 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,512 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610320>
+2026-04-01 11:01:42,512 - dz_fastapi - DEBUG - Autopart already exists: ID 62136
+2026-04-01 11:01:42,512 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1022004500', 'name': 'Прокладка Гайки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,512 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1022004500' name='Прокладка Гайки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,512 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1022004500', 'name': 'Прокладка Гайки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,512 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,512 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,513 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612960>
+2026-04-01 11:01:42,513 - dz_fastapi - DEBUG - Autopart already exists: ID 62137
+2026-04-01 11:01:42,513 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZE010401501', 'name': 'Прокладка Гайки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,513 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZE010401501' name='Прокладка Гайки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,513 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZE010401501', 'name': 'Прокладка Гайки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,513 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,513 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,514 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612f30>
+2026-04-01 11:01:42,514 - dz_fastapi - DEBUG - Autopart already exists: ID 62138
+2026-04-01 11:01:42,514 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZLF479Q11003017A', 'name': 'Прокладка Гайки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,514 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZLF479Q11003017A' name='Прокладка Гайки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,515 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZLF479Q11003017A', 'name': 'Прокладка Гайки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,515 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,515 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,515 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611d00>
+2026-04-01 11:01:42,515 - dz_fastapi - DEBUG - Autopart already exists: ID 62139
+2026-04-01 11:01:42,515 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'E010401501', 'name': 'Прокладка Гайки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,515 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='E010401501' name='Прокладка Гайки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,515 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'E010401501', 'name': 'Прокладка Гайки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,516 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,516 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,516 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476133b0>
+2026-04-01 11:01:42,516 - dz_fastapi - DEBUG - Autopart already exists: ID 62140
+2026-04-01 11:01:42,516 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'LF479Q11003017A', 'name': 'Прокладка Гайки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,516 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='LF479Q11003017A' name='Прокладка Гайки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,517 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'LF479Q11003017A', 'name': 'Прокладка Гайки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,517 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,517 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,517 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613bf0>
+2026-04-01 11:01:42,517 - dz_fastapi - DEBUG - Autopart already exists: ID 62141
+2026-04-01 11:01:42,518 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1003090AE00', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,518 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1003090AE00' name='Прокладка Гбц' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,518 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1003090AE00', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,518 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,518 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,518 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476119a0>
+2026-04-01 11:01:42,518 - dz_fastapi - DEBUG - Autopart already exists: ID 7386
+2026-04-01 11:01:42,519 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1003400ED01', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,519 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1003400ED01' name='Прокладка Гбц' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,519 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1003400ED01', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,519 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,519 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,520 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610320>
+2026-04-01 11:01:42,520 - dz_fastapi - DEBUG - Autopart already exists: ID 7387
+2026-04-01 11:01:42,520 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1016050942', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,520 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1016050942' name='Прокладка Гбц' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,520 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1016050942', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,520 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,520 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,521 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610f20>
+2026-04-01 11:01:42,521 - dz_fastapi - DEBUG - Autopart already exists: ID 7388
+2026-04-01 11:01:42,521 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '4801003080', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,521 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='4801003080' name='Прокладка Гбц' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,521 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '4801003080', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,521 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,521 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,522 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612540>
+2026-04-01 11:01:42,522 - dz_fastapi - DEBUG - Autopart already exists: ID 7389
+2026-04-01 11:01:42,522 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1003090AE00', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,522 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1003090AE00' name='Прокладка Гбц' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,522 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1003090AE00', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,523 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,523 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,523 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476122d0>
+2026-04-01 11:01:42,523 - dz_fastapi - DEBUG - Autopart already exists: ID 1714
+2026-04-01 11:01:42,524 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1003400ED01', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,524 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1003400ED01' name='Прокладка Гбц' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,524 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1003400ED01', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,524 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,524 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,525 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611940>
+2026-04-01 11:01:42,525 - dz_fastapi - DEBUG - Autopart already exists: ID 1715
+2026-04-01 11:01:42,525 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1016050942', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,525 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1016050942' name='Прокладка Гбц' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,525 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1016050942', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,525 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,525 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,526 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476107a0>
+2026-04-01 11:01:42,526 - dz_fastapi - DEBUG - Autopart already exists: ID 1716
+2026-04-01 11:01:42,526 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ4801003080', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,526 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ4801003080' name='Прокладка Гбц' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,526 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ4801003080', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,526 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,526 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,527 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611cd0>
+2026-04-01 11:01:42,527 - dz_fastapi - DEBUG - Autopart already exists: ID 1717
+2026-04-01 11:01:42,527 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSMD332035', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,527 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZSMD332035' name='Прокладка Гбц' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,527 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZSMD332035', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,527 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,527 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,528 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610320>
+2026-04-01 11:01:42,528 - dz_fastapi - DEBUG - Autopart already exists: ID 1719
+2026-04-01 11:01:42,528 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'SMD332035', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,528 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='SMD332035' name='Прокладка Гбц' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,528 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'SMD332035', 'name': 'Прокладка Гбц', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,528 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,528 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,529 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610ce0>
+2026-04-01 11:01:42,529 - dz_fastapi - DEBUG - Autopart already exists: ID 54670
+2026-04-01 11:01:42,529 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '477F1003080', 'name': 'Прокладка Гбц A13/A15/A21/A19', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,530 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='477F1003080' name='Прокладка Гбц A13/A15/A21/A19' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,530 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '477F1003080', 'name': 'Прокладка Гбц A13/A15/A21/A19', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,530 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,530 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,531 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612960>
+2026-04-01 11:01:42,531 - dz_fastapi - DEBUG - Autopart already exists: ID 54671
+2026-04-01 11:01:42,531 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ477F1003080', 'name': 'Прокладка Гбц A13/A15/A21/A19', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,531 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ477F1003080' name='Прокладка Гбц A13/A15/A21/A19' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,531 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ477F1003080', 'name': 'Прокладка Гбц A13/A15/A21/A19', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,531 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,531 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,532 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612f30>
+2026-04-01 11:01:42,532 - dz_fastapi - DEBUG - Autopart already exists: ID 54672
+2026-04-01 11:01:42,532 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1008011K00', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,532 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1008011K00' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,532 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1008011K00', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,532 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,532 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,533 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611940>
+2026-04-01 11:01:42,533 - dz_fastapi - DEBUG - Autopart already exists: ID 7394
+2026-04-01 11:01:42,533 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1016001444', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,533 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1016001444' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,533 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1016001444', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,533 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,533 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,534 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476107d0>
+2026-04-01 11:01:42,534 - dz_fastapi - DEBUG - Autopart already exists: ID 73404
+2026-04-01 11:01:42,534 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1064000052', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,534 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1064000052' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,534 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1064000052', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,535 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,535 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,535 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476133b0>
+2026-04-01 11:01:42,535 - dz_fastapi - DEBUG - Autopart already exists: ID 54675
+2026-04-01 11:01:42,535 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1200011K00', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,536 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1200011K00' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,536 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1200011K00', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,536 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,536 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,537 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613bf0>
+2026-04-01 11:01:42,537 - dz_fastapi - DEBUG - Autopart already exists: ID 54676
+2026-04-01 11:01:42,537 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1200011K46', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,537 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1200011K46' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,537 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1200011K46', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,537 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,537 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,538 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476119a0>
+2026-04-01 11:01:42,538 - dz_fastapi - DEBUG - Autopart already exists: ID 54677
+2026-04-01 11:01:42,538 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1200012K00', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,538 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1200012K00' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,538 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1200012K00', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,538 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,538 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,539 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613d10>
+2026-04-01 11:01:42,539 - dz_fastapi - DEBUG - Autopart already exists: ID 55988
+2026-04-01 11:01:42,539 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1200013K00', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,539 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1200013K00' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,539 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1200013K00', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,539 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,539 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,540 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611cd0>
+2026-04-01 11:01:42,540 - dz_fastapi - DEBUG - Autopart already exists: ID 55989
+2026-04-01 11:01:42,540 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1201021F04', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,541 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1201021F04' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,541 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1201021F04', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,541 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,541 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,542 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610fb0>
+2026-04-01 11:01:42,542 - dz_fastapi - DEBUG - Autopart already exists: ID 62150
+2026-04-01 11:01:42,542 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1205011XKZ16A', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,542 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1205011XKZ16A' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,542 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1205011XKZ16A', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,542 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,542 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,543 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610ce0>
+2026-04-01 11:01:42,543 - dz_fastapi - DEBUG - Autopart already exists: ID 7421
+2026-04-01 11:01:42,543 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'A111205311', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,543 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='A111205311' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,543 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'A111205311', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,543 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,543 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,544 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610a10>
+2026-04-01 11:01:42,544 - dz_fastapi - DEBUG - Autopart already exists: ID 75682
+2026-04-01 11:01:42,544 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'B111205311', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,545 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='B111205311' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,545 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'B111205311', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,545 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,545 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,546 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476110a0>
+2026-04-01 11:01:42,546 - dz_fastapi - DEBUG - Autopart already exists: ID 54678
+2026-04-01 11:01:42,546 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'B1211112', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,546 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='B1211112' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,546 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'B1211112', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,546 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,546 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,547 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613bf0>
+2026-04-01 11:01:42,547 - dz_fastapi - DEBUG - Autopart already exists: ID 7395
+2026-04-01 11:01:42,547 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'B211205313BA', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,547 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='B211205313BA' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,547 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'B211205313BA', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,547 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,547 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,548 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476107a0>
+2026-04-01 11:01:42,548 - dz_fastapi - DEBUG - Autopart already exists: ID 7396
+2026-04-01 11:01:42,548 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1008011K00', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,548 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1008011K00' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,548 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1008011K00', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,548 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,548 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,549 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613fe0>
+2026-04-01 11:01:42,549 - dz_fastapi - DEBUG - Autopart already exists: ID 54679
+2026-04-01 11:01:42,549 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1016001444', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,549 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1016001444' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,549 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1016001444', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,549 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,549 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,550 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612540>
+2026-04-01 11:01:42,550 - dz_fastapi - DEBUG - Autopart already exists: ID 73405
+2026-04-01 11:01:42,550 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1064000052', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,550 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1064000052' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,550 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1064000052', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,550 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,550 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,551 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610290>
+2026-04-01 11:01:42,551 - dz_fastapi - DEBUG - Autopart already exists: ID 1725
+2026-04-01 11:01:42,551 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1200011K00', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,551 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1200011K00' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,551 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1200011K00', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,551 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,551 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,552 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610a10>
+2026-04-01 11:01:42,552 - dz_fastapi - DEBUG - Autopart already exists: ID 54680
+2026-04-01 11:01:42,552 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1200011K46', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,552 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1200011K46' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,552 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1200011K46', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,552 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,552 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,553 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610500>
+2026-04-01 11:01:42,553 - dz_fastapi - DEBUG - Autopart already exists: ID 54681
+2026-04-01 11:01:42,553 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1200012K00', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,553 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1200012K00' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,553 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1200012K00', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,553 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,553 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,554 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613020>
+2026-04-01 11:01:42,554 - dz_fastapi - DEBUG - Autopart already exists: ID 55990
+2026-04-01 11:01:42,554 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1200013K00', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,554 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1200013K00' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,555 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1200013K00', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,555 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,555 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,556 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613d10>
+2026-04-01 11:01:42,556 - dz_fastapi - DEBUG - Autopart already exists: ID 55991
+2026-04-01 11:01:42,556 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1201021F04', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,556 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1201021F04' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,556 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1201021F04', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,556 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,556 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,557 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476119a0>
+2026-04-01 11:01:42,557 - dz_fastapi - DEBUG - Autopart already exists: ID 62152
+2026-04-01 11:01:42,557 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1205011XKZ16A', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,557 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1205011XKZ16A' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,557 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1205011XKZ16A', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,557 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,557 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,558 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610fe0>
+2026-04-01 11:01:42,558 - dz_fastapi - DEBUG - Autopart already exists: ID 1769
+2026-04-01 11:01:42,558 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA111205311', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,558 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZA111205311' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,558 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZA111205311', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,558 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,558 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,559 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611250>
+2026-04-01 11:01:42,559 - dz_fastapi - DEBUG - Autopart already exists: ID 75683
+2026-04-01 11:01:42,559 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZB111205311', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,559 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZB111205311' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,560 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZB111205311', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,560 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,560 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,560 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476102c0>
+2026-04-01 11:01:42,561 - dz_fastapi - DEBUG - Autopart already exists: ID 54682
+2026-04-01 11:01:42,561 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZB1211112', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,561 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZB1211112' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,561 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZB1211112', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,561 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,561 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,562 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610500>
+2026-04-01 11:01:42,562 - dz_fastapi - DEBUG - Autopart already exists: ID 1726
+2026-04-01 11:01:42,562 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZB211205313BA', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,562 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZB211205313BA' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,562 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZB211205313BA', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,562 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,562 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,563 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613020>
+2026-04-01 11:01:42,563 - dz_fastapi - DEBUG - Autopart already exists: ID 1727
+2026-04-01 11:01:42,563 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT111200033', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,563 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZT111200033' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,563 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZT111200033', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,563 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,563 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,564 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612030>
+2026-04-01 11:01:42,564 - dz_fastapi - DEBUG - Autopart already exists: ID 1728
+2026-04-01 11:01:42,564 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZT111205311', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,564 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZT111205311' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,564 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZT111205311', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,564 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,565 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,565 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613bf0>
+2026-04-01 11:01:42,565 - dz_fastapi - DEBUG - Autopart already exists: ID 26986
+2026-04-01 11:01:42,565 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'T111200033', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,566 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T111200033' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,566 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T111200033', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,566 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,566 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,567 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610fe0>
+2026-04-01 11:01:42,567 - dz_fastapi - DEBUG - Autopart already exists: ID 54685
+2026-04-01 11:01:42,567 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'T111205311', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,567 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T111205311' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,567 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T111205311', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,567 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,567 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,568 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612540>
+2026-04-01 11:01:42,568 - dz_fastapi - DEBUG - Autopart already exists: ID 54712
+2026-04-01 11:01:42,568 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1025029500', 'name': 'Прокладка Головки Блока', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,568 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1025029500' name='Прокладка Головки Блока' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,568 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1025029500', 'name': 'Прокладка Головки Блока', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,568 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,568 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,569 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476102c0>
+2026-04-01 11:01:42,569 - dz_fastapi - DEBUG - Autopart already exists: ID 62154
+2026-04-01 11:01:42,569 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1025029500', 'name': 'Прокладка Головки Блока', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,569 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1025029500' name='Прокладка Головки Блока' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,569 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1025029500', 'name': 'Прокладка Головки Блока', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,569 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,569 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,570 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613f50>
+2026-04-01 11:01:42,570 - dz_fastapi - DEBUG - Autopart already exists: ID 1730
+2026-04-01 11:01:42,570 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZE110301001', 'name': 'Прокладка Дроселя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,571 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZE110301001' name='Прокладка Дроселя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,571 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZE110301001', 'name': 'Прокладка Дроселя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,571 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,571 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,572 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610ce0>
+2026-04-01 11:01:42,572 - dz_fastapi - DEBUG - Autopart already exists: ID 1731
+2026-04-01 11:01:42,572 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'E110301001', 'name': 'Прокладка Дроселя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,572 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='E110301001' name='Прокладка Дроселя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,572 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'E110301001', 'name': 'Прокладка Дроселя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,572 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,572 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,573 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476107d0>
+2026-04-01 11:01:42,573 - dz_fastapi - DEBUG - Autopart already exists: ID 54686
+2026-04-01 11:01:42,573 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'A111205313FA', 'name': 'Прокладка Катализатора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,573 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='A111205313FA' name='Прокладка Катализатора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,573 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'A111205313FA', 'name': 'Прокладка Катализатора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,573 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,573 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,574 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612c30>
+2026-04-01 11:01:42,574 - dz_fastapi - DEBUG - Autopart already exists: ID 75684
+2026-04-01 11:01:42,574 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZA111205313FA', 'name': 'Прокладка Катализатора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,574 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZA111205313FA' name='Прокладка Катализатора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,574 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZA111205313FA', 'name': 'Прокладка Катализатора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,574 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,574 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,575 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610500>
+2026-04-01 11:01:42,575 - dz_fastapi - DEBUG - Autopart already exists: ID 75685
+2026-04-01 11:01:42,575 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZS211205311', 'name': 'Прокладка Катализатора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,575 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZS211205311' name='Прокладка Катализатора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,576 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZS211205311', 'name': 'Прокладка Катализатора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,576 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,576 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,576 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611ee0>
+2026-04-01 11:01:42,577 - dz_fastapi - DEBUG - Autopart already exists: ID 94020
+2026-04-01 11:01:42,577 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'S211205311', 'name': 'Прокладка Катализатора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,577 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='S211205311' name='Прокладка Катализатора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,577 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'S211205311', 'name': 'Прокладка Катализатора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,577 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,577 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,578 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611940>
+2026-04-01 11:01:42,578 - dz_fastapi - DEBUG - Autopart already exists: ID 94021
+2026-04-01 11:01:42,578 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1057A033', 'name': 'Прокладка Клапана Вентиляции Картера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,578 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1057A033' name='Прокладка Клапана Вентиляции Картера' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,578 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1057A033', 'name': 'Прокладка Клапана Вентиляции Картера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,578 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,578 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,579 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476102c0>
+2026-04-01 11:01:42,579 - dz_fastapi - DEBUG - Autopart already exists: ID 55992
+2026-04-01 11:01:42,579 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1057A033', 'name': 'Прокладка Клапана Вентиляции Картера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,579 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1057A033' name='Прокладка Клапана Вентиляции Картера' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,579 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1057A033', 'name': 'Прокладка Клапана Вентиляции Картера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,580 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,580 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,580 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613fe0>
+2026-04-01 11:01:42,580 - dz_fastapi - DEBUG - Autopart already exists: ID 55993
+2026-04-01 11:01:42,581 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSMD179909', 'name': 'Прокладка Клапана Вентиляции Картера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,581 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZSMD179909' name='Прокладка Клапана Вентиляции Картера' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,581 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZSMD179909', 'name': 'Прокладка Клапана Вентиляции Картера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,581 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,581 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,582 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612f30>
+2026-04-01 11:01:42,582 - dz_fastapi - DEBUG - Autopart already exists: ID 55994
+2026-04-01 11:01:42,582 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'SMD179909', 'name': 'Прокладка Клапана Вентиляции Картера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,582 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='SMD179909' name='Прокладка Клапана Вентиляции Картера' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,582 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'SMD179909', 'name': 'Прокладка Клапана Вентиляции Картера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,582 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,582 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,583 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612330>
+2026-04-01 11:01:42,583 - dz_fastapi - DEBUG - Autopart already exists: ID 55995
+2026-04-01 11:01:42,583 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'ST1057A033', 'name': 'Прокладка Клапана Вентиляции Картера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,583 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='ST1057A033' name='Прокладка Клапана Вентиляции Картера' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,583 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'ST1057A033', 'name': 'Прокладка Клапана Вентиляции Картера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,583 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,583 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,584 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610500>
+2026-04-01 11:01:42,584 - dz_fastapi - DEBUG - Autopart already exists: ID 55996
+2026-04-01 11:01:42,584 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1003085E00', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,584 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1003085E00' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,584 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1003085E00', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,584 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,584 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,585 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612d80>
+2026-04-01 11:01:42,585 - dz_fastapi - DEBUG - Autopart already exists: ID 7397
+2026-04-01 11:01:42,585 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1003301AEC01', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,585 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1003301AEC01' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,585 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1003301AEC01', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,585 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,585 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,586 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476133b0>
+2026-04-01 11:01:42,586 - dz_fastapi - DEBUG - Autopart already exists: ID 62159
+2026-04-01 11:01:42,586 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1003301XEC01', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,586 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1003301XEC01' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,586 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1003301XEC01', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,586 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,586 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,587 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610a10>
+2026-04-01 11:01:42,587 - dz_fastapi - DEBUG - Autopart already exists: ID 62160
+2026-04-01 11:01:42,587 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1086001127', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,587 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1086001127' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,587 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1086001127', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,587 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,587 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,588 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610ce0>
+2026-04-01 11:01:42,588 - dz_fastapi - DEBUG - Autopart already exists: ID 7399
+2026-04-01 11:01:42,588 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1136000054', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,588 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1136000054' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,588 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1136000054', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,589 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,589 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,589 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613f50>
+2026-04-01 11:01:42,589 - dz_fastapi - DEBUG - Autopart already exists: ID 7400
+2026-04-01 11:01:42,590 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '2244123800', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,590 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='2244123800' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,590 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '2244123800', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,590 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,590 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,591 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476120c0>
+2026-04-01 11:01:42,591 - dz_fastapi - DEBUG - Autopart already exists: ID 73352
+2026-04-01 11:01:42,591 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '473F1003054', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,591 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='473F1003054' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,591 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '473F1003054', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,591 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,591 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,592 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612960>
+2026-04-01 11:01:42,592 - dz_fastapi - DEBUG - Autopart already exists: ID 7401
+2026-04-01 11:01:42,592 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1003085E00', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,592 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1003085E00' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,592 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1003085E00', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,592 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,592 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,593 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612d80>
+2026-04-01 11:01:42,593 - dz_fastapi - DEBUG - Autopart already exists: ID 1732
+2026-04-01 11:01:42,593 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1003301AEC01', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,593 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1003301AEC01' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,593 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1003301AEC01', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,593 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,593 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,594 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611ee0>
+2026-04-01 11:01:42,594 - dz_fastapi - DEBUG - Autopart already exists: ID 62161
+2026-04-01 11:01:42,594 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1003301XEC01', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,594 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1003301XEC01' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,595 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1003301XEC01', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,595 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,595 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,595 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611940>
+2026-04-01 11:01:42,596 - dz_fastapi - DEBUG - Autopart already exists: ID 62162
+2026-04-01 11:01:42,596 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1086001127', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,596 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1086001127' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,596 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1086001127', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,596 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,596 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,597 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476102c0>
+2026-04-01 11:01:42,597 - dz_fastapi - DEBUG - Autopart already exists: ID 1734
+2026-04-01 11:01:42,597 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1136000054', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,597 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1136000054' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,597 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1136000054', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,597 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,597 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,598 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613f50>
+2026-04-01 11:01:42,598 - dz_fastapi - DEBUG - Autopart already exists: ID 1735
+2026-04-01 11:01:42,598 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ2244123800', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,598 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ2244123800' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,598 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ2244123800', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,598 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,598 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,599 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611cd0>
+2026-04-01 11:01:42,599 - dz_fastapi - DEBUG - Autopart already exists: ID 73353
+2026-04-01 11:01:42,599 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ473F1003054', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,599 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ473F1003054' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,599 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ473F1003054', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,599 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,599 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,600 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612f30>
+2026-04-01 11:01:42,600 - dz_fastapi - DEBUG - Autopart already exists: ID 1736
+2026-04-01 11:01:42,600 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZE010001501', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,600 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZE010001501' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,601 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZE010001501', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,601 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,601 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,601 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612330>
+2026-04-01 11:01:42,602 - dz_fastapi - DEBUG - Autopart already exists: ID 1740
+2026-04-01 11:01:42,602 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZLF479Q11003015A', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,602 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZLF479Q11003015A' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,602 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZLF479Q11003015A', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,602 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,602 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,603 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610500>
+2026-04-01 11:01:42,603 - dz_fastapi - DEBUG - Autopart already exists: ID 54687
+2026-04-01 11:01:42,603 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZLFB479Q1003015A', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,603 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZLFB479Q1003015A' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,603 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZLFB479Q1003015A', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,603 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,603 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,604 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476116d0>
+2026-04-01 11:01:42,604 - dz_fastapi - DEBUG - Autopart already exists: ID 26985
+2026-04-01 11:01:42,604 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZSMD188435', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,604 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZSMD188435' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,604 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZSMD188435', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,604 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,604 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,605 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612960>
+2026-04-01 11:01:42,605 - dz_fastapi - DEBUG - Autopart already exists: ID 1742
+2026-04-01 11:01:42,605 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'E010001501', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,605 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='E010001501' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,606 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'E010001501', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,606 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,606 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,606 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611970>
+2026-04-01 11:01:42,607 - dz_fastapi - DEBUG - Autopart already exists: ID 54688
+2026-04-01 11:01:42,607 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'LF479Q11003015A', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,607 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='LF479Q11003015A' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,607 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'LF479Q11003015A', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,607 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,607 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,608 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611ee0>
+2026-04-01 11:01:42,608 - dz_fastapi - DEBUG - Autopart already exists: ID 54690
+2026-04-01 11:01:42,608 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'LFB479Q1003015A', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,608 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='LFB479Q1003015A' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,608 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'LFB479Q1003015A', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,608 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,608 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,609 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611190>
+2026-04-01 11:01:42,609 - dz_fastapi - DEBUG - Autopart already exists: ID 54691
+2026-04-01 11:01:42,609 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'SMD188435', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,609 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='SMD188435' name='Прокладка Клапанной Крышки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,609 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'SMD188435', 'name': 'Прокладка Клапанной Крышки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,609 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,610 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,610 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613bf0>
+2026-04-01 11:01:42,610 - dz_fastapi - DEBUG - Autopart already exists: ID 54692
+2026-04-01 11:01:42,610 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1016052113', 'name': 'Прокладка Клапанной Крышки EMGRAND X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,611 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1016052113' name='Прокладка Клапанной Крышки EMGRAND X7' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,611 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1016052113', 'name': 'Прокладка Клапанной Крышки EMGRAND X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,611 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,611 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,612 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612330>
+2026-04-01 11:01:42,612 - dz_fastapi - DEBUG - Autopart already exists: ID 62165
+2026-04-01 11:01:42,612 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1022004200', 'name': 'Прокладка Клапанной Крышки EMGRAND X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,612 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1022004200' name='Прокладка Клапанной Крышки EMGRAND X7' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,612 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1022004200', 'name': 'Прокладка Клапанной Крышки EMGRAND X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,612 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,612 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,613 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476120c0>
+2026-04-01 11:01:42,613 - dz_fastapi - DEBUG - Autopart already exists: ID 62166
+2026-04-01 11:01:42,613 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1121328021', 'name': 'Прокладка Клапанной Крышки EMGRAND X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,613 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1121328021' name='Прокладка Клапанной Крышки EMGRAND X7' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,613 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1121328021', 'name': 'Прокладка Клапанной Крышки EMGRAND X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,613 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,613 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,615 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613470>
+2026-04-01 11:01:42,615 - dz_fastapi - DEBUG - Autopart already exists: ID 63287
+2026-04-01 11:01:42,615 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1016052113', 'name': 'Прокладка Клапанной Крышки EMGRAND X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,615 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1016052113' name='Прокладка Клапанной Крышки EMGRAND X7' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,615 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1016052113', 'name': 'Прокладка Клапанной Крышки EMGRAND X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,615 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,615 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,616 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611b80>
+2026-04-01 11:01:42,616 - dz_fastapi - DEBUG - Autopart already exists: ID 62167
+2026-04-01 11:01:42,616 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1022004200', 'name': 'Прокладка Клапанной Крышки EMGRAND X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,616 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1022004200' name='Прокладка Клапанной Крышки EMGRAND X7' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,616 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1022004200', 'name': 'Прокладка Клапанной Крышки EMGRAND X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,616 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,616 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,617 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611ee0>
+2026-04-01 11:01:42,617 - dz_fastapi - DEBUG - Autopart already exists: ID 62168
+2026-04-01 11:01:42,617 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1121328021', 'name': 'Прокладка Клапанной Крышки EMGRAND X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,617 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1121328021' name='Прокладка Клапанной Крышки EMGRAND X7' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,617 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1121328021', 'name': 'Прокладка Клапанной Крышки EMGRAND X7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,617 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,617 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,618 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610f20>
+2026-04-01 11:01:42,618 - dz_fastapi - DEBUG - Autopart already exists: ID 62169
+2026-04-01 11:01:42,618 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1016051976', 'name': 'Прокладка Клапанной Крышки GEELY GC6', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,618 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1016051976' name='Прокладка Клапанной Крышки GEELY GC6' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,618 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1016051976', 'name': 'Прокладка Клапанной Крышки GEELY GC6', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,618 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,619 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,619 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612540>
+2026-04-01 11:01:42,619 - dz_fastapi - DEBUG - Autopart already exists: ID 7407
+2026-04-01 11:01:42,619 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1016051976', 'name': 'Прокладка Клапанной Крышки GEELY GC6', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,619 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1016051976' name='Прокладка Клапанной Крышки GEELY GC6' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,619 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1016051976', 'name': 'Прокладка Клапанной Крышки GEELY GC6', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,620 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,620 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,620 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476122d0>
+2026-04-01 11:01:42,620 - dz_fastapi - DEBUG - Autopart already exists: ID 1745
+2026-04-01 11:01:42,620 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '4801003060', 'name': 'Прокладка Клапанной Крышки Резиновая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,620 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='4801003060' name='Прокладка Клапанной Крышки Резиновая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,620 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '4801003060', 'name': 'Прокладка Клапанной Крышки Резиновая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,621 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,621 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,621 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476116d0>
+2026-04-01 11:01:42,621 - dz_fastapi - DEBUG - Autopart already exists: ID 63288
+2026-04-01 11:01:42,621 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '4801003060BA', 'name': 'Прокладка Клапанной Крышки Резиновая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,622 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='4801003060BA' name='Прокладка Клапанной Крышки Резиновая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,622 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '4801003060BA', 'name': 'Прокладка Клапанной Крышки Резиновая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,622 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,622 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,623 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610500>
+2026-04-01 11:01:42,623 - dz_fastapi - DEBUG - Autopart already exists: ID 63289
+2026-04-01 11:01:42,623 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ4801003060', 'name': 'Прокладка Клапанной Крышки Резиновая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,623 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ4801003060' name='Прокладка Клапанной Крышки Резиновая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,623 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ4801003060', 'name': 'Прокладка Клапанной Крышки Резиновая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,623 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,623 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,624 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610320>
+2026-04-01 11:01:42,624 - dz_fastapi - DEBUG - Autopart already exists: ID 63290
+2026-04-01 11:01:42,624 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ4801003060BA', 'name': 'Прокладка Клапанной Крышки Резиновая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,624 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ4801003060BA' name='Прокладка Клапанной Крышки Резиновая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,624 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ4801003060BA', 'name': 'Прокладка Клапанной Крышки Резиновая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,624 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,625 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,625 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612030>
+2026-04-01 11:01:42,625 - dz_fastapi - DEBUG - Autopart already exists: ID 63291
+2026-04-01 11:01:42,625 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '10025314', 'name': 'Прокладка Колодца Свечного', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,625 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='10025314' name='Прокладка Колодца Свечного' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,626 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '10025314', 'name': 'Прокладка Колодца Свечного', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,626 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,626 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,626 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610f20>
+2026-04-01 11:01:42,626 - dz_fastapi - DEBUG - Autopart already exists: ID 75686
+2026-04-01 11:01:42,626 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1023777600', 'name': 'Прокладка Колодца Свечного', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,626 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1023777600' name='Прокладка Колодца Свечного' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,627 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1023777600', 'name': 'Прокладка Колодца Свечного', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,627 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,627 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,627 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47611190>
+2026-04-01 11:01:42,627 - dz_fastapi - DEBUG - Autopart already exists: ID 75687
+2026-04-01 11:01:42,627 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '1106013107', 'name': 'Прокладка Колодца Свечного', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,628 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='1106013107' name='Прокладка Колодца Свечного' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,628 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '1106013107', 'name': 'Прокладка Колодца Свечного', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,628 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,628 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,629 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613bf0>
+2026-04-01 11:01:42,629 - dz_fastapi - DEBUG - Autopart already exists: ID 7411
+2026-04-01 11:01:42,629 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': '3721003034', 'name': 'Прокладка Колодца Свечного', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,629 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='3721003034' name='Прокладка Колодца Свечного' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,629 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '3721003034', 'name': 'Прокладка Колодца Свечного', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,629 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,629 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,630 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47612330>
+2026-04-01 11:01:42,630 - dz_fastapi - DEBUG - Autopart already exists: ID 7412
+2026-04-01 11:01:42,630 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ10025314', 'name': 'Прокладка Колодца Свечного', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,630 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ10025314' name='Прокладка Колодца Свечного' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,630 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ10025314', 'name': 'Прокладка Колодца Свечного', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,630 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,630 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,631 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47610500>
+2026-04-01 11:01:42,631 - dz_fastapi - DEBUG - Autopart already exists: ID 75688
+2026-04-01 11:01:42,631 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1023777600', 'name': 'Прокладка Колодца Свечного', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,631 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1023777600' name='Прокладка Колодца Свечного' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,631 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1023777600', 'name': 'Прокладка Колодца Свечного', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,631 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,631 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,632 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476107d0>
+2026-04-01 11:01:42,632 - dz_fastapi - DEBUG - Autopart already exists: ID 75689
+2026-04-01 11:01:42,632 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ1106013107', 'name': 'Прокладка Колодца Свечного', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,632 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ1106013107' name='Прокладка Колодца Свечного' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:42,632 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'DZ1106013107', 'name': 'Прокладка Колодца Свечного', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,632 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:42,632 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff47612630>
+2026-04-01 11:01:42,633 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff47613470>
+2026-04-01 11:01:42,633 - dz_fastapi - DEBUG - Autopart already exists: ID 1749
+2026-04-01 11:01:42,633 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'DRAGONZAP', 'oem_number': 'DZ3721003034', 'name': 'Прокладка Колодца Свечного', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:42,633 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='DZ3721003034' name='Прокладка Колодца Свечного' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None

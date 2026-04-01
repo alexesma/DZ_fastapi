@@ -35,6 +35,8 @@ KEY = os.getenv('KEY_FOR_WEBSITE')
 
 logger = logging.getLogger('dz_fastapi')
 
+MAX_LOCAL_PROVIDER_ID = 2_147_483_647
+
 
 router = APIRouter(prefix='/order')
 
@@ -44,10 +46,46 @@ async def _resolve_site_provider_id(
     item: OrderPositionOut,
     provider_cache: dict[str, int],
 ) -> int:
-    if item.supplier_id is not None:
-        return item.supplier_id
-
     supplier_name = (item.supplier_name or '').strip()
+    cache_key = supplier_name.casefold() if supplier_name else None
+    if cache_key:
+        cached_provider_id = provider_cache.get(cache_key)
+        if cached_provider_id is not None:
+            return cached_provider_id
+
+        provider = await crud_provider.get_provider_or_none(
+            supplier_name, session
+        )
+        if provider is not None:
+            provider_cache[cache_key] = provider.id
+            return provider.id
+
+    if (
+        item.supplier_id is not None
+        and 0 < item.supplier_id <= MAX_LOCAL_PROVIDER_ID
+    ):
+        provider_by_id = await crud_provider.get_by_id(
+            item.supplier_id, session
+        )
+        if provider_by_id is not None:
+            if cache_key:
+                provider_cache[cache_key] = provider_by_id.id
+            return provider_by_id.id
+
+        logger.warning(
+            'Dragonzap supplier_id=%s is not a local provider id; '
+            'fallback to supplier_name=%r',
+            item.supplier_id,
+            supplier_name,
+        )
+    elif item.supplier_id is not None:
+        logger.warning(
+            'Dragonzap supplier_id=%s is outside local provider id range; '
+            'fallback to supplier_name=%r',
+            item.supplier_id,
+            supplier_name,
+        )
+
     if not supplier_name:
         raise HTTPException(
             status_code=400,
@@ -57,25 +95,15 @@ async def _resolve_site_provider_id(
             ),
         )
 
-    cache_key = supplier_name.casefold()
-    cached_provider_id = provider_cache.get(cache_key)
-    if cached_provider_id is not None:
-        return cached_provider_id
-
-    provider = await crud_provider.get_provider_or_none(
-        supplier_name, session
+    provider = Provider(
+        name=supplier_name,
+        is_virtual=True,
+        type_prices=TYPE_PRICES.WHOLESALE,
+        description='Created automatically from Dragonzap site order',
+        comment='Automatically created provider from site basket send',
     )
-    if provider is None:
-        provider = Provider(
-            name=supplier_name,
-            is_virtual=True,
-            type_prices=TYPE_PRICES.WHOLESALE,
-            description='Created automatically from Dragonzap site order',
-            comment='Automatically created provider from site basket send',
-        )
-        session.add(provider)
-        await session.flush()
-
+    session.add(provider)
+    await session.flush()
     provider_cache[cache_key] = provider.id
     return provider.id
 
@@ -426,11 +454,20 @@ async def send_api(
                             session=session,
                         )
 
-                        await crud_autopart_restock_decision.update_positions_status(   # noqa: E501
-                            tracking_uuids=[item.tracking_uuid],
-                            status=TYPE_SUPPLIER_DECISION_STATUS.SEND,
-                            session=session,
-                        )
+                        try:
+                            await crud_autopart_restock_decision.update_positions_status(  # noqa: E501
+                                tracking_uuids=[item.tracking_uuid],
+                                status=TYPE_SUPPLIER_DECISION_STATUS.SEND,
+                                session=session,
+                            )
+                        except HTTPException as exc:
+                            if exc.status_code != 404:
+                                raise
+                            logger.debug(
+                                'No AutoPartRestockDecisionSupplier for '
+                                'tracking_uuid=%s; skip restock status update',
+                                item.tracking_uuid,
+                            )
                         verify = await dz_site_client.get_basket(api_key=KEY)
                         items = (
                             verify.get('data')

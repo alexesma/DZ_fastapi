@@ -1,0 +1,1103 @@
+2026-04-01 11:01:39,860 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T152901029' name='Отбойник Пружины Зад Низ' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,867 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T152901029', 'name': 'Отбойник Пружины Зад Низ', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,867 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,867 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,869 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded5880>
+2026-04-01 11:01:39,869 - dz_fastapi - DEBUG - Autopart already exists: ID 456
+2026-04-01 11:01:39,869 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'S211208217BA', 'name': 'Патрубок', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,869 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='S211208217BA' name='Патрубок' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,869 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'S211208217BA', 'name': 'Патрубок', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,870 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,870 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,872 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded6f00>
+2026-04-01 11:01:39,872 - dz_fastapi - DEBUG - Autopart already exists: ID 460
+2026-04-01 11:01:39,872 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'T151503013', 'name': 'Патрубок Охлаждения Отзывная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,872 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T151503013' name='Патрубок Охлаждения Отзывная' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,872 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T151503013', 'name': 'Патрубок Охлаждения Отзывная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,872 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,872 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,873 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded65a0>
+2026-04-01 11:01:39,874 - dz_fastapi - DEBUG - Autopart already exists: ID 463
+2026-04-01 11:01:39,874 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'A111303419', 'name': 'Патрубок Радиатора AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,874 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='A111303419' name='Патрубок Радиатора AMULET' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,874 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'A111303419', 'name': 'Патрубок Радиатора AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,874 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,874 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,875 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded52b0>
+2026-04-01 11:01:39,875 - dz_fastapi - DEBUG - Autopart already exists: ID 465
+2026-04-01 11:01:39,875 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'A111303110', 'name': 'Патрубок Тройник Нижний На Радиатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,875 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='A111303110' name='Патрубок Тройник Нижний На Радиатор' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,875 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'A111303110', 'name': 'Патрубок Тройник Нижний На Радиатор', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,875 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,875 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,876 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded6690>
+2026-04-01 11:01:39,876 - dz_fastapi - DEBUG - Autopart already exists: ID 468
+2026-04-01 11:01:39,877 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'F4J161012090', 'name': 'Перепускной Клапан И Крышка Фильтра Масляного', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,877 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='F4J161012090' name='Перепускной Клапан И Крышка Фильтра Масляного' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,877 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'F4J161012090', 'name': 'Перепускной Клапан И Крышка Фильтра Масляного', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,877 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,877 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,878 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded7860>
+2026-04-01 11:01:39,878 - dz_fastapi - DEBUG - Autopart already exists: ID 469
+2026-04-01 11:01:39,878 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'A115704511', 'name': 'Пистон AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,878 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='A115704511' name='Пистон AMULET' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,878 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'A115704511', 'name': 'Пистон AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,879 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,879 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,880 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded6900>
+2026-04-01 11:01:39,880 - dz_fastapi - DEBUG - Autopart already exists: ID 471
+2026-04-01 11:01:39,880 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'B113102040', 'name': 'Пистон №18', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,881 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='B113102040' name='Пистон №18' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,881 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'B113102040', 'name': 'Пистон №18', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,881 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,881 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,883 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded79b0>
+2026-04-01 11:01:39,883 - dz_fastapi - DEBUG - Autopart already exists: ID 472
+2026-04-01 11:01:39,883 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'T113102035', 'name': 'Пистон №45', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,883 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T113102035' name='Пистон №45' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,883 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T113102035', 'name': 'Пистон №45', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,883 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,883 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,884 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded47a0>
+2026-04-01 11:01:39,884 - dz_fastapi - DEBUG - Autopart already exists: ID 473
+2026-04-01 11:01:39,884 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'S112803510AB', 'name': 'Пистон Бампера Заднего (Цс)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,884 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='S112803510AB' name='Пистон Бампера Заднего (Цс)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,884 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'S112803510AB', 'name': 'Пистон Бампера Заднего (Цс)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,884 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,885 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,886 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded5e50>
+2026-04-01 11:01:39,886 - dz_fastapi - DEBUG - Autopart already exists: ID 474
+2026-04-01 11:01:39,886 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'T112804141', 'name': 'Пистон Заднего Бампера TIGGO №013', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,886 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T112804141' name='Пистон Заднего Бампера TIGGO №013' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,886 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T112804141', 'name': 'Пистон Заднего Бампера TIGGO №013', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,886 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,886 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,887 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded72c0>
+2026-04-01 11:01:39,887 - dz_fastapi - DEBUG - Autopart already exists: ID 475
+2026-04-01 11:01:39,887 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'S116101021AB', 'name': 'Пистон Обивки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,887 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='S116101021AB' name='Пистон Обивки Двери' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,887 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'S116101021AB', 'name': 'Пистон Обивки Двери', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,887 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,887 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,889 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded5a60>
+2026-04-01 11:01:39,889 - dz_fastapi - DEBUG - Autopart already exists: ID 477
+2026-04-01 11:01:39,889 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '602000148AA', 'name': 'Пистон Пластик Для Подкрылков M31T/M32T/M36T/M32TFL', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,889 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='602000148AA' name='Пистон Пластик Для Подкрылков M31T/M32T/M36T/M32TFL' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,889 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '602000148AA', 'name': 'Пистон Пластик Для Подкрылков M31T/M32T/M36T/M32TFL', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,889 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,889 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,890 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded56a0>
+2026-04-01 11:01:39,890 - dz_fastapi - DEBUG - Autopart already exists: ID 478
+2026-04-01 11:01:39,890 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '602000746AA', 'name': 'Пластина Грязезащиты Двигателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,890 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='602000746AA' name='Пластина Грязезащиты Двигателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,890 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '602000746AA', 'name': 'Пластина Грязезащиты Двигателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,890 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,890 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,892 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded6900>
+2026-04-01 11:01:39,892 - dz_fastapi - DEBUG - Autopart already exists: ID 479
+2026-04-01 11:01:39,892 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '602000952AA', 'name': 'Пластина Крепления Решетки Переднего Бампера Левая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,892 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='602000952AA' name='Пластина Крепления Решетки Переднего Бампера Левая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,892 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '602000952AA', 'name': 'Пластина Крепления Решетки Переднего Бампера Левая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,892 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,892 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,893 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded4560>
+2026-04-01 11:01:39,893 - dz_fastapi - DEBUG - Autopart already exists: ID 481
+2026-04-01 11:01:39,893 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '608000106AA', 'name': 'Поводок Стеклоочистителя Заднего CHERY TIGGO7 PRO', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,893 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='608000106AA' name='Поводок Стеклоочистителя Заднего CHERY TIGGO7 PRO' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,893 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '608000106AA', 'name': 'Поводок Стеклоочистителя Заднего CHERY TIGGO7 PRO', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,893 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,893 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,895 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded7860>
+2026-04-01 11:01:39,895 - dz_fastapi - DEBUG - Autopart already exists: ID 483
+2026-04-01 11:01:39,895 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'M111200018', 'name': 'Подвес Глушителя M11', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,895 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='M111200018' name='Подвес Глушителя M11' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,895 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'M111200018', 'name': 'Подвес Глушителя M11', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,895 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,895 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,897 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded6f00>
+2026-04-01 11:01:39,897 - dz_fastapi - DEBUG - Autopart already exists: ID 24290
+2026-04-01 11:01:39,898 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '153000097AA', 'name': 'Подвес Грушителя 1.5TCI M31TM32TM32TFLM36T', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,898 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='153000097AA' name='Подвес Грушителя 1.5TCI M31TM32TM32TFLM36T' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,898 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '153000097AA', 'name': 'Подвес Грушителя 1.5TCI M31TM32TM32TFLM36T', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,898 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,898 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,900 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded6cc0>
+2026-04-01 11:01:39,900 - dz_fastapi - DEBUG - Autopart already exists: ID 485
+2026-04-01 11:01:39,900 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'E4G161009010', 'name': 'Поддон CHERY TIGGO 1.6, TINGO 1.6, ARIZZO, Оригинал', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,900 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='E4G161009010' name='Поддон CHERY TIGGO 1.6, TINGO 1.6, ARIZZO, Оригинал' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,900 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'E4G161009010', 'name': 'Поддон CHERY TIGGO 1.6, TINGO 1.6, ARIZZO, Оригинал', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,901 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,901 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,901 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded6900>
+2026-04-01 11:01:39,902 - dz_fastapi - DEBUG - Autopart already exists: ID 486
+2026-04-01 11:01:39,902 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '602000266AA', 'name': 'Подкрылок Задний Левый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,902 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='602000266AA' name='Подкрылок Задний Левый' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,902 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '602000266AA', 'name': 'Подкрылок Задний Левый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,902 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,902 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,903 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded65a0>
+2026-04-01 11:01:39,903 - dz_fastapi - DEBUG - Autopart already exists: ID 489
+2026-04-01 11:01:39,903 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '602002274AA', 'name': 'Подкрылок Задний Правый T1E', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,903 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='602002274AA' name='Подкрылок Задний Правый T1E' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,903 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '602002274AA', 'name': 'Подкрылок Задний Правый T1E', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,903 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,903 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,904 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded7500>
+2026-04-01 11:01:39,905 - dz_fastapi - DEBUG - Autopart already exists: ID 491
+2026-04-01 11:01:39,905 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '602000264AA', 'name': 'Подкрылок Передний Левый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,905 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='602000264AA' name='Подкрылок Передний Левый' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,905 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '602000264AA', 'name': 'Подкрылок Передний Левый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,905 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,905 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,906 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded7a10>
+2026-04-01 11:01:39,906 - dz_fastapi - DEBUG - Autopart already exists: ID 492
+2026-04-01 11:01:39,906 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '602000265AA', 'name': 'Подкрылок Передний Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,906 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='602000265AA' name='Подкрылок Передний Правый' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,906 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '602000265AA', 'name': 'Подкрылок Передний Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,906 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,906 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,907 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded52b0>
+2026-04-01 11:01:39,907 - dz_fastapi - DEBUG - Autopart already exists: ID 495
+2026-04-01 11:01:39,907 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '602000647AA', 'name': 'Подкрылок Передний Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,908 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='602000647AA' name='Подкрылок Передний Правый' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,908 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '602000647AA', 'name': 'Подкрылок Передний Правый', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,908 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,908 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,909 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded4470>
+2026-04-01 11:01:39,909 - dz_fastapi - DEBUG - Autopart already exists: ID 496
+2026-04-01 11:01:39,909 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'T111301313', 'name': 'Подушка Радиатора Резиновая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,909 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T111301313' name='Подушка Радиатора Резиновая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,910 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T111301313', 'name': 'Подушка Радиатора Резиновая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,910 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,910 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,911 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded56a0>
+2026-04-01 11:01:39,912 - dz_fastapi - DEBUG - Autopart already exists: ID 497
+2026-04-01 11:01:39,912 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'T152901040', 'name': 'Подшипник Опорный T15/T18/T19/T1A/T1E/T1D', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,912 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T152901040' name='Подшипник Опорный T15/T18/T19/T1A/T1E/T1D' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,912 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T152901040', 'name': 'Подшипник Опорный T15/T18/T19/T1A/T1E/T1D', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,912 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,912 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,914 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded4560>
+2026-04-01 11:01:39,914 - dz_fastapi - DEBUG - Autopart already exists: ID 499
+2026-04-01 11:01:39,914 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'T113001030', 'name': 'Подшипник Ступицы Передней', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,914 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T113001030' name='Подшипник Ступицы Передней' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,914 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T113001030', 'name': 'Подшипник Ступицы Передней', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,915 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,915 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,916 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded7860>
+2026-04-01 11:01:39,916 - dz_fastapi - DEBUG - Autopart already exists: ID 500
+2026-04-01 11:01:39,916 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '465Q1A2D01307950', 'name': 'Помпа Водяная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,916 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='465Q1A2D01307950' name='Помпа Водяная' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,916 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '465Q1A2D01307950', 'name': 'Помпа Водяная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,916 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,916 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,919 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded6690>
+2026-04-01 11:01:39,919 - dz_fastapi - DEBUG - Autopart already exists: ID 503
+2026-04-01 11:01:39,919 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '403002411AA', 'name': 'Посадочное Место Дверной Ручки T1E/T19/T1D/T1A/T19/T18', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,919 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='403002411AA' name='Посадочное Место Дверной Ручки T1E/T19/T1D/T1A/T19/T18' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,919 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '403002411AA', 'name': 'Посадочное Место Дверной Ручки T1E/T19/T1D/T1A/T19/T18', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,919 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,919 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,921 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded79b0>
+2026-04-01 11:01:39,921 - dz_fastapi - DEBUG - Autopart already exists: ID 7882
+2026-04-01 11:01:39,922 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'A113722019BB', 'name': 'Предохранитель 25A Мелкий', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,922 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='A113722019BB' name='Предохранитель 25A Мелкий' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,922 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'A113722019BB', 'name': 'Предохранитель 25A Мелкий', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,922 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,922 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,923 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded7500>
+2026-04-01 11:01:39,923 - dz_fastapi - DEBUG - Autopart already exists: ID 506
+2026-04-01 11:01:39,923 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'A113722011BB', 'name': 'Предохранитель CH AMULET,BONUS,EASTAR,FORA,INDIS,KARRY,KIMO,M12,TIGGO,VERY 10A', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,923 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='A113722011BB' name='Предохранитель CH AMULET,BONUS,EASTAR,FORA,INDIS,KARRY,KIMO,M12,TIGGO,VERY 10A' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,923 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'A113722011BB', 'name': 'Предохранитель CH AMULET,BONUS,EASTAR,FORA,INDIS,KARRY,KIMO,M12,TIGGO,VERY 10A', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,923 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,923 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,925 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded7a10>
+2026-04-01 11:01:39,925 - dz_fastapi - DEBUG - Autopart already exists: ID 507
+2026-04-01 11:01:39,925 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'A113722013BB', 'name': 'Предохранитель CH AMULET,BONUS,EASTAR,FORA,INDIS,KARRY,KIMO,M12,TIGGO,VERY 15A', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,925 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='A113722013BB' name='Предохранитель CH AMULET,BONUS,EASTAR,FORA,INDIS,KARRY,KIMO,M12,TIGGO,VERY 15A' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,925 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'A113722013BB', 'name': 'Предохранитель CH AMULET,BONUS,EASTAR,FORA,INDIS,KARRY,KIMO,M12,TIGGO,VERY 15A', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,925 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,925 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,927 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded52b0>
+2026-04-01 11:01:39,927 - dz_fastapi - DEBUG - Autopart already exists: ID 508
+2026-04-01 11:01:39,927 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'A113722021BB', 'name': 'Предохранитель CH BONUS, KARRY, M12, TIGGO, VERY 7.5A', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,927 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='A113722021BB' name='Предохранитель CH BONUS, KARRY, M12, TIGGO, VERY 7.5A' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,927 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'A113722021BB', 'name': 'Предохранитель CH BONUS, KARRY, M12, TIGGO, VERY 7.5A', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,927 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,927 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,928 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded6f00>
+2026-04-01 11:01:39,928 - dz_fastapi - DEBUG - Autopart already exists: ID 510
+2026-04-01 11:01:39,928 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '2001762', 'name': 'Пробка Заднего Редуктора M31T/M32TFL/M36T/T1D', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,929 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='2001762' name='Пробка Заднего Редуктора M31T/M32TFL/M36T/T1D' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,929 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '2001762', 'name': 'Пробка Заднего Редуктора M31T/M32TFL/M36T/T1D', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,929 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,929 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,930 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff476110a0>
+2026-04-01 11:01:39,930 - dz_fastapi - DEBUG - Autopart already exists: ID 511
+2026-04-01 11:01:39,930 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '481H1002039', 'name': 'Пробка Сливная (Под Шестигранник)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,931 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='481H1002039' name='Пробка Сливная (Под Шестигранник)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,931 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '481H1002039', 'name': 'Пробка Сливная (Под Шестигранник)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,931 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,931 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,932 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded7860>
+2026-04-01 11:01:39,933 - dz_fastapi - DEBUG - Autopart already exists: ID 512
+2026-04-01 11:01:39,933 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'A113707160HA', 'name': 'Провод В/В', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,933 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='A113707160HA' name='Провод В/В' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,933 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'A113707160HA', 'name': 'Провод В/В', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,933 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,933 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,934 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded4470>
+2026-04-01 11:01:39,935 - dz_fastapi - DEBUG - Autopart already exists: ID 513
+2026-04-01 11:01:39,935 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '4801010021', 'name': 'Прокладка AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,935 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='4801010021' name='Прокладка AMULET' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,935 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '4801010021', 'name': 'Прокладка AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,935 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,935 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,936 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded6cc0>
+2026-04-01 11:01:39,937 - dz_fastapi - DEBUG - Autopart already exists: ID 514
+2026-04-01 11:01:39,937 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '473F1008023', 'name': 'Прокладка Впускного Коллектора Кольцо Оригинал', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,937 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='473F1008023' name='Прокладка Впускного Коллектора Кольцо Оригинал' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,937 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '473F1008023', 'name': 'Прокладка Впускного Коллектора Кольцо Оригинал', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,937 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,937 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,941 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded56a0>
+2026-04-01 11:01:39,941 - dz_fastapi - DEBUG - Autopart already exists: ID 517
+2026-04-01 11:01:39,941 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'B211205313BA', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,941 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='B211205313BA' name='Прокладка Глушителя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,941 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'B211205313BA', 'name': 'Прокладка Глушителя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,941 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,941 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,947 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded52b0>
+2026-04-01 11:01:39,947 - dz_fastapi - DEBUG - Autopart already exists: ID 520
+2026-04-01 11:01:39,947 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '153000298AA', 'name': 'Прокладка Глушителя M36T/T1A/T1D', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,947 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='153000298AA' name='Прокладка Глушителя M36T/T1A/T1D' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,947 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '153000298AA', 'name': 'Прокладка Глушителя M36T/T1A/T1D', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,947 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,947 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,949 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded5e50>
+2026-04-01 11:01:39,949 - dz_fastapi - DEBUG - Autopart already exists: ID 521
+2026-04-01 11:01:39,949 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '481H1009022', 'name': 'Прокладка Канала Масляного', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,949 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='481H1009022' name='Прокладка Канала Масляного' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,949 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '481H1009022', 'name': 'Прокладка Канала Масляного', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,949 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,949 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,950 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded4470>
+2026-04-01 11:01:39,950 - dz_fastapi - DEBUG - Autopart already exists: ID 525
+2026-04-01 11:01:39,950 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'E4T161008112', 'name': 'Прокладка Коллектора Выпускного T21/T15/J42/T1A/T18/T1E/T1D', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,950 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='E4T161008112' name='Прокладка Коллектора Выпускного T21/T15/J42/T1A/T18/T1E/T1D' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,950 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'E4T161008112', 'name': 'Прокладка Коллектора Выпускного T21/T15/J42/T1A/T18/T1E/T1D', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,950 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,950 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,951 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29da30>
+2026-04-01 11:01:39,952 - dz_fastapi - DEBUG - Autopart already exists: ID 526
+2026-04-01 11:01:39,952 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '481H1009114', 'name': 'Прокладка Кольцо Резиновое Поддона 17X2,5 - FORA,TIGGO 1.8,ESTINA,TINGO 1.6/1.8/2.0,M11,B14', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,952 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='481H1009114' name='Прокладка Кольцо Резиновое Поддона 17X2,5 - FORA,TIGGO 1.8,ESTINA,TINGO 1.6/1.8/2.0,M11,B14' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,952 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '481H1009114', 'name': 'Прокладка Кольцо Резиновое Поддона 17X2,5 - FORA,TIGGO 1.8,ESTINA,TINGO 1.6/1.8/2.0,M11,B14', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,952 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,952 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,953 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e000>
+2026-04-01 11:01:39,953 - dz_fastapi - DEBUG - Autopart already exists: ID 527
+2026-04-01 11:01:39,953 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'B141205313DA', 'name': 'Прокладка Приемной Трубы', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,953 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='B141205313DA' name='Прокладка Приемной Трубы' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,953 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'B141205313DA', 'name': 'Прокладка Приемной Трубы', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,953 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,953 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,954 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29ddf0>
+2026-04-01 11:01:39,954 - dz_fastapi - DEBUG - Autopart already exists: ID 530
+2026-04-01 11:01:39,954 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'M121201014', 'name': 'Прокладка Приемной Трубы CHERY TIGGO 4 1.5 Л. 147 Л/С MT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,954 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='M121201014' name='Прокладка Приемной Трубы CHERY TIGGO 4 1.5 Л. 147 Л/С MT' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,954 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'M121201014', 'name': 'Прокладка Приемной Трубы CHERY TIGGO 4 1.5 Л. 147 Л/С MT', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,954 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,954 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,955 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c860>
+2026-04-01 11:01:39,955 - dz_fastapi - DEBUG - Autopart already exists: ID 531
+2026-04-01 11:01:39,955 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'F4J161012017', 'name': 'Прокладка Сливной Пробки EXEED', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,955 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='F4J161012017' name='Прокладка Сливной Пробки EXEED' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,956 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'F4J161012017', 'name': 'Прокладка Сливной Пробки EXEED', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,956 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,956 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,957 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29ef60>
+2026-04-01 11:01:39,957 - dz_fastapi - DEBUG - Autopart already exists: ID 532
+2026-04-01 11:01:39,957 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'FQ186C1035F36', 'name': 'Прокладка Трубки Высокого Давления - Турбонагнетателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,957 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='FQ186C1035F36' name='Прокладка Трубки Высокого Давления - Турбонагнетателя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,957 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'FQ186C1035F36', 'name': 'Прокладка Трубки Высокого Давления - Турбонагнетателя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,957 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,957 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,958 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e750>
+2026-04-01 11:01:39,958 - dz_fastapi - DEBUG - Autopart already exists: ID 534
+2026-04-01 11:01:39,958 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'T116302511', 'name': 'Проставка Задней Панели', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,958 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T116302511' name='Проставка Задней Панели' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,958 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T116302511', 'name': 'Проставка Задней Панели', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,958 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,958 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,960 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c2f0>
+2026-04-01 11:01:39,960 - dz_fastapi - DEBUG - Autopart already exists: ID 538
+2026-04-01 11:01:39,960 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'T112912011', 'name': 'Пружина Задняя CHERY TIGGO, TINGO Оригинал', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,960 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T112912011' name='Пружина Задняя CHERY TIGGO, TINGO Оригинал' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,960 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T112912011', 'name': 'Пружина Задняя CHERY TIGGO, TINGO Оригинал', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,960 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,960 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,961 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e5d0>
+2026-04-01 11:01:39,961 - dz_fastapi - DEBUG - Autopart already exists: ID 543
+2026-04-01 11:01:39,961 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'E4G161007014', 'name': 'Пружина Клапана Двс', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,961 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='E4G161007014' name='Пружина Клапана Двс' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,961 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'E4G161007014', 'name': 'Пружина Клапана Двс', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,961 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,961 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,962 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29da60>
+2026-04-01 11:01:39,962 - dz_fastapi - DEBUG - Autopart already exists: ID 544
+2026-04-01 11:01:39,962 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'F4J161007014', 'name': 'Пружина Клапана Двс', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,962 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='F4J161007014' name='Пружина Клапана Двс' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,962 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'F4J161007014', 'name': 'Пружина Клапана Двс', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,962 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,962 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,963 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e990>
+2026-04-01 11:01:39,963 - dz_fastapi - DEBUG - Autopart already exists: ID 545
+2026-04-01 11:01:39,963 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '202000358AA', 'name': 'Пружина Подвески Перед T1E', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,963 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='202000358AA' name='Пружина Подвески Перед T1E' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,964 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '202000358AA', 'name': 'Пружина Подвески Перед T1E', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,964 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,964 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,965 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29d310>
+2026-04-01 11:01:39,965 - dz_fastapi - DEBUG - Autopart already exists: ID 546
+2026-04-01 11:01:39,965 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '202000777AA', 'name': 'Пыльник Амортизатора Переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,965 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='202000777AA' name='Пыльник Амортизатора Переднего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,965 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '202000777AA', 'name': 'Пыльник Амортизатора Переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,965 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,965 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,966 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c860>
+2026-04-01 11:01:39,966 - dz_fastapi - DEBUG - Autopart already exists: ID 547
+2026-04-01 11:01:39,966 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '202000314AA', 'name': 'Пыльник Переднего Амортизатора Рез. T1A/T18/T1D/T1C', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,966 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='202000314AA' name='Пыльник Переднего Амортизатора Рез. T1A/T18/T1D/T1C' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,966 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '202000314AA', 'name': 'Пыльник Переднего Амортизатора Рез. T1A/T18/T1D/T1C', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,966 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,966 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,967 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29ef60>
+2026-04-01 11:01:39,967 - dz_fastapi - DEBUG - Autopart already exists: ID 549
+2026-04-01 11:01:39,967 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '201000126AA', 'name': 'Пыльник Рейки Рулевой T19/T1A/T15/T1E/T19/T18', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,967 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='201000126AA' name='Пыльник Рейки Рулевой T19/T1A/T15/T1E/T19/T18' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,967 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '201000126AA', 'name': 'Пыльник Рейки Рулевой T19/T1A/T15/T1E/T19/T18', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,967 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,968 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,968 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29f7a0>
+2026-04-01 11:01:39,968 - dz_fastapi - DEBUG - Autopart already exists: ID 550
+2026-04-01 11:01:39,968 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '201000008AA', 'name': 'Пыльник Рулевой Рейки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,969 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='201000008AA' name='Пыльник Рулевой Рейки' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,969 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '201000008AA', 'name': 'Пыльник Рулевой Рейки', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,969 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,969 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,970 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29ddf0>
+2026-04-01 11:01:39,970 - dz_fastapi - DEBUG - Autopart already exists: ID 551
+2026-04-01 11:01:39,970 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'J428105010BA', 'name': 'Радиатор Кондиционера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,971 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='J428105010BA' name='Радиатор Кондиционера' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,971 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'J428105010BA', 'name': 'Радиатор Кондиционера', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,971 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,971 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,972 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e5d0>
+2026-04-01 11:01:39,972 - dz_fastapi - DEBUG - Autopart already exists: ID 553
+2026-04-01 11:01:39,972 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'FQ140D1276TF61K', 'name': 'Развальный Болт Правый Задний M12X1.25X76', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,972 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='FQ140D1276TF61K' name='Развальный Болт Правый Задний M12X1.25X76' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,972 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'FQ140D1276TF61K', 'name': 'Развальный Болт Правый Задний M12X1.25X76', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,972 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,972 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,973 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29f7d0>
+2026-04-01 11:01:39,973 - dz_fastapi - DEBUG - Autopart already exists: ID 558
+2026-04-01 11:01:39,973 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '602000953AA', 'name': 'Рамка Правой Решетки Птф', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,973 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='602000953AA' name='Рамка Правой Решетки Птф' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,973 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '602000953AA', 'name': 'Рамка Правой Решетки Птф', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,973 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,973 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,974 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c860>
+2026-04-01 11:01:39,974 - dz_fastapi - DEBUG - Autopart already exists: ID 560
+2026-04-01 11:01:39,974 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '602001607AA', 'name': 'Рамка Птф Левой T1D/T1A', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,974 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='602001607AA' name='Рамка Птф Левой T1D/T1A' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,974 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '602001607AA', 'name': 'Рамка Птф Левой T1D/T1A', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,974 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,974 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,975 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e990>
+2026-04-01 11:01:39,975 - dz_fastapi - DEBUG - Autopart already exists: ID 561
+2026-04-01 11:01:39,975 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '602001608AA', 'name': 'Рамка Птф Правой T1D/T1A', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,975 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='602001608AA' name='Рамка Птф Правой T1D/T1A' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,975 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '602001608AA', 'name': 'Рамка Птф Правой T1D/T1A', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,975 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,975 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,976 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29ddf0>
+2026-04-01 11:01:39,976 - dz_fastapi - DEBUG - Autopart already exists: ID 563
+2026-04-01 11:01:39,976 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '609000305AA', 'name': 'Расширитель Арки Заднего Правого Крыла (Цс)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,976 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='609000305AA' name='Расширитель Арки Заднего Правого Крыла (Цс)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,976 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '609000305AA', 'name': 'Расширитель Арки Заднего Правого Крыла (Цс)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,976 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,976 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,977 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29f0b0>
+2026-04-01 11:01:39,977 - dz_fastapi - DEBUG - Autopart already exists: ID 564
+2026-04-01 11:01:39,977 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '609000501AA', 'name': 'Расширитель Арки Задний Левый T1E', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,977 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='609000501AA' name='Расширитель Арки Задний Левый T1E' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,977 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '609000501AA', 'name': 'Расширитель Арки Задний Левый T1E', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,977 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,977 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,978 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c4a0>
+2026-04-01 11:01:39,978 - dz_fastapi - DEBUG - Autopart already exists: ID 565
+2026-04-01 11:01:39,978 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '609000500AA', 'name': 'Расширитель Арки Передний Правый T1E', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,978 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='609000500AA' name='Расширитель Арки Передний Правый T1E' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,978 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '609000500AA', 'name': 'Расширитель Арки Передний Правый T1E', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,978 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,978 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,979 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29d310>
+2026-04-01 11:01:39,979 - dz_fastapi - DEBUG - Autopart already exists: ID 566
+2026-04-01 11:01:39,979 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '609000646AA', 'name': 'Расширитель Задний Правый (T1D/T1A) TIGGO 8', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,979 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='609000646AA' name='Расширитель Задний Правый (T1D/T1A) TIGGO 8' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,979 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '609000646AA', 'name': 'Расширитель Задний Правый (T1D/T1A) TIGGO 8', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,980 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,980 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,980 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29cd70>
+2026-04-01 11:01:39,980 - dz_fastapi - DEBUG - Autopart already exists: ID 568
+2026-04-01 11:01:39,980 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '609000304AA', 'name': 'Расширитель Колёсной Арки Задней Левой J68/T19', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,981 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='609000304AA' name='Расширитель Колёсной Арки Задней Левой J68/T19' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,981 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '609000304AA', 'name': 'Расширитель Колёсной Арки Задней Левой J68/T19', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,981 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,981 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,981 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29f7a0>
+2026-04-01 11:01:39,982 - dz_fastapi - DEBUG - Autopart already exists: ID 569
+2026-04-01 11:01:39,982 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '609000303AA', 'name': 'Расширитель Колёсной Арки Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,982 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='609000303AA' name='Расширитель Колёсной Арки Передней Правой' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,982 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '609000303AA', 'name': 'Расширитель Колёсной Арки Передней Правой', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,982 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,982 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,983 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29f020>
+2026-04-01 11:01:39,983 - dz_fastapi - DEBUG - Autopart already exists: ID 571
+2026-04-01 11:01:39,983 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'A113412051', 'name': 'Ремень Гидроусилителя Амулет, A13', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,983 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='A113412051' name='Ремень Гидроусилителя Амулет, A13' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,983 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'A113412051', 'name': 'Ремень Гидроусилителя Амулет, A13', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,983 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,983 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,984 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c2f0>
+2026-04-01 11:01:39,984 - dz_fastapi - DEBUG - Autopart already exists: ID 574
+2026-04-01 11:01:39,984 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '481H1007073CA', 'name': 'Ремень Грм', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,984 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='481H1007073CA' name='Ремень Грм' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,984 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '481H1007073CA', 'name': 'Ремень Грм', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,984 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,984 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,985 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29da60>
+2026-04-01 11:01:39,985 - dz_fastapi - DEBUG - Autopart already exists: ID 575
+2026-04-01 11:01:39,985 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'F4J201025011', 'name': 'Ремень Грм M36T/T1A/T1D', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,985 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='F4J201025011' name='Ремень Грм M36T/T1A/T1D' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,985 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'F4J201025011', 'name': 'Ремень Грм M36T/T1A/T1D', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,985 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,985 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,986 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29ef60>
+2026-04-01 11:01:39,986 - dz_fastapi - DEBUG - Autopart already exists: ID 576
+2026-04-01 11:01:39,986 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'F4J161025011AC', 'name': 'Ремень Приводной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,986 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='F4J161025011AC' name='Ремень Приводной' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,986 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'F4J161025011AC', 'name': 'Ремень Приводной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,986 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,986 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,987 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e5d0>
+2026-04-01 11:01:39,988 - dz_fastapi - DEBUG - Autopart already exists: ID 577
+2026-04-01 11:01:39,988 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '602002617AA', 'name': 'Решётка Бампера Заднего Правая EXEED RX', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,988 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='602002617AA' name='Решётка Бампера Заднего Правая EXEED RX' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,988 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '602002617AA', 'name': 'Решётка Бампера Заднего Правая EXEED RX', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,988 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,988 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,989 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29ddf0>
+2026-04-01 11:01:39,989 - dz_fastapi - DEBUG - Autopart already exists: ID 581
+2026-04-01 11:01:39,989 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '602000485AA', 'name': 'Решётка Бампера Под Дхо Левая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,989 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='602000485AA' name='Решётка Бампера Под Дхо Левая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,989 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '602000485AA', 'name': 'Решётка Бампера Под Дхо Левая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,989 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,989 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,990 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c4a0>
+2026-04-01 11:01:39,990 - dz_fastapi - DEBUG - Autopart already exists: ID 582
+2026-04-01 11:01:39,990 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '602002442AA', 'name': 'Решетка В Бампер Прав EXEED RX', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,990 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='602002442AA' name='Решетка В Бампер Прав EXEED RX' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,990 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '602002442AA', 'name': 'Решетка В Бампер Прав EXEED RX', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,990 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,990 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,991 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29cd70>
+2026-04-01 11:01:39,991 - dz_fastapi - DEBUG - Autopart already exists: ID 584
+2026-04-01 11:01:39,991 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'F4J161007110', 'name': 'Рокер', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,991 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='F4J161007110' name='Рокер' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,991 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'F4J161007110', 'name': 'Рокер', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,991 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,991 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,992 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e0f0>
+2026-04-01 11:01:39,992 - dz_fastapi - DEBUG - Autopart already exists: ID 586
+2026-04-01 11:01:39,992 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'A118111210CA', 'name': 'Ролик FOR A, TINGO, TIGGO, M11, B14,', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,992 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='A118111210CA' name='Ролик FOR A, TINGO, TIGGO, M11, B14,' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,992 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'A118111210CA', 'name': 'Ролик FOR A, TINGO, TIGGO, M11, B14,', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,992 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,992 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,993 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c2f0>
+2026-04-01 11:01:39,993 - dz_fastapi - DEBUG - Autopart already exists: ID 588
+2026-04-01 11:01:39,993 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '473H1007060AB', 'name': 'Ролик Ремня Грм Натяжной FOR A, TINGO, TIGGO, M11,(Оригинал)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,993 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='473H1007060AB' name='Ролик Ремня Грм Натяжной FOR A, TINGO, TIGGO, M11,(Оригинал)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,994 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '473H1007060AB', 'name': 'Ролик Ремня Грм Натяжной FOR A, TINGO, TIGGO, M11,(Оригинал)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,994 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,994 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,995 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e990>
+2026-04-01 11:01:39,995 - dz_fastapi - DEBUG - Autopart already exists: ID 592
+2026-04-01 11:01:39,995 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'J606105211DQ', 'name': 'Ручка Дверей Передних Наружняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,995 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='J606105211DQ' name='Ручка Дверей Передних Наружняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,995 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'J606105211DQ', 'name': 'Ручка Дверей Передних Наружняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,995 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,995 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,996 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29da30>
+2026-04-01 11:01:39,996 - dz_fastapi - DEBUG - Autopart already exists: ID 593
+2026-04-01 11:01:39,996 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '403001616AA', 'name': 'Ручка Двери Передней Левой Внутренняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,996 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='403001616AA' name='Ручка Двери Передней Левой Внутренняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,996 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '403001616AA', 'name': 'Ручка Двери Передней Левой Внутренняя', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,996 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,996 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,997 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29ecf0>
+2026-04-01 11:01:39,997 - dz_fastapi - DEBUG - Autopart already exists: ID 595
+2026-04-01 11:01:39,997 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '403001617AA', 'name': 'Ручка Двери Передней Правой Внутренняя T1A/T1E/T19/T18/T1D', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,997 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='403001617AA' name='Ручка Двери Передней Правой Внутренняя T1A/T1E/T19/T18/T1D' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,997 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '403001617AA', 'name': 'Ручка Двери Передней Правой Внутренняя T1A/T1E/T19/T18/T1D', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,998 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,998 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:39,998 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e5d0>
+2026-04-01 11:01:39,998 - dz_fastapi - DEBUG - Autopart already exists: ID 596
+2026-04-01 11:01:39,999 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '202000231AA', 'name': 'Рычаг Зад Продольный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,999 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='202000231AA' name='Рычаг Зад Продольный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:39,999 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '202000231AA', 'name': 'Рычаг Зад Продольный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:39,999 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:39,999 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,000 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29ef60>
+2026-04-01 11:01:40,000 - dz_fastapi - DEBUG - Autopart already exists: ID 599
+2026-04-01 11:01:40,000 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'M112919150', 'name': 'Сайленблок Заднего Верхнего Рычага', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,000 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='M112919150' name='Сайленблок Заднего Верхнего Рычага' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,000 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'M112919150', 'name': 'Сайленблок Заднего Верхнего Рычага', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,000 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,000 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,001 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29cd70>
+2026-04-01 11:01:40,001 - dz_fastapi - DEBUG - Autopart already exists: ID 610
+2026-04-01 11:01:40,001 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'M112919240', 'name': 'Сайлентблок Заднего Рычага', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,001 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='M112919240' name='Сайлентблок Заднего Рычага' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,001 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'M112919240', 'name': 'Сайлентблок Заднего Рычага', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,001 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,001 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,002 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29ddf0>
+2026-04-01 11:01:40,002 - dz_fastapi - DEBUG - Autopart already exists: ID 613
+2026-04-01 11:01:40,002 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '202000144AA', 'name': 'Сайлентблок Передней Подвески M31T/M32T/M32TFL/M36T', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,002 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='202000144AA' name='Сайлентблок Передней Подвески M31T/M32T/M32TFL/M36T' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,002 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '202000144AA', 'name': 'Сайлентблок Передней Подвески M31T/M32T/M32TFL/M36T', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,002 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,002 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,003 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e0f0>
+2026-04-01 11:01:40,003 - dz_fastapi - DEBUG - Autopart already exists: ID 614
+2026-04-01 11:01:40,003 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'T112909080', 'name': 'Сайлентблок Рычага Переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,003 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T112909080' name='Сайлентблок Рычага Переднего' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,003 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T112909080', 'name': 'Сайлентблок Рычага Переднего', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,003 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,003 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,006 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e5d0>
+2026-04-01 11:01:40,006 - dz_fastapi - DEBUG - Autopart already exists: ID 616
+2026-04-01 11:01:40,006 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '372A1005030', 'name': 'Сальник Коленвала Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,006 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='372A1005030' name='Сальник Коленвала Задний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,006 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '372A1005030', 'name': 'Сальник Коленвала Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,006 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,006 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,008 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29da60>
+2026-04-01 11:01:40,008 - dz_fastapi - DEBUG - Autopart already exists: ID 618
+2026-04-01 11:01:40,008 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'F4J161005032', 'name': 'Сальник Коленвала Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,008 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='F4J161005032' name='Сальник Коленвала Задний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,008 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'F4J161005032', 'name': 'Сальник Коленвала Задний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,008 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,008 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,009 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29f0b0>
+2026-04-01 11:01:40,009 - dz_fastapi - DEBUG - Autopart already exists: ID 619
+2026-04-01 11:01:40,009 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'E4G161005040', 'name': 'Сальник Коленвала Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,009 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='E4G161005040' name='Сальник Коленвала Передний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,009 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'E4G161005040', 'name': 'Сальник Коленвала Передний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,009 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,009 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,014 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c2f0>
+2026-04-01 11:01:40,014 - dz_fastapi - DEBUG - Autopart already exists: ID 6677
+2026-04-01 11:01:40,014 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'QR5231701413', 'name': 'Сальник Кпп Первичного Вала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,014 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='QR5231701413' name='Сальник Кпп Первичного Вала' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,014 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'QR5231701413', 'name': 'Сальник Кпп Первичного Вала', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,014 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,014 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,015 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29da30>
+2026-04-01 11:01:40,015 - dz_fastapi - DEBUG - Autopart already exists: ID 620
+2026-04-01 11:01:40,015 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'QR523T2310115', 'name': 'Сальник Привода 4/4 RH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,015 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='QR523T2310115' name='Сальник Привода 4/4 RH' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,015 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'QR523T2310115', 'name': 'Сальник Привода 4/4 RH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,015 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,015 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,016 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29ecf0>
+2026-04-01 11:01:40,016 - dz_fastapi - DEBUG - Autopart already exists: ID 94029
+2026-04-01 11:01:40,016 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '525MHA1701203', 'name': 'Сальник Привода TIGGO FL Коробка 525 LH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,016 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='525MHA1701203' name='Сальник Привода TIGGO FL Коробка 525 LH' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,016 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '525MHA1701203', 'name': 'Сальник Привода TIGGO FL Коробка 525 LH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,016 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,016 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,017 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c860>
+2026-04-01 11:01:40,017 - dz_fastapi - DEBUG - Autopart already exists: ID 621
+2026-04-01 11:01:40,017 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '481F3707010', 'name': 'Свеча Зажигания', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,017 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='481F3707010' name='Свеча Зажигания' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,017 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '481F3707010', 'name': 'Свеча Зажигания', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,017 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,018 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,018 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29cd70>
+2026-04-01 11:01:40,018 - dz_fastapi - DEBUG - Autopart already exists: ID 625
+2026-04-01 11:01:40,018 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'D4T203707010', 'name': 'Свеча Зажигания TIGGO 8 Иридиевая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,018 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='D4T203707010' name='Свеча Зажигания TIGGO 8 Иридиевая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,019 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'D4T203707010', 'name': 'Свеча Зажигания TIGGO 8 Иридиевая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,019 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,019 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,020 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29ddf0>
+2026-04-01 11:01:40,020 - dz_fastapi - DEBUG - Autopart already exists: ID 627
+2026-04-01 11:01:40,020 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '477F1007013', 'name': 'Седло Клапана', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,020 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='477F1007013' name='Седло Клапана' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,020 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '477F1007013', 'name': 'Седло Клапана', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,020 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,020 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,021 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29d310>
+2026-04-01 11:01:40,021 - dz_fastapi - DEBUG - Autopart already exists: ID 628
+2026-04-01 11:01:40,021 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '204000455AA', 'name': 'Ступица Передняя T1E/T1A/T1D/T18/T1C', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,021 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='204000455AA' name='Ступица Передняя T1E/T1A/T1D/T18/T1C' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,021 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '204000455AA', 'name': 'Ступица Передняя T1E/T1A/T1D/T18/T1C', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,021 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,021 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,022 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e750>
+2026-04-01 11:01:40,022 - dz_fastapi - DEBUG - Autopart already exists: ID 637
+2026-04-01 11:01:40,022 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '204000480AA', 'name': 'Ступичный Подшипник Задний T1E', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,022 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='204000480AA' name='Ступичный Подшипник Задний T1E' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,022 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '204000480AA', 'name': 'Ступичный Подшипник Задний T1E', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,022 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,022 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,023 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29ef60>
+2026-04-01 11:01:40,023 - dz_fastapi - DEBUG - Autopart already exists: ID 638
+2026-04-01 11:01:40,023 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '481H1007018', 'name': 'Сухарь Клапана FOR A, TINGO, TIGGO, M11, B14,', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,023 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='481H1007018' name='Сухарь Клапана FOR A, TINGO, TIGGO, M11, B14,' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,023 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '481H1007018', 'name': 'Сухарь Клапана FOR A, TINGO, TIGGO, M11, B14,', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,023 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,024 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,024 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29f7d0>
+2026-04-01 11:01:40,024 - dz_fastapi - DEBUG - Autopart already exists: ID 639
+2026-04-01 11:01:40,024 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'FQ402D12F61E', 'name': 'Сход-Развал Шайба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,025 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='FQ402D12F61E' name='Сход-Развал Шайба' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,025 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'FQ402D12F61E', 'name': 'Сход-Развал Шайба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,025 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,025 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,026 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c4a0>
+2026-04-01 11:01:40,026 - dz_fastapi - DEBUG - Autopart already exists: ID 22969
+2026-04-01 11:01:40,026 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'E4G161306020', 'name': 'Термостат', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,026 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='E4G161306020' name='Термостат' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,026 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'E4G161306020', 'name': 'Термостат', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,026 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,026 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,027 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c2f0>
+2026-04-01 11:01:40,027 - dz_fastapi - DEBUG - Autopart already exists: ID 640
+2026-04-01 11:01:40,027 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '204001766AA', 'name': 'Тормозной Шланг Задний Левый M1E', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,027 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='204001766AA' name='Тормозной Шланг Задний Левый M1E' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,027 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '204001766AA', 'name': 'Тормозной Шланг Задний Левый M1E', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,027 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,027 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,029 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29ce60>
+2026-04-01 11:01:40,029 - dz_fastapi - DEBUG - Autopart already exists: ID 642
+2026-04-01 11:01:40,029 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '204001767AA', 'name': 'Тормозной Шланг Задний Правый M1E', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,029 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='204001767AA' name='Тормозной Шланг Задний Правый M1E' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,029 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '204001767AA', 'name': 'Тормозной Шланг Задний Правый M1E', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,029 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,029 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,030 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e5d0>
+2026-04-01 11:01:40,030 - dz_fastapi - DEBUG - Autopart already exists: ID 643
+2026-04-01 11:01:40,030 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'T115413310', 'name': 'Трос Лючка Бензобака', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,030 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T115413310' name='Трос Лючка Бензобака' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,030 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T115413310', 'name': 'Трос Лючка Бензобака', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,030 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,030 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,032 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29ddf0>
+2026-04-01 11:01:40,032 - dz_fastapi - DEBUG - Autopart already exists: ID 50697
+2026-04-01 11:01:40,032 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'A133406400FA', 'name': 'Трубка Гур (От Насоса К Бачку)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,032 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='A133406400FA' name='Трубка Гур (От Насоса К Бачку)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,032 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'A133406400FA', 'name': 'Трубка Гур (От Насоса К Бачку)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,032 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,032 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,033 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e0f0>
+2026-04-01 11:01:40,033 - dz_fastapi - DEBUG - Autopart already exists: ID 21261
+2026-04-01 11:01:40,033 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'E4T15B1118040', 'name': 'Трубка Охладителя Входная T15/J60/J68/T18/J42/M1D/T1A', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,033 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='E4T15B1118040' name='Трубка Охладителя Входная T15/J60/J68/T18/J42/M1D/T1A' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,034 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'E4T15B1118040', 'name': 'Трубка Охладителя Входная T15/J60/J68/T18/J42/M1D/T1A', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,034 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,034 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,034 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29ef60>
+2026-04-01 11:01:40,034 - dz_fastapi - DEBUG - Autopart already exists: ID 648
+2026-04-01 11:01:40,034 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '201000216AA', 'name': 'Тяга Рулевая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,035 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='201000216AA' name='Тяга Рулевая' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,035 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '201000216AA', 'name': 'Тяга Рулевая', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,035 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,035 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,035 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29f7d0>
+2026-04-01 11:01:40,035 - dz_fastapi - DEBUG - Autopart already exists: ID 652
+2026-04-01 11:01:40,036 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '201000005AA', 'name': 'Тяга Рулевая (Цс)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,036 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='201000005AA' name='Тяга Рулевая (Цс)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,036 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '201000005AA', 'name': 'Тяга Рулевая (Цс)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,036 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,036 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,037 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c4a0>
+2026-04-01 11:01:40,037 - dz_fastapi - DEBUG - Autopart already exists: ID 653
+2026-04-01 11:01:40,037 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '201000125AA', 'name': 'Тяга Рулевая (Цс)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,037 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='201000125AA' name='Тяга Рулевая (Цс)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,037 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '201000125AA', 'name': 'Тяга Рулевая (Цс)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,037 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,037 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,038 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e750>
+2026-04-01 11:01:40,038 - dz_fastapi - DEBUG - Autopart already exists: ID 654
+2026-04-01 11:01:40,038 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'T115206300', 'name': 'Уплотнитель Ветрового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,038 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T115206300' name='Уплотнитель Ветрового Стекла' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,038 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T115206300', 'name': 'Уплотнитель Ветрового Стекла', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,038 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,038 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,039 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e990>
+2026-04-01 11:01:40,039 - dz_fastapi - DEBUG - Autopart already exists: ID 655
+2026-04-01 11:01:40,039 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '602000948AAAR1', 'name': 'Уплотнитель Переднего Бампера T1E', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,039 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='602000948AAAR1' name='Уплотнитель Переднего Бампера T1E' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,039 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '602000948AAAR1', 'name': 'Уплотнитель Переднего Бампера T1E', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,039 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,039 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,040 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e5d0>
+2026-04-01 11:01:40,040 - dz_fastapi - DEBUG - Autopart already exists: ID 659
+2026-04-01 11:01:40,040 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'F4J161002036', 'name': 'Уплотнитель Рез', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,040 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='F4J161002036' name='Уплотнитель Рез' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,040 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'F4J161002036', 'name': 'Уплотнитель Рез', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,040 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,040 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,041 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c2f0>
+2026-04-01 11:01:40,041 - dz_fastapi - DEBUG - Autopart already exists: ID 660
+2026-04-01 11:01:40,041 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '025CHA1502606', 'name': 'Уплотнительное Кольцо', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,041 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='025CHA1502606' name='Уплотнительное Кольцо' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,041 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '025CHA1502606', 'name': 'Уплотнительное Кольцо', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,041 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,041 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,042 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29ddf0>
+2026-04-01 11:01:40,042 - dz_fastapi - DEBUG - Autopart already exists: ID 661
+2026-04-01 11:01:40,042 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '025CHA1509103', 'name': 'Уплотнительное Кольцо Гидротрансформатора Рез J69/T19/T1E/T1A/T1D', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,042 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='025CHA1509103' name='Уплотнительное Кольцо Гидротрансформатора Рез J69/T19/T1E/T1A/T1D' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,042 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '025CHA1509103', 'name': 'Уплотнительное Кольцо Гидротрансформатора Рез J69/T19/T1E/T1A/T1D', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,042 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,042 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,043 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e750>
+2026-04-01 11:01:40,043 - dz_fastapi - DEBUG - Autopart already exists: ID 662
+2026-04-01 11:01:40,043 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'E4T161007050BA', 'name': 'Успокоитель Цепи', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,043 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='E4T161007050BA' name='Успокоитель Цепи' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,043 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'E4T161007050BA', 'name': 'Успокоитель Цепи', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,043 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,043 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,044 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29f020>
+2026-04-01 11:01:40,044 - dz_fastapi - DEBUG - Autopart already exists: ID 664
+2026-04-01 11:01:40,044 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'E4G151007070', 'name': 'Успокоитель Цепи TIGGO FL 1.6 Цепь E4G16', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,044 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='E4G151007070' name='Успокоитель Цепи TIGGO FL 1.6 Цепь E4G16' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,044 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'E4G151007070', 'name': 'Успокоитель Цепи TIGGO FL 1.6 Цепь E4G16', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,044 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,044 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,046 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29da30>
+2026-04-01 11:01:40,046 - dz_fastapi - DEBUG - Autopart already exists: ID 665
+2026-04-01 11:01:40,046 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'E4G161007060BA', 'name': 'Успокоитель Цепи TIGGO FL 1.6 Цепь E4G16 Нижний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,047 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='E4G161007060BA' name='Успокоитель Цепи TIGGO FL 1.6 Цепь E4G16 Нижний' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,047 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'E4G161007060BA', 'name': 'Успокоитель Цепи TIGGO FL 1.6 Цепь E4G16 Нижний', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,047 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,047 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,048 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e0f0>
+2026-04-01 11:01:40,048 - dz_fastapi - DEBUG - Autopart already exists: ID 666
+2026-04-01 11:01:40,048 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'T111109111LA', 'name': 'Фильтр', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,048 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T111109111LA' name='Фильтр' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,048 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T111109111LA', 'name': 'Фильтр', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,048 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,048 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,049 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29f7d0>
+2026-04-01 11:01:40,049 - dz_fastapi - DEBUG - Autopart already exists: ID 670
+2026-04-01 11:01:40,049 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'E4G161012040', 'name': 'Фильтр CHERY TIGGO, TINGO', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,049 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='E4G161012040' name='Фильтр CHERY TIGGO, TINGO' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,049 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'E4G161012040', 'name': 'Фильтр CHERY TIGGO, TINGO', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,049 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,049 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,050 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c4a0>
+2026-04-01 11:01:40,050 - dz_fastapi - DEBUG - Autopart already exists: ID 671
+2026-04-01 11:01:40,050 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '019CHA1502910', 'name': 'Фильтр Акпп Вариатор TIGGO ARRIZO 7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,050 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='019CHA1502910' name='Фильтр Акпп Вариатор TIGGO ARRIZO 7' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,050 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '019CHA1502910', 'name': 'Фильтр Акпп Вариатор TIGGO ARRIZO 7', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,050 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,050 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,051 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29da60>
+2026-04-01 11:01:40,051 - dz_fastapi - DEBUG - Autopart already exists: ID 673
+2026-04-01 11:01:40,051 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'J421109111', 'name': 'Фильтр Воздушный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,051 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='J421109111' name='Фильтр Воздушный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,051 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'J421109111', 'name': 'Фильтр Воздушный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,051 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,051 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,052 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e5d0>
+2026-04-01 11:01:40,052 - dz_fastapi - DEBUG - Autopart already exists: ID 674
+2026-04-01 11:01:40,052 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'T111109111AC', 'name': 'Фильтр Воздушный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,052 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T111109111AC' name='Фильтр Воздушный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,052 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T111109111AC', 'name': 'Фильтр Воздушный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,052 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,052 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,053 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c2f0>
+2026-04-01 11:01:40,053 - dz_fastapi - DEBUG - Autopart already exists: ID 675
+2026-04-01 11:01:40,053 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'T211109111', 'name': 'Фильтр Воздушный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,053 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T211109111' name='Фильтр Воздушный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,053 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T211109111', 'name': 'Фильтр Воздушный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,053 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,053 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,054 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29cd70>
+2026-04-01 11:01:40,054 - dz_fastapi - DEBUG - Autopart already exists: ID 677
+2026-04-01 11:01:40,054 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '151000025AA', 'name': 'Фильтр Воздушный EXEED', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,054 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='151000025AA' name='Фильтр Воздушный EXEED' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,054 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '151000025AA', 'name': 'Фильтр Воздушный EXEED', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,054 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,054 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,055 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c860>
+2026-04-01 11:01:40,055 - dz_fastapi - DEBUG - Autopart already exists: ID 678
+2026-04-01 11:01:40,055 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '151000187AA', 'name': 'Фильтр Воздушный M36T/M32T', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,055 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='151000187AA' name='Фильтр Воздушный M36T/M32T' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,055 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '151000187AA', 'name': 'Фильтр Воздушный M36T/M32T', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,055 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,056 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,056 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29f0b0>
+2026-04-01 11:01:40,056 - dz_fastapi - DEBUG - Autopart already exists: ID 680
+2026-04-01 11:01:40,057 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '151000151AA', 'name': 'Фильтр Воздушный T1A/T1D', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,057 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='151000151AA' name='Фильтр Воздушный T1A/T1D' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,057 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '151000151AA', 'name': 'Фильтр Воздушный T1A/T1D', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,057 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,057 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,058 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29ce60>
+2026-04-01 11:01:40,058 - dz_fastapi - DEBUG - Autopart already exists: ID 681
+2026-04-01 11:01:40,058 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '151000148AA', 'name': 'Фильтр Воздушный T1CPHEV/T1DPHEV', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,058 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='151000148AA' name='Фильтр Воздушный T1CPHEV/T1DPHEV' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,058 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '151000148AA', 'name': 'Фильтр Воздушный T1CPHEV/T1DPHEV', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,058 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,058 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,059 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e990>
+2026-04-01 11:01:40,059 - dz_fastapi - DEBUG - Autopart already exists: ID 682
+2026-04-01 11:01:40,059 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'J691109111', 'name': 'Фильтр Воздушный TIGGO 2', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,059 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='J691109111' name='Фильтр Воздушный TIGGO 2' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,059 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'J691109111', 'name': 'Фильтр Воздушный TIGGO 2', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,059 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,059 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,060 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e0f0>
+2026-04-01 11:01:40,060 - dz_fastapi - DEBUG - Autopart already exists: ID 683
+2026-04-01 11:01:40,060 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '3721012010', 'name': 'Фильтр Масляный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,060 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='3721012010' name='Фильтр Масляный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,060 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '3721012010', 'name': 'Фильтр Масляный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,060 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,061 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,061 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c4a0>
+2026-04-01 11:01:40,061 - dz_fastapi - DEBUG - Autopart already exists: ID 684
+2026-04-01 11:01:40,061 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'B111012010', 'name': 'Фильтр Масляный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,062 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='B111012010' name='Фильтр Масляный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,062 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'B111012010', 'name': 'Фильтр Масляный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,062 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,062 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,063 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e5d0>
+2026-04-01 11:01:40,063 - dz_fastapi - DEBUG - Autopart already exists: ID 685
+2026-04-01 11:01:40,063 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '473H1012010', 'name': 'Фильтр Масляный CHERY', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,063 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='473H1012010' name='Фильтр Масляный CHERY' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,063 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '473H1012010', 'name': 'Фильтр Масляный CHERY', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,063 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,063 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,064 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e000>
+2026-04-01 11:01:40,064 - dz_fastapi - DEBUG - Autopart already exists: ID 687
+2026-04-01 11:01:40,064 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'F4J161012030', 'name': 'Фильтр Масляный EXEED', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,064 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='F4J161012030' name='Фильтр Масляный EXEED' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,065 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'F4J161012030', 'name': 'Фильтр Масляный EXEED', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,065 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,065 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,065 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c860>
+2026-04-01 11:01:40,065 - dz_fastapi - DEBUG - Autopart already exists: ID 688
+2026-04-01 11:01:40,065 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '025CHA1506400', 'name': 'Фильтр Масляный Кпп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,066 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='025CHA1506400' name='Фильтр Масляный Кпп' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,066 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '025CHA1506400', 'name': 'Фильтр Масляный Кпп', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,066 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,066 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,066 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29da30>
+2026-04-01 11:01:40,066 - dz_fastapi - DEBUG - Autopart already exists: ID 689
+2026-04-01 11:01:40,066 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'J608107910', 'name': 'Фильтр Салона CHERY TIGGO 3', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,067 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='J608107910' name='Фильтр Салона CHERY TIGGO 3' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,067 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'J608107910', 'name': 'Фильтр Салона CHERY TIGGO 3', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,067 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,067 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,068 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29f7a0>
+2026-04-01 11:01:40,068 - dz_fastapi - DEBUG - Autopart already exists: ID 691
+2026-04-01 11:01:40,068 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'T218107011', 'name': 'Фильтр Салонный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,068 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T218107011' name='Фильтр Салонный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,068 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T218107011', 'name': 'Фильтр Салонный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,068 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,068 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,069 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29d310>
+2026-04-01 11:01:40,069 - dz_fastapi - DEBUG - Autopart already exists: ID 692
+2026-04-01 11:01:40,070 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'T111117110', 'name': 'Фильтр Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,070 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T111117110' name='Фильтр Топливный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,070 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T111117110', 'name': 'Фильтр Топливный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,070 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,070 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,070 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e990>
+2026-04-01 11:01:40,070 - dz_fastapi - DEBUG - Autopart already exists: ID 694
+2026-04-01 11:01:40,071 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'S111117110', 'name': 'Фильтр Топливный Оригинал', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,071 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='S111117110' name='Фильтр Топливный Оригинал' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,071 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'S111117110', 'name': 'Фильтр Топливный Оригинал', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,071 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,071 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,071 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29ce60>
+2026-04-01 11:01:40,072 - dz_fastapi - DEBUG - Autopart already exists: ID 695
+2026-04-01 11:01:40,072 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'T154408010', 'name': 'Фонарь Подсветки Номерного Знака', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,072 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T154408010' name='Фонарь Подсветки Номерного Знака' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,072 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T154408010', 'name': 'Фонарь Подсветки Номерного Знака', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,072 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,072 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,073 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e5d0>
+2026-04-01 11:01:40,073 - dz_fastapi - DEBUG - Autopart already exists: ID 697
+2026-04-01 11:01:40,073 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'A113717010', 'name': 'Фонарь Подсветки Номерного Знака AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,073 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='A113717010' name='Фонарь Подсветки Номерного Знака AMULET' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,073 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'A113717010', 'name': 'Фонарь Подсветки Номерного Знака AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,073 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,073 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,074 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e0f0>
+2026-04-01 11:01:40,074 - dz_fastapi - DEBUG - Autopart already exists: ID 698
+2026-04-01 11:01:40,074 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '605000616AA', 'name': 'Фонарь Противотуманный Задний T19C', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,074 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='605000616AA' name='Фонарь Противотуманный Задний T19C' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,074 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '605000616AA', 'name': 'Фонарь Противотуманный Задний T19C', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,074 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,074 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,075 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e000>
+2026-04-01 11:01:40,075 - dz_fastapi - DEBUG - Autopart already exists: ID 700
+2026-04-01 11:01:40,075 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '607000048AA', 'name': 'Форсунка Омывателя Лобового Стекла M32T/T18/T19/M36T/T1A/T1E/T1D/T19C/T22', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,075 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='607000048AA' name='Форсунка Омывателя Лобового Стекла M32T/T18/T19/M36T/T1A/T1E/T1D/T19C/T22' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,075 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '607000048AA', 'name': 'Форсунка Омывателя Лобового Стекла M32T/T18/T19/M36T/T1A/T1E/T1D/T19C/T22', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,075 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,075 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,076 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e990>
+2026-04-01 11:01:40,076 - dz_fastapi - DEBUG - Autopart already exists: ID 701
+2026-04-01 11:01:40,076 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'J695207171', 'name': 'Форсунка Омывателя Стекла Лобового', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,076 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='J695207171' name='Форсунка Омывателя Стекла Лобового' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,076 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'J695207171', 'name': 'Форсунка Омывателя Стекла Лобового', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,076 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,076 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,077 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29f0b0>
+2026-04-01 11:01:40,077 - dz_fastapi - DEBUG - Autopart already exists: ID 703
+2026-04-01 11:01:40,077 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'A211602020', 'name': 'Цилиндр Сцепления Главный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,077 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='A211602020' name='Цилиндр Сцепления Главный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,077 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'A211602020', 'name': 'Цилиндр Сцепления Главный', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,077 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,077 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,078 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29f7d0>
+2026-04-01 11:01:40,078 - dz_fastapi - DEBUG - Autopart already exists: ID 709
+2026-04-01 11:01:40,078 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '4801003083', 'name': 'Шайба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,078 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='4801003083' name='Шайба' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,078 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '4801003083', 'name': 'Шайба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,078 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,078 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,079 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29c860>
+2026-04-01 11:01:40,079 - dz_fastapi - DEBUG - Autopart already exists: ID 710
+2026-04-01 11:01:40,079 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'A112911015', 'name': 'Шайба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,079 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='A112911015' name='Шайба' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,079 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'A112911015', 'name': 'Шайба', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,079 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,079 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,080 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29f7a0>
+2026-04-01 11:01:40,080 - dz_fastapi - DEBUG - Autopart already exists: ID 711
+2026-04-01 11:01:40,080 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '025CHA1506531', 'name': 'Шайба (Цс)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,080 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='025CHA1506531' name='Шайба (Цс)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,080 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '025CHA1506531', 'name': 'Шайба (Цс)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,080 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,080 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,081 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29d310>
+2026-04-01 11:01:40,081 - dz_fastapi - DEBUG - Autopart already exists: ID 712
+2026-04-01 11:01:40,081 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '481H1003032', 'name': 'Шайба FORA TIGGO', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,081 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='481H1003032' name='Шайба FORA TIGGO' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,081 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '481H1003032', 'name': 'Шайба FORA TIGGO', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,081 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,081 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,082 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29f020>
+2026-04-01 11:01:40,082 - dz_fastapi - DEBUG - Autopart already exists: ID 713
+2026-04-01 11:01:40,082 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '025CHA1502603', 'name': 'Шайба Ведущей Звездочки Маслораспределителя M1D/T11/T1E/T19/T1A/T1D/T1C/T19C', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,082 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='025CHA1502603' name='Шайба Ведущей Звездочки Маслораспределителя M1D/T11/T1E/T19/T1A/T1D/T1C/T19C' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,082 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '025CHA1502603', 'name': 'Шайба Ведущей Звездочки Маслораспределителя M1D/T11/T1E/T19/T1A/T1D/T1C/T19C', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,082 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,082 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,083 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e5d0>
+2026-04-01 11:01:40,083 - dz_fastapi - DEBUG - Autopart already exists: ID 714
+2026-04-01 11:01:40,083 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '4801005061', 'name': 'Шайба Коленвала AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,083 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='4801005061' name='Шайба Коленвала AMULET' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,083 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '4801005061', 'name': 'Шайба Коленвала AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,083 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,084 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,084 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4e29e0f0>
+2026-04-01 11:01:40,084 - dz_fastapi - DEBUG - Autopart already exists: ID 715
+2026-04-01 11:01:40,084 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '481A1118034', 'name': 'Шайба Медная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,084 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='481A1118034' name='Шайба Медная' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,084 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '481A1118034', 'name': 'Шайба Медная', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,085 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,085 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,085 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded6f00>
+2026-04-01 11:01:40,085 - dz_fastapi - DEBUG - Autopart already exists: ID 716
+2026-04-01 11:01:40,085 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '015409159AA', 'name': 'Шестерня Дифференциала (Планетарка) (Большая)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,086 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='015409159AA' name='Шестерня Дифференциала (Планетарка) (Большая)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,086 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '015409159AA', 'name': 'Шестерня Дифференциала (Планетарка) (Большая)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,086 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,086 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,087 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded65a0>
+2026-04-01 11:01:40,087 - dz_fastapi - DEBUG - Autopart already exists: ID 58255
+2026-04-01 11:01:40,087 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'T113406310BA', 'name': 'Шланг Гур', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,087 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='T113406310BA' name='Шланг Гур' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,087 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'T113406310BA', 'name': 'Шланг Гур', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,088 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,088 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,088 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded7770>
+2026-04-01 11:01:40,088 - dz_fastapi - DEBUG - Autopart already exists: ID 25480
+2026-04-01 11:01:40,088 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '481H1008032', 'name': 'Шпилька Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,088 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='481H1008032' name='Шпилька Выпускного Коллектора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,089 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '481H1008032', 'name': 'Шпилька Выпускного Коллектора', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,089 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,089 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,089 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded5880>
+2026-04-01 11:01:40,089 - dz_fastapi - DEBUG - Autopart already exists: ID 731
+2026-04-01 11:01:40,089 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '4801005062', 'name': 'Шпонка Коленвала AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,089 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='4801005062' name='Шпонка Коленвала AMULET' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,090 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '4801005062', 'name': 'Шпонка Коленвала AMULET', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,090 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,090 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,090 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded4560>
+2026-04-01 11:01:40,090 - dz_fastapi - DEBUG - Autopart already exists: ID 732
+2026-04-01 11:01:40,090 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': '608000034AA', 'name': 'Щетка С/О Задняя EXEED M31T/M32T/M32TFL', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,091 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='608000034AA' name='Щетка С/О Задняя EXEED M31T/M32T/M32TFL' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,091 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '608000034AA', 'name': 'Щетка С/О Задняя EXEED M31T/M32T/M32TFL', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,091 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,091 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,091 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded6900>
+2026-04-01 11:01:40,091 - dz_fastapi - DEBUG - Autopart already exists: ID 734
+2026-04-01 11:01:40,092 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'F4J161130011', 'name': 'Электромагнитный Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,092 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='F4J161130011' name='Электромагнитный Клапан' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,092 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'F4J161130011', 'name': 'Электромагнитный Клапан', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,092 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,092 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,093 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded6d50>
+2026-04-01 11:01:40,093 - dz_fastapi - DEBUG - Autopart already exists: ID 737
+2026-04-01 11:01:40,093 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CHERY', 'oem_number': 'J423921503', 'name': 'Эмблема', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,093 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='J423921503' name='Эмблема' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,093 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'J423921503', 'name': 'Эмблема', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,093 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,093 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4d974c20>
+2026-04-01 11:01:40,094 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded4c20>
+2026-04-01 11:01:40,094 - dz_fastapi - DEBUG - Autopart already exists: ID 738
+2026-04-01 11:01:40,094 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CONTINENTAL', 'oem_number': '112X820LA', 'name': 'Клиновый Ремень 11.2 X 820', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,094 - dz_fastapi - DEBUG - Missing brand in pricelist row: CONTINENTAL
+2026-04-01 11:01:40,094 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CONTINENTAL', 'oem_number': 'CT1215K1', 'name': 'Комплект Ремня Грм GEELY MONGARO,TUGGELLA (20-)', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,094 - dz_fastapi - DEBUG - Missing brand in pricelist row: CONTINENTAL
+2026-04-01 11:01:40,094 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CONTITECH', 'oem_number': 'CT880', 'name': 'Ремень Грм CONTITECH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,095 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='CT880' name='Ремень Грм CONTITECH' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,095 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'CT880', 'name': 'Ремень Грм CONTITECH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,095 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,095 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4ded72c0>
+2026-04-01 11:01:40,096 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded69c0>
+2026-04-01 11:01:40,096 - dz_fastapi - DEBUG - Autopart already exists: ID 741
+2026-04-01 11:01:40,096 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CONTITECH', 'oem_number': '112X820', 'name': 'Ремень Клинов. CONTITECH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,096 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='112X820' name='Ремень Клинов. CONTITECH' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 11:01:40,096 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': '112X820', 'name': 'Ремень Клинов. CONTITECH', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 11:01:40,096 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 11:01:40,096 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0xffff4ded72c0>
+2026-04-01 11:01:40,097 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0xffff4ded4470>
+2026-04-01 11:01:40,097 - dz_fastapi - DEBUG - Autopart already exists: ID 742
+2026-04-01 11:01:40,098 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'CONTITECH', 'oem_number': '6PK2230', 'name': 'Ремень Приводной', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
