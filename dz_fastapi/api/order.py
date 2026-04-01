@@ -15,7 +15,7 @@ from dz_fastapi.core.db import AsyncSession, get_session
 from dz_fastapi.crud.autopart import crud_autopart_restock_decision
 from dz_fastapi.crud.brand import brand_crud
 from dz_fastapi.crud.order import crud_order, crud_order_item
-from dz_fastapi.crud.partner import crud_provider
+from dz_fastapi.crud.partner import crud_customer, crud_provider
 from dz_fastapi.http.dz_site_client import DZSiteClient
 from dz_fastapi.models.autopart import TYPE_SUPPLIER_DECISION_STATUS
 from dz_fastapi.models.notification import AppNotificationLevel
@@ -388,6 +388,15 @@ async def send_api(
         raise HTTPException(
             status_code=400, detail='Список позиций не может быть пустым'
         )
+    customer = await crud_customer.get_by_id(customer_id, session)
+    if customer is None:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f'Клиент с id={customer_id} не найден. '
+                'Выберите корректного клиента для заказа.'
+            ),
+        )
     # 1) Определяем поставщика из позиций
     provider_cache: dict[str, int] = {}
     provider_ids: set[int] = set()
@@ -412,7 +421,7 @@ async def send_api(
         '''ЭТАП 1: Создаем заказ в нашей БД'''
         order = await crud_order.create_order_with_items(
             provider_id=provider_id,
-            customer_id=customer_id,
+            customer_id=customer.id,
             items=request,
             session=session,
             comment=f"Заказ из {len(request)} позиций",
