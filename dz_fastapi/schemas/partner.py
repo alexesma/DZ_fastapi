@@ -452,11 +452,47 @@ class CustomerPriceListConfigBase(BaseModel):
         default_factory=dict,
         description='Per-supplier filters (provider_id -> filters)',
     )
+    export_file_name: Optional[str] = Field(
+        default=None, description='Base file name for exported pricelist'
+    )
+    export_file_format: str = Field(
+        default='xlsx', description='Export format for sent pricelist file'
+    )
+    export_file_extension: Optional[str] = Field(
+        default=None, description='File extension for exported pricelist'
+    )
     schedule_days: Optional[List[str]] = Field(default_factory=list)
     schedule_times: Optional[List[str]] = Field(default_factory=list)
     emails: Optional[List[EmailStr]] = Field(default_factory=list)
     outgoing_email_account_id: Optional[int] = Field(default=None, ge=1)
     is_active: Optional[bool] = True
+
+    @field_validator('export_file_name', mode='before')
+    def normalize_export_file_name(cls, value):
+        if value in (None, ''):
+            return None
+        return str(value).strip() or None
+
+    @field_validator('export_file_format', mode='before')
+    def normalize_export_file_format(cls, value):
+        normalized = str(value or 'xlsx').strip().lower()
+        if normalized not in {'xlsx', 'csv'}:
+            raise ValueError('export_file_format must be xlsx or csv')
+        return normalized
+
+    @field_validator('export_file_extension', mode='before')
+    def normalize_export_file_extension(cls, value):
+        if value in (None, ''):
+            return None
+        normalized = str(value).strip().lstrip('.').lower()
+        if not normalized:
+            return None
+        if not normalized.replace('_', '').isalnum():
+            raise ValueError(
+                'export_file_extension must contain only letters, '
+                'digits or underscore'
+            )
+        return normalized
 
 
 class CustomerPriceListConfigCreate(CustomerPriceListConfigBase):
@@ -487,11 +523,43 @@ class CustomerPriceListConfigUpdate(BaseModel):
     own_filters: Optional[Dict[str, Any]] = None
     other_filters: Optional[Dict[str, Any]] = None
     supplier_filters: Optional[Dict[str, Any]] = None
+    export_file_name: Optional[str] = None
+    export_file_format: Optional[str] = None
+    export_file_extension: Optional[str] = None
     schedule_days: Optional[List[str]] = None
     schedule_times: Optional[List[str]] = None
     emails: Optional[List[EmailStr]] = None
     outgoing_email_account_id: Optional[int] = Field(default=None, ge=1)
     is_active: Optional[bool] = None
+
+    @field_validator('export_file_name', mode='before')
+    def normalize_export_file_name(cls, value):
+        if value in (None, ''):
+            return None
+        return str(value).strip() or None
+
+    @field_validator('export_file_format', mode='before')
+    def normalize_export_file_format(cls, value):
+        if value in (None, ''):
+            return None
+        normalized = str(value).strip().lower()
+        if normalized not in {'xlsx', 'csv'}:
+            raise ValueError('export_file_format must be xlsx or csv')
+        return normalized
+
+    @field_validator('export_file_extension', mode='before')
+    def normalize_export_file_extension(cls, value):
+        if value in (None, ''):
+            return None
+        normalized = str(value).strip().lstrip('.').lower()
+        if not normalized:
+            return None
+        if not normalized.replace('_', '').isalnum():
+            raise ValueError(
+                'export_file_extension must contain only letters, '
+                'digits or underscore'
+            )
+        return normalized
 
 
 class CustomerPriceListSourceBase(BaseModel):

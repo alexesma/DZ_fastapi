@@ -465,6 +465,11 @@ class CustomerPriceListConfig(Base):
     schedule_days = Column(JSON, default=[])
     schedule_times = Column(JSON, default=[])
     emails = Column(JSON, default=[])
+    export_file_name = Column(String(255), nullable=True)
+    export_file_format = Column(
+        String(16), nullable=False, default='xlsx', server_default='xlsx'
+    )
+    export_file_extension = Column(String(16), nullable=True)
     outgoing_email_account_id = Column(
         Integer, ForeignKey('emailaccount.id'), nullable=True
     )

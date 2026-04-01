@@ -78,13 +78,26 @@ async def get_brands(session: AsyncSession = Depends(get_session)):
 async def lookup_brands(
     q: str = '',
     limit: int = 50,
+    ids: str | None = None,
     session: AsyncSession = Depends(get_session),
 ):
     normalized = await change_brand_name(q) if q else ''
     stmt = select(Brand.id, Brand.name).order_by(Brand.name.asc())
-    if normalized:
+    brand_ids: list[int] = []
+    if ids:
+        brand_ids = [
+            int(part)
+            for part in ids.split(',')
+            if part.strip().isdigit()
+        ]
+    if brand_ids:
+        stmt = stmt.where(Brand.id.in_(brand_ids))
+        stmt = stmt.limit(max(1, len(brand_ids)))
+    elif normalized:
         stmt = stmt.where(Brand.name.ilike(f'%{normalized}%'))
-    stmt = stmt.limit(max(1, min(limit, 200)))
+        stmt = stmt.limit(max(1, min(limit, 200)))
+    else:
+        stmt = stmt.limit(max(1, min(limit, 200)))
     rows = (await session.execute(stmt)).all()
     return [BrandLookupItem(id=row.id, name=row.name) for row in rows]
 

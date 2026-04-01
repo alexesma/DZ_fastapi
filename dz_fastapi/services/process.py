@@ -1,6 +1,7 @@
 import asyncio
 import copy
 import logging
+import re
 from datetime import date, datetime
 from functools import partial
 from io import BytesIO
@@ -80,6 +81,89 @@ from dz_fastapi.services.utils import (brand_filters, normalize_markup,
 from dz_fastapi.services.watchlist import handle_provider_pricelist_watch
 
 logger = logging.getLogger('dz_fastapi')
+
+DEFAULT_CUSTOMER_PRICELIST_FILE_NAME = 'zzap_kross'
+
+
+def _resolve_customer_pricelist_export_format(
+    config: CustomerPriceListConfig,
+) -> str:
+    export_format = str(
+        getattr(config, 'export_file_format', None) or 'xlsx'
+    ).strip().lower()
+    if export_format not in {'xlsx', 'csv'}:
+        return 'xlsx'
+    return export_format
+
+
+def _build_customer_pricelist_attachment_filename(
+    config: CustomerPriceListConfig,
+) -> str:
+    base_name = str(
+        getattr(config, 'export_file_name', None)
+        or DEFAULT_CUSTOMER_PRICELIST_FILE_NAME
+    ).strip()
+    if not base_name:
+        base_name = DEFAULT_CUSTOMER_PRICELIST_FILE_NAME
+    base_name = re.sub(r'[\\/:*?"<>|]+', '_', base_name).strip(' .')
+    if not base_name:
+        base_name = DEFAULT_CUSTOMER_PRICELIST_FILE_NAME
+
+    export_format = _resolve_customer_pricelist_export_format(config)
+    extension = str(
+        getattr(config, 'export_file_extension', None) or export_format
+    ).strip().lstrip('.').lower()
+    extension = re.sub(r'[^a-z0-9_]+', '', extension) or export_format
+    return f'{base_name}.{extension}'
+
+
+def _build_customer_pricelist_attachment_bytes(
+    df_excel: pd.DataFrame,
+    config: CustomerPriceListConfig,
+) -> bytes:
+    export_format = _resolve_customer_pricelist_export_format(config)
+    if export_format == 'csv':
+        return df_excel.to_csv(index=False).encode('utf-8-sig')
+
+    output = BytesIO()
+    wb = Workbook()
+    ws = wb.active
+
+    current_time = now_moscow().strftime("%Y-%m-%d %H:%M:%S")
+    ws.cell(row=1, column=5).value = f"Сформирован {current_time}"
+    ws.cell(row=1, column=5).font = Font(name="Arial", size=7)
+    ws.cell(row=1, column=5).alignment = Alignment(
+        horizontal="center", vertical="center"
+    )
+
+    # Write headers on the second row
+    logger.debug('Write headers on the second row')
+    for col_num, column_title in enumerate(df_excel.columns, start=1):
+        cell = ws.cell(row=2, column=col_num)
+        cell.value = column_title
+        cell.font = Font(name="Arial", size=10, bold=True)
+        cell.fill = PatternFill(
+            start_color="D9EAD3", end_color="D9EAD3", fill_type="solid"
+        )
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    # Write data rows starting from the third row
+    logger.debug('Write data rows starting from the third row')
+    for row_num, row_data in enumerate(
+        df_excel.itertuples(index=False), start=3
+    ):
+        for col_num, cell_value in enumerate(row_data, start=1):
+            cell = ws.cell(row=row_num, column=col_num)
+            cell.value = cell_value
+            cell.font = Font(name="Arial", size=10)
+
+    wb.save(output)
+    attachment_bytes = output.getvalue()
+    logger.debug(
+        'Workbook saved successfully. Size: %s bytes',
+        len(attachment_bytes),
+    )
+    return attachment_bytes
 
 
 def deduplicate_autoparts_data(
@@ -1061,49 +1145,9 @@ async def send_pricelist(
     to_emails: Optional[List[str]],
     subject: str,
     body: str,
-    attachment_filename: str,
+    attachment_filename: str | None = None,
 ):
-    output = BytesIO()
-    wb = Workbook()
-    ws = wb.active
-
-    current_time = now_moscow().strftime("%Y-%m-%d %H:%M:%S")
-    ws.cell(row=1, column=5).value = f"Сформирован {current_time}"
-    ws.cell(row=1, column=5).font = Font(name="Arial", size=7)
-    ws.cell(row=1, column=5).alignment = Alignment(
-        horizontal="center", vertical="center"
-    )
-
-    # Write headers on the second row
-    logger.debug('Write headers on the second row')
-    for col_num, column_title in enumerate(df_excel.columns, start=1):
-        cell = ws.cell(row=2, column=col_num)
-        cell.value = column_title
-        cell.font = Font(name="Arial", size=10, bold=True)
-        cell.fill = PatternFill(
-            start_color="D9EAD3", end_color="D9EAD3", fill_type="solid"
-        )
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-
-    # Write data rows starting from the third row
-    logger.debug('Write data rows starting from the third row')
-    for row_num, row_data in enumerate(
-        df_excel.itertuples(index=False), start=3
-    ):
-        for col_num, cell_value in enumerate(row_data, start=1):
-            cell = ws.cell(row=row_num, column=col_num)
-            cell.value = cell_value
-            cell.font = Font(name="Arial", size=10)
-
-    wb.save(output)
-    logger.debug(
-        'Workbook saved successfully. ' 'Size: %s bytes',
-        len(output.getvalue()),
-    )
-    output.seek(0)
-
-    # Send email with the Excel attachment
-    logger.debug('Send email with the Excel attachment')
+    logger.debug('Build customer pricelist attachment')
     to_email = None
     if to_emails:
         to_email = ','.join([email for email in to_emails if email])
@@ -1115,8 +1159,14 @@ async def send_pricelist(
     subject = subject
     body = body
 
-    attachment_bytes = output.getvalue()
-    attachment_filename = attachment_filename
+    attachment_bytes = _build_customer_pricelist_attachment_bytes(
+        df_excel=df_excel,
+        config=config,
+    )
+    attachment_filename = (
+        attachment_filename
+        or _build_customer_pricelist_attachment_filename(config)
+    )
 
     # Send the email asynchronously
     logger.debug('Send the email asynchronously')
@@ -1443,7 +1493,6 @@ async def process_customer_pricelist(
         df_excel=df_excel,
         subject=f'Прайс лист {customer_pricelist.date}',
         body='Добрый день, высылаем Вам наш прайс-лист',
-        attachment_filename='zzap_kross.xlsx',
     )
     if recipients:
         config.last_sent_at = now_moscow()

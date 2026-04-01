@@ -191,6 +191,30 @@ async def test_get_brands(test_session, created_brand: Brand):
     assert 'id' in data
 
 
+@pytest.mark.asyncio
+async def test_lookup_brands_by_ids(test_session, created_brand: Brand):
+    second_brand = Brand(name='SECOND BRAND')
+    test_session.add(second_brand)
+    await test_session.commit()
+    await test_session.refresh(second_brand)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+        response = await ac.get(
+            '/brand/lookup/',
+            params={'ids': f'{created_brand.id},{second_brand.id}'},
+        )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert {
+        (item['id'], item['name']) for item in payload
+    } == {
+        (created_brand.id, created_brand.name),
+        (second_brand.id, second_brand.name),
+    }
+
+
 async def test_get_brand(test_session, created_brand: Brand):
     brand_id = created_brand.id
 

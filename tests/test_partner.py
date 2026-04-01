@@ -23,6 +23,7 @@ from dz_fastapi.schemas.autopart import AutoPartPricelist
 from dz_fastapi.schemas.partner import (CustomerResponse,
                                         PriceListAutoPartAssociationCreate,
                                         PriceListCreate, ProviderResponse)
+from dz_fastapi.services import process as process_service
 from tests.test_constants import CONFIG_DATA, TEST_CUSTOMER, TEST_PROVIDER
 
 logger = logging.getLogger('dz_fastapi')
@@ -1390,6 +1391,59 @@ async def test_customer_pricelist_send_now_updates_last_sent_at(
 
     await test_session.refresh(config)
     assert config.last_sent_at is not None
+
+
+@pytest.mark.asyncio
+async def test_send_pricelist_uses_export_file_name_and_csv(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+    monkeypatch: pytest.MonkeyPatch,
+):
+    customer = created_customers[0]
+    captured = {}
+
+    def fake_send_email_with_attachment(**kwargs):
+        captured.update(kwargs)
+        return True
+
+    monkeypatch.setattr(
+        process_service,
+        'send_email_with_attachment',
+        fake_send_email_with_attachment,
+    )
+
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name='EXPORT CONFIG',
+        export_file_name='motor_export',
+        export_file_format='csv',
+        export_file_extension='txt',
+    )
+    df_excel = pd.DataFrame(
+        [
+            {
+                'Производитель': 'MAZDA',
+                'Артикул': 'ABC123',
+                'Цена': 1000,
+                'Количество': 3,
+            }
+        ]
+    )
+
+    await process_service.send_pricelist(
+        session=test_session,
+        df_excel=df_excel,
+        customer=customer,
+        config=config,
+        to_emails=['price@example.com'],
+        subject='Тестовый прайс',
+        body='Тело письма',
+    )
+
+    assert captured['attachment_filename'] == 'motor_export.txt'
+    attachment_text = captured['attachment_bytes'].decode('utf-8-sig')
+    assert 'Производитель,Артикул,Цена,Количество' in attachment_text
+    assert 'MAZDA,ABC123,1000,3' in attachment_text
 
 
 @pytest.mark.asyncio
