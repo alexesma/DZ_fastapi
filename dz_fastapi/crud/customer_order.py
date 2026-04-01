@@ -2,16 +2,16 @@ import logging
 from datetime import date, datetime
 from typing import List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand
-from dz_fastapi.models.partner import (CustomerOrder, CustomerOrderConfig,
-                                       CustomerOrderItem, StockOrder,
-                                       StockOrderItem, SupplierOrder,
-                                       SupplierOrderItem)
+from dz_fastapi.models.partner import (Customer, CustomerOrder,
+                                       CustomerOrderConfig, CustomerOrderItem,
+                                       StockOrder, StockOrderItem,
+                                       SupplierOrder, SupplierOrderItem)
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -166,6 +166,55 @@ class CRUDCustomerOrder:
         ).offset(skip).limit(limit)
         result = await session.execute(stmt)
         return result.unique().scalars().all()
+
+    async def get_stats_rows(
+        self,
+        session: AsyncSession,
+        *,
+        kind: str,
+        value: str,
+        date_from: datetime,
+    ):
+        normalized = str(value or '').strip().lower()
+        if not normalized:
+            return []
+
+        stmt = (
+            select(
+                CustomerOrderItem.id.label('item_id'),
+                CustomerOrder.id.label('order_id'),
+                CustomerOrder.customer_id.label('customer_id'),
+                Customer.name.label('customer_name'),
+                CustomerOrder.order_number.label('order_number'),
+                CustomerOrder.received_at.label('received_at'),
+                CustomerOrderItem.requested_qty.label('requested_qty'),
+                CustomerOrderItem.requested_price.label('requested_price'),
+                CustomerOrderItem.ship_qty.label('ship_qty'),
+                CustomerOrderItem.reject_qty.label('reject_qty'),
+                CustomerOrderItem.status.label('status'),
+            )
+            .join(
+                CustomerOrder,
+                CustomerOrderItem.order_id == CustomerOrder.id,
+            )
+            .outerjoin(Customer, Customer.id == CustomerOrder.customer_id)
+            .where(CustomerOrder.received_at >= date_from)
+            .order_by(
+                CustomerOrder.received_at.desc(),
+                CustomerOrder.id.desc(),
+                CustomerOrderItem.id.desc(),
+            )
+        )
+
+        if kind == 'brand':
+            stmt = stmt.where(
+                func.lower(CustomerOrderItem.brand) == normalized
+            )
+        else:
+            stmt = stmt.where(func.lower(CustomerOrderItem.oem) == normalized)
+
+        result = await session.execute(stmt)
+        return result.all()
 
 
 class CRUDStockOrder:

@@ -1,13 +1,15 @@
 import logging
-from datetime import date
+from collections import defaultdict
+from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.core.db import get_session
+from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.customer_order import (crud_customer_order,
                                             crud_customer_order_config,
                                             crud_stock_order,
@@ -20,9 +22,13 @@ from dz_fastapi.schemas.customer_order import (CustomerOrderConfigCreate,
                                                CustomerOrderConfigResponse,
                                                CustomerOrderConfigUpdate,
                                                CustomerOrderItemResponse,
+                                               CustomerOrderItemStatsResponse,
                                                CustomerOrderItemUpdate,
                                                CustomerOrderManualCreate,
                                                CustomerOrderResponse,
+                                               CustomerOrderStatsMonthlyBucket,
+                                               CustomerOrderStatsRecentRow,
+                                               CustomerOrderStatsSummary,
                                                CustomerOrderSummaryResponse,
                                                StockOrderResponse,
                                                SupplierOrderDetailResponse,
@@ -92,6 +98,134 @@ def _serialize_customer_order_for_user(
         for item in (order.items or [])
     ]
     return model.model_copy(update={'items': items})
+
+
+def _month_start_for_offset(months_ago: int) -> date:
+    today = now_moscow().date()
+    year = today.year
+    month = today.month - months_ago
+    while month <= 0:
+        month += 12
+        year -= 1
+    return date(year, month, 1)
+
+
+def _build_month_buckets(months: int) -> list[date]:
+    return [
+        _month_start_for_offset(offset)
+        for offset in reversed(range(months))
+    ]
+
+
+def _decimal_average(values: list[Decimal]) -> Decimal | None:
+    if not values:
+        return None
+    total = sum(values, Decimal('0'))
+    return (total / Decimal(len(values))).quantize(Decimal('0.01'))
+
+
+def _price_change_pct(
+    last_price: Decimal | None,
+    previous_price: Decimal | None,
+) -> float | None:
+    if last_price is None or previous_price is None or previous_price == 0:
+        return None
+    return float(
+        ((last_price - previous_price) / previous_price) * Decimal('100')
+    )
+
+
+def _build_stats_summary(rows) -> CustomerOrderStatsSummary:
+    if not rows:
+        return CustomerOrderStatsSummary()
+
+    prices = [
+        Decimal(str(row.requested_price))
+        for row in rows
+        if row.requested_price is not None
+    ]
+    order_ids = {row.order_id for row in rows}
+    sorted_prices = [
+        Decimal(str(row.requested_price))
+        for row in rows
+        if row.requested_price is not None
+    ]
+    last_price = sorted_prices[0] if sorted_prices else None
+    previous_price = sorted_prices[1] if len(sorted_prices) > 1 else None
+
+    return CustomerOrderStatsSummary(
+        orders_count=len(order_ids),
+        rows_count=len(rows),
+        total_requested_qty=sum(int(row.requested_qty or 0) for row in rows),
+        total_ship_qty=sum(int(row.ship_qty or 0) for row in rows),
+        avg_price=_decimal_average(prices),
+        min_price=min(prices) if prices else None,
+        max_price=max(prices) if prices else None,
+        last_price=last_price,
+        previous_price=previous_price,
+        price_change_pct=_price_change_pct(last_price, previous_price),
+        last_order_at=rows[0].received_at if rows else None,
+    )
+
+
+def _build_monthly_stats(
+    rows,
+    month_buckets: list[date],
+) -> list[CustomerOrderStatsMonthlyBucket]:
+    grouped: dict[date, list] = defaultdict(list)
+    for row in rows:
+        received_at = row.received_at
+        if received_at is None:
+            continue
+        month_key = date(received_at.year, received_at.month, 1)
+        grouped[month_key].append(row)
+
+    result: list[CustomerOrderStatsMonthlyBucket] = []
+    for month in month_buckets:
+        month_rows = grouped.get(month, [])
+        prices = [
+            Decimal(str(row.requested_price))
+            for row in month_rows
+            if row.requested_price is not None
+        ]
+        result.append(
+            CustomerOrderStatsMonthlyBucket(
+                month=month,
+                orders_count=len({row.order_id for row in month_rows}),
+                rows_count=len(month_rows),
+                total_requested_qty=sum(
+                    int(row.requested_qty or 0) for row in month_rows
+                ),
+                total_ship_qty=sum(
+                    int(row.ship_qty or 0) for row in month_rows
+                ),
+                avg_price=_decimal_average(prices),
+                min_price=min(prices) if prices else None,
+                max_price=max(prices) if prices else None,
+            )
+        )
+    return result
+
+
+def _build_recent_rows(
+    rows,
+    limit: int = 5,
+) -> list[CustomerOrderStatsRecentRow]:
+    return [
+        CustomerOrderStatsRecentRow(
+            order_id=row.order_id,
+            customer_id=row.customer_id,
+            customer_name=row.customer_name,
+            order_number=row.order_number,
+            received_at=row.received_at,
+            requested_qty=row.requested_qty,
+            requested_price=row.requested_price,
+            ship_qty=row.ship_qty,
+            reject_qty=row.reject_qty,
+            status=row.status,
+        )
+        for row in rows[:limit]
+    ]
 
 
 @router.post(
@@ -403,6 +537,67 @@ async def list_customer_order_summary(
             )
         )
     return results
+
+
+@router.get(
+    '/item-stats',
+    response_model=CustomerOrderItemStatsResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_customer_order_item_stats(
+    kind: Literal['oem', 'brand'],
+    value: str,
+    customer_id: int,
+    months: int = 12,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    normalized_value = str(value or '').strip()
+    if not normalized_value:
+        raise HTTPException(status_code=400, detail='value is required')
+
+    period_months = max(1, min(months, 24))
+    month_buckets = _build_month_buckets(period_months)
+    period_start = datetime.combine(
+        month_buckets[0],
+        datetime.min.time(),
+        tzinfo=now_moscow().tzinfo,
+    )
+
+    rows = await crud_customer_order.get_stats_rows(
+        session=session,
+        kind=kind,
+        value=normalized_value,
+        date_from=period_start,
+    )
+    current_customer_rows = [
+        row for row in rows if int(row.customer_id) == int(customer_id)
+    ]
+    current_customer_name = next(
+        (
+            row.customer_name
+            for row in current_customer_rows
+            if row.customer_name
+        ),
+        None,
+    )
+
+    return CustomerOrderItemStatsResponse(
+        kind=kind,
+        value=normalized_value,
+        period_months=period_months,
+        current_customer_id=customer_id,
+        current_customer_name=current_customer_name,
+        current_customer_summary=_build_stats_summary(current_customer_rows),
+        all_customers_summary=_build_stats_summary(rows),
+        current_customer_monthly=_build_monthly_stats(
+            current_customer_rows,
+            month_buckets,
+        ),
+        all_customers_monthly=_build_monthly_stats(rows, month_buckets),
+        current_customer_recent=_build_recent_rows(current_customer_rows),
+        all_customers_recent=_build_recent_rows(rows),
+    )
 
 
 @router.get(

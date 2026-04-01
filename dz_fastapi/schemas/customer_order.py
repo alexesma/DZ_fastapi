@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import (BaseModel, ConfigDict, EmailStr, Field, field_serializer,
                       field_validator)
@@ -248,6 +248,66 @@ class CustomerOrderResponse(BaseModel):
     items: List[CustomerOrderItemResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CustomerOrderStatsMonthlyBucket(BaseModel):
+    month: date
+    orders_count: int = 0
+    rows_count: int = 0
+    total_requested_qty: int = 0
+    total_ship_qty: int = 0
+    avg_price: Optional[Decimal] = None
+    min_price: Optional[Decimal] = None
+    max_price: Optional[Decimal] = None
+
+
+class CustomerOrderStatsRecentRow(BaseModel):
+    order_id: int
+    customer_id: int
+    customer_name: Optional[str] = None
+    order_number: Optional[str] = None
+    received_at: datetime
+    requested_qty: int
+    requested_price: Optional[Decimal] = None
+    ship_qty: Optional[int] = None
+    reject_qty: Optional[int] = None
+    status: CUSTOMER_ORDER_ITEM_STATUS
+
+
+class CustomerOrderStatsSummary(BaseModel):
+    orders_count: int = 0
+    rows_count: int = 0
+    total_requested_qty: int = 0
+    total_ship_qty: int = 0
+    avg_price: Optional[Decimal] = None
+    min_price: Optional[Decimal] = None
+    max_price: Optional[Decimal] = None
+    last_price: Optional[Decimal] = None
+    previous_price: Optional[Decimal] = None
+    price_change_pct: Optional[float] = None
+    last_order_at: Optional[datetime] = None
+
+
+class CustomerOrderItemStatsResponse(BaseModel):
+    kind: Literal['oem', 'brand']
+    value: str
+    period_months: int
+    current_customer_id: int
+    current_customer_name: Optional[str] = None
+    current_customer_summary: CustomerOrderStatsSummary
+    all_customers_summary: CustomerOrderStatsSummary
+    current_customer_monthly: List[CustomerOrderStatsMonthlyBucket] = Field(
+        default_factory=list
+    )
+    all_customers_monthly: List[CustomerOrderStatsMonthlyBucket] = Field(
+        default_factory=list
+    )
+    current_customer_recent: List[CustomerOrderStatsRecentRow] = Field(
+        default_factory=list
+    )
+    all_customers_recent: List[CustomerOrderStatsRecentRow] = Field(
+        default_factory=list
+    )
 
 
 class CustomerOrderSummaryResponse(BaseModel):

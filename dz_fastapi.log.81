@@ -1,0 +1,1642 @@
+2026-04-01 12:10:04,839 - dz_fastapi - ERROR - Order inbox fetch failed for masterzapzakaz@gmail.com: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5b1f17b1804b1-48888ce7d88mb166372785e9']
+Traceback (most recent call last):
+  File "/app/dz_fastapi/services/customer_orders.py", line 2853, in process_customer_orders
+    account, date_from, label=label
+  File "/app/dz_fastapi/services/customer_orders.py", line 171, in _fetch_order_messages
+    server_mail: str,
+                   ^^^
+  File "/usr/local/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dz_fastapi/services/customer_orders.py", line 154, in _fetch
+    payload: bytes
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/mailbox.py", line 63, in login
+    check_command_status(login_result, MailboxLoginError)
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/utils.py", line 46, in check_command_status
+    raise exception(command_result=command_result, expected=expected)
+imap_tools.errors.MailboxLoginError: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5b1f17b1804b1-48888ce7d88mb166372785e9']
+2026-04-01 12:10:04,871 - dz_fastapi - INFO - No order emails found.
+2026-04-01 12:11:00,054 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:12:00,052 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:13:00,061 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:14:00,067 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:15:00,071 - dz_fastapi - INFO - Starting download_customer_orders_task
+2026-04-01 12:15:00,077 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:15:00,290 - dz_fastapi - ERROR - Order inbox fetch failed for masterzapzakaz@gmail.com: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5b1f17b1804b1-48888e54307mb91054405e9']
+Traceback (most recent call last):
+  File "/app/dz_fastapi/services/customer_orders.py", line 2853, in process_customer_orders
+    account, date_from, label=label
+  File "/app/dz_fastapi/services/customer_orders.py", line 171, in _fetch_order_messages
+    server_mail: str,
+                   ^^^
+  File "/usr/local/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dz_fastapi/services/customer_orders.py", line 154, in _fetch
+    payload: bytes
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/mailbox.py", line 63, in login
+    check_command_status(login_result, MailboxLoginError)
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/utils.py", line 46, in check_command_status
+    raise exception(command_result=command_result, expected=expected)
+imap_tools.errors.MailboxLoginError: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5b1f17b1804b1-48888e54307mb91054405e9']
+2026-04-01 12:15:00,294 - dz_fastapi - INFO - No order emails found.
+2026-04-01 12:15:03,236 - dz_fastapi - INFO - Starting send_scheduled_supplier_orders_task
+2026-04-01 12:16:00,054 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:17:00,054 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:18:00,056 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:19:00,043 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:20:00,040 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:20:00,987 - dz_fastapi - INFO - Starting send_scheduled_supplier_orders_task
+2026-04-01 12:20:03,928 - dz_fastapi - INFO - Starting download_customer_orders_task
+2026-04-01 12:20:04,160 - dz_fastapi - ERROR - Order inbox fetch failed for masterzapzakaz@gmail.com: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. e09e53db590de-8a01b947a27mb32126100d85']
+Traceback (most recent call last):
+  File "/app/dz_fastapi/services/customer_orders.py", line 2853, in process_customer_orders
+    account, date_from, label=label
+  File "/app/dz_fastapi/services/customer_orders.py", line 171, in _fetch_order_messages
+    server_mail: str,
+                   ^^^
+  File "/usr/local/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dz_fastapi/services/customer_orders.py", line 154, in _fetch
+    payload: bytes
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/mailbox.py", line 63, in login
+    check_command_status(login_result, MailboxLoginError)
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/utils.py", line 46, in check_command_status
+    raise exception(command_result=command_result, expected=expected)
+imap_tools.errors.MailboxLoginError: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. e09e53db590de-8a01b947a27mb32126100d85']
+2026-04-01 12:20:04,169 - dz_fastapi - INFO - No order emails found.
+2026-04-01 12:21:00,099 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:22:00,068 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:23:00,058 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:24:00,066 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:25:00,075 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:25:01,063 - dz_fastapi - INFO - Starting send_scheduled_supplier_orders_task
+2026-04-01 12:25:04,530 - dz_fastapi - INFO - Starting download_customer_orders_task
+2026-04-01 12:25:04,732 - dz_fastapi - ERROR - Order inbox fetch failed for masterzapzakaz@gmail.com: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5c2dc8763939e-4976d09a6aemb26642245122']
+Traceback (most recent call last):
+  File "/app/dz_fastapi/services/customer_orders.py", line 2853, in process_customer_orders
+    account, date_from, label=label
+  File "/app/dz_fastapi/services/customer_orders.py", line 171, in _fetch_order_messages
+    server_mail: str,
+                   ^^^
+  File "/usr/local/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dz_fastapi/services/customer_orders.py", line 154, in _fetch
+    payload: bytes
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/mailbox.py", line 63, in login
+    check_command_status(login_result, MailboxLoginError)
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/utils.py", line 46, in check_command_status
+    raise exception(command_result=command_result, expected=expected)
+imap_tools.errors.MailboxLoginError: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5c2dc8763939e-4976d09a6aemb26642245122']
+2026-04-01 12:25:04,739 - dz_fastapi - INFO - No order emails found.
+2026-04-01 12:26:00,053 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:27:00,060 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:28:00,062 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:29:00,030 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:30:00,050 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:30:01,161 - dz_fastapi - INFO - Starting download_customer_orders_task
+2026-04-01 12:30:01,395 - dz_fastapi - ERROR - Order inbox fetch failed for masterzapzakaz@gmail.com: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. e09e53db590de-8a01b7bb350mb31471134d85']
+Traceback (most recent call last):
+  File "/app/dz_fastapi/services/customer_orders.py", line 2853, in process_customer_orders
+    account, date_from, label=label
+  File "/app/dz_fastapi/services/customer_orders.py", line 171, in _fetch_order_messages
+    server_mail: str,
+                   ^^^
+  File "/usr/local/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dz_fastapi/services/customer_orders.py", line 154, in _fetch
+    payload: bytes
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/mailbox.py", line 63, in login
+    check_command_status(login_result, MailboxLoginError)
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/utils.py", line 46, in check_command_status
+    raise exception(command_result=command_result, expected=expected)
+imap_tools.errors.MailboxLoginError: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. e09e53db590de-8a01b7bb350mb31471134d85']
+2026-04-01 12:30:01,399 - dz_fastapi - INFO - No order emails found.
+2026-04-01 12:30:03,049 - dz_fastapi - INFO - Starting send_scheduled_supplier_orders_task
+2026-04-01 12:31:00,070 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:32:00,067 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:33:00,050 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:34:00,042 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:35:00,034 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:35:00,251 - dz_fastapi - INFO - Starting download_customer_orders_task
+2026-04-01 12:35:00,509 - dz_fastapi - ERROR - Order inbox fetch failed for masterzapzakaz@gmail.com: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. e09e53db590de-8a01b94948cmb37394637d85']
+Traceback (most recent call last):
+  File "/app/dz_fastapi/services/customer_orders.py", line 2853, in process_customer_orders
+    account, date_from, label=label
+  File "/app/dz_fastapi/services/customer_orders.py", line 171, in _fetch_order_messages
+    server_mail: str,
+                   ^^^
+  File "/usr/local/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dz_fastapi/services/customer_orders.py", line 154, in _fetch
+    payload: bytes
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/mailbox.py", line 63, in login
+    check_command_status(login_result, MailboxLoginError)
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/utils.py", line 46, in check_command_status
+    raise exception(command_result=command_result, expected=expected)
+imap_tools.errors.MailboxLoginError: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. e09e53db590de-8a01b94948cmb37394637d85']
+2026-04-01 12:35:00,518 - dz_fastapi - INFO - No order emails found.
+2026-04-01 12:35:00,788 - dz_fastapi - INFO - Starting send_scheduled_supplier_orders_task
+2026-04-01 12:36:00,788 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:39:00,066 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:49:00,079 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:50:00,117 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:50:02,853 - dz_fastapi - INFO - Starting send_scheduled_supplier_orders_task
+2026-04-01 12:50:04,935 - dz_fastapi - INFO - Starting download_customer_orders_task
+2026-04-01 12:50:05,205 - dz_fastapi - ERROR - Order inbox fetch failed for masterzapzakaz@gmail.com: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. cdcc0902adbc2-3c7f65f098cmb10461001d76']
+Traceback (most recent call last):
+  File "/app/dz_fastapi/services/customer_orders.py", line 2853, in process_customer_orders
+    account, date_from, label=label
+  File "/app/dz_fastapi/services/customer_orders.py", line 171, in _fetch_order_messages
+    server_mail: str,
+                   ^^^
+  File "/usr/local/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dz_fastapi/services/customer_orders.py", line 154, in _fetch
+    payload: bytes
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/mailbox.py", line 63, in login
+    check_command_status(login_result, MailboxLoginError)
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/utils.py", line 46, in check_command_status
+    raise exception(command_result=command_result, expected=expected)
+imap_tools.errors.MailboxLoginError: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. cdcc0902adbc2-3c7f65f098cmb10461001d76']
+2026-04-01 12:50:05,210 - dz_fastapi - INFO - No order emails found.
+2026-04-01 12:55:00,052 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:55:00,724 - dz_fastapi - INFO - Starting download_customer_orders_task
+2026-04-01 12:55:01,002 - dz_fastapi - ERROR - Order inbox fetch failed for masterzapzakaz@gmail.com: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. cdcc0902adbc2-3c7f6497cdemb13798878d76']
+Traceback (most recent call last):
+  File "/app/dz_fastapi/services/customer_orders.py", line 2853, in process_customer_orders
+    account, date_from, label=label
+  File "/app/dz_fastapi/services/customer_orders.py", line 171, in _fetch_order_messages
+    server_mail: str,
+                   ^^^
+  File "/usr/local/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dz_fastapi/services/customer_orders.py", line 154, in _fetch
+    payload: bytes
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/mailbox.py", line 63, in login
+    check_command_status(login_result, MailboxLoginError)
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/utils.py", line 46, in check_command_status
+    raise exception(command_result=command_result, expected=expected)
+imap_tools.errors.MailboxLoginError: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. cdcc0902adbc2-3c7f6497cdemb13798878d76']
+2026-04-01 12:55:01,009 - dz_fastapi - INFO - No order emails found.
+2026-04-01 12:55:01,741 - dz_fastapi - INFO - Starting send_scheduled_supplier_orders_task
+2026-04-01 12:56:00,044 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:57:00,041 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:58:00,038 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 12:59:00,063 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:00:00,072 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:00:00,423 - dz_fastapi - INFO - Starting download_customer_orders_task
+2026-04-01 13:00:00,648 - dz_fastapi - ERROR - Order inbox fetch failed for masterzapzakaz@gmail.com: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5b1f17b1804b1-48888f5650cmb185012255e9']
+Traceback (most recent call last):
+  File "/app/dz_fastapi/services/customer_orders.py", line 2853, in process_customer_orders
+    account, date_from, label=label
+  File "/app/dz_fastapi/services/customer_orders.py", line 171, in _fetch_order_messages
+    server_mail: str,
+                   ^^^
+  File "/usr/local/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dz_fastapi/services/customer_orders.py", line 154, in _fetch
+    payload: bytes
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/mailbox.py", line 63, in login
+    check_command_status(login_result, MailboxLoginError)
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/utils.py", line 46, in check_command_status
+    raise exception(command_result=command_result, expected=expected)
+imap_tools.errors.MailboxLoginError: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5b1f17b1804b1-48888f5650cmb185012255e9']
+2026-04-01 13:00:00,653 - dz_fastapi - INFO - No order emails found.
+2026-04-01 13:00:04,565 - dz_fastapi - INFO - Starting download_price_provider_task
+2026-04-01 13:00:04,616 - dz_fastapi - INFO - Начинаем обработку писем провайдеров...
+2026-04-01 13:00:04,985 - dz_fastapi - INFO - Starting send_scheduled_supplier_orders_task
+2026-04-01 13:01:00,076 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:01:24,581 - dz_fastapi - DEBUG - Получено 96 писем за сегодня
+2026-04-01 13:01:24,583 - dz_fastapi - DEBUG - Письмо: uid=266893, from=info@dragonzap.ru, date=2026-04-01 03:02:32+03:00, subject=Прайс Avito_dragonzap давно не обновлялся
+2026-04-01 13:01:24,599 - dz_fastapi - DEBUG - Провайдер для email info@dragonzap.ru не найден, пропускаем письмо uid=266893
+2026-04-01 13:01:24,600 - dz_fastapi - DEBUG - Письмо: uid=266894, from=informer@tochka.com, date=2026-04-01 05:01:56+05:00, subject=Выписка ООО "АВТОПАРТС" за 31.03.2026 по счету 40702810501500063689
+2026-04-01 13:01:24,600 - dz_fastapi - DEBUG - Провайдер для email informer@tochka.com не найден, пропускаем письмо uid=266894
+2026-04-01 13:01:24,601 - dz_fastapi - DEBUG - Письмо: uid=266895, from=price@cosmopart.ru, date=2026-04-01 03:10:12+03:00, subject=Cosmo Nal
+2026-04-01 13:01:24,601 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266895
+2026-04-01 13:01:24,602 - dz_fastapi - DEBUG - Письмо: uid=266896, from=price@cosmopart.ru, date=2026-04-01 03:27:58+03:00, subject=Cosmo Geely
+2026-04-01 13:01:24,602 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266896
+2026-04-01 13:01:24,602 - dz_fastapi - DEBUG - Письмо: uid=266897, from=zap-vk@mail.ru, date=2026-04-01 05:00:01+03:00, subject=Свежий прайс товарных остатков
+2026-04-01 13:01:24,602 - dz_fastapi - DEBUG - Провайдер для email zap-vk@mail.ru не найден, пропускаем письмо uid=266897
+2026-04-01 13:01:24,603 - dz_fastapi - DEBUG - Письмо: uid=266898, from=opt@lr.ru, date=2026-04-01 05:02:51+03:00, subject=Прайс-лист компании LR.RU_
+2026-04-01 13:01:24,603 - dz_fastapi - DEBUG - Провайдер для email opt@lr.ru не найден, пропускаем письмо uid=266898
+2026-04-01 13:01:24,604 - dz_fastapi - DEBUG - Письмо: uid=266899, from=price@ronexportal.ru, date=2026-04-01 06:03:39+03:00, subject=Ronex Price CD 7
+2026-04-01 13:01:24,604 - dz_fastapi - DEBUG - Провайдер для email price@ronexportal.ru не найден, пропускаем письмо uid=266899
+2026-04-01 13:01:24,604 - dz_fastapi - DEBUG - Письмо: uid=266900, from=price@cosmopart.ru, date=2026-04-01 06:10:11+03:00, subject=Cosmo Nal
+2026-04-01 13:01:24,604 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266900
+2026-04-01 13:01:24,604 - dz_fastapi - DEBUG - Письмо: uid=266901, from=doc@unitzap.ru, date=2026-04-01 06:11:17+03:00, subject=Прайс-лист от 01.04.2026
+2026-04-01 13:01:24,605 - dz_fastapi - DEBUG - Провайдер для email doc@unitzap.ru не найден, пропускаем письмо uid=266901
+2026-04-01 13:01:24,605 - dz_fastapi - DEBUG - Письмо: uid=266902, from=doc@unitzap.ru, date=2026-04-01 06:11:15+03:00, subject=Прайс-лист от 01.04.2026
+2026-04-01 13:01:24,605 - dz_fastapi - DEBUG - Провайдер для email doc@unitzap.ru не найден, пропускаем письмо uid=266902
+2026-04-01 13:01:24,605 - dz_fastapi - DEBUG - Письмо: uid=266903, from=operprice@vikiparts.by, date=2026-04-01 06:11:54+03:00, subject=PriceVIKInov
+2026-04-01 13:01:24,605 - dz_fastapi - DEBUG - Провайдер для email operprice@vikiparts.by не найден, пропускаем письмо uid=266903
+2026-04-01 13:01:24,606 - dz_fastapi - DEBUG - Письмо: uid=266904, from=operprice@vikiparts.by, date=2026-04-01 06:13:15+03:00, subject=SKLADNAL
+2026-04-01 13:01:24,606 - dz_fastapi - DEBUG - Провайдер для email operprice@vikiparts.by не найден, пропускаем письмо uid=266904
+2026-04-01 13:01:24,606 - dz_fastapi - DEBUG - Письмо: uid=266905, from=no-reply@aruda.ru, date=2026-04-01 06:30:49+03:00, subject=Прайс Киромпартс
+2026-04-01 13:01:24,606 - dz_fastapi - DEBUG - Провайдер для email no-reply@aruda.ru не найден, пропускаем письмо uid=266905
+2026-04-01 13:01:24,606 - dz_fastapi - DEBUG - Письмо: uid=266906, from=price@sever-elit.ru, date=2026-04-01 07:22:16+03:00, subject=Прайс СЕВЕР
+2026-04-01 13:01:24,607 - dz_fastapi - DEBUG - Провайдер для email price@sever-elit.ru не найден, пропускаем письмо uid=266906
+2026-04-01 13:01:24,607 - dz_fastapi - DEBUG - Письмо: uid=266907, from=price@cosmopart.ru, date=2026-04-01 07:28:03+03:00, subject=Cosmo Geely
+2026-04-01 13:01:24,607 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266907
+2026-04-01 13:01:24,607 - dz_fastapi - DEBUG - Письмо: uid=266908, from=masterzap346@gmail.com, date=2026-04-01 07:59:57+03:00, subject=Прайс лист (на 7:59:57)
+2026-04-01 13:01:24,607 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266908
+2026-04-01 13:01:24,608 - dz_fastapi - DEBUG - Письмо: uid=266909, from=masterzap346@gmail.com, date=2026-04-01 08:01:08+03:00, subject=Прайс лист (на 8:01:08)
+2026-04-01 13:01:24,608 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266909
+2026-04-01 13:01:24,608 - dz_fastapi - DEBUG - Письмо: uid=266910, from=masterzap346@gmail.com, date=2026-04-01 08:01:14+03:00, subject=Прайс лист (на 8:01:14)
+2026-04-01 13:01:24,609 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266910
+2026-04-01 13:01:24,609 - dz_fastapi - DEBUG - Письмо: uid=266911, from=price@tolkoopt.ru, date=2026-04-01 08:01:33+03:00, subject=Price_TolkoOPT
+2026-04-01 13:01:24,609 - dz_fastapi - DEBUG - Провайдер для email price@tolkoopt.ru не найден, пропускаем письмо uid=266911
+2026-04-01 13:01:24,609 - dz_fastapi - DEBUG - Письмо: uid=266912, from=price@cosmopart.ru, date=2026-04-01 08:08:34+03:00, subject=Cosmo Vag D
+2026-04-01 13:01:24,609 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266912
+2026-04-01 13:01:24,610 - dz_fastapi - DEBUG - Письмо: uid=266913, from=zakaz@pro-auto.pro, date=2026-04-01 09:00:08+03:00, subject=Прайс ПроАвто -> АвтоПАРТС
+2026-04-01 13:01:24,610 - dz_fastapi - DEBUG - Провайдер для email zakaz@pro-auto.pro не найден, пропускаем письмо uid=266913
+2026-04-01 13:01:24,610 - dz_fastapi - DEBUG - Письмо: uid=266914, from=price@sttrade.trade, date=2026-04-01 09:00:48+03:00, subject=Прайс  ОПТ
+2026-04-01 13:01:24,610 - dz_fastapi - DEBUG - Провайдер для email price@sttrade.trade не найден, пропускаем письмо uid=266914
+2026-04-01 13:01:24,611 - dz_fastapi - DEBUG - Письмо: uid=266915, from=price@sttrade.trade, date=2026-04-01 09:00:41+03:00, subject=Прайс  ОПТ
+2026-04-01 13:01:24,611 - dz_fastapi - DEBUG - Провайдер для email price@sttrade.trade не найден, пропускаем письмо uid=266915
+2026-04-01 13:01:24,611 - dz_fastapi - DEBUG - Письмо: uid=266916, from=price@sever-elit.ru, date=2026-04-01 09:08:21+03:00, subject=Прайс СЕВЕР
+2026-04-01 13:01:24,611 - dz_fastapi - DEBUG - Провайдер для email price@sever-elit.ru не найден, пропускаем письмо uid=266916
+2026-04-01 13:01:24,611 - dz_fastapi - DEBUG - Письмо: uid=266917, from=price@cosmopart.ru, date=2026-04-01 09:10:21+03:00, subject=Cosmo Nal
+2026-04-01 13:01:24,611 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266917
+2026-04-01 13:01:24,611 - dz_fastapi - DEBUG - Письмо: uid=266918, from=noreply@redpart.ru, date=2026-04-01 09:14:52+03:00, subject=робот рассылка
+2026-04-01 13:01:24,612 - dz_fastapi - DEBUG - Провайдер для email noreply@redpart.ru не найден, пропускаем письмо uid=266918
+2026-04-01 13:01:24,612 - dz_fastapi - DEBUG - Письмо: uid=266919, from=order_zap@rambler.ru, date=2026-04-01 09:15:09+03:00, subject=Прайс
+2026-04-01 13:01:24,612 - dz_fastapi - DEBUG - Провайдер для email order_zap@rambler.ru не найден, пропускаем письмо uid=266919
+2026-04-01 13:01:24,612 - dz_fastapi - DEBUG - Письмо: uid=266920, from=noreply@redpart.ru, date=2026-04-01 09:21:52+03:00, subject=робот рассылка
+2026-04-01 13:01:24,612 - dz_fastapi - DEBUG - Провайдер для email noreply@redpart.ru не найден, пропускаем письмо uid=266920
+2026-04-01 13:01:24,613 - dz_fastapi - DEBUG - Письмо: uid=266921, from=noreply@redpart.ru, date=2026-04-01 09:21:54+03:00, subject=робот рассылка
+2026-04-01 13:01:24,613 - dz_fastapi - DEBUG - Провайдер для email noreply@redpart.ru не найден, пропускаем письмо uid=266921
+2026-04-01 13:01:24,613 - dz_fastapi - DEBUG - Письмо: uid=266922, from=Chery.1c@kuntsevo.com, date=2026-04-01 09:27:05+03:00, subject=Chery Кунцево остатки 01.04.26
+2026-04-01 13:01:24,613 - dz_fastapi - DEBUG - Провайдер для email Chery.1c@kuntsevo.com не найден, пропускаем письмо uid=266922
+2026-04-01 13:01:24,613 - dz_fastapi - DEBUG - Письмо: uid=266923, from=Chery.1c@kuntsevo.com, date=2026-04-01 09:27:08+03:00, subject= 01.04.26
+2026-04-01 13:01:24,613 - dz_fastapi - DEBUG - Провайдер для email Chery.1c@kuntsevo.com не найден, пропускаем письмо uid=266923
+2026-04-01 13:01:24,614 - dz_fastapi - DEBUG - Письмо: uid=266924, from=opt@favorit-motors.ru, date=2026-04-01 06:38:57+00:00, subject=прайс наличия FM
+2026-04-01 13:01:24,614 - dz_fastapi - DEBUG - Провайдер для email opt@favorit-motors.ru не найден, пропускаем письмо uid=266924
+2026-04-01 13:01:24,615 - dz_fastapi - DEBUG - Письмо: uid=266925, from=price@ronexportal.ru, date=2026-04-01 09:46:21+03:00, subject=Ronex Price CD 7
+2026-04-01 13:01:24,615 - dz_fastapi - DEBUG - Провайдер для email price@ronexportal.ru не найден, пропускаем письмо uid=266925
+2026-04-01 13:01:24,616 - dz_fastapi - DEBUG - Письмо: uid=266926, from=masterzap346@gmail.com, date=2026-04-01 09:58:01+03:00, subject=Прайс лист (на 9:58:01)
+2026-04-01 13:01:24,616 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266926
+2026-04-01 13:01:24,618 - dz_fastapi - DEBUG - Письмо: uid=266927, from=zakaz@pro-auto.pro, date=2026-04-01 09:58:39+03:00, subject=Прайс ПроАвто -> АвтоПАРТС
+2026-04-01 13:01:24,618 - dz_fastapi - DEBUG - Провайдер для email zakaz@pro-auto.pro не найден, пропускаем письмо uid=266927
+2026-04-01 13:01:24,619 - dz_fastapi - DEBUG - Письмо: uid=266928, from=price@cosmopart.ru, date=2026-04-01 10:08:23+03:00, subject=Cosmo Vag D
+2026-04-01 13:01:24,619 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266928
+2026-04-01 13:01:24,619 - dz_fastapi - DEBUG - Письмо: uid=266929, from=m.ermakov@am-torg.ru, date=2026-04-01 10:40:58+03:00, subject=Прайс базовый
+2026-04-01 13:01:24,619 - dz_fastapi - DEBUG - Провайдер для email m.ermakov@am-torg.ru не найден, пропускаем письмо uid=266929
+2026-04-01 13:01:24,619 - dz_fastapi - DEBUG - Письмо: uid=266930, from=1c_info@uniqom.ru, date=2026-04-01 17:49:39+10:00, subject=прайс Юником
+2026-04-01 13:01:24,620 - dz_fastapi - DEBUG - Провайдер для email 1c_info@uniqom.ru не найден, пропускаем письмо uid=266930
+2026-04-01 13:01:24,620 - dz_fastapi - DEBUG - Письмо: uid=266931, from=masterzapprice@gmail.com, date=2026-04-01 10:57:22+03:00, subject=Прайс лист (на 10:57:22)
+2026-04-01 13:01:24,636 - dz_fastapi - DEBUG - Config: <dz_fastapi.models.partner.ProviderPriceListConfig object at 0xffff4db8f4a0>
+2026-04-01 13:01:24,644 - dz_fastapi - DEBUG - Старое UID = 266931 для config_id=1, пропускаем письмо
+2026-04-01 13:01:24,645 - dz_fastapi - DEBUG - Письмо uid=266931 не удовлетворило условиям загрузки
+2026-04-01 13:01:24,645 - dz_fastapi - DEBUG - Письмо: uid=266932, from=price@sever-elit.ru, date=2026-04-01 11:06:30+03:00, subject=Прайс СЕВЕР
+2026-04-01 13:01:24,645 - dz_fastapi - DEBUG - Провайдер для email price@sever-elit.ru не найден, пропускаем письмо uid=266932
+2026-04-01 13:01:24,645 - dz_fastapi - DEBUG - Письмо: uid=266933, from=price@cosmopart.ru, date=2026-04-01 11:29:46+03:00, subject=Cosmo Geely
+2026-04-01 13:01:24,645 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266933
+2026-04-01 13:01:24,645 - dz_fastapi - DEBUG - Письмо: uid=266934, from=masterzap346@gmail.com, date=2026-04-01 11:58:13+03:00, subject=Прайс лист (на 11:58:13)
+2026-04-01 13:01:24,645 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266934
+2026-04-01 13:01:24,645 - dz_fastapi - DEBUG - Письмо: uid=266935, from=masterzap346@gmail.com, date=2026-04-01 11:59:31+03:00, subject=Прайс лист (на 11:59:31)
+2026-04-01 13:01:24,645 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266935
+2026-04-01 13:01:24,646 - dz_fastapi - DEBUG - Письмо: uid=266936, from=price@tolkoopt.ru, date=2026-04-01 12:01:26+03:00, subject=Price_TolkoOPT
+2026-04-01 13:01:24,646 - dz_fastapi - DEBUG - Провайдер для email price@tolkoopt.ru не найден, пропускаем письмо uid=266936
+2026-04-01 13:01:24,646 - dz_fastapi - DEBUG - Письмо: uid=266937, from=info@dragonzap.ru, date=2026-04-01 12:02:20+03:00, subject=Автэк для Озон
+2026-04-01 13:01:24,646 - dz_fastapi - DEBUG - Провайдер для email info@dragonzap.ru не найден, пропускаем письмо uid=266937
+2026-04-01 13:01:24,646 - dz_fastapi - DEBUG - Письмо: uid=266938, from=info@dragonzap.ru, date=2026-04-01 12:02:20+03:00, subject=Avtek3915
+2026-04-01 13:01:24,646 - dz_fastapi - DEBUG - Провайдер для email info@dragonzap.ru не найден, пропускаем письмо uid=266938
+2026-04-01 13:01:24,646 - dz_fastapi - DEBUG - Письмо: uid=266939, from=Alyans-7@list.ru, date=2026-04-01 14:04:48+05:00, subject=Остатки товаров
+2026-04-01 13:01:24,647 - dz_fastapi - DEBUG - Провайдер для email Alyans-7@list.ru не найден, пропускаем письмо uid=266939
+2026-04-01 13:01:24,647 - dz_fastapi - DEBUG - Письмо: uid=266940, from=noreply@redpart.ru, date=2026-04-01 12:05:44+03:00, subject=робот рассылка
+2026-04-01 13:01:24,647 - dz_fastapi - DEBUG - Провайдер для email noreply@redpart.ru не найден, пропускаем письмо uid=266940
+2026-04-01 13:01:24,647 - dz_fastapi - DEBUG - Письмо: uid=266941, from=Alyans-7@list.ru, date=2026-04-01 14:06:05+05:00, subject=Остатки товаров
+2026-04-01 13:01:24,647 - dz_fastapi - DEBUG - Провайдер для email Alyans-7@list.ru не найден, пропускаем письмо uid=266941
+2026-04-01 13:01:24,649 - dz_fastapi - DEBUG - Письмо: uid=266942, from=price@cosmopart.ru, date=2026-04-01 12:08:33+03:00, subject=Cosmo Vag D
+2026-04-01 13:01:24,649 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266942
+2026-04-01 13:01:24,649 - dz_fastapi - DEBUG - Письмо: uid=266943, from=price@ivers.ru, date=2026-04-01 16:08:51+07:00, subject=price_msk2_260401_1
+2026-04-01 13:01:24,649 - dz_fastapi - DEBUG - Провайдер для email price@ivers.ru не найден, пропускаем письмо uid=266943
+2026-04-01 13:01:24,651 - dz_fastapi - DEBUG - Письмо: uid=266944, from=price@cosmopart.ru, date=2026-04-01 12:10:12+03:00, subject=Cosmo Nal
+2026-04-01 13:01:24,651 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266944
+2026-04-01 13:01:24,653 - dz_fastapi - DEBUG - Письмо: uid=266945, from=operprice@vikiparts.by, date=2026-04-01 12:12:12+03:00, subject=PriceVIKInov
+2026-04-01 13:01:24,653 - dz_fastapi - DEBUG - Провайдер для email operprice@vikiparts.by не найден, пропускаем письмо uid=266945
+2026-04-01 13:01:24,654 - dz_fastapi - DEBUG - Письмо: uid=266946, from=noreply@redpart.ru, date=2026-04-01 12:12:57+03:00, subject=робот рассылка
+2026-04-01 13:01:24,654 - dz_fastapi - DEBUG - Провайдер для email noreply@redpart.ru не найден, пропускаем письмо uid=266946
+2026-04-01 13:01:24,655 - dz_fastapi - DEBUG - Письмо: uid=266947, from=noreply@redpart.ru, date=2026-04-01 12:13:00+03:00, subject=робот рассылка
+2026-04-01 13:01:24,655 - dz_fastapi - DEBUG - Провайдер для email noreply@redpart.ru не найден, пропускаем письмо uid=266947
+2026-04-01 13:01:24,655 - dz_fastapi - DEBUG - Письмо: uid=266948, from=operprice@vikiparts.by, date=2026-04-01 12:13:26+03:00, subject=SKLADNAL
+2026-04-01 13:01:24,655 - dz_fastapi - DEBUG - Провайдер для email operprice@vikiparts.by не найден, пропускаем письмо uid=266948
+2026-04-01 13:01:24,656 - dz_fastapi - DEBUG - Письмо: uid=266949, from=Lada.1c@kuntsevo.com, date=2026-04-01 12:13:37+03:00, subject=ОПТ Хавейл склад Кунцево 01.04.26
+2026-04-01 13:01:24,656 - dz_fastapi - DEBUG - Провайдер для email Lada.1c@kuntsevo.com не найден, пропускаем письмо uid=266949
+2026-04-01 13:01:24,657 - dz_fastapi - DEBUG - Письмо: uid=266950, from=Lada.1c@kuntsevo.com, date=2026-04-01 12:13:44+03:00, subject=ОПТ Хавейл ЦС 01.04.26
+2026-04-01 13:01:24,657 - dz_fastapi - DEBUG - Провайдер для email Lada.1c@kuntsevo.com не найден, пропускаем письмо uid=266950
+2026-04-01 13:01:24,658 - dz_fastapi - DEBUG - Письмо: uid=266951, from=zakaz@pro-auto.pro, date=2026-04-01 12:20:07+03:00, subject=Прайс ПроАвто -> АвтоПАРТС
+2026-04-01 13:01:24,658 - dz_fastapi - DEBUG - Провайдер для email zakaz@pro-auto.pro не найден, пропускаем письмо uid=266951
+2026-04-01 13:01:24,659 - dz_fastapi - DEBUG - Письмо: uid=266952, from=Chery.1c@kuntsevo.com, date=2026-04-01 12:24:58+03:00, subject=Chery Кунцево остатки 01.04.26
+2026-04-01 13:01:24,659 - dz_fastapi - DEBUG - Провайдер для email Chery.1c@kuntsevo.com не найден, пропускаем письмо uid=266952
+2026-04-01 13:01:24,660 - dz_fastapi - DEBUG - Письмо: uid=266953, from=Chery.1c@kuntsevo.com, date=2026-04-01 12:25:01+03:00, subject= 01.04.26
+2026-04-01 13:01:24,660 - dz_fastapi - DEBUG - Провайдер для email Chery.1c@kuntsevo.com не найден, пропускаем письмо uid=266953
+2026-04-01 13:01:24,661 - dz_fastapi - DEBUG - Письмо: uid=266954, from=opt@favorit-motors.ru, date=2026-04-01 09:37:44+00:00, subject=ЦС HAVAL
+2026-04-01 13:01:24,661 - dz_fastapi - DEBUG - Провайдер для email opt@favorit-motors.ru не найден, пропускаем письмо uid=266954
+2026-04-01 13:01:24,662 - dz_fastapi - DEBUG - Письмо: uid=266955, from=opt@favorit-motors.ru, date=2026-04-01 09:37:53+00:00, subject=ЦС GEELY
+2026-04-01 13:01:24,662 - dz_fastapi - DEBUG - Провайдер для email opt@favorit-motors.ru не найден, пропускаем письмо uid=266955
+2026-04-01 13:01:24,662 - dz_fastapi - DEBUG - Письмо: uid=266956, from=opt@favorit-motors.ru, date=2026-04-01 09:38:09+00:00, subject=ЦС CHERY/EXEED
+2026-04-01 13:01:24,662 - dz_fastapi - DEBUG - Провайдер для email opt@favorit-motors.ru не найден, пропускаем письмо uid=266956
+2026-04-01 13:01:24,663 - dz_fastapi - DEBUG - Письмо: uid=266957, from=opt@favorit-motors.ru, date=2026-04-01 09:38:19+00:00, subject=ЦС KIA
+2026-04-01 13:01:24,663 - dz_fastapi - DEBUG - Провайдер для email opt@favorit-motors.ru не найден, пропускаем письмо uid=266957
+2026-04-01 13:01:24,663 - dz_fastapi - DEBUG - Письмо: uid=266958, from=opt@favorit-motors.ru, date=2026-04-01 09:38:28+00:00, subject=ЦС VAG
+2026-04-01 13:01:24,663 - dz_fastapi - DEBUG - Провайдер для email opt@favorit-motors.ru не найден, пропускаем письмо uid=266958
+2026-04-01 13:01:24,664 - dz_fastapi - DEBUG - Письмо: uid=266959, from=opt@favorit-motors.ru, date=2026-04-01 09:38:42+00:00, subject=ЦС HYUNDAI
+2026-04-01 13:01:24,664 - dz_fastapi - DEBUG - Провайдер для email opt@favorit-motors.ru не найден, пропускаем письмо uid=266959
+2026-04-01 13:01:24,664 - dz_fastapi - DEBUG - Письмо: uid=266960, from=opt@favorit-motors.ru, date=2026-04-01 09:38:57+00:00, subject=ЦС VOLVO
+2026-04-01 13:01:24,664 - dz_fastapi - DEBUG - Провайдер для email opt@favorit-motors.ru не найден, пропускаем письмо uid=266960
+2026-04-01 13:01:24,666 - dz_fastapi - DEBUG - Письмо: uid=266961, from=opt@favorit-motors.ru, date=2026-04-01 09:39:13+00:00, subject=ЦС CHANGAN
+2026-04-01 13:01:24,666 - dz_fastapi - DEBUG - Провайдер для email opt@favorit-motors.ru не найден, пропускаем письмо uid=266961
+2026-04-01 13:01:24,666 - dz_fastapi - DEBUG - Письмо: uid=266962, from=zap-vk@mail.ru, date=2026-04-01 12:52:03+03:00, subject=Свежий прайс товарных остатков
+2026-04-01 13:01:24,666 - dz_fastapi - DEBUG - Провайдер для email zap-vk@mail.ru не найден, пропускаем письмо uid=266962
+2026-04-01 13:01:24,667 - dz_fastapi - DEBUG - Письмо: uid=266963, from=alex@fkt.ru, date=2026-04-01 12:53:56+03:00, subject=Наличие ФКТ-Авто
+2026-04-01 13:01:24,667 - dz_fastapi - DEBUG - Провайдер для email alex@fkt.ru не найден, пропускаем письмо uid=266963
+2026-04-01 13:01:24,668 - dz_fastapi - DEBUG - Письмо: uid=266964, from=info@dragonzap.ru, date=2026-04-01 13:02:26+03:00, subject=Рассылка прайс листов для Автопарка
+2026-04-01 13:01:24,668 - dz_fastapi - DEBUG - Провайдер для email info@dragonzap.ru не найден, пропускаем письмо uid=266964
+2026-04-01 13:01:24,668 - dz_fastapi - DEBUG - Письмо: uid=266965, from=masterzap346@gmail.com, date=2026-04-01 13:11:49+03:00, subject=Прайс лист (на 13:11:49)
+2026-04-01 13:01:24,668 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266965
+2026-04-01 13:01:24,668 - dz_fastapi - DEBUG - Письмо: uid=266966, from=masterzap346@gmail.com, date=2026-04-01 13:11:55+03:00, subject=Прайс лист (на 13:11:55)
+2026-04-01 13:01:24,668 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266966
+2026-04-01 13:01:24,669 - dz_fastapi - DEBUG - Письмо: uid=266967, from=price@sever-elit.ru, date=2026-04-01 13:10:36+03:00, subject=Прайс СЕВЕР
+2026-04-01 13:01:24,669 - dz_fastapi - DEBUG - Провайдер для email price@sever-elit.ru не найден, пропускаем письмо uid=266967
+2026-04-01 13:01:24,669 - dz_fastapi - DEBUG - Письмо: uid=266968, from=price@cosmopart.ru, date=2026-04-01 13:17:35+03:00, subject=Cosmo Geely
+2026-04-01 13:01:24,669 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266968
+2026-04-01 13:01:24,669 - dz_fastapi - DEBUG - Письмо: uid=266969, from=Geely.1c@kuntsevo.com, date=2026-04-01 13:24:07+03:00, subject=Geely Кунцево остатки 01.04.26
+2026-04-01 13:01:24,669 - dz_fastapi - DEBUG - Провайдер для email Geely.1c@kuntsevo.com не найден, пропускаем письмо uid=266969
+2026-04-01 13:01:24,669 - dz_fastapi - DEBUG - Письмо: uid=266970, from=Geely.1c@kuntsevo.com, date=2026-04-01 13:24:13+03:00, subject=Geely Кунцево ЦС 01.04.26
+2026-04-01 13:01:24,669 - dz_fastapi - DEBUG - Провайдер для email Geely.1c@kuntsevo.com не найден, пропускаем письмо uid=266970
+2026-04-01 13:01:24,670 - dz_fastapi - DEBUG - Письмо: uid=266971, from=masterzapprice@gmail.com, date=2026-04-01 13:55:55+03:00, subject=Прайс лист (на 13:55:55)
+2026-04-01 13:01:24,670 - dz_fastapi - DEBUG - Config: <dz_fastapi.models.partner.ProviderPriceListConfig object at 0xffff4db8f4a0>
+2026-04-01 13:01:24,670 - dz_fastapi - DEBUG - Старое UID = 266971 для config_id=1, пропускаем письмо
+2026-04-01 13:01:24,670 - dz_fastapi - DEBUG - Письмо uid=266971 не удовлетворило условиям загрузки
+2026-04-01 13:01:24,670 - dz_fastapi - DEBUG - Письмо: uid=266972, from=masterzap346@gmail.com, date=2026-04-01 14:02:36+03:00, subject=Прайс лист (на 14:02:36)
+2026-04-01 13:01:24,670 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266972
+2026-04-01 13:01:24,671 - dz_fastapi - DEBUG - Письмо: uid=266973, from=opt@lr.ru, date=2026-04-01 14:02:53+03:00, subject=Прайс-лист компании LR.RU_
+2026-04-01 13:01:24,671 - dz_fastapi - DEBUG - Провайдер для email opt@lr.ru не найден, пропускаем письмо uid=266973
+2026-04-01 13:01:24,671 - dz_fastapi - DEBUG - Письмо: uid=266974, from=gayar77@yandex.ru, date=2026-04-01 14:03:28+03:00, subject=Fwd: ПРАЙС 3.xlsx
+2026-04-01 13:01:24,672 - dz_fastapi - DEBUG - Провайдер для email gayar77@yandex.ru не найден, пропускаем письмо uid=266974
+2026-04-01 13:01:24,672 - dz_fastapi - DEBUG - Письмо: uid=266975, from=mailer-daemon@yandex.ru, date=2026-04-01 14:06:59+03:00, subject=Недоставленное сообщение
+2026-04-01 13:01:24,672 - dz_fastapi - DEBUG - Провайдер для email mailer-daemon@yandex.ru не найден, пропускаем письмо uid=266975
+2026-04-01 13:01:24,672 - dz_fastapi - DEBUG - Письмо: uid=266976, from=price@cosmopart.ru, date=2026-04-01 14:08:19+03:00, subject=Cosmo Vag D
+2026-04-01 13:01:24,673 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266976
+2026-04-01 13:01:24,673 - dz_fastapi - DEBUG - Письмо: uid=266977, from=Ford.1c@kuntsevo.com, date=2026-04-01 14:22:03+03:00, subject=Ford Кунцево остатки 01.04.26
+2026-04-01 13:01:24,673 - dz_fastapi - DEBUG - Провайдер для email Ford.1c@kuntsevo.com не найден, пропускаем письмо uid=266977
+2026-04-01 13:01:24,674 - dz_fastapi - DEBUG - Письмо: uid=266978, from=price@cosmopart.ru, date=2026-04-01 14:38:42+03:00, subject=Cosmo Geely
+2026-04-01 13:01:24,674 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266978
+2026-04-01 13:01:24,677 - dz_fastapi - DEBUG - Письмо: uid=266979, from=price@sever-elit.ru, date=2026-04-01 14:52:41+03:00, subject=Прайс СЕВЕР
+2026-04-01 13:01:24,677 - dz_fastapi - DEBUG - Провайдер для email price@sever-elit.ru не найден, пропускаем письмо uid=266979
+2026-04-01 13:01:24,678 - dz_fastapi - DEBUG - Письмо: uid=266980, from=noreply@redpart.ru, date=2026-04-01 15:05:57+03:00, subject=робот рассылка
+2026-04-01 13:01:24,678 - dz_fastapi - DEBUG - Провайдер для email noreply@redpart.ru не найден, пропускаем письмо uid=266980
+2026-04-01 13:01:24,678 - dz_fastapi - DEBUG - Письмо: uid=266981, from=noreply@redpart.ru, date=2026-04-01 15:08:30+03:00, subject=робот рассылка
+2026-04-01 13:01:24,678 - dz_fastapi - DEBUG - Провайдер для email noreply@redpart.ru не найден, пропускаем письмо uid=266981
+2026-04-01 13:01:24,678 - dz_fastapi - DEBUG - Письмо: uid=266982, from=noreply@redpart.ru, date=2026-04-01 15:08:31+03:00, subject=робот рассылка
+2026-04-01 13:01:24,678 - dz_fastapi - DEBUG - Провайдер для email noreply@redpart.ru не найден, пропускаем письмо uid=266982
+2026-04-01 13:01:24,678 - dz_fastapi - DEBUG - Письмо: uid=266983, from=price@cosmopart.ru, date=2026-04-01 15:10:22+03:00, subject=Cosmo Nal
+2026-04-01 13:01:24,679 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266983
+2026-04-01 13:01:24,679 - dz_fastapi - DEBUG - Письмо: uid=266984, from=m.ermakov@am-torg.ru, date=2026-04-01 15:10:58+03:00, subject=Прайс базовый
+2026-04-01 13:01:24,679 - dz_fastapi - DEBUG - Провайдер для email m.ermakov@am-torg.ru не найден, пропускаем письмо uid=266984
+2026-04-01 13:01:24,679 - dz_fastapi - DEBUG - Письмо: uid=266985, from=zap-vk@mail.ru, date=2026-04-01 15:12:02+03:00, subject=Свежий прайс товарных остатков
+2026-04-01 13:01:24,679 - dz_fastapi - DEBUG - Провайдер для email zap-vk@mail.ru не найден, пропускаем письмо uid=266985
+2026-04-01 13:01:24,679 - dz_fastapi - DEBUG - Письмо: uid=266986, from=price@ronexportal.ru, date=2026-04-01 15:31:20+03:00, subject=Ronex Price CD 7
+2026-04-01 13:01:24,679 - dz_fastapi - DEBUG - Провайдер для email price@ronexportal.ru не найден, пропускаем письмо uid=266986
+2026-04-01 13:01:24,679 - dz_fastapi - DEBUG - Письмо: uid=266987, from=zakaz@pro-auto.pro, date=2026-04-01 15:40:07+03:00, subject=Прайс ПроАвто -> АвтоПАРТС
+2026-04-01 13:01:24,679 - dz_fastapi - DEBUG - Провайдер для email zakaz@pro-auto.pro не найден, пропускаем письмо uid=266987
+2026-04-01 13:01:24,679 - dz_fastapi - DEBUG - Письмо: uid=266988, from=masterzap346@gmail.com, date=2026-04-01 15:59:08+03:00, subject=Прайс лист (на 15:59:08)
+2026-04-01 13:01:24,679 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266988
+2026-04-01 13:01:24,680 - dz_fastapi - INFO - get_emails() выполнена за 80.06 секунд
+2026-04-01 13:01:24,680 - dz_fastapi - INFO - Новых писем для обработки не найдено.
+2026-04-01 13:01:24,728 - dz_fastapi - INFO - Completed download_price_provider_task
+2026-04-01 13:02:00,065 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:03:00,078 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:04:00,068 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:05:00,070 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:05:00,610 - dz_fastapi - INFO - Starting download_customer_orders_task
+2026-04-01 13:05:00,819 - dz_fastapi - ERROR - Order inbox fetch failed for masterzapzakaz@gmail.com: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5b1f17b1804b1-48888df4fe4mb115737925e9']
+Traceback (most recent call last):
+  File "/app/dz_fastapi/services/customer_orders.py", line 2853, in process_customer_orders
+    account, date_from, label=label
+  File "/app/dz_fastapi/services/customer_orders.py", line 171, in _fetch_order_messages
+    server_mail: str,
+                   ^^^
+  File "/usr/local/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dz_fastapi/services/customer_orders.py", line 154, in _fetch
+    payload: bytes
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/mailbox.py", line 63, in login
+    check_command_status(login_result, MailboxLoginError)
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/utils.py", line 46, in check_command_status
+    raise exception(command_result=command_result, expected=expected)
+imap_tools.errors.MailboxLoginError: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5b1f17b1804b1-48888df4fe4mb115737925e9']
+2026-04-01 13:05:00,827 - dz_fastapi - INFO - No order emails found.
+2026-04-01 13:05:02,952 - dz_fastapi - INFO - Starting send_scheduled_supplier_orders_task
+2026-04-01 13:06:00,059 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:07:00,056 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:08:00,061 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:09:00,065 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:10:00,020 - dz_fastapi - INFO - Starting check_provider_pricelist_staleness_task
+2026-04-01 13:10:00,085 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:10:00,095 - dz_fastapi - INFO - Completed check_provider_pricelist_staleness_task
+2026-04-01 13:10:02,601 - dz_fastapi - INFO - Starting download_customer_orders_task
+2026-04-01 13:10:02,861 - dz_fastapi - ERROR - Order inbox fetch failed for masterzapzakaz@gmail.com: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5b1f17b1804b1-48888c799admb124967685e9']
+Traceback (most recent call last):
+  File "/app/dz_fastapi/services/customer_orders.py", line 2853, in process_customer_orders
+    account, date_from, label=label
+  File "/app/dz_fastapi/services/customer_orders.py", line 171, in _fetch_order_messages
+    server_mail: str,
+                   ^^^
+  File "/usr/local/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dz_fastapi/services/customer_orders.py", line 154, in _fetch
+    payload: bytes
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/mailbox.py", line 63, in login
+    check_command_status(login_result, MailboxLoginError)
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/utils.py", line 46, in check_command_status
+    raise exception(command_result=command_result, expected=expected)
+imap_tools.errors.MailboxLoginError: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5b1f17b1804b1-48888c799admb124967685e9']
+2026-04-01 13:10:02,869 - dz_fastapi - INFO - No order emails found.
+2026-04-01 13:10:04,432 - dz_fastapi - INFO - Starting send_scheduled_supplier_orders_task
+2026-04-01 13:11:00,088 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:12:00,060 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:13:00,060 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:14:00,070 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:17:00,075 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:19:00,889 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:21:00,045 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:22:00,049 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:23:00,079 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:24:00,062 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:25:00,063 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:25:02,858 - dz_fastapi - INFO - Starting download_customer_orders_task
+2026-04-01 13:25:03,121 - dz_fastapi - INFO - Starting send_scheduled_supplier_orders_task
+2026-04-01 13:25:03,225 - dz_fastapi - ERROR - Order inbox fetch failed for masterzapzakaz@gmail.com: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5b1f17b1804b1-48888c97f1amb103181935e9']
+Traceback (most recent call last):
+  File "/app/dz_fastapi/services/customer_orders.py", line 2853, in process_customer_orders
+    account, date_from, label=label
+  File "/app/dz_fastapi/services/customer_orders.py", line 171, in _fetch_order_messages
+    server_mail: str,
+                   ^^^
+  File "/usr/local/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dz_fastapi/services/customer_orders.py", line 154, in _fetch
+    payload: bytes
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/mailbox.py", line 63, in login
+    check_command_status(login_result, MailboxLoginError)
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/utils.py", line 46, in check_command_status
+    raise exception(command_result=command_result, expected=expected)
+imap_tools.errors.MailboxLoginError: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5b1f17b1804b1-48888c97f1amb103181935e9']
+2026-04-01 13:25:03,231 - dz_fastapi - INFO - No order emails found.
+2026-04-01 13:26:00,048 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:27:00,035 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:28:00,056 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:29:00,078 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:30:00,073 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:30:03,707 - dz_fastapi - INFO - Starting send_scheduled_supplier_orders_task
+2026-04-01 13:30:04,609 - dz_fastapi - INFO - Starting download_customer_orders_task
+2026-04-01 13:30:04,831 - dz_fastapi - ERROR - Order inbox fetch failed for masterzapzakaz@gmail.com: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. cdcc0902adbc2-3c7f661f5a3mb10074170d76']
+Traceback (most recent call last):
+  File "/app/dz_fastapi/services/customer_orders.py", line 2853, in process_customer_orders
+    account, date_from, label=label
+  File "/app/dz_fastapi/services/customer_orders.py", line 171, in _fetch_order_messages
+    server_mail: str,
+                   ^^^
+  File "/usr/local/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dz_fastapi/services/customer_orders.py", line 154, in _fetch
+    payload: bytes
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/mailbox.py", line 63, in login
+    check_command_status(login_result, MailboxLoginError)
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/utils.py", line 46, in check_command_status
+    raise exception(command_result=command_result, expected=expected)
+imap_tools.errors.MailboxLoginError: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. cdcc0902adbc2-3c7f661f5a3mb10074170d76']
+2026-04-01 13:30:04,840 - dz_fastapi - INFO - No order emails found.
+2026-04-01 13:31:00,082 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:32:00,080 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:33:00,095 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:34:00,081 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:35:00,088 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:35:03,263 - dz_fastapi - INFO - Starting download_customer_orders_task
+2026-04-01 13:35:03,538 - dz_fastapi - ERROR - Order inbox fetch failed for masterzapzakaz@gmail.com: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5b1f17b1804b1-48888cdd194mb120332735e9']
+Traceback (most recent call last):
+  File "/app/dz_fastapi/services/customer_orders.py", line 2853, in process_customer_orders
+    account, date_from, label=label
+  File "/app/dz_fastapi/services/customer_orders.py", line 171, in _fetch_order_messages
+    server_mail: str,
+                   ^^^
+  File "/usr/local/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dz_fastapi/services/customer_orders.py", line 154, in _fetch
+    payload: bytes
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/mailbox.py", line 63, in login
+    check_command_status(login_result, MailboxLoginError)
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/utils.py", line 46, in check_command_status
+    raise exception(command_result=command_result, expected=expected)
+imap_tools.errors.MailboxLoginError: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5b1f17b1804b1-48888cdd194mb120332735e9']
+2026-04-01 13:35:03,541 - dz_fastapi - INFO - No order emails found.
+2026-04-01 13:35:04,699 - dz_fastapi - INFO - Starting send_scheduled_supplier_orders_task
+2026-04-01 13:36:00,085 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:37:00,086 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:38:00,079 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:39:00,094 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:40:00,083 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:40:00,791 - dz_fastapi - INFO - Starting download_customer_orders_task
+2026-04-01 13:40:01,070 - dz_fastapi - ERROR - Order inbox fetch failed for masterzapzakaz@gmail.com: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5b1f17b1804b1-48888c79878mb153261585e9']
+Traceback (most recent call last):
+  File "/app/dz_fastapi/services/customer_orders.py", line 2853, in process_customer_orders
+    account, date_from, label=label
+  File "/app/dz_fastapi/services/customer_orders.py", line 171, in _fetch_order_messages
+    server_mail: str,
+                   ^^^
+  File "/usr/local/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dz_fastapi/services/customer_orders.py", line 154, in _fetch
+    payload: bytes
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/mailbox.py", line 63, in login
+    check_command_status(login_result, MailboxLoginError)
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/utils.py", line 46, in check_command_status
+    raise exception(command_result=command_result, expected=expected)
+imap_tools.errors.MailboxLoginError: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5b1f17b1804b1-48888c79878mb153261585e9']
+2026-04-01 13:40:01,076 - dz_fastapi - INFO - No order emails found.
+2026-04-01 13:40:03,946 - dz_fastapi - INFO - Starting send_scheduled_supplier_orders_task
+2026-04-01 13:41:00,049 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:42:00,056 - dz_fastapi - INFO - Completed price_control_run_task
+1 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:40:59,884 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:00,488 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp_rumipkd
+2026-04-01 15:41:00,489 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:01,455 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:01,950 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp64do4p_h
+2026-04-01 15:41:01,951 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:02,983 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:03,409 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp4osjj303
+2026-04-01 15:41:03,410 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:04,245 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:04,709 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp1zt32gpl
+2026-04-01 15:41:04,709 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:05,554 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:06,047 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp3ig090kp
+2026-04-01 15:41:06,047 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:06,924 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:07,439 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpinfo07wq
+2026-04-01 15:41:07,440 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:08,346 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:08,835 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpe8hsqk0k
+2026-04-01 15:41:08,836 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:09,665 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:10,094 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp0inivpgn
+2026-04-01 15:41:10,094 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:10,853 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:11,264 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp82_fa7dh
+2026-04-01 15:41:11,265 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:12,082 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:12,559 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp5ag7tci1
+2026-04-01 15:41:12,559 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:13,374 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:13,859 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpapvrsvyb
+2026-04-01 15:41:13,859 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:14,672 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:15,135 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpehgnafrh
+2026-04-01 15:41:15,135 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:15,947 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:16,358 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmporf9fyrd
+2026-04-01 15:41:16,359 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:17,221 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:17,699 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpuw720j06
+2026-04-01 15:41:17,699 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:18,431 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:18,844 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp72o7s22h
+2026-04-01 15:41:18,844 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:19,642 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:20,104 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpto7f5d8o
+2026-04-01 15:41:20,105 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:20,883 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:21,363 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpvc4mzcph
+2026-04-01 15:41:21,364 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:22,209 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:22,755 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpgpylrdfi
+2026-04-01 15:41:22,756 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:23,570 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:23,984 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp4mzodeyh
+2026-04-01 15:41:23,985 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:24,741 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:25,132 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpucw7pihr
+2026-04-01 15:41:25,133 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:25,943 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:26,347 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp6o3l6iep
+2026-04-01 15:41:26,347 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:27,164 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:27,559 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpdc4suc7l
+2026-04-01 15:41:27,560 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:28,163 - dz_fastapi - DEBUG - Filename=test.csv, size=102 bytes
+2026-04-01 15:41:28,163 - dz_fastapi - DEBUG - Extension=csv
+2026-04-01 15:41:28,165 - dz_fastapi - DEBUG - Зашли в process_provider_pricelist provider name = Test Provider 1 file_extension = csv use_stored_params = True
+2026-04-01 15:41:28,173 - dz_fastapi - DEBUG - CSV detected with encoding=utf-8-sig, separator=,
+2026-04-01 15:41:28,188 - dz_fastapi - DEBUG - Removed 0 rows due to exceeding price 99999999.99
+2026-04-01 15:41:28,189 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'SE3841', 'brand': 'Test Brand', 'name': 'Наконечник Рулевой Тяги', 'quantity': 2, 'price': 1200.0, 'multiplicity': 1}
+2026-04-01 15:41:28,189 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='SE3841' brand='Test Brand' name='Наконечник Рулевой Тяги' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 15:41:28,198 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'Test Brand', 'oem_number': 'SE3841', 'name': 'Наконечник Рулевой Тяги', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:28,204 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='SE3841' name='Наконечник Рулевой Тяги' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 15:41:28,204 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'SE3841', 'name': 'Наконечник Рулевой Тяги', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:28,204 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 15:41:28,204 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0x10fb86330>
+2026-04-01 15:41:28,207 - dz_fastapi - DEBUG - Existing autopart: None
+2026-04-01 15:41:28,208 - dz_fastapi - DEBUG - AutopartCreate data: brand_id=1 oem_number='SE3841' name='Наконечник Рулевой Тяги' description=None width=None height=None length=None weight=None purchase_price=None retail_price=None wholesale_price=None multiplicity=None minimum_balance=None min_balance_auto=None min_balance_user=None comment=None barcode=None category_name=None storage_location_name=None
+2026-04-01 15:41:28,213 - dz_fastapi - DEBUG - Created new AutoPart: ID=1
+2026-04-01 15:41:28,213 - dz_fastapi - DEBUG - Created autopart: <dz_fastapi.models.autopart.AutoPart object at 0x10fbb8f80>
+2026-04-01 15:41:28,214 - dz_fastapi - DEBUG - Bulk inserting 1 associations.
+2026-04-01 15:41:28,215 - dz_fastapi - DEBUG - New position: autopart_id=1
+2026-04-01 15:41:28,215 - dz_fastapi - DEBUG - Bulk inserting 1 records into AutoPartPriceHistory.
+2026-04-01 15:41:28,233 - dz_fastapi - DEBUG - Retrieved PriceList: <dz_fastapi.models.partner.PriceList object at 0x10e4ca390>
+2026-04-01 15:41:28,233 - dz_fastapi - DEBUG - AutoPart Association - Pricelist ID: 1, Autopart ID: 1, Quantity: 2, Price: 1200.00
+2026-04-01 15:41:28,233 - dz_fastapi - DEBUG - AutoPart - ID: 1, OEM Number: SE3841, Name: Наконечник рулевой тяги
+2026-04-01 15:41:28,248 - dz_fastapi - DEBUG - Зашли в функцию analyze_new_pricelist
+2026-04-01 15:41:28,251 - dz_fastapi - DEBUG - Fetching pricelists for provider_id=1 provider_config_id=1
+2026-04-01 15:41:28,251 - dz_fastapi - DEBUG - Прайс-листов поставщика 1
+2026-04-01 15:41:28,251 - dz_fastapi - INFO - Недостаточно данных для анализа provider_id=1 provider_config_id=1: Нужны минимум два прайса для сравнения.
+2026-04-01 15:41:28,409 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:28,811 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp34_6g5fo
+2026-04-01 15:41:28,812 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:29,508 - dz_fastapi - DEBUG - Filename=test_not_valid.csv, size=24 bytes
+2026-04-01 15:41:29,508 - dz_fastapi - DEBUG - Extension=csv
+2026-04-01 15:41:29,512 - dz_fastapi - DEBUG - Зашли в process_provider_pricelist provider name = Test Provider 1 file_extension = csv use_stored_params = True
+2026-04-01 15:41:29,513 - dz_fastapi - DEBUG - CSV detected with encoding=utf-8-sig, separator=,
+2026-04-01 15:41:29,658 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:30,104 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp_x0ev8id
+2026-04-01 15:41:30,104 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:30,753 - dz_fastapi - DEBUG - Filename=test.csv, size=72 bytes
+2026-04-01 15:41:30,754 - dz_fastapi - DEBUG - Extension=csv
+2026-04-01 15:41:30,894 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:31,292 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpiptzng8c
+2026-04-01 15:41:31,292 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:31,921 - dz_fastapi - DEBUG - Filename=test.csv, size=15 bytes
+2026-04-01 15:41:31,921 - dz_fastapi - DEBUG - Extension=csv
+2026-04-01 15:41:31,924 - dz_fastapi - DEBUG - Зашли в process_provider_pricelist provider name = Test Provider 1 file_extension = csv use_stored_params = True
+2026-04-01 15:41:31,936 - dz_fastapi - ERROR - Error reading CSV file: 400: Invalid CSV file.
+2026-04-01 15:41:31,936 - dz_fastapi - ERROR - Error during data cleaning: 400: Invalid format file:400: Invalid CSV file.
+2026-04-01 15:41:32,077 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:32,495 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpomi08tpm
+2026-04-01 15:41:32,496 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:33,104 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TEST BRAND', 'oem_number': 'SE3841', 'name': 'Наконечник рулевой тяги', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:33,109 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='SE3841' name='Наконечник рулевой тяги' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 15:41:33,109 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'SE3841', 'name': 'Наконечник рулевой тяги', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:33,109 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 15:41:33,109 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0x10fcc2b70>
+2026-04-01 15:41:33,111 - dz_fastapi - DEBUG - Existing autopart: None
+2026-04-01 15:41:33,112 - dz_fastapi - DEBUG - AutopartCreate data: brand_id=1 oem_number='SE3841' name='Наконечник рулевой тяги' description=None width=None height=None length=None weight=None purchase_price=None retail_price=None wholesale_price=None multiplicity=None minimum_balance=None min_balance_auto=None min_balance_user=None comment=None barcode=None category_name=None storage_location_name=None
+2026-04-01 15:41:33,130 - dz_fastapi - DEBUG - Created new AutoPart: ID=1
+2026-04-01 15:41:33,131 - dz_fastapi - DEBUG - Created autopart: <dz_fastapi.models.autopart.AutoPart object at 0x10fdfcc20>
+2026-04-01 15:41:33,131 - dz_fastapi - DEBUG - Bulk inserting 1 associations.
+2026-04-01 15:41:33,133 - dz_fastapi - DEBUG - New position: autopart_id=1
+2026-04-01 15:41:33,133 - dz_fastapi - DEBUG - Bulk inserting 1 records into AutoPartPriceHistory.
+2026-04-01 15:41:33,148 - dz_fastapi - DEBUG - Retrieved PriceList: <dz_fastapi.models.partner.PriceList object at 0x10fe17d70>
+2026-04-01 15:41:33,148 - dz_fastapi - DEBUG - AutoPart Association - Pricelist ID: 1, Autopart ID: 1, Quantity: 2, Price: 1200.00
+2026-04-01 15:41:33,149 - dz_fastapi - DEBUG - AutoPart - ID: 1, OEM Number: SE3841, Name: Наконечник рулевой тяги
+2026-04-01 15:41:33,317 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:33,716 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp0rcayzoa
+2026-04-01 15:41:33,717 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:34,387 - dz_fastapi - DEBUG - Retrieved PriceList: <dz_fastapi.models.partner.PriceList object at 0x10ff3a120>
+2026-04-01 15:41:34,551 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:34,970 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpeev3eqaf
+2026-04-01 15:41:34,970 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:35,521 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TEST BRAND', 'oem_number': 'SE3841', 'name': 'Наконечник рулевой тяги', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:35,525 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='SE3841' name='Наконечник рулевой тяги' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 15:41:35,525 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'SE3841', 'name': 'Наконечник рулевой тяги', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:35,525 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 15:41:35,525 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0x10feb6d80>
+2026-04-01 15:41:35,527 - dz_fastapi - DEBUG - Existing autopart: None
+2026-04-01 15:41:35,527 - dz_fastapi - DEBUG - AutopartCreate data: brand_id=1 oem_number='SE3841' name='Наконечник рулевой тяги' description=None width=None height=None length=None weight=None purchase_price=None retail_price=None wholesale_price=None multiplicity=None minimum_balance=None min_balance_auto=None min_balance_user=None comment=None barcode=None category_name=None storage_location_name=None
+2026-04-01 15:41:35,548 - dz_fastapi - DEBUG - Created new AutoPart: ID=1
+2026-04-01 15:41:35,548 - dz_fastapi - DEBUG - Created autopart: <dz_fastapi.models.autopart.AutoPart object at 0x10ed9c590>
+2026-04-01 15:41:35,549 - dz_fastapi - DEBUG - Bulk inserting 1 associations.
+2026-04-01 15:41:35,550 - dz_fastapi - DEBUG - New position: autopart_id=1
+2026-04-01 15:41:35,550 - dz_fastapi - DEBUG - Bulk inserting 1 records into AutoPartPriceHistory.
+2026-04-01 15:41:35,566 - dz_fastapi - DEBUG - Retrieved PriceList: <dz_fastapi.models.partner.PriceList object at 0x10fec1250>
+2026-04-01 15:41:35,566 - dz_fastapi - DEBUG - AutoPart Association - Pricelist ID: 1, Autopart ID: 1, Quantity: 10, Price: 100.00
+2026-04-01 15:41:35,566 - dz_fastapi - DEBUG - AutoPart - ID: 1, OEM Number: SE3841, Name: Наконечник рулевой тяги
+2026-04-01 15:41:35,569 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TEST BRAND', 'oem_number': 'SE3841', 'name': 'Наконечник рулевой тяги', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:35,571 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='SE3841' name='Наконечник рулевой тяги' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 15:41:35,571 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'SE3841', 'name': 'Наконечник рулевой тяги', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:35,571 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 15:41:35,571 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0x10feb6d80>
+2026-04-01 15:41:35,575 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0x10f71c890>
+2026-04-01 15:41:35,575 - dz_fastapi - DEBUG - Autopart already exists: ID 1
+2026-04-01 15:41:35,575 - dz_fastapi - DEBUG - Bulk inserting 1 associations.
+2026-04-01 15:41:35,582 - dz_fastapi - DEBUG - Retrieved PriceList: <dz_fastapi.models.partner.PriceList object at 0x10fa59340>
+2026-04-01 15:41:35,582 - dz_fastapi - DEBUG - AutoPart Association - Pricelist ID: 2, Autopart ID: 1, Quantity: 10, Price: 100.00
+2026-04-01 15:41:35,582 - dz_fastapi - DEBUG - AutoPart - ID: 1, OEM Number: SE3841, Name: Наконечник рулевой тяги
+2026-04-01 15:41:35,585 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TEST BRAND', 'oem_number': 'SE3841', 'name': 'Наконечник рулевой тяги', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:35,586 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='SE3841' name='Наконечник рулевой тяги' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 15:41:35,586 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'SE3841', 'name': 'Наконечник рулевой тяги', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:35,586 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 15:41:35,586 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0x10feb6d80>
+2026-04-01 15:41:35,588 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0x10f91f410>
+2026-04-01 15:41:35,588 - dz_fastapi - DEBUG - Autopart already exists: ID 1
+2026-04-01 15:41:35,588 - dz_fastapi - DEBUG - Bulk inserting 1 associations.
+2026-04-01 15:41:35,589 - dz_fastapi - DEBUG - Bulk inserting 1 records into AutoPartPriceHistory.
+2026-04-01 15:41:35,596 - dz_fastapi - DEBUG - Retrieved PriceList: <dz_fastapi.models.partner.PriceList object at 0x10f423ec0>
+2026-04-01 15:41:35,596 - dz_fastapi - DEBUG - AutoPart Association - Pricelist ID: 3, Autopart ID: 1, Quantity: 10, Price: 110.00
+2026-04-01 15:41:35,596 - dz_fastapi - DEBUG - AutoPart - ID: 1, OEM Number: SE3841, Name: Наконечник рулевой тяги
+2026-04-01 15:41:35,782 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:36,192 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpyksfy03i
+2026-04-01 15:41:36,192 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:36,702 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TEST BRAND', 'oem_number': 'SE3841', 'name': 'Наконечник рулевой тяги', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:36,706 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='SE3841' name='Наконечник рулевой тяги' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 15:41:36,706 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'SE3841', 'name': 'Наконечник рулевой тяги', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:36,706 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 15:41:36,706 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0x10fc82270>
+2026-04-01 15:41:36,708 - dz_fastapi - DEBUG - Existing autopart: None
+2026-04-01 15:41:36,708 - dz_fastapi - DEBUG - AutopartCreate data: brand_id=1 oem_number='SE3841' name='Наконечник рулевой тяги' description=None width=None height=None length=None weight=None purchase_price=None retail_price=None wholesale_price=None multiplicity=None minimum_balance=None min_balance_auto=None min_balance_user=None comment=None barcode=None category_name=None storage_location_name=None
+2026-04-01 15:41:36,727 - dz_fastapi - DEBUG - Created new AutoPart: ID=1
+2026-04-01 15:41:36,728 - dz_fastapi - DEBUG - Created autopart: <dz_fastapi.models.autopart.AutoPart object at 0x10fe644a0>
+2026-04-01 15:41:36,728 - dz_fastapi - DEBUG - Bulk inserting 1 associations.
+2026-04-01 15:41:36,729 - dz_fastapi - DEBUG - New position: autopart_id=1
+2026-04-01 15:41:36,729 - dz_fastapi - DEBUG - Bulk inserting 1 records into AutoPartPriceHistory.
+2026-04-01 15:41:36,745 - dz_fastapi - DEBUG - Retrieved PriceList: <dz_fastapi.models.partner.PriceList object at 0x10fad7050>
+2026-04-01 15:41:36,745 - dz_fastapi - DEBUG - AutoPart Association - Pricelist ID: 1, Autopart ID: 1, Quantity: 10, Price: 100.00
+2026-04-01 15:41:36,745 - dz_fastapi - DEBUG - AutoPart - ID: 1, OEM Number: SE3841, Name: Наконечник рулевой тяги
+2026-04-01 15:41:36,749 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TEST BRAND', 'oem_number': 'SE3841', 'name': 'Наконечник рулевой тяги', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:36,750 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='SE3841' name='Наконечник рулевой тяги' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 15:41:36,750 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'SE3841', 'name': 'Наконечник рулевой тяги', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:36,750 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 15:41:36,750 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0x10fc82270>
+2026-04-01 15:41:36,753 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0x10fe24890>
+2026-04-01 15:41:36,753 - dz_fastapi - DEBUG - Autopart already exists: ID 1
+2026-04-01 15:41:36,754 - dz_fastapi - DEBUG - Bulk inserting 1 associations.
+2026-04-01 15:41:36,761 - dz_fastapi - DEBUG - Retrieved PriceList: <dz_fastapi.models.partner.PriceList object at 0x10ff6cd70>
+2026-04-01 15:41:36,761 - dz_fastapi - DEBUG - AutoPart Association - Pricelist ID: 2, Autopart ID: 1, Quantity: 10, Price: 100.00
+2026-04-01 15:41:36,761 - dz_fastapi - DEBUG - AutoPart - ID: 1, OEM Number: SE3841, Name: Наконечник рулевой тяги
+2026-04-01 15:41:36,764 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TEST BRAND', 'oem_number': 'SE3841', 'name': 'Наконечник рулевой тяги', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:36,765 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='SE3841' name='Наконечник рулевой тяги' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 15:41:36,765 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'SE3841', 'name': 'Наконечник рулевой тяги', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:36,765 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 15:41:36,765 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0x10fc82270>
+2026-04-01 15:41:36,767 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0x10fe14f80>
+2026-04-01 15:41:36,767 - dz_fastapi - DEBUG - Autopart already exists: ID 1
+2026-04-01 15:41:36,767 - dz_fastapi - DEBUG - Bulk inserting 1 associations.
+2026-04-01 15:41:36,768 - dz_fastapi - DEBUG - Bulk inserting 1 records into AutoPartPriceHistory.
+2026-04-01 15:41:36,775 - dz_fastapi - DEBUG - Retrieved PriceList: <dz_fastapi.models.partner.PriceList object at 0x10ff6cd70>
+2026-04-01 15:41:36,775 - dz_fastapi - DEBUG - AutoPart Association - Pricelist ID: 3, Autopart ID: 1, Quantity: 8, Price: 100.00
+2026-04-01 15:41:36,775 - dz_fastapi - DEBUG - AutoPart - ID: 1, OEM Number: SE3841, Name: Наконечник рулевой тяги
+2026-04-01 15:41:36,932 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:37,318 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp4kpkx6e0
+2026-04-01 15:41:37,318 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:38,102 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:38,527 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmph2iyx813
+2026-04-01 15:41:38,527 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:39,301 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:39,736 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp0x9r2p4o
+2026-04-01 15:41:39,736 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:40,537 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:41,029 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpiu7freez
+2026-04-01 15:41:41,029 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:41,625 - dz_fastapi - INFO - Incoming request: customer_id=3, body={'customer_id': 3, 'config_id': 1, 'items': [1], 'excluded_own_positions': [], 'excluded_supplier_positions': {}, 'date': datetime.date(2026, 4, 1)}
+2026-04-01 15:41:41,698 - dz_fastapi - DEBUG - Transform file to dataframe    autopart_id           name    oem_number  ...  is_own_price quantity  price
+0            1  TEST AUTOPART  E4G163611091  ...         False       10  100.0
+
+[1 rows x 11 columns]
+2026-04-01 15:41:41,702 - dz_fastapi - DEBUG - Into apply_coefficient data df:   autopart_id           name    oem_number  ...  is_own_price quantity  price
+0            1  TEST AUTOPART  E4G163611091  ...         False       10  100.0
+
+[1 rows x 11 columns], cofig: {'_sa_instance_state': <sqlalchemy.orm.state.InstanceState object at 0x10f442db0>, 'customer_id': 3, 'individual_markups': {'1': 20.0}, 'own_filters': {}, 'export_file_extension': None, 'name': 'Test Config', 'brand_filters': {'include': [1]}, 'other_filters': {}, 'outgoing_email_account_id': None, 'category_filter': [], 'supplier_filters': {}, 'price_intervals': [], 'schedule_days': [], 'is_active': True, 'last_sent_at': None, 'position_filters': [], 'schedule_times': [], 'general_markup': 10.0, 'supplier_quantity_filters': [], 'emails': [], 'own_price_list_markup': 5.0, 'additional_filters': {}, 'export_file_name': None, 'id': 1, 'third_party_markup': 15.0, 'default_filters': {}, 'export_file_format': 'xlsx', 'outgoing_email_account': None, 'sources': []}
+2026-04-01 15:41:41,714 - dz_fastapi - DEBUG - Final DataFrame before creating associations:
+   autopart_id           name    oem_number  ...  is_own_price quantity  price
+0            1  TEST AUTOPART  E4G163611091  ...         False       10  132.0
+
+[1 rows x 11 columns]
+2026-04-01 15:41:41,735 - dz_fastapi - DEBUG - Calling send_pricelist
+2026-04-01 15:41:41,735 - dz_fastapi - DEBUG - Build customer pricelist attachment
+2026-04-01 15:41:41,737 - dz_fastapi - DEBUG - Write headers on the second row
+2026-04-01 15:41:41,738 - dz_fastapi - DEBUG - Write data rows starting from the third row
+2026-04-01 15:41:41,743 - dz_fastapi - DEBUG - Workbook saved successfully. Size: 5171 bytes
+2026-04-01 15:41:41,744 - dz_fastapi - DEBUG - Send the email asynchronously
+2026-04-01 15:41:41,748 - dz_fastapi - INFO - Using ENV email settings for pricelist send: config=1 transport=smtp host=smtp.yandex.ru port=465 user=price@dragonzap.ru
+2026-04-01 15:41:41,748 - dz_fastapi - DEBUG - Inside send_email_with_attachment with attachment=True size=5171
+2026-04-01 15:41:41,790 - dz_fastapi - INFO - Sending email via SMTP host=smtp.yandex.ru resolved_host=77.88.21.158 family=ipv4 port=465 user=price@dragonzap.ru ssl=True to=prices1@costomer.com
+2026-04-01 15:41:42,147 - dz_fastapi - DEBUG - SMTP connection established for host=smtp.yandex.ru
+2026-04-01 15:41:42,147 - dz_fastapi - DEBUG - SMTP login start for user=price@dragonzap.ru
+2026-04-01 15:41:42,300 - dz_fastapi - DEBUG - SMTP login ok for user=price@dragonzap.ru
+2026-04-01 15:41:42,301 - dz_fastapi - DEBUG - SMTP send start to=prices1@costomer.com
+2026-04-01 15:41:43,327 - dz_fastapi - DEBUG - SMTP send ok to=prices1@costomer.com
+2026-04-01 15:41:43,386 - dz_fastapi - INFO - Email sent to prices1@costomer.com
+2026-04-01 15:41:43,387 - dz_fastapi - DEBUG - Final send email
+2026-04-01 15:41:43,403 - dz_fastapi - DEBUG - Finished send_pricelist
+2026-04-01 15:41:43,404 - dz_fastapi - DEBUG - Finished send_pricelist
+2026-04-01 15:41:43,666 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:44,083 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmphjs4dn7l
+2026-04-01 15:41:44,083 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:44,665 - dz_fastapi - INFO - Incoming request: customer_id=1, body={'customer_id': 1, 'config_id': 1, 'items': [], 'excluded_own_positions': [], 'excluded_supplier_positions': {}, 'date': datetime.date(2026, 4, 1)}
+2026-04-01 15:41:44,852 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:45,227 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpvjlq39vx
+2026-04-01 15:41:45,227 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:45,797 - dz_fastapi - INFO - Incoming request: customer_id=99999, body={'customer_id': 99999, 'config_id': 1, 'items': [], 'excluded_own_positions': [], 'excluded_supplier_positions': {}, 'date': datetime.date(2026, 4, 1)}
+2026-04-01 15:41:45,814 - dz_fastapi - ERROR - Customer with id 99999 not found.
+2026-04-01 15:41:45,962 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:46,380 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpttff06_k
+2026-04-01 15:41:46,381 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:47,035 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TEST BRAND', 'oem_number': 'OEM-OWN-001', 'name': 'Test Part', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:47,041 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='OEM-OWN-001' name='Test Part' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 15:41:47,041 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'OEM-OWN-001', 'name': 'Test Part', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:47,041 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 15:41:47,041 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0x1102530e0>
+2026-04-01 15:41:47,043 - dz_fastapi - DEBUG - Existing autopart: None
+2026-04-01 15:41:47,043 - dz_fastapi - DEBUG - AutopartCreate data: brand_id=1 oem_number='OEMOWN001' name='Test Part' description=None width=None height=None length=None weight=None purchase_price=None retail_price=None wholesale_price=None multiplicity=None minimum_balance=None min_balance_auto=None min_balance_user=None comment=None barcode=None category_name=None storage_location_name=None
+2026-04-01 15:41:47,070 - dz_fastapi - DEBUG - Created new AutoPart: ID=1
+2026-04-01 15:41:47,072 - dz_fastapi - DEBUG - Created autopart: <dz_fastapi.models.autopart.AutoPart object at 0x11032a720>
+2026-04-01 15:41:47,072 - dz_fastapi - DEBUG - Bulk inserting 1 associations.
+2026-04-01 15:41:47,075 - dz_fastapi - DEBUG - New position: autopart_id=1
+2026-04-01 15:41:47,075 - dz_fastapi - DEBUG - Bulk inserting 1 records into AutoPartPriceHistory.
+2026-04-01 15:41:47,095 - dz_fastapi - DEBUG - Retrieved PriceList: <dz_fastapi.models.partner.PriceList object at 0x110286660>
+2026-04-01 15:41:47,095 - dz_fastapi - DEBUG - AutoPart Association - Pricelist ID: 1, Autopart ID: 1, Quantity: 5, Price: 120.00
+2026-04-01 15:41:47,095 - dz_fastapi - DEBUG - AutoPart - ID: 1, OEM Number: OEMOWN001, Name: TEST PART
+2026-04-01 15:41:47,098 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TEST BRAND', 'oem_number': 'OEM-OWN-001', 'name': 'Test Part', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:47,100 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='OEM-OWN-001' name='Test Part' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 15:41:47,100 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'OEM-OWN-001', 'name': 'Test Part', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:47,100 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 15:41:47,100 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0x1102530e0>
+2026-04-01 15:41:47,104 - dz_fastapi - DEBUG - Existing autopart: <dz_fastapi.models.autopart.AutoPart object at 0x1103ccf80>
+2026-04-01 15:41:47,104 - dz_fastapi - DEBUG - Autopart already exists: ID 1
+2026-04-01 15:41:47,105 - dz_fastapi - DEBUG - Bulk inserting 1 associations.
+2026-04-01 15:41:47,105 - dz_fastapi - DEBUG - New position: autopart_id=1
+2026-04-01 15:41:47,105 - dz_fastapi - DEBUG - Bulk inserting 1 records into AutoPartPriceHistory.
+2026-04-01 15:41:47,116 - dz_fastapi - DEBUG - Retrieved PriceList: <dz_fastapi.models.partner.PriceList object at 0x11032a720>
+2026-04-01 15:41:47,116 - dz_fastapi - DEBUG - AutoPart Association - Pricelist ID: 2, Autopart ID: 1, Quantity: 7, Price: 100.00
+2026-04-01 15:41:47,116 - dz_fastapi - DEBUG - AutoPart - ID: 1, OEM Number: OEMOWN001, Name: TEST PART
+2026-04-01 15:41:47,307 - dz_fastapi - INFO - Incoming request: customer_id=1, body={'customer_id': 1, 'config_id': 1, 'items': [], 'excluded_own_positions': [], 'excluded_supplier_positions': {}, 'date': datetime.date(2026, 4, 1)}
+2026-04-01 15:41:47,347 - dz_fastapi - DEBUG - Transform file to dataframe    autopart_id       name oem_number  ...  is_own_price quantity  price
+0            1  TEST PART  OEMOWN001  ...          True        5  120.0
+
+[1 rows x 11 columns]
+2026-04-01 15:41:47,352 - dz_fastapi - DEBUG - Into apply_coefficient data df:   autopart_id       name oem_number  ...  is_own_price quantity  price
+0            1  TEST PART  OEMOWN001  ...          True        5  120.0
+
+[1 rows x 11 columns], cofig: {'_sa_instance_state': <sqlalchemy.orm.state.InstanceState object at 0x10ff5e2d0>, 'customer_id': 1, 'individual_markups': {}, 'own_filters': {}, 'export_file_extension': None, 'name': 'OWN PRIORITY CONFIG', 'brand_filters': [], 'other_filters': {}, 'outgoing_email_account_id': None, 'category_filter': [], 'supplier_filters': {}, 'price_intervals': [], 'schedule_days': [], 'is_active': True, 'last_sent_at': None, 'position_filters': [], 'schedule_times': [], 'general_markup': 1.0, 'supplier_quantity_filters': [], 'emails': [], 'own_price_list_markup': 1.0, 'additional_filters': {}, 'export_file_name': None, 'id': 1, 'third_party_markup': 1.0, 'default_filters': {}, 'export_file_format': 'xlsx', 'outgoing_email_account': None, 'sources': [<dz_fastapi.models.partner.CustomerPriceListSource object at 0x1101846e0>, <dz_fastapi.models.partner.CustomerPriceListSource object at 0x110186420>]}
+2026-04-01 15:41:47,367 - dz_fastapi - DEBUG - Transform file to dataframe    autopart_id       name oem_number  ...  is_own_price quantity  price
+0            1  TEST PART  OEMOWN001  ...         False        7  100.0
+
+[1 rows x 11 columns]
+2026-04-01 15:41:47,371 - dz_fastapi - DEBUG - Into apply_coefficient data df:   autopart_id       name oem_number  ...  is_own_price quantity  price
+0            1  TEST PART  OEMOWN001  ...         False        7  100.0
+
+[1 rows x 11 columns], cofig: {'_sa_instance_state': <sqlalchemy.orm.state.InstanceState object at 0x10ff5e2d0>, 'customer_id': 1, 'individual_markups': {}, 'own_filters': {}, 'export_file_extension': None, 'name': 'OWN PRIORITY CONFIG', 'brand_filters': [], 'other_filters': {}, 'outgoing_email_account_id': None, 'category_filter': [], 'supplier_filters': {}, 'price_intervals': [], 'schedule_days': [], 'is_active': True, 'last_sent_at': None, 'position_filters': [], 'schedule_times': [], 'general_markup': 1.0, 'supplier_quantity_filters': [], 'emails': [], 'own_price_list_markup': 1.0, 'additional_filters': {}, 'export_file_name': None, 'id': 1, 'third_party_markup': 1.0, 'default_filters': {}, 'export_file_format': 'xlsx', 'outgoing_email_account': None, 'sources': [<dz_fastapi.models.partner.CustomerPriceListSource object at 0x1101846e0>, <dz_fastapi.models.partner.CustomerPriceListSource object at 0x110186420>]}
+2026-04-01 15:41:47,391 - dz_fastapi - DEBUG - Final DataFrame before creating associations:
+   autopart_id       name oem_number  ...  is_own_price quantity  price
+0            1  TEST PART  OEMOWN001  ...          True        5  120.0
+
+[1 rows x 11 columns]
+2026-04-01 15:41:47,441 - dz_fastapi - DEBUG - Calling send_pricelist
+2026-04-01 15:41:47,441 - dz_fastapi - DEBUG - Build customer pricelist attachment
+2026-04-01 15:41:47,442 - dz_fastapi - DEBUG - Write headers on the second row
+2026-04-01 15:41:47,443 - dz_fastapi - DEBUG - Write data rows starting from the third row
+2026-04-01 15:41:47,448 - dz_fastapi - DEBUG - Workbook saved successfully. Size: 5169 bytes
+2026-04-01 15:41:47,448 - dz_fastapi - DEBUG - Send the email asynchronously
+2026-04-01 15:41:47,455 - dz_fastapi - INFO - Using ENV email settings for pricelist send: config=1 transport=smtp host=smtp.yandex.ru port=465 user=price@dragonzap.ru
+2026-04-01 15:41:47,455 - dz_fastapi - DEBUG - Inside send_email_with_attachment with attachment=True size=5169
+2026-04-01 15:41:47,459 - dz_fastapi - INFO - Sending email via SMTP host=smtp.yandex.ru resolved_host=77.88.21.158 family=ipv4 port=465 user=price@dragonzap.ru ssl=True to=prices1@costomer.com
+2026-04-01 15:41:47,773 - dz_fastapi - DEBUG - SMTP connection established for host=smtp.yandex.ru
+2026-04-01 15:41:47,775 - dz_fastapi - DEBUG - SMTP login start for user=price@dragonzap.ru
+2026-04-01 15:41:47,924 - dz_fastapi - DEBUG - SMTP login ok for user=price@dragonzap.ru
+2026-04-01 15:41:47,925 - dz_fastapi - DEBUG - SMTP send start to=prices1@costomer.com
+2026-04-01 15:41:48,871 - dz_fastapi - DEBUG - SMTP send ok to=prices1@costomer.com
+2026-04-01 15:41:48,928 - dz_fastapi - INFO - Email sent to prices1@costomer.com
+2026-04-01 15:41:48,929 - dz_fastapi - DEBUG - Final send email
+2026-04-01 15:41:48,955 - dz_fastapi - DEBUG - Finished send_pricelist
+2026-04-01 15:41:48,955 - dz_fastapi - DEBUG - Finished send_pricelist
+2026-04-01 15:41:49,233 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:49,678 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp3v16m0ye
+2026-04-01 15:41:49,678 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:50,250 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TEST BRAND', 'oem_number': 'OEM-FILTER-LOW', 'name': 'Low Part', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:50,254 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='OEM-FILTER-LOW' name='Low Part' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 15:41:50,254 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'OEM-FILTER-LOW', 'name': 'Low Part', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:50,254 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 15:41:50,254 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0x11023e4b0>
+2026-04-01 15:41:50,271 - dz_fastapi - DEBUG - Existing autopart: None
+2026-04-01 15:41:50,271 - dz_fastapi - DEBUG - AutopartCreate data: brand_id=1 oem_number='OEMFILTERLOW' name='Low Part' description=None width=None height=None length=None weight=None purchase_price=None retail_price=None wholesale_price=None multiplicity=None minimum_balance=None min_balance_auto=None min_balance_user=None comment=None barcode=None category_name=None storage_location_name=None
+2026-04-01 15:41:50,276 - dz_fastapi - DEBUG - Created new AutoPart: ID=1
+2026-04-01 15:41:50,277 - dz_fastapi - DEBUG - Created autopart: <dz_fastapi.models.autopart.AutoPart object at 0x10fe26960>
+2026-04-01 15:41:50,277 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TEST BRAND', 'oem_number': 'OEM-FILTER-HIGH', 'name': 'High Part', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:50,277 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='OEM-FILTER-HIGH' name='High Part' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 15:41:50,277 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'OEM-FILTER-HIGH', 'name': 'High Part', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:50,277 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 15:41:50,277 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0x11023e4b0>
+2026-04-01 15:41:50,278 - dz_fastapi - DEBUG - Existing autopart: None
+2026-04-01 15:41:50,278 - dz_fastapi - DEBUG - AutopartCreate data: brand_id=1 oem_number='OEMFILTERHIGH' name='High Part' description=None width=None height=None length=None weight=None purchase_price=None retail_price=None wholesale_price=None multiplicity=None minimum_balance=None min_balance_auto=None min_balance_user=None comment=None barcode=None category_name=None storage_location_name=None
+2026-04-01 15:41:50,280 - dz_fastapi - DEBUG - Created new AutoPart: ID=2
+2026-04-01 15:41:50,281 - dz_fastapi - DEBUG - Created autopart: <dz_fastapi.models.autopart.AutoPart object at 0x1102de3f0>
+2026-04-01 15:41:50,281 - dz_fastapi - DEBUG - Bulk inserting 2 associations.
+2026-04-01 15:41:50,283 - dz_fastapi - DEBUG - New position: autopart_id=1
+2026-04-01 15:41:50,283 - dz_fastapi - DEBUG - New position: autopart_id=2
+2026-04-01 15:41:50,283 - dz_fastapi - DEBUG - Bulk inserting 2 records into AutoPartPriceHistory.
+2026-04-01 15:41:50,299 - dz_fastapi - DEBUG - Retrieved PriceList: <dz_fastapi.models.partner.PriceList object at 0x10fe84590>
+2026-04-01 15:41:50,299 - dz_fastapi - DEBUG - AutoPart Association - Pricelist ID: 1, Autopart ID: 1, Quantity: 5, Price: 50.00
+2026-04-01 15:41:50,299 - dz_fastapi - DEBUG - AutoPart - ID: 1, OEM Number: OEMFILTERLOW, Name: LOW PART
+2026-04-01 15:41:50,299 - dz_fastapi - DEBUG - AutoPart Association - Pricelist ID: 1, Autopart ID: 2, Quantity: 6, Price: 150.00
+2026-04-01 15:41:50,299 - dz_fastapi - DEBUG - AutoPart - ID: 2, OEM Number: OEMFILTERHIGH, Name: HIGH PART
+2026-04-01 15:41:50,309 - dz_fastapi - INFO - Incoming request: customer_id=1, body={'customer_id': 1, 'config_id': 1, 'items': [], 'excluded_own_positions': [], 'excluded_supplier_positions': {}, 'date': datetime.date(2026, 4, 1)}
+2026-04-01 15:41:50,354 - dz_fastapi - DEBUG - Transform file to dataframe    autopart_id       name     oem_number  ...  is_own_price quantity  price
+0            1   LOW PART   OEMFILTERLOW  ...         False        5   50.0
+1            2  HIGH PART  OEMFILTERHIGH  ...         False        6  150.0
+
+[2 rows x 11 columns]
+2026-04-01 15:41:50,359 - dz_fastapi - DEBUG - Into apply_coefficient data df:   autopart_id       name     oem_number  ...  is_own_price quantity  price
+1            2  HIGH PART  OEMFILTERHIGH  ...         False        6  150.0
+
+[1 rows x 11 columns], cofig: {'_sa_instance_state': <sqlalchemy.orm.state.InstanceState object at 0x10ed7e750>, 'customer_id': 1, 'individual_markups': {}, 'own_filters': {}, 'export_file_extension': None, 'name': 'FILTER CONFIG', 'brand_filters': [], 'other_filters': {}, 'outgoing_email_account_id': None, 'category_filter': [], 'supplier_filters': {}, 'price_intervals': [], 'schedule_days': [], 'is_active': True, 'last_sent_at': None, 'position_filters': [], 'schedule_times': [], 'general_markup': 1.0, 'supplier_quantity_filters': [], 'emails': [], 'own_price_list_markup': 1.0, 'additional_filters': {}, 'export_file_name': None, 'id': 1, 'third_party_markup': 1.0, 'default_filters': {}, 'export_file_format': 'xlsx', 'outgoing_email_account': None, 'sources': [<dz_fastapi.models.partner.CustomerPriceListSource object at 0x10f980ad0>]}
+2026-04-01 15:41:50,365 - dz_fastapi - DEBUG - Final DataFrame before creating associations:
+   autopart_id       name     oem_number  ...  is_own_price quantity  price
+0            2  HIGH PART  OEMFILTERHIGH  ...         False        6  150.0
+
+[1 rows x 11 columns]
+2026-04-01 15:41:50,382 - dz_fastapi - DEBUG - Calling send_pricelist
+2026-04-01 15:41:50,382 - dz_fastapi - DEBUG - Build customer pricelist attachment
+2026-04-01 15:41:50,383 - dz_fastapi - DEBUG - Write headers on the second row
+2026-04-01 15:41:50,384 - dz_fastapi - DEBUG - Write data rows starting from the third row
+2026-04-01 15:41:50,387 - dz_fastapi - DEBUG - Workbook saved successfully. Size: 5174 bytes
+2026-04-01 15:41:50,388 - dz_fastapi - DEBUG - Send the email asynchronously
+2026-04-01 15:41:50,392 - dz_fastapi - INFO - Using ENV email settings for pricelist send: config=1 transport=smtp host=smtp.yandex.ru port=465 user=price@dragonzap.ru
+2026-04-01 15:41:50,392 - dz_fastapi - DEBUG - Inside send_email_with_attachment with attachment=True size=5174
+2026-04-01 15:41:50,395 - dz_fastapi - INFO - Sending email via SMTP host=smtp.yandex.ru resolved_host=77.88.21.158 family=ipv4 port=465 user=price@dragonzap.ru ssl=True to=prices1@costomer.com
+2026-04-01 15:41:50,748 - dz_fastapi - DEBUG - SMTP connection established for host=smtp.yandex.ru
+2026-04-01 15:41:50,748 - dz_fastapi - DEBUG - SMTP login start for user=price@dragonzap.ru
+2026-04-01 15:41:50,903 - dz_fastapi - DEBUG - SMTP login ok for user=price@dragonzap.ru
+2026-04-01 15:41:50,904 - dz_fastapi - DEBUG - SMTP send start to=prices1@costomer.com
+2026-04-01 15:41:52,461 - dz_fastapi - DEBUG - SMTP send ok to=prices1@costomer.com
+2026-04-01 15:41:52,526 - dz_fastapi - INFO - Email sent to prices1@costomer.com
+2026-04-01 15:41:52,527 - dz_fastapi - DEBUG - Final send email
+2026-04-01 15:41:52,536 - dz_fastapi - DEBUG - Finished send_pricelist
+2026-04-01 15:41:52,536 - dz_fastapi - DEBUG - Finished send_pricelist
+2026-04-01 15:41:52,827 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:53,226 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpr69pbu7e
+2026-04-01 15:41:53,226 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:53,848 - dz_fastapi - DEBUG - Processing AutoPart data: {'brand': 'TEST BRAND', 'oem_number': 'OEM-SEND-001', 'name': 'Send Part', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:53,852 - dz_fastapi - DEBUG - Starting create_autopart_from_price with data: brand=None oem_number='OEM-SEND-001' name='Send Part' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 15:41:53,852 - dz_fastapi - DEBUG - Extracted autopart_data: {'brand': None, 'oem_number': 'OEM-SEND-001', 'name': 'Send Part', 'multiplicity': None, 'purchase_price': None, 'retail_price': None, 'wholesale_price': None, 'comment': None}
+2026-04-01 15:41:53,852 - dz_fastapi - DEBUG - Extracted brand_name: None
+2026-04-01 15:41:53,852 - dz_fastapi - DEBUG - Using default_brand: <dz_fastapi.models.brand.Brand object at 0x10f6b85c0>
+2026-04-01 15:41:53,868 - dz_fastapi - DEBUG - Existing autopart: None
+2026-04-01 15:41:53,868 - dz_fastapi - DEBUG - AutopartCreate data: brand_id=1 oem_number='OEMSEND001' name='Send Part' description=None width=None height=None length=None weight=None purchase_price=None retail_price=None wholesale_price=None multiplicity=None minimum_balance=None min_balance_auto=None min_balance_user=None comment=None barcode=None category_name=None storage_location_name=None
+2026-04-01 15:41:53,872 - dz_fastapi - DEBUG - Created new AutoPart: ID=1
+2026-04-01 15:41:53,873 - dz_fastapi - DEBUG - Created autopart: <dz_fastapi.models.autopart.AutoPart object at 0x10f53a3c0>
+2026-04-01 15:41:53,874 - dz_fastapi - DEBUG - Bulk inserting 1 associations.
+2026-04-01 15:41:53,875 - dz_fastapi - DEBUG - New position: autopart_id=1
+2026-04-01 15:41:53,875 - dz_fastapi - DEBUG - Bulk inserting 1 records into AutoPartPriceHistory.
+2026-04-01 15:41:53,889 - dz_fastapi - DEBUG - Retrieved PriceList: <dz_fastapi.models.partner.PriceList object at 0x10f5d0140>
+2026-04-01 15:41:53,889 - dz_fastapi - DEBUG - AutoPart Association - Pricelist ID: 1, Autopart ID: 1, Quantity: 5, Price: 100.00
+2026-04-01 15:41:53,889 - dz_fastapi - DEBUG - AutoPart - ID: 1, OEM Number: OEMSEND001, Name: SEND PART
+2026-04-01 15:41:53,939 - dz_fastapi - DEBUG - Transform file to dataframe    autopart_id       name  oem_number  ...  is_own_price quantity  price
+0            1  SEND PART  OEMSEND001  ...         False        5  100.0
+
+[1 rows x 11 columns]
+2026-04-01 15:41:53,945 - dz_fastapi - DEBUG - Into apply_coefficient data df:   autopart_id       name  oem_number  ...  is_own_price quantity  price
+0            1  SEND PART  OEMSEND001  ...         False        5  100.0
+
+[1 rows x 11 columns], cofig: {'_sa_instance_state': <sqlalchemy.orm.state.InstanceState object at 0x10fe57830>, 'customer_id': 1, 'individual_markups': {}, 'own_filters': {}, 'export_file_extension': None, 'name': 'SEND CONFIG', 'brand_filters': [], 'other_filters': {}, 'outgoing_email_account_id': None, 'category_filter': [], 'supplier_filters': {}, 'price_intervals': [], 'schedule_days': [], 'is_active': True, 'last_sent_at': None, 'position_filters': [], 'schedule_times': [], 'general_markup': 1.0, 'supplier_quantity_filters': [], 'emails': ['test@example.com'], 'own_price_list_markup': 1.0, 'additional_filters': {}, 'export_file_name': None, 'id': 1, 'third_party_markup': 1.0, 'default_filters': {}, 'export_file_format': 'xlsx', 'outgoing_email_account': None, 'sources': [<dz_fastapi.models.partner.CustomerPriceListSource object at 0x1104dd8e0>]}
+2026-04-01 15:41:53,952 - dz_fastapi - DEBUG - Final DataFrame before creating associations:
+   autopart_id       name  oem_number  ...  is_own_price quantity  price
+0            1  SEND PART  OEMSEND001  ...         False        5  100.0
+
+[1 rows x 11 columns]
+2026-04-01 15:41:53,970 - dz_fastapi - DEBUG - Calling send_pricelist
+2026-04-01 15:41:53,970 - dz_fastapi - DEBUG - Build customer pricelist attachment
+2026-04-01 15:41:53,971 - dz_fastapi - DEBUG - Write headers on the second row
+2026-04-01 15:41:53,971 - dz_fastapi - DEBUG - Write data rows starting from the third row
+2026-04-01 15:41:53,977 - dz_fastapi - DEBUG - Workbook saved successfully. Size: 5169 bytes
+2026-04-01 15:41:53,977 - dz_fastapi - DEBUG - Send the email asynchronously
+2026-04-01 15:41:53,981 - dz_fastapi - INFO - Using ENV email settings for pricelist send: config=1 transport=smtp host=smtp.yandex.ru port=465 user=price@dragonzap.ru
+2026-04-01 15:41:53,981 - dz_fastapi - DEBUG - Inside send_email_with_attachment with attachment=True size=5169
+2026-04-01 15:41:53,983 - dz_fastapi - INFO - Sending email via SMTP host=smtp.yandex.ru resolved_host=77.88.21.158 family=ipv4 port=465 user=price@dragonzap.ru ssl=True to=test@example.com
+2026-04-01 15:41:54,299 - dz_fastapi - DEBUG - SMTP connection established for host=smtp.yandex.ru
+2026-04-01 15:41:54,299 - dz_fastapi - DEBUG - SMTP login start for user=price@dragonzap.ru
+2026-04-01 15:41:54,445 - dz_fastapi - DEBUG - SMTP login ok for user=price@dragonzap.ru
+2026-04-01 15:41:54,445 - dz_fastapi - DEBUG - SMTP send start to=test@example.com
+2026-04-01 15:41:55,631 - dz_fastapi - DEBUG - SMTP send ok to=test@example.com
+2026-04-01 15:41:55,699 - dz_fastapi - INFO - Email sent to test@example.com
+2026-04-01 15:41:55,701 - dz_fastapi - DEBUG - Final send email
+2026-04-01 15:41:55,712 - dz_fastapi - DEBUG - Finished send_pricelist
+2026-04-01 15:41:55,713 - dz_fastapi - DEBUG - Finished send_pricelist
+2026-04-01 15:41:55,997 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:56,410 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp4osmwzqe
+2026-04-01 15:41:56,410 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:56,979 - dz_fastapi - DEBUG - Build customer pricelist attachment
+2026-04-01 15:41:56,980 - dz_fastapi - DEBUG - Send the email asynchronously
+2026-04-01 15:41:56,983 - dz_fastapi - INFO - Using ENV email settings for pricelist send: config=None transport=smtp host=smtp.yandex.ru port=465 user=price@dragonzap.ru
+2026-04-01 15:41:56,983 - dz_fastapi - DEBUG - Final send email
+2026-04-01 15:41:57,162 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:57,554 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp818tk0sm
+2026-04-01 15:41:57,554 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:58,320 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:58,711 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpjoomzagw
+2026-04-01 15:41:58,711 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:41:59,498 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:41:59,949 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpg5a2n8xw
+2026-04-01 15:41:59,949 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:42:00,551 - dz_fastapi - DEBUG - Начало создания бренда api
+2026-04-01 15:42:00,551 - dz_fastapi - DEBUG - Изменённое имя бренда: TEST-BRAND
+2026-04-01 15:42:00,551 - dz_fastapi - DEBUG - Зашли в get_brand_by_name
+2026-04-01 15:42:00,555 - dz_fastapi - DEBUG - Результат запроса: <sqlalchemy.engine.result.ChunkedIteratorResult object at 0x11079cc50>
+2026-04-01 15:42:00,555 - dz_fastapi - DEBUG - Первый результат запроса: None
+2026-04-01 15:42:00,555 - dz_fastapi - DEBUG - Проверка дубликата имени бренда завершена
+2026-04-01 15:42:00,555 - dz_fastapi - DEBUG - Создание объекта: name='TEST-BRAND' country_of_origin=<CountryEnum.USA: 'USA'> website='https://example.com' description='A test brand' logo=None main_brand=False synonyms=[]
+2026-04-01 15:42:00,559 - dz_fastapi - DEBUG - Бренд создан и добавлен в сессию: <dz_fastapi.models.brand.Brand object at 0x110632ea0>
+2026-04-01 15:42:00,559 - dz_fastapi - DEBUG - Сессия зафиксирована после создания бренда
+2026-04-01 15:42:00,560 - dz_fastapi - DEBUG - Бренд создан и добавлен в сессию: <dz_fastapi.models.brand.Brand object at 0x110632ea0>
+2026-04-01 15:42:00,563 - dz_fastapi - DEBUG - Создан новый бренд: <dz_fastapi.models.brand.Brand object at 0x110632ea0>
+2026-04-01 15:42:00,738 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:42:01,181 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpkdxspt1l
+2026-04-01 15:42:01,181 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:42:01,782 - dz_fastapi - INFO - Try to change brand id: 1
+2026-04-01 15:42:01,796 - dz_fastapi - INFO - File size = 287 and max size = 51200
+2026-04-01 15:42:01,796 - dz_fastapi - DEBUG - Path = /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpkdxspt1l/brand_1_logo.png
+2026-04-01 15:42:01,957 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:42:02,321 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpdlu1ms3o
+2026-04-01 15:42:02,321 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:42:02,862 - dz_fastapi - INFO - Try to change brand id: 1
+2026-04-01 15:42:02,872 - dz_fastapi - DEBUG - File for brand id 1 is not jpeg or png
+2026-04-01 15:42:03,022 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:42:03,395 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpkmu_kaf9
+2026-04-01 15:42:03,396 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:42:04,828 - dz_fastapi - INFO - Try to change brand id: 1
+2026-04-01 15:42:04,849 - dz_fastapi - DEBUG - File size exceeds limit: 84058 > 51200 for brand id 1
+2026-04-01 15:42:05,078 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:42:05,630 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpxairt0jp
+2026-04-01 15:42:05,630 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:42:06,186 - dz_fastapi - INFO - Try to change brand id: 1
+2026-04-01 15:42:06,198 - dz_fastapi - INFO - File size = 33 and max size = 51200
+2026-04-01 15:42:06,198 - dz_fastapi - DEBUG - Path = /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpxairt0jp/brand_1_logo.png
+2026-04-01 15:42:06,257 - dz_fastapi - DEBUG - FIle for brand id 1 is invalid
+2026-04-01 15:42:06,420 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:42:06,804 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp016vofd1
+2026-04-01 15:42:06,804 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:42:07,538 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:42:07,940 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpw596dce3
+2026-04-01 15:42:07,941 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:42:08,725 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:42:09,127 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp5udyxs3o
+2026-04-01 15:42:09,128 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:42:09,671 - dz_fastapi - DEBUG - Получение бренда по ID: 1
+2026-04-01 15:42:09,671 - dz_fastapi - DEBUG - Тип сессии: <class 'sqlalchemy.orm.session.AsyncSession'>
+2026-04-01 15:42:09,689 - dz_fastapi - DEBUG - Получен бренд: <dz_fastapi.models.brand.Brand object at 0x1104b9850>
+2026-04-01 15:42:09,837 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:42:10,262 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpm2kstdbd
+2026-04-01 15:42:10,262 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:42:10,892 - dz_fastapi - DEBUG - Existing brand: <dz_fastapi.models.brand.Brand object at 0x10fa45ee0>
+2026-04-01 15:42:10,893 - dz_fastapi - DEBUG - Updated brand name: NEW BRAND
+2026-04-01 15:42:10,893 - dz_fastapi - DEBUG - Зашли в get_brand_by_name
+2026-04-01 15:42:10,894 - dz_fastapi - DEBUG - Результат запроса: <sqlalchemy.engine.result.ChunkedIteratorResult object at 0x1101c9ad0>
+2026-04-01 15:42:10,895 - dz_fastapi - DEBUG - Первый результат запроса: None
+2026-04-01 15:42:10,895 - dz_fastapi - DEBUG - Updated brand: <dz_fastapi.models.brand.Brand object at 0x10fa45ee0>
+2026-04-01 15:42:11,054 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:42:11,465 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmp2zx8qdci
+2026-04-01 15:42:11,466 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:42:12,252 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:42:12,650 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpbrl1vhpd
+2026-04-01 15:42:12,651 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:42:13,409 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:42:13,769 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpoq1a83w_
+2026-04-01 15:42:13,769 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:42:14,283 - dz_fastapi - DEBUG - Начало создания бренда api
+2026-04-01 15:42:14,283 - dz_fastapi - DEBUG - Изменённое имя бренда: TEST BRAND 2
+2026-04-01 15:42:14,283 - dz_fastapi - DEBUG - Зашли в get_brand_by_name
+2026-04-01 15:42:14,294 - dz_fastapi - DEBUG - Результат запроса: <sqlalchemy.engine.result.ChunkedIteratorResult object at 0x1101ad350>
+2026-04-01 15:42:14,294 - dz_fastapi - DEBUG - Первый результат запроса: None
+2026-04-01 15:42:14,294 - dz_fastapi - DEBUG - Проверка дубликата имени бренда завершена
+2026-04-01 15:42:14,294 - dz_fastapi - DEBUG - Создание объекта: name='TEST BRAND 2' country_of_origin=<CountryEnum.CHINA: 'China'> website=None description=None logo=None main_brand=False synonyms=[]
+2026-04-01 15:42:14,297 - dz_fastapi - DEBUG - Бренд создан и добавлен в сессию: <dz_fastapi.models.brand.Brand object at 0x11056c650>
+2026-04-01 15:42:14,297 - dz_fastapi - DEBUG - Сессия зафиксирована после создания бренда
+2026-04-01 15:42:14,298 - dz_fastapi - DEBUG - Бренд создан и добавлен в сессию: <dz_fastapi.models.brand.Brand object at 0x11056c650>
+2026-04-01 15:42:14,303 - dz_fastapi - DEBUG - Создан новый бренд: <dz_fastapi.models.brand.Brand object at 0x11056c650>
+2026-04-01 15:42:14,304 - dz_fastapi - DEBUG - Получение бренда по ID: 1
+2026-04-01 15:42:14,304 - dz_fastapi - DEBUG - Тип сессии: <class 'sqlalchemy.orm.session.AsyncSession'>
+2026-04-01 15:42:14,306 - dz_fastapi - DEBUG - Получен бренд: <dz_fastapi.models.brand.Brand object at 0x110873b90>
+2026-04-01 15:42:14,306 - dz_fastapi - DEBUG - Исходные синонимы бренда: []
+2026-04-01 15:42:14,306 - dz_fastapi - DEBUG - Зашли в get_brand_by_name
+2026-04-01 15:42:14,308 - dz_fastapi - DEBUG - Результат запроса: <sqlalchemy.engine.result.ChunkedIteratorResult object at 0x10fdd8a90>
+2026-04-01 15:42:14,308 - dz_fastapi - DEBUG - Первый результат запроса: <dz_fastapi.models.brand.Brand object at 0x110873d40>
+2026-04-01 15:42:14,308 - dz_fastapi - DEBUG - Добавление синонима TEST BRAND 2
+2026-04-01 15:42:14,308 - dz_fastapi - DEBUG - Добавление синонима: бренд=TEST BRAND, синоним=TEST BRAND 2
+2026-04-01 15:42:14,308 - dz_fastapi - DEBUG - Атрибуты и методы бренда: ['__abstract__', '__class__', '__delattr__', '__dict__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__mapper__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__', '__table__', '__table_args__', '__tablename__', '__weakref__', '_sa_class_manager', '_sa_instance_state', '_sa_registry', 'autoparts', 'brand_synonyms', 'country_of_origin', 'description', 'id', 'logo', 'main_brand', 'metadata', 'name', 'registry', 'synonyms', 'website']
+2026-04-01 15:42:14,308 - dz_fastapi - DEBUG - Атрибуты бренда: {'_sa_instance_state': <sqlalchemy.orm.state.InstanceState object at 0x10fc78950>, 'description': 'A test brand', 'main_brand': False, 'name': 'TEST BRAND', 'website': 'https://example.com', 'country_of_origin': 'USA', 'logo': None, 'id': 1, 'synonyms': []}
+2026-04-01 15:42:14,312 - dz_fastapi - DEBUG - Добавили синоним
+2026-04-01 15:42:14,312 - dz_fastapi - DEBUG - Создали синонимы
+2026-04-01 15:42:14,312 - dz_fastapi - DEBUG - Синонимы бренда после добавления: [<dz_fastapi.models.brand.Brand object at 0x110873d40>]
+2026-04-01 15:42:14,312 - dz_fastapi - DEBUG - Синонимы синонима после добавления: [<dz_fastapi.models.brand.Brand object at 0x110873b90>]
+2026-04-01 15:42:14,313 - dz_fastapi - DEBUG - Синонимы бренда после flush: [<dz_fastapi.models.brand.Brand object at 0x110873d40>]
+2026-04-01 15:42:14,314 - dz_fastapi - DEBUG - Синонимы синонима после flush: [<dz_fastapi.models.brand.Brand object at 0x110873b90>]
+2026-04-01 15:42:14,314 - dz_fastapi - DEBUG - Результат add_synonym: <dz_fastapi.models.brand.Brand object at 0x110873b90>
+2026-04-01 15:42:14,315 - dz_fastapi - DEBUG - Финальные синонимы бренда: [<dz_fastapi.models.brand.Brand object at 0x110873d40>]
+2026-04-01 15:42:14,455 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 15:42:14,847 - dz_fastapi - DEBUG - Temporary upload directory: /var/folders/4f/rm3vt8mn3qsbxt1wmtx0z5jc0000gn/T/tmpobvmvgk4
+2026-04-01 15:42:14,847 - dz_fastapi - DEBUG - Dependencies overridden for the test
+2026-04-01 15:42:15,415 - dz_fastapi - DEBUG - Начало создания бренда api
+2026-04-01 15:42:15,415 - dz_fastapi - DEBUG - Изменённое имя бренда: TEST BRAND 2
+2026-04-01 15:42:15,415 - dz_fastapi - DEBUG - Зашли в get_brand_by_name
+2026-04-01 15:42:15,429 - dz_fastapi - DEBUG - Результат запроса: <sqlalchemy.engine.result.ChunkedIteratorResult object at 0x1101300d0>
+2026-04-01 15:42:15,429 - dz_fastapi - DEBUG - Первый результат запроса: None
+2026-04-01 15:42:15,429 - dz_fastapi - DEBUG - Проверка дубликата имени бренда завершена
+2026-04-01 15:42:15,430 - dz_fastapi - DEBUG - Создание объекта: name='TEST BRAND 2' country_of_origin=<CountryEnum.CHINA: 'China'> website=None description=None logo=None main_brand=False synonyms=[]
+2026-04-01 15:42:15,433 - dz_fastapi - DEBUG - Бренд создан и добавлен в сессию: <dz_fastapi.models.brand.Brand object at 0x110602870>
+2026-04-01 15:42:15,434 - dz_fastapi - DEBUG - Сессия зафиксирована после создания бренда
+2026-04-01 15:42:15,435 - dz_fastapi - DEBUG - Бренд создан и добавлен в сессию: <dz_fastapi.models.brand.Brand object at 0x110602870>
+2026-04-01 15:42:15,438 - dz_fastapi - DEBUG - Создан новый бренд: <dz_fastapi.models.brand.Brand object at 0x110602870>
+2026-04-01 15:42:15,441 - dz_fastapi - DEBUG - Получение бренда по ID: 1
+2026-04-01 15:42:15,441 - dz_fastapi - DEBUG - Тип сессии: <class 'sqlalchemy.orm.session.AsyncSession'>
+2026-04-01 15:42:15,443 - dz_fastapi - DEBUG - Получен бренд: <dz_fastapi.models.brand.Brand object at 0x11074df70>
+2026-04-01 15:42:15,443 - dz_fastapi - DEBUG - Исходные синонимы бренда: []
+2026-04-01 15:42:15,443 - dz_fastapi - DEBUG - Зашли в get_brand_by_name
+2026-04-01 15:42:15,444 - dz_fastapi - DEBUG - Результат запроса: <sqlalchemy.engine.result.ChunkedIteratorResult object at 0x11054b7d0>
+2026-04-01 15:42:15,444 - dz_fastapi - DEBUG - Первый результат запроса: <dz_fastapi.models.brand.Brand object at 0x11074f140>
+2026-04-01 15:42:15,444 - dz_fastapi - DEBUG - Добавление синонима TEST BRAND 2
+2026-04-01 15:42:15,444 - dz_fastapi - DEBUG - Добавление синонима: бренд=TEST BRAND, синоним=TEST BRAND 2
+2026-04-01 15:42:15,444 - dz_fastapi - DEBUG - Атрибуты и методы бренда: ['__abstract__', '__class__', '__delattr__', '__dict__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__mapper__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__', '__table__', '__table_args__', '__tablename__', '__weakref__', '_sa_class_manager', '_sa_instance_state', '_sa_registry', 'autoparts', 'brand_synonyms', 'country_of_origin', 'description', 'id', 'logo', 'main_brand', 'metadata', 'name', 'registry', 'synonyms', 'website']
+2026-04-01 15:42:15,444 - dz_fastapi - DEBUG - Атрибуты бренда: {'_sa_instance_state': <sqlalchemy.orm.state.InstanceState object at 0x10fc7a690>, 'description': 'A test brand', 'main_brand': False, 'name': 'TEST BRAND', 'website': 'https://example.com', 'country_of_origin': 'USA', 'logo': None, 'id': 1, 'synonyms': []}
+2026-04-01 15:42:15,448 - dz_fastapi - DEBUG - Добавили синоним
+2026-04-01 15:42:15,448 - dz_fastapi - DEBUG - Создали синонимы
+2026-04-01 15:42:15,448 - dz_fastapi - DEBUG - Синонимы бренда после добавления: [<dz_fastapi.models.brand.Brand object at 0x11074f140>]
+2026-04-01 15:42:15,448 - dz_fastapi - DEBUG - Синонимы синонима после добавления: [<dz_fastapi.models.brand.Brand object at 0x11074df70>]
+2026-04-01 15:42:15,450 - dz_fastapi - DEBUG - Синонимы бренда после flush: [<dz_fastapi.models.brand.Brand object at 0x11074f140>]
+2026-04-01 15:42:15,450 - dz_fastapi - DEBUG - Синонимы синонима после flush: [<dz_fastapi.models.brand.Brand object at 0x11074df70>]
+2026-04-01 15:42:15,450 - dz_fastapi - DEBUG - Результат add_synonym: <dz_fastapi.models.brand.Brand object at 0x11074df70>
+2026-04-01 15:42:15,451 - dz_fastapi - DEBUG - Финальные синонимы бренда: [<dz_fastapi.models.brand.Brand object at 0x11074f140>]
+2026-04-01 15:42:15,454 - dz_fastapi - DEBUG - Получение бренда по ID: 1
+2026-04-01 15:42:15,454 - dz_fastapi - DEBUG - Тип сессии: <class 'sqlalchemy.orm.session.AsyncSession'>
+2026-04-01 15:42:15,457 - dz_fastapi - DEBUG - Получен бренд: <dz_fastapi.models.brand.Brand object at 0x110633d40>
+2026-04-01 15:42:15,457 - dz_fastapi - DEBUG - Исходные синонимы бренда: ['TEST BRAND 2']
+2026-04-01 15:42:15,457 - dz_fastapi - DEBUG - Зашли в get_brand_by_name
+2026-04-01 15:42:15,458 - dz_fastapi - DEBUG - Результат запроса: <sqlalchemy.engine.result.ChunkedIteratorResult object at 0x1101aa8d0>
+2026-04-01 15:42:15,458 - dz_fastapi - DEBUG - Первый результат запроса: <dz_fastapi.models.brand.Brand object at 0x10f506030>
+2026-04-01 15:42:15,458 - dz_fastapi - DEBUG - Удаление синонима TEST BRAND 2
+2026-04-01 15:42:15,459 - dz_fastapi - DEBUG - Synonym TEST BRAND 2 removed from brand TEST BRAND
+2026-04-01 15:42:15,459 - dz_fastapi - DEBUG - Brand TEST BRAND removed from synonym TEST BRAND 2
+2026-04-01 15:42:15,460 - dz_fastapi - DEBUG - Successfully flushed session after removing synonyms
+2026-04-01 15:42:15,461 - dz_fastapi - DEBUG - Brand refreshed after removing synonyms
+2026-04-01 15:42:15,461 - dz_fastapi - DEBUG - Final synonyms of the brand: []
+2026-04-01 15:42:15,609 - dz_fastapi - DEBUG - Dependencies overrides cleared after the test
+2026-04-01 13:43:00,111 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:44:00,065 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:45:00,087 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:45:00,863 - dz_fastapi - INFO - Starting send_scheduled_supplier_orders_task
+2026-04-01 13:45:02,044 - dz_fastapi - INFO - Starting download_customer_orders_task
+2026-04-01 13:45:02,257 - dz_fastapi - ERROR - Order inbox fetch failed for masterzapzakaz@gmail.com: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. cdcc0902adbc2-3c7f6548a34mb13510225d76']
+Traceback (most recent call last):
+  File "/app/dz_fastapi/services/customer_orders.py", line 2853, in process_customer_orders
+    account, date_from, label=label
+  File "/app/dz_fastapi/services/customer_orders.py", line 171, in _fetch_order_messages
+    server_mail: str,
+                   ^^^
+  File "/usr/local/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dz_fastapi/services/customer_orders.py", line 154, in _fetch
+    payload: bytes
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/mailbox.py", line 63, in login
+    check_command_status(login_result, MailboxLoginError)
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/utils.py", line 46, in check_command_status
+    raise exception(command_result=command_result, expected=expected)
+imap_tools.errors.MailboxLoginError: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. cdcc0902adbc2-3c7f6548a34mb13510225d76']
+2026-04-01 13:45:02,262 - dz_fastapi - INFO - No order emails found.
+2026-04-01 13:46:00,068 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:47:00,074 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:48:00,069 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:49:00,079 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:50:00,067 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:50:02,141 - dz_fastapi - INFO - Starting download_customer_orders_task
+2026-04-01 13:50:02,434 - dz_fastapi - ERROR - Order inbox fetch failed for masterzapzakaz@gmail.com: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. cdcc0902adbc2-3c7f64806b2mb14958884d76']
+Traceback (most recent call last):
+  File "/app/dz_fastapi/services/customer_orders.py", line 2853, in process_customer_orders
+    account, date_from, label=label
+  File "/app/dz_fastapi/services/customer_orders.py", line 171, in _fetch_order_messages
+    server_mail: str,
+                   ^^^
+  File "/usr/local/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dz_fastapi/services/customer_orders.py", line 154, in _fetch
+    payload: bytes
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/mailbox.py", line 63, in login
+    check_command_status(login_result, MailboxLoginError)
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/utils.py", line 46, in check_command_status
+    raise exception(command_result=command_result, expected=expected)
+imap_tools.errors.MailboxLoginError: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. cdcc0902adbc2-3c7f64806b2mb14958884d76']
+2026-04-01 13:50:02,443 - dz_fastapi - INFO - No order emails found.
+2026-04-01 13:50:04,098 - dz_fastapi - INFO - Starting send_scheduled_supplier_orders_task
+2026-04-01 13:51:00,063 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:52:00,059 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:53:00,061 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:54:00,062 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:55:00,094 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:55:00,566 - dz_fastapi - INFO - Starting download_customer_orders_task
+2026-04-01 13:55:00,801 - dz_fastapi - ERROR - Order inbox fetch failed for masterzapzakaz@gmail.com: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5c2dc8763939e-4976cfe57a9mb41308504122']
+Traceback (most recent call last):
+  File "/app/dz_fastapi/services/customer_orders.py", line 2853, in process_customer_orders
+    account, date_from, label=label
+  File "/app/dz_fastapi/services/customer_orders.py", line 171, in _fetch_order_messages
+    server_mail: str,
+                   ^^^
+  File "/usr/local/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dz_fastapi/services/customer_orders.py", line 154, in _fetch
+    payload: bytes
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/mailbox.py", line 63, in login
+    check_command_status(login_result, MailboxLoginError)
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/utils.py", line 46, in check_command_status
+    raise exception(command_result=command_result, expected=expected)
+imap_tools.errors.MailboxLoginError: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. 5c2dc8763939e-4976cfe57a9mb41308504122']
+2026-04-01 13:55:00,808 - dz_fastapi - INFO - No order emails found.
+2026-04-01 13:55:02,406 - dz_fastapi - INFO - Starting send_scheduled_supplier_orders_task
+2026-04-01 13:56:00,071 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:57:00,067 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:58:00,064 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 13:59:00,053 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 14:00:00,072 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 14:00:01,584 - dz_fastapi - INFO - Starting send_scheduled_supplier_orders_task
+2026-04-01 14:00:02,202 - dz_fastapi - INFO - Starting download_customer_orders_task
+2026-04-01 14:00:02,482 - dz_fastapi - ERROR - Order inbox fetch failed for masterzapzakaz@gmail.com: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. e09e53db590de-8a01b94948cmb40908310d85']
+Traceback (most recent call last):
+  File "/app/dz_fastapi/services/customer_orders.py", line 2853, in process_customer_orders
+    account, date_from, label=label
+  File "/app/dz_fastapi/services/customer_orders.py", line 171, in _fetch_order_messages
+    server_mail: str,
+                   ^^^
+  File "/usr/local/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dz_fastapi/services/customer_orders.py", line 154, in _fetch
+    payload: bytes
+             ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/mailbox.py", line 63, in login
+    check_command_status(login_result, MailboxLoginError)
+  File "/usr/local/lib/python3.12/site-packages/imap_tools/utils.py", line 46, in check_command_status
+    raise exception(command_result=command_result, expected=expected)
+imap_tools.errors.MailboxLoginError: Response status "OK" expected, but "NO" received. Data: [b'Empty username or password. e09e53db590de-8a01b94948cmb40908310d85']
+2026-04-01 14:00:02,490 - dz_fastapi - INFO - No order emails found.
+2026-04-01 14:00:02,926 - dz_fastapi - INFO - Starting download_price_provider_task
+2026-04-01 14:00:02,966 - dz_fastapi - INFO - Начинаем обработку писем провайдеров...
+2026-04-01 14:01:00,071 - dz_fastapi - INFO - Completed price_control_run_task
+2026-04-01 14:01:19,963 - dz_fastapi - DEBUG - Получено 106 писем за сегодня
+2026-04-01 14:01:19,965 - dz_fastapi - DEBUG - Письмо: uid=266893, from=info@dragonzap.ru, date=2026-04-01 03:02:32+03:00, subject=Прайс Avito_dragonzap давно не обновлялся
+2026-04-01 14:01:19,977 - dz_fastapi - DEBUG - Провайдер для email info@dragonzap.ru не найден, пропускаем письмо uid=266893
+2026-04-01 14:01:19,977 - dz_fastapi - DEBUG - Письмо: uid=266894, from=informer@tochka.com, date=2026-04-01 05:01:56+05:00, subject=Выписка ООО "АВТОПАРТС" за 31.03.2026 по счету 40702810501500063689
+2026-04-01 14:01:19,978 - dz_fastapi - DEBUG - Провайдер для email informer@tochka.com не найден, пропускаем письмо uid=266894
+2026-04-01 14:01:19,978 - dz_fastapi - DEBUG - Письмо: uid=266895, from=price@cosmopart.ru, date=2026-04-01 03:10:12+03:00, subject=Cosmo Nal
+2026-04-01 14:01:19,979 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266895
+2026-04-01 14:01:19,979 - dz_fastapi - DEBUG - Письмо: uid=266896, from=price@cosmopart.ru, date=2026-04-01 03:27:58+03:00, subject=Cosmo Geely
+2026-04-01 14:01:19,979 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266896
+2026-04-01 14:01:19,979 - dz_fastapi - DEBUG - Письмо: uid=266897, from=zap-vk@mail.ru, date=2026-04-01 05:00:01+03:00, subject=Свежий прайс товарных остатков
+2026-04-01 14:01:19,979 - dz_fastapi - DEBUG - Провайдер для email zap-vk@mail.ru не найден, пропускаем письмо uid=266897
+2026-04-01 14:01:19,980 - dz_fastapi - DEBUG - Письмо: uid=266898, from=opt@lr.ru, date=2026-04-01 05:02:51+03:00, subject=Прайс-лист компании LR.RU_
+2026-04-01 14:01:19,980 - dz_fastapi - DEBUG - Провайдер для email opt@lr.ru не найден, пропускаем письмо uid=266898
+2026-04-01 14:01:19,980 - dz_fastapi - DEBUG - Письмо: uid=266899, from=price@ronexportal.ru, date=2026-04-01 06:03:39+03:00, subject=Ronex Price CD 7
+2026-04-01 14:01:19,981 - dz_fastapi - DEBUG - Провайдер для email price@ronexportal.ru не найден, пропускаем письмо uid=266899
+2026-04-01 14:01:19,981 - dz_fastapi - DEBUG - Письмо: uid=266900, from=price@cosmopart.ru, date=2026-04-01 06:10:11+03:00, subject=Cosmo Nal
+2026-04-01 14:01:19,981 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266900
+2026-04-01 14:01:19,982 - dz_fastapi - DEBUG - Письмо: uid=266901, from=doc@unitzap.ru, date=2026-04-01 06:11:17+03:00, subject=Прайс-лист от 01.04.2026
+2026-04-01 14:01:19,982 - dz_fastapi - DEBUG - Провайдер для email doc@unitzap.ru не найден, пропускаем письмо uid=266901
+2026-04-01 14:01:19,982 - dz_fastapi - DEBUG - Письмо: uid=266902, from=doc@unitzap.ru, date=2026-04-01 06:11:15+03:00, subject=Прайс-лист от 01.04.2026
+2026-04-01 14:01:19,982 - dz_fastapi - DEBUG - Провайдер для email doc@unitzap.ru не найден, пропускаем письмо uid=266902
+2026-04-01 14:01:19,982 - dz_fastapi - DEBUG - Письмо: uid=266903, from=operprice@vikiparts.by, date=2026-04-01 06:11:54+03:00, subject=PriceVIKInov
+2026-04-01 14:01:19,982 - dz_fastapi - DEBUG - Провайдер для email operprice@vikiparts.by не найден, пропускаем письмо uid=266903
+2026-04-01 14:01:19,982 - dz_fastapi - DEBUG - Письмо: uid=266904, from=operprice@vikiparts.by, date=2026-04-01 06:13:15+03:00, subject=SKLADNAL
+2026-04-01 14:01:19,982 - dz_fastapi - DEBUG - Провайдер для email operprice@vikiparts.by не найден, пропускаем письмо uid=266904
+2026-04-01 14:01:19,984 - dz_fastapi - DEBUG - Письмо: uid=266905, from=no-reply@aruda.ru, date=2026-04-01 06:30:49+03:00, subject=Прайс Киромпартс
+2026-04-01 14:01:19,984 - dz_fastapi - DEBUG - Провайдер для email no-reply@aruda.ru не найден, пропускаем письмо uid=266905
+2026-04-01 14:01:19,986 - dz_fastapi - DEBUG - Письмо: uid=266906, from=price@sever-elit.ru, date=2026-04-01 07:22:16+03:00, subject=Прайс СЕВЕР
+2026-04-01 14:01:19,986 - dz_fastapi - DEBUG - Провайдер для email price@sever-elit.ru не найден, пропускаем письмо uid=266906
+2026-04-01 14:01:19,986 - dz_fastapi - DEBUG - Письмо: uid=266907, from=price@cosmopart.ru, date=2026-04-01 07:28:03+03:00, subject=Cosmo Geely
+2026-04-01 14:01:19,986 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266907
+2026-04-01 14:01:19,987 - dz_fastapi - DEBUG - Письмо: uid=266908, from=masterzap346@gmail.com, date=2026-04-01 07:59:57+03:00, subject=Прайс лист (на 7:59:57)
+2026-04-01 14:01:19,988 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266908
+2026-04-01 14:01:19,988 - dz_fastapi - DEBUG - Письмо: uid=266909, from=masterzap346@gmail.com, date=2026-04-01 08:01:08+03:00, subject=Прайс лист (на 8:01:08)
+2026-04-01 14:01:19,988 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266909
+2026-04-01 14:01:19,989 - dz_fastapi - DEBUG - Письмо: uid=266910, from=masterzap346@gmail.com, date=2026-04-01 08:01:14+03:00, subject=Прайс лист (на 8:01:14)
+2026-04-01 14:01:19,989 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266910
+2026-04-01 14:01:19,989 - dz_fastapi - DEBUG - Письмо: uid=266911, from=price@tolkoopt.ru, date=2026-04-01 08:01:33+03:00, subject=Price_TolkoOPT
+2026-04-01 14:01:19,989 - dz_fastapi - DEBUG - Провайдер для email price@tolkoopt.ru не найден, пропускаем письмо uid=266911
+2026-04-01 14:01:19,989 - dz_fastapi - DEBUG - Письмо: uid=266912, from=price@cosmopart.ru, date=2026-04-01 08:08:34+03:00, subject=Cosmo Vag D
+2026-04-01 14:01:19,989 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266912
+2026-04-01 14:01:19,990 - dz_fastapi - DEBUG - Письмо: uid=266913, from=zakaz@pro-auto.pro, date=2026-04-01 09:00:08+03:00, subject=Прайс ПроАвто -> АвтоПАРТС
+2026-04-01 14:01:19,990 - dz_fastapi - DEBUG - Провайдер для email zakaz@pro-auto.pro не найден, пропускаем письмо uid=266913
+2026-04-01 14:01:19,990 - dz_fastapi - DEBUG - Письмо: uid=266914, from=price@sttrade.trade, date=2026-04-01 09:00:48+03:00, subject=Прайс  ОПТ
+2026-04-01 14:01:19,991 - dz_fastapi - DEBUG - Провайдер для email price@sttrade.trade не найден, пропускаем письмо uid=266914
+2026-04-01 14:01:19,991 - dz_fastapi - DEBUG - Письмо: uid=266915, from=price@sttrade.trade, date=2026-04-01 09:00:41+03:00, subject=Прайс  ОПТ
+2026-04-01 14:01:19,991 - dz_fastapi - DEBUG - Провайдер для email price@sttrade.trade не найден, пропускаем письмо uid=266915
+2026-04-01 14:01:19,991 - dz_fastapi - DEBUG - Письмо: uid=266916, from=price@sever-elit.ru, date=2026-04-01 09:08:21+03:00, subject=Прайс СЕВЕР
+2026-04-01 14:01:19,991 - dz_fastapi - DEBUG - Провайдер для email price@sever-elit.ru не найден, пропускаем письмо uid=266916
+2026-04-01 14:01:19,992 - dz_fastapi - DEBUG - Письмо: uid=266917, from=price@cosmopart.ru, date=2026-04-01 09:10:21+03:00, subject=Cosmo Nal
+2026-04-01 14:01:19,992 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266917
+2026-04-01 14:01:19,992 - dz_fastapi - DEBUG - Письмо: uid=266918, from=noreply@redpart.ru, date=2026-04-01 09:14:52+03:00, subject=робот рассылка
+2026-04-01 14:01:19,992 - dz_fastapi - DEBUG - Провайдер для email noreply@redpart.ru не найден, пропускаем письмо uid=266918
+2026-04-01 14:01:19,992 - dz_fastapi - DEBUG - Письмо: uid=266919, from=order_zap@rambler.ru, date=2026-04-01 09:15:09+03:00, subject=Прайс
+2026-04-01 14:01:19,993 - dz_fastapi - DEBUG - Провайдер для email order_zap@rambler.ru не найден, пропускаем письмо uid=266919
+2026-04-01 14:01:19,993 - dz_fastapi - DEBUG - Письмо: uid=266920, from=noreply@redpart.ru, date=2026-04-01 09:21:52+03:00, subject=робот рассылка
+2026-04-01 14:01:19,993 - dz_fastapi - DEBUG - Провайдер для email noreply@redpart.ru не найден, пропускаем письмо uid=266920
+2026-04-01 14:01:19,993 - dz_fastapi - DEBUG - Письмо: uid=266921, from=noreply@redpart.ru, date=2026-04-01 09:21:54+03:00, subject=робот рассылка
+2026-04-01 14:01:19,993 - dz_fastapi - DEBUG - Провайдер для email noreply@redpart.ru не найден, пропускаем письмо uid=266921
+2026-04-01 14:01:19,993 - dz_fastapi - DEBUG - Письмо: uid=266922, from=Chery.1c@kuntsevo.com, date=2026-04-01 09:27:05+03:00, subject=Chery Кунцево остатки 01.04.26
+2026-04-01 14:01:19,993 - dz_fastapi - DEBUG - Провайдер для email Chery.1c@kuntsevo.com не найден, пропускаем письмо uid=266922
+2026-04-01 14:01:19,993 - dz_fastapi - DEBUG - Письмо: uid=266923, from=Chery.1c@kuntsevo.com, date=2026-04-01 09:27:08+03:00, subject= 01.04.26
+2026-04-01 14:01:19,993 - dz_fastapi - DEBUG - Провайдер для email Chery.1c@kuntsevo.com не найден, пропускаем письмо uid=266923
+2026-04-01 14:01:19,994 - dz_fastapi - DEBUG - Письмо: uid=266924, from=opt@favorit-motors.ru, date=2026-04-01 06:38:57+00:00, subject=прайс наличия FM
+2026-04-01 14:01:19,994 - dz_fastapi - DEBUG - Провайдер для email opt@favorit-motors.ru не найден, пропускаем письмо uid=266924
+2026-04-01 14:01:19,994 - dz_fastapi - DEBUG - Письмо: uid=266925, from=price@ronexportal.ru, date=2026-04-01 09:46:21+03:00, subject=Ronex Price CD 7
+2026-04-01 14:01:19,994 - dz_fastapi - DEBUG - Провайдер для email price@ronexportal.ru не найден, пропускаем письмо uid=266925
+2026-04-01 14:01:19,997 - dz_fastapi - DEBUG - Письмо: uid=266926, from=masterzap346@gmail.com, date=2026-04-01 09:58:01+03:00, subject=Прайс лист (на 9:58:01)
+2026-04-01 14:01:19,997 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266926
+2026-04-01 14:01:19,999 - dz_fastapi - DEBUG - Письмо: uid=266927, from=zakaz@pro-auto.pro, date=2026-04-01 09:58:39+03:00, subject=Прайс ПроАвто -> АвтоПАРТС
+2026-04-01 14:01:19,999 - dz_fastapi - DEBUG - Провайдер для email zakaz@pro-auto.pro не найден, пропускаем письмо uid=266927
+2026-04-01 14:01:20,000 - dz_fastapi - DEBUG - Письмо: uid=266928, from=price@cosmopart.ru, date=2026-04-01 10:08:23+03:00, subject=Cosmo Vag D
+2026-04-01 14:01:20,000 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266928
+2026-04-01 14:01:20,000 - dz_fastapi - DEBUG - Письмо: uid=266929, from=m.ermakov@am-torg.ru, date=2026-04-01 10:40:58+03:00, subject=Прайс базовый
+2026-04-01 14:01:20,001 - dz_fastapi - DEBUG - Провайдер для email m.ermakov@am-torg.ru не найден, пропускаем письмо uid=266929
+2026-04-01 14:01:20,002 - dz_fastapi - DEBUG - Письмо: uid=266930, from=1c_info@uniqom.ru, date=2026-04-01 17:49:39+10:00, subject=прайс Юником
+2026-04-01 14:01:20,002 - dz_fastapi - DEBUG - Провайдер для email 1c_info@uniqom.ru не найден, пропускаем письмо uid=266930
+2026-04-01 14:01:20,003 - dz_fastapi - DEBUG - Письмо: uid=266931, from=masterzapprice@gmail.com, date=2026-04-01 10:57:22+03:00, subject=Прайс лист (на 10:57:22)
+2026-04-01 14:01:20,009 - dz_fastapi - DEBUG - Config: <dz_fastapi.models.partner.ProviderPriceListConfig object at 0xffff4e3a9d60>
+2026-04-01 14:01:20,012 - dz_fastapi - DEBUG - Старое UID = 266931 для config_id=1, пропускаем письмо
+2026-04-01 14:01:20,012 - dz_fastapi - DEBUG - Письмо uid=266931 не удовлетворило условиям загрузки
+2026-04-01 14:01:20,013 - dz_fastapi - DEBUG - Письмо: uid=266932, from=price@sever-elit.ru, date=2026-04-01 11:06:30+03:00, subject=Прайс СЕВЕР
+2026-04-01 14:01:20,013 - dz_fastapi - DEBUG - Провайдер для email price@sever-elit.ru не найден, пропускаем письмо uid=266932
+2026-04-01 14:01:20,013 - dz_fastapi - DEBUG - Письмо: uid=266933, from=price@cosmopart.ru, date=2026-04-01 11:29:46+03:00, subject=Cosmo Geely
+2026-04-01 14:01:20,013 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266933
+2026-04-01 14:01:20,013 - dz_fastapi - DEBUG - Письмо: uid=266934, from=masterzap346@gmail.com, date=2026-04-01 11:58:13+03:00, subject=Прайс лист (на 11:58:13)
+2026-04-01 14:01:20,013 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266934
+2026-04-01 14:01:20,013 - dz_fastapi - DEBUG - Письмо: uid=266935, from=masterzap346@gmail.com, date=2026-04-01 11:59:31+03:00, subject=Прайс лист (на 11:59:31)
+2026-04-01 14:01:20,013 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266935
+2026-04-01 14:01:20,014 - dz_fastapi - DEBUG - Письмо: uid=266936, from=price@tolkoopt.ru, date=2026-04-01 12:01:26+03:00, subject=Price_TolkoOPT
+2026-04-01 14:01:20,014 - dz_fastapi - DEBUG - Провайдер для email price@tolkoopt.ru не найден, пропускаем письмо uid=266936
+2026-04-01 14:01:20,016 - dz_fastapi - DEBUG - Письмо: uid=266937, from=info@dragonzap.ru, date=2026-04-01 12:02:20+03:00, subject=Автэк для Озон
+2026-04-01 14:01:20,016 - dz_fastapi - DEBUG - Провайдер для email info@dragonzap.ru не найден, пропускаем письмо uid=266937
+2026-04-01 14:01:20,016 - dz_fastapi - DEBUG - Письмо: uid=266938, from=info@dragonzap.ru, date=2026-04-01 12:02:20+03:00, subject=Avtek3915
+2026-04-01 14:01:20,016 - dz_fastapi - DEBUG - Провайдер для email info@dragonzap.ru не найден, пропускаем письмо uid=266938
+2026-04-01 14:01:20,016 - dz_fastapi - DEBUG - Письмо: uid=266939, from=Alyans-7@list.ru, date=2026-04-01 14:04:48+05:00, subject=Остатки товаров
+2026-04-01 14:01:20,016 - dz_fastapi - DEBUG - Провайдер для email Alyans-7@list.ru не найден, пропускаем письмо uid=266939
+2026-04-01 14:01:20,017 - dz_fastapi - DEBUG - Письмо: uid=266940, from=noreply@redpart.ru, date=2026-04-01 12:05:44+03:00, subject=робот рассылка
+2026-04-01 14:01:20,018 - dz_fastapi - DEBUG - Провайдер для email noreply@redpart.ru не найден, пропускаем письмо uid=266940
+2026-04-01 14:01:20,018 - dz_fastapi - DEBUG - Письмо: uid=266941, from=Alyans-7@list.ru, date=2026-04-01 14:06:05+05:00, subject=Остатки товаров
+2026-04-01 14:01:20,018 - dz_fastapi - DEBUG - Провайдер для email Alyans-7@list.ru не найден, пропускаем письмо uid=266941
+2026-04-01 14:01:20,018 - dz_fastapi - DEBUG - Письмо: uid=266942, from=price@cosmopart.ru, date=2026-04-01 12:08:33+03:00, subject=Cosmo Vag D
+2026-04-01 14:01:20,018 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266942
+2026-04-01 14:01:20,020 - dz_fastapi - DEBUG - Письмо: uid=266943, from=price@ivers.ru, date=2026-04-01 16:08:51+07:00, subject=price_msk2_260401_1
+2026-04-01 14:01:20,020 - dz_fastapi - DEBUG - Провайдер для email price@ivers.ru не найден, пропускаем письмо uid=266943
+2026-04-01 14:01:20,020 - dz_fastapi - DEBUG - Письмо: uid=266944, from=price@cosmopart.ru, date=2026-04-01 12:10:12+03:00, subject=Cosmo Nal
+2026-04-01 14:01:20,020 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266944
+2026-04-01 14:01:20,022 - dz_fastapi - DEBUG - Письмо: uid=266945, from=operprice@vikiparts.by, date=2026-04-01 12:12:12+03:00, subject=PriceVIKInov
+2026-04-01 14:01:20,022 - dz_fastapi - DEBUG - Провайдер для email operprice@vikiparts.by не найден, пропускаем письмо uid=266945
+2026-04-01 14:01:20,022 - dz_fastapi - DEBUG - Письмо: uid=266946, from=noreply@redpart.ru, date=2026-04-01 12:12:57+03:00, subject=робот рассылка
+2026-04-01 14:01:20,022 - dz_fastapi - DEBUG - Провайдер для email noreply@redpart.ru не найден, пропускаем письмо uid=266946
+2026-04-01 14:01:20,022 - dz_fastapi - DEBUG - Письмо: uid=266947, from=noreply@redpart.ru, date=2026-04-01 12:13:00+03:00, subject=робот рассылка
+2026-04-01 14:01:20,022 - dz_fastapi - DEBUG - Провайдер для email noreply@redpart.ru не найден, пропускаем письмо uid=266947
+2026-04-01 14:01:20,023 - dz_fastapi - DEBUG - Письмо: uid=266948, from=operprice@vikiparts.by, date=2026-04-01 12:13:26+03:00, subject=SKLADNAL
+2026-04-01 14:01:20,023 - dz_fastapi - DEBUG - Провайдер для email operprice@vikiparts.by не найден, пропускаем письмо uid=266948
+2026-04-01 14:01:20,023 - dz_fastapi - DEBUG - Письмо: uid=266949, from=Lada.1c@kuntsevo.com, date=2026-04-01 12:13:37+03:00, subject=ОПТ Хавейл склад Кунцево 01.04.26
+2026-04-01 14:01:20,023 - dz_fastapi - DEBUG - Провайдер для email Lada.1c@kuntsevo.com не найден, пропускаем письмо uid=266949
+2026-04-01 14:01:20,023 - dz_fastapi - DEBUG - Письмо: uid=266950, from=Lada.1c@kuntsevo.com, date=2026-04-01 12:13:44+03:00, subject=ОПТ Хавейл ЦС 01.04.26
+2026-04-01 14:01:20,023 - dz_fastapi - DEBUG - Провайдер для email Lada.1c@kuntsevo.com не найден, пропускаем письмо uid=266950
+2026-04-01 14:01:20,024 - dz_fastapi - DEBUG - Письмо: uid=266951, from=zakaz@pro-auto.pro, date=2026-04-01 12:20:07+03:00, subject=Прайс ПроАвто -> АвтоПАРТС
+2026-04-01 14:01:20,024 - dz_fastapi - DEBUG - Провайдер для email zakaz@pro-auto.pro не найден, пропускаем письмо uid=266951
+2026-04-01 14:01:20,024 - dz_fastapi - DEBUG - Письмо: uid=266952, from=Chery.1c@kuntsevo.com, date=2026-04-01 12:24:58+03:00, subject=Chery Кунцево остатки 01.04.26
+2026-04-01 14:01:20,024 - dz_fastapi - DEBUG - Провайдер для email Chery.1c@kuntsevo.com не найден, пропускаем письмо uid=266952
+2026-04-01 14:01:20,024 - dz_fastapi - DEBUG - Письмо: uid=266953, from=Chery.1c@kuntsevo.com, date=2026-04-01 12:25:01+03:00, subject= 01.04.26
+2026-04-01 14:01:20,024 - dz_fastapi - DEBUG - Провайдер для email Chery.1c@kuntsevo.com не найден, пропускаем письмо uid=266953
+2026-04-01 14:01:20,025 - dz_fastapi - DEBUG - Письмо: uid=266954, from=opt@favorit-motors.ru, date=2026-04-01 09:37:44+00:00, subject=ЦС HAVAL
+2026-04-01 14:01:20,025 - dz_fastapi - DEBUG - Провайдер для email opt@favorit-motors.ru не найден, пропускаем письмо uid=266954
+2026-04-01 14:01:20,025 - dz_fastapi - DEBUG - Письмо: uid=266955, from=opt@favorit-motors.ru, date=2026-04-01 09:37:53+00:00, subject=ЦС GEELY
+2026-04-01 14:01:20,025 - dz_fastapi - DEBUG - Провайдер для email opt@favorit-motors.ru не найден, пропускаем письмо uid=266955
+2026-04-01 14:01:20,025 - dz_fastapi - DEBUG - Письмо: uid=266956, from=opt@favorit-motors.ru, date=2026-04-01 09:38:09+00:00, subject=ЦС CHERY/EXEED
+2026-04-01 14:01:20,025 - dz_fastapi - DEBUG - Провайдер для email opt@favorit-motors.ru не найден, пропускаем письмо uid=266956
+2026-04-01 14:01:20,026 - dz_fastapi - DEBUG - Письмо: uid=266957, from=opt@favorit-motors.ru, date=2026-04-01 09:38:19+00:00, subject=ЦС KIA
+2026-04-01 14:01:20,026 - dz_fastapi - DEBUG - Провайдер для email opt@favorit-motors.ru не найден, пропускаем письмо uid=266957
+2026-04-01 14:01:20,027 - dz_fastapi - DEBUG - Письмо: uid=266958, from=opt@favorit-motors.ru, date=2026-04-01 09:38:28+00:00, subject=ЦС VAG
+2026-04-01 14:01:20,027 - dz_fastapi - DEBUG - Провайдер для email opt@favorit-motors.ru не найден, пропускаем письмо uid=266958
+2026-04-01 14:01:20,027 - dz_fastapi - DEBUG - Письмо: uid=266959, from=opt@favorit-motors.ru, date=2026-04-01 09:38:42+00:00, subject=ЦС HYUNDAI
+2026-04-01 14:01:20,027 - dz_fastapi - DEBUG - Провайдер для email opt@favorit-motors.ru не найден, пропускаем письмо uid=266959
+2026-04-01 14:01:20,028 - dz_fastapi - DEBUG - Письмо: uid=266960, from=opt@favorit-motors.ru, date=2026-04-01 09:38:57+00:00, subject=ЦС VOLVO
+2026-04-01 14:01:20,028 - dz_fastapi - DEBUG - Провайдер для email opt@favorit-motors.ru не найден, пропускаем письмо uid=266960
+2026-04-01 14:01:20,029 - dz_fastapi - DEBUG - Письмо: uid=266961, from=opt@favorit-motors.ru, date=2026-04-01 09:39:13+00:00, subject=ЦС CHANGAN
+2026-04-01 14:01:20,029 - dz_fastapi - DEBUG - Провайдер для email opt@favorit-motors.ru не найден, пропускаем письмо uid=266961
+2026-04-01 14:01:20,029 - dz_fastapi - DEBUG - Письмо: uid=266962, from=zap-vk@mail.ru, date=2026-04-01 12:52:03+03:00, subject=Свежий прайс товарных остатков
+2026-04-01 14:01:20,029 - dz_fastapi - DEBUG - Провайдер для email zap-vk@mail.ru не найден, пропускаем письмо uid=266962
+2026-04-01 14:01:20,029 - dz_fastapi - DEBUG - Письмо: uid=266963, from=alex@fkt.ru, date=2026-04-01 12:53:56+03:00, subject=Наличие ФКТ-Авто
+2026-04-01 14:01:20,029 - dz_fastapi - DEBUG - Провайдер для email alex@fkt.ru не найден, пропускаем письмо uid=266963
+2026-04-01 14:01:20,029 - dz_fastapi - DEBUG - Письмо: uid=266964, from=info@dragonzap.ru, date=2026-04-01 13:02:26+03:00, subject=Рассылка прайс листов для Автопарка
+2026-04-01 14:01:20,030 - dz_fastapi - DEBUG - Провайдер для email info@dragonzap.ru не найден, пропускаем письмо uid=266964
+2026-04-01 14:01:20,030 - dz_fastapi - DEBUG - Письмо: uid=266965, from=masterzap346@gmail.com, date=2026-04-01 13:11:49+03:00, subject=Прайс лист (на 13:11:49)
+2026-04-01 14:01:20,030 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266965
+2026-04-01 14:01:20,030 - dz_fastapi - DEBUG - Письмо: uid=266966, from=masterzap346@gmail.com, date=2026-04-01 13:11:55+03:00, subject=Прайс лист (на 13:11:55)
+2026-04-01 14:01:20,030 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266966
+2026-04-01 14:01:20,030 - dz_fastapi - DEBUG - Письмо: uid=266967, from=price@sever-elit.ru, date=2026-04-01 13:10:36+03:00, subject=Прайс СЕВЕР
+2026-04-01 14:01:20,030 - dz_fastapi - DEBUG - Провайдер для email price@sever-elit.ru не найден, пропускаем письмо uid=266967
+2026-04-01 14:01:20,030 - dz_fastapi - DEBUG - Письмо: uid=266968, from=price@cosmopart.ru, date=2026-04-01 13:17:35+03:00, subject=Cosmo Geely
+2026-04-01 14:01:20,030 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266968
+2026-04-01 14:01:20,030 - dz_fastapi - DEBUG - Письмо: uid=266969, from=Geely.1c@kuntsevo.com, date=2026-04-01 13:24:07+03:00, subject=Geely Кунцево остатки 01.04.26
+2026-04-01 14:01:20,030 - dz_fastapi - DEBUG - Провайдер для email Geely.1c@kuntsevo.com не найден, пропускаем письмо uid=266969
+2026-04-01 14:01:20,030 - dz_fastapi - DEBUG - Письмо: uid=266970, from=Geely.1c@kuntsevo.com, date=2026-04-01 13:24:13+03:00, subject=Geely Кунцево ЦС 01.04.26
+2026-04-01 14:01:20,030 - dz_fastapi - DEBUG - Провайдер для email Geely.1c@kuntsevo.com не найден, пропускаем письмо uid=266970
+2026-04-01 14:01:20,032 - dz_fastapi - DEBUG - Письмо: uid=266971, from=masterzapprice@gmail.com, date=2026-04-01 13:55:55+03:00, subject=Прайс лист (на 13:55:55)
+2026-04-01 14:01:20,032 - dz_fastapi - DEBUG - Config: <dz_fastapi.models.partner.ProviderPriceListConfig object at 0xffff4e3a9d60>
+2026-04-01 14:01:20,032 - dz_fastapi - DEBUG - Старое UID = 266971 для config_id=1, пропускаем письмо
+2026-04-01 14:01:20,032 - dz_fastapi - DEBUG - Письмо uid=266971 не удовлетворило условиям загрузки
+2026-04-01 14:01:20,032 - dz_fastapi - DEBUG - Письмо: uid=266972, from=masterzap346@gmail.com, date=2026-04-01 14:02:36+03:00, subject=Прайс лист (на 14:02:36)
+2026-04-01 14:01:20,032 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266972
+2026-04-01 14:01:20,033 - dz_fastapi - DEBUG - Письмо: uid=266973, from=opt@lr.ru, date=2026-04-01 14:02:53+03:00, subject=Прайс-лист компании LR.RU_
+2026-04-01 14:01:20,033 - dz_fastapi - DEBUG - Провайдер для email opt@lr.ru не найден, пропускаем письмо uid=266973
+2026-04-01 14:01:20,033 - dz_fastapi - DEBUG - Письмо: uid=266974, from=gayar77@yandex.ru, date=2026-04-01 14:03:28+03:00, subject=Fwd: ПРАЙС 3.xlsx
+2026-04-01 14:01:20,033 - dz_fastapi - DEBUG - Провайдер для email gayar77@yandex.ru не найден, пропускаем письмо uid=266974
+2026-04-01 14:01:20,033 - dz_fastapi - DEBUG - Письмо: uid=266975, from=mailer-daemon@yandex.ru, date=2026-04-01 14:06:59+03:00, subject=Недоставленное сообщение
+2026-04-01 14:01:20,034 - dz_fastapi - DEBUG - Провайдер для email mailer-daemon@yandex.ru не найден, пропускаем письмо uid=266975
+2026-04-01 14:01:20,034 - dz_fastapi - DEBUG - Письмо: uid=266976, from=price@cosmopart.ru, date=2026-04-01 14:08:19+03:00, subject=Cosmo Vag D
+2026-04-01 14:01:20,034 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266976
+2026-04-01 14:01:20,034 - dz_fastapi - DEBUG - Письмо: uid=266977, from=Ford.1c@kuntsevo.com, date=2026-04-01 14:22:03+03:00, subject=Ford Кунцево остатки 01.04.26
+2026-04-01 14:01:20,034 - dz_fastapi - DEBUG - Провайдер для email Ford.1c@kuntsevo.com не найден, пропускаем письмо uid=266977
+2026-04-01 14:01:20,035 - dz_fastapi - DEBUG - Письмо: uid=266978, from=price@cosmopart.ru, date=2026-04-01 14:38:42+03:00, subject=Cosmo Geely
+2026-04-01 14:01:20,035 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266978
+2026-04-01 14:01:20,035 - dz_fastapi - DEBUG - Письмо: uid=266979, from=price@sever-elit.ru, date=2026-04-01 14:52:41+03:00, subject=Прайс СЕВЕР
+2026-04-01 14:01:20,035 - dz_fastapi - DEBUG - Провайдер для email price@sever-elit.ru не найден, пропускаем письмо uid=266979
+2026-04-01 14:01:20,035 - dz_fastapi - DEBUG - Письмо: uid=266980, from=noreply@redpart.ru, date=2026-04-01 15:05:57+03:00, subject=робот рассылка
+2026-04-01 14:01:20,035 - dz_fastapi - DEBUG - Провайдер для email noreply@redpart.ru не найден, пропускаем письмо uid=266980
+2026-04-01 14:01:20,035 - dz_fastapi - DEBUG - Письмо: uid=266981, from=noreply@redpart.ru, date=2026-04-01 15:08:30+03:00, subject=робот рассылка
+2026-04-01 14:01:20,035 - dz_fastapi - DEBUG - Провайдер для email noreply@redpart.ru не найден, пропускаем письмо uid=266981
+2026-04-01 14:01:20,036 - dz_fastapi - DEBUG - Письмо: uid=266982, from=noreply@redpart.ru, date=2026-04-01 15:08:31+03:00, subject=робот рассылка
+2026-04-01 14:01:20,036 - dz_fastapi - DEBUG - Провайдер для email noreply@redpart.ru не найден, пропускаем письмо uid=266982
+2026-04-01 14:01:20,036 - dz_fastapi - DEBUG - Письмо: uid=266983, from=price@cosmopart.ru, date=2026-04-01 15:10:22+03:00, subject=Cosmo Nal
+2026-04-01 14:01:20,036 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266983
+2026-04-01 14:01:20,036 - dz_fastapi - DEBUG - Письмо: uid=266984, from=m.ermakov@am-torg.ru, date=2026-04-01 15:10:58+03:00, subject=Прайс базовый
+2026-04-01 14:01:20,036 - dz_fastapi - DEBUG - Провайдер для email m.ermakov@am-torg.ru не найден, пропускаем письмо uid=266984
+2026-04-01 14:01:20,036 - dz_fastapi - DEBUG - Письмо: uid=266985, from=zap-vk@mail.ru, date=2026-04-01 15:12:02+03:00, subject=Свежий прайс товарных остатков
+2026-04-01 14:01:20,036 - dz_fastapi - DEBUG - Провайдер для email zap-vk@mail.ru не найден, пропускаем письмо uid=266985
+2026-04-01 14:01:20,037 - dz_fastapi - DEBUG - Письмо: uid=266986, from=price@ronexportal.ru, date=2026-04-01 15:31:20+03:00, subject=Ronex Price CD 7
+2026-04-01 14:01:20,037 - dz_fastapi - DEBUG - Провайдер для email price@ronexportal.ru не найден, пропускаем письмо uid=266986
+2026-04-01 14:01:20,038 - dz_fastapi - DEBUG - Письмо: uid=266987, from=zakaz@pro-auto.pro, date=2026-04-01 15:40:07+03:00, subject=Прайс ПроАвто -> АвтоПАРТС
+2026-04-01 14:01:20,038 - dz_fastapi - DEBUG - Провайдер для email zakaz@pro-auto.pro не найден, пропускаем письмо uid=266987
+2026-04-01 14:01:20,039 - dz_fastapi - DEBUG - Письмо: uid=266988, from=masterzap346@gmail.com, date=2026-04-01 15:59:08+03:00, subject=Прайс лист (на 15:59:08)
+2026-04-01 14:01:20,039 - dz_fastapi - DEBUG - Провайдер для email masterzap346@gmail.com не найден, пропускаем письмо uid=266988
+2026-04-01 14:01:20,040 - dz_fastapi - DEBUG - Письмо: uid=266989, from=avtek2814@mail.ru, date=2026-04-01 15:59:58+03:00, subject=avtek2814mex.xls
+2026-04-01 14:01:20,040 - dz_fastapi - DEBUG - Провайдер для email avtek2814@mail.ru не найден, пропускаем письмо uid=266989
+2026-04-01 14:01:20,040 - dz_fastapi - DEBUG - Письмо: uid=266990, from=price@tolkoopt.ru, date=2026-04-01 16:01:03+03:00, subject=Price_TolkoOPT
+2026-04-01 14:01:20,040 - dz_fastapi - DEBUG - Провайдер для email price@tolkoopt.ru не найден, пропускаем письмо uid=266990
+2026-04-01 14:01:20,041 - dz_fastapi - DEBUG - Письмо: uid=266991, from=price@cosmopart.ru, date=2026-04-01 16:09:39+03:00, subject=Cosmo Vag D
+2026-04-01 14:01:20,041 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266991
+2026-04-01 14:01:20,041 - dz_fastapi - DEBUG - Письмо: uid=266992, from=price@cosmopart.ru, date=2026-04-01 16:27:43+03:00, subject=Cosmo Geely
+2026-04-01 14:01:20,041 - dz_fastapi - DEBUG - Провайдер для email price@cosmopart.ru не найден, пропускаем письмо uid=266992
+2026-04-01 14:01:20,043 - dz_fastapi - DEBUG - Письмо: uid=266993, from=price@dragonzap.online, date=2026-04-01 13:27:46+00:00, subject=Прайс лист 2026-04-01
+2026-04-01 14:01:20,043 - dz_fastapi - DEBUG - Провайдер для email price@dragonzap.online не найден, пропускаем письмо uid=266993
+2026-04-01 14:01:20,043 - dz_fastapi - DEBUG - Письмо: uid=266994, from=opt@favorit-motors.ru, date=2026-04-01 13:29:42+00:00, subject=прайс наличия FM
+2026-04-01 14:01:20,043 - dz_fastapi - DEBUG - Провайдер для email opt@favorit-motors.ru не найден, пропускаем письмо uid=266994
+2026-04-01 14:01:20,043 - dz_fastapi - DEBUG - Письмо: uid=266995, from=mailer-daemon@yandex.ru, date=2026-04-01 16:41:55+03:00, subject=Недоставленное сообщение
+2026-04-01 14:01:20,043 - dz_fastapi - DEBUG - Провайдер для email mailer-daemon@yandex.ru не найден, пропускаем письмо uid=266995
+2026-04-01 14:01:20,043 - dz_fastapi - DEBUG - Письмо: uid=266996, from=masterzapprice@gmail.com, date=2026-04-01 16:57:29+03:00, subject=Прайс лист (на 16:57:29)
+2026-04-01 14:01:20,044 - dz_fastapi - DEBUG - Config: <dz_fastapi.models.partner.ProviderPriceListConfig object at 0xffff4e3a9d60>
+2026-04-01 14:01:20,044 - dz_fastapi - DEBUG - Письмо: uid=266997, from=price@dragonzap.online, date=2026-04-01 13:57:08+00:00, subject=Прайс лист 2026-04-01
+2026-04-01 14:01:20,044 - dz_fastapi - DEBUG - Провайдер для email price@dragonzap.online не найден, пропускаем письмо uid=266997
+2026-04-01 14:01:20,044 - dz_fastapi - DEBUG - Письмо: uid=266998, from=price@ivers.ru, date=2026-04-01 20:58:52+07:00, subject=price_mg
+2026-04-01 14:01:20,044 - dz_fastapi - DEBUG - Провайдер для email price@ivers.ru не найден, пропускаем письмо uid=266998
+2026-04-01 14:01:20,044 - dz_fastapi - DEBUG - Письмо uid=266996, subject=Прайс лист (на 16:57:29)
+2026-04-01 14:01:20,045 - dz_fastapi - DEBUG - Found attachment: zzap_kross.xlsx
+2026-04-01 14:01:20,045 - dz_fastapi - DEBUG - Имя вложения совпало
+2026-04-01 14:01:20,072 - dz_fastapi - DEBUG - Скачано вложение: uploads/pricelistprovider/zzap_kross.xlsx
+2026-04-01 14:01:20,073 - dz_fastapi - DEBUG - Downloaded attachment: uploads/pricelistprovider/zzap_kross.xlsx
+2026-04-01 14:01:20,095 - dz_fastapi - INFO - get_emails() выполнена за 77.13 секунд
+2026-04-01 14:01:20,106 - dz_fastapi - INFO - Скачан прайс для провайдера 1 (Dragonzap Provider), размер: 435793 байт
+2026-04-01 14:01:20,108 - dz_fastapi - DEBUG - Зашли в process_provider_pricelist provider name = Dragonzap Provider file_extension = xlsx use_stored_params = True
+2026-04-01 14:01:20,774 - dz_fastapi - DEBUG - Removed 0 rows due to exceeding price 99999999.99
+2026-04-01 14:01:20,844 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'SE2651', 'brand': '555', 'name': 'Рулевой Наконечник', 'quantity': 1, 'price': 650, 'multiplicity': 1}
+2026-04-01 14:01:20,847 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='SE2651' brand='555' name='Рулевой Наконечник' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,858 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'SLH480RM', 'brand': '555', 'name': 'Стойка Стабилизатора, Передняя Правая (Упаковка Пвх От Поставщика) (Комплект С Гайками)', 'quantity': 1, 'price': 1200, 'multiplicity': 1}
+2026-04-01 14:01:20,858 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='SLH480RM' brand='555' name='Стойка Стабилизатора, Передняя Правая (Упаковка Пвх От Поставщика) (Комплект С Гайками)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,858 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'SB6191', 'brand': '555', 'name': 'Шаровая Опора', 'quantity': 1, 'price': 1230, 'multiplicity': 1}
+2026-04-01 14:01:20,858 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='SB6191' brand='555' name='Шаровая Опора' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,858 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'SN111', 'brand': 'ADVICS', 'name': 'Дисковые Тормозные Колодки ADVICS', 'quantity': 1, 'price': 2650, 'multiplicity': 1}
+2026-04-01 14:01:20,858 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='SN111' brand='ADVICS' name='Дисковые Тормозные Колодки ADVICS' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,858 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'SN192', 'brand': 'ADVICS', 'name': 'Дисковые Тормозные Колодки ADVICS', 'quantity': 1, 'price': 4100, 'multiplicity': 1}
+2026-04-01 14:01:20,859 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='SN192' brand='ADVICS' name='Дисковые Тормозные Колодки ADVICS' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,859 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'SN606', 'brand': 'ADVICS', 'name': 'Дисковые Тормозные Колодки ADVICS', 'quantity': 2, 'price': 2300, 'multiplicity': 1}
+2026-04-01 14:01:20,859 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='SN606' brand='ADVICS' name='Дисковые Тормозные Колодки ADVICS' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,859 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'SN686P', 'brand': 'ADVICS', 'name': 'Дисковые Тормозные Колодки ADVICS', 'quantity': 2, 'price': 2750, 'multiplicity': 1}
+2026-04-01 14:01:20,859 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='SN686P' brand='ADVICS' name='Дисковые Тормозные Колодки ADVICS' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,859 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'A1N192', 'brand': 'ADVICS', 'name': 'Колодки Торм. Диск.', 'quantity': 1, 'price': 4200, 'multiplicity': 1}
+2026-04-01 14:01:20,859 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='A1N192' brand='ADVICS' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,859 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'A2N004', 'brand': 'ADVICS', 'name': 'Колодки Торм. Диск.', 'quantity': 2, 'price': 2300, 'multiplicity': 1}
+2026-04-01 14:01:20,859 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='A2N004' brand='ADVICS' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,859 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'A2N118', 'brand': 'ADVICS', 'name': 'Колодки Торм. Диск.', 'quantity': 1, 'price': 3200, 'multiplicity': 1}
+2026-04-01 14:01:20,859 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='A2N118' brand='ADVICS' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,859 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'SN133P', 'brand': 'ADVICS', 'name': 'Колодки Торм. Диск.', 'quantity': 1, 'price': 3000, 'multiplicity': 1}
+2026-04-01 14:01:20,859 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='SN133P' brand='ADVICS' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,859 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'SN135', 'brand': 'ADVICS', 'name': 'Колодки Торм. Диск.', 'quantity': 3, 'price': 3500, 'multiplicity': 1}
+2026-04-01 14:01:20,859 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='SN135' brand='ADVICS' name='Колодки Торм. Диск.' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,859 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'SN140', 'brand': 'ADVICS', 'name': 'Колодки Тормоз.Зад.LC 200 (ADVICS)', 'quantity': 2, 'price': 2400, 'multiplicity': 1}
+2026-04-01 14:01:20,859 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='SN140' brand='ADVICS' name='Колодки Тормоз.Зад.LC 200 (ADVICS)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,860 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'SN101P', 'brand': 'ADVICS', 'name': 'Колодки Тормозные LC 100 Перед', 'quantity': 4, 'price': 2800, 'multiplicity': 1}
+2026-04-01 14:01:20,860 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='SN101P' brand='ADVICS' name='Колодки Тормозные LC 100 Перед' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,860 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'SN139P', 'brand': 'ADVICS', 'name': 'Колодки Тормозные LC 200 Перед', 'quantity': 1, 'price': 3100, 'multiplicity': 1}
+2026-04-01 14:01:20,860 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='SN139P' brand='ADVICS' name='Колодки Тормозные LC 200 Перед' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,860 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'SN892', 'brand': 'ADVICS', 'name': 'Колодки Тормозные SN892', 'quantity': 1, 'price': 3000, 'multiplicity': 1}
+2026-04-01 14:01:20,860 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='SN892' brand='ADVICS' name='Колодки Тормозные SN892' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,860 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'SN908', 'brand': 'ADVICS', 'name': 'Колодки Тормозные Дисковые Задние SN908', 'quantity': 2, 'price': 2000, 'multiplicity': 1}
+2026-04-01 14:01:20,860 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='SN908' brand='ADVICS' name='Колодки Тормозные Дисковые Задние SN908' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,860 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'SN138', 'brand': 'ADVICS', 'name': 'Колодки Тормозные Дисковые Передние SN138', 'quantity': 3, 'price': 3500, 'multiplicity': 1}
+2026-04-01 14:01:20,860 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='SN138' brand='ADVICS' name='Колодки Тормозные Дисковые Передние SN138' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,860 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'SN100', 'brand': 'ADVICS', 'name': 'Колодки Тормозные Зад. TOYOTA LC100', 'quantity': 8, 'price': 2200, 'multiplicity': 1}
+2026-04-01 14:01:20,860 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='SN100' brand='ADVICS' name='Колодки Тормозные Зад. TOYOTA LC100' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,860 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'SN120', 'brand': 'ADVICS', 'name': 'Колодки Тормозные Зад. TOYOTA LC120/150 (ADVICS)', 'quantity': 10, 'price': 2400, 'multiplicity': 1}
+2026-04-01 14:01:20,860 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='SN120' brand='ADVICS' name='Колодки Тормозные Зад. TOYOTA LC120/150 (ADVICS)' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,860 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'A9N083', 'brand': 'ADVICS', 'name': 'Поршень Тормозного Суппорта ADVICS', 'quantity': 10, 'price': 1700, 'multiplicity': 1}
+2026-04-01 14:01:20,860 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='A9N083' brand='ADVICS' name='Поршень Тормозного Суппорта ADVICS' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,860 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'SP139', 'brand': 'ADVICS', 'name': 'Ремкомплект Суппорта ADVICS (К-Т На 2 Суппорта LC 200 4.7', 'quantity': 1, 'price': 2500, 'multiplicity': 1}
+2026-04-01 14:01:20,860 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='SP139' brand='ADVICS' name='Ремкомплект Суппорта ADVICS (К-Т На 2 Суппорта LC 200 4.7' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,861 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'A9N042', 'brand': 'ADVICS', 'name': 'Тормозной Поршень LC PRADO 150', 'quantity': 2, 'price': 650, 'multiplicity': 1}
+2026-04-01 14:01:20,861 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='A9N042' brand='ADVICS' name='Тормозной Поршень LC PRADO 150' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,861 - dz_fastapi - DEBUG - Processing item: {'oem_number': '06AL0192', 'brand': 'A-GRESSOR', 'name': 'Стойка Стабилизатора Передняя', 'quantity': 1, 'price': 980, 'multiplicity': 1}
+2026-04-01 14:01:20,861 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='06AL0192' brand='A-GRESSOR' name='Стойка Стабилизатора Передняя' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,861 - dz_fastapi - DEBUG - Processing item: {'oem_number': '01AM0071', 'brand': 'A-GRESSOR', 'name': 'Фильтр Масляный', 'quantity': 1, 'price': 950, 'multiplicity': 1}
+2026-04-01 14:01:20,861 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='01AM0071' brand='A-GRESSOR' name='Фильтр Масляный' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,861 - dz_fastapi - DEBUG - Processing item: {'oem_number': '03AC0500', 'brand': 'A-GRESSOR', 'name': 'Фильтр Салонный HAVAL H9', 'quantity': 1, 'price': 307, 'multiplicity': 1}
+2026-04-01 14:01:20,861 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='03AC0500' brand='A-GRESSOR' name='Фильтр Салонный HAVAL H9' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
+2026-04-01 14:01:20,861 - dz_fastapi - DEBUG - Processing item: {'oem_number': 'PF1857', 'brand': 'AIKO', 'name': 'Комплект Тормозных Колодок AIKO. Серия STOPLINE', 'quantity': 1, 'price': 1500, 'multiplicity': 1}
+2026-04-01 14:01:20,861 - dz_fastapi - DEBUG - Created AutoPartCreatePriceList: oem_number='PF1857' brand='AIKO' name='Комплект Тормозных Колодок AIKO. Серия STOPLINE' multiplicity=None purchase_price=None retail_price=None wholesale_price=None comment=None
