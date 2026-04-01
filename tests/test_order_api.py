@@ -50,7 +50,7 @@ class _FakeDZSiteClient:
 
 
 @pytest.mark.asyncio
-async def test_send_api_resolves_site_supplier_by_name_when_supplier_id_external(
+async def test_send_api_resolves_supplier_by_name_when_id_external(
     async_client, test_session, created_customers, monkeypatch
 ):
     current_user = await _create_user(
