@@ -190,9 +190,16 @@ class OrderUpdate(BaseModel):
 class OrderItemOut(BaseModel):
     id: int
     order_id: int
-    autopart_id: int
+    autopart_id: Optional[int] = None
+    oem_number: Optional[str] = None
+    brand_name: Optional[str] = None
+    autopart_name: Optional[str] = None
     quantity: int
     price: Decimal
+    min_delivery_day: Optional[int] = None
+    max_delivery_day: Optional[int] = None
+    received_quantity: Optional[int] = None
+    received_at: Optional[datetime] = None
     tracking_uuid: str
     status: TYPE_ORDER_ITEM_STATUS
     comments: Optional[str] = None
@@ -215,3 +222,36 @@ class OrderOut(BaseModel):
     updated_at: datetime
     order_items: Optional[List[OrderItemOut]] = None
     model_config = {'from_attributes': True, 'use_enum_values': True}
+
+
+class PlacedOrderHistoryRow(BaseModel):
+    source_type: str
+    source_label: str
+    order_id: int
+    item_id: int
+    provider_id: Optional[int] = None
+    provider_name: Optional[str] = None
+    customer_id: Optional[int] = None
+    customer_name: Optional[str] = None
+    ordered_by_user_id: Optional[int] = None
+    ordered_by_email: Optional[str] = None
+    oem_number: Optional[str] = None
+    brand_name: Optional[str] = None
+    autopart_name: Optional[str] = None
+    ordered_quantity: int
+    received_quantity: Optional[int] = None
+    price: Optional[Decimal] = None
+    min_delivery_day: Optional[int] = None
+    max_delivery_day: Optional[int] = None
+    created_at: datetime
+    received_at: Optional[datetime] = None
+    current_status: str
+    order_status: Optional[str] = None
+    item_status: Optional[str] = None
+    actual_lead_days: Optional[int] = None
+    link: Optional[str] = None
+
+
+class PlacedOrderHistoryUpdate(BaseModel):
+    status: Optional[str] = None
+    received_quantity: Optional[int] = Field(default=None, ge=0)

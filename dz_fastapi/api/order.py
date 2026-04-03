@@ -1,8 +1,9 @@
 import logging
 import os
+from datetime import date
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from dz_fastapi.analytics.restock_logic import (
     evaluate_supplier_offers, fetch_supplier_offers,
@@ -25,11 +26,15 @@ from dz_fastapi.models.user import User
 from dz_fastapi.schemas.order import (ConfirmedOfferOut,
                                       ConfirmedOffersResponse, OrderItemOut,
                                       OrderOut, OrderPositionOut,
+                                      PlacedOrderHistoryRow,
+                                      PlacedOrderHistoryUpdate,
                                       SendApiResponse, SupplierOfferOut,
                                       SupplierOffersResponse, SupplierOrderOut,
                                       UpdatePositionStatusRequest,
                                       UpdatePositionStatusResponse)
 from dz_fastapi.services.notifications import create_notification
+from dz_fastapi.services.placed_orders import (list_tracking_history,
+                                               update_tracking_item)
 
 KEY = os.getenv('KEY_FOR_WEBSITE')
 
@@ -425,6 +430,7 @@ async def send_api(
             items=request,
             session=session,
             comment=f"Заказ из {len(request)} позиций",
+            created_by_user_id=current_user.id,
         )
 
         '''ЭТАП 2: Отправляем позиции в корзину поставщика'''
@@ -570,7 +576,7 @@ async def send_api(
                 if failed_count
                 else AppNotificationLevel.SUCCESS
             ),
-            link='/orders',
+            link='/orders/tracking',
         )
         return SendApiResponse(
             total_items=len(request),
@@ -586,6 +592,65 @@ async def send_api(
         raise HTTPException(
             status_code=500, detail=f'Ошибка при создании заказа: {str(e)}'
         )
+
+
+@router.get(
+    '/tracking-items',
+    response_model=list[PlacedOrderHistoryRow],
+    summary='История заказов из поиска по артикулу',
+)
+async def get_tracking_items(
+    oem: Optional[str] = None,
+    brand: Optional[str] = None,
+    provider_id: Optional[int] = None,
+    customer_id: Optional[int] = None,
+    status: Optional[str] = None,
+    date_from: Optional[date] = Query(default=None),
+    date_to: Optional[date] = Query(default=None),
+    limit: int = Query(default=300, ge=1, le=1000),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    return await list_tracking_history(
+        session=session,
+        oem_number=oem,
+        brand_name=brand,
+        provider_id=provider_id,
+        customer_id=customer_id,
+        status=status,
+        date_from=date_from,
+        date_to=date_to,
+        limit=limit,
+    )
+
+
+@router.patch(
+    '/tracking-items/{source_type}/{item_id}',
+    response_model=dict,
+    summary='Обновить статус и получение по позиции заказа',
+)
+async def update_tracking_order_item(
+    source_type: str,
+    item_id: int,
+    payload: PlacedOrderHistoryUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await update_tracking_item(
+            session=session,
+            source_type=source_type,
+            item_id=item_id,
+            status=payload.status,
+            received_quantity=payload.received_quantity,
+        )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail='Неизвестный статус',
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get('/{order_id}', response_model=OrderOut)

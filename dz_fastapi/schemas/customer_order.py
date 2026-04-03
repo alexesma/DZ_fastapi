@@ -216,8 +216,11 @@ class SupplierOrderManualItemCreate(BaseModel):
     autopart_id: Optional[int] = None
     oem: str
     brand: str
+    name: Optional[str] = None
     quantity: int = Field(gt=0)
     price: Optional[Decimal] = None
+    min_delivery_day: Optional[int] = None
+    max_delivery_day: Optional[int] = None
 
 
 class SupplierOrderManualCreate(BaseModel):
@@ -356,6 +359,10 @@ class SupplierOrderItemDetailResponse(BaseModel):
     oem: Optional[str] = None
     brand: Optional[str] = None
     name: Optional[str] = None
+    min_delivery_day: Optional[int] = None
+    max_delivery_day: Optional[int] = None
+    received_quantity: Optional[int] = None
+    received_at: Optional[datetime] = None
     requested_qty: Optional[int] = None
     ship_qty: Optional[int] = None
     reject_qty: Optional[int] = None

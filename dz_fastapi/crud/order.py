@@ -6,7 +6,8 @@ from sqlalchemy.orm import selectinload
 
 from dz_fastapi.core.db import AsyncSession
 from dz_fastapi.crud.base import CRUDBase
-from dz_fastapi.models.partner import (TYPE_ORDER_ITEM_STATUS,
+from dz_fastapi.models.partner import (ORDER_TRACKING_SOURCE,
+                                       TYPE_ORDER_ITEM_STATUS,
                                        TYPE_STATUS_ORDER, Order, OrderItem)
 from dz_fastapi.schemas.order import (OrderIn, OrderItemIn, OrderItemUpdate,
                                       OrderPositionOut, OrderUpdate)
@@ -109,11 +110,15 @@ class CRUDOrder(CRUDBase[Order, OrderIn, OrderUpdate]):
         items: List[OrderPositionOut],
         session: AsyncSession,
         comment: str = None,
+        created_by_user_id: int | None = None,
+        source_type: str = ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
     ):
         '''Создание заказа с позициями'''
         new_order = Order(
             provider_id=provider_id,
             customer_id=customer_id,
+            source_type=source_type,
+            created_by_user_id=created_by_user_id,
             status=TYPE_STATUS_ORDER.ORDERED,
             comment=comment,
         )
@@ -125,8 +130,13 @@ class CRUDOrder(CRUDBase[Order, OrderIn, OrderUpdate]):
             order_item = OrderItem(
                 order_id=new_order.id,
                 autopart_id=item.autopart_id,
+                oem_number=item.oem_number,
+                brand_name=item.brand_name,
+                autopart_name=item.autopart_name,
                 quantity=item.quantity,
                 price=item.confirmed_price,
+                min_delivery_day=item.min_delivery_day,
+                max_delivery_day=item.max_delivery_day,
                 comments=None,
                 status=TYPE_ORDER_ITEM_STATUS.NEW,
                 hash_key=item.hash_key,

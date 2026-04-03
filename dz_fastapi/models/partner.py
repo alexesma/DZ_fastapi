@@ -122,6 +122,13 @@ class SUPPLIER_ORDER_STATUS(StrEnum):
 
 
 @unique
+class ORDER_TRACKING_SOURCE(StrEnum):
+    DRAGONZAP_SEARCH = 'DRAGONZAP_SEARCH'
+    SEARCH_OFFERS = 'SEARCH_OFFERS'
+    CUSTOMER_ORDER = 'CUSTOMER_ORDER'
+
+
+@unique
 class STOCK_ORDER_STATUS(StrEnum):
     NEW = 'NEW'
     COMPLETED = 'COMPLETED'
@@ -614,6 +621,14 @@ class CustomerOrderItem(Base):
 
 class SupplierOrder(Base):
     provider_id = Column(Integer, ForeignKey('provider.id'), nullable=False)
+    source_type = Column(
+        String(32),
+        nullable=False,
+        default=ORDER_TRACKING_SOURCE.CUSTOMER_ORDER.value,
+    )
+    created_by_user_id = Column(
+        Integer, ForeignKey('app_user.id'), nullable=True
+    )
     status = Column(
         SAEnum(
             SUPPLIER_ORDER_STATUS,
@@ -628,6 +643,7 @@ class SupplierOrder(Base):
     sent_at = Column(DateTime(timezone=True), nullable=True)
 
     provider = relationship('Provider')
+    created_by_user = relationship('User', foreign_keys=[created_by_user_id])
     items = relationship(
         'SupplierOrderItem',
         back_populates='supplier_order',
@@ -643,8 +659,15 @@ class SupplierOrderItem(Base):
         Integer, ForeignKey('customerorderitem.id'), nullable=True
     )
     autopart_id = Column(Integer, ForeignKey('autopart.id'), nullable=True)
+    oem_number = Column(String(120), nullable=True, index=True)
+    brand_name = Column(String(120), nullable=True)
+    autopart_name = Column(String(512), nullable=True)
     quantity = Column(Integer, nullable=False)
     price = Column(DECIMAL(10, 2), nullable=True)
+    min_delivery_day = Column(Integer, nullable=True)
+    max_delivery_day = Column(Integer, nullable=True)
+    received_quantity = Column(Integer, nullable=True)
+    received_at = Column(DateTime(timezone=True), nullable=True)
 
     supplier_order = relationship('SupplierOrder', back_populates='items')
     customer_order_item = relationship('CustomerOrderItem')
@@ -773,6 +796,14 @@ class Order(Base):
     )
     provider_id = Column(Integer, ForeignKey('provider.id'), nullable=False)
     customer_id = Column(Integer, ForeignKey('customer.id'), nullable=False)
+    source_type = Column(
+        String(32),
+        nullable=False,
+        default=ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
+    )
+    created_by_user_id = Column(
+        Integer, ForeignKey('app_user.id'), nullable=True
+    )
     created_at = Column(DateTime(timezone=True), default=now_moscow)
     updated_at = Column(
         DateTime(timezone=True), default=now_moscow, onupdate=now_moscow
@@ -788,14 +819,22 @@ class Order(Base):
     comment = Column(Text, nullable=True)
     provider = relationship('Provider', backref='orders')
     customer = relationship('Customer', backref='orders')
+    created_by_user = relationship('User', foreign_keys=[created_by_user_id])
     order_items = relationship('OrderItem', back_populates='order')
 
 
 class OrderItem(Base):
     order_id = Column(Integer, ForeignKey('order.id'))
     autopart_id = Column(Integer, ForeignKey('autopart.id'))
+    oem_number = Column(String(120), nullable=True, index=True)
+    brand_name = Column(String(120), nullable=True)
+    autopart_name = Column(String(512), nullable=True)
     quantity = Column(Integer, nullable=False)
     price = Column(DECIMAL(10, 2))
+    min_delivery_day = Column(Integer, nullable=True)
+    max_delivery_day = Column(Integer, nullable=True)
+    received_quantity = Column(Integer, nullable=True)
+    received_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=now_moscow)
     updated_at = Column(
         DateTime(timezone=True), default=now_moscow, onupdate=now_moscow

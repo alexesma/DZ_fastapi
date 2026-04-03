@@ -47,6 +47,7 @@ from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import (CUSTOMER_ORDER_ITEM_STATUS,
                                        CUSTOMER_ORDER_SHIP_MODE,
                                        CUSTOMER_ORDER_STATUS,
+                                       ORDER_TRACKING_SOURCE,
                                        STOCK_ORDER_STATUS,
                                        SUPPLIER_ORDER_STATUS, Customer,
                                        CustomerOrder, CustomerOrderConfig,
@@ -2022,6 +2023,9 @@ async def _process_manual_rows(
                     supplier_order_id=supplier_order.id,
                     customer_order_item_id=item.id,
                     autopart_id=item.autopart_id,
+                    oem_number=item.oem,
+                    brand_name=item.brand,
+                    autopart_name=item.name,
                     quantity=item.ship_qty or 0,
                     price=item.matched_price,
                 )
@@ -2615,6 +2619,7 @@ async def create_manual_supplier_order(
     session: AsyncSession,
     provider_id: int,
     items: List[dict],
+    created_by_user_id: int | None = None,
 ) -> SupplierOrder:
     provider = await session.get(Provider, provider_id)
     if not provider:
@@ -2640,15 +2645,21 @@ async def create_manual_supplier_order(
                 'autopart_id': autopart_id,
                 'oem': oem,
                 'brand': brand,
+                'name': (item.get('name') or '').strip() or None,
                 'quantity': quantity,
                 'price': price_value,
+                'min_delivery_day': item.get('min_delivery_day'),
+                'max_delivery_day': item.get('max_delivery_day'),
             }
         )
     if not cleaned_items:
         raise ValueError('Items list is empty')
 
     supplier_order = SupplierOrder(
-        provider_id=provider_id, status=SUPPLIER_ORDER_STATUS.NEW
+        provider_id=provider_id,
+        status=SUPPLIER_ORDER_STATUS.NEW,
+        source_type=ORDER_TRACKING_SOURCE.SEARCH_OFFERS.value,
+        created_by_user_id=created_by_user_id,
     )
     session.add(supplier_order)
     await session.flush()
@@ -2657,6 +2668,7 @@ async def create_manual_supplier_order(
         autopart_id = item.get('autopart_id')
         oem = item['oem']
         brand = item['brand']
+        name = item.get('name')
         brand_key = brand.lower()
         quantity = item['quantity']
         autopart = None
@@ -2701,8 +2713,13 @@ async def create_manual_supplier_order(
                 supplier_order_id=supplier_order.id,
                 customer_order_item_id=None,
                 autopart_id=autopart.id if autopart else None,
+                oem_number=oem,
+                brand_name=brand,
+                autopart_name=name or (autopart.name if autopart else None),
                 quantity=quantity,
                 price=price_value,
+                min_delivery_day=item.get('min_delivery_day'),
+                max_delivery_day=item.get('max_delivery_day'),
             )
         )
 
@@ -3659,6 +3676,9 @@ async def update_customer_order_item_manual(
                 supplier_order_id=supplier_order.id,
                 customer_order_item_id=item.id,
                 autopart_id=item.autopart_id,
+                oem_number=item.oem,
+                brand_name=item.brand,
+                autopart_name=item.name,
                 quantity=item.requested_qty,
                 price=item.matched_price or item.requested_price,
             )

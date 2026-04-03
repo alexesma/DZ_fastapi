@@ -45,6 +45,7 @@ from dz_fastapi.services.email import get_emails
 from dz_fastapi.services.monitoring import (build_snapshot_payload,
                                             get_monitor_summary)
 from dz_fastapi.services.notifications import create_admin_notifications
+from dz_fastapi.services.placed_orders import cleanup_old_tracking_history
 from dz_fastapi.services.price_control import run_price_control
 from dz_fastapi.services.process import (process_customer_pricelist,
                                          process_provider_pricelist)
@@ -226,6 +227,17 @@ def start_scheduler(app: FastAPI):
         name='Cleanup order reports',
         hour=3,
         minute=0,
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        func=cleanup_tracking_orders_task,
+        trigger='cron',
+        args=[app],
+        id='cleanup_tracking_orders',
+        name='Cleanup tracking orders older than 1 year',
+        hour=3,
+        minute=20,
         replace_existing=True,
     )
 
@@ -473,6 +485,29 @@ async def cleanup_order_reports_task(app: FastAPI):
                 subject='Ошибка регламента очистки отчетов заказов',
                 text=(
                     'Ошибка при автоматической очистке отчетов по заказам.\n'
+                    f'Текст ошибки: {e}'
+                ),
+            )
+
+
+async def cleanup_tracking_orders_task(app: FastAPI):
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            summary = await cleanup_old_tracking_history(session=session)
+            logger.info('Cleanup tracking orders summary: %s', summary)
+        except Exception as e:
+            logger.error(
+                'Error in cleanup_tracking_orders_task: %s',
+                e,
+                exc_info=True,
+            )
+            await _notify_scheduler_issue(
+                session,
+                subject='Ошибка очистки истории наших заказов',
+                text=(
+                    'Ошибка при автоматической очистке истории заказов'
+                    ' из поиска по артикулу.\n'
                     f'Текст ошибки: {e}'
                 ),
             )

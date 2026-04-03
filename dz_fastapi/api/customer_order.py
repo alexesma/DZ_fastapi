@@ -1069,18 +1069,28 @@ async def get_supplier_order_detail(
                 'oem': (
                     order_item.oem
                     if order_item
-                    else (autopart.oem_number if autopart else None)
+                    else (
+                        item.oem_number
+                        or (autopart.oem_number if autopart else None)
+                    )
                 ),
                 'brand': (
                     order_item.brand
                     if order_item
-                    else brand_name
+                    else (item.brand_name or brand_name)
                 ),
                 'name': (
                     order_item.name
                     if order_item
-                    else (autopart.name if autopart else None)
+                    else (
+                        item.autopart_name
+                        or (autopart.name if autopart else None)
+                    )
                 ),
+                'min_delivery_day': item.min_delivery_day,
+                'max_delivery_day': item.max_delivery_day,
+                'received_quantity': item.received_quantity,
+                'received_at': item.received_at,
                 'requested_qty': (
                     order_item.requested_qty if order_item else None
                 ),
@@ -1115,6 +1125,7 @@ async def create_manual_supplier_order_endpoint(
             session=session,
             provider_id=payload.provider_id,
             items=[item.model_dump() for item in payload.items],
+            created_by_user_id=current_user.id,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -1132,7 +1143,7 @@ async def create_manual_supplier_order_endpoint(
             f' на {len(order.items or [])} поз.'
         ),
         level=AppNotificationLevel.SUCCESS,
-        link=f'/customer-orders/suppliers/{order.id}',
+        link='/orders/tracking',
     )
 
     items = []
@@ -1149,9 +1160,18 @@ async def create_manual_supplier_order_endpoint(
                 'customer_order_item_id': item.customer_order_item_id,
                 'quantity': item.quantity,
                 'price': item.price,
-                'oem': autopart.oem_number if autopart else None,
-                'brand': brand_name,
-                'name': autopart.name if autopart else None,
+                'oem': (
+                    item.oem_number
+                    or (autopart.oem_number if autopart else None)
+                ),
+                'brand': item.brand_name or brand_name,
+                'name': (
+                    item.autopart_name or (autopart.name if autopart else None)
+                ),
+                'min_delivery_day': item.min_delivery_day,
+                'max_delivery_day': item.max_delivery_day,
+                'received_quantity': item.received_quantity,
+                'received_at': item.received_at,
                 'requested_qty': None,
                 'ship_qty': None,
                 'reject_qty': None,
