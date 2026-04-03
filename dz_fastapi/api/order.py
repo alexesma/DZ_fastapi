@@ -448,23 +448,30 @@ async def send_api(
         )
     provider_id = provider_ids.pop()
     results = []
-    successful_count = 0
     failed_count = 0
     try:
-        '''ЭТАП 1: Создаем заказ в нашей БД'''
-        order = await crud_order.create_order_with_items(
-            provider_id=provider_id,
-            customer_id=customer.id,
-            items=[item for item, _request_tracking_uuid in prepared_request],
-            session=session,
-            comment=f"Заказ из {len(prepared_request)} позиций",
-            created_by_user_id=current_user.id,
-        )
-
-        '''ЭТАП 2: Отправляем позиции в корзину поставщика'''
+        staged_success: list[tuple[OrderPositionOut, str]] = []
+        basket_started_empty = True
         async with DZSiteClient(
             base_url=URL_DZ_SEARCH, api_key=KEY, verify_ssl=False
         ) as dz_site_client:
+            current_basket = await dz_site_client.get_basket(api_key=KEY)
+            current_basket_items = (
+                current_basket.get('data')
+                if isinstance(current_basket, dict)
+                else current_basket
+            ) or []
+            basket_started_empty = len(current_basket_items) == 0
+            if not basket_started_empty:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        'Корзина Dragonzap уже не пуста. '
+                        'Чтобы не смешивать заказы, оформление из программы '
+                        'остановлено. Сначала проверьте и очистите корзину '
+                        'на сайте Dragonzap.'
+                    ),
+                )
             for item, request_tracking_uuid in prepared_request:
                 try:
                     if not item.hash_key:
@@ -480,66 +487,24 @@ async def send_api(
                         )
                         failed_count += 1
                         continue
-                    success = await dz_site_client.add_autopart_in_basket(
-                        oem=item.oem_number,
-                        make_name=item.brand_name,
-                        detail_name=item.autopart_name,
-                        qnt=item.quantity,
-                        comment=item.tracking_uuid,
-                        min_delivery_day=item.min_delivery_day or 1,
-                        max_delivery_day=item.max_delivery_day or 3,
-                        api_hash=item.hash_key,
-                        api_key=KEY,
-                        use_form=False,
+                    added_to_basket = (
+                        await dz_site_client.add_autopart_in_basket(
+                            oem=item.oem_number,
+                            make_name=item.brand_name,
+                            detail_name=item.autopart_name,
+                            qnt=item.quantity,
+                            comment=item.tracking_uuid,
+                            min_delivery_day=item.min_delivery_day or 1,
+                            max_delivery_day=item.max_delivery_day or 3,
+                            api_hash=item.hash_key,
+                            api_key=KEY,
+                            use_form=False,
+                        )
                     )
-                    if success:
-                        '''ЭТАП 3: Обновляем статус позиции заказа'''
-                        await crud_order_item.update_order_item_status(
-                            tracking_uuid=item.tracking_uuid,
-                            new_status=TYPE_ORDER_ITEM_STATUS.SENT,
-                            session=session,
+                    if added_to_basket:
+                        staged_success.append(
+                            (item, request_tracking_uuid)
                         )
-
-                        try:
-                            await crud_autopart_restock_decision.update_positions_status(  # noqa: E501
-                                tracking_uuids=[item.tracking_uuid],
-                                status=TYPE_SUPPLIER_DECISION_STATUS.SEND,
-                                session=session,
-                            )
-                        except HTTPException as exc:
-                            if exc.status_code != 404:
-                                raise
-                            logger.debug(
-                                'No AutoPartRestockDecisionSupplier for '
-                                'tracking_uuid=%s; skip restock status update',
-                                item.tracking_uuid,
-                            )
-                        verify = await dz_site_client.get_basket(api_key=KEY)
-                        items = (
-                            verify.get('data')
-                            if isinstance(verify, dict)
-                            else verify
-                        ) or []
-                        in_cart = any(
-                            i.get('comment') == item.tracking_uuid
-                            for i in items
-                        )
-                        logger.debug(
-                            f'Basket contains {item.tracking_uuid}: '
-                            f'{in_cart}. Raw: {items[:3]}'
-                        )
-                        results.append(
-                            {
-                                'tracking_uuid': item.tracking_uuid,
-                                'request_tracking_uuid': (
-                                    request_tracking_uuid
-                                ),
-                                'status': 'success',
-                                'message': 'Успешно добавлено в корзину',
-                                'verify': verify,
-                            }
-                        )
-                        successful_count += 1
                     else:
                         await crud_order_item.update_order_item_status(
                             tracking_uuid=item.tracking_uuid,
@@ -571,42 +536,130 @@ async def send_api(
                         }
                     )
                     failed_count += 1
-            placed = False
-            if successful_count > 0:
-                try:
-                    placed = await dz_site_client.order_basket(
-                        api_key=KEY,
-                        comment=(
-                            f'АвтоЗаказ #{order.id} ({order.order_number})'
-                            if order and getattr(order, "order_number", None)
-                            else None
-                        ),
-                    )
-                    if not placed:
-                        logger.warning(
-                            'Оформление корзины (baskets/order) вернуло не OK'
-                        )
-                except Exception as e:
-                    logger.error(f'Ошибка при оформлении корзины в заказ: {e}')
-        '''ЭТАП 4: Обновляем статус основного заказа'''
-        if successful_count > 0:
-            if failed_count == 0:
-                order.status = TYPE_STATUS_ORDER.ORDERED
-            elif placed:
-                order.status = TYPE_STATUS_ORDER.ORDERED
-            else:
-                order.status = TYPE_STATUS_ORDER.PROCESSING
-        else:
-            order.status = TYPE_STATUS_ORDER.ERROR
+            if not staged_success:
+                await session.rollback()
+                await _notify_current_user(
+                    session,
+                    current_user,
+                    title='Dragonzap: заказ не оформлен',
+                    message=(
+                        'Ни одна позиция не была добавлена в корзину сайта. '
+                        'Локальный заказ не создан.'
+                    ),
+                    level=AppNotificationLevel.WARNING,
+                    link='/autoparts/offers',
+                )
+                return SendApiResponse(
+                    total_items=len(request),
+                    successful_items=0,
+                    failed_items=failed_count,
+                    results=results,
+                    order_id=None,
+                    order_number=None,
+                )
 
-        await session.commit()
+            placed = False
+            try:
+                placed = await dz_site_client.order_basket(
+                    api_key=KEY,
+                    comment='АвтоЗаказ из поиска по артикулу',
+                )
+                if not placed:
+                    logger.warning(
+                        'Оформление корзины (baskets/order) вернуло не OK'
+                    )
+            except Exception as exc:
+                logger.error(
+                    'Ошибка при оформлении корзины в заказ: %s',
+                    exc,
+                )
+
+            if not placed:
+                basket_cleaned = False
+                if basket_started_empty:
+                    basket_cleaned = await dz_site_client.clean_basket(
+                        api_key=KEY
+                    )
+                failure_message = (
+                    'Корзина на Dragonzap не была оформлена в заказ. '
+                    'Локальная запись не создана.'
+                )
+                if basket_cleaned:
+                    failure_message += ' Временная корзина очищена.'
+                else:
+                    failure_message += (
+                        ' Проверьте корзину Dragonzap вручную.'
+                    )
+                for item, request_tracking_uuid in staged_success:
+                    results.append(
+                        {
+                            'tracking_uuid': item.tracking_uuid,
+                            'request_tracking_uuid': request_tracking_uuid,
+                            'status': 'error',
+                            'message': failure_message,
+                        }
+                    )
+                failed_count += len(staged_success)
+                await session.rollback()
+                await _notify_current_user(
+                    session,
+                    current_user,
+                    title='Dragonzap: заказ не оформлен',
+                    message=failure_message,
+                    level=AppNotificationLevel.WARNING,
+                    link='/autoparts/offers',
+                )
+                return SendApiResponse(
+                    total_items=len(request),
+                    successful_items=0,
+                    failed_items=failed_count,
+                    results=results,
+                    order_id=None,
+                    order_number=None,
+                )
+
+        order = await crud_order.create_order_with_items(
+            provider_id=provider_id,
+            customer_id=customer.id,
+            items=[item for item, _request_tracking_uuid in staged_success],
+            session=session,
+            comment=f"Заказ из {len(staged_success)} позиций",
+            created_by_user_id=current_user.id,
+            initial_item_status=TYPE_ORDER_ITEM_STATUS.SENT,
+        )
+
+        for item, request_tracking_uuid in staged_success:
+            try:
+                await crud_autopart_restock_decision.update_positions_status(
+                    tracking_uuids=[item.tracking_uuid],
+                    status=TYPE_SUPPLIER_DECISION_STATUS.SEND,
+                    session=session,
+                )
+            except HTTPException as exc:
+                if exc.status_code != 404:
+                    raise
+                logger.debug(
+                    'No AutoPartRestockDecisionSupplier for '
+                    'tracking_uuid=%s; skip restock status update',
+                    item.tracking_uuid,
+                )
+            results.append(
+                {
+                    'tracking_uuid': item.tracking_uuid,
+                    'request_tracking_uuid': request_tracking_uuid,
+                    'status': 'success',
+                    'message': 'Заказ оформлен на сайте Dragonzap',
+                }
+            )
+
+        successful_count = len(staged_success)
         await _notify_current_user(
             session,
             current_user,
             title='Заказ на Dragonzap оформлен',
             message=(
                 f'Создан заказ #{order.id}'
-                f' на {len(request)} поз.'
+                f' на {successful_count} поз.'
                 f' Успешно: {successful_count}, ошибок: {failed_count}.'
             ),
             level=(
@@ -624,6 +677,9 @@ async def send_api(
             order_id=order.id,
             order_number=order.order_number,
         )
+    except HTTPException:
+        await session.rollback()
+        raise
     except Exception as e:
         await session.rollback()
         logger.error(f'Ошибка при создании заказа: {e}')

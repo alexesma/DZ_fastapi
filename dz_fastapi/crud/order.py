@@ -113,6 +113,9 @@ class CRUDOrder(CRUDBase[Order, OrderIn, OrderUpdate]):
         comment: str = None,
         created_by_user_id: int | None = None,
         source_type: str = ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
+        initial_item_status: TYPE_ORDER_ITEM_STATUS = (
+            TYPE_ORDER_ITEM_STATUS.NEW
+        ),
     ):
         '''Создание заказа с позициями'''
         new_order = Order(
@@ -140,7 +143,7 @@ class CRUDOrder(CRUDBase[Order, OrderIn, OrderUpdate]):
                 max_delivery_day=item.max_delivery_day,
                 tracking_uuid=item.tracking_uuid or str(uuid4()),
                 comments=None,
-                status=TYPE_ORDER_ITEM_STATUS.NEW,
+                status=initial_item_status,
                 hash_key=item.hash_key,
                 system_hash=item.system_hash,
             )

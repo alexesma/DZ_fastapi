@@ -49,6 +49,18 @@ class _FakeDZSiteClient:
         return True
 
 
+class _FailOrderDZSiteClient(_FakeDZSiteClient):
+    clean_called = False
+
+    async def order_basket(self, api_key=None, comment=None):
+        return False
+
+    async def clean_basket(self, api_key=None):
+        type(self).clean_called = True
+        self._comments = []
+        return True
+
+
 @pytest.mark.asyncio
 async def test_send_api_resolves_supplier_by_name_when_id_external(
     async_client, test_session, created_customers, monkeypatch
@@ -176,3 +188,60 @@ async def test_send_api_normalizes_long_tracking_uuid(
     ).scalar_one()
     assert len(order_item.tracking_uuid) <= 36
     assert order_item.tracking_uuid == payload['results'][0]['tracking_uuid']
+
+
+@pytest.mark.asyncio
+async def test_send_api_does_not_create_local_order_when_site_order_fails(
+    async_client, test_session, created_customers, monkeypatch
+):
+    current_user = await _create_user(
+        test_session,
+        'orders-failed-site@example.com',
+        UserRole.ADMIN,
+    )
+
+    async def override_current_user():
+        return current_user
+
+    app.dependency_overrides[get_current_user] = override_current_user
+    _FailOrderDZSiteClient.clean_called = False
+
+    monkeypatch.setattr(
+        'dz_fastapi.api.order.DZSiteClient',
+        _FailOrderDZSiteClient,
+    )
+
+    response = await async_client.post(
+        f'/order/send_api?customer_id={created_customers[0].id}',
+        json=[
+            {
+                'autopart_id': None,
+                'oem_number': '9011610175',
+                'brand_name': 'TOYOTA-LEXUS',
+                'autopart_name': 'Шпилька',
+                'supplier_id': 9731061118,
+                'supplier_name': 'Ivers (http://ivers.ru/)',
+                'quantity': 10,
+                'confirmed_price': 101.0,
+                'min_delivery_day': 1,
+                'max_delivery_day': 0,
+                'status': 'Send',
+                'tracking_uuid': 'dragonzap:test-fail:9011610175',
+                'hash_key': 'hash-site-fail',
+                'system_hash': 'system-site-fail',
+            }
+        ],
+    )
+
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload['successful_items'] == 0
+    assert payload['failed_items'] == 1
+    assert payload['order_id'] is None
+    assert payload['results'][0]['status'] == 'error'
+    assert _FailOrderDZSiteClient.clean_called is True
+
+    order_count = (
+        await test_session.execute(select(Order))
+    ).scalars().all()
+    assert order_count == []

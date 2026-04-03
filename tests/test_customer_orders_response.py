@@ -5,8 +5,10 @@ import pandas as pd
 from openpyxl import Workbook, load_workbook
 
 from dz_fastapi.models.partner import CUSTOMER_ORDER_SHIP_MODE
-from dz_fastapi.services.customer_orders import (_apply_response_updates_csv,
-                                                 _apply_response_updates_excel)
+from dz_fastapi.services.customer_orders import (
+    _apply_response_updates_csv, _apply_response_updates_excel,
+    _build_order_reply_recipients, _customer_order_auto_reply_enabled,
+    _customer_order_reply_override_email)
 
 
 def test_apply_response_updates_excel_writes_ship_price_when_configured():
@@ -71,3 +73,40 @@ def test_apply_response_updates_csv_leaves_ship_price_blank_for_reject():
 
     assert float(result.iat[1, 2]) == 0.0
     assert result.iat[1, 3] == ''
+
+
+def test_customer_order_auto_reply_enabled_with_default_stub(monkeypatch):
+    monkeypatch.delenv('CUSTOMER_ORDER_AUTO_REPLY_ENABLED', raising=False)
+    monkeypatch.delenv('CUSTOMER_ORDER_REPLY_OVERRIDE_EMAIL', raising=False)
+    assert _customer_order_reply_override_email() == 'info@dragonzap.ru'
+    assert _customer_order_auto_reply_enabled() is True
+
+
+def test_customer_order_auto_reply_can_be_fully_disabled(monkeypatch):
+    monkeypatch.setenv('CUSTOMER_ORDER_AUTO_REPLY_ENABLED', '0')
+    monkeypatch.setenv('CUSTOMER_ORDER_REPLY_OVERRIDE_EMAIL', '')
+    assert _customer_order_reply_override_email() is None
+    assert _customer_order_auto_reply_enabled() is False
+
+
+def test_build_order_reply_recipients_uses_stub_override(monkeypatch):
+    monkeypatch.setenv(
+        'CUSTOMER_ORDER_REPLY_OVERRIDE_EMAIL', 'info@dragonzap.ru'
+    )
+    config = SimpleNamespace(
+        order_reply_emails=['client@example.com', 'sales@example.com']
+    )
+    recipients = _build_order_reply_recipients(
+        'sender@example.com',
+        config,
+    )
+    original = _build_order_reply_recipients(
+        'sender@example.com',
+        config,
+        use_override=False,
+    )
+
+    assert recipients == 'info@dragonzap.ru'
+    assert original == (
+        'client@example.com,sales@example.com,sender@example.com'
+    )

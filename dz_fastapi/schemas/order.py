@@ -248,6 +248,9 @@ class PlacedOrderHistoryRow(BaseModel):
     current_status: str
     order_status: Optional[str] = None
     item_status: Optional[str] = None
+    external_status_source: Optional[str] = None
+    external_status_raw: Optional[str] = None
+    needs_status_mapping: bool = False
     actual_lead_days: Optional[int] = None
     link: Optional[str] = None
 

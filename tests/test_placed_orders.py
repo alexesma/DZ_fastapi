@@ -5,6 +5,9 @@ import pytest
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.order_status_mapping import (ExternalStatusMapping,
+                                                    ExternalStatusMatchMode,
+                                                    ExternalStatusUnmapped)
 from dz_fastapi.models.partner import (ORDER_TRACKING_SOURCE,
                                        SUPPLIER_ORDER_STATUS,
                                        TYPE_ORDER_ITEM_STATUS,
@@ -13,6 +16,8 @@ from dz_fastapi.models.partner import (ORDER_TRACKING_SOURCE,
                                        SupplierOrderItem)
 from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.services.auth import get_password_hash
+from dz_fastapi.services.order_status_mapping import \
+    EXTERNAL_STATUS_SOURCE_DRAGONZAP
 from dz_fastapi.services.placed_orders import (cleanup_old_tracking_history,
                                                list_tracking_history,
                                                sync_site_tracking_statuses,
@@ -30,6 +35,31 @@ async def _create_user(test_session, email='manager@example.com'):
     await test_session.commit()
     await test_session.refresh(user)
     return user
+
+
+async def _create_status_mapping(
+    test_session,
+    *,
+    raw_status: str,
+    order_status: str,
+    item_status: str,
+    provider_id: int | None = None,
+):
+    mapping = ExternalStatusMapping(
+        source_key=EXTERNAL_STATUS_SOURCE_DRAGONZAP,
+        provider_id=provider_id,
+        raw_status=raw_status,
+        normalized_status=raw_status,
+        match_mode=ExternalStatusMatchMode.CONTAINS,
+        internal_order_status=order_status,
+        internal_item_status=item_status,
+        priority=100,
+        is_active=True,
+    )
+    test_session.add(mapping)
+    await test_session.commit()
+    await test_session.refresh(mapping)
+    return mapping
 
 
 @pytest.mark.asyncio
@@ -298,6 +328,12 @@ async def test_sync_site_tracking_statuses_updates_order_from_site(
     )
     test_session.add(item)
     await test_session.commit()
+    await _create_status_mapping(
+        test_session,
+        raw_status='arrived',
+        order_status='ARRIVED',
+        item_status='IN_PROGRESS',
+    )
 
     class FakeDZSiteClient:
         def __init__(self, *args, **kwargs):
@@ -342,3 +378,96 @@ async def test_sync_site_tracking_statuses_updates_order_from_site(
     assert item.status == TYPE_ORDER_ITEM_STATUS.IN_PROGRESS
     assert item.received_quantity == 2
     assert item.received_at is not None
+    assert item.external_status_raw == 'arrived'
+    assert item.external_status_mapping_id is not None
+
+
+@pytest.mark.asyncio
+async def test_sync_site_tracking_statuses_collects_unmapped_statuses(
+    test_session,
+    monkeypatch,
+):
+    provider = Provider(
+        name='Provider Unknown',
+        email_contact='provider-unknown@example.com',
+        email_incoming_price='prices-unknown@example.com',
+        type_prices='Wholesale',
+    )
+    customer = Customer(
+        name='Customer Unknown',
+        email_contact='customer-unknown@example.com',
+        email_outgoing_price='out-unknown@example.com',
+        type_prices='Wholesale',
+    )
+    test_session.add_all([provider, customer])
+    await test_session.flush()
+
+    order = Order(
+        provider_id=provider.id,
+        customer_id=customer.id,
+        source_type=ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
+        status=TYPE_STATUS_ORDER.ORDERED,
+    )
+    test_session.add(order)
+    await test_session.flush()
+
+    item = OrderItem(
+        order_id=order.id,
+        oem_number='OEM-UNKNOWN',
+        brand_name='TEST',
+        autopart_name='Part unknown',
+        quantity=1,
+        price=10,
+        tracking_uuid='unknown-sync-uuid',
+        status=TYPE_ORDER_ITEM_STATUS.SENT,
+    )
+    test_session.add(item)
+    await test_session.commit()
+
+    class FakeDZSiteClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        async def get_order_items(self, **kwargs):
+            return {
+                'data': [
+                    {
+                        'comment': 'unknown-sync-uuid',
+                        'status_code': 'manual review stage',
+                        'status_name': 'Manual Review',
+                    }
+                ]
+            }
+
+    monkeypatch.setattr(
+        'dz_fastapi.services.placed_orders.SITE_API_KEY',
+        'test-key',
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.placed_orders.DZSiteClient',
+        FakeDZSiteClient,
+    )
+
+    summary = await sync_site_tracking_statuses(test_session)
+
+    await test_session.refresh(order)
+    await test_session.refresh(item)
+    unresolved = (
+        await test_session.get(ExternalStatusUnmapped, 1)
+    )
+
+    assert summary['checked'] == 1
+    assert summary['updated'] == 1
+    assert order.status == TYPE_STATUS_ORDER.ORDERED
+    assert item.status == TYPE_ORDER_ITEM_STATUS.SENT
+    assert item.external_status_raw == 'manual review stage | Manual Review'
+    assert item.external_status_mapping_id is None
+    assert unresolved is not None
+    assert unresolved.source_key == EXTERNAL_STATUS_SOURCE_DRAGONZAP
+    assert unresolved.is_resolved is False

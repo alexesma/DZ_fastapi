@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
@@ -20,6 +19,11 @@ from dz_fastapi.models.partner import (ORDER_TRACKING_SOURCE,
                                        OrderItem, Provider, SupplierOrder,
                                        SupplierOrderItem)
 from dz_fastapi.models.user import User
+from dz_fastapi.services.order_status_mapping import (
+    EXTERNAL_STATUS_SOURCE_DRAGONZAP, apply_status_mapping_to_order_item,
+    build_external_status_normalized, build_external_status_raw,
+    get_active_status_mappings, record_unmapped_external_status,
+    resolve_internal_order_status, select_best_mapping)
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -115,44 +119,6 @@ def _extract_site_items(payload: Any) -> list[dict[str, Any]]:
     return []
 
 
-def _normalize_site_status_text(value: Any) -> str:
-    raw = str(value or '').strip().casefold()
-    if not raw:
-        return ''
-    return re.sub(r'[^a-zа-я0-9]+', ' ', raw)
-
-
-def _extract_site_status_text(item: dict[str, Any]) -> str:
-    values: list[str] = []
-    for key in (
-        'status_code',
-        'status',
-        'status_name',
-        'status_title',
-        'status_text',
-        'state',
-        'state_name',
-    ):
-        value = item.get(key)
-        if value not in (None, ''):
-            values.append(str(value))
-    sys_info = item.get('sys_info')
-    if isinstance(sys_info, dict):
-        for key in (
-            'status_code',
-            'status',
-            'status_name',
-            'status_title',
-            'status_text',
-            'state',
-            'state_name',
-        ):
-            value = sys_info.get(key)
-            if value not in (None, ''):
-                values.append(str(value))
-    return ' '.join(_normalize_site_status_text(value) for value in values)
-
-
 def _safe_int(value: Any) -> Optional[int]:
     if value in (None, ''):
         return None
@@ -196,79 +162,70 @@ def _extract_received_quantity_from_site(
     return None
 
 
-def _map_site_status(
-    item: dict[str, Any],
-) -> tuple[
-    Optional[TYPE_STATUS_ORDER],
-    Optional[TYPE_ORDER_ITEM_STATUS],
-]:
-    text = _extract_site_status_text(item)
-    if not text:
-        return None, None
-
-    if any(token in text for token in (
-        'refusal', 'refused', 'rejected', 'declined', 'отказ',
-    )):
-        return TYPE_STATUS_ORDER.REFUSAL, TYPE_ORDER_ITEM_STATUS.CANCELLED
-    if any(token in text for token in (
-        'return', 'returned', 'возврат',
-    )):
-        return TYPE_STATUS_ORDER.RETURNED, TYPE_ORDER_ITEM_STATUS.CANCELLED
-    if any(token in text for token in (
-        'removed', 'deleted', 'cancelled by supplier', 'снят', 'удален',
-    )):
-        return TYPE_STATUS_ORDER.REMOVED, TYPE_ORDER_ITEM_STATUS.CANCELLED
-    if any(token in text for token in (
-        'error', 'failed', 'failure', 'ошибка',
-    )):
-        return TYPE_STATUS_ORDER.ERROR, TYPE_ORDER_ITEM_STATUS.ERROR
-    if any(token in text for token in (
-        'shipped', 'issued', 'delivered', 'completed', 'done',
-        'выдан', 'получен', 'доставлен',
-    )):
-        return TYPE_STATUS_ORDER.SHIPPED, TYPE_ORDER_ITEM_STATUS.DELIVERED
-    if any(token in text for token in (
-        'arrived', 'ready', 'готов', 'прибыл',
-    )):
-        return TYPE_STATUS_ORDER.ARRIVED, TYPE_ORDER_ITEM_STATUS.IN_PROGRESS
-    if any(token in text for token in (
-        'accepted', 'принят',
-    )):
-        return TYPE_STATUS_ORDER.ACCEPTED, TYPE_ORDER_ITEM_STATUS.CONFIRMED
-    if any(token in text for token in (
-        'transit', 'in transit', 'shipping', 'on way', 'в пути',
-    )):
-        return TYPE_STATUS_ORDER.TRANSIT, TYPE_ORDER_ITEM_STATUS.IN_PROGRESS
-    if any(token in text for token in (
-        'confirm', 'approved', 'подтверж',
-    )):
-        return TYPE_STATUS_ORDER.CONFIRMED, TYPE_ORDER_ITEM_STATUS.CONFIRMED
-    if any(token in text for token in (
-        'processing', 'assembly', 'reserved', 'обрабаты', 'собира', 'резерв',
-    )):
-        return TYPE_STATUS_ORDER.PROCESSING, TYPE_ORDER_ITEM_STATUS.IN_PROGRESS
-    if any(token in text for token in (
-        'ordered', 'created', 'new order', 'новый заказ', 'заказан', 'создан',
-    )):
-        return TYPE_STATUS_ORDER.ORDERED, TYPE_ORDER_ITEM_STATUS.SENT
-    return None, None
-
-
-def _apply_site_sync_payload(
+async def _apply_site_sync_payload(
+    session: AsyncSession,
     order: Order,
     item: OrderItem,
     site_item: dict[str, Any],
+    mappings: list,
 ) -> bool:
-    mapped_order_status, mapped_item_status = _map_site_status(site_item)
     changed = False
+    raw_status = build_external_status_raw(site_item)
+    normalized_status = build_external_status_normalized(site_item)
+    next_mapping_id = None
+    mapping = None
 
-    if mapped_order_status and order.status != mapped_order_status:
-        order.status = mapped_order_status
+    if item.external_status_source != EXTERNAL_STATUS_SOURCE_DRAGONZAP:
+        item.external_status_source = EXTERNAL_STATUS_SOURCE_DRAGONZAP
         changed = True
-    if mapped_item_status and item.status != mapped_item_status:
-        item.status = mapped_item_status
+    if item.external_status_raw != raw_status:
+        item.external_status_raw = raw_status
+        changed = True
+    if item.external_status_normalized != (normalized_status or None):
+        item.external_status_normalized = normalized_status or None
         changed = True
 
+    if normalized_status:
+        mapping = select_best_mapping(
+            mappings,
+            normalized_status=normalized_status,
+            provider_id=order.provider_id,
+        )
+
+    if mapping is not None:
+        next_mapping_id = mapping.id
+        if apply_status_mapping_to_order_item(
+            order=order,
+            item=item,
+            mapping=mapping,
+        ):
+            changed = True
+    else:
+        if item.external_status_mapping_id is not None:
+            item.external_status_mapping_id = None
+            changed = True
+        if normalized_status and raw_status:
+            await record_unmapped_external_status(
+                session,
+                source_key=EXTERNAL_STATUS_SOURCE_DRAGONZAP,
+                provider_id=order.provider_id,
+                raw_status=raw_status,
+                normalized_status=normalized_status,
+                sample_order_id=order.id,
+                sample_item_id=item.id,
+                sample_payload=site_item,
+            )
+            changed = True
+
+    if item.external_status_mapping_id != next_mapping_id:
+        item.external_status_mapping_id = next_mapping_id
+        changed = True
+
+    mapped_order_status = (
+        resolve_internal_order_status(mapping.internal_order_status)
+        if mapping is not None
+        else None
+    )
     if mapped_order_status:
         received_quantity = _extract_received_quantity_from_site(
             site_item,
@@ -286,6 +243,10 @@ def _apply_site_sync_payload(
             if item.received_at != next_received_at:
                 item.received_at = next_received_at
                 changed = True
+
+    if changed or item.external_status_synced_at is None:
+        item.external_status_synced_at = now_moscow()
+        changed = True
 
     return changed
 
@@ -366,6 +327,7 @@ async def sync_site_tracking_statuses(
     updated = 0
     not_found = 0
     errors = 0
+    mappings_cache: dict[Optional[int], list] = {}
 
     async with DZSiteClient(
         base_url=URL_DZ_SEARCH,
@@ -394,7 +356,21 @@ async def sync_site_tracking_statuses(
                 if remote_item is None:
                     not_found += 1
                     continue
-                if _apply_site_sync_payload(order, item, remote_item):
+                provider_mappings = mappings_cache.get(order.provider_id)
+                if provider_mappings is None:
+                    provider_mappings = await get_active_status_mappings(
+                        session,
+                        source_key=EXTERNAL_STATUS_SOURCE_DRAGONZAP,
+                        provider_id=order.provider_id,
+                    )
+                    mappings_cache[order.provider_id] = provider_mappings
+                if await _apply_site_sync_payload(
+                    session,
+                    order,
+                    item,
+                    remote_item,
+                    provider_mappings,
+                ):
                     updated += 1
             except Exception:
                 errors += 1
@@ -531,6 +507,11 @@ async def list_tracking_history(
             OrderItem.received_at.label('received_at'),
             Order.status.label('order_status'),
             OrderItem.status.label('item_status'),
+            OrderItem.external_status_source.label('external_status_source'),
+            OrderItem.external_status_raw.label('external_status_raw'),
+            OrderItem.external_status_mapping_id.label(
+                'external_status_mapping_id'
+            ),
         )
         .join(OrderItem, OrderItem.order_id == Order.id)
         .join(provider_alias, provider_alias.id == Order.provider_id)
@@ -595,6 +576,9 @@ async def list_tracking_history(
                 'current_status': current_status,
                 'order_status': current_status,
                 'item_status': None,
+                'external_status_source': None,
+                'external_status_raw': None,
+                'needs_status_mapping': False,
                 'actual_lead_days': _actual_lead_days(
                     row.created_at, row.received_at
                 ),
@@ -642,6 +626,13 @@ async def list_tracking_history(
                 ),
                 'item_status': (
                     row.item_status.name if row.item_status else None
+                ),
+                'external_status_source': row.external_status_source,
+                'external_status_raw': row.external_status_raw,
+                'needs_status_mapping': bool(
+                    row.external_status_source
+                    and row.external_status_raw
+                    and row.external_status_mapping_id is None
                 ),
                 'actual_lead_days': _actual_lead_days(
                     row.created_at, row.received_at

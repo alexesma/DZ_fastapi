@@ -85,6 +85,19 @@ class TYPE_ORDER_ITEM_STATUS(StrEnum):
     FAILED = 'FAILED'
     ERROR = 'ERROR'
 
+    @property
+    def label(self) -> str:
+        return {
+            TYPE_ORDER_ITEM_STATUS.NEW: 'Новый',
+            TYPE_ORDER_ITEM_STATUS.SENT: 'Отправлен',
+            TYPE_ORDER_ITEM_STATUS.CONFIRMED: 'Подтвержден',
+            TYPE_ORDER_ITEM_STATUS.IN_PROGRESS: 'В работе',
+            TYPE_ORDER_ITEM_STATUS.DELIVERED: 'Получено',
+            TYPE_ORDER_ITEM_STATUS.CANCELLED: 'Отменен',
+            TYPE_ORDER_ITEM_STATUS.FAILED: 'Ошибка',
+            TYPE_ORDER_ITEM_STATUS.ERROR: 'Ошибка',
+        }[self]
+
 
 @unique
 class TYPE_PAYMENT_STATUS(StrEnum):
@@ -854,6 +867,16 @@ class OrderItem(Base):
     order = relationship('Order', back_populates='order_items')
     hash_key = Column(String(255), nullable=True, index=True)
     system_hash = Column(String(255), nullable=True, index=True)
+    external_status_source = Column(String(64), nullable=True, index=True)
+    external_status_raw = Column(Text, nullable=True)
+    external_status_normalized = Column(String(255), nullable=True, index=True)
+    external_status_synced_at = Column(DateTime(timezone=True), nullable=True)
+    external_status_mapping_id = Column(
+        Integer,
+        ForeignKey('external_status_mapping.id'),
+        nullable=True,
+        index=True,
+    )
     autopart = relationship('AutoPart')
     restock_supplier_id = Column(
         Integer,
@@ -862,4 +885,7 @@ class OrderItem(Base):
     )
     restock_supplier = relationship(
         'AutoPartRestockDecisionSupplier', back_populates='order_items'
+    )
+    external_status_mapping = relationship(
+        'ExternalStatusMapping', back_populates='order_items'
     )

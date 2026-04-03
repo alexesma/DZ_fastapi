@@ -19,6 +19,8 @@ from dz_fastapi.api.dashboard import router as dashboard_router
 from dz_fastapi.api.email_account import router as email_account_router
 from dz_fastapi.api.notifications import router as notifications_router
 from dz_fastapi.api.order import router as order_router
+from dz_fastapi.api.order_status_mapping import \
+    router as order_status_mapping_router
 from dz_fastapi.api.partner import router as partner_router
 from dz_fastapi.api.price_control import router as price_control_router
 from dz_fastapi.api.settings import router as settings_router
@@ -141,6 +143,7 @@ app.include_router(auth_router)
 app.include_router(brand_router)
 app.include_router(partner_router)
 app.include_router(order_router)
+app.include_router(order_status_mapping_router)
 app.include_router(customer_order_router)
 app.include_router(email_account_router)
 app.include_router(notifications_router)

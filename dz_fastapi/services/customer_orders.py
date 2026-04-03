@@ -97,6 +97,24 @@ CUSTOMER_ORDERS_IMAP_RETRY_DELAY_SEC = max(
 )
 
 
+def _customer_order_auto_reply_enabled() -> bool:
+    if _customer_order_reply_override_email():
+        return True
+    return str(
+        os.getenv('CUSTOMER_ORDER_AUTO_REPLY_ENABLED', '0')
+    ).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def _customer_order_reply_override_email() -> Optional[str]:
+    value = str(
+        os.getenv(
+            'CUSTOMER_ORDER_REPLY_OVERRIDE_EMAIL',
+            'info@dragonzap.ru',
+        )
+    ).strip()
+    return value or None
+
+
 async def _notify_admins(
     session: AsyncSession,
     *,
@@ -1623,12 +1641,18 @@ def _mark_order_error(
 def _build_order_reply_recipients(
     sender: Optional[str],
     config: CustomerOrderConfig,
+    *,
+    use_override: bool = True,
 ) -> str:
     recipients = set()
     if sender:
         recipients.add(sender)
     for email in _normalize_email_list(config.order_reply_emails):
         recipients.add(email)
+    if use_override:
+        override_email = _customer_order_reply_override_email()
+        if override_email:
+            return override_email
     return ','.join(sorted(recipients))
 
 
@@ -2077,6 +2101,17 @@ async def _send_order_response_email(
     order: CustomerOrder,
     attachment_bytes: Optional[bytes] = None,
 ) -> None:
+    if not _customer_order_auto_reply_enabled():
+        logger.info(
+            'Skipping automatic order response email for order_id=%s '
+            'because CUSTOMER_ORDER_AUTO_REPLY_ENABLED is disabled',
+            order.id,
+        )
+        order.status = CUSTOMER_ORDER_STATUS.PROCESSED
+        order.error_details = None
+        await session.commit()
+        return
+
     if attachment_bytes is None:
         if not order.response_file_path or not os.path.isfile(
             order.response_file_path
@@ -2089,25 +2124,47 @@ async def _send_order_response_email(
     if not order.response_file_name:
         raise ValueError('Response filename is missing')
 
+    original_recipients = _build_order_reply_recipients(
+        order.source_email,
+        config,
+        use_override=False,
+    )
     to_email = _build_order_reply_recipients(order.source_email, config)
     if not to_email:
         raise ValueError('No recipients for order response')
+    override_email = _customer_order_reply_override_email()
 
     try:
         out_account = await _get_out_account(session, 'orders_out')
         kwargs = {}
         if out_account:
             kwargs = build_email_delivery_kwargs(out_account)
+        body = 'Во вложении файл с подтвержденными количествами.'
+        if override_email:
+            original_recipients_label = (
+                original_recipients or 'не определены'
+            )
+            body = (
+                'Заглушка ответа по заказу. Письмо отправлено только на '
+                f'{override_email} для ручной сверки.\n'
+                f'Исходные адресаты: {original_recipients_label}\n'
+                f'Письмо-источник: {order.source_email or "не определено"}\n\n'
+                'Во вложении файл с подтвержденными количествами.'
+            )
         await _send_email_attachment_async(
             to_email,
             f'Ответ по заказу {order.order_number or order.id}',
-            'Во вложении файл с подтвержденными количествами.',
+            body,
             attachment_bytes,
             order.response_file_name,
             False,
             **kwargs,
         )
-        order.status = CUSTOMER_ORDER_STATUS.SENT
+        order.status = (
+            CUSTOMER_ORDER_STATUS.PROCESSED
+            if override_email
+            else CUSTOMER_ORDER_STATUS.SENT
+        )
         order.error_details = None
     except Exception as exc:
         logger.error(
@@ -2151,12 +2208,19 @@ async def _complete_imported_order_processing(
         rows_count=len(parsed_rows),
     )
     await _send_reject_report(session, order, rejected_items)
-    await _send_order_response_email(
-        session,
-        config,
-        order,
-        attachment_bytes=response_buffer.getvalue(),
-    )
+    if _customer_order_auto_reply_enabled():
+        await _send_order_response_email(
+            session,
+            config,
+            order,
+            attachment_bytes=response_buffer.getvalue(),
+        )
+    else:
+        logger.info(
+            'Automatic customer order response email disabled; '
+            'response file kept for order_id=%s',
+            order.id,
+        )
     return order
 
 
@@ -2460,7 +2524,13 @@ async def retry_customer_order(
         raise ValueError('Order config not found')
 
     if order.response_file_path and os.path.isfile(order.response_file_path):
-        await _send_order_response_email(session, config, order)
+        if _customer_order_auto_reply_enabled():
+            await _send_order_response_email(session, config, order)
+        else:
+            order.status = CUSTOMER_ORDER_STATUS.PROCESSED
+            order.error_details = None
+            session.add(order)
+            await session.commit()
         await session.refresh(order)
         if order.status == CUSTOMER_ORDER_STATUS.ERROR:
             raise ValueError(
@@ -2511,12 +2581,18 @@ async def retry_customer_order(
             order.error_details = None
             session.add(order)
             await session.commit()
-            await _send_order_response_email(
-                session,
-                config,
-                order,
-                attachment_bytes=response_buffer.getvalue(),
-            )
+            if _customer_order_auto_reply_enabled():
+                await _send_order_response_email(
+                    session,
+                    config,
+                    order,
+                    attachment_bytes=response_buffer.getvalue(),
+                )
+            else:
+                order.status = CUSTOMER_ORDER_STATUS.PROCESSED
+                order.error_details = None
+                session.add(order)
+                await session.commit()
         except Exception as exc:
             reason = f'Ошибка повторной отправки ответа: {exc}'
             _mark_order_error(order, reason)
