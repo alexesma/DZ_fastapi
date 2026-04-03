@@ -15,6 +15,7 @@ from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.services.auth import get_password_hash
 from dz_fastapi.services.placed_orders import (cleanup_old_tracking_history,
                                                list_tracking_history,
+                                               sync_site_tracking_statuses,
                                                update_tracking_item)
 
 
@@ -254,3 +255,90 @@ async def test_cleanup_old_tracking_history_keeps_recent_and_customer_flow(
 
     remaining_rows = await list_tracking_history(test_session, limit=50)
     assert remaining_rows == []
+
+
+@pytest.mark.asyncio
+async def test_sync_site_tracking_statuses_updates_order_from_site(
+    test_session,
+    monkeypatch,
+):
+    provider = Provider(
+        name='Provider Four',
+        email_contact='provider4@example.com',
+        email_incoming_price='prices4@example.com',
+        type_prices='Wholesale',
+    )
+    customer = Customer(
+        name='Customer Four',
+        email_contact='customer4@example.com',
+        email_outgoing_price='out4@example.com',
+        type_prices='Wholesale',
+    )
+    test_session.add_all([provider, customer])
+    await test_session.flush()
+
+    order = Order(
+        provider_id=provider.id,
+        customer_id=customer.id,
+        source_type=ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
+        status=TYPE_STATUS_ORDER.ORDERED,
+    )
+    test_session.add(order)
+    await test_session.flush()
+
+    item = OrderItem(
+        order_id=order.id,
+        oem_number='OEMSYNC',
+        brand_name='TEST',
+        autopart_name='Part sync',
+        quantity=2,
+        price=55,
+        tracking_uuid='site-sync-uuid',
+        status=TYPE_ORDER_ITEM_STATUS.SENT,
+    )
+    test_session.add(item)
+    await test_session.commit()
+
+    class FakeDZSiteClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        async def get_order_items(self, **kwargs):
+            assert kwargs['search_comment_eq'] == 'site-sync-uuid'
+            return {
+                'data': [
+                    {
+                        'comment': 'site-sync-uuid',
+                        'status_code': 'arrived',
+                    }
+                ]
+            }
+
+    monkeypatch.setattr(
+        'dz_fastapi.services.placed_orders.SITE_API_KEY',
+        'test-key',
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.placed_orders.DZSiteClient',
+        FakeDZSiteClient,
+    )
+
+    summary = await sync_site_tracking_statuses(
+        test_session,
+        oem_number='OEMSYNC',
+    )
+
+    await test_session.refresh(order)
+    await test_session.refresh(item)
+    assert summary['checked'] == 1
+    assert summary['updated'] == 1
+    assert order.status == TYPE_STATUS_ORDER.ARRIVED
+    assert item.status == TYPE_ORDER_ITEM_STATUS.IN_PROGRESS
+    assert item.received_quantity == 2
+    assert item.received_at is not None

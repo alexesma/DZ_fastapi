@@ -45,7 +45,8 @@ from dz_fastapi.services.email import get_emails
 from dz_fastapi.services.monitoring import (build_snapshot_payload,
                                             get_monitor_summary)
 from dz_fastapi.services.notifications import create_admin_notifications
-from dz_fastapi.services.placed_orders import cleanup_old_tracking_history
+from dz_fastapi.services.placed_orders import (cleanup_old_tracking_history,
+                                               sync_site_tracking_statuses)
 from dz_fastapi.services.price_control import run_price_control
 from dz_fastapi.services.process import (process_customer_pricelist,
                                          process_provider_pricelist)
@@ -238,6 +239,17 @@ def start_scheduler(app: FastAPI):
         name='Cleanup tracking orders older than 1 year',
         hour=3,
         minute=20,
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        func=sync_site_tracking_statuses_task,
+        trigger='cron',
+        args=[app],
+        id='sync_site_tracking_statuses',
+        name='Sync Dragonzap tracking statuses',
+        minute='*/15',
+        jitter=10,
         replace_existing=True,
     )
 
@@ -508,6 +520,32 @@ async def cleanup_tracking_orders_task(app: FastAPI):
                 text=(
                     'Ошибка при автоматической очистке истории заказов'
                     ' из поиска по артикулу.\n'
+                    f'Текст ошибки: {e}'
+                ),
+            )
+
+
+async def sync_site_tracking_statuses_task(app: FastAPI):
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            summary = await sync_site_tracking_statuses(session=session)
+            logger.info(
+                'Dragonzap tracking statuses sync summary: %s',
+                summary,
+            )
+        except Exception as e:
+            logger.error(
+                'Error in sync_site_tracking_statuses_task: %s',
+                e,
+                exc_info=True,
+            )
+            await _notify_scheduler_issue(
+                session,
+                subject='Ошибка синхронизации статусов заказов с сайта',
+                text=(
+                    'Ошибка при автоматической синхронизации статусов '
+                    'заказов Dragonzap.\n'
                     f'Текст ошибки: {e}'
                 ),
             )

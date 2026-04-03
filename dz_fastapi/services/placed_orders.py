@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import logging
+import os
+import re
 from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
@@ -7,7 +10,9 @@ from sqlalchemy import delete, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
+from dz_fastapi.core.constants import URL_DZ_SEARCH
 from dz_fastapi.core.time import now_moscow
+from dz_fastapi.http.dz_site_client import DZSiteClient
 from dz_fastapi.models.partner import (ORDER_TRACKING_SOURCE,
                                        SUPPLIER_ORDER_STATUS,
                                        TYPE_ORDER_ITEM_STATUS,
@@ -16,7 +21,24 @@ from dz_fastapi.models.partner import (ORDER_TRACKING_SOURCE,
                                        SupplierOrderItem)
 from dz_fastapi.models.user import User
 
+logger = logging.getLogger('dz_fastapi')
+
 TRACKING_HISTORY_DAYS = 365
+SITE_TERMINAL_STATUSES = {
+    TYPE_STATUS_ORDER.SHIPPED,
+    TYPE_STATUS_ORDER.REFUSAL,
+    TYPE_STATUS_ORDER.RETURNED,
+    TYPE_STATUS_ORDER.REMOVED,
+    TYPE_STATUS_ORDER.ERROR,
+}
+SITE_AUTO_RECEIVED_STATUSES = {
+    TYPE_STATUS_ORDER.ARRIVED,
+    TYPE_STATUS_ORDER.SHIPPED,
+}
+SITE_STATUS_SYNC_LIMIT = int(
+    os.getenv('TRACKING_SITE_SYNC_LIMIT', '200')
+)
+SITE_API_KEY = os.getenv('KEY_FOR_WEBSITE')
 
 
 def tracking_history_cutoff(days: int = TRACKING_HISTORY_DAYS) -> datetime:
@@ -60,6 +82,341 @@ def _resolve_site_row_status(
     return 'UNKNOWN'
 
 
+def _has_tracking_identity(
+    oem_number: Optional[str],
+    brand_name: Optional[str],
+    autopart_name: Optional[str],
+) -> bool:
+    return any(
+        str(value or '').strip()
+        for value in (oem_number, brand_name, autopart_name)
+    )
+
+
+def _extract_site_items(payload: Any) -> list[dict[str, Any]]:
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if not isinstance(payload, dict):
+        return []
+
+    data = payload.get('data')
+    if isinstance(data, list):
+        return [item for item in data if isinstance(item, dict)]
+    if isinstance(data, dict):
+        for key in ('items', 'results', 'records'):
+            value = data.get(key)
+            if isinstance(value, list):
+                return [item for item in value if isinstance(item, dict)]
+
+    for key in ('items', 'results', 'records'):
+        value = payload.get(key)
+        if isinstance(value, list):
+            return [item for item in value if isinstance(item, dict)]
+    return []
+
+
+def _normalize_site_status_text(value: Any) -> str:
+    raw = str(value or '').strip().casefold()
+    if not raw:
+        return ''
+    return re.sub(r'[^a-zа-я0-9]+', ' ', raw)
+
+
+def _extract_site_status_text(item: dict[str, Any]) -> str:
+    values: list[str] = []
+    for key in (
+        'status_code',
+        'status',
+        'status_name',
+        'status_title',
+        'status_text',
+        'state',
+        'state_name',
+    ):
+        value = item.get(key)
+        if value not in (None, ''):
+            values.append(str(value))
+    sys_info = item.get('sys_info')
+    if isinstance(sys_info, dict):
+        for key in (
+            'status_code',
+            'status',
+            'status_name',
+            'status_title',
+            'status_text',
+            'state',
+            'state_name',
+        ):
+            value = sys_info.get(key)
+            if value not in (None, ''):
+                values.append(str(value))
+    return ' '.join(_normalize_site_status_text(value) for value in values)
+
+
+def _safe_int(value: Any) -> Optional[int]:
+    if value in (None, ''):
+        return None
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _extract_received_quantity_from_site(
+    item: dict[str, Any],
+    *,
+    ordered_quantity: int,
+    mapped_status: TYPE_STATUS_ORDER,
+) -> Optional[int]:
+    sys_info = item.get('sys_info')
+    sources = (
+        item,
+        sys_info if isinstance(sys_info, dict) else None,
+    )
+    for source in sources:
+        if not isinstance(source, dict):
+            continue
+        for key in (
+            'received_quantity',
+            'received_qty',
+            'delivered_quantity',
+            'delivered_qty',
+            'issued_quantity',
+            'issued_qty',
+            'shipped_quantity',
+            'shipped_qty',
+            'fact_quantity',
+            'fact_qnt',
+        ):
+            parsed = _safe_int(source.get(key))
+            if parsed is not None:
+                return parsed
+    if mapped_status in SITE_AUTO_RECEIVED_STATUSES:
+        return ordered_quantity
+    return None
+
+
+def _map_site_status(
+    item: dict[str, Any],
+) -> tuple[
+    Optional[TYPE_STATUS_ORDER],
+    Optional[TYPE_ORDER_ITEM_STATUS],
+]:
+    text = _extract_site_status_text(item)
+    if not text:
+        return None, None
+
+    if any(token in text for token in (
+        'refusal', 'refused', 'rejected', 'declined', 'отказ',
+    )):
+        return TYPE_STATUS_ORDER.REFUSAL, TYPE_ORDER_ITEM_STATUS.CANCELLED
+    if any(token in text for token in (
+        'return', 'returned', 'возврат',
+    )):
+        return TYPE_STATUS_ORDER.RETURNED, TYPE_ORDER_ITEM_STATUS.CANCELLED
+    if any(token in text for token in (
+        'removed', 'deleted', 'cancelled by supplier', 'снят', 'удален',
+    )):
+        return TYPE_STATUS_ORDER.REMOVED, TYPE_ORDER_ITEM_STATUS.CANCELLED
+    if any(token in text for token in (
+        'error', 'failed', 'failure', 'ошибка',
+    )):
+        return TYPE_STATUS_ORDER.ERROR, TYPE_ORDER_ITEM_STATUS.ERROR
+    if any(token in text for token in (
+        'shipped', 'issued', 'delivered', 'completed', 'done',
+        'выдан', 'получен', 'доставлен',
+    )):
+        return TYPE_STATUS_ORDER.SHIPPED, TYPE_ORDER_ITEM_STATUS.DELIVERED
+    if any(token in text for token in (
+        'arrived', 'ready', 'готов', 'прибыл',
+    )):
+        return TYPE_STATUS_ORDER.ARRIVED, TYPE_ORDER_ITEM_STATUS.IN_PROGRESS
+    if any(token in text for token in (
+        'accepted', 'принят',
+    )):
+        return TYPE_STATUS_ORDER.ACCEPTED, TYPE_ORDER_ITEM_STATUS.CONFIRMED
+    if any(token in text for token in (
+        'transit', 'in transit', 'shipping', 'on way', 'в пути',
+    )):
+        return TYPE_STATUS_ORDER.TRANSIT, TYPE_ORDER_ITEM_STATUS.IN_PROGRESS
+    if any(token in text for token in (
+        'confirm', 'approved', 'подтверж',
+    )):
+        return TYPE_STATUS_ORDER.CONFIRMED, TYPE_ORDER_ITEM_STATUS.CONFIRMED
+    if any(token in text for token in (
+        'processing', 'assembly', 'reserved', 'обрабаты', 'собира', 'резерв',
+    )):
+        return TYPE_STATUS_ORDER.PROCESSING, TYPE_ORDER_ITEM_STATUS.IN_PROGRESS
+    if any(token in text for token in (
+        'ordered', 'created', 'new order', 'новый заказ', 'заказан', 'создан',
+    )):
+        return TYPE_STATUS_ORDER.ORDERED, TYPE_ORDER_ITEM_STATUS.SENT
+    return None, None
+
+
+def _apply_site_sync_payload(
+    order: Order,
+    item: OrderItem,
+    site_item: dict[str, Any],
+) -> bool:
+    mapped_order_status, mapped_item_status = _map_site_status(site_item)
+    changed = False
+
+    if mapped_order_status and order.status != mapped_order_status:
+        order.status = mapped_order_status
+        changed = True
+    if mapped_item_status and item.status != mapped_item_status:
+        item.status = mapped_item_status
+        changed = True
+
+    if mapped_order_status:
+        received_quantity = _extract_received_quantity_from_site(
+            site_item,
+            ordered_quantity=item.quantity,
+            mapped_status=mapped_order_status,
+        )
+        if received_quantity is not None:
+            next_qty, next_received_at = _set_received_metadata(
+                received_quantity=received_quantity,
+                received_at=item.received_at,
+            )
+            if item.received_quantity != next_qty:
+                item.received_quantity = next_qty
+                changed = True
+            if item.received_at != next_received_at:
+                item.received_at = next_received_at
+                changed = True
+
+    return changed
+
+
+async def sync_site_tracking_statuses(
+    session: AsyncSession,
+    *,
+    oem_number: Optional[str] = None,
+    brand_name: Optional[str] = None,
+    provider_id: Optional[int] = None,
+    customer_id: Optional[int] = None,
+    limit: int = SITE_STATUS_SYNC_LIMIT,
+) -> dict[str, int]:
+    if not SITE_API_KEY:
+        logger.debug(
+            'Skip tracking status sync: KEY_FOR_WEBSITE is not configured'
+        )
+        return {
+            'checked': 0,
+            'updated': 0,
+            'not_found': 0,
+            'errors': 0,
+        }
+
+    normalized_oem = _normalize_oem(oem_number)
+    normalized_brand = _normalize_brand(brand_name)
+    stmt = (
+        select(OrderItem, Order)
+        .join(Order, Order.id == OrderItem.order_id)
+        .where(
+            Order.source_type
+            == ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
+            Order.created_at >= tracking_history_cutoff(),
+            OrderItem.tracking_uuid.is_not(None),
+        )
+        .order_by(
+            Order.created_at.desc(),
+            Order.id.desc(),
+            OrderItem.id.desc(),
+        )
+    )
+    if normalized_oem:
+        stmt = stmt.where(OrderItem.oem_number == normalized_oem)
+    if normalized_brand:
+        stmt = stmt.where(OrderItem.brand_name.ilike(normalized_brand))
+    if provider_id is not None:
+        stmt = stmt.where(Order.provider_id == provider_id)
+    if customer_id is not None:
+        stmt = stmt.where(Order.customer_id == customer_id)
+
+    rows = (await session.execute(stmt)).all()
+    candidates: list[tuple[OrderItem, Order]] = []
+    for item, order in rows:
+        if not _has_tracking_identity(
+            item.oem_number,
+            item.brand_name,
+            item.autopart_name,
+        ):
+            continue
+        if (
+            order.status in SITE_TERMINAL_STATUSES
+            and item.received_quantity is not None
+        ):
+            continue
+        candidates.append((item, order))
+        if len(candidates) >= limit:
+            break
+
+    if not candidates:
+        return {
+            'checked': 0,
+            'updated': 0,
+            'not_found': 0,
+            'errors': 0,
+        }
+
+    checked = 0
+    updated = 0
+    not_found = 0
+    errors = 0
+
+    async with DZSiteClient(
+        base_url=URL_DZ_SEARCH,
+        api_key=SITE_API_KEY,
+        verify_ssl=False,
+    ) as site_client:
+        for item, order in candidates:
+            checked += 1
+            try:
+                payload = await site_client.get_order_items(
+                    api_key=SITE_API_KEY,
+                    page=1,
+                    per_page=10,
+                    search_comment_eq=item.tracking_uuid,
+                )
+                remote_items = _extract_site_items(payload)
+                remote_item = next(
+                    (
+                        remote
+                        for remote in remote_items
+                        if str(remote.get('comment') or '').strip()
+                        == item.tracking_uuid
+                    ),
+                    remote_items[0] if len(remote_items) == 1 else None,
+                )
+                if remote_item is None:
+                    not_found += 1
+                    continue
+                if _apply_site_sync_payload(order, item, remote_item):
+                    updated += 1
+            except Exception:
+                errors += 1
+                logger.exception(
+                    'Failed to sync Dragonzap tracking status '
+                    'for tracking_uuid=%s',
+                    item.tracking_uuid,
+                )
+
+    if updated:
+        await session.commit()
+    else:
+        await session.rollback()
+
+    return {
+        'checked': checked,
+        'updated': updated,
+        'not_found': not_found,
+        'errors': errors,
+    }
+
+
 async def list_tracking_history(
     session: AsyncSession,
     *,
@@ -71,7 +428,18 @@ async def list_tracking_history(
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     limit: int = 300,
+    sync_site: bool = False,
 ) -> list[dict[str, Any]]:
+    if sync_site:
+        await sync_site_tracking_statuses(
+            session,
+            oem_number=oem_number,
+            brand_name=brand_name,
+            provider_id=provider_id,
+            customer_id=customer_id,
+            limit=min(limit, SITE_STATUS_SYNC_LIMIT),
+        )
+
     normalized_oem = _normalize_oem(oem_number)
     normalized_brand = _normalize_brand(brand_name)
     status_filter = str(status or '').strip().upper() or None
@@ -191,6 +559,12 @@ async def list_tracking_history(
 
     results: list[dict[str, Any]] = []
     for row in supplier_rows:
+        if not _has_tracking_identity(
+            row.oem_number,
+            row.brand_name,
+            row.autopart_name,
+        ):
+            continue
         current_status = (
             row.order_status.name if row.order_status else 'UNKNOWN'
         )
@@ -229,6 +603,12 @@ async def list_tracking_history(
         )
 
     for row in site_rows:
+        if not _has_tracking_identity(
+            row.oem_number,
+            row.brand_name,
+            row.autopart_name,
+        ):
+            continue
         current_status = _resolve_site_row_status(
             row.order_status, row.item_status
         )

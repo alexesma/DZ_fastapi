@@ -34,6 +34,7 @@ from dz_fastapi.schemas.order import (ConfirmedOfferOut,
                                       UpdatePositionStatusResponse)
 from dz_fastapi.services.notifications import create_notification
 from dz_fastapi.services.placed_orders import (list_tracking_history,
+                                               sync_site_tracking_statuses,
                                                update_tracking_item)
 
 KEY = os.getenv('KEY_FOR_WEBSITE')
@@ -605,6 +606,7 @@ async def get_tracking_items(
     provider_id: Optional[int] = None,
     customer_id: Optional[int] = None,
     status: Optional[str] = None,
+    sync_site: bool = Query(default=False),
     date_from: Optional[date] = Query(default=None),
     date_to: Optional[date] = Query(default=None),
     limit: int = Query(default=300, ge=1, le=1000),
@@ -620,6 +622,31 @@ async def get_tracking_items(
         status=status,
         date_from=date_from,
         date_to=date_to,
+        limit=limit,
+        sync_site=sync_site,
+    )
+
+
+@router.post(
+    '/tracking-items/sync-site',
+    response_model=dict,
+    summary='Синхронизировать статусы заказов с сайта Dragonzap',
+)
+async def sync_tracking_items_with_site(
+    oem: Optional[str] = None,
+    brand: Optional[str] = None,
+    provider_id: Optional[int] = None,
+    customer_id: Optional[int] = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    return await sync_site_tracking_statuses(
+        session=session,
+        oem_number=oem,
+        brand_name=brand,
+        provider_id=provider_id,
+        customer_id=customer_id,
         limit=limit,
     )
 

@@ -1,5 +1,6 @@
 import logging
 from typing import List, Optional
+from uuid import uuid4
 
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -137,6 +138,7 @@ class CRUDOrder(CRUDBase[Order, OrderIn, OrderUpdate]):
                 price=item.confirmed_price,
                 min_delivery_day=item.min_delivery_day,
                 max_delivery_day=item.max_delivery_day,
+                tracking_uuid=item.tracking_uuid or str(uuid4()),
                 comments=None,
                 status=TYPE_ORDER_ITEM_STATUS.NEW,
                 hash_key=item.hash_key,
