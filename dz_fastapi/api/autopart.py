@@ -5,10 +5,12 @@ from io import StringIO
 from typing import List, Optional
 
 import pandas as pd
-import plotly.express as px
+import plotly.graph_objects as go
 import rarfile
 from fastapi import (APIRouter, BackgroundTasks, Body, Depends, File, Form,
                      HTTPException, Query, UploadFile, status)
+from plotly.colors import qualitative
+from plotly.subplots import make_subplots
 from pydantic import conint
 from sqlalchemy import case, func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -17,7 +19,8 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from starlette.responses import HTMLResponse
 
-from dz_fastapi.analytics.price_history import analyze_autopart_allprices
+from dz_fastapi.analytics.price_history import (
+    analyze_autopart_allprices, prepare_price_history_plot_data)
 from dz_fastapi.analytics.restock_logic import (
     get_autoparts_below_min_balance, process_restock_pipeline)
 from dz_fastapi.api.validators import change_storage_name
@@ -1010,24 +1013,215 @@ async def get_price_history_plot(
         date_start=start_dt,
         date_finish=finish_dt,
     )
-    fig = px.line(
-        df,
-        x='created_at',
-        y='price',
-        color='provider',
-        hover_data={
-            'quantity': True,
-        },
-        title=f'Динамика цены по OEM {normalized_oem}',
-        labels={
-            'created_at': 'Дата',
-            'price': 'Цена',
-            'provider': 'Поставщик',
-            'quantity': 'Количество в прайсе',
-        },
-        markers=True,
+    actual_df, step_df, stockout_df = prepare_price_history_plot_data(
+        df, finish_dt
     )
-    fig.update_layout(hovermode='x unified')
+
+    fig = make_subplots(
+        rows=2,
+        cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.08,
+        row_heights=[0.66, 0.34],
+        subplot_titles=(
+            'Цена по поставщикам',
+            'Остаток по поставщикам',
+        ),
+    )
+
+    palette = qualitative.Plotly
+    provider_names = sorted(step_df['provider'].dropna().unique())
+    stockout_legend_added = False
+
+    for index, provider_name in enumerate(provider_names):
+        color = palette[index % len(palette)]
+        provider_step_df = step_df[step_df['provider'] == provider_name]
+        provider_actual_df = actual_df[actual_df['provider'] == provider_name]
+        provider_stockout_df = stockout_df[
+            stockout_df['provider'] == provider_name
+        ]
+
+        fig.add_trace(
+            go.Scatter(
+                x=provider_step_df['created_at'],
+                y=provider_step_df['price'],
+                mode='lines',
+                name=provider_name,
+                legendgroup=provider_name,
+                line={
+                    'color': color,
+                    'width': 2.5,
+                    'shape': 'hv',
+                },
+                customdata=provider_step_df[['quantity']].to_numpy(),
+                hovertemplate=(
+                    '<b>%{fullData.name}</b><br>'
+                    'Дата: %{x|%d.%m.%Y %H:%M}<br>'
+                    'Цена: %{y:.2f}<br>'
+                    'Остаток: %{customdata[0]:.0f}<extra></extra>'
+                ),
+            ),
+            row=1,
+            col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=provider_actual_df['created_at'],
+                y=provider_actual_df['price'],
+                mode='markers',
+                name=provider_name,
+                showlegend=False,
+                legendgroup=provider_name,
+                marker={
+                    'color': color,
+                    'size': 8,
+                    'line': {'color': '#ffffff', 'width': 1},
+                },
+                customdata=provider_actual_df[['quantity']].to_numpy(),
+                hovertemplate=(
+                    '<b>%{fullData.name}</b><br>'
+                    'Дата обновления: %{x|%d.%m.%Y %H:%M}<br>'
+                    'Цена: %{y:.2f}<br>'
+                    'Остаток: %{customdata[0]:.0f}<extra></extra>'
+                ),
+            ),
+            row=1,
+            col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=provider_step_df['created_at'],
+                y=provider_step_df['quantity'],
+                mode='lines',
+                showlegend=False,
+                legendgroup=provider_name,
+                line={
+                    'color': color,
+                    'width': 2,
+                    'shape': 'hv',
+                },
+                customdata=provider_step_df[['price']].to_numpy(),
+                hovertemplate=(
+                    '<b>%{fullData.legendgroup}</b><br>'
+                    'Дата: %{x|%d.%m.%Y %H:%M}<br>'
+                    'Остаток: %{y:.0f}<br>'
+                    'Цена: %{customdata[0]:.2f}<extra></extra>'
+                ),
+            ),
+            row=2,
+            col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=provider_actual_df['created_at'],
+                y=provider_actual_df['quantity'],
+                mode='markers',
+                name=provider_name,
+                showlegend=False,
+                legendgroup=provider_name,
+                marker={
+                    'color': color,
+                    'size': 7,
+                    'line': {'color': '#ffffff', 'width': 1},
+                },
+                customdata=provider_actual_df[['price']].to_numpy(),
+                hovertemplate=(
+                    '<b>%{fullData.name}</b><br>'
+                    'Дата обновления: %{x|%d.%m.%Y %H:%M}<br>'
+                    'Остаток: %{y:.0f}<br>'
+                    'Цена: %{customdata[0]:.2f}<extra></extra>'
+                ),
+            ),
+            row=2,
+            col=1,
+        )
+        if not provider_stockout_df.empty:
+            fig.add_trace(
+                go.Scatter(
+                    x=provider_stockout_df['created_at'],
+                    y=provider_stockout_df['price'],
+                    mode='markers',
+                    name=provider_name,
+                    showlegend=False,
+                    legendgroup=provider_name,
+                    marker={
+                        'color': '#dc2626',
+                        'size': 10,
+                        'symbol': 'x',
+                        'line': {'width': 2},
+                    },
+                    hovertemplate=(
+                        '<b>%{fullData.name}</b><br>'
+                        'Дата: %{x|%d.%m.%Y %H:%M}<br>'
+                        'Цена: %{y:.2f}<br>'
+                        'Деталь закончилась<extra></extra>'
+                    ),
+                ),
+                row=1,
+                col=1,
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=provider_stockout_df['created_at'],
+                    y=provider_stockout_df['quantity'],
+                    mode='markers',
+                    name='Нет в наличии',
+                    showlegend=not stockout_legend_added,
+                    marker={
+                        'color': '#dc2626',
+                        'size': 10,
+                        'symbol': 'x',
+                        'line': {'width': 2},
+                    },
+                    hovertemplate=(
+                        '<b>%{fullData.name}</b><br>'
+                        'Дата: %{x|%d.%m.%Y %H:%M}<br>'
+                        'Деталь закончилась<extra></extra>'
+                    ),
+                ),
+                row=2,
+                col=1,
+            )
+            stockout_legend_added = True
+
+    fig.add_hline(
+        y=0,
+        line_width=1,
+        line_dash='dot',
+        line_color='#94a3b8',
+        row=2,
+        col=1,
+    )
+    fig.add_annotation(
+        text=(
+            'Горизонтальные линии показывают, что цена и остаток'
+            ' не менялись до следующего обновления.'
+        ),
+        xref='paper',
+        yref='paper',
+        x=0,
+        y=1.11,
+        showarrow=False,
+        font={'size': 12, 'color': '#6b7280'},
+        align='left',
+    )
+    fig.update_xaxes(
+        showspikes=True,
+        spikecolor='#94a3b8',
+        spikethickness=1,
+        spikesnap='cursor',
+        spikemode='across',
+    )
+    fig.update_yaxes(title_text='Цена', row=1, col=1)
+    fig.update_yaxes(title_text='Остаток', row=2, col=1)
+    fig.update_layout(
+        title=f'История цены и наличия по OEM {normalized_oem}',
+        hovermode='x unified',
+        template='plotly_white',
+        height=760,
+        legend_title_text='Поставщик',
+        margin={'t': 110, 'r': 24, 'b': 40, 'l': 56},
+    )
 
     html_io = StringIO()
     fig.write_html(html_io, include_plotlyjs='include')

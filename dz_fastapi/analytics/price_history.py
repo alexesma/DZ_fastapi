@@ -558,3 +558,70 @@ async def analyze_autopart_allprices(
     df['quantity'] = pd.to_numeric(df['quantity'], errors='coerce')
 
     return df
+
+
+def _align_timestamp_to_history_timezone(
+    value: datetime | pd.Timestamp,
+    history_series: pd.Series,
+) -> pd.Timestamp:
+    timestamp = pd.Timestamp(value)
+    sample_series = history_series.dropna()
+    if sample_series.empty:
+        return timestamp
+
+    sample = sample_series.iloc[0]
+    sample_tz = getattr(sample, 'tzinfo', None)
+    if sample_tz is None:
+        if timestamp.tzinfo is not None:
+            return timestamp.tz_localize(None)
+        return timestamp
+    if timestamp.tzinfo is None:
+        return timestamp.tz_localize(sample_tz)
+    return timestamp.tz_convert(sample_tz)
+
+
+def prepare_price_history_plot_data(
+    df: pd.DataFrame,
+    range_finish: datetime | pd.Timestamp,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    if df.empty:
+        empty = df.copy()
+        empty['is_projection'] = pd.Series(dtype=bool)
+        return empty.copy(), empty.copy(), empty.copy()
+
+    actual_df = df.copy()
+    actual_df['created_at'] = pd.to_datetime(actual_df['created_at'])
+    actual_df['price'] = pd.to_numeric(actual_df['price'], errors='coerce')
+    actual_df['quantity'] = pd.to_numeric(
+        actual_df['quantity'], errors='coerce'
+    ).fillna(0)
+    actual_df = actual_df.sort_values(
+        ['provider', 'created_at']
+    ).reset_index(drop=True)
+    actual_df['is_projection'] = False
+
+    finish_ts = _align_timestamp_to_history_timezone(
+        range_finish, actual_df['created_at']
+    )
+
+    projection_rows: list[dict[str, Any]] = []
+    for _, provider_df in actual_df.groupby('provider', sort=False):
+        last_row = provider_df.iloc[-1]
+        if finish_ts <= last_row['created_at']:
+            continue
+        projection_row = last_row.to_dict()
+        projection_row['created_at'] = finish_ts
+        projection_row['is_projection'] = True
+        projection_rows.append(projection_row)
+
+    if projection_rows:
+        projection_df = pd.DataFrame(projection_rows)
+        step_df = pd.concat(
+            [actual_df, projection_df], ignore_index=True
+        ).sort_values(['provider', 'created_at', 'is_projection'])
+        step_df = step_df.reset_index(drop=True)
+    else:
+        step_df = actual_df.copy()
+
+    stockout_df = actual_df[actual_df['quantity'] <= 0].copy()
+    return actual_df, step_df, stockout_df

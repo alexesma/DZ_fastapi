@@ -1,10 +1,13 @@
-from datetime import date
+from datetime import date, datetime
 from types import SimpleNamespace
+from zoneinfo import ZoneInfo
 
+import pandas as pd
 import pytest
 
-from dz_fastapi.analytics.price_history import (_get_previous_pricelist,
-                                                build_pricelist_change_summary)
+from dz_fastapi.analytics.price_history import (
+    _get_previous_pricelist, build_pricelist_change_summary,
+    prepare_price_history_plot_data)
 from dz_fastapi.crud.partner import crud_pricelist
 from dz_fastapi.models.partner import PriceList, ProviderPriceListConfig
 
@@ -147,3 +150,70 @@ async def test_build_pricelist_change_summary(monkeypatch):
         round(summary['sharpest_price_changes'][0]['price_diff_pct'], 2)
         == 30.0
     )
+
+
+def test_prepare_price_history_plot_data_extends_flat_period_until_finish():
+    tz = ZoneInfo('Europe/Moscow')
+    df = pd.DataFrame(
+        [
+            {
+                'created_at': datetime(2026, 4, 1, 10, 0, tzinfo=tz),
+                'price': 250.0,
+                'quantity': 6,
+                'provider': 'AUTO-GA',
+            },
+            {
+                'created_at': datetime(2026, 4, 2, 10, 0, tzinfo=tz),
+                'price': 250.0,
+                'quantity': 6,
+                'provider': 'AUTO-GA',
+            },
+        ]
+    )
+
+    actual_df, step_df, stockout_df = prepare_price_history_plot_data(
+        df,
+        datetime(2026, 4, 3, 18, 0, tzinfo=tz),
+    )
+
+    assert len(actual_df) == 2
+    assert stockout_df.empty
+    assert len(step_df) == 3
+    assert bool(step_df.iloc[-1]['is_projection']) is True
+    assert step_df.iloc[-1]['created_at'] == pd.Timestamp(
+        datetime(2026, 4, 3, 18, 0, tzinfo=tz)
+    )
+    assert step_df.iloc[-1]['price'] == 250.0
+    assert step_df.iloc[-1]['quantity'] == 6
+
+
+def test_prepare_price_history_plot_data_marks_stockout_points():
+    tz = ZoneInfo('Europe/Moscow')
+    df = pd.DataFrame(
+        [
+            {
+                'created_at': datetime(2026, 4, 1, 10, 0, tzinfo=tz),
+                'price': 250.0,
+                'quantity': 6,
+                'provider': 'AUTO-GA',
+            },
+            {
+                'created_at': datetime(2026, 4, 2, 12, 30, tzinfo=tz),
+                'price': 250.0,
+                'quantity': 0,
+                'provider': 'AUTO-GA',
+            },
+        ]
+    )
+
+    _, step_df, stockout_df = prepare_price_history_plot_data(
+        df,
+        datetime(2026, 4, 3, 18, 0, tzinfo=tz),
+    )
+
+    assert len(stockout_df) == 1
+    assert stockout_df.iloc[0]['created_at'] == pd.Timestamp(
+        datetime(2026, 4, 2, 12, 30, tzinfo=tz)
+    )
+    assert stockout_df.iloc[0]['quantity'] == 0
+    assert step_df.iloc[-1]['quantity'] == 0
