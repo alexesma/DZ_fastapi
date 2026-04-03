@@ -2,6 +2,7 @@ import logging
 import os
 from datetime import date
 from typing import List, Optional
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -164,6 +165,13 @@ def _merge_site_offers(offers_by_brand: list[list[dict]]) -> list[dict]:
             seen.add(key)
             merged.append(raw)
     return merged
+
+
+def _normalize_tracking_uuid(raw_value: str | None) -> str:
+    value = (raw_value or '').strip()
+    if value and len(value) <= 36:
+        return value
+    return str(uuid4())
 
 
 async def _expand_query_brands(
@@ -403,10 +411,29 @@ async def send_api(
                 'Выберите корректного клиента для заказа.'
             ),
         )
+    prepared_request: list[tuple[OrderPositionOut, str]] = []
+    for item in request:
+        request_tracking_uuid = (item.tracking_uuid or '').strip()
+        normalized_tracking_uuid = _normalize_tracking_uuid(
+            request_tracking_uuid
+        )
+        if normalized_tracking_uuid != request_tracking_uuid:
+            logger.debug(
+                'Replacing incoming tracking_uuid=%r with normalized '
+                'tracking_uuid=%s',
+                request_tracking_uuid,
+                normalized_tracking_uuid,
+            )
+            item = item.model_copy(
+                update={'tracking_uuid': normalized_tracking_uuid}
+            )
+        prepared_request.append(
+            (item, request_tracking_uuid or normalized_tracking_uuid)
+        )
     # 1) Определяем поставщика из позиций
     provider_cache: dict[str, int] = {}
     provider_ids: set[int] = set()
-    for item in request:
+    for item, _request_tracking_uuid in prepared_request:
         provider_ids.add(
             await _resolve_site_provider_id(session, item, provider_cache)
         )
@@ -428,9 +455,9 @@ async def send_api(
         order = await crud_order.create_order_with_items(
             provider_id=provider_id,
             customer_id=customer.id,
-            items=request,
+            items=[item for item, _request_tracking_uuid in prepared_request],
             session=session,
-            comment=f"Заказ из {len(request)} позиций",
+            comment=f"Заказ из {len(prepared_request)} позиций",
             created_by_user_id=current_user.id,
         )
 
@@ -438,12 +465,15 @@ async def send_api(
         async with DZSiteClient(
             base_url=URL_DZ_SEARCH, api_key=KEY, verify_ssl=False
         ) as dz_site_client:
-            for item in request:
+            for item, request_tracking_uuid in prepared_request:
                 try:
                     if not item.hash_key:
                         results.append(
                             {
                                 'tracking_uuid': item.tracking_uuid,
+                                'request_tracking_uuid': (
+                                    request_tracking_uuid
+                                ),
                                 'status': 'error',
                                 'message': 'Отсутствует hash_key',
                             }
@@ -501,6 +531,9 @@ async def send_api(
                         results.append(
                             {
                                 'tracking_uuid': item.tracking_uuid,
+                                'request_tracking_uuid': (
+                                    request_tracking_uuid
+                                ),
                                 'status': 'success',
                                 'message': 'Успешно добавлено в корзину',
                                 'verify': verify,
@@ -516,6 +549,9 @@ async def send_api(
                         results.append(
                             {
                                 'tracking_uuid': item.tracking_uuid,
+                                'request_tracking_uuid': (
+                                    request_tracking_uuid
+                                ),
                                 'status': 'error',
                                 'message': 'Ошибка при добавлении в корзину',
                             }
@@ -529,6 +565,7 @@ async def send_api(
                     results.append(
                         {
                             'tracking_uuid': item.tracking_uuid,
+                            'request_tracking_uuid': request_tracking_uuid,
                             'status': 'error',
                             'message': f'Внутренняя ошибка: {str(e)}',
                         }
