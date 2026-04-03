@@ -583,20 +583,17 @@ async def _load_brand_alias_map(
     session: AsyncSession,
 ) -> Dict[str, str]:
     alias_map: Dict[str, str] = {}
-    for brand in await brand_crud.get_multi_with_synonyms(session):
-        related = [brand, *(brand.synonyms or [])]
-        canonical = next(
-            (candidate for candidate in related if candidate.main_brand),
-            brand,
-        )
+    brands = await brand_crud.get_multi_with_synonyms(session)
+    canonical_map = brand_crud.build_canonical_brand_map(brands)
+    for brand in brands:
+        canonical = canonical_map.get(brand.id, brand)
         canonical_name = normalize_brand_name(canonical.name)
         if not canonical_name:
             continue
         alias_map[canonical_name] = canonical_name
-        for candidate in related:
-            alias = normalize_brand_name(candidate.name)
-            if alias:
-                alias_map[alias] = canonical_name
+        alias = normalize_brand_name(brand.name)
+        if alias:
+            alias_map[alias] = canonical_name
     return alias_map
 
 
