@@ -61,6 +61,40 @@ class _FailOrderDZSiteClient(_FakeDZSiteClient):
         return True
 
 
+class _DirtyBasketDZSiteClient(_FakeDZSiteClient):
+    async def get_basket(self, api_key=None):
+        return {
+            'data': [
+                {
+                    'id': 277606,
+                    'oem': '9011610175',
+                    'detail_name': 'Шпилька',
+                },
+                {
+                    'id': 277605,
+                    'oem': '9011610175',
+                    'detail_name': 'Шпилька',
+                },
+            ]
+        }
+
+
+class _ClearableBasketDZSiteClient(_FakeDZSiteClient):
+    clean_called = False
+
+    async def get_basket(self, api_key=None):
+        return {
+            'data': [
+                {'id': 277606, 'oem': '9011610175'},
+                {'id': 277605, 'oem': '9011610175'},
+            ]
+        }
+
+    async def clean_basket(self, api_key=None):
+        type(self).clean_called = True
+        return True
+
+
 @pytest.mark.asyncio
 async def test_send_api_resolves_supplier_by_name_when_id_external(
     async_client, test_session, created_customers, monkeypatch
@@ -245,3 +279,83 @@ async def test_send_api_does_not_create_local_order_when_site_order_fails(
         await test_session.execute(select(Order))
     ).scalars().all()
     assert order_count == []
+
+
+@pytest.mark.asyncio
+async def test_send_api_returns_basket_conflict_detail(
+    async_client, test_session, created_customers, monkeypatch
+):
+    current_user = await _create_user(
+        test_session,
+        'orders-basket-conflict@example.com',
+        UserRole.ADMIN,
+    )
+
+    async def override_current_user():
+        return current_user
+
+    app.dependency_overrides[get_current_user] = override_current_user
+
+    monkeypatch.setattr(
+        'dz_fastapi.api.order.DZSiteClient',
+        _DirtyBasketDZSiteClient,
+    )
+
+    response = await async_client.post(
+        f'/order/send_api?customer_id={created_customers[0].id}',
+        json=[
+            {
+                'autopart_id': None,
+                'oem_number': '9011610175',
+                'brand_name': 'TOYOTA-LEXUS',
+                'autopart_name': 'Шпилька',
+                'supplier_id': 9731061118,
+                'supplier_name': 'Ivers (http://ivers.ru/)',
+                'quantity': 10,
+                'confirmed_price': 101.0,
+                'min_delivery_day': 1,
+                'max_delivery_day': 0,
+                'status': 'Send',
+                'tracking_uuid': 'dragonzap:test-basket-conflict',
+                'hash_key': 'hash-basket-conflict',
+                'system_hash': 'system-basket-conflict',
+            }
+        ],
+    )
+
+    assert response.status_code == 409, response.text
+    detail = response.json()['detail']
+    assert 'Корзина Dragonzap уже не пуста' in detail
+    assert 'Очистить корзину Dragonzap' in detail
+    assert '9011610175' in detail
+
+
+@pytest.mark.asyncio
+async def test_clear_dragonzap_basket_endpoint(
+    async_client, test_session, monkeypatch
+):
+    current_user = await _create_user(
+        test_session,
+        'orders-clear-basket@example.com',
+        UserRole.ADMIN,
+    )
+
+    async def override_current_user():
+        return current_user
+
+    app.dependency_overrides[get_current_user] = override_current_user
+    _ClearableBasketDZSiteClient.clean_called = False
+
+    monkeypatch.setattr(
+        'dz_fastapi.api.order.DZSiteClient',
+        _ClearableBasketDZSiteClient,
+    )
+
+    response = await async_client.post('/order/dragonzap/basket/clear')
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload['cleared'] is True
+    assert payload['cleared_items'] == 2
+    assert 'Корзина Dragonzap очищена' in payload['message']
+    assert _ClearableBasketDZSiteClient.clean_called is True

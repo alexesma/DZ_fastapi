@@ -167,6 +167,37 @@ def _merge_site_offers(offers_by_brand: list[list[dict]]) -> list[dict]:
     return merged
 
 
+def _extract_basket_items(payload: object) -> list[dict]:
+    if isinstance(payload, dict):
+        items = payload.get('data')
+    else:
+        items = payload
+    if not isinstance(items, list):
+        return []
+    return [item for item in items if isinstance(item, dict)]
+
+
+def _build_basket_conflict_detail(basket_items: list[dict]) -> str:
+    preview = ', '.join(
+        str(item.get('oem') or item.get('detail_name') or item.get('id'))
+        for item in basket_items[:3]
+        if item.get('oem') or item.get('detail_name') or item.get('id')
+    )
+    detail = (
+        'Корзина Dragonzap уже не пуста. '
+        'Чтобы не смешивать заказы, оформление из программы остановлено.'
+    )
+    if basket_items:
+        detail += f' Сейчас в корзине {len(basket_items)} поз.'
+    if preview:
+        detail += f' Примеры: {preview}.'
+    detail += (
+        ' Очистите корзину Dragonzap на сайте или кнопкой '
+        '«Очистить корзину Dragonzap», затем повторите отправку.'
+    )
+    return detail
+
+
 def _normalize_tracking_uuid(raw_value: str | None) -> str:
     value = (raw_value or '').strip()
     if value and len(value) <= 36:
@@ -456,20 +487,13 @@ async def send_api(
             base_url=URL_DZ_SEARCH, api_key=KEY, verify_ssl=False
         ) as dz_site_client:
             current_basket = await dz_site_client.get_basket(api_key=KEY)
-            current_basket_items = (
-                current_basket.get('data')
-                if isinstance(current_basket, dict)
-                else current_basket
-            ) or []
+            current_basket_items = _extract_basket_items(current_basket)
             basket_started_empty = len(current_basket_items) == 0
             if not basket_started_empty:
                 raise HTTPException(
                     status_code=409,
-                    detail=(
-                        'Корзина Dragonzap уже не пуста. '
-                        'Чтобы не смешивать заказы, оформление из программы '
-                        'остановлено. Сначала проверьте и очистите корзину '
-                        'на сайте Dragonzap.'
+                    detail=_build_basket_conflict_detail(
+                        current_basket_items
                     ),
                 )
             for item, request_tracking_uuid in prepared_request:
@@ -821,6 +845,57 @@ async def list_orders(session: AsyncSession = Depends(get_session)):
 async def debug_basket():
     async with DZSiteClient(api_key=KEY, verify_ssl=False) as dz:
         return await dz.get_basket(api_key=KEY)
+
+
+@router.post(
+    '/dragonzap/basket/clear',
+    tags=['offer', 'order', 'api'],
+    summary='Очистить корзину Dragonzap',
+)
+async def clear_dragonzap_basket(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    async with DZSiteClient(api_key=KEY, verify_ssl=False) as dz:
+        current_basket = await dz.get_basket(api_key=KEY)
+        current_basket_items = _extract_basket_items(current_basket)
+        if current_basket is not None and not current_basket_items:
+            return {
+                'cleared': False,
+                'cleared_items': 0,
+                'message': 'Корзина Dragonzap уже пуста.',
+            }
+
+        cleaned = await dz.clean_basket(api_key=KEY)
+        if not cleaned:
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    'Не удалось очистить корзину Dragonzap. '
+                    'Проверьте сайт вручную и повторите попытку.'
+                ),
+            )
+
+    cleared_items = len(current_basket_items)
+    if cleared_items:
+        success_message = (
+            f'Корзина Dragonzap очищена. Удалено позиций: {cleared_items}.'
+        )
+    else:
+        success_message = 'Корзина Dragonzap очищена.'
+    await _notify_current_user(
+        session,
+        current_user,
+        title='Корзина Dragonzap очищена',
+        message=success_message,
+        level=AppNotificationLevel.INFO,
+        link='/autoparts/offers',
+    )
+    return {
+        'cleared': True,
+        'cleared_items': cleared_items,
+        'message': success_message,
+    }
 
 
 #
