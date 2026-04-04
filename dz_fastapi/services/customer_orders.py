@@ -115,6 +115,16 @@ def _customer_order_reply_override_email() -> Optional[str]:
     return value or None
 
 
+def _supplier_order_override_email() -> Optional[str]:
+    value = str(
+        os.getenv(
+            'SUPPLIER_ORDER_OVERRIDE_EMAIL',
+            'info@dragonzap.ru',
+        )
+    ).strip()
+    return value or None
+
+
 async def _notify_admins(
     session: AsyncSession,
     *,
@@ -1654,6 +1664,20 @@ def _build_order_reply_recipients(
         if override_email:
             return override_email
     return ','.join(sorted(recipients))
+
+
+def _build_supplier_order_recipient(
+    provider: Optional[Provider],
+    *,
+    use_override: bool = True,
+) -> Optional[str]:
+    if use_override:
+        override_email = _supplier_order_override_email()
+        if override_email:
+            return override_email
+    if provider and provider.email_contact:
+        return provider.email_contact
+    return None
 
 
 async def _send_email_attachment_async(
@@ -3379,7 +3403,7 @@ async def send_supplier_orders(
         )
     )
     result = await session.execute(stmt)
-    orders = result.scalars().all()
+    orders = result.unique().scalars().all()
     sent = 0
     failed = 0
 
@@ -3390,10 +3414,15 @@ async def send_supplier_orders(
 
     for order in orders:
         provider = order.provider
-        to_email = provider.email_contact if provider else None
+        to_email = _build_supplier_order_recipient(provider)
         if not to_email:
             failed += 1
             continue
+        original_recipient = _build_supplier_order_recipient(
+            provider,
+            use_override=False,
+        )
+        override_email = _supplier_order_override_email()
 
         rows = []
         for item in order.items:
@@ -3415,10 +3444,25 @@ async def send_supplier_orders(
         pd.DataFrame(rows).to_excel(buffer, index=False)
         buffer.seek(0)
         try:
+            body = 'Во вложении заказ на поставку.'
+            subject = f'Заказ поставщику #{order.id}'
+            if override_email:
+                provider_name = provider.name if provider else 'не указан'
+                original_recipient_label = (
+                    original_recipient or 'не указан'
+                )
+                subject = f'[STUB] {subject}'
+                body = (
+                    'Заглушка отправки заказа поставщику. Письмо отправлено '
+                    f'только на {override_email} для ручной сверки.\n'
+                    f'Поставщик: {provider_name}\n'
+                    f'Исходный адресат: {original_recipient_label}\n\n'
+                    'Во вложении заказ на поставку.'
+                )
             await _send_email_attachment_async(
                 to_email,
-                f'Заказ поставщику #{order.id}',
-                'Во вложении заказ на поставку.',
+                subject,
+                body,
                 buffer.getvalue(),
                 f'supplier_order_{order.id}.xlsx',
                 False,

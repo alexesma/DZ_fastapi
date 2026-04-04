@@ -11,7 +11,8 @@ from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import (Customer, CustomerOrder,
                                        CustomerOrderConfig, CustomerOrderItem,
                                        StockOrder, StockOrderItem,
-                                       SupplierOrder, SupplierOrderItem)
+                                       SupplierOrder, SupplierOrderItem,
+                                       SupplierReceiptItem)
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -232,11 +233,15 @@ class CRUDStockOrder:
         stmt = (
             select(StockOrder)
             .options(
+                joinedload(StockOrder.customer),
                 joinedload(
                     StockOrder.items
                 )
                 .joinedload(StockOrderItem.autopart)
-                .selectinload(AutoPart.storage_locations)
+                .selectinload(AutoPart.storage_locations),
+                joinedload(StockOrder.items).joinedload(
+                    StockOrderItem.picked_by_user
+                ),
             )
             .order_by(StockOrder.created_at.desc())
         )
@@ -289,10 +294,13 @@ class CRUDSupplierOrder:
         session: AsyncSession,
         provider_id: Optional[int] = None,
         status: Optional[str] = None,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
         skip: int = 0,
         limit: int = 100,
     ) -> List[SupplierOrder]:
         stmt = select(SupplierOrder).options(
+            selectinload(SupplierOrder.provider),
             selectinload(SupplierOrder.items)
             .selectinload(SupplierOrderItem.customer_order_item)
             .selectinload(CustomerOrderItem.order)
@@ -301,16 +309,32 @@ class CRUDSupplierOrder:
             .selectinload(SupplierOrderItem.customer_order_item)
             .selectinload(CustomerOrderItem.order)
             .selectinload(CustomerOrder.items),
+            selectinload(SupplierOrder.items)
+            .selectinload(SupplierOrderItem.autopart)
+            .selectinload(AutoPart.brand),
+            selectinload(SupplierOrder.items)
+            .selectinload(SupplierOrderItem.receipt_items)
+            .selectinload(SupplierReceiptItem.receipt),
         )
         if provider_id is not None:
             stmt = stmt.where(SupplierOrder.provider_id == provider_id)
         if status is not None:
             stmt = stmt.where(SupplierOrder.status == status)
+        if date_from is not None:
+            stmt = stmt.where(
+                SupplierOrder.created_at
+                >= datetime.combine(date_from, datetime.min.time())
+            )
+        if date_to is not None:
+            stmt = stmt.where(
+                SupplierOrder.created_at
+                <= datetime.combine(date_to, datetime.max.time())
+            )
         stmt = stmt.order_by(
             SupplierOrder.created_at.desc()
         ).offset(skip).limit(limit)
         result = await session.execute(stmt)
-        return result.scalars().all()
+        return result.scalars().unique().all()
 
 
 crud_customer_order_config = CRUDCustomerOrderConfig()

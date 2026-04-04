@@ -30,10 +30,16 @@ from dz_fastapi.schemas.customer_order import (CustomerOrderConfigCreate,
                                                CustomerOrderStatsRecentRow,
                                                CustomerOrderStatsSummary,
                                                CustomerOrderSummaryResponse,
+                                               StockOrderItemPickResponse,
+                                               StockOrderItemPickUpdate,
                                                StockOrderResponse,
                                                SupplierOrderDetailResponse,
                                                SupplierOrderManualCreate,
-                                               SupplierOrderSummaryResponse)
+                                               SupplierOrderSummaryResponse,
+                                               SupplierReceiptCandidateRow,
+                                               SupplierReceiptCreate,
+                                               SupplierReceiptResponse,
+                                               SupplierResponseProcessResult)
 from dz_fastapi.services.customer_orders import (
     create_manual_customer_order, create_manual_supplier_order,
     process_customer_orders, process_manual_customer_order,
@@ -41,10 +47,16 @@ from dz_fastapi.services.customer_orders import (
     send_scheduled_supplier_orders, send_supplier_orders,
     update_customer_order_item_manual)
 from dz_fastapi.services.notifications import create_notification
+from dz_fastapi.services.supplier_order_responses import \
+    process_supplier_response_messages
+from dz_fastapi.services.supplier_workflow import (
+    create_supplier_receipt, list_supplier_receipt_candidates,
+    serialize_stock_order, serialize_supplier_receipt,
+    update_stock_order_item_pick)
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
-router = APIRouter(prefix='/customer-orders', tags=['customer-orders'])
+router = APIRouter(prefix="/customer-orders", tags=["customer-orders"])
 
 
 async def _notify_current_user(
@@ -68,7 +80,7 @@ async def _notify_current_user(
     except Exception:
         await session.rollback()
         logger.exception(
-            'Failed to create app notification for user %s',
+            "Failed to create app notification for user %s",
             current_user.id,
         )
 
@@ -81,8 +93,8 @@ def _serialize_customer_order_item_for_user(
     if current_user.role != UserRole.ADMIN:
         return model.model_copy(
             update={
-                'reject_reason_code': None,
-                'reject_reason_text': None,
+                "reject_reason_code": None,
+                "reject_reason_text": None,
             }
         )
     return model
@@ -97,7 +109,7 @@ def _serialize_customer_order_for_user(
         _serialize_customer_order_item_for_user(item, current_user)
         for item in (order.items or [])
     ]
-    return model.model_copy(update={'items': items})
+    return model.model_copy(update={"items": items})
 
 
 def _month_start_for_offset(months_ago: int) -> date:
@@ -112,16 +124,15 @@ def _month_start_for_offset(months_ago: int) -> date:
 
 def _build_month_buckets(months: int) -> list[date]:
     return [
-        _month_start_for_offset(offset)
-        for offset in reversed(range(months))
+        _month_start_for_offset(offset) for offset in reversed(range(months))
     ]
 
 
 def _decimal_average(values: list[Decimal]) -> Decimal | None:
     if not values:
         return None
-    total = sum(values, Decimal('0'))
-    return (total / Decimal(len(values))).quantize(Decimal('0.01'))
+    total = sum(values, Decimal("0"))
+    return (total / Decimal(len(values))).quantize(Decimal("0.01"))
 
 
 def _price_change_pct(
@@ -131,7 +142,7 @@ def _price_change_pct(
     if last_price is None or previous_price is None or previous_price == 0:
         return None
     return float(
-        ((last_price - previous_price) / previous_price) * Decimal('100')
+        ((last_price - previous_price) / previous_price) * Decimal("100")
     )
 
 
@@ -229,7 +240,7 @@ def _build_recent_rows(
 
 
 @router.post(
-    '/config',
+    "/config",
     response_model=CustomerOrderConfigResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -241,13 +252,13 @@ async def create_order_config(
     config = await crud_customer_order_config.upsert(
         session=session,
         customer_id=payload.customer_id,
-        data=payload.model_dump(exclude={'customer_id'}),
+        data=payload.model_dump(exclude={"customer_id"}),
     )
     return CustomerOrderConfigResponse.model_validate(config)
 
 
 @router.get(
-    '/config/{customer_id}',
+    "/config/{customer_id}",
     response_model=CustomerOrderConfigResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -260,12 +271,12 @@ async def get_order_config(
         session=session, customer_id=customer_id
     )
     if not config:
-        raise HTTPException(status_code=404, detail='Config not found')
+        raise HTTPException(status_code=404, detail="Config not found")
     return CustomerOrderConfigResponse.model_validate(config)
 
 
 @router.get(
-    '/configs',
+    "/configs",
     response_model=List[CustomerOrderConfigResponse],
     status_code=status.HTTP_200_OK,
 )
@@ -283,16 +294,14 @@ async def list_order_configs(
             customer_id=customer_id,
         )
     )
-    pricelist_map = {
-        cfg.id: cfg.name for cfg in pricelist_configs
-    }
+    pricelist_map = {cfg.id: cfg.name for cfg in pricelist_configs}
     response = []
     for config in configs:
         model = CustomerOrderConfigResponse.model_validate(config)
         response.append(
             model.model_copy(
                 update={
-                    'pricelist_config_name': pricelist_map.get(
+                    "pricelist_config_name": pricelist_map.get(
                         config.pricelist_config_id
                     )
                 }
@@ -302,7 +311,7 @@ async def list_order_configs(
 
 
 @router.get(
-    '/configs/{config_id}',
+    "/configs/{config_id}",
     response_model=CustomerOrderConfigResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -315,13 +324,13 @@ async def get_order_config_by_id(
         session=session, config_id=config_id
     )
     if not config:
-        raise HTTPException(status_code=404, detail='Config not found')
+        raise HTTPException(status_code=404, detail="Config not found")
     model = CustomerOrderConfigResponse.model_validate(config)
     return model
 
 
 @router.post(
-    '/configs',
+    "/configs",
     response_model=CustomerOrderConfigResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -333,7 +342,7 @@ async def create_order_config_v2(
     if payload.pricelist_config_id is None:
         raise HTTPException(
             status_code=400,
-            detail='pricelist_config_id is required',
+            detail="pricelist_config_id is required",
         )
     existing = await crud_customer_order_config.get_by_customer_and_pricelist(
         session=session,
@@ -343,18 +352,18 @@ async def create_order_config_v2(
     if existing:
         raise HTTPException(
             status_code=409,
-            detail='Order config already exists for this pricelist',
+            detail="Order config already exists for this pricelist",
         )
     config = await crud_customer_order_config.create(
         session=session,
         customer_id=payload.customer_id,
-        data=payload.model_dump(exclude={'customer_id'}),
+        data=payload.model_dump(exclude={"customer_id"}),
     )
     return CustomerOrderConfigResponse.model_validate(config)
 
 
 @router.put(
-    '/config/{customer_id}',
+    "/config/{customer_id}",
     response_model=CustomerOrderConfigResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -368,7 +377,7 @@ async def update_order_config(
         session=session, customer_id=customer_id
     )
     if not config:
-        raise HTTPException(status_code=404, detail='Config not found')
+        raise HTTPException(status_code=404, detail="Config not found")
     config = await crud_customer_order_config.update(
         session=session,
         config=config,
@@ -378,7 +387,7 @@ async def update_order_config(
 
 
 @router.patch(
-    '/configs/{config_id}',
+    "/configs/{config_id}",
     response_model=CustomerOrderConfigResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -392,7 +401,7 @@ async def update_order_config_by_id(
         session=session, config_id=config_id
     )
     if not config:
-        raise HTTPException(status_code=404, detail='Config not found')
+        raise HTTPException(status_code=404, detail="Config not found")
     if payload.pricelist_config_id is not None:
         existing = (
             await crud_customer_order_config.get_by_customer_and_pricelist(
@@ -404,7 +413,7 @@ async def update_order_config_by_id(
         if existing and existing.id != config.id:
             raise HTTPException(
                 status_code=409,
-                detail='Order config already exists for this pricelist',
+                detail="Order config already exists for this pricelist",
             )
     config = await crud_customer_order_config.update(
         session=session,
@@ -415,7 +424,7 @@ async def update_order_config_by_id(
 
 
 @router.delete(
-    '/configs/{config_id}',
+    "/configs/{config_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def delete_order_config(
@@ -427,13 +436,13 @@ async def delete_order_config(
         session=session, config_id=config_id
     )
     if not config:
-        raise HTTPException(status_code=404, detail='Config not found')
+        raise HTTPException(status_code=404, detail="Config not found")
     await crud_customer_order_config.delete(session=session, config=config)
     return None
 
 
 @router.get(
-    '/',
+    "/",
     response_model=List[CustomerOrderResponse],
     status_code=status.HTTP_200_OK,
 )
@@ -463,7 +472,7 @@ async def list_customer_orders(
 
 
 @router.get(
-    '/summary',
+    "/summary",
     response_model=List[CustomerOrderSummaryResponse],
     status_code=status.HTTP_200_OK,
 )
@@ -490,14 +499,14 @@ async def list_customer_order_summary(
 
     def _money(value) -> Decimal:
         if value is None:
-            return Decimal('0')
+            return Decimal("0")
         return Decimal(str(value))
 
     for order in orders:
-        total_sum = Decimal('0')
-        stock_sum = Decimal('0')
-        supplier_sum = Decimal('0')
-        rejected_sum = Decimal('0')
+        total_sum = Decimal("0")
+        stock_sum = Decimal("0")
+        supplier_sum = Decimal("0")
+        rejected_sum = Decimal("0")
         for item in order.items or []:
             price = (
                 item.requested_price
@@ -516,9 +525,9 @@ async def list_customer_order_summary(
             elif item.status == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER:
                 supplier_sum += Decimal(ship_qty) * price_value
         total_sum = stock_sum + supplier_sum + rejected_sum
-        rejected_pct = float(
-            (rejected_sum / total_sum) * 100
-        ) if total_sum > 0 else 0.0
+        rejected_pct = (
+            float((rejected_sum / total_sum) * 100) if total_sum > 0 else 0.0
+        )
         results.append(
             CustomerOrderSummaryResponse(
                 id=order.id,
@@ -540,21 +549,21 @@ async def list_customer_order_summary(
 
 
 @router.get(
-    '/item-stats',
+    "/item-stats",
     response_model=CustomerOrderItemStatsResponse,
     status_code=status.HTTP_200_OK,
 )
 async def get_customer_order_item_stats(
-    kind: Literal['oem', 'brand'],
+    kind: Literal["oem", "brand"],
     value: str,
     customer_id: int,
     months: int = 12,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    normalized_value = str(value or '').strip()
+    normalized_value = str(value or "").strip()
     if not normalized_value:
-        raise HTTPException(status_code=400, detail='value is required')
+        raise HTTPException(status_code=400, detail="value is required")
 
     period_months = max(1, min(months, 24))
     month_buckets = _build_month_buckets(period_months)
@@ -601,7 +610,7 @@ async def get_customer_order_item_stats(
 
 
 @router.get(
-    '/{order_id}',
+    "/{order_id}",
     response_model=CustomerOrderResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -614,12 +623,12 @@ async def get_customer_order(
         session=session, order_id=order_id
     )
     if not order:
-        raise HTTPException(status_code=404, detail='Order not found')
+        raise HTTPException(status_code=404, detail="Order not found")
     return _serialize_customer_order_for_user(order, current_user)
 
 
 @router.post(
-    '/manual',
+    "/manual",
     response_model=CustomerOrderResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -641,16 +650,15 @@ async def create_manual_order(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     order = await crud_customer_order.get_by_id(
-        session=session,
-        order_id=order.id
+        session=session, order_id=order.id
     )
     if not order:
-        raise HTTPException(status_code=404, detail='Order not found')
+        raise HTTPException(status_code=404, detail="Order not found")
     return _serialize_customer_order_for_user(order, current_user)
 
 
 @router.post(
-    '/{order_id}/process-manual',
+    "/{order_id}/process-manual",
     response_model=CustomerOrderResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -668,16 +676,15 @@ async def process_manual_order_endpoint(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     order = await crud_customer_order.get_by_id(
-        session=session,
-        order_id=order.id
+        session=session, order_id=order.id
     )
     if not order:
-        raise HTTPException(status_code=404, detail='Order not found')
+        raise HTTPException(status_code=404, detail="Order not found")
     return _serialize_customer_order_for_user(order, current_user)
 
 
 @router.patch(
-    '/items/{item_id}',
+    "/items/{item_id}",
     response_model=CustomerOrderItemResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -702,7 +709,7 @@ async def update_customer_order_item(
 
 
 @router.post(
-    '/process',
+    "/process",
     status_code=status.HTTP_200_OK,
 )
 async def process_orders(
@@ -713,19 +720,19 @@ async def process_orders(
     await _notify_current_user(
         session,
         current_user,
-        title='Проверка почты завершена',
+        title="Проверка почты завершена",
         message=(
-            'Импорт заказов клиентов завершен для всех активных'
-            ' конфигураций.'
+            "Импорт заказов клиентов завершен для всех активных"
+            " конфигураций."
         ),
         level=AppNotificationLevel.SUCCESS,
-        link='/customer-orders',
+        link="/customer-orders",
     )
-    return {'status': 'ok'}
+    return {"status": "ok"}
 
 
 @router.post(
-    '/configs/{config_id}/process',
+    "/configs/{config_id}/process",
     status_code=status.HTTP_200_OK,
 )
 async def process_orders_for_config(
@@ -737,7 +744,7 @@ async def process_orders_for_config(
         session=session, config_id=config_id
     )
     if not config:
-        raise HTTPException(status_code=404, detail='Config not found')
+        raise HTTPException(status_code=404, detail="Config not found")
     await process_customer_orders(
         session,
         customer_id=config.customer_id,
@@ -746,19 +753,19 @@ async def process_orders_for_config(
     await _notify_current_user(
         session,
         current_user,
-        title='Проверка почты завершена',
+        title="Проверка почты завершена",
         message=(
-            f'Импорт заказов завершен для конфигурации #{config_id}'
-            f' клиента #{config.customer_id}.'
+            f"Импорт заказов завершен для конфигурации #{config_id}"
+            f" клиента #{config.customer_id}."
         ),
         level=AppNotificationLevel.SUCCESS,
-        link='/customer-orders',
+        link="/customer-orders",
     )
-    return {'status': 'ok', 'config_id': config_id}
+    return {"status": "ok", "config_id": config_id}
 
 
 @router.post(
-    '/configs/{config_id}/retry-errors',
+    "/configs/{config_id}/retry-errors",
     status_code=status.HTTP_200_OK,
 )
 async def retry_config_errors(
@@ -773,23 +780,23 @@ async def retry_config_errors(
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    retried_count = result.get('retried', 0)
+    retried_count = result.get("retried", 0)
     await _notify_current_user(
         session,
         current_user,
-        title='Повторная обработка ошибок завершена',
+        title="Повторная обработка ошибок завершена",
         message=(
-            f'Для конфигурации #{config_id} повторно обработано'
-            f' {retried_count} заказов с ошибками.'
+            f"Для конфигурации #{config_id} повторно обработано"
+            f" {retried_count} заказов с ошибками."
         ),
         level=AppNotificationLevel.SUCCESS,
-        link='/customer-orders',
+        link="/customer-orders",
     )
     return result
 
 
 @router.post(
-    '/{order_id}/retry',
+    "/{order_id}/retry",
     response_model=CustomerOrderResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -809,20 +816,20 @@ async def retry_order(
         order_id=order.id,
     )
     if not order:
-        raise HTTPException(status_code=404, detail='Order not found')
+        raise HTTPException(status_code=404, detail="Order not found")
     await _notify_current_user(
         session,
         current_user,
-        title='Заказ перепроверен',
-        message=f'Заказ клиента #{order.id} был перепроверен.',
+        title="Заказ перепроверен",
+        message=f"Заказ клиента #{order.id} был перепроверен.",
         level=AppNotificationLevel.SUCCESS,
-        link=f'/customer-orders/{order.id}',
+        link=f"/customer-orders/{order.id}",
     )
     return _serialize_customer_order_for_user(order, current_user)
 
 
 @router.get(
-    '/stock/list',
+    "/stock/list",
     response_model=List[StockOrderResponse],
     status_code=status.HTTP_200_OK,
 )
@@ -847,11 +854,57 @@ async def list_stock_orders(
         skip=skip,
         limit=limit,
     )
-    return [StockOrderResponse.model_validate(o) for o in orders]
+    return [
+        StockOrderResponse.model_validate(serialize_stock_order(order))
+        for order in orders
+    ]
+
+
+@router.patch(
+    "/stock/items/{item_id}/pick",
+    response_model=StockOrderItemPickResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def update_stock_order_item_pick_endpoint(
+    item_id: int,
+    payload: StockOrderItemPickUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        result = await update_stock_order_item_pick(
+            session=session,
+            item_id=item_id,
+            user=current_user,
+            picked_quantity=payload.picked_quantity,
+            increment=payload.increment,
+            pick_comment=payload.pick_comment,
+            scan_code=payload.scan_code,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return StockOrderItemPickResponse(
+        id=result.item.id,
+        stock_order_id=result.item.stock_order_id,
+        quantity=result.item.quantity,
+        picked_quantity=int(result.item.picked_quantity or 0),
+        picked_at=result.item.picked_at,
+        picked_by_user_id=result.item.picked_by_user_id,
+        picked_by_email=(
+            result.item.picked_by_user.email
+            if result.item.picked_by_user
+            else None
+        ),
+        pick_comment=result.item.pick_comment,
+        pick_last_scan_code=result.item.pick_last_scan_code,
+        stock_order_status=result.stock_order_status,
+    )
 
 
 @router.get(
-    '/supplier/list',
+    "/supplier/list",
     response_model=List[SupplierOrderSummaryResponse],
     status_code=status.HTTP_200_OK,
 )
@@ -880,6 +933,8 @@ async def list_supplier_orders(
         session=session,
         provider_id=provider_id,
         status=status,
+        date_from=date_from,
+        date_to=date_to,
         skip=skip,
         limit=limit,
     )
@@ -887,7 +942,7 @@ async def list_supplier_orders(
 
     def _money(value) -> Decimal:
         if value is None:
-            return Decimal('0')
+            return Decimal("0")
         return Decimal(str(value))
 
     def _in_range(value: float, min_value, max_value) -> bool:
@@ -906,8 +961,7 @@ async def list_supplier_orders(
 
         if customer_id is not None:
             if not any(
-                o.customer_id == customer_id
-                for o in customer_orders.values()
+                o.customer_id == customer_id for o in customer_orders.values()
             ):
                 continue
 
@@ -926,7 +980,7 @@ async def list_supplier_orders(
             if not matches_date:
                 continue
 
-        supplier_sum = Decimal('0')
+        supplier_sum = Decimal("0")
         for item in order.items or []:
             order_item = item.customer_order_item
             if item.price is not None:
@@ -935,15 +989,11 @@ async def list_supplier_orders(
                 price_value = _money(
                     order_item.requested_price
                     if order_item and order_item.requested_price is not None
-                    else (
-                        order_item.matched_price
-                        if order_item
-                        else None
-                    )
+                    else (order_item.matched_price if order_item else None)
                 )
             supplier_sum += Decimal(item.quantity) * price_value
 
-        rejected_sum = Decimal('0')
+        rejected_sum = Decimal("0")
         for customer_order in customer_orders.values():
             for item in customer_order.items or []:
                 if item.status != CUSTOMER_ORDER_ITEM_STATUS.REJECTED:
@@ -983,10 +1033,11 @@ async def list_supplier_orders(
             customer_received_at = customer_order.received_at
             customer_status = customer_order.status
         elif len(customer_orders) > 1:
-            customer_name = 'Несколько'
-            customer_order_number = 'Несколько'
+            customer_name = "Несколько"
+            customer_order_number = "Несколько"
             received_list = [
-                o.received_at for o in customer_orders.values()
+                o.received_at
+                for o in customer_orders.values()
                 if o.received_at
             ]
             if received_list:
@@ -1037,7 +1088,101 @@ async def list_supplier_orders(
 
 
 @router.get(
-    '/supplier/{order_id}',
+    "/supplier-receipts/candidates",
+    response_model=List[SupplierReceiptCandidateRow],
+    status_code=status.HTTP_200_OK,
+)
+async def list_supplier_receipt_candidates_endpoint(
+    provider_id: Optional[int] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    rows = await list_supplier_receipt_candidates(
+        session=session,
+        provider_id=provider_id,
+        date_from=date_from,
+        date_to=date_to,
+    )
+    return [SupplierReceiptCandidateRow.model_validate(row) for row in rows]
+
+
+@router.post(
+    "/supplier/process-responses",
+    response_model=SupplierResponseProcessResult,
+    status_code=status.HTTP_200_OK,
+)
+async def process_supplier_responses_endpoint(
+    provider_id: Optional[int] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    result = await process_supplier_response_messages(
+        session=session,
+        provider_id=provider_id,
+        date_from=date_from,
+        date_to=date_to,
+    )
+    await _notify_current_user(
+        session,
+        current_user,
+        title="Почта поставщиков проверена",
+        message=(
+            "Обработано писем: "
+            f'{result["processed_messages"]} '
+            f'из {result["fetched_messages"]}.'
+        ),
+        level=AppNotificationLevel.SUCCESS,
+        link="/customer-orders/receipts",
+    )
+    return SupplierResponseProcessResult(**result)
+
+
+@router.post(
+    "/supplier-receipts",
+    response_model=SupplierReceiptResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_supplier_receipt_endpoint(
+    payload: SupplierReceiptCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        receipt = await create_supplier_receipt(
+            session=session,
+            user=current_user,
+            provider_id=payload.provider_id,
+            items_payload=[item.model_dump() for item in payload.items],
+            document_number=payload.document_number,
+            document_date=payload.document_date,
+            comment=payload.comment,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await _notify_current_user(
+        session,
+        current_user,
+        title="Поступление оформлено",
+        message=(
+            f"Поступление по поставщику #{payload.provider_id} "
+            f"сформировано по {len(payload.items)} строкам."
+        ),
+        level=AppNotificationLevel.SUCCESS,
+        link="/customer-orders/receipts",
+    )
+    return SupplierReceiptResponse.model_validate(
+        serialize_supplier_receipt(receipt)
+    )
+
+
+@router.get(
+    "/supplier/{order_id}",
     response_model=SupplierOrderDetailResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -1050,23 +1195,27 @@ async def get_supplier_order_detail(
         session=session, order_id=order_id
     )
     if not order:
-        raise HTTPException(status_code=404, detail='Order not found')
+        raise HTTPException(status_code=404, detail="Order not found")
     items = []
     for item in order.items or []:
         order_item = item.customer_order_item
         autopart = item.autopart
         brand_name = (
-            autopart.brand.name
-            if autopart and autopart.brand
-            else None
+            autopart.brand.name if autopart and autopart.brand else None
         )
         items.append(
             {
-                'id': item.id,
-                'customer_order_item_id': item.customer_order_item_id,
-                'quantity': item.quantity,
-                'price': item.price,
-                'oem': (
+                "id": item.id,
+                "customer_order_item_id": item.customer_order_item_id,
+                "quantity": item.quantity,
+                "price": item.price,
+                "confirmed_quantity": item.confirmed_quantity,
+                "response_price": item.response_price,
+                "response_comment": item.response_comment,
+                "response_status_raw": item.response_status_raw,
+                "response_status_normalized": item.response_status_normalized,
+                "response_status_synced_at": item.response_status_synced_at,
+                "oem": (
                     order_item.oem
                     if order_item
                     else (
@@ -1074,12 +1223,12 @@ async def get_supplier_order_detail(
                         or (autopart.oem_number if autopart else None)
                     )
                 ),
-                'brand': (
+                "brand": (
                     order_item.brand
                     if order_item
                     else (item.brand_name or brand_name)
                 ),
-                'name': (
+                "name": (
                     order_item.name
                     if order_item
                     else (
@@ -1087,15 +1236,15 @@ async def get_supplier_order_detail(
                         or (autopart.name if autopart else None)
                     )
                 ),
-                'min_delivery_day': item.min_delivery_day,
-                'max_delivery_day': item.max_delivery_day,
-                'received_quantity': item.received_quantity,
-                'received_at': item.received_at,
-                'requested_qty': (
+                "min_delivery_day": item.min_delivery_day,
+                "max_delivery_day": item.max_delivery_day,
+                "received_quantity": item.received_quantity,
+                "received_at": item.received_at,
+                "requested_qty": (
                     order_item.requested_qty if order_item else None
                 ),
-                'ship_qty': order_item.ship_qty if order_item else None,
-                'reject_qty': order_item.reject_qty if order_item else None,
+                "ship_qty": order_item.ship_qty if order_item else None,
+                "reject_qty": order_item.reject_qty if order_item else None,
             }
         )
     return SupplierOrderDetailResponse(
@@ -1106,12 +1255,15 @@ async def get_supplier_order_detail(
         created_at=order.created_at,
         scheduled_at=order.scheduled_at,
         sent_at=order.sent_at,
+        response_status_raw=order.response_status_raw,
+        response_status_normalized=order.response_status_normalized,
+        response_status_synced_at=order.response_status_synced_at,
         items=items,
     )
 
 
 @router.post(
-    '/supplier/manual',
+    "/supplier/manual",
     response_model=SupplierOrderDetailResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -1133,48 +1285,46 @@ async def create_manual_supplier_order_endpoint(
         session=session, order_id=created.id
     )
     if not order:
-        raise HTTPException(status_code=404, detail='Order not found')
+        raise HTTPException(status_code=404, detail="Order not found")
     await _notify_current_user(
         session,
         current_user,
-        title='Создан заказ поставщику',
+        title="Создан заказ поставщику",
         message=(
-            f'Создан заказ поставщику #{order.id}'
-            f' на {len(order.items or [])} поз.'
+            f"Создан заказ поставщику #{order.id}"
+            f" на {len(order.items or [])} поз."
         ),
         level=AppNotificationLevel.SUCCESS,
-        link='/orders/tracking',
+        link="/orders/tracking",
     )
 
     items = []
     for item in order.items or []:
         autopart = item.autopart
         brand_name = (
-            autopart.brand.name
-            if autopart and autopart.brand
-            else None
+            autopart.brand.name if autopart and autopart.brand else None
         )
         items.append(
             {
-                'id': item.id,
-                'customer_order_item_id': item.customer_order_item_id,
-                'quantity': item.quantity,
-                'price': item.price,
-                'oem': (
+                "id": item.id,
+                "customer_order_item_id": item.customer_order_item_id,
+                "quantity": item.quantity,
+                "price": item.price,
+                "oem": (
                     item.oem_number
                     or (autopart.oem_number if autopart else None)
                 ),
-                'brand': item.brand_name or brand_name,
-                'name': (
+                "brand": item.brand_name or brand_name,
+                "name": (
                     item.autopart_name or (autopart.name if autopart else None)
                 ),
-                'min_delivery_day': item.min_delivery_day,
-                'max_delivery_day': item.max_delivery_day,
-                'received_quantity': item.received_quantity,
-                'received_at': item.received_at,
-                'requested_qty': None,
-                'ship_qty': None,
-                'reject_qty': None,
+                "min_delivery_day": item.min_delivery_day,
+                "max_delivery_day": item.max_delivery_day,
+                "received_quantity": item.received_quantity,
+                "received_at": item.received_at,
+                "requested_qty": None,
+                "ship_qty": None,
+                "reject_qty": None,
             }
         )
     return SupplierOrderDetailResponse(
@@ -1190,7 +1340,7 @@ async def create_manual_supplier_order_endpoint(
 
 
 @router.post(
-    '/supplier/send',
+    "/supplier/send",
     status_code=status.HTTP_200_OK,
 )
 async def send_supplier_orders_endpoint(
@@ -1201,28 +1351,27 @@ async def send_supplier_orders_endpoint(
     result = await send_supplier_orders(
         session=session, supplier_order_ids=supplier_order_ids
     )
-    sent_count = result.get('sent', 0)
-    error_count = result.get('failed', 0)
+    sent_count = result.get("sent", 0)
+    error_count = result.get("failed", 0)
     await _notify_current_user(
         session,
         current_user,
-        title='Отправка заказов поставщикам завершена',
+        title="Отправка заказов поставщикам завершена",
         message=(
-            f'Успешно отправлено: {sent_count}.'
-            f' С ошибкой: {error_count}.'
+            f"Успешно отправлено: {sent_count}." f" С ошибкой: {error_count}."
         ),
         level=(
             AppNotificationLevel.WARNING
             if error_count
             else AppNotificationLevel.SUCCESS
         ),
-        link='/customer-orders/suppliers',
+        link="/customer-orders/suppliers",
     )
     return result
 
 
 @router.post(
-    '/supplier/send-scheduled',
+    "/supplier/send-scheduled",
     status_code=status.HTTP_200_OK,
 )
 async def send_scheduled_supplier_orders_endpoint(
@@ -1230,21 +1379,20 @@ async def send_scheduled_supplier_orders_endpoint(
     current_user: User = Depends(get_current_user),
 ):
     result = await send_scheduled_supplier_orders(session)
-    sent_count = result.get('sent', 0)
-    error_count = result.get('failed', 0)
+    sent_count = result.get("sent", 0)
+    error_count = result.get("failed", 0)
     await _notify_current_user(
         session,
         current_user,
-        title='Плановая отправка заказов завершена',
+        title="Плановая отправка заказов завершена",
         message=(
-            f'Успешно отправлено: {sent_count}.'
-            f' С ошибкой: {error_count}.'
+            f"Успешно отправлено: {sent_count}." f" С ошибкой: {error_count}."
         ),
         level=(
             AppNotificationLevel.WARNING
             if error_count
             else AppNotificationLevel.SUCCESS
         ),
-        link='/customer-orders/suppliers',
+        link="/customer-orders/suppliers",
     )
     return result

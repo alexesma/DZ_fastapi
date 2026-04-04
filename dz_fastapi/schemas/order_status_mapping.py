@@ -3,7 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from dz_fastapi.models.order_status_mapping import ExternalStatusMatchMode
+from dz_fastapi.models.order_status_mapping import (ExternalStatusMatchMode,
+                                                    SupplierResponseAction)
 
 
 class StatusOptionOut(BaseModel):
@@ -18,6 +19,7 @@ class ExternalStatusMappingBase(BaseModel):
     match_mode: ExternalStatusMatchMode = ExternalStatusMatchMode.EXACT
     internal_order_status: Optional[str] = Field(default=None, max_length=64)
     internal_item_status: Optional[str] = Field(default=None, max_length=64)
+    supplier_response_action: Optional[SupplierResponseAction] = None
     priority: int = Field(default=100, ge=0, le=10000)
     is_active: bool = True
     notes: Optional[str] = None
@@ -33,6 +35,7 @@ class ExternalStatusMappingUpdate(BaseModel):
     match_mode: Optional[ExternalStatusMatchMode] = None
     internal_order_status: Optional[str] = Field(default=None, max_length=64)
     internal_item_status: Optional[str] = Field(default=None, max_length=64)
+    supplier_response_action: Optional[SupplierResponseAction] = None
     priority: Optional[int] = Field(default=None, ge=0, le=10000)
     is_active: Optional[bool] = None
     notes: Optional[str] = None
@@ -49,6 +52,7 @@ class ExternalStatusMappingOut(BaseModel):
     match_mode: str
     internal_order_status: Optional[str] = None
     internal_item_status: Optional[str] = None
+    supplier_response_action: Optional[str] = None
     priority: int
     is_active: bool
     notes: Optional[str] = None
@@ -73,6 +77,7 @@ class ExternalStatusUnmappedOut(BaseModel):
     last_seen_at: datetime
     sample_order_id: Optional[int] = None
     sample_item_id: Optional[int] = None
+    sample_payload: Optional[dict] = None
     is_resolved: bool
     mapping_id: Optional[int] = None
 
@@ -88,3 +93,4 @@ class ExternalStatusMappingOptionsOut(BaseModel):
     match_modes: list[StatusOptionOut]
     order_statuses: list[StatusOptionOut]
     item_statuses: list[StatusOptionOut]
+    supplier_response_actions: list[StatusOptionOut]

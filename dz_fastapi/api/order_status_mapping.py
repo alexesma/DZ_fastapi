@@ -20,12 +20,13 @@ from dz_fastapi.services.order_status_mapping import (
     EXTERNAL_STATUS_SOURCE_LABELS, apply_mapping_to_existing_items,
     get_external_status_match_mode_options, get_external_status_source_options,
     get_order_item_status_options, get_order_status_options,
-    normalize_external_status_source, normalize_external_status_text,
-    resolve_internal_item_status, resolve_internal_order_status)
+    get_supplier_response_action_options, normalize_external_status_source,
+    normalize_external_status_text, resolve_internal_item_status,
+    resolve_internal_order_status)
 
 router = APIRouter(
-    prefix='/admin/order-status-mappings',
-    tags=['admin', 'order-status-mappings'],
+    prefix="/admin/order-status-mappings",
+    tags=["admin", "order-status-mappings"],
     dependencies=[Depends(require_admin)],
 )
 
@@ -34,14 +35,19 @@ def _validate_internal_statuses(
     *,
     order_status: Optional[str],
     item_status: Optional[str],
+    supplier_response_action: Optional[str],
 ) -> None:
     if (
-        not str(order_status or '').strip()
-        and not str(item_status or '').strip()
+        not str(order_status or "").strip()
+        and not str(item_status or "").strip()
+        and not str(supplier_response_action or "").strip()
     ):
         raise HTTPException(
             status_code=400,
-            detail='Нужно выбрать хотя бы один внутренний статус',
+            detail=(
+                "Нужно выбрать внутренний статус "
+                "или действие для ответа поставщика"
+            ),
         )
     try:
         resolve_internal_order_status(order_status)
@@ -49,7 +55,7 @@ def _validate_internal_statuses(
     except KeyError as exc:
         raise HTTPException(
             status_code=400,
-            detail='Указан неизвестный внутренний статус',
+            detail="Указан неизвестный внутренний статус",
         ) from exc
 
 
@@ -96,6 +102,7 @@ def _mapping_to_schema(
         match_mode=str(mapping.match_mode.value),
         internal_order_status=mapping.internal_order_status,
         internal_item_status=mapping.internal_item_status,
+        supplier_response_action=mapping.supplier_response_action,
         priority=mapping.priority,
         is_active=mapping.is_active,
         notes=mapping.notes,
@@ -108,7 +115,7 @@ def _mapping_to_schema(
     )
 
 
-@router.get('/options', response_model=ExternalStatusMappingOptionsOut)
+@router.get("/options", response_model=ExternalStatusMappingOptionsOut)
 async def get_order_status_mapping_options():
     return ExternalStatusMappingOptionsOut(
         sources=[
@@ -125,10 +132,14 @@ async def get_order_status_mapping_options():
         item_statuses=[
             StatusOptionOut(**item) for item in get_order_item_status_options()
         ],
+        supplier_response_actions=[
+            StatusOptionOut(**item)
+            for item in get_supplier_response_action_options()
+        ],
     )
 
 
-@router.get('', response_model=list[ExternalStatusMappingOut])
+@router.get("", response_model=list[ExternalStatusMappingOut])
 async def list_order_status_mappings(
     source_key: Optional[str] = None,
     provider_id: Optional[int] = None,
@@ -186,7 +197,7 @@ async def list_order_status_mappings(
     ]
 
 
-@router.get('/unmapped', response_model=list[ExternalStatusUnmappedOut])
+@router.get("/unmapped", response_model=list[ExternalStatusUnmappedOut])
 async def list_unmapped_external_statuses(
     source_key: Optional[str] = None,
     provider_id: Optional[int] = None,
@@ -231,6 +242,7 @@ async def list_unmapped_external_statuses(
             last_seen_at=row.last_seen_at,
             sample_order_id=row.sample_order_id,
             sample_item_id=row.sample_item_id,
+            sample_payload=row.sample_payload,
             is_resolved=row.is_resolved,
             mapping_id=row.mapping_id,
         )
@@ -238,7 +250,7 @@ async def list_unmapped_external_statuses(
     ]
 
 
-@router.post('', response_model=ExternalStatusMappingOut)
+@router.post("", response_model=ExternalStatusMappingOut)
 async def create_order_status_mapping(
     payload: ExternalStatusMappingCreate,
     session: AsyncSession = Depends(get_session),
@@ -247,6 +259,11 @@ async def create_order_status_mapping(
     _validate_internal_statuses(
         order_status=payload.internal_order_status,
         item_status=payload.internal_item_status,
+        supplier_response_action=(
+            payload.supplier_response_action.value
+            if payload.supplier_response_action
+            else None
+        ),
     )
 
     source_key = normalize_external_status_source(payload.source_key)
@@ -254,7 +271,7 @@ async def create_order_status_mapping(
     if not normalized_status:
         raise HTTPException(
             status_code=400,
-            detail='Внешний статус не может быть пустым',
+            detail="Внешний статус не может быть пустым",
         )
 
     duplicate = await _find_duplicate_mapping(
@@ -267,7 +284,7 @@ async def create_order_status_mapping(
     if duplicate is not None:
         raise HTTPException(
             status_code=400,
-            detail='Такое правило уже существует',
+            detail="Такое правило уже существует",
         )
 
     mapping = ExternalStatusMapping(
@@ -277,10 +294,15 @@ async def create_order_status_mapping(
         normalized_status=normalized_status,
         match_mode=payload.match_mode,
         internal_order_status=(
-            str(payload.internal_order_status or '').strip().upper() or None
+            str(payload.internal_order_status or "").strip().upper() or None
         ),
         internal_item_status=(
-            str(payload.internal_item_status or '').strip().upper() or None
+            str(payload.internal_item_status or "").strip().upper() or None
+        ),
+        supplier_response_action=(
+            payload.supplier_response_action.value
+            if payload.supplier_response_action
+            else None
         ),
         priority=payload.priority,
         is_active=payload.is_active,
@@ -309,7 +331,7 @@ async def create_order_status_mapping(
 
 
 @router.patch(
-    '/{mapping_id}',
+    "/{mapping_id}",
     response_model=ExternalStatusMappingOut,
 )
 async def update_order_status_mapping(
@@ -320,10 +342,10 @@ async def update_order_status_mapping(
 ):
     mapping = await session.get(ExternalStatusMapping, mapping_id)
     if mapping is None:
-        raise HTTPException(status_code=404, detail='Правило не найдено')
+        raise HTTPException(status_code=404, detail="Правило не найдено")
 
     new_provider_id = mapping.provider_id
-    if 'provider_id' in payload.model_fields_set:
+    if "provider_id" in payload.model_fields_set:
         new_provider_id = payload.provider_id
 
     new_match_mode = mapping.match_mode
@@ -335,27 +357,36 @@ async def update_order_status_mapping(
         new_raw_status = payload.raw_status.strip()
 
     new_internal_order_status = mapping.internal_order_status
-    if 'internal_order_status' in payload.model_fields_set:
+    if "internal_order_status" in payload.model_fields_set:
         new_internal_order_status = (
-            str(payload.internal_order_status or '').strip().upper() or None
+            str(payload.internal_order_status or "").strip().upper() or None
         )
 
     new_internal_item_status = mapping.internal_item_status
-    if 'internal_item_status' in payload.model_fields_set:
+    if "internal_item_status" in payload.model_fields_set:
         new_internal_item_status = (
-            str(payload.internal_item_status or '').strip().upper() or None
+            str(payload.internal_item_status or "").strip().upper() or None
+        )
+
+    new_supplier_response_action = mapping.supplier_response_action
+    if "supplier_response_action" in payload.model_fields_set:
+        new_supplier_response_action = (
+            payload.supplier_response_action.value
+            if payload.supplier_response_action
+            else None
         )
 
     _validate_internal_statuses(
         order_status=new_internal_order_status,
         item_status=new_internal_item_status,
+        supplier_response_action=new_supplier_response_action,
     )
 
     normalized_status = normalize_external_status_text(new_raw_status)
     if not normalized_status:
         raise HTTPException(
             status_code=400,
-            detail='Внешний статус не может быть пустым',
+            detail="Внешний статус не может быть пустым",
         )
 
     duplicate = await _find_duplicate_mapping(
@@ -369,7 +400,7 @@ async def update_order_status_mapping(
     if duplicate is not None:
         raise HTTPException(
             status_code=400,
-            detail='Такое правило уже существует',
+            detail="Такое правило уже существует",
         )
 
     mapping.provider_id = new_provider_id
@@ -378,11 +409,12 @@ async def update_order_status_mapping(
     mapping.normalized_status = normalized_status
     mapping.internal_order_status = new_internal_order_status
     mapping.internal_item_status = new_internal_item_status
+    mapping.supplier_response_action = new_supplier_response_action
     if payload.priority is not None:
         mapping.priority = payload.priority
     if payload.is_active is not None:
         mapping.is_active = payload.is_active
-    if 'notes' in payload.model_fields_set:
+    if "notes" in payload.model_fields_set:
         mapping.notes = payload.notes
     mapping.updated_by_user_id = current_user.id
 
@@ -406,7 +438,7 @@ async def update_order_status_mapping(
 
 
 @router.post(
-    '/{mapping_id}/apply',
+    "/{mapping_id}/apply",
     response_model=ExternalStatusMappingApplyResult,
 )
 async def apply_order_status_mapping(
@@ -415,7 +447,7 @@ async def apply_order_status_mapping(
 ):
     mapping = await session.get(ExternalStatusMapping, mapping_id)
     if mapping is None:
-        raise HTTPException(status_code=404, detail='Правило не найдено')
+        raise HTTPException(status_code=404, detail="Правило не найдено")
     return ExternalStatusMappingApplyResult(
         **await apply_mapping_to_existing_items(session, mapping=mapping)
     )

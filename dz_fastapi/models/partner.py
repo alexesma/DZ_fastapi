@@ -654,6 +654,9 @@ class SupplierOrder(Base):
     created_at = Column(DateTime(timezone=True), default=now_moscow)
     scheduled_at = Column(DateTime(timezone=True), nullable=True)
     sent_at = Column(DateTime(timezone=True), nullable=True)
+    response_status_raw = Column(String(255), nullable=True)
+    response_status_normalized = Column(String(255), nullable=True, index=True)
+    response_status_synced_at = Column(DateTime(timezone=True), nullable=True)
 
     provider = relationship('Provider')
     created_by_user = relationship('User', foreign_keys=[created_by_user_id])
@@ -661,6 +664,15 @@ class SupplierOrder(Base):
         'SupplierOrderItem',
         back_populates='supplier_order',
         cascade='all, delete-orphan',
+    )
+    messages = relationship(
+        'SupplierOrderMessage',
+        back_populates='supplier_order',
+        cascade='all, delete-orphan',
+    )
+    receipts = relationship(
+        'SupplierReceipt',
+        back_populates='supplier_order',
     )
 
 
@@ -679,10 +691,151 @@ class SupplierOrderItem(Base):
     price = Column(DECIMAL(10, 2), nullable=True)
     min_delivery_day = Column(Integer, nullable=True)
     max_delivery_day = Column(Integer, nullable=True)
+    confirmed_quantity = Column(Integer, nullable=True)
+    response_price = Column(DECIMAL(10, 2), nullable=True)
+    response_comment = Column(String(500), nullable=True)
+    response_status_raw = Column(String(255), nullable=True)
+    response_status_normalized = Column(String(255), nullable=True, index=True)
+    response_status_synced_at = Column(DateTime(timezone=True), nullable=True)
     received_quantity = Column(Integer, nullable=True)
     received_at = Column(DateTime(timezone=True), nullable=True)
 
     supplier_order = relationship('SupplierOrder', back_populates='items')
+    customer_order_item = relationship('CustomerOrderItem')
+    autopart = relationship('AutoPart')
+    receipt_items = relationship(
+        'SupplierReceiptItem',
+        back_populates='supplier_order_item',
+    )
+
+
+class SupplierOrderMessage(Base):
+    supplier_order_id = Column(
+        Integer, ForeignKey('supplierorder.id'), nullable=True, index=True
+    )
+    provider_id = Column(Integer, ForeignKey('provider.id'), nullable=False)
+    message_type = Column(String(32), nullable=False, default='UNKNOWN')
+    subject = Column(String(500), nullable=True)
+    sender_email = Column(String(255), nullable=True)
+    received_at = Column(DateTime(timezone=True), nullable=False)
+    body_preview = Column(Text, nullable=True)
+    raw_status = Column(String(255), nullable=True)
+    normalized_status = Column(String(255), nullable=True, index=True)
+    parse_confidence = Column(Float, nullable=True)
+    source_uid = Column(String(128), nullable=True, index=True)
+    source_message_id = Column(String(255), nullable=True, index=True)
+    mapping_id = Column(
+        Integer,
+        ForeignKey('external_status_mapping.id'),
+        nullable=True,
+        index=True,
+    )
+
+    supplier_order = relationship(
+        'SupplierOrder',
+        back_populates='messages',
+    )
+    provider = relationship('Provider')
+    mapping = relationship('ExternalStatusMapping')
+    attachments = relationship(
+        'SupplierOrderAttachment',
+        back_populates='message',
+        cascade='all, delete-orphan',
+    )
+    receipts = relationship('SupplierReceipt', back_populates='source_message')
+
+
+class SupplierOrderAttachment(Base):
+    message_id = Column(
+        Integer,
+        ForeignKey('supplierordermessage.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    filename = Column(String(255), nullable=False)
+    mime_type = Column(String(255), nullable=True)
+    file_path = Column(String(1024), nullable=False)
+    sha256 = Column(String(64), nullable=True, index=True)
+    parsed_kind = Column(String(64), nullable=True)
+
+    message = relationship(
+        'SupplierOrderMessage',
+        back_populates='attachments',
+    )
+
+
+class SupplierReceipt(Base):
+    provider_id = Column(Integer, ForeignKey('provider.id'), nullable=False)
+    supplier_order_id = Column(
+        Integer, ForeignKey('supplierorder.id'), nullable=True, index=True
+    )
+    source_message_id = Column(
+        Integer,
+        ForeignKey('supplierordermessage.id'),
+        nullable=True,
+        index=True,
+    )
+    document_number = Column(String(120), nullable=True, index=True)
+    document_date = Column(Date, nullable=True, index=True)
+    created_by_user_id = Column(
+        Integer, ForeignKey('app_user.id'), nullable=True
+    )
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
+    posted_at = Column(DateTime(timezone=True), nullable=True)
+    comment = Column(Text, nullable=True)
+
+    provider = relationship('Provider')
+    supplier_order = relationship('SupplierOrder', back_populates='receipts')
+    source_message = relationship(
+        'SupplierOrderMessage',
+        back_populates='receipts',
+    )
+    created_by_user = relationship('User', foreign_keys=[created_by_user_id])
+    items = relationship(
+        'SupplierReceiptItem',
+        back_populates='receipt',
+        cascade='all, delete-orphan',
+    )
+
+
+class SupplierReceiptItem(Base):
+    receipt_id = Column(
+        Integer,
+        ForeignKey('supplierreceipt.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    supplier_order_id = Column(
+        Integer, ForeignKey('supplierorder.id'), nullable=True, index=True
+    )
+    supplier_order_item_id = Column(
+        Integer,
+        ForeignKey('supplierorderitem.id'),
+        nullable=True,
+        index=True,
+    )
+    customer_order_item_id = Column(
+        Integer,
+        ForeignKey('customerorderitem.id'),
+        nullable=True,
+        index=True,
+    )
+    autopart_id = Column(Integer, ForeignKey('autopart.id'), nullable=True)
+    oem_number = Column(String(120), nullable=True, index=True)
+    brand_name = Column(String(120), nullable=True)
+    autopart_name = Column(String(512), nullable=True)
+    ordered_quantity = Column(Integer, nullable=True)
+    confirmed_quantity = Column(Integer, nullable=True)
+    received_quantity = Column(Integer, nullable=False, default=0)
+    price = Column(DECIMAL(10, 2), nullable=True)
+    comment = Column(String(500), nullable=True)
+
+    receipt = relationship('SupplierReceipt', back_populates='items')
+    supplier_order = relationship('SupplierOrder')
+    supplier_order_item = relationship(
+        'SupplierOrderItem',
+        back_populates='receipt_items',
+    )
     customer_order_item = relationship('CustomerOrderItem')
     autopart = relationship('AutoPart')
 
@@ -715,10 +868,18 @@ class StockOrderItem(Base):
     )
     autopart_id = Column(Integer, ForeignKey('autopart.id'), nullable=True)
     quantity = Column(Integer, nullable=False)
+    picked_quantity = Column(Integer, nullable=False, default=0)
+    picked_at = Column(DateTime(timezone=True), nullable=True)
+    picked_by_user_id = Column(
+        Integer, ForeignKey('app_user.id'), nullable=True
+    )
+    pick_comment = Column(String(500), nullable=True)
+    pick_last_scan_code = Column(String(255), nullable=True)
 
     stock_order = relationship('StockOrder', back_populates='items')
     customer_order_item = relationship('CustomerOrderItem')
     autopart = relationship('AutoPart')
+    picked_by_user = relationship('User', foreign_keys=[picked_by_user_id])
 
 
 class CustomerPriceListSource(Base):
