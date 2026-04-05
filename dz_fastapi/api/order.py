@@ -184,16 +184,16 @@ def _build_basket_conflict_detail(basket_items: list[dict]) -> str:
         if item.get('oem') or item.get('detail_name') or item.get('id')
     )
     detail = (
-        'Корзина Dragonzap уже не пуста. '
-        'Чтобы не смешивать заказы, оформление из программы остановлено.'
+        'В корзине Dragonzap остались старые позиции. '
+        'Программа попыталась очистить корзину автоматически, '
+        'но не смогла.'
     )
     if basket_items:
         detail += f' Сейчас в корзине {len(basket_items)} поз.'
     if preview:
         detail += f' Примеры: {preview}.'
     detail += (
-        ' Очистите корзину Dragonzap на сайте или кнопкой '
-        '«Очистить корзину Dragonzap», затем повторите отправку.'
+        ' Очистите корзину Dragonzap на сайте вручную и повторите отправку.'
     )
     return detail
 
@@ -483,6 +483,7 @@ async def send_api(
     try:
         staged_success: list[tuple[OrderPositionOut, str]] = []
         basket_started_empty = True
+        basket_auto_cleaned = False
         async with DZSiteClient(
             base_url=URL_DZ_SEARCH, api_key=KEY, verify_ssl=False
         ) as dz_site_client:
@@ -490,12 +491,23 @@ async def send_api(
             current_basket_items = _extract_basket_items(current_basket)
             basket_started_empty = len(current_basket_items) == 0
             if not basket_started_empty:
-                raise HTTPException(
-                    status_code=409,
-                    detail=_build_basket_conflict_detail(
-                        current_basket_items
-                    ),
+                logger.warning(
+                    'Dragonzap basket contains %s stale positions; '
+                    'trying to auto-clean before sending',
+                    len(current_basket_items),
                 )
+                basket_cleaned = await dz_site_client.clean_basket(
+                    api_key=KEY
+                )
+                if not basket_cleaned:
+                    raise HTTPException(
+                        status_code=409,
+                        detail=_build_basket_conflict_detail(
+                            current_basket_items
+                        ),
+                    )
+                basket_started_empty = True
+                basket_auto_cleaned = True
             for item, request_tracking_uuid in prepared_request:
                 try:
                     if not item.hash_key:
@@ -685,6 +697,12 @@ async def send_api(
                 f'Создан заказ #{order.id}'
                 f' на {successful_count} поз.'
                 f' Успешно: {successful_count}, ошибок: {failed_count}.'
+                + (
+                    ' Перед отправкой программа автоматически очистила '
+                    'старую корзину Dragonzap.'
+                    if basket_auto_cleaned
+                    else ''
+                )
             ),
             level=(
                 AppNotificationLevel.WARNING

@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 60 * 24
     auth_cookie_name: str = 'access_token'
     auth_cookie_secure: bool = False
+    api_docs_enabled: bool = Field(
+        False, json_schema_extra={'env': 'API_DOCS_ENABLED'}
+    )
     admin_email: str | None = Field(
         None, json_schema_extra={'env': 'ADMIN_EMAIL'}
     )
