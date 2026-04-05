@@ -23,6 +23,10 @@ try:
 except ImportError:  # pragma: no cover - fallback for older imap_tools
     from imap_tools import AND, MailBox
     MailBoxSsl = None
+try:
+    from imap_tools.errors import MailboxUidsError
+except ImportError:  # pragma: no cover - older imap_tools fallback
+    MailboxUidsError = Exception
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -250,6 +254,173 @@ def _message_matches_provider_config(
         ):
             return True
     return False
+
+
+def _message_matches_provider_header_filters(
+    msg: _FetchedInboxMessage,
+    provider: Provider,
+    provider_conf: ProviderPriceListConfig,
+    since_date: date,
+) -> bool:
+    sender = _extract_email(getattr(msg, 'from_', None)).lower()
+    expected_sender = _extract_email(
+        getattr(provider, 'email_incoming_price', None)
+    ).lower()
+    if expected_sender and sender != expected_sender:
+        return False
+
+    subject = str(getattr(msg, 'subject', '') or '')
+    if provider_conf.name_mail and (
+        normalize_str(provider_conf.name_mail) not in normalize_str(subject)
+    ):
+        return False
+
+    msg_date = getattr(msg, 'date', None)
+    msg_day = None
+    if isinstance(msg_date, datetime):
+        msg_day = msg_date.date()
+    elif isinstance(msg_date, date):
+        msg_day = msg_date
+    if msg_day is not None and msg_day < since_date:
+        return False
+
+    return True
+
+
+def _is_mailbox_uid_search_error(exc: Exception) -> bool:
+    if isinstance(exc, MailboxUidsError):
+        return True
+    text = str(exc).upper()
+    return 'UID SEARCH' in text and '[UNAVAILABLE]' in text
+
+
+def _fetch_recent_mail_headers_for_fallback(
+    mailbox,
+    since_date: date,
+    max_emails: int,
+    provider_conf: ProviderPriceListConfig,
+    folder: str,
+):
+    attempts = [
+        (
+            AND(date_gte=since_date, all=True),
+            dict(
+                mark_seen=False,
+                reverse=True,
+                headers_only=True,
+                limit=max_emails,
+            ),
+            'date_gte',
+        ),
+        (
+            'ALL',
+            dict(
+                mark_seen=False,
+                reverse=True,
+                headers_only=True,
+                limit=max_emails,
+            ),
+            'all',
+        ),
+    ]
+    for criteria, kwargs, label in attempts:
+        try:
+            headers = list(mailbox.fetch(criteria, **kwargs))
+            logger.debug(
+                'Fetched %s mailbox headers via fallback=%s '
+                'for provider_config_id=%s folder=%s',
+                len(headers),
+                label,
+                provider_conf.id if provider_conf else None,
+                folder,
+            )
+            return headers
+        except Exception as fallback_exc:  # pragma: no cover - defensive
+            logger.warning(
+                'Fallback header fetch failed mode=%s '
+                'for provider_config_id=%s folder=%s: %s',
+                label,
+                provider_conf.id if provider_conf else None,
+                folder,
+                fallback_exc,
+            )
+    return []
+
+
+def _fetch_candidate_emails_with_uid_fallback(
+    mailbox,
+    provider: Provider,
+    provider_conf: ProviderPriceListConfig,
+    since_date: date,
+    max_emails: int,
+    last_uid: int,
+    folder: str,
+):
+    header_messages = _fetch_recent_mail_headers_for_fallback(
+        mailbox=mailbox,
+        since_date=since_date,
+        max_emails=max_emails,
+        provider_conf=provider_conf,
+        folder=folder,
+    )
+    matching_headers = [
+        msg
+        for msg in header_messages
+        if (_safe_uid_as_int(getattr(msg, 'uid', None)) or 0) > last_uid
+        and _message_matches_provider_header_filters(
+            msg,
+            provider,
+            provider_conf,
+            since_date,
+        )
+    ]
+    matching_headers.sort(key=_message_sort_key, reverse=True)
+    if not matching_headers:
+        logger.debug(
+            'UID fallback found no matching headers '
+            'for provider_config_id=%s folder=%s',
+            provider_conf.id if provider_conf else None,
+            folder,
+        )
+        return []
+
+    full_messages = []
+    for header_msg in matching_headers:
+        uid = getattr(header_msg, 'uid', None)
+        if not uid:
+            continue
+        try:
+            fetched_messages = list(
+                mailbox.fetch(
+                    f'UID {uid}',
+                    mark_seen=False,
+                )
+            )
+        except Exception as fetch_exc:  # pragma: no cover - defensive
+            logger.warning(
+                'UID fallback full fetch failed uid=%s '
+                'for provider_config_id=%s folder=%s: %s',
+                uid,
+                provider_conf.id if provider_conf else None,
+                folder,
+                fetch_exc,
+            )
+            continue
+        if not fetched_messages:
+            continue
+        full_msg = fetched_messages[0]
+        setattr(full_msg, 'folder_name', folder)
+        if _message_matches_provider_config(full_msg, provider_conf):
+            full_messages.append(full_msg)
+
+    logger.debug(
+        'UID fallback produced %s candidate emails '
+        'for provider_config_id=%s folder=%s',
+        len(full_messages),
+        provider_conf.id if provider_conf else None,
+        folder,
+    )
+    return full_messages
 
 
 def _resolve_smtp_host(host: str) -> tuple[str, str]:
@@ -800,13 +971,36 @@ async def download_price_provider(
                     provider_conf.id if provider_conf else None,
                     folder,
                 )
-                email_list = list(
-                    mailbox.fetch(
-                        criteria,
-                        mark_seen=False,
-                        **fetch_kwargs,
+                try:
+                    email_list = list(
+                        mailbox.fetch(
+                            criteria,
+                            mark_seen=False,
+                            **fetch_kwargs,
+                        )
                     )
-                )
+                except Exception as exc:
+                    if not _is_mailbox_uid_search_error(exc):
+                        raise
+                    logger.warning(
+                        'IMAP UID SEARCH failed; '
+                        'using UID fallback '
+                        'for provider_id=%s '
+                        'provider_config_id=%s folder=%s: %s',
+                        provider.id if provider else None,
+                        provider_conf.id if provider_conf else None,
+                        folder,
+                        exc,
+                    )
+                    email_list = _fetch_candidate_emails_with_uid_fallback(
+                        mailbox=mailbox,
+                        provider=provider,
+                        provider_conf=provider_conf,
+                        since_date=since_date,
+                        max_emails=max_emails,
+                        last_uid=last_uid,
+                        folder=folder,
+                    )
                 for msg in email_list:
                     setattr(msg, 'folder_name', folder)
                 logger.debug(

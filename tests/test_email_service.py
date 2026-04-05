@@ -5,7 +5,8 @@ from types import SimpleNamespace
 import pytest
 
 from dz_fastapi.services.email import (GMAIL_API_SEND_URL,
-                                       build_email_delivery_kwargs, get_emails,
+                                       build_email_delivery_kwargs,
+                                       download_price_provider, get_emails,
                                        send_email_message,
                                        send_email_with_attachment)
 
@@ -372,3 +373,124 @@ async def test_get_emails_uses_only_latest_message_per_provider_config(
 
     assert downloaded == ['105']
     assert result == [(provider, '/tmp/105.xls', provider_conf)]
+
+
+@pytest.mark.asyncio
+async def test_download_price_provider_uses_uid_fallback_on_search_error(
+    monkeypatch,
+    tmp_path,
+):
+    provider = SimpleNamespace(
+        id=934,
+        email_incoming_price='supplier@example.com',
+    )
+    provider_conf = SimpleNamespace(
+        id=38,
+        incoming_email_account_id=None,
+        name_mail='Остатки товаров',
+        name_price='alyprice',
+        file_url=None,
+    )
+    header_msg = SimpleNamespace(
+        uid='105',
+        from_='supplier@example.com',
+        subject='Остатки товаров',
+        attachments=[],
+        date=datetime(2026, 4, 5, 12, 0, 0),
+        headers={},
+        obj={},
+    )
+    full_msg = SimpleNamespace(
+        uid='105',
+        from_='supplier@example.com',
+        subject='Остатки товаров',
+        attachments=[
+            SimpleNamespace(
+                filename='alyprice_new.xls',
+                payload=b'payload',
+            )
+        ],
+        date=datetime(2026, 4, 5, 12, 0, 0),
+        headers={'Subject': 'Остатки товаров'},
+        obj={'Subject': 'Остатки товаров'},
+    )
+    flagged = []
+    updated_uids = []
+
+    class _FakeFolder:
+        def __init__(self):
+            self.current = None
+
+        def set(self, folder_name):
+            self.current = folder_name
+
+    class _FakeMailbox:
+        def __init__(self):
+            self.folder = _FakeFolder()
+
+        def login(self, *_args, **_kwargs):
+            return self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def fetch(self, criteria, **kwargs):
+            criteria_text = str(criteria)
+            if kwargs.get('headers_only'):
+                return iter([header_msg])
+            if criteria_text.startswith('UID 105'):
+                return iter([full_msg])
+            raise Exception(
+                'Response status "OK" expected, but "NO" received. '
+                'Data: [b\'[UNAVAILABLE] UID SEARCH Backend error.\']'
+            )
+
+        def flag(self, uid, flags, value):
+            flagged.append((uid, tuple(flags), value))
+
+    async def fake_get_last_uid(*_args, **_kwargs):
+        return 0
+
+    async def fake_set_last_uid(
+        provider_id,
+        uid,
+        session,
+        provider_config_id=None,
+        folder=None,
+    ):
+        updated_uids.append((provider_id, uid, provider_config_id, folder))
+
+    monkeypatch.setattr(
+        'dz_fastapi.services.email.DOWNLOAD_FOLDER',
+        str(tmp_path),
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.email._create_mailbox',
+        lambda *_args, **_kwargs: _FakeMailbox(),
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.email._get_last_uid_compat',
+        fake_get_last_uid,
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.email._set_last_uid_compat',
+        fake_set_last_uid,
+    )
+
+    filepath = await download_price_provider(
+        provider=provider,
+        provider_conf=provider_conf,
+        session=None,
+        server_mail='imap.yandex.ru',
+        email_account='price@dragonzap.ru',
+        email_password='secret',
+        max_emails=10,
+    )
+
+    assert filepath == str(tmp_path / 'alyprice_new.xls')
+    assert (tmp_path / 'alyprice_new.xls').read_bytes() == b'payload'
+    assert flagged == [('105', ('\\Seen',), True)]
+    assert updated_uids == [(934, 105, 38, 'INBOX')]
