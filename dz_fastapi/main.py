@@ -135,6 +135,7 @@ app.add_middleware(
         'http://0.0.0.0:3000',  # Локальный Docker frontend (0.0.0.0)
         'http://90.156.158.19',  # Ваш продакшн сервер (frontend)
         'http://90.156.158.19:3000',  # Продакшн с портом
+        'https://dragonzap.online',  # Продакшн домен
         'https://dragonzap.ru',  # Продакшн домен
     ],
     allow_credentials=True,
