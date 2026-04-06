@@ -633,6 +633,53 @@ def build_customer_response_short(customer: Customer) -> CustomerResponseShort:
     )
 
 
+async def build_customer_response_short_aggregated(
+    customer: Customer, session: AsyncSession
+) -> CustomerResponseShort:
+    price_list_rows = (
+        await session.execute(
+            select(
+                CustomerPriceList.id,
+                CustomerPriceList.date,
+                func.count(
+                    CustomerPriceListAutoPartAssociation.autopart_id
+                ).label('autoparts_count'),
+            )
+            .outerjoin(
+                CustomerPriceListAutoPartAssociation,
+                CustomerPriceListAutoPartAssociation.customerpricelist_id
+                == CustomerPriceList.id,
+            )
+            .where(CustomerPriceList.customer_id == customer.id)
+            .group_by(CustomerPriceList.id, CustomerPriceList.date)
+            .order_by(
+                CustomerPriceList.date.desc(),
+                CustomerPriceList.id.desc(),
+            )
+        )
+    ).all()
+
+    customer_price_lists_short = [
+        CustomerPriceListResponseShort(
+            id=row.id,
+            date=row.date,
+            autoparts_count=int(row.autoparts_count or 0),
+        )
+        for row in price_list_rows
+    ]
+
+    return CustomerResponseShort(
+        id=customer.id,
+        name=customer.name,
+        description=customer.description,
+        email_contact=customer.email_contact,
+        comment=customer.comment,
+        email_outgoing_price=customer.email_outgoing_price,
+        type_prices=customer.type_prices,
+        customer_price_lists=customer_price_lists_short,
+    )
+
+
 def build_customer_source_response(
     source,
 ) -> CustomerPriceListSourceResponse:
@@ -672,19 +719,13 @@ async def get_customer(
     customer_id: int, session: AsyncSession = Depends(get_session)
 ):
     result = await session.execute(
-        select(Customer)
-        .options(
-            selectinload(Customer.customer_price_lists)
-            .selectinload(CustomerPriceList.autopart_associations)
-            .selectinload(CustomerPriceListAutoPartAssociation.autopart)
-        )
-        .where(Customer.id == customer_id)
+        select(Customer).where(Customer.id == customer_id)
     )
     customer = result.scalars().first()
     if not customer:
         raise HTTPException(status_code=404, detail='Customer not found')
 
-    return build_customer_response_short(customer)
+    return await build_customer_response_short_aggregated(customer, session)
 
 
 @router.delete(
@@ -764,13 +805,7 @@ async def update_customer(
         raise
     await session.commit()
     result = await session.execute(
-        select(Customer)
-        .options(
-            selectinload(Customer.customer_price_lists)
-            .selectinload(CustomerPriceList.autopart_associations)
-            .selectinload(CustomerPriceListAutoPartAssociation.autopart)
-        )
-        .where(Customer.id == customer_id)
+        select(Customer).where(Customer.id == customer_id)
     )
     updated_customer = result.scalars().first()
     if not updated_customer:
@@ -778,7 +813,9 @@ async def update_customer(
             status_code=404, detail='Customer not found after update.'
         )
 
-    return build_customer_response_short(updated_customer)
+    return await build_customer_response_short_aggregated(
+        updated_customer, session
+    )
 
 
 @router.post(

@@ -315,6 +315,55 @@ async def test_get_customer_success(
 
 
 @pytest.mark.asyncio
+async def test_get_customer_success_with_pricelist_counts(
+    test_session: AsyncSession,
+    async_client: AsyncClient,
+    created_autopart: AutoPart,
+    created_customers: list[Customer],
+):
+    customer = created_customers[0]
+
+    first_pricelist = CustomerPriceList(
+        customer_id=customer.id, date=date.today(), is_active=True
+    )
+    second_pricelist = CustomerPriceList(
+        customer_id=customer.id, date=date.today(), is_active=True
+    )
+    test_session.add_all([first_pricelist, second_pricelist])
+    await test_session.flush()
+
+    test_session.add_all(
+        [
+            CustomerPriceListAutoPartAssociation(
+                customerpricelist_id=first_pricelist.id,
+                autopart_id=created_autopart.id,
+                quantity=2,
+                price=Decimal('100.00'),
+            ),
+            CustomerPriceListAutoPartAssociation(
+                customerpricelist_id=second_pricelist.id,
+                autopart_id=created_autopart.id,
+                quantity=3,
+                price=Decimal('200.00'),
+            ),
+        ]
+    )
+    await test_session.commit()
+
+    response = await async_client.get(f'/customers/{customer.id}/')
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    counts_by_id = {
+        item['id']: item['autoparts_count']
+        for item in data['customer_price_lists']
+    }
+
+    assert counts_by_id[first_pricelist.id] == 1
+    assert counts_by_id[second_pricelist.id] == 1
+
+
+@pytest.mark.asyncio
 async def test_get_customer_not_found(
     test_session: AsyncSession, async_client: AsyncClient
 ):
