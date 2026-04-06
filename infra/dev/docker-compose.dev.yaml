@@ -8,7 +8,10 @@ services:
     container_name: dz_frontend_dev
     restart: always
     ports:
-      - "3000:80"   # 3000 — внешний, 80 — внутренний nginx
+      # Expose the frontend only to the local host nginx. Do not publish 3000
+      # to 0.0.0.0, otherwise the app bypasses HTTPS and becomes reachable
+      # directly from the internet.
+      - "127.0.0.1:3000:80"
     depends_on:
       - web
   db:
