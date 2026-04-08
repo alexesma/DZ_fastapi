@@ -1537,12 +1537,11 @@ def write_error_for_bulk(
         )
         for k, v in problem_items.items()
     }
-    not_found.append(
-        {
-            'record': record_str,
-            'error': f"{error_message}: {error or 'Unknown error'}",
-        }
-    )
+    not_found.append({
+        'record': record_str,
+        'error': f"{error_message}: {error or 'Unknown error'}"
+    })
+
 
 
 def check_start_and_finish_date(
