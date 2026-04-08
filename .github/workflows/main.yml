@@ -132,7 +132,7 @@ jobs:
         working-directory: ./dz_frontend
         run: npm run build
         env:
-          VITE_API_URL: ${{ env.API_URL }}
+          VITE_API_URL: /api
 
 # Собрать и отправить образ приложения на Docker Hub
   build_and_push_backend:
@@ -200,7 +200,7 @@ jobs:
           push: true
           tags: alexesma/dz_frontend:latest
           build-args: |
-            VITE_API_URL=${{ vars.API_URL }}
+            VITE_API_URL=/api
           no-cache: true
 
   deploy:
