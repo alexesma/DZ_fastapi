@@ -48,6 +48,9 @@ class ProviderBase(ClientBase):
     order_schedule_days: Optional[List[str]] = None
     order_schedule_times: Optional[List[str]] = None
     order_schedule_enabled: Optional[bool] = None
+    supplier_response_allow_shipping_docs: Optional[bool] = True
+    supplier_response_allow_response_files: Optional[bool] = True
+    supplier_response_allow_text_status: Optional[bool] = True
     default_delivery_method: Optional[
         ProviderDeliveryMethod
     ] = ProviderDeliveryMethod.DELIVERED
@@ -77,6 +80,9 @@ class ProviderUpdate(BaseModel):
     order_schedule_days: Optional[List[str]] = None
     order_schedule_times: Optional[List[str]] = None
     order_schedule_enabled: Optional[bool] = None
+    supplier_response_allow_shipping_docs: Optional[bool] = None
+    supplier_response_allow_response_files: Optional[bool] = None
+    supplier_response_allow_text_status: Optional[bool] = None
     default_delivery_method: Optional[ProviderDeliveryMethod] = None
 
     @field_validator('email_contact', 'email_incoming_price', mode='before')

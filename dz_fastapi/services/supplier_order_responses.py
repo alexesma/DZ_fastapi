@@ -691,13 +691,38 @@ async def process_supplier_response_messages(
                 stats.skipped_messages += 1
                 continue
 
+            allow_shipping_docs = bool(
+                getattr(
+                    provider,
+                    "supplier_response_allow_shipping_docs",
+                    True,
+                )
+            )
+            allow_response_files = bool(
+                getattr(
+                    provider,
+                    "supplier_response_allow_response_files",
+                    True,
+                )
+            )
+            allow_text_status = bool(
+                getattr(
+                    provider,
+                    "supplier_response_allow_text_status",
+                    True,
+                )
+            )
+            if not allow_text_status:
+                raw_status = None
+                normalized_status = ""
+
             mappings = await get_active_status_mappings(
                 session,
                 source_key=EXTERNAL_STATUS_SOURCE_SUPPLIER_EMAIL,
                 provider_id=provider.id,
             )
             mapping = None
-            if normalized_status:
+            if allow_text_status and normalized_status:
                 mapping = select_best_mapping(
                     mappings,
                     normalized_status=normalized_status,
@@ -734,13 +759,22 @@ async def process_supplier_response_messages(
                 attachment_kind = _classify_attachment_kind(
                     attachment.filename
                 )
+                if (
+                    attachment_kind == "SHIPPING_DOC"
+                    and not allow_shipping_docs
+                ):
+                    attachment_kind = None
                 if attachment_kind == "SHIPPING_DOC":
                     has_shipping_doc = True
                 parsed_rows: list[ParsedSupplierResponseRow] = []
-                if order is not None and (
-                    attachment_kind == "RESPONSE_FILE"
-                    or _attachment_extension(attachment.filename)
-                    in {"xlsx", "xls", "csv"}
+                if (
+                    allow_response_files
+                    and order is not None
+                    and (
+                        attachment_kind == "RESPONSE_FILE"
+                        or _attachment_extension(attachment.filename)
+                        in {"xlsx", "xls", "csv"}
+                    )
                 ):
                     try:
                         parsed_rows = _parse_supplier_response_attachment(
@@ -805,6 +839,7 @@ async def process_supplier_response_messages(
                 and normalized_status
                 and raw_status
                 and not parsed_response_file
+                and allow_text_status
             ):
                 await record_unmapped_external_status(
                     session,

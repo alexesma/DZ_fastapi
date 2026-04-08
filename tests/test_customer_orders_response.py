@@ -12,7 +12,8 @@ from dz_fastapi.models.order_status_mapping import (ExternalStatusMapping,
                                                     SupplierResponseAction)
 from dz_fastapi.models.partner import (CUSTOMER_ORDER_SHIP_MODE,
                                        SUPPLIER_ORDER_STATUS, SupplierOrder,
-                                       SupplierOrderItem)
+                                       SupplierOrderAttachment,
+                                       SupplierOrderItem, SupplierOrderMessage)
 from dz_fastapi.services.customer_orders import (
     _apply_response_updates_csv, _apply_response_updates_excel,
     _build_order_reply_recipients, _build_supplier_order_recipient,
@@ -390,3 +391,240 @@ async def test_process_supplier_response_messages_records_unmapped_status(
     assert result["processed_messages"] == 1
     assert result["unmapped_statuses"] == 1
     assert row.sample_payload["supplier_order_id"] == order.id
+
+
+@pytest.mark.asyncio
+async def test_process_supplier_response_messages_skips_text_status_when_disabled(
+    monkeypatch,
+    test_session,
+    created_providers,
+    tmp_path,
+):
+    provider = created_providers[0]
+    provider.email_contact = "supplier@example.com"
+    provider.supplier_response_allow_text_status = False
+    order = SupplierOrder(
+        provider_id=provider.id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+    )
+    test_session.add(order)
+    await test_session.commit()
+
+    async def fake_fetch_messages(session, *, date_from, date_to=None):
+        return [
+            (
+                SimpleNamespace(
+                    from_="supplier@example.com",
+                    subject=f"Заказ поставщику #{order.id} manual review",
+                    text="manual review",
+                    html=None,
+                    attachments=[],
+                    received_at=None,
+                    date=None,
+                    external_id="supplier-msg-text-off",
+                    uid=None,
+                    folder_name="INBOX",
+                ),
+                None,
+            )
+        ]
+
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_fetch_supplier_response_messages"
+        ),
+        fake_fetch_messages,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.supplier_order_responses.SUPPLIER_RESPONSE_DIR",
+        str(tmp_path),
+    )
+
+    result = await process_supplier_response_messages(test_session)
+    await test_session.refresh(order)
+
+    unmapped_rows = (
+        await test_session.execute(
+            select(ExternalStatusUnmapped).where(
+                ExternalStatusUnmapped.source_key
+                == EXTERNAL_STATUS_SOURCE_SUPPLIER_EMAIL,
+                ExternalStatusUnmapped.provider_id == provider.id,
+            )
+        )
+    ).scalars().all()
+    message_row = (
+        await test_session.execute(
+            select(SupplierOrderMessage).where(
+                SupplierOrderMessage.source_message_id
+                == "supplier-msg-text-off"
+            )
+        )
+    ).scalar_one()
+
+    assert result["processed_messages"] == 1
+    assert result["unmapped_statuses"] == 0
+    assert order.response_status_raw is None
+    assert message_row.raw_status is None
+    assert message_row.message_type == "UNKNOWN"
+    assert len(unmapped_rows) == 0
+
+
+@pytest.mark.asyncio
+async def test_process_supplier_response_messages_skips_response_files_when_disabled(
+    monkeypatch,
+    test_session,
+    created_providers,
+    created_autopart,
+    tmp_path,
+):
+    provider = created_providers[0]
+    provider.email_contact = "supplier@example.com"
+    provider.supplier_response_allow_response_files = False
+    provider.supplier_response_allow_text_status = False
+    order = SupplierOrder(
+        provider_id=provider.id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    item = SupplierOrderItem(
+        supplier_order_id=order.id,
+        autopart_id=created_autopart.id,
+        oem_number=created_autopart.oem_number,
+        brand_name=created_autopart.brand.name,
+        autopart_name=created_autopart.name,
+        quantity=5,
+        price=150.0,
+    )
+    test_session.add(item)
+    await test_session.commit()
+
+    response_frame = pd.DataFrame(
+        [
+            {
+                "OEM": created_autopart.oem_number,
+                "Brand": created_autopart.brand.name,
+                "Qty": 2,
+                "Price": 77.5,
+            }
+        ]
+    )
+    buffer = BytesIO()
+    response_frame.to_excel(buffer, index=False)
+    payload = buffer.getvalue()
+
+    async def fake_fetch_messages(session, *, date_from, date_to=None):
+        return [
+            (
+                SimpleNamespace(
+                    from_="supplier@example.com",
+                    subject=f"Заказ поставщику #{order.id}",
+                    text="",
+                    html=None,
+                    attachments=[
+                        SimpleNamespace(
+                            filename=f"supplier_order_{order.id}.xlsx",
+                            payload=payload,
+                        )
+                    ],
+                    received_at=None,
+                    date=None,
+                    external_id="supplier-msg-files-off",
+                    uid=None,
+                    folder_name="INBOX",
+                ),
+                None,
+            )
+        ]
+
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_fetch_supplier_response_messages"
+        ),
+        fake_fetch_messages,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.supplier_order_responses.SUPPLIER_RESPONSE_DIR",
+        str(tmp_path),
+    )
+
+    result = await process_supplier_response_messages(test_session)
+    await test_session.refresh(item)
+
+    assert result["processed_messages"] == 1
+    assert result["parsed_response_files"] == 0
+    assert item.confirmed_quantity is None
+    assert item.response_price is None
+
+
+@pytest.mark.asyncio
+async def test_process_supplier_response_messages_skips_shipping_docs_when_disabled(
+    monkeypatch,
+    test_session,
+    created_providers,
+    tmp_path,
+):
+    provider = created_providers[0]
+    provider.email_contact = "supplier@example.com"
+    provider.supplier_response_allow_shipping_docs = False
+    provider.supplier_response_allow_text_status = False
+    await test_session.commit()
+
+    async def fake_fetch_messages(session, *, date_from, date_to=None):
+        return [
+            (
+                SimpleNamespace(
+                    from_="supplier@example.com",
+                    subject="Документы по поставке",
+                    text="Во вложении УПД",
+                    html=None,
+                    attachments=[
+                        SimpleNamespace(
+                            filename="upd_001.pdf",
+                            payload=b"%PDF-test%",
+                        )
+                    ],
+                    received_at=None,
+                    date=None,
+                    external_id="supplier-msg-upd-off",
+                    uid=None,
+                    folder_name="INBOX",
+                ),
+                None,
+            )
+        ]
+
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_fetch_supplier_response_messages"
+        ),
+        fake_fetch_messages,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.supplier_order_responses.SUPPLIER_RESPONSE_DIR",
+        str(tmp_path),
+    )
+
+    result = await process_supplier_response_messages(test_session)
+    message_row = (
+        await test_session.execute(
+            select(SupplierOrderMessage).where(
+                SupplierOrderMessage.source_message_id
+                == "supplier-msg-upd-off"
+            )
+        )
+    ).scalar_one()
+    attachment_row = (
+        await test_session.execute(
+            select(SupplierOrderAttachment).where(
+                SupplierOrderAttachment.message_id == message_row.id
+            )
+        )
+    ).scalar_one()
+
+    assert result["processed_messages"] == 1
+    assert message_row.message_type == "UNKNOWN"
+    assert attachment_row.parsed_kind is None

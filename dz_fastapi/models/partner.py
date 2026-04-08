@@ -212,6 +212,21 @@ class Provider(Client):
     order_schedule_days = Column(JSON, default=[])
     order_schedule_times = Column(JSON, default=[])
     order_schedule_enabled = Column(Boolean, default=False)
+    supplier_response_allow_shipping_docs = Column(
+        Boolean,
+        default=True,
+        nullable=False,
+    )
+    supplier_response_allow_response_files = Column(
+        Boolean,
+        default=True,
+        nullable=False,
+    )
+    supplier_response_allow_text_status = Column(
+        Boolean,
+        default=True,
+        nullable=False,
+    )
     default_delivery_method = Column(
         SAEnum(
             PROVIDER_DELIVERY_METHOD,
