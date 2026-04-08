@@ -51,6 +51,15 @@ class ProviderBase(ClientBase):
     supplier_response_allow_shipping_docs: Optional[bool] = True
     supplier_response_allow_response_files: Optional[bool] = True
     supplier_response_allow_text_status: Optional[bool] = True
+    supplier_response_filename_pattern: Optional[str] = None
+    supplier_shipping_doc_filename_pattern: Optional[str] = None
+    supplier_response_start_row: int = Field(default=1, ge=1)
+    supplier_response_oem_col: Optional[int] = Field(default=None, ge=1)
+    supplier_response_brand_col: Optional[int] = Field(default=None, ge=1)
+    supplier_response_qty_col: Optional[int] = Field(default=None, ge=1)
+    supplier_response_price_col: Optional[int] = Field(default=None, ge=1)
+    supplier_response_comment_col: Optional[int] = Field(default=None, ge=1)
+    supplier_response_status_col: Optional[int] = Field(default=None, ge=1)
     default_delivery_method: Optional[
         ProviderDeliveryMethod
     ] = ProviderDeliveryMethod.DELIVERED
@@ -60,6 +69,17 @@ class ProviderBase(ClientBase):
         if v == '':
             return None
         return v
+
+    @field_validator(
+        'supplier_response_filename_pattern',
+        'supplier_shipping_doc_filename_pattern',
+        mode='before',
+    )
+    def normalize_supplier_response_patterns(cls, v):
+        if v is None:
+            return None
+        value = str(v).strip()
+        return value or None
 
     model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
@@ -83,6 +103,15 @@ class ProviderUpdate(BaseModel):
     supplier_response_allow_shipping_docs: Optional[bool] = None
     supplier_response_allow_response_files: Optional[bool] = None
     supplier_response_allow_text_status: Optional[bool] = None
+    supplier_response_filename_pattern: Optional[str] = None
+    supplier_shipping_doc_filename_pattern: Optional[str] = None
+    supplier_response_start_row: Optional[int] = Field(default=None, ge=1)
+    supplier_response_oem_col: Optional[int] = Field(default=None, ge=1)
+    supplier_response_brand_col: Optional[int] = Field(default=None, ge=1)
+    supplier_response_qty_col: Optional[int] = Field(default=None, ge=1)
+    supplier_response_price_col: Optional[int] = Field(default=None, ge=1)
+    supplier_response_comment_col: Optional[int] = Field(default=None, ge=1)
+    supplier_response_status_col: Optional[int] = Field(default=None, ge=1)
     default_delivery_method: Optional[ProviderDeliveryMethod] = None
 
     @field_validator('email_contact', 'email_incoming_price', mode='before')
@@ -90,6 +119,17 @@ class ProviderUpdate(BaseModel):
         if v == '':
             return None
         return v
+
+    @field_validator(
+        'supplier_response_filename_pattern',
+        'supplier_shipping_doc_filename_pattern',
+        mode='before',
+    )
+    def normalize_update_supplier_response_patterns(cls, v):
+        if v is None:
+            return None
+        value = str(v).strip()
+        return value or None
 
 
 class CustomerBase(ClientBase):

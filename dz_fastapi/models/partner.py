@@ -227,6 +227,18 @@ class Provider(Client):
         default=True,
         nullable=False,
     )
+    supplier_response_filename_pattern = Column(String(255), nullable=True)
+    supplier_shipping_doc_filename_pattern = Column(
+        String(255),
+        nullable=True,
+    )
+    supplier_response_start_row = Column(Integer, default=1, nullable=False)
+    supplier_response_oem_col = Column(Integer, nullable=True)
+    supplier_response_brand_col = Column(Integer, nullable=True)
+    supplier_response_qty_col = Column(Integer, nullable=True)
+    supplier_response_price_col = Column(Integer, nullable=True)
+    supplier_response_comment_col = Column(Integer, nullable=True)
+    supplier_response_status_col = Column(Integer, nullable=True)
     default_delivery_method = Column(
         SAEnum(
             PROVIDER_DELIVERY_METHOD,

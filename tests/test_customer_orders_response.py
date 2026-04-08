@@ -628,3 +628,260 @@ async def test_skip_shipping_docs_when_disabled(
     assert result["processed_messages"] == 1
     assert message_row.message_type == "UNKNOWN"
     assert attachment_row.parsed_kind is None
+
+
+@pytest.mark.asyncio
+async def test_apply_provider_column_layout_for_response_file(
+    monkeypatch,
+    test_session,
+    created_providers,
+    created_autopart,
+    tmp_path,
+):
+    provider = created_providers[0]
+    provider.email_contact = "supplier@example.com"
+    provider.supplier_response_start_row = 2
+    provider.supplier_response_oem_col = 1
+    provider.supplier_response_brand_col = 2
+    provider.supplier_response_qty_col = 3
+    provider.supplier_response_price_col = 4
+    provider.supplier_response_comment_col = 5
+    provider.supplier_response_status_col = 6
+    order = SupplierOrder(
+        provider_id=provider.id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    item = SupplierOrderItem(
+        supplier_order_id=order.id,
+        autopart_id=created_autopart.id,
+        oem_number=created_autopart.oem_number,
+        brand_name=created_autopart.brand.name,
+        autopart_name=created_autopart.name,
+        quantity=5,
+        price=150.0,
+    )
+    test_session.add(item)
+    await test_session.commit()
+
+    response_frame = pd.DataFrame(
+        [
+            ["meta", "meta", "meta", "meta", "meta", "meta"],
+            [
+                created_autopart.oem_number,
+                created_autopart.brand.name,
+                3,
+                88.5,
+                "Подтверждено файлом",
+                "готово",
+            ],
+        ]
+    )
+    buffer = BytesIO()
+    response_frame.to_excel(buffer, index=False, header=False)
+    payload = buffer.getvalue()
+
+    async def fake_fetch_messages(session, *, date_from, date_to=None):
+        return [
+            (
+                SimpleNamespace(
+                    from_="supplier@example.com",
+                    subject=f"Заказ поставщику #{order.id}",
+                    text="",
+                    html=None,
+                    attachments=[
+                        SimpleNamespace(
+                            filename=f"supplier_order_{order.id}.xlsx",
+                            payload=payload,
+                        )
+                    ],
+                    received_at=None,
+                    date=None,
+                    external_id="supplier-msg-layout",
+                    uid=None,
+                    folder_name="INBOX",
+                ),
+                None,
+            )
+        ]
+
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_fetch_supplier_response_messages"
+        ),
+        fake_fetch_messages,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.supplier_order_responses.SUPPLIER_RESPONSE_DIR",
+        str(tmp_path),
+    )
+
+    result = await process_supplier_response_messages(test_session)
+    await test_session.refresh(item)
+
+    assert result["processed_messages"] == 1
+    assert result["parsed_response_files"] == 1
+    assert item.confirmed_quantity == 3
+    assert float(item.response_price) == 88.5
+    assert item.response_comment == "Подтверждено файлом"
+    assert item.response_status_raw == "готово"
+
+
+@pytest.mark.asyncio
+async def test_use_response_filename_pattern_for_spreadsheets(
+    monkeypatch,
+    test_session,
+    created_providers,
+    created_autopart,
+    tmp_path,
+):
+    provider = created_providers[0]
+    provider.email_contact = "supplier@example.com"
+    provider.supplier_response_allow_text_status = False
+    provider.supplier_response_filename_pattern = r"^answer_\d+\.xlsx$"
+    order = SupplierOrder(
+        provider_id=provider.id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    item = SupplierOrderItem(
+        supplier_order_id=order.id,
+        autopart_id=created_autopart.id,
+        oem_number=created_autopart.oem_number,
+        brand_name=created_autopart.brand.name,
+        autopart_name=created_autopart.name,
+        quantity=5,
+        price=150.0,
+    )
+    test_session.add(item)
+    await test_session.commit()
+
+    response_frame = pd.DataFrame(
+        [
+            {
+                "OEM": created_autopart.oem_number,
+                "Brand": created_autopart.brand.name,
+                "Qty": 4,
+            }
+        ]
+    )
+    buffer = BytesIO()
+    response_frame.to_excel(buffer, index=False)
+    payload = buffer.getvalue()
+
+    async def fake_fetch_messages(session, *, date_from, date_to=None):
+        return [
+            (
+                SimpleNamespace(
+                    from_="supplier@example.com",
+                    subject=f"Заказ поставщику #{order.id}",
+                    text="",
+                    html=None,
+                    attachments=[
+                        SimpleNamespace(
+                            filename="supplier_order_response.xlsx",
+                            payload=payload,
+                        )
+                    ],
+                    received_at=None,
+                    date=None,
+                    external_id="supplier-msg-pattern",
+                    uid=None,
+                    folder_name="INBOX",
+                ),
+                None,
+            )
+        ]
+
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_fetch_supplier_response_messages"
+        ),
+        fake_fetch_messages,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.supplier_order_responses.SUPPLIER_RESPONSE_DIR",
+        str(tmp_path),
+    )
+
+    result = await process_supplier_response_messages(test_session)
+    await test_session.refresh(item)
+
+    assert result["processed_messages"] == 1
+    assert result["parsed_response_files"] == 0
+    assert item.confirmed_quantity is None
+
+
+@pytest.mark.asyncio
+async def test_use_shipping_doc_filename_pattern(
+    monkeypatch,
+    test_session,
+    created_providers,
+    tmp_path,
+):
+    provider = created_providers[0]
+    provider.email_contact = "supplier@example.com"
+    provider.supplier_response_allow_text_status = False
+    provider.supplier_shipping_doc_filename_pattern = r"^doc_\d+\.pdf$"
+    await test_session.commit()
+
+    async def fake_fetch_messages(session, *, date_from, date_to=None):
+        return [
+            (
+                SimpleNamespace(
+                    from_="supplier@example.com",
+                    subject="Документы по поставке",
+                    text="",
+                    html=None,
+                    attachments=[
+                        SimpleNamespace(
+                            filename="doc_123.pdf",
+                            payload=b"%PDF-custom%",
+                        )
+                    ],
+                    received_at=None,
+                    date=None,
+                    external_id="supplier-msg-doc-pattern",
+                    uid=None,
+                    folder_name="INBOX",
+                ),
+                None,
+            )
+        ]
+
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_fetch_supplier_response_messages"
+        ),
+        fake_fetch_messages,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.supplier_order_responses.SUPPLIER_RESPONSE_DIR",
+        str(tmp_path),
+    )
+
+    result = await process_supplier_response_messages(test_session)
+    message_row = (
+        await test_session.execute(
+            select(SupplierOrderMessage).where(
+                SupplierOrderMessage.source_message_id
+                == "supplier-msg-doc-pattern"
+            )
+        )
+    ).scalar_one()
+    attachment_row = (
+        await test_session.execute(
+            select(SupplierOrderAttachment).where(
+                SupplierOrderAttachment.message_id == message_row.id
+            )
+        )
+    ).scalar_one()
+
+    assert result["processed_messages"] == 1
+    assert message_row.message_type == "SHIPPING_DOC"
+    assert attachment_row.parsed_kind == "SHIPPING_DOC"

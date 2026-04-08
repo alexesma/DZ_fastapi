@@ -326,10 +326,37 @@ def _attachment_extension(filename: Optional[str]) -> str:
     return filename.rsplit(".", 1)[-1].strip().lower()
 
 
-def _classify_attachment_kind(filename: Optional[str]) -> Optional[str]:
-    lower_name = str(filename or "").strip().lower()
-    if not lower_name:
+def _compile_filename_pattern(
+        pattern_value: Optional[str]
+) -> Optional[re.Pattern]:
+    pattern = str(pattern_value or "").strip()
+    if not pattern:
         return None
+    try:
+        return re.compile(pattern, re.I)
+    except re.error as exc:
+        logger.warning(
+            "Invalid supplier response filename pattern %r: %s",
+            pattern,
+            exc,
+        )
+        return None
+
+
+def _classify_attachment_kind(
+    filename: Optional[str],
+    *,
+    response_pattern: Optional[re.Pattern] = None,
+    shipping_pattern: Optional[re.Pattern] = None,
+) -> Optional[str]:
+    raw_name = str(filename or "").strip()
+    if not raw_name:
+        return None
+    lower_name = raw_name.lower()
+    if response_pattern and response_pattern.search(raw_name):
+        return "RESPONSE_FILE"
+    if shipping_pattern and shipping_pattern.search(raw_name):
+        return "SHIPPING_DOC"
     if _RESPONSE_FILENAME_RE.search(lower_name):
         return "RESPONSE_FILE"
     if any(keyword in lower_name for keyword in _DOCUMENT_KEYWORDS):
@@ -342,69 +369,121 @@ def _normalize_response_header(value: object) -> str:
     return normalized.replace(" ", "")
 
 
+def _parse_positive_int(value: object) -> Optional[int]:
+    if value in (None, ""):
+        return None
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    if parsed < 1:
+        return None
+    return parsed
+
+
+def _resolve_column_by_number(
+        df: pd.DataFrame, one_based: object
+) -> Optional[object]:
+    number = _parse_positive_int(one_based)
+    if number is None:
+        return None
+    index = number - 1
+    if index >= len(df.columns):
+        return None
+    return df.columns[index]
+
+
 def _parse_supplier_response_attachment(
     payload: bytes,
     filename: str,
+    *,
+    start_row: object = 1,
+    oem_col: object = None,
+    brand_col: object = None,
+    qty_col: object = None,
+    price_col: object = None,
+    comment_col: object = None,
+    status_col: object = None,
 ) -> list[ParsedSupplierResponseRow]:
     ext = _attachment_extension(filename)
+    # Manual column mapping is enabled only when OEM column is provided.
+    has_column_layout = _parse_positive_int(oem_col) is not None
     if ext == "csv":
-        df = pd.read_csv(BytesIO(payload))
+        df = pd.read_csv(
+            BytesIO(payload), header=None if has_column_layout else "infer"
+        )
     elif ext in {"xlsx", "xls"}:
-        df = pd.read_excel(BytesIO(payload))
+        df = pd.read_excel(
+            BytesIO(payload),
+            header=None if has_column_layout else 0,
+        )
     else:
         return []
+    start_row_num = _parse_positive_int(start_row) or 1
+    if start_row_num > 1:
+        df = df.iloc[start_row_num - 1:].reset_index(drop=True)
     if df.empty:
         return []
 
-    headers = {
-        _normalize_response_header(column): column for column in df.columns
-    }
-    oem_column = None
-    for candidate in ("oem", "артикул", "номер", "oemномер"):
-        if candidate in headers:
-            oem_column = headers[candidate]
-            break
-    if oem_column is None:
-        return []
+    if has_column_layout:
+        oem_column = _resolve_column_by_number(df, oem_col)
+        if oem_column is None:
+            return []
+        brand_column = _resolve_column_by_number(df, brand_col)
+        qty_column = _resolve_column_by_number(df, qty_col)
+        price_column = _resolve_column_by_number(df, price_col)
+        comment_column = _resolve_column_by_number(df, comment_col)
+        status_column = _resolve_column_by_number(df, status_col)
+    else:
+        headers = {
+            _normalize_response_header(column): column for column in df.columns
+        }
+        oem_column = None
+        for candidate in ("oem", "артикул", "номер", "oemномер"):
+            if candidate in headers:
+                oem_column = headers[candidate]
+                break
+        if oem_column is None:
+            return []
 
-    brand_column = None
-    for candidate in ("brand", "бренд", "марка"):
-        if candidate in headers:
-            brand_column = headers[candidate]
-            break
+        brand_column = None
+        for candidate in ("brand", "бренд", "марка"):
+            if candidate in headers:
+                brand_column = headers[candidate]
+                break
 
-    qty_column = None
-    for candidate in (
-        "qty",
-        "quantity",
-        "кол",
-        "колво",
-        "количество",
-        "подтверждено",
-        "котгрузке",
-        "отгрузка",
-    ):
-        if candidate in headers:
-            qty_column = headers[candidate]
-            break
+        qty_column = None
+        for candidate in (
+            "qty",
+            "quantity",
+            "кол",
+            "колво",
+            "количество",
+            "подтверждено",
+            "котгрузке",
+            "отгрузка",
+        ):
+            if candidate in headers:
+                qty_column = headers[candidate]
+                break
 
-    price_column = None
-    for candidate in ("price", "цена", "ценаотгрузки"):
-        if candidate in headers:
-            price_column = headers[candidate]
-            break
+        price_column = None
+        for candidate in ("price", "цена", "ценаотгрузки"):
+            if candidate in headers:
+                price_column = headers[candidate]
+                break
 
-    comment_column = None
-    for candidate in ("comment", "комментарий", "remark", "примечание"):
-        if candidate in headers:
-            comment_column = headers[candidate]
-            break
+        comment_column = None
+        for candidate in ("comment", "комментарий", "remark", "примечание"):
+            if candidate in headers:
+                comment_column = headers[candidate]
+                break
 
-    status_column = None
-    for candidate in ("status", "статус", "state"):
-        if candidate in headers:
-            status_column = headers[candidate]
-            break
+        status_column = None
+        for candidate in ("status", "статус", "state"):
+            if candidate in headers:
+                status_column = headers[candidate]
+                break
 
     parsed_rows: list[ParsedSupplierResponseRow] = []
     for _, row in df.iterrows():
@@ -712,6 +791,16 @@ async def process_supplier_response_messages(
                     True,
                 )
             )
+            response_filename_pattern = _compile_filename_pattern(
+                getattr(provider, "supplier_response_filename_pattern", None)
+            )
+            shipping_doc_filename_pattern = _compile_filename_pattern(
+                getattr(
+                    provider,
+                    "supplier_shipping_doc_filename_pattern",
+                    None,
+                )
+            )
             if not allow_text_status:
                 raw_status = None
                 normalized_status = ""
@@ -757,7 +846,9 @@ async def process_supplier_response_messages(
                     attachment=attachment,
                 )
                 attachment_kind = _classify_attachment_kind(
-                    attachment.filename
+                    attachment.filename,
+                    response_pattern=response_filename_pattern,
+                    shipping_pattern=shipping_doc_filename_pattern,
                 )
                 if (
                     attachment_kind == "SHIPPING_DOC"
@@ -767,19 +858,58 @@ async def process_supplier_response_messages(
                 if attachment_kind == "SHIPPING_DOC":
                     has_shipping_doc = True
                 parsed_rows: list[ParsedSupplierResponseRow] = []
+                extension = _attachment_extension(attachment.filename)
+                is_spreadsheet = extension in {"xlsx", "xls", "csv"}
+                if response_filename_pattern is None:
+                    response_candidate = (
+                        attachment_kind == "RESPONSE_FILE" or is_spreadsheet
+                    )
+                else:
+                    response_candidate = attachment_kind == "RESPONSE_FILE"
                 if (
                     allow_response_files
                     and order is not None
-                    and (
-                        attachment_kind == "RESPONSE_FILE"
-                        or _attachment_extension(attachment.filename)
-                        in {"xlsx", "xls", "csv"}
-                    )
+                    and response_candidate
                 ):
                     try:
                         parsed_rows = _parse_supplier_response_attachment(
                             attachment.payload,
                             attachment.filename or "",
+                            start_row=getattr(
+                                provider,
+                                "supplier_response_start_row",
+                                1,
+                            ),
+                            oem_col=getattr(
+                                provider,
+                                "supplier_response_oem_col",
+                                None,
+                            ),
+                            brand_col=getattr(
+                                provider,
+                                "supplier_response_brand_col",
+                                None,
+                            ),
+                            qty_col=getattr(
+                                provider,
+                                "supplier_response_qty_col",
+                                None,
+                            ),
+                            price_col=getattr(
+                                provider,
+                                "supplier_response_price_col",
+                                None,
+                            ),
+                            comment_col=getattr(
+                                provider,
+                                "supplier_response_comment_col",
+                                None,
+                            ),
+                            status_col=getattr(
+                                provider,
+                                "supplier_response_status_col",
+                                None,
+                            ),
                         )
                     except Exception as exc:
                         logger.warning(
