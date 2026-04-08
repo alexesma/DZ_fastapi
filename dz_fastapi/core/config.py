@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     test_database_url: str = Field(
         ..., validation_alias='TEST_DATABASE_URL'
     )
-    asyncpg_dsn: str = Field(..., validation_alias='ASYNC_PG_DSN')
+    asyncpg_dsn: str = Field(..., validation_alias='ASYNCPG_DSN')
     use_test_db: bool = False
     database_echo: bool = False
     jwt_secret: str = Field(
