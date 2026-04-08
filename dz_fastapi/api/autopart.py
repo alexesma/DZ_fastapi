@@ -509,7 +509,7 @@ async def bulk_update_autoparts(
                             status_code=400, detail="Rar archive is empty"
                         )
                     file_in_rar = rar_list[0]
-                    with zip.open(file_in_rar) as inner_file:
+                    with rar.open(file_in_rar) as inner_file:
                         file_content = inner_file.read()
                         file_extension = file_in_rar.split('.')[-1].lower()
 
