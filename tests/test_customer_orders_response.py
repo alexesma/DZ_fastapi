@@ -394,7 +394,7 @@ async def test_process_supplier_response_messages_records_unmapped_status(
 
 
 @pytest.mark.asyncio
-async def test_process_supplier_response_messages_skips_text_status_when_disabled(
+async def test_supplier_response_skip_text_status_when_disabled(
     monkeypatch,
     test_session,
     created_providers,
@@ -471,7 +471,7 @@ async def test_process_supplier_response_messages_skips_text_status_when_disable
 
 
 @pytest.mark.asyncio
-async def test_process_supplier_response_messages_skips_response_files_when_disabled(
+async def test_skip_response_files_when_disabled(
     monkeypatch,
     test_session,
     created_providers,
@@ -560,7 +560,7 @@ async def test_process_supplier_response_messages_skips_response_files_when_disa
 
 
 @pytest.mark.asyncio
-async def test_process_supplier_response_messages_skips_shipping_docs_when_disabled(
+async def test_skip_shipping_docs_when_disabled(
     monkeypatch,
     test_session,
     created_providers,
