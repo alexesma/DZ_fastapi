@@ -1543,7 +1543,6 @@ def write_error_for_bulk(
     })
 
 
-
 def check_start_and_finish_date(
     date_start: Optional[str], date_finish: Optional[str]
 ) -> tuple[datetime, datetime]:
