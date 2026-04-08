@@ -1076,7 +1076,7 @@ def write_error_for_bulk(
     }
     not_found.append({
         'record': record_str,
-        'error': f'{error_message}: {error or 'Unknown error'}'
+        'error': f"{error_message}: {error or 'Unknown error'}"
     })
 
 

@@ -90,8 +90,8 @@ async def send_price_list_task(app: FastAPI):
                 provider=PROVIDER_IN['name'], session=session
             )
             if not provider:
-                logger.error(f'Provider {PROVIDER_IN['name']} not found.')
-                raise ValueError(f'Provider {PROVIDER_IN['name']} not found.')
+                logger.error(f"Provider {PROVIDER_IN['name']} not found.")
+                raise ValueError(f"Provider {PROVIDER_IN['name']} not found.")
             pricelist_ids = await crud_pricelist.get_pricelist_ids_by_provider(
                 provider_id=provider.id, session=session
             )
