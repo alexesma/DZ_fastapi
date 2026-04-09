@@ -64,3 +64,30 @@ async def test_monitoring_endpoints(async_client):
     )
     assert response.status_code == 200
     assert isinstance(response.json(), list)
+
+
+@pytest.mark.asyncio
+async def test_orders_inbox_settings_support_supplier_response_controls(
+    async_client,
+):
+    response = await async_client.get("/settings/orders-inbox")
+    assert response.status_code == 200
+    current = response.json()
+    assert "supplier_response_lookback_days" in current
+    assert "supplier_order_stub_enabled" in current
+    assert "supplier_order_stub_email" in current
+
+    payload = {
+        "supplier_response_lookback_days": 21,
+        "supplier_order_stub_enabled": False,
+        "supplier_order_stub_email": "orders-stub@example.com",
+    }
+    response = await async_client.put(
+        "/settings/orders-inbox",
+        json=payload,
+    )
+    assert response.status_code == 200
+    updated = response.json()
+    assert updated["supplier_response_lookback_days"] == 21
+    assert updated["supplier_order_stub_enabled"] is False
+    assert updated["supplier_order_stub_email"] == "orders-stub@example.com"
