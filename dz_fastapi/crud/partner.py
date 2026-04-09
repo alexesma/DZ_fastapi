@@ -175,7 +175,8 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                     selectinload(Provider.pricelist_configs).selectinload(
                         ProviderPriceListConfig.last_email_uid
                     ),
-                    selectinload(Provider.supplier_response_configs),
+                    selectinload(Provider.supplier_response_configs)
+                    .selectinload(SupplierResponseConfig.inbox_email_account),
                     selectinload(Provider.price_lists),
                     selectinload(Provider.abbreviations),
                 )
@@ -2113,6 +2114,8 @@ class CRUDSupplierResponseConfig(
     ) -> List[SupplierResponseConfig]:
         stmt = select(SupplierResponseConfig).where(
             SupplierResponseConfig.provider_id == provider_id
+        ).options(
+            selectinload(SupplierResponseConfig.inbox_email_account)
         )
         if only_active:
             stmt = stmt.where(SupplierResponseConfig.is_active.is_(True))
@@ -2126,9 +2129,9 @@ class CRUDSupplierResponseConfig(
         session: AsyncSession,
     ) -> Optional[SupplierResponseConfig]:
         result = await session.execute(
-            select(SupplierResponseConfig).where(
-                SupplierResponseConfig.id == config_id
-            )
+            select(SupplierResponseConfig)
+            .options(selectinload(SupplierResponseConfig.inbox_email_account))
+            .where(SupplierResponseConfig.id == config_id)
         )
         return result.scalar_one_or_none()
 

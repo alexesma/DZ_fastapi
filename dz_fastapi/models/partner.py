@@ -2,6 +2,7 @@
 
 from datetime import date
 from enum import StrEnum, unique
+from typing import Optional
 from uuid import uuid4
 
 from email_validator import EmailNotValidError, validate_email
@@ -509,6 +510,18 @@ class SupplierResponseConfig(Base):
         'Provider', back_populates='supplier_response_configs'
     )
     inbox_email_account = relationship('EmailAccount', lazy='selectin')
+
+    @property
+    def inbox_email_account_name(self) -> Optional[str]:
+        if self.inbox_email_account is None:
+            return None
+        return self.inbox_email_account.name
+
+    @property
+    def inbox_email_account_email(self) -> Optional[str]:
+        if self.inbox_email_account is None:
+            return None
+        return self.inbox_email_account.email
 
 
 class CustomerPriceListConfig(Base):

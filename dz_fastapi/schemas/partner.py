@@ -594,6 +594,8 @@ class SupplierResponseConfigOut(BaseModel):
     name: str
     is_active: bool = True
     inbox_email_account_id: Optional[int] = None
+    inbox_email_account_name: Optional[str] = None
+    inbox_email_account_email: Optional[str] = None
     sender_emails: List[str] = Field(default_factory=list)
     response_type: SupplierResponseType = SupplierResponseType.FILE
     process_shipping_docs: bool = True

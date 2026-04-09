@@ -560,3 +560,8 @@ class SupplierResponseProcessResult(BaseModel):
     updated_orders: int = 0
     unmapped_statuses: int = 0
     skipped_messages: int = 0
+    created_receipts: int = 0
+    updated_receipts: int = 0
+    posted_receipts: int = 0
+    draft_receipts: int = 0
+    receipt_items_added: int = 0

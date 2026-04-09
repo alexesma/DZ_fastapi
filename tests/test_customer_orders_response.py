@@ -14,6 +14,7 @@ from dz_fastapi.models.partner import (CUSTOMER_ORDER_SHIP_MODE,
                                        SUPPLIER_ORDER_STATUS, SupplierOrder,
                                        SupplierOrderAttachment,
                                        SupplierOrderItem, SupplierOrderMessage,
+                                       SupplierReceipt, SupplierReceiptItem,
                                        SupplierResponseConfig)
 from dz_fastapi.services.customer_orders import (
     _apply_response_updates_csv, _apply_response_updates_excel,
@@ -329,6 +330,312 @@ async def test_process_supplier_response_messages_updates_confirmed_quantities(
     assert item.confirmed_quantity == 2
     assert float(item.response_price) == 77.5
     assert item.response_comment == "Частично подтверждено"
+
+
+@pytest.mark.asyncio
+async def test_process_supplier_response_creates_draft_receipt(
+    monkeypatch,
+    test_session,
+    created_providers,
+    created_autopart,
+    tmp_path,
+):
+    provider = created_providers[0]
+    provider.email_contact = "supplier@example.com"
+    order = SupplierOrder(
+        provider_id=provider.id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    item = SupplierOrderItem(
+        supplier_order_id=order.id,
+        autopart_id=created_autopart.id,
+        oem_number=created_autopart.oem_number,
+        brand_name=created_autopart.brand.name,
+        autopart_name=created_autopart.name,
+        quantity=5,
+        price=150.0,
+    )
+    test_session.add(item)
+    await test_session.commit()
+
+    response_frame = pd.DataFrame(
+        [
+            {
+                "OEM": created_autopart.oem_number,
+                "Brand": created_autopart.brand.name,
+                "Qty": 2,
+                "Price": 90.0,
+            }
+        ]
+    )
+    buffer = BytesIO()
+    response_frame.to_excel(buffer, index=False)
+    payload = buffer.getvalue()
+
+    async def fake_fetch_messages(session, *, date_from, date_to=None):
+        return [
+            (
+                SimpleNamespace(
+                    from_="supplier@example.com",
+                    subject=f"Заказ поставщику #{order.id}",
+                    text="",
+                    html=None,
+                    attachments=[
+                        SimpleNamespace(
+                            filename=f"supplier_order_{order.id}.xlsx",
+                            payload=payload,
+                        )
+                    ],
+                    received_at=None,
+                    date=None,
+                    external_id="supplier-msg-draft-receipt",
+                    uid=None,
+                    folder_name="INBOX",
+                ),
+                None,
+            )
+        ]
+
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_fetch_supplier_response_messages"
+        ),
+        fake_fetch_messages,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.supplier_order_responses.SUPPLIER_RESPONSE_DIR",
+        str(tmp_path),
+    )
+
+    result = await process_supplier_response_messages(test_session)
+    await test_session.refresh(item)
+
+    receipt = (
+        await test_session.execute(
+            select(SupplierReceipt).where(
+                SupplierReceipt.provider_id == provider.id
+            )
+        )
+    ).scalar_one()
+    receipt_item = (
+        await test_session.execute(
+            select(SupplierReceiptItem).where(
+                SupplierReceiptItem.receipt_id == receipt.id
+            )
+        )
+    ).scalar_one()
+
+    assert result["processed_messages"] == 1
+    assert result["created_receipts"] == 1
+    assert result["draft_receipts"] == 1
+    assert result["receipt_items_added"] == 1
+    assert receipt.posted_at is None
+    assert receipt_item.received_quantity == 2
+    assert int(item.received_quantity or 0) == 0
+
+
+@pytest.mark.asyncio
+async def test_process_supplier_response_appends_existing_draft_receipt(
+    monkeypatch,
+    test_session,
+    created_providers,
+    created_autopart,
+    tmp_path,
+):
+    provider = created_providers[0]
+    provider.email_contact = "supplier@example.com"
+    existing_draft = SupplierReceipt(
+        provider_id=provider.id,
+        document_date=pd.Timestamp.now().date(),
+        posted_at=None,
+    )
+    test_session.add(existing_draft)
+    await test_session.flush()
+    order = SupplierOrder(
+        provider_id=provider.id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    item = SupplierOrderItem(
+        supplier_order_id=order.id,
+        autopart_id=created_autopart.id,
+        oem_number=created_autopart.oem_number,
+        brand_name=created_autopart.brand.name,
+        autopart_name=created_autopart.name,
+        quantity=4,
+        price=120.0,
+    )
+    test_session.add(item)
+    await test_session.commit()
+
+    response_frame = pd.DataFrame(
+        [
+            {
+                "OEM": created_autopart.oem_number,
+                "Qty": 3,
+            }
+        ]
+    )
+    buffer = BytesIO()
+    response_frame.to_excel(buffer, index=False)
+    payload = buffer.getvalue()
+
+    async def fake_fetch_messages(session, *, date_from, date_to=None):
+        return [
+            (
+                SimpleNamespace(
+                    from_="supplier@example.com",
+                    subject=f"Заказ поставщику #{order.id}",
+                    text="",
+                    html=None,
+                    attachments=[
+                        SimpleNamespace(
+                            filename=f"supplier_order_{order.id}.xlsx",
+                            payload=payload,
+                        )
+                    ],
+                    received_at=None,
+                    date=None,
+                    external_id="supplier-msg-append-receipt",
+                    uid=None,
+                    folder_name="INBOX",
+                ),
+                None,
+            )
+        ]
+
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_fetch_supplier_response_messages"
+        ),
+        fake_fetch_messages,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.supplier_order_responses.SUPPLIER_RESPONSE_DIR",
+        str(tmp_path),
+    )
+
+    result = await process_supplier_response_messages(test_session)
+    receipts = (
+        await test_session.execute(
+            select(SupplierReceipt).where(
+                SupplierReceipt.provider_id == provider.id
+            )
+        )
+    ).scalars().all()
+    assert len(receipts) == 1
+    assert receipts[0].id == existing_draft.id
+
+    receipt_items = (
+        await test_session.execute(
+            select(SupplierReceiptItem).where(
+                SupplierReceiptItem.receipt_id == existing_draft.id
+            )
+        )
+    ).scalars().all()
+
+    assert result["processed_messages"] == 1
+    assert result["created_receipts"] == 0
+    assert result["updated_receipts"] == 1
+    assert result["receipt_items_added"] == 1
+    assert len(receipt_items) == 1
+    assert receipt_items[0].received_quantity == 3
+
+
+@pytest.mark.asyncio
+async def test_shipping_doc_creates_posted_receipt(
+    monkeypatch,
+    test_session,
+    created_providers,
+    created_autopart,
+    tmp_path,
+):
+    provider = created_providers[0]
+    provider.email_contact = "supplier@example.com"
+    provider.supplier_response_allow_text_status = False
+    order = SupplierOrder(
+        provider_id=provider.id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    item = SupplierOrderItem(
+        supplier_order_id=order.id,
+        autopart_id=created_autopart.id,
+        oem_number=created_autopart.oem_number,
+        brand_name=created_autopart.brand.name,
+        autopart_name=created_autopart.name,
+        quantity=2,
+        price=110.0,
+    )
+    test_session.add(item)
+    await test_session.commit()
+
+    async def fake_fetch_messages(session, *, date_from, date_to=None):
+        return [
+            (
+                SimpleNamespace(
+                    from_="supplier@example.com",
+                    subject=f"Заказ поставщику #{order.id} документы",
+                    text="Во вложении УПД",
+                    html=None,
+                    attachments=[
+                        SimpleNamespace(
+                            filename="upd_20260409.pdf",
+                            payload=b"%PDF-upd%",
+                        )
+                    ],
+                    received_at=None,
+                    date=None,
+                    external_id="supplier-msg-upd-auto-post",
+                    uid=None,
+                    folder_name="INBOX",
+                ),
+                None,
+            )
+        ]
+
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_fetch_supplier_response_messages"
+        ),
+        fake_fetch_messages,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.supplier_order_responses.SUPPLIER_RESPONSE_DIR",
+        str(tmp_path),
+    )
+
+    result = await process_supplier_response_messages(test_session)
+    await test_session.refresh(item)
+    receipt = (
+        await test_session.execute(
+            select(SupplierReceipt).where(
+                SupplierReceipt.provider_id == provider.id
+            )
+        )
+    ).scalar_one()
+    receipt_item = (
+        await test_session.execute(
+            select(SupplierReceiptItem).where(
+                SupplierReceiptItem.receipt_id == receipt.id
+            )
+        )
+    ).scalar_one()
+
+    assert result["processed_messages"] == 1
+    assert result["created_receipts"] == 1
+    assert result["posted_receipts"] == 1
+    assert receipt.posted_at is not None
+    assert receipt.document_number == "upd_20260409"
+    assert receipt_item.received_quantity == 2
+    assert int(item.received_quantity or 0) == 2
 
 
 @pytest.mark.asyncio
