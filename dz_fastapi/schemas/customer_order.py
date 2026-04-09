@@ -523,6 +523,10 @@ class SupplierReceiptItemResponse(BaseModel):
     confirmed_quantity: Optional[int] = None
     received_quantity: int
     price: Optional[Decimal] = None
+    total_price_with_vat: Optional[Decimal] = None
+    gtd_code: Optional[str] = None
+    country_code: Optional[str] = None
+    country_name: Optional[str] = None
     comment: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

@@ -1156,6 +1156,16 @@ async def check_supplier_response_config_now(
     date_to: Optional[date] = None,
     session: AsyncSession = Depends(get_session),
 ):
+    logger.info(
+        (
+            "Manual supplier response check requested: "
+            "provider_id=%s config_id=%s date_from=%s date_to=%s"
+        ),
+        provider_id,
+        config_id,
+        date_from,
+        date_to,
+    )
     provider = await crud_provider.get_by_id(
         provider_id=provider_id,
         session=session,
@@ -1174,6 +1184,23 @@ async def check_supplier_response_config_now(
         supplier_response_config_id=config_id,
         date_from=date_from,
         date_to=date_to,
+    )
+    logger.info(
+        (
+            "Manual supplier response check finished: "
+            "provider_id=%s config_id=%s fetched=%s processed=%s "
+            "recognized=%s unresolved=%s created_receipts=%s "
+            "updated_receipts=%s posted_receipts=%s"
+        ),
+        provider_id,
+        config_id,
+        result.get('fetched_messages', 0),
+        result.get('processed_messages', 0),
+        result.get('recognized_positions', 0),
+        result.get('unresolved_positions', 0),
+        result.get('created_receipts', 0),
+        result.get('updated_receipts', 0),
+        result.get('posted_receipts', 0),
     )
     return SupplierResponseProcessResult(**result)
 

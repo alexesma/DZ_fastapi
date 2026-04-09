@@ -490,6 +490,9 @@ class SupplierResponseConfig(Base):
     process_shipping_docs = Column(Boolean, default=True, nullable=False)
 
     file_format = Column(String(16), nullable=True)
+    file_payload_type = Column(
+        String(16), default='response', nullable=False
+    )
     filename_pattern = Column(String(255), nullable=True)
     shipping_doc_filename_pattern = Column(String(255), nullable=True)
     start_row = Column(Integer, default=1, nullable=False)
@@ -499,6 +502,12 @@ class SupplierResponseConfig(Base):
     status_col = Column(Integer, nullable=True)
     comment_col = Column(Integer, nullable=True)
     price_col = Column(Integer, nullable=True)
+    document_number_col = Column(Integer, nullable=True)
+    document_date_col = Column(Integer, nullable=True)
+    gtd_col = Column(Integer, nullable=True)
+    country_code_col = Column(Integer, nullable=True)
+    country_name_col = Column(Integer, nullable=True)
+    total_price_with_vat_col = Column(Integer, nullable=True)
 
     confirm_keywords = Column(JSON, default=[])
     reject_keywords = Column(JSON, default=[])
@@ -914,6 +923,10 @@ class SupplierReceiptItem(Base):
     confirmed_quantity = Column(Integer, nullable=True)
     received_quantity = Column(Integer, nullable=False, default=0)
     price = Column(DECIMAL(10, 2), nullable=True)
+    total_price_with_vat = Column(DECIMAL(12, 2), nullable=True)
+    gtd_code = Column(String(64), nullable=True)
+    country_code = Column(String(16), nullable=True)
+    country_name = Column(String(120), nullable=True)
     comment = Column(String(500), nullable=True)
 
     receipt = relationship('SupplierReceipt', back_populates='items')

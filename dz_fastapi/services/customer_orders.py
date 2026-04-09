@@ -125,6 +125,27 @@ def _supplier_order_override_email() -> Optional[str]:
     return value or None
 
 
+async def _supplier_order_override_email_from_settings(
+    session: AsyncSession,
+) -> Optional[str]:
+    try:
+        inbox_settings = (
+            await crud_customer_order_inbox_settings.get_or_create(
+                session
+            )
+        )
+    except Exception:
+        return _supplier_order_override_email()
+    if not bool(getattr(inbox_settings, 'supplier_order_stub_enabled', True)):
+        return None
+    configured_email = str(
+        getattr(inbox_settings, 'supplier_order_stub_email', '') or ''
+    ).strip()
+    if configured_email:
+        return configured_email
+    return _supplier_order_override_email()
+
+
 async def _notify_admins(
     session: AsyncSession,
     *,
@@ -3411,18 +3432,20 @@ async def send_supplier_orders(
     smtp_kwargs = {}
     if account:
         smtp_kwargs = build_email_delivery_kwargs(account)
+    override_email = await _supplier_order_override_email_from_settings(
+        session
+    )
 
     for order in orders:
         provider = order.provider
-        to_email = _build_supplier_order_recipient(provider)
-        if not to_email:
-            failed += 1
-            continue
         original_recipient = _build_supplier_order_recipient(
             provider,
             use_override=False,
         )
-        override_email = _supplier_order_override_email()
+        to_email = override_email or original_recipient
+        if not to_email:
+            failed += 1
+            continue
 
         rows = []
         for item in order.items:

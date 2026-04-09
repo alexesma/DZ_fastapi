@@ -151,6 +151,9 @@ class CRUDCustomerOrderInboxSettings:
             lookback_days=1,
             mark_seen=False,
             error_file_retention_days=5,
+            supplier_response_lookback_days=14,
+            supplier_order_stub_enabled=True,
+            supplier_order_stub_email='info@dragonzap.ru',
         )
         session.add(setting)
         await session.commit()

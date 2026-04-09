@@ -20,6 +20,7 @@ from dz_fastapi.core.email_folders import (DEFAULT_IMAP_FOLDER,
                                            resolve_imap_folders)
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.email_account import crud_email_account
+from dz_fastapi.crud.settings import crud_customer_order_inbox_settings
 from dz_fastapi.models.email_account import EmailAccount
 from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import (Provider, SupplierOrder,
@@ -44,7 +45,7 @@ from dz_fastapi.services.order_status_mapping import (
 
 logger = logging.getLogger("dz_fastapi")
 
-SUPPLIER_RESPONSE_LOOKBACK_DAYS = max(
+DEFAULT_SUPPLIER_RESPONSE_LOOKBACK_DAYS = max(
     1,
     int(os.getenv("SUPPLIER_ORDER_RESPONSE_LOOKBACK_DAYS", "14")),
 )
@@ -104,6 +105,12 @@ class ParsedSupplierResponseRow:
     response_comment: Optional[str]
     response_status_raw: Optional[str]
     text_decision: Optional[str] = None
+    document_number: Optional[str] = None
+    document_date: Optional[date] = None
+    gtd_code: Optional[str] = None
+    country_code: Optional[str] = None
+    country_name: Optional[str] = None
+    total_price_with_vat: Optional[float] = None
 
 
 @dataclass(slots=True)
@@ -118,6 +125,13 @@ class AppliedSupplierResponseRow:
     supplier_order_id: int
     received_quantity: int
     comment: Optional[str] = None
+    response_price: Optional[float] = None
+    document_number: Optional[str] = None
+    document_date: Optional[date] = None
+    gtd_code: Optional[str] = None
+    country_code: Optional[str] = None
+    country_name: Optional[str] = None
+    total_price_with_vat: Optional[float] = None
 
 
 @dataclass(slots=True)
@@ -170,9 +184,32 @@ class SupplierResponseProcessingStats:
 
 
 def supplier_response_cutoff(
-    days: int = SUPPLIER_RESPONSE_LOOKBACK_DAYS,
+    days: int = DEFAULT_SUPPLIER_RESPONSE_LOOKBACK_DAYS,
 ) -> date:
     return (now_moscow() - timedelta(days=days)).date()
+
+
+async def _get_supplier_response_lookback_days(
+    session: AsyncSession,
+) -> int:
+    try:
+        inbox_settings = (
+            await crud_customer_order_inbox_settings.get_or_create(
+                session
+            )
+        )
+    except Exception:
+        return DEFAULT_SUPPLIER_RESPONSE_LOOKBACK_DAYS
+    raw_value = getattr(
+        inbox_settings,
+        "supplier_response_lookback_days",
+        DEFAULT_SUPPLIER_RESPONSE_LOOKBACK_DAYS,
+    )
+    try:
+        value = int(raw_value or DEFAULT_SUPPLIER_RESPONSE_LOOKBACK_DAYS)
+    except (TypeError, ValueError):
+        value = DEFAULT_SUPPLIER_RESPONSE_LOOKBACK_DAYS
+    return max(1, value)
 
 
 async def _notify_admins(
@@ -472,6 +509,53 @@ def _resolve_column_by_number(
     return df.columns[index]
 
 
+def _clean_text_value(value: object) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, float) and pd.isna(value):
+        return None
+    text = _repair_cp1251_mojibake(value)
+    text = str(text or "").strip()
+    return text or None
+
+
+def _parse_excel_like_date(value: object) -> Optional[date]:
+    if value in (None, ""):
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, float) and pd.isna(value):
+        return None
+    normalized = _clean_text_value(value)
+    if not normalized:
+        return None
+    parsed_ts = pd.to_datetime(
+        normalized,
+        dayfirst=True,
+        errors="coerce",
+    )
+    if parsed_ts is None or pd.isna(parsed_ts):
+        return None
+    return parsed_ts.date()
+
+
+def _resolve_price_without_vat(
+    total_price_with_vat: Optional[float],
+    quantity: Optional[int],
+) -> Optional[float]:
+    if total_price_with_vat is None:
+        return None
+    qty = _safe_int(quantity)
+    if qty is None or qty <= 0:
+        return None
+    total = float(total_price_with_vat)
+    if total <= 0:
+        return None
+    return round(total / qty, 2)
+
+
 def _normalize_sender_emails(value: object) -> set[str]:
     if value is None:
         return set()
@@ -673,6 +757,7 @@ def _parse_supplier_response_attachment(
     payload: bytes,
     filename: str,
     *,
+    file_payload_type: object = "response",
     start_row: object = 1,
     oem_col: object = None,
     brand_col: object = None,
@@ -680,7 +765,18 @@ def _parse_supplier_response_attachment(
     price_col: object = None,
     comment_col: object = None,
     status_col: object = None,
+    document_number_col: object = None,
+    document_date_col: object = None,
+    gtd_col: object = None,
+    country_code_col: object = None,
+    country_name_col: object = None,
+    total_price_with_vat_col: object = None,
 ) -> list[ParsedSupplierResponseRow]:
+    payload_type = str(
+        getattr(file_payload_type, "value", file_payload_type) or "response"
+    ).strip().lower()
+    if payload_type not in {"response", "document"}:
+        payload_type = "response"
     ext = _attachment_extension(filename)
     # Manual column mapping is enabled only when OEM column is provided.
     has_column_layout = _parse_positive_int(oem_col) is not None
@@ -710,6 +806,21 @@ def _parse_supplier_response_attachment(
         price_column = _resolve_column_by_number(df, price_col)
         comment_column = _resolve_column_by_number(df, comment_col)
         status_column = _resolve_column_by_number(df, status_col)
+        document_number_column = _resolve_column_by_number(
+            df,
+            document_number_col,
+        )
+        document_date_column = _resolve_column_by_number(
+            df,
+            document_date_col,
+        )
+        gtd_column = _resolve_column_by_number(df, gtd_col)
+        country_code_column = _resolve_column_by_number(df, country_code_col)
+        country_name_column = _resolve_column_by_number(df, country_name_col)
+        total_price_with_vat_column = _resolve_column_by_number(
+            df,
+            total_price_with_vat_col,
+        )
     else:
         headers = {
             _normalize_response_header(column): column for column in df.columns
@@ -760,6 +871,62 @@ def _parse_supplier_response_attachment(
             if candidate in headers:
                 status_column = headers[candidate]
                 break
+        document_number_column = None
+        for candidate in (
+            "documentnumber",
+            "номердокумента",
+            "документномер",
+            "номерупд",
+            "номерттн",
+        ):
+            if candidate in headers:
+                document_number_column = headers[candidate]
+                break
+        document_date_column = None
+        for candidate in (
+            "documentdate",
+            "датадокумента",
+            "датаупд",
+            "датанакладной",
+        ):
+            if candidate in headers:
+                document_date_column = headers[candidate]
+                break
+        gtd_column = None
+        for candidate in ("gtd", "гтд"):
+            if candidate in headers:
+                gtd_column = headers[candidate]
+                break
+        country_code_column = None
+        for candidate in (
+            "countrycode",
+            "кодстраны",
+            "country_code",
+        ):
+            if candidate in headers:
+                country_code_column = headers[candidate]
+                break
+        country_name_column = None
+        for candidate in (
+            "countryname",
+            "страна",
+            "названиестраны",
+            "country_name",
+        ):
+            if candidate in headers:
+                country_name_column = headers[candidate]
+                break
+        total_price_with_vat_column = None
+        for candidate in (
+            "sumwithvat",
+            "summwithvat",
+            "суммасндс",
+            "сндс",
+            "суммасндсруб",
+        ):
+            if candidate in headers:
+                total_price_with_vat_column = headers[candidate]
+                break
 
     parsed_rows: list[ParsedSupplierResponseRow] = []
     for _, row in df.iterrows():
@@ -781,6 +948,18 @@ def _parse_supplier_response_attachment(
             raw_price = row.get(price_column)
             if raw_price is not None and not pd.isna(raw_price):
                 price_value = _safe_float(raw_price)
+        total_price_with_vat = None
+        if total_price_with_vat_column is not None:
+            raw_total_with_vat = row.get(total_price_with_vat_column)
+            if raw_total_with_vat is not None and not pd.isna(
+                raw_total_with_vat
+            ):
+                total_price_with_vat = _safe_float(raw_total_with_vat)
+        if price_value is None:
+            price_value = _resolve_price_without_vat(
+                total_price_with_vat,
+                qty_value,
+            )
         comment_value = None
         if comment_column is not None:
             raw_comment = row.get(comment_column)
@@ -791,6 +970,25 @@ def _parse_supplier_response_attachment(
             raw_status = row.get(status_column)
             if raw_status is not None and not pd.isna(raw_status):
                 status_value = _repair_cp1251_mojibake(raw_status)
+        document_number = None
+        if document_number_column is not None:
+            document_number = _clean_text_value(
+                row.get(document_number_column)
+            )
+        document_date = None
+        if document_date_column is not None:
+            document_date = _parse_excel_like_date(
+                row.get(document_date_column)
+            )
+        gtd_code = None
+        if gtd_column is not None:
+            gtd_code = _clean_text_value(row.get(gtd_column))
+        country_code = None
+        if country_code_column is not None:
+            country_code = _clean_text_value(row.get(country_code_column))
+        country_name = None
+        if country_name_column is not None:
+            country_name = _clean_text_value(row.get(country_name_column))
         parsed_rows.append(
             ParsedSupplierResponseRow(
                 oem_number=oem_value,
@@ -799,8 +997,19 @@ def _parse_supplier_response_attachment(
                 response_price=price_value,
                 response_comment=comment_value,
                 response_status_raw=status_value,
+                document_number=document_number,
+                document_date=document_date,
+                gtd_code=gtd_code,
+                country_code=country_code,
+                country_name=country_name,
+                total_price_with_vat=total_price_with_vat,
             )
         )
+        if (
+            payload_type == "document"
+            and parsed_rows[-1].response_status_raw is None
+        ):
+            parsed_rows[-1].response_status_raw = "документ"
     return parsed_rows
 
 
@@ -951,69 +1160,238 @@ async def _apply_parsed_response_rows(
             continue
         matched_count += 1
 
-        item_changed = False
-        next_confirmed_quantity = row.confirmed_quantity
-        if next_confirmed_quantity is None:
-            if row.text_decision == "reject":
-                next_confirmed_quantity = 0
-            elif row.text_decision == "confirm":
-                next_confirmed_quantity = matched_item.quantity
-        if (
-            next_confirmed_quantity is not None
-            and matched_item.confirmed_quantity != next_confirmed_quantity
+        if _apply_row_to_item(
+            row=row,
+            matched_item=matched_item,
+            default_raw_status=default_raw_status,
+            default_normalized_status=default_normalized_status,
         ):
-            matched_item.confirmed_quantity = next_confirmed_quantity
-            item_changed = True
-        if (
-            row.response_price is not None
-            and matched_item.response_price != row.response_price
-        ):
-            matched_item.response_price = row.response_price
-            item_changed = True
-        next_comment = row.response_comment or matched_item.response_comment
-        if next_comment != matched_item.response_comment:
-            matched_item.response_comment = next_comment
-            item_changed = True
-        raw_status = row.response_status_raw or default_raw_status
-        normalized_status = normalize_external_status_text(raw_status)
-        if matched_item.response_status_raw != raw_status:
-            matched_item.response_status_raw = raw_status
-            item_changed = True
-        if matched_item.response_status_normalized != (
-            normalized_status or default_normalized_status or None
-        ):
-            matched_item.response_status_normalized = (
-                normalized_status or default_normalized_status or None
-            )
-            item_changed = True
-        matched_item.response_status_synced_at = now_moscow()
-        if item_changed:
             updated += 1
-        resolved_qty = row.confirmed_quantity
-        if resolved_qty is None:
-            if row.text_decision == "reject":
-                resolved_qty = 0
-            elif row.text_decision == "confirm":
-                resolved_qty = matched_item.confirmed_quantity
-        parsed_qty = _safe_int(resolved_qty)
-        if parsed_qty is None and resolved_qty not in (None, ""):
-            try:
-                parsed_qty = int(float(resolved_qty))
-            except (TypeError, ValueError):
-                parsed_qty = None
-        if parsed_qty is None:
-            parsed_qty = 0
-        if parsed_qty < 0:
-            parsed_qty = 0
         applied_rows.append(
-            AppliedSupplierResponseRow(
-                supplier_order_item_id=int(matched_item.id),
-                supplier_order_id=int(matched_item.supplier_order_id),
-                received_quantity=parsed_qty,
-                comment=row.response_comment or matched_item.response_comment,
+            _build_applied_row_payload(
+                row=row,
+                matched_item=matched_item,
             )
         )
     return updated, matched_count, unresolved_oems, applied_rows
+
+
+def _supplier_order_item_expected_quantity(item: SupplierOrderItem) -> int:
+    if item.confirmed_quantity is not None:
+        return int(item.confirmed_quantity or 0)
+    return int(item.quantity or 0)
+
+
+def _supplier_order_item_pending_quantity(item: SupplierOrderItem) -> int:
+    expected_quantity = _supplier_order_item_expected_quantity(item)
+    current_received = int(item.received_quantity or 0)
+    return max(expected_quantity - current_received, 0)
+
+
+def _select_single_item_candidate(
+    candidates: list[SupplierOrderItem],
+) -> Optional[SupplierOrderItem]:
+    if not candidates:
+        return None
+    pending_candidates = [
+        item
+        for item in candidates
+        if _supplier_order_item_pending_quantity(item) > 0
+    ]
+    if len(pending_candidates) == 1:
+        return pending_candidates[0]
+    if len(pending_candidates) > 1:
+        return None
+    if len(candidates) == 1:
+        return candidates[0]
+    return None
+
+
+def _build_applied_row_payload(
+    *,
+    row: ParsedSupplierResponseRow,
+    matched_item: SupplierOrderItem,
+) -> AppliedSupplierResponseRow:
+    resolved_qty = row.confirmed_quantity
+    if resolved_qty is None:
+        if row.text_decision == "reject":
+            resolved_qty = 0
+        elif row.text_decision == "confirm":
+            resolved_qty = matched_item.confirmed_quantity
+    parsed_qty = _safe_int(resolved_qty)
+    if parsed_qty is None and resolved_qty not in (None, ""):
+        try:
+            parsed_qty = int(float(resolved_qty))
+        except (TypeError, ValueError):
+            parsed_qty = None
+    if parsed_qty is None:
+        parsed_qty = 0
+    if parsed_qty < 0:
+        parsed_qty = 0
+    return AppliedSupplierResponseRow(
+        supplier_order_item_id=int(matched_item.id),
+        supplier_order_id=int(matched_item.supplier_order_id),
+        received_quantity=parsed_qty,
+        comment=row.response_comment or matched_item.response_comment,
+        response_price=row.response_price,
+        document_number=row.document_number,
+        document_date=row.document_date,
+        gtd_code=row.gtd_code,
+        country_code=row.country_code,
+        country_name=row.country_name,
+        total_price_with_vat=row.total_price_with_vat,
+    )
+
+
+def _apply_row_to_item(
+    *,
+    row: ParsedSupplierResponseRow,
+    matched_item: SupplierOrderItem,
+    default_raw_status: Optional[str],
+    default_normalized_status: Optional[str],
+) -> bool:
+    item_changed = False
+    next_confirmed_quantity = row.confirmed_quantity
+    if next_confirmed_quantity is None:
+        if row.text_decision == "reject":
+            next_confirmed_quantity = 0
+        elif row.text_decision == "confirm":
+            next_confirmed_quantity = matched_item.quantity
+    if (
+        next_confirmed_quantity is not None
+        and matched_item.confirmed_quantity != next_confirmed_quantity
+    ):
+        matched_item.confirmed_quantity = next_confirmed_quantity
+        item_changed = True
+    if (
+        row.response_price is not None
+        and matched_item.response_price != row.response_price
+    ):
+        matched_item.response_price = row.response_price
+        item_changed = True
+    next_comment = row.response_comment or matched_item.response_comment
+    if next_comment != matched_item.response_comment:
+        matched_item.response_comment = next_comment
+        item_changed = True
+    raw_status = row.response_status_raw or default_raw_status
+    normalized_status = normalize_external_status_text(raw_status)
+    if matched_item.response_status_raw != raw_status:
+        matched_item.response_status_raw = raw_status
+        item_changed = True
+    if matched_item.response_status_normalized != (
+        normalized_status or default_normalized_status or None
+    ):
+        matched_item.response_status_normalized = (
+            normalized_status or default_normalized_status or None
+        )
+        item_changed = True
+    matched_item.response_status_synced_at = now_moscow()
+    return item_changed
+
+
+async def _load_recent_provider_orders(
+    session: AsyncSession,
+    *,
+    provider_id: int,
+    date_from: date,
+) -> list[SupplierOrder]:
+    start_dt = datetime.combine(
+        date_from,
+        datetime.min.time(),
+        tzinfo=now_moscow().tzinfo,
+    )
+    stmt = (
+        select(SupplierOrder)
+        .options(selectinload(SupplierOrder.items))
+        .where(
+            SupplierOrder.provider_id == provider_id,
+            SupplierOrder.created_at >= start_dt,
+        )
+        .order_by(SupplierOrder.created_at.desc(), SupplierOrder.id.desc())
+    )
+    return list((await session.execute(stmt)).scalars().all())
+
+
+async def _apply_parsed_rows_without_order_id(
+    session: AsyncSession,
+    *,
+    provider_id: int,
+    parsed_rows: list[ParsedSupplierResponseRow],
+    default_raw_status: Optional[str],
+    default_normalized_status: Optional[str],
+    date_from: date,
+) -> tuple[
+    int,
+    int,
+    list[str],
+    dict[int, list[AppliedSupplierResponseRow]],
+]:
+    if not parsed_rows:
+        return 0, 0, [], {}
+    provider_orders = await _load_recent_provider_orders(
+        session,
+        provider_id=provider_id,
+        date_from=date_from,
+    )
+    if not provider_orders:
+        return (
+            0,
+            0,
+            [row.oem_number for row in parsed_rows],
+            {},
+        )
+    brand_aliases = await _load_brand_alias_map(session)
+    exact_map: dict[tuple[str, str], list[SupplierOrderItem]] = {}
+    oem_map: dict[str, list[SupplierOrderItem]] = {}
+    for order in provider_orders:
+        for item in order.items or []:
+            key = _normalize_key(
+                item.oem_number,
+                item.brand_name,
+                brand_aliases,
+            )
+            exact_map.setdefault(key, []).append(item)
+            oem_key = _normalize_oem_key(item.oem_number)
+            if oem_key:
+                oem_map.setdefault(oem_key, []).append(item)
+    updated = 0
+    matched_count = 0
+    unresolved_oems: list[str] = []
+    applied_rows_by_order: dict[int, list[AppliedSupplierResponseRow]] = {}
+    for row in parsed_rows:
+        exact_key = _normalize_key(
+            row.oem_number,
+            row.brand_name,
+            brand_aliases,
+        )
+        matched_item = _select_single_item_candidate(
+            exact_map.get(exact_key) or []
+        )
+        if matched_item is None:
+            oem_key = _normalize_oem_key(row.oem_number)
+            matched_item = _select_single_item_candidate(
+                oem_map.get(oem_key) or []
+            )
+        if matched_item is None:
+            unresolved_oems.append(row.oem_number)
+            continue
+        matched_count += 1
+        if _apply_row_to_item(
+            row=row,
+            matched_item=matched_item,
+            default_raw_status=default_raw_status,
+            default_normalized_status=default_normalized_status,
+        ):
+            updated += 1
+        applied_row = _build_applied_row_payload(
+            row=row,
+            matched_item=matched_item,
+        )
+        applied_rows_by_order.setdefault(
+            int(matched_item.supplier_order_id),
+            [],
+        ).append(applied_row)
+    return updated, matched_count, unresolved_oems, applied_rows_by_order
 
 
 def _extract_shipping_document_number(
@@ -1095,6 +1473,11 @@ def _build_receipt_items_from_applied_rows(
                 "supplier_order_item_id": supplier_order_item_id,
                 "received_quantity": quantity,
                 "comment": row.comment,
+                "response_price": row.response_price,
+                "gtd_code": row.gtd_code,
+                "country_code": row.country_code,
+                "country_name": row.country_name,
+                "total_price_with_vat": row.total_price_with_vat,
             }
         )
     return items_payload
@@ -1166,12 +1549,24 @@ async def _append_supplier_receipt_items(
                 ordered_quantity=order_item.quantity,
                 confirmed_quantity=order_item.confirmed_quantity,
                 received_quantity=quantity,
-                price=order_item.response_price or order_item.price,
+                price=(
+                    payload.get("response_price")
+                    or order_item.response_price
+                    or order_item.price
+                ),
                 comment=(
                     str(payload.get("comment") or "").strip()
                     or order_item.response_comment
                     or None
                 ),
+                gtd_code=str(payload.get("gtd_code") or "").strip() or None,
+                country_code=(
+                    str(payload.get("country_code") or "").strip() or None
+                ),
+                country_name=(
+                    str(payload.get("country_name") or "").strip() or None
+                ),
+                total_price_with_vat=payload.get("total_price_with_vat"),
             )
         )
         added += 1
@@ -1191,6 +1586,7 @@ async def _create_or_update_supplier_receipt_from_message(
     items_payload: list[dict[str, object]],
     post_now: bool,
     document_number: Optional[str] = None,
+    document_date: Optional[date] = None,
     comment: Optional[str] = None,
 ) -> tuple[Optional[SupplierReceipt], int, bool]:
     if not items_payload:
@@ -1203,7 +1599,7 @@ async def _create_or_update_supplier_receipt_from_message(
             supplier_order_id=None,
             source_message_id=message_row.id,
             document_number=document_number or None,
-            document_date=now_moscow().date(),
+            document_date=document_date or now_moscow().date(),
             created_by_user_id=None,
             created_at=now_moscow(),
             posted_at=now_moscow(),
@@ -1223,7 +1619,7 @@ async def _create_or_update_supplier_receipt_from_message(
                 supplier_order_id=None,
                 source_message_id=message_row.id,
                 document_number=None,
-                document_date=now_moscow().date(),
+                document_date=document_date or now_moscow().date(),
                 created_by_user_id=None,
                 created_at=now_moscow(),
                 posted_at=None,
@@ -1286,8 +1682,21 @@ async def process_supplier_response_messages(
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
 ) -> dict[str, object]:
+    lookback_days = None
     if date_from is None:
-        date_from = supplier_response_cutoff()
+        lookback_days = await _get_supplier_response_lookback_days(session)
+        date_from = supplier_response_cutoff(days=lookback_days)
+    logger.info(
+        (
+            "Supplier response processing started: provider_id=%s "
+            "config_id=%s date_from=%s date_to=%s lookback_days=%s"
+        ),
+        provider_id,
+        supplier_response_config_id,
+        date_from,
+        date_to,
+        lookback_days,
+    )
     stats = SupplierResponseProcessingStats()
     response_configs = await _load_supplier_response_configs(
         session,
@@ -1322,6 +1731,15 @@ async def process_supplier_response_messages(
         fetch_kwargs["include_default_orders_out"] = False
     messages = await _fetch_supplier_response_messages(session, **fetch_kwargs)
     stats.fetched_messages = len(messages)
+    logger.info(
+        (
+            "Supplier response messages fetched: count=%s "
+            "provider_id=%s config_id=%s"
+        ),
+        stats.fetched_messages,
+        provider_id,
+        supplier_response_config_id,
+    )
 
     for msg, account in messages:
         source_uid = _build_source_uid(msg, account)
@@ -1422,14 +1840,11 @@ async def process_supplier_response_messages(
                 continue
 
             if order is None:
-                hint = (
-                    "Не удалось определить заказ поставщику по письму: "
-                    f"{subject[:120] or 'без темы'}"
-                )
-                stats.add_unresolved(hint)
-                logger.warning(
-                    "Supplier response message cannot be matched to order: "
-                    "provider_id=%s sender=%s subject=%s",
+                logger.info(
+                    (
+                        "Supplier response message has no explicit order id: "
+                        "provider_id=%s sender=%s subject=%s"
+                    ),
                     provider.id,
                     sender_email,
                     subject,
@@ -1468,6 +1883,11 @@ async def process_supplier_response_messages(
                     "file_format",
                     None,
                 )
+                file_payload_type = getattr(
+                    active_response_config,
+                    "file_payload_type",
+                    "response",
+                )
                 response_start_row = getattr(
                     active_response_config,
                     "start_row",
@@ -1501,6 +1921,36 @@ async def process_supplier_response_messages(
                 response_status_col = getattr(
                     active_response_config,
                     "status_col",
+                    None,
+                )
+                response_document_number_col = getattr(
+                    active_response_config,
+                    "document_number_col",
+                    None,
+                )
+                response_document_date_col = getattr(
+                    active_response_config,
+                    "document_date_col",
+                    None,
+                )
+                response_gtd_col = getattr(
+                    active_response_config,
+                    "gtd_col",
+                    None,
+                )
+                response_country_code_col = getattr(
+                    active_response_config,
+                    "country_code_col",
+                    None,
+                )
+                response_country_name_col = getattr(
+                    active_response_config,
+                    "country_name_col",
+                    None,
+                )
+                response_total_price_with_vat_col = getattr(
+                    active_response_config,
+                    "total_price_with_vat_col",
                     None,
                 )
                 confirm_keywords = getattr(
@@ -1555,6 +2005,7 @@ async def process_supplier_response_messages(
                     )
                 )
                 response_file_format = None
+                file_payload_type = "response"
                 response_start_row = getattr(
                     provider,
                     "supplier_response_start_row",
@@ -1590,9 +2041,25 @@ async def process_supplier_response_messages(
                     "supplier_response_status_col",
                     None,
                 )
+                response_document_number_col = None
+                response_document_date_col = None
+                response_gtd_col = None
+                response_country_code_col = None
+                response_country_name_col = None
+                response_total_price_with_vat_col = None
                 confirm_keywords = _DEFAULT_CONFIRM_KEYWORDS
                 reject_keywords = _DEFAULT_REJECT_KEYWORDS
                 value_after_article_type = "both"
+
+            normalized_file_payload_type = str(
+                getattr(file_payload_type, "value", file_payload_type)
+                or "response"
+            ).strip().lower()
+            if normalized_file_payload_type not in {"response", "document"}:
+                normalized_file_payload_type = "response"
+            file_payload_is_document = (
+                normalized_file_payload_type == "document"
+            )
 
             if not allow_text_status:
                 raw_status = None
@@ -1635,7 +2102,14 @@ async def process_supplier_response_messages(
             parsed_text_rows = False
             has_shipping_doc = False
             shipping_doc_filenames: list[str] = []
-            receipt_applied_rows: list[AppliedSupplierResponseRow] = []
+            matched_orders: dict[int, SupplierOrder] = {}
+            if order is not None:
+                matched_orders[int(order.id)] = order
+            matched_order_ids_from_rows: set[int] = set()
+            receipt_applied_rows_by_order: dict[
+                int,
+                list[AppliedSupplierResponseRow],
+            ] = {}
             for attachment in attachments:
                 file_path, digest = await _store_supplier_message_attachment(
                     message_id=message_row.id,
@@ -1673,13 +2147,13 @@ async def process_supplier_response_messages(
                     response_candidate = False
                 if (
                     allow_response_files
-                    and order is not None
                     and response_candidate
                 ):
                     try:
                         parsed_rows = _parse_supplier_response_attachment(
                             attachment.payload,
                             attachment.filename or "",
+                            file_payload_type=normalized_file_payload_type,
                             start_row=response_start_row,
                             oem_col=response_oem_col,
                             brand_col=response_brand_col,
@@ -1687,6 +2161,14 @@ async def process_supplier_response_messages(
                             price_col=response_price_col,
                             comment_col=response_comment_col,
                             status_col=response_status_col,
+                            document_number_col=response_document_number_col,
+                            document_date_col=response_document_date_col,
+                            gtd_col=response_gtd_col,
+                            country_code_col=response_country_code_col,
+                            country_name_col=response_country_name_col,
+                            total_price_with_vat_col=(
+                                response_total_price_with_vat_col
+                            ),
                         )
                     except Exception as exc:
                         logger.warning(
@@ -1697,34 +2179,77 @@ async def process_supplier_response_messages(
                             attachment.filename,
                             exc,
                         )
-                if order is not None and parsed_rows:
-                    (
-                        updated_items,
-                        matched_count,
-                        unresolved_oems,
-                        applied_rows,
-                    ) = (
-                        await _apply_parsed_response_rows(
-                            session,
-                            order=order,
-                            parsed_rows=parsed_rows,
-                            default_raw_status=raw_status,
-                            default_normalized_status=normalized_status,
-                        )
-                    )
-                    stats.updated_items += updated_items
-                    receipt_applied_rows.extend(applied_rows)
-                    stats.recognized_positions += matched_count
-                    for unresolved_oem in unresolved_oems:
-                        stats.add_unresolved(
-                            (
-                                f"{unresolved_oem}: строка заказа "
-                                "не найдена"
+                if parsed_rows:
+                    if file_payload_is_document:
+                        has_shipping_doc = True
+                        if attachment.filename:
+                            shipping_doc_filenames.append(
+                                str(attachment.filename)
+                            )
+                        attachment_kind = "SHIPPING_DOC"
+                    else:
+                        attachment_kind = "RESPONSE_FILE"
+                    parsed_response_file = True
+                    stats.parsed_response_files += 1
+                    if order is not None:
+                        (
+                            updated_items,
+                            matched_count,
+                            unresolved_oems,
+                            applied_rows,
+                        ) = (
+                            await _apply_parsed_response_rows(
+                                session,
+                                order=order,
+                                parsed_rows=parsed_rows,
+                                default_raw_status=raw_status,
+                                default_normalized_status=normalized_status,
                             )
                         )
-                    parsed_response_file = True
-                    attachment_kind = "RESPONSE_FILE"
-                    stats.parsed_response_files += 1
+                        stats.updated_items += updated_items
+                        receipt_applied_rows_by_order.setdefault(
+                            int(order.id),
+                            [],
+                        ).extend(applied_rows)
+                        stats.recognized_positions += matched_count
+                        for unresolved_oem in unresolved_oems:
+                            stats.add_unresolved(
+                                (
+                                    f"{unresolved_oem}: строка заказа "
+                                    "не найдена"
+                                )
+                            )
+                    else:
+                        (
+                            updated_items,
+                            matched_count,
+                            unresolved_oems,
+                            applied_rows_map,
+                        ) = await _apply_parsed_rows_without_order_id(
+                            session,
+                            provider_id=provider.id,
+                            parsed_rows=parsed_rows,
+                            default_raw_status=raw_status,
+                            default_normalized_status=(
+                                normalized_status or None
+                            ),
+                            date_from=date_from,
+                        )
+                        stats.updated_items += updated_items
+                        stats.recognized_positions += matched_count
+                        for order_key, rows in applied_rows_map.items():
+                            matched_order_ids_from_rows.add(int(order_key))
+                            receipt_applied_rows_by_order.setdefault(
+                                int(order_key),
+                                [],
+                            ).extend(rows)
+                        for unresolved_oem in unresolved_oems:
+                            stats.add_unresolved(
+                                (
+                                    f"{unresolved_oem}: строка заказа "
+                                    "не найдена/неоднозначна"
+                                )
+                            )
                 session.add(
                     SupplierOrderAttachment(
                         message_id=message_row.id,
@@ -1741,7 +2266,7 @@ async def process_supplier_response_messages(
 
             if (
                 allow_text_status
-                and order is not None
+                and provider is not None
                 and message_text
             ):
                 parsed_text = _parse_supplier_text_response(
@@ -1758,36 +2283,91 @@ async def process_supplier_response_messages(
                         matched_count,
                         unresolved_oems,
                         applied_rows,
-                    ) = await _apply_parsed_response_rows(
-                        session,
-                        order=order,
-                        parsed_rows=parsed_text.rows,
-                        default_raw_status=raw_status,
-                        default_normalized_status=normalized_status or None,
-                    )
+                    ) = (0, 0, [], [])
+                    if order is not None:
+                        (
+                            updated_items,
+                            matched_count,
+                            unresolved_oems,
+                            applied_rows,
+                        ) = await _apply_parsed_response_rows(
+                            session,
+                            order=order,
+                            parsed_rows=parsed_text.rows,
+                            default_raw_status=raw_status,
+                            default_normalized_status=(
+                                normalized_status or None
+                            ),
+                        )
+                        receipt_applied_rows_by_order.setdefault(
+                            int(order.id),
+                            [],
+                        ).extend(applied_rows)
+                    else:
+                        (
+                            updated_items,
+                            matched_count,
+                            unresolved_oems,
+                            applied_rows_map,
+                        ) = await _apply_parsed_rows_without_order_id(
+                            session,
+                            provider_id=provider.id,
+                            parsed_rows=parsed_text.rows,
+                            default_raw_status=raw_status,
+                            default_normalized_status=(
+                                normalized_status or None
+                            ),
+                            date_from=date_from,
+                        )
+                        for order_key, rows in applied_rows_map.items():
+                            matched_order_ids_from_rows.add(int(order_key))
+                            receipt_applied_rows_by_order.setdefault(
+                                int(order_key),
+                                [],
+                            ).extend(rows)
                     stats.updated_items += updated_items
-                    receipt_applied_rows.extend(applied_rows)
                     stats.parsed_text_positions += len(parsed_text.rows)
                     stats.recognized_positions += matched_count
                     for unresolved_oem in unresolved_oems:
                         stats.add_unresolved(
                             (
                                 f"{unresolved_oem}: строка заказа "
-                                "не найдена"
+                                "не найдена/неоднозначна"
                             )
                         )
                     if matched_count:
                         parsed_text_rows = True
 
-            if order is not None:
-                stats.matched_orders += 1
-                if raw_status:
-                    order.response_status_raw = raw_status
-                    order.response_status_normalized = (
-                        normalized_status or None
+            if matched_order_ids_from_rows:
+                order_rows = (
+                    await session.execute(
+                        select(SupplierOrder)
+                        .options(selectinload(SupplierOrder.items))
+                        .where(
+                            SupplierOrder.id.in_(matched_order_ids_from_rows)
+                        )
                     )
-                    order.response_status_synced_at = now_moscow()
-                if mapping is not None:
+                ).scalars().all()
+                for matched_order in order_rows:
+                    matched_orders[int(matched_order.id)] = matched_order
+                if (
+                    message_row.supplier_order_id is None
+                    and len(matched_orders) == 1
+                ):
+                    message_row.supplier_order_id = next(
+                        iter(matched_orders.keys())
+                    )
+
+            if matched_orders:
+                stats.matched_orders += len(matched_orders)
+                for matched_order in matched_orders.values():
+                    if raw_status:
+                        matched_order.response_status_raw = raw_status
+                        matched_order.response_status_normalized = (
+                            normalized_status or None
+                        )
+                        matched_order.response_status_synced_at = now_moscow()
+                if mapping is not None and order is not None:
                     apply_result = apply_supplier_response_action_to_order(
                         order=order,
                         mapping=mapping,
@@ -1814,7 +2394,15 @@ async def process_supplier_response_messages(
                     raw_status=raw_status,
                     normalized_status=normalized_status,
                     sample_payload={
-                        "supplier_order_id": order.id if order else None,
+                        "supplier_order_id": (
+                            order.id
+                            if order
+                            else (
+                                next(iter(matched_orders.keys()))
+                                if len(matched_orders) == 1
+                                else None
+                            )
+                        ),
                         "supplier_message_id": message_row.id,
                         "sender_email": sender_email,
                         "subject": subject,
@@ -1822,104 +2410,140 @@ async def process_supplier_response_messages(
                 )
                 stats.unmapped_statuses += 1
 
-            if order is not None:
+            if matched_orders:
                 if has_shipping_doc:
-                    receipt_items_payload = (
-                        _build_receipt_items_from_applied_rows(
-                            order,
-                            receipt_applied_rows,
-                            cap_to_pending=True,
+                    for matched_order in matched_orders.values():
+                        applied_rows = receipt_applied_rows_by_order.get(
+                            int(matched_order.id),
+                            [],
                         )
-                    )
-                    if not receipt_items_payload:
-                        receipt_items_payload = _build_pending_receipt_items(
-                            order
+                        receipt_items_payload = (
+                            _build_receipt_items_from_applied_rows(
+                                matched_order,
+                                applied_rows,
+                                cap_to_pending=True,
+                            )
                         )
-                    receipt_document_number = (
-                        _extract_shipping_document_number(
-                            shipping_doc_filenames
-                        )
-                    )
-                    receipt_comment = (
-                        "Авто-проведение по документу УПД/накладной из почты"
-                    )
-                    _, added_items, _ = (
-                        await _create_or_update_supplier_receipt_from_message(
-                            session,
-                            provider_id=provider.id,
-                            order=order,
-                            message_row=message_row,
-                            items_payload=receipt_items_payload,
-                            post_now=True,
-                            document_number=receipt_document_number,
-                            comment=receipt_comment,
-                        )
-                    )
-                    if added_items > 0:
-                        stats.created_receipts += 1
-                        stats.posted_receipts += 1
-                        stats.receipt_items_added += added_items
-                        logger.info(
+                        if not receipt_items_payload and order is not None:
+                            receipt_items_payload = (
+                                _build_pending_receipt_items(
+                                    matched_order
+                                )
+                            )
+                        if not receipt_items_payload:
+                            continue
+                        row_document_number = next(
                             (
-                                "Auto-posted supplier receipt "
-                                "from message %s: "
-                                "provider_id=%s, items=%s"
+                                str(ap.document_number).strip()
+                                for ap in applied_rows
+                                if ap.document_number
                             ),
-                            message_row.id,
-                            provider.id,
-                            added_items,
+                            "",
                         )
-                else:
-                    receipt_items_payload = (
-                        _build_receipt_items_from_applied_rows(
-                            order,
-                            receipt_applied_rows,
-                            cap_to_pending=False,
+                        row_document_date = next(
+                            (
+                                ap.document_date
+                                for ap in applied_rows
+                                if ap.document_date
+                            ),
+                            None,
                         )
-                    )
-                    if receipt_items_payload:
-                        receipt_creator = (
+                        receipt_document_number = (
+                            row_document_number
+                            or _extract_shipping_document_number(
+                                shipping_doc_filenames
+                            )
+                        )
+                        receipt_comment = (
+                            "Авто-проведение по документу УПД/накладной "
+                            "из почты"
+                        )
+                        receipt_writer = (
                             _create_or_update_supplier_receipt_from_message
                         )
-                        _, added_items, created_receipt = (
-                            await receipt_creator(
+                        _, added_items, _ = (
+                            await receipt_writer(
                                 session,
                                 provider_id=provider.id,
-                                order=order,
+                                order=matched_order,
                                 message_row=message_row,
                                 items_payload=receipt_items_payload,
-                                post_now=False,
-                                comment=(
-                                    "Авто-черновик поступления из ответа "
-                                    "поставщика"
-                                ),
+                                post_now=True,
+                                document_number=receipt_document_number,
+                                document_date=row_document_date,
+                                comment=receipt_comment,
                             )
                         )
                         if added_items > 0:
-                            if created_receipt:
-                                stats.created_receipts += 1
-                                stats.draft_receipts += 1
-                            else:
-                                stats.updated_receipts += 1
+                            stats.created_receipts += 1
+                            stats.posted_receipts += 1
                             stats.receipt_items_added += added_items
                             logger.info(
                                 (
-                                    "Updated draft supplier receipt from "
-                                    "message %s: provider_id=%s, items=%s, "
-                                    "created=%s"
+                                    "Auto-posted supplier receipt "
+                                    "from message %s: "
+                                    "provider_id=%s, items=%s"
                                 ),
                                 message_row.id,
                                 provider.id,
                                 added_items,
-                                created_receipt,
                             )
+                else:
+                    for matched_order in matched_orders.values():
+                        applied_rows = receipt_applied_rows_by_order.get(
+                            int(matched_order.id),
+                            [],
+                        )
+                        receipt_items_payload = (
+                            _build_receipt_items_from_applied_rows(
+                                matched_order,
+                                applied_rows,
+                                cap_to_pending=False,
+                            )
+                        )
+                        if receipt_items_payload:
+                            receipt_creator = (
+                                _create_or_update_supplier_receipt_from_message
+                            )
+                            _, added_items, created_receipt = (
+                                await receipt_creator(
+                                    session,
+                                    provider_id=provider.id,
+                                    order=matched_order,
+                                    message_row=message_row,
+                                    items_payload=receipt_items_payload,
+                                    post_now=False,
+                                    comment=(
+                                        "Авто-черновик поступления из ответа "
+                                        "поставщика"
+                                    ),
+                                )
+                            )
+                            if added_items > 0:
+                                if created_receipt:
+                                    stats.created_receipts += 1
+                                    stats.draft_receipts += 1
+                                else:
+                                    stats.updated_receipts += 1
+                                stats.receipt_items_added += added_items
+                                logger.info(
+                                    (
+                                        "Updated draft supplier receipt from "
+                                        "message %s: provider_id=%s, "
+                                        "items=%s, created=%s"
+                                    ),
+                                    message_row.id,
+                                    provider.id,
+                                    added_items,
+                                    created_receipt,
+                                )
 
-            if parsed_response_file:
+            if has_shipping_doc:
+                message_row.message_type = "SHIPPING_DOC"
+            elif parsed_response_file:
                 message_row.message_type = "RESPONSE_FILE"
             elif parsed_text_rows:
                 message_row.message_type = "TEXT_RESPONSE"
-            elif has_shipping_doc:
-                message_row.message_type = "SHIPPING_DOC"
             elif raw_status:
                 message_row.message_type = "STATUS"
 
@@ -1946,4 +2570,22 @@ async def process_supplier_response_messages(
             )
             stats.skipped_messages += 1
 
-    return stats.as_dict()
+    result = stats.as_dict()
+    logger.info(
+        (
+            "Supplier response processing finished: "
+            "provider_id=%s config_id=%s fetched=%s processed=%s "
+            "recognized=%s unresolved=%s created_receipts=%s "
+            "updated_receipts=%s posted_receipts=%s"
+        ),
+        provider_id,
+        supplier_response_config_id,
+        result.get("fetched_messages", 0),
+        result.get("processed_messages", 0),
+        result.get("recognized_positions", 0),
+        result.get("unresolved_positions", 0),
+        result.get("created_receipts", 0),
+        result.get("updated_receipts", 0),
+        result.get("posted_receipts", 0),
+    )
+    return result

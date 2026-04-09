@@ -32,6 +32,11 @@ class SupplierResponseFileFormat(str, Enum):
     CSV = 'csv'
 
 
+class SupplierResponseFilePayloadType(str, Enum):
+    RESPONSE = 'response'
+    DOCUMENT = 'document'
+
+
 class SupplierResponseValueAfterArticleType(str, Enum):
     NUMBER = 'number'
     TEXT = 'text'
@@ -473,6 +478,9 @@ class SupplierResponseConfigBase(BaseModel):
     file_format: Optional[SupplierResponseFileFormat] = (
         SupplierResponseFileFormat.EXCEL
     )
+    file_payload_type: SupplierResponseFilePayloadType = (
+        SupplierResponseFilePayloadType.RESPONSE
+    )
     filename_pattern: Optional[str] = None
     shipping_doc_filename_pattern: Optional[str] = None
     start_row: int = Field(default=1, ge=1)
@@ -482,6 +490,12 @@ class SupplierResponseConfigBase(BaseModel):
     status_col: Optional[int] = Field(default=None, ge=1)
     comment_col: Optional[int] = Field(default=None, ge=1)
     price_col: Optional[int] = Field(default=None, ge=1)
+    document_number_col: Optional[int] = Field(default=None, ge=1)
+    document_date_col: Optional[int] = Field(default=None, ge=1)
+    gtd_col: Optional[int] = Field(default=None, ge=1)
+    country_code_col: Optional[int] = Field(default=None, ge=1)
+    country_name_col: Optional[int] = Field(default=None, ge=1)
+    total_price_with_vat_col: Optional[int] = Field(default=None, ge=1)
     confirm_keywords: List[str] = Field(
         default_factory=lambda: [
             'в наличии',
@@ -540,6 +554,7 @@ class SupplierResponseConfigUpdate(BaseModel):
     response_type: Optional[SupplierResponseType] = None
     process_shipping_docs: Optional[bool] = None
     file_format: Optional[SupplierResponseFileFormat] = None
+    file_payload_type: Optional[SupplierResponseFilePayloadType] = None
     filename_pattern: Optional[str] = None
     shipping_doc_filename_pattern: Optional[str] = None
     start_row: Optional[int] = Field(default=None, ge=1)
@@ -549,6 +564,12 @@ class SupplierResponseConfigUpdate(BaseModel):
     status_col: Optional[int] = Field(default=None, ge=1)
     comment_col: Optional[int] = Field(default=None, ge=1)
     price_col: Optional[int] = Field(default=None, ge=1)
+    document_number_col: Optional[int] = Field(default=None, ge=1)
+    document_date_col: Optional[int] = Field(default=None, ge=1)
+    gtd_col: Optional[int] = Field(default=None, ge=1)
+    country_code_col: Optional[int] = Field(default=None, ge=1)
+    country_name_col: Optional[int] = Field(default=None, ge=1)
+    total_price_with_vat_col: Optional[int] = Field(default=None, ge=1)
     confirm_keywords: Optional[List[str]] = None
     reject_keywords: Optional[List[str]] = None
     value_after_article_type: Optional[
@@ -602,6 +623,9 @@ class SupplierResponseConfigOut(BaseModel):
     file_format: Optional[SupplierResponseFileFormat] = (
         SupplierResponseFileFormat.EXCEL
     )
+    file_payload_type: SupplierResponseFilePayloadType = (
+        SupplierResponseFilePayloadType.RESPONSE
+    )
     filename_pattern: Optional[str] = None
     shipping_doc_filename_pattern: Optional[str] = None
     start_row: int = 1
@@ -611,6 +635,12 @@ class SupplierResponseConfigOut(BaseModel):
     status_col: Optional[int] = None
     comment_col: Optional[int] = None
     price_col: Optional[int] = None
+    document_number_col: Optional[int] = None
+    document_date_col: Optional[int] = None
+    gtd_col: Optional[int] = None
+    country_code_col: Optional[int] = None
+    country_name_col: Optional[int] = None
+    total_price_with_vat_col: Optional[int] = None
     confirm_keywords: List[str] = Field(default_factory=list)
     reject_keywords: List[str] = Field(default_factory=list)
     value_after_article_type: SupplierResponseValueAfterArticleType = (

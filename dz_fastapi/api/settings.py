@@ -166,6 +166,13 @@ async def update_customer_order_inbox_settings(
         data['error_file_retention_days'] = max(
             1, int(data['error_file_retention_days'])
         )
+    if 'supplier_response_lookback_days' in data:
+        data['supplier_response_lookback_days'] = max(
+            1, int(data['supplier_response_lookback_days'])
+        )
+    if 'supplier_order_stub_email' in data:
+        value = str(data.get('supplier_order_stub_email') or '').strip()
+        data['supplier_order_stub_email'] = value or 'info@dragonzap.ru'
     setting = await crud_customer_order_inbox_settings.update(
         session=session, data=data
     )

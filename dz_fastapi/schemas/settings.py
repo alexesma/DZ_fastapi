@@ -61,6 +61,9 @@ class CustomerOrderInboxSettingsOut(BaseModel):
     lookback_days: int = 1
     mark_seen: bool = False
     error_file_retention_days: int = 5
+    supplier_response_lookback_days: int = 14
+    supplier_order_stub_enabled: bool = True
+    supplier_order_stub_email: Optional[str] = 'info@dragonzap.ru'
     updated_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
@@ -69,6 +72,9 @@ class CustomerOrderInboxSettingsUpdate(BaseModel):
     lookback_days: Optional[int] = None
     mark_seen: Optional[bool] = None
     error_file_retention_days: Optional[int] = None
+    supplier_response_lookback_days: Optional[int] = None
+    supplier_order_stub_enabled: Optional[bool] = None
+    supplier_order_stub_email: Optional[str] = None
 
 
 class SystemMetricSnapshotOut(BaseModel):
