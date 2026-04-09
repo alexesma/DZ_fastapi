@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from datetime import date
 from math import ceil
 from typing import List, Optional
 
@@ -23,6 +24,7 @@ from dz_fastapi.crud.partner import (crud_customer, crud_customer_pricelist,
                                      crud_pricelist, crud_provider,
                                      crud_provider_abbreviation,
                                      crud_provider_pricelist_config,
+                                     crud_supplier_response_config,
                                      set_last_uid)
 from dz_fastapi.models.partner import (TYPE_PRICES, Customer,
                                        CustomerPriceList,
@@ -31,6 +33,7 @@ from dz_fastapi.models.partner import (TYPE_PRICES, Customer,
                                        CustomerPriceListSource, PriceList,
                                        Provider, ProviderPriceListConfig)
 from dz_fastapi.schemas.autopart import AutoPartResponse
+from dz_fastapi.schemas.customer_order import SupplierResponseProcessResult
 from dz_fastapi.schemas.partner import (AutoPartInPricelist,
                                         CustomerAllPriceListResponse,
                                         CustomerCreate, CustomerListSummary,
@@ -60,12 +63,17 @@ from dz_fastapi.schemas.partner import (AutoPartInPricelist,
                                         ProviderPriceListConfigOption,
                                         ProviderPriceListConfigOut,
                                         ProviderPriceListConfigUpdate,
-                                        ProviderResponse, ProviderUpdate)
+                                        ProviderResponse, ProviderUpdate,
+                                        SupplierResponseConfigCreate,
+                                        SupplierResponseConfigOut,
+                                        SupplierResponseConfigUpdate)
 from dz_fastapi.services.email import download_price_provider
 from dz_fastapi.services.process import (check_start_and_finish_date,
                                          parse_exclude_positions_file,
                                          process_customer_pricelist,
                                          process_provider_pricelist)
+from dz_fastapi.services.supplier_order_responses import \
+    process_supplier_response_messages
 
 logger = logging.getLogger('dz_fastapi')
 router = APIRouter()
@@ -110,6 +118,24 @@ async def _validate_outgoing_price_mailbox(
                 'Selected mailbox must have purpose '
                 'prices_out, orders_out or orders_in'
             ),
+        )
+
+
+async def _validate_supplier_response_mailbox(
+    session: AsyncSession, mailbox_id: int | None
+):
+    if mailbox_id is None:
+        return
+    mailbox = await crud_email_account.get(session, mailbox_id)
+    if not mailbox:
+        raise HTTPException(
+            status_code=400,
+            detail='Selected mailbox for supplier responses not found',
+        )
+    if not mailbox.is_active:
+        raise HTTPException(
+            status_code=400,
+            detail='Selected mailbox for supplier responses is inactive',
         )
 
 
@@ -992,6 +1018,164 @@ async def get_provider_pricelist_config(
             detail=f'Configuration for provider {provider.name} ' f'not found',
         )
     return ProviderPriceListConfigOut.model_validate(provider_config)
+
+
+@router.post(
+    '/providers/{provider_id}/supplier-response-config/',
+    tags=['providers', 'supplier-response-config'],
+    status_code=status.HTTP_201_CREATED,
+    summary='Create supplier response configuration',
+    response_model=SupplierResponseConfigOut,
+)
+async def create_supplier_response_config(
+    provider_id: int,
+    config_in: SupplierResponseConfigCreate,
+    session: AsyncSession = Depends(get_session),
+):
+    provider = await crud_provider.get_by_id(
+        provider_id=provider_id,
+        session=session,
+    )
+    if not provider:
+        raise HTTPException(status_code=404, detail='Provider not found')
+    await _validate_supplier_response_mailbox(
+        session,
+        config_in.inbox_email_account_id,
+    )
+    created = await crud_supplier_response_config.create(
+        provider_id=provider_id,
+        config_in=config_in,
+        session=session,
+    )
+    return SupplierResponseConfigOut.model_validate(created)
+
+
+@router.patch(
+    '/providers/{provider_id}/supplier-response-config/{config_id}/',
+    tags=['providers', 'supplier-response-config'],
+    status_code=status.HTTP_200_OK,
+    summary='Update supplier response configuration',
+    response_model=SupplierResponseConfigOut,
+)
+async def update_supplier_response_config(
+    provider_id: int,
+    config_id: int,
+    config_in: SupplierResponseConfigUpdate,
+    session: AsyncSession = Depends(get_session),
+):
+    provider = await crud_provider.get_by_id(
+        provider_id=provider_id,
+        session=session,
+    )
+    if not provider:
+        raise HTTPException(status_code=404, detail='Provider not found')
+    config = await crud_supplier_response_config.get_by_id(config_id, session)
+    if not config or config.provider_id != provider_id:
+        raise HTTPException(
+            status_code=404,
+            detail='Supplier response configuration not found for provider',
+        )
+    if (
+        'inbox_email_account_id' in config_in.model_fields_set
+        and config_in.inbox_email_account_id is not None
+    ):
+        await _validate_supplier_response_mailbox(
+            session,
+            config_in.inbox_email_account_id,
+        )
+    updated = await crud_supplier_response_config.update(
+        db_obj=config,
+        obj_in=config_in,
+        session=session,
+    )
+    return SupplierResponseConfigOut.model_validate(updated)
+
+
+@router.get(
+    '/providers/{provider_id}/supplier-response-config/',
+    tags=['providers', 'supplier-response-config'],
+    status_code=status.HTTP_200_OK,
+    summary='List supplier response configurations for provider',
+    response_model=List[SupplierResponseConfigOut],
+)
+async def list_supplier_response_configs(
+    provider_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    provider = await crud_provider.get_by_id(
+        provider_id=provider_id,
+        session=session,
+    )
+    if not provider:
+        raise HTTPException(status_code=404, detail='Provider not found')
+    configs = await crud_supplier_response_config.get_configs(
+        provider_id=provider_id,
+        session=session,
+    )
+    return [SupplierResponseConfigOut.model_validate(cfg) for cfg in configs]
+
+
+@router.get(
+    '/providers/{provider_id}/supplier-response-config/{config_id}/',
+    tags=['providers', 'supplier-response-config'],
+    status_code=status.HTTP_200_OK,
+    summary='Get supplier response configuration by id',
+    response_model=SupplierResponseConfigOut,
+)
+async def get_supplier_response_config(
+    provider_id: int,
+    config_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    provider = await crud_provider.get_by_id(
+        provider_id=provider_id,
+        session=session,
+    )
+    if not provider:
+        raise HTTPException(status_code=404, detail='Provider not found')
+    config = await crud_supplier_response_config.get_by_id(config_id, session)
+    if not config or config.provider_id != provider_id:
+        raise HTTPException(
+            status_code=404,
+            detail='Supplier response configuration not found for provider',
+        )
+    return SupplierResponseConfigOut.model_validate(config)
+
+
+@router.post(
+    '/providers/{provider_id}/supplier-response-config/{config_id}/check-now',
+    tags=['providers', 'supplier-response-config'],
+    status_code=status.HTTP_200_OK,
+    summary='Process inbox for selected supplier response configuration',
+    response_model=SupplierResponseProcessResult,
+)
+async def check_supplier_response_config_now(
+    provider_id: int,
+    config_id: int,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    session: AsyncSession = Depends(get_session),
+):
+    provider = await crud_provider.get_by_id(
+        provider_id=provider_id,
+        session=session,
+    )
+    if not provider:
+        raise HTTPException(status_code=404, detail='Provider not found')
+    config = await crud_supplier_response_config.get_by_id(config_id, session)
+    if not config or config.provider_id != provider_id:
+        raise HTTPException(
+            status_code=404,
+            detail='Supplier response configuration not found for provider',
+        )
+    result = await process_supplier_response_messages(
+        session=session,
+        provider_id=provider_id,
+        supplier_response_config_id=config_id,
+        date_from=date_from,
+        date_to=date_to,
+    )
+    return SupplierResponseProcessResult(**result)
 
 
 # @router.post(
@@ -2056,4 +2240,35 @@ async def delete_provider_pricelist_config(
     await session.delete(config)
     await session.commit()
 
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete(
+    '/providers/{provider_id}/supplier-response-config/{config_id}/',
+    tags=['providers', 'supplier-response-config'],
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary='Delete supplier response configuration',
+)
+async def delete_supplier_response_config(
+    provider_id: int,
+    config_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    provider = await crud_provider.get_by_id(
+        provider_id=provider_id,
+        session=session,
+    )
+    if not provider:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='Provider not found',
+        )
+    config = await crud_supplier_response_config.get_by_id(config_id, session)
+    if not config or config.provider_id != provider_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='Supplier response configuration not found for provider',
+        )
+    await session.delete(config)
+    await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

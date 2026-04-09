@@ -13,7 +13,8 @@ from dz_fastapi.models.order_status_mapping import (ExternalStatusMapping,
 from dz_fastapi.models.partner import (CUSTOMER_ORDER_SHIP_MODE,
                                        SUPPLIER_ORDER_STATUS, SupplierOrder,
                                        SupplierOrderAttachment,
-                                       SupplierOrderItem, SupplierOrderMessage)
+                                       SupplierOrderItem, SupplierOrderMessage,
+                                       SupplierResponseConfig)
 from dz_fastapi.services.customer_orders import (
     _apply_response_updates_csv, _apply_response_updates_excel,
     _build_order_reply_recipients, _build_supplier_order_recipient,
@@ -885,3 +886,102 @@ async def test_use_shipping_doc_filename_pattern(
     assert result["processed_messages"] == 1
     assert message_row.message_type == "SHIPPING_DOC"
     assert attachment_row.parsed_kind == "SHIPPING_DOC"
+
+
+@pytest.mark.asyncio
+async def test_parse_text_response_using_supplier_response_config(
+    monkeypatch,
+    test_session,
+    created_providers,
+    created_autopart,
+    tmp_path,
+):
+    provider = created_providers[0]
+    provider.email_contact = None
+    provider.email_incoming_price = None
+    order = SupplierOrder(
+        provider_id=provider.id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    item = SupplierOrderItem(
+        supplier_order_id=order.id,
+        autopart_id=created_autopart.id,
+        oem_number=created_autopart.oem_number,
+        brand_name=created_autopart.brand.name,
+        autopart_name=created_autopart.name,
+        quantity=5,
+        price=150.0,
+    )
+    test_session.add(item)
+    test_session.add(
+        SupplierResponseConfig(
+            provider_id=provider.id,
+            name="Text parser config",
+            sender_emails=["supplier@example.com"],
+            response_type="text",
+            confirm_keywords=["да", "есть"],
+            reject_keywords=["нет", "0"],
+            value_after_article_type="both",
+            is_active=True,
+        )
+    )
+    await test_session.commit()
+
+    text_payload = (
+        f"{created_autopart.oem_number} 3 "
+        "UNKNOWN999 0 "
+        f"{created_autopart.oem_number} да"
+    )
+
+    async def fake_fetch_messages(
+            session, *, date_from, date_to=None, **kwargs
+    ):
+        return [
+            (
+                SimpleNamespace(
+                    from_="supplier@example.com",
+                    subject=f"Заказ поставщику #{order.id}",
+                    text=text_payload,
+                    html=None,
+                    attachments=[],
+                    received_at=None,
+                    date=None,
+                    external_id="supplier-msg-text-config",
+                    uid=None,
+                    folder_name="INBOX",
+                ),
+                None,
+            )
+        ]
+
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_fetch_supplier_response_messages"
+        ),
+        fake_fetch_messages,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.supplier_order_responses.SUPPLIER_RESPONSE_DIR",
+        str(tmp_path),
+    )
+
+    result = await process_supplier_response_messages(test_session)
+    await test_session.refresh(item)
+    message_row = (
+        await test_session.execute(
+            select(SupplierOrderMessage).where(
+                SupplierOrderMessage.source_message_id
+                == "supplier-msg-text-config"
+            )
+        )
+    ).scalar_one()
+
+    assert result["processed_messages"] == 1
+    assert result["parsed_text_positions"] == 3
+    assert result["recognized_positions"] >= 2
+    assert result["unresolved_positions"] >= 1
+    assert item.confirmed_quantity == 5
+    assert message_row.message_type == "TEXT_RESPONSE"

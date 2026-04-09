@@ -4,7 +4,7 @@ import hashlib
 import logging
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from io import BytesIO
 from typing import Iterable, Optional
@@ -24,7 +24,8 @@ from dz_fastapi.models.email_account import EmailAccount
 from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import (Provider, SupplierOrder,
                                        SupplierOrderAttachment,
-                                       SupplierOrderItem, SupplierOrderMessage)
+                                       SupplierOrderItem, SupplierOrderMessage,
+                                       SupplierResponseConfig)
 from dz_fastapi.services.customer_orders import (
     EMAIL_FOLDER_ORDER, EMAIL_HOST_ORDER, EMAIL_NAME_ORDER,
     EMAIL_PASSWORD_ORDER, SimpleAttachment, _dedupe_order_messages,
@@ -71,6 +72,22 @@ _SUPPLIER_STATUS_PATTERNS = (
     (re.compile(r"готов", re.I), "готово"),
     (re.compile(r"ожида", re.I), "ожидаем"),
 )
+_ARTICLE_TOKEN_RE = re.compile(r"(?:[A-Za-z].*[0-9]|[0-9].*[A-Za-z])")
+_TEXT_TOKEN_RE = re.compile(r"[A-Za-zА-Яа-яЁё0-9]+")
+_DEFAULT_CONFIRM_KEYWORDS = [
+    "в наличии",
+    "есть",
+    "отгружаем",
+    "собрали",
+    "да",
+]
+_DEFAULT_REJECT_KEYWORDS = [
+    "нет",
+    "0",
+    "отсутствует",
+    "не можем",
+    "снято с производства",
+]
 
 
 @dataclass(slots=True)
@@ -81,6 +98,13 @@ class ParsedSupplierResponseRow:
     response_price: Optional[float]
     response_comment: Optional[str]
     response_status_raw: Optional[str]
+    text_decision: Optional[str] = None
+
+
+@dataclass(slots=True)
+class ParsedSupplierTextResponse:
+    rows: list[ParsedSupplierResponseRow] = field(default_factory=list)
+    unresolved: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -90,18 +114,31 @@ class SupplierResponseProcessingStats:
     matched_orders: int = 0
     stored_attachments: int = 0
     parsed_response_files: int = 0
+    parsed_text_positions: int = 0
+    recognized_positions: int = 0
+    unresolved_positions: int = 0
+    unresolved_examples: list[str] = field(default_factory=list)
     updated_items: int = 0
     updated_orders: int = 0
     unmapped_statuses: int = 0
     skipped_messages: int = 0
 
-    def as_dict(self) -> dict[str, int]:
+    def add_unresolved(self, value: str) -> None:
+        self.unresolved_positions += 1
+        if len(self.unresolved_examples) < 25:
+            self.unresolved_examples.append(value[:240])
+
+    def as_dict(self) -> dict[str, object]:
         return {
             "fetched_messages": self.fetched_messages,
             "processed_messages": self.processed_messages,
             "matched_orders": self.matched_orders,
             "stored_attachments": self.stored_attachments,
             "parsed_response_files": self.parsed_response_files,
+            "parsed_text_positions": self.parsed_text_positions,
+            "recognized_positions": self.recognized_positions,
+            "unresolved_positions": self.unresolved_positions,
+            "unresolved_examples": self.unresolved_examples,
             "updated_items": self.updated_items,
             "updated_orders": self.updated_orders,
             "unmapped_statuses": self.unmapped_statuses,
@@ -138,11 +175,30 @@ async def _fetch_supplier_response_messages(
     *,
     date_from: date,
     date_to: Optional[date] = None,
+    account_ids: Optional[set[int]] = None,
+    include_default_orders_out: bool = True,
 ) -> list[tuple[object, Optional[EmailAccount]]]:
-    accounts = await crud_email_account.get_active_by_purpose(
-        session,
-        "orders_out",
-    )
+    accounts: list[EmailAccount] = []
+    account_map: dict[int, EmailAccount] = {}
+    if include_default_orders_out:
+        default_accounts = await crud_email_account.get_active_by_purpose(
+            session,
+            "orders_out",
+        )
+        for account in default_accounts:
+            account_map[account.id] = account
+    if account_ids:
+        explicit_accounts = (
+            await session.execute(
+                select(EmailAccount).where(
+                    EmailAccount.id.in_(set(account_ids)),
+                    EmailAccount.is_active.is_(True),
+                )
+            )
+        ).scalars().all()
+        for account in explicit_accounts:
+            account_map[account.id] = account
+    accounts = sorted(account_map.values(), key=lambda item: item.id)
     messages: list[tuple[object, Optional[EmailAccount]]] = []
     if accounts:
         for account in accounts:
@@ -393,6 +449,203 @@ def _resolve_column_by_number(
     return df.columns[index]
 
 
+def _normalize_sender_emails(value: object) -> set[str]:
+    if value is None:
+        return set()
+    if isinstance(value, str):
+        raw_values = [value]
+    elif isinstance(value, (list, tuple, set)):
+        raw_values = list(value)
+    else:
+        raw_values = [value]
+    result: set[str] = set()
+    for raw in raw_values:
+        for chunk in str(raw or "").split(","):
+            cleaned = chunk.strip().lower()
+            if cleaned:
+                result.add(cleaned)
+    return result
+
+
+def _config_matches_message(
+    config: SupplierResponseConfig,
+    *,
+    sender_email: str,
+    account: Optional[EmailAccount],
+) -> bool:
+    account_id = account.id if account else None
+    if (
+        config.inbox_email_account_id is not None
+        and config.inbox_email_account_id != account_id
+    ):
+        return False
+    allowed_senders = _normalize_sender_emails(config.sender_emails)
+    if allowed_senders and sender_email.lower() not in allowed_senders:
+        return False
+    return True
+
+
+def _select_best_supplier_response_config(
+    configs: Iterable[SupplierResponseConfig],
+    *,
+    sender_email: str,
+    account: Optional[EmailAccount],
+) -> Optional[SupplierResponseConfig]:
+    matched: list[tuple[tuple[int, int, int], SupplierResponseConfig]] = []
+    for config in configs:
+        if not bool(getattr(config, "is_active", True)):
+            continue
+        if not _config_matches_message(
+            config,
+            sender_email=sender_email,
+            account=account,
+        ):
+            continue
+        score = (
+            1 if config.inbox_email_account_id is not None else 0,
+            1 if _normalize_sender_emails(config.sender_emails) else 0,
+            -int(config.id or 0),
+        )
+        matched.append((score, config))
+    if not matched:
+        return None
+    matched.sort(key=lambda item: item[0], reverse=True)
+    return matched[0][1]
+
+
+def _normalize_keywords(values: object, defaults: list[str]) -> set[str]:
+    raw_values = (
+        list(values)
+        if isinstance(values, (list, tuple, set))
+        else defaults
+    )
+    result: set[str] = set()
+    for raw in raw_values or []:
+        normalized = normalize_external_status_text(raw)
+        if not normalized:
+            continue
+        result.add(normalized)
+        result.add(normalized.split(" ")[0])
+    return result
+
+
+def _normalize_value_after_article_type(value: object) -> str:
+    raw = getattr(value, "value", value)
+    mode = str(raw or "both").strip().lower()
+    if mode not in {"number", "text", "both"}:
+        return "both"
+    return mode
+
+
+def _parse_text_value_after_article(
+    value: str,
+    *,
+    value_mode: str,
+    confirm_keywords: set[str],
+    reject_keywords: set[str],
+) -> tuple[Optional[str], Optional[int]]:
+    normalized_text = normalize_external_status_text(value)
+    if value_mode in {"number", "both"}:
+        parsed_number = _safe_float(value)
+        if parsed_number is not None:
+            parsed_int = _safe_int(parsed_number)
+            if parsed_int is None:
+                parsed_int = int(parsed_number)
+            if parsed_int <= 0:
+                return "reject", 0
+            return "confirm", parsed_int
+        if value_mode == "number":
+            return None, None
+    if value_mode in {"text", "both"}:
+        if normalized_text in reject_keywords:
+            return "reject", 0
+        if normalized_text in confirm_keywords:
+            return "confirm", None
+        for keyword in reject_keywords:
+            if keyword and keyword in normalized_text:
+                return "reject", 0
+        for keyword in confirm_keywords:
+            if keyword and keyword in normalized_text:
+                return "confirm", None
+    return None, None
+
+
+def _parse_supplier_text_response(
+    text: str,
+    *,
+    value_after_article_type: object,
+    confirm_keywords: object,
+    reject_keywords: object,
+) -> ParsedSupplierTextResponse:
+    value_mode = _normalize_value_after_article_type(value_after_article_type)
+    confirm_set = _normalize_keywords(
+        confirm_keywords,
+        _DEFAULT_CONFIRM_KEYWORDS
+    )
+    reject_set = _normalize_keywords(
+        reject_keywords,
+        _DEFAULT_REJECT_KEYWORDS
+    )
+    tokens = _TEXT_TOKEN_RE.findall(text or "")
+    result = ParsedSupplierTextResponse()
+    if not tokens:
+        return result
+
+    for index, token in enumerate(tokens):
+        if not _ARTICLE_TOKEN_RE.fullmatch(token or ""):
+            continue
+        if index + 1 >= len(tokens):
+            result.unresolved.append(
+                f"{token}: после артикула нет значения статуса"
+            )
+            continue
+        status_token = tokens[index + 1]
+        decision, qty = _parse_text_value_after_article(
+            status_token,
+            value_mode=value_mode,
+            confirm_keywords=confirm_set,
+            reject_keywords=reject_set,
+        )
+        if decision is None:
+            result.unresolved.append(
+                f"{token}: не удалось интерпретировать "
+                f"значение '{status_token}'"
+            )
+            continue
+        result.rows.append(
+            ParsedSupplierResponseRow(
+                oem_number=token,
+                brand_name=None,
+                confirmed_quantity=qty,
+                response_price=None,
+                response_comment=None,
+                response_status_raw=status_token,
+                text_decision=decision,
+            )
+        )
+    return result
+
+
+def _allowed_attachment_extensions(file_format: object) -> set[str]:
+    raw = getattr(file_format, "value", file_format)
+    normalized = str(raw or "").strip().lower()
+    if normalized == "csv":
+        return {"csv"}
+    if normalized == "excel":
+        return {"xlsx", "xls"}
+    return {"xlsx", "xls", "csv"}
+
+
+def _get_message_text_content(msg: object) -> str:
+    text = str(getattr(msg, "text", "") or "").strip()
+    if text:
+        return text
+    html = str(getattr(msg, "html", "") or "").strip()
+    if html:
+        return _strip_html(html)
+    return ""
+
+
 def _parse_supplier_response_attachment(
     payload: bytes,
     filename: str,
@@ -637,9 +890,9 @@ async def _apply_parsed_response_rows(
     parsed_rows: list[ParsedSupplierResponseRow],
     default_raw_status: Optional[str],
     default_normalized_status: Optional[str],
-) -> int:
+) -> tuple[int, int, list[str]]:
     if not parsed_rows:
-        return 0
+        return 0, 0, []
     brand_aliases = await _load_brand_alias_map(session)
     exact_map: dict[tuple[str, str], list[SupplierOrderItem]] = {}
     oem_map: dict[str, list[SupplierOrderItem]] = {}
@@ -651,6 +904,8 @@ async def _apply_parsed_response_rows(
             oem_map.setdefault(oem_key, []).append(item)
 
     updated = 0
+    matched_count = 0
+    unresolved_oems: list[str] = []
     for row in parsed_rows:
         matched_item = None
         exact_key = _normalize_key(
@@ -668,14 +923,22 @@ async def _apply_parsed_response_rows(
             if len(oem_candidates) == 1:
                 matched_item = oem_candidates[0]
         if matched_item is None:
+            unresolved_oems.append(row.oem_number)
             continue
+        matched_count += 1
 
         item_changed = False
+        next_confirmed_quantity = row.confirmed_quantity
+        if next_confirmed_quantity is None:
+            if row.text_decision == "reject":
+                next_confirmed_quantity = 0
+            elif row.text_decision == "confirm":
+                next_confirmed_quantity = matched_item.quantity
         if (
-            row.confirmed_quantity is not None
-            and matched_item.confirmed_quantity != row.confirmed_quantity
+            next_confirmed_quantity is not None
+            and matched_item.confirmed_quantity != next_confirmed_quantity
         ):
-            matched_item.confirmed_quantity = row.confirmed_quantity
+            matched_item.confirmed_quantity = next_confirmed_quantity
             item_changed = True
         if (
             row.response_price is not None
@@ -702,24 +965,82 @@ async def _apply_parsed_response_rows(
         matched_item.response_status_synced_at = now_moscow()
         if item_changed:
             updated += 1
-    return updated
+    return updated, matched_count, unresolved_oems
+
+
+async def _load_supplier_response_configs(
+    session: AsyncSession,
+    *,
+    provider_id: Optional[int] = None,
+    supplier_response_config_id: Optional[int] = None,
+) -> list[SupplierResponseConfig]:
+    stmt = (
+        select(SupplierResponseConfig)
+        .options(joinedload(SupplierResponseConfig.provider))
+        .where(SupplierResponseConfig.is_active.is_(True))
+    )
+    if provider_id is not None:
+        stmt = stmt.where(SupplierResponseConfig.provider_id == provider_id)
+    if supplier_response_config_id is not None:
+        stmt = stmt.where(
+            SupplierResponseConfig.id == supplier_response_config_id
+        )
+    stmt = stmt.order_by(SupplierResponseConfig.id.asc())
+    return list((await session.execute(stmt)).scalars().all())
+
+
+def _group_response_configs_by_provider(
+    configs: Iterable[SupplierResponseConfig],
+) -> dict[int, list[SupplierResponseConfig]]:
+    grouped: dict[int, list[SupplierResponseConfig]] = {}
+    for config in configs:
+        grouped.setdefault(int(config.provider_id), []).append(config)
+    return grouped
 
 
 async def process_supplier_response_messages(
     session: AsyncSession,
     *,
     provider_id: Optional[int] = None,
+    supplier_response_config_id: Optional[int] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
-) -> dict[str, int]:
+) -> dict[str, object]:
     if date_from is None:
         date_from = supplier_response_cutoff()
     stats = SupplierResponseProcessingStats()
-    messages = await _fetch_supplier_response_messages(
+    response_configs = await _load_supplier_response_configs(
         session,
-        date_from=date_from,
-        date_to=date_to,
+        provider_id=provider_id,
+        supplier_response_config_id=supplier_response_config_id,
     )
+    configs_by_provider = _group_response_configs_by_provider(response_configs)
+    selected_config = None
+    if supplier_response_config_id is not None and response_configs:
+        selected_config = response_configs[0]
+
+    explicit_account_ids = {
+        int(config.inbox_email_account_id)
+        for config in response_configs
+        if config.inbox_email_account_id is not None
+    }
+    include_default_orders_out = True
+    if (
+        supplier_response_config_id is not None
+        and selected_config is not None
+        and selected_config.inbox_email_account_id is not None
+    ):
+        include_default_orders_out = False
+
+    fetch_kwargs: dict[str, object] = {
+        "date_from": date_from,
+        "date_to": date_to,
+    }
+    if explicit_account_ids:
+        fetch_kwargs["account_ids"] = explicit_account_ids
+    if not include_default_orders_out:
+        fetch_kwargs["include_default_orders_out"] = False
+    messages = await _fetch_supplier_response_messages(session, **fetch_kwargs)
     stats.fetched_messages = len(messages)
 
     for msg, account in messages:
@@ -737,6 +1058,7 @@ async def process_supplier_response_messages(
         sender_email = _extract_email(getattr(msg, "from_", None))
         subject = str(getattr(msg, "subject", "") or "")
         body_preview = _get_message_body_preview(msg)
+        message_text = _get_message_text_content(msg)
         raw_status = _detect_supplier_status(subject, body_preview)
         normalized_status = normalize_external_status_text(raw_status)
         order = None
@@ -749,6 +1071,49 @@ async def process_supplier_response_messages(
                 body_preview=body_preview,
                 attachments=attachments,
             )
+            active_response_config: Optional[SupplierResponseConfig] = None
+            if selected_config is not None:
+                active_response_config = selected_config
+                if provider is None:
+                    provider = selected_config.provider
+                if not _config_matches_message(
+                    active_response_config,
+                    sender_email=sender_email,
+                    account=account,
+                ):
+                    stats.skipped_messages += 1
+                    continue
+            elif provider is not None:
+                provider_specific_configs = configs_by_provider.get(
+                    provider.id, []
+                )
+                active_response_config = _select_best_supplier_response_config(
+                    provider_specific_configs,
+                    sender_email=sender_email,
+                    account=account,
+                )
+                if (
+                    provider_specific_configs
+                    and active_response_config is None
+                ):
+                    stats.skipped_messages += 1
+                    continue
+            else:
+                active_response_config = _select_best_supplier_response_config(
+                    response_configs,
+                    sender_email=sender_email,
+                    account=account,
+                )
+                if active_response_config is not None:
+                    provider = active_response_config.provider
+
+            if (
+                provider is not None
+                and active_response_config is not None
+                and int(active_response_config.provider_id) != int(provider.id)
+            ):
+                stats.skipped_messages += 1
+                continue
             if (
                 provider_id is not None
                 and provider
@@ -757,6 +1122,12 @@ async def process_supplier_response_messages(
                 stats.skipped_messages += 1
                 continue
             if provider is None:
+                if (
+                        provider_id is not None
+                        or supplier_response_config_id is not None
+                ):
+                    stats.skipped_messages += 1
+                    continue
                 await _notify_admins(
                     session,
                     title="Не удалось привязать ответ поставщика",
@@ -770,37 +1141,165 @@ async def process_supplier_response_messages(
                 stats.skipped_messages += 1
                 continue
 
-            allow_shipping_docs = bool(
-                getattr(
-                    provider,
-                    "supplier_response_allow_shipping_docs",
-                    True,
+            if active_response_config is not None:
+                response_type_raw = getattr(
+                    active_response_config,
+                    "response_type",
+                    "file",
                 )
-            )
-            allow_response_files = bool(
-                getattr(
-                    provider,
-                    "supplier_response_allow_response_files",
-                    True,
+                response_type = str(
+                    getattr(response_type_raw, "value", response_type_raw)
+                ).strip().lower()
+                allow_shipping_docs = bool(
+                    getattr(
+                        active_response_config,
+                        "process_shipping_docs",
+                        True,
+                    )
                 )
-            )
-            allow_text_status = bool(
-                getattr(
-                    provider,
-                    "supplier_response_allow_text_status",
-                    True,
+                allow_response_files = response_type == "file"
+                allow_text_status = response_type == "text"
+                response_filename_pattern = _compile_filename_pattern(
+                    getattr(active_response_config, "filename_pattern", None)
                 )
-            )
-            response_filename_pattern = _compile_filename_pattern(
-                getattr(provider, "supplier_response_filename_pattern", None)
-            )
-            shipping_doc_filename_pattern = _compile_filename_pattern(
-                getattr(
-                    provider,
-                    "supplier_shipping_doc_filename_pattern",
+                shipping_doc_filename_pattern = _compile_filename_pattern(
+                    getattr(
+                        active_response_config,
+                        "shipping_doc_filename_pattern",
+                        None,
+                    )
+                )
+                response_file_format = getattr(
+                    active_response_config,
+                    "file_format",
                     None,
                 )
-            )
+                response_start_row = getattr(
+                    active_response_config,
+                    "start_row",
+                    1,
+                )
+                response_oem_col = getattr(
+                    active_response_config,
+                    "oem_col",
+                    None,
+                )
+                response_brand_col = getattr(
+                    active_response_config,
+                    "brand_col",
+                    None,
+                )
+                response_qty_col = getattr(
+                    active_response_config,
+                    "qty_col",
+                    None,
+                )
+                response_price_col = getattr(
+                    active_response_config,
+                    "price_col",
+                    None,
+                )
+                response_comment_col = getattr(
+                    active_response_config,
+                    "comment_col",
+                    None,
+                )
+                response_status_col = getattr(
+                    active_response_config,
+                    "status_col",
+                    None,
+                )
+                confirm_keywords = getattr(
+                    active_response_config,
+                    "confirm_keywords",
+                    _DEFAULT_CONFIRM_KEYWORDS,
+                )
+                reject_keywords = getattr(
+                    active_response_config,
+                    "reject_keywords",
+                    _DEFAULT_REJECT_KEYWORDS,
+                )
+                value_after_article_type = getattr(
+                    active_response_config,
+                    "value_after_article_type",
+                    "both",
+                )
+            else:
+                allow_shipping_docs = bool(
+                    getattr(
+                        provider,
+                        "supplier_response_allow_shipping_docs",
+                        True,
+                    )
+                )
+                allow_response_files = bool(
+                    getattr(
+                        provider,
+                        "supplier_response_allow_response_files",
+                        True,
+                    )
+                )
+                allow_text_status = bool(
+                    getattr(
+                        provider,
+                        "supplier_response_allow_text_status",
+                        True,
+                    )
+                )
+                response_filename_pattern = _compile_filename_pattern(
+                    getattr(
+                        provider,
+                        "supplier_response_filename_pattern",
+                        None
+                    )
+                )
+                shipping_doc_filename_pattern = _compile_filename_pattern(
+                    getattr(
+                        provider,
+                        "supplier_shipping_doc_filename_pattern",
+                        None,
+                    )
+                )
+                response_file_format = None
+                response_start_row = getattr(
+                    provider,
+                    "supplier_response_start_row",
+                    1,
+                )
+                response_oem_col = getattr(
+                    provider,
+                    "supplier_response_oem_col",
+                    None,
+                )
+                response_brand_col = getattr(
+                    provider,
+                    "supplier_response_brand_col",
+                    None,
+                )
+                response_qty_col = getattr(
+                    provider,
+                    "supplier_response_qty_col",
+                    None,
+                )
+                response_price_col = getattr(
+                    provider,
+                    "supplier_response_price_col",
+                    None,
+                )
+                response_comment_col = getattr(
+                    provider,
+                    "supplier_response_comment_col",
+                    None,
+                )
+                response_status_col = getattr(
+                    provider,
+                    "supplier_response_status_col",
+                    None,
+                )
+                confirm_keywords = _DEFAULT_CONFIRM_KEYWORDS
+                reject_keywords = _DEFAULT_REJECT_KEYWORDS
+                value_after_article_type = "both"
+
             if not allow_text_status:
                 raw_status = None
                 normalized_status = ""
@@ -839,6 +1338,7 @@ async def process_supplier_response_messages(
             await session.flush()
 
             parsed_response_file = False
+            parsed_text_rows = False
             has_shipping_doc = False
             for attachment in attachments:
                 file_path, digest = await _store_supplier_message_attachment(
@@ -867,6 +1367,13 @@ async def process_supplier_response_messages(
                 else:
                     response_candidate = attachment_kind == "RESPONSE_FILE"
                 if (
+                    response_candidate
+                    and extension not in _allowed_attachment_extensions(
+                        response_file_format
+                    )
+                ):
+                    response_candidate = False
+                if (
                     allow_response_files
                     and order is not None
                     and response_candidate
@@ -875,41 +1382,13 @@ async def process_supplier_response_messages(
                         parsed_rows = _parse_supplier_response_attachment(
                             attachment.payload,
                             attachment.filename or "",
-                            start_row=getattr(
-                                provider,
-                                "supplier_response_start_row",
-                                1,
-                            ),
-                            oem_col=getattr(
-                                provider,
-                                "supplier_response_oem_col",
-                                None,
-                            ),
-                            brand_col=getattr(
-                                provider,
-                                "supplier_response_brand_col",
-                                None,
-                            ),
-                            qty_col=getattr(
-                                provider,
-                                "supplier_response_qty_col",
-                                None,
-                            ),
-                            price_col=getattr(
-                                provider,
-                                "supplier_response_price_col",
-                                None,
-                            ),
-                            comment_col=getattr(
-                                provider,
-                                "supplier_response_comment_col",
-                                None,
-                            ),
-                            status_col=getattr(
-                                provider,
-                                "supplier_response_status_col",
-                                None,
-                            ),
+                            start_row=response_start_row,
+                            oem_col=response_oem_col,
+                            brand_col=response_brand_col,
+                            qty_col=response_qty_col,
+                            price_col=response_price_col,
+                            comment_col=response_comment_col,
+                            status_col=response_status_col,
                         )
                     except Exception as exc:
                         logger.warning(
@@ -921,13 +1400,24 @@ async def process_supplier_response_messages(
                             exc,
                         )
                 if order is not None and parsed_rows:
-                    stats.updated_items += await _apply_parsed_response_rows(
-                        session,
-                        order=order,
-                        parsed_rows=parsed_rows,
-                        default_raw_status=raw_status,
-                        default_normalized_status=normalized_status or None,
+                    updated_items, matched_count, unresolved_oems = (
+                        await _apply_parsed_response_rows(
+                            session,
+                            order=order,
+                            parsed_rows=parsed_rows,
+                            default_raw_status=raw_status,
+                            default_normalized_status=normalized_status,
+                        )
                     )
+                    stats.updated_items += updated_items
+                    stats.recognized_positions += matched_count
+                    for unresolved_oem in unresolved_oems:
+                        stats.add_unresolved(
+                            (
+                                f"{unresolved_oem}: строка заказа "
+                                "не найдена"
+                            )
+                        )
                     parsed_response_file = True
                     attachment_kind = "RESPONSE_FILE"
                     stats.parsed_response_files += 1
@@ -945,6 +1435,44 @@ async def process_supplier_response_messages(
                 )
                 stats.stored_attachments += 1
 
+            if (
+                allow_text_status
+                and order is not None
+                and message_text
+            ):
+                parsed_text = _parse_supplier_text_response(
+                    message_text,
+                    value_after_article_type=value_after_article_type,
+                    confirm_keywords=confirm_keywords,
+                    reject_keywords=reject_keywords,
+                )
+                for unresolved_entry in parsed_text.unresolved:
+                    stats.add_unresolved(unresolved_entry)
+                if parsed_text.rows:
+                    (
+                        updated_items,
+                        matched_count,
+                        unresolved_oems,
+                    ) = await _apply_parsed_response_rows(
+                        session,
+                        order=order,
+                        parsed_rows=parsed_text.rows,
+                        default_raw_status=raw_status,
+                        default_normalized_status=normalized_status or None,
+                    )
+                    stats.updated_items += updated_items
+                    stats.parsed_text_positions += len(parsed_text.rows)
+                    stats.recognized_positions += matched_count
+                    for unresolved_oem in unresolved_oems:
+                        stats.add_unresolved(
+                            (
+                                f"{unresolved_oem}: строка заказа "
+                                "не найдена"
+                            )
+                        )
+                    if matched_count:
+                        parsed_text_rows = True
+
             if order is not None:
                 stats.matched_orders += 1
                 if raw_status:
@@ -959,7 +1487,8 @@ async def process_supplier_response_messages(
                         mapping=mapping,
                         raw_status=raw_status,
                         normalized_status=normalized_status or None,
-                        allow_quantity_updates=not parsed_response_file,
+                        allow_quantity_updates=not parsed_response_file
+                        and not parsed_text_rows,
                     )
                     stats.updated_orders += apply_result["changed_orders"]
                     stats.updated_items += apply_result["updated_items"]
@@ -969,6 +1498,7 @@ async def process_supplier_response_messages(
                 and normalized_status
                 and raw_status
                 and not parsed_response_file
+                and not parsed_text_rows
                 and allow_text_status
             ):
                 await record_unmapped_external_status(
@@ -988,6 +1518,8 @@ async def process_supplier_response_messages(
 
             if parsed_response_file:
                 message_row.message_type = "RESPONSE_FILE"
+            elif parsed_text_rows:
+                message_row.message_type = "TEXT_RESPONSE"
             elif has_shipping_doc:
                 message_row.message_type = "SHIPPING_DOC"
             elif raw_status:

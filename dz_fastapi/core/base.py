@@ -27,7 +27,8 @@ from dz_fastapi.models.partner import (Client, Customer, CustomerOrder,
                                        StockOrderItem, SupplierOrder,
                                        SupplierOrderAttachment,
                                        SupplierOrderItem, SupplierOrderMessage,
-                                       SupplierReceipt, SupplierReceiptItem)
+                                       SupplierReceipt, SupplierReceiptItem,
+                                       SupplierResponseConfig)
 from dz_fastapi.models.price_control import (CustomerPriceListOverride,
                                              PriceControlConfig,
                                              PriceControlManualItem,
@@ -73,6 +74,7 @@ __all__ = [
     'SupplierOrderAttachment',
     'SupplierReceipt',
     'SupplierReceiptItem',
+    'SupplierResponseConfig',
     'StockOrder',
     'StockOrderItem',
     'Order',

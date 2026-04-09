@@ -352,10 +352,12 @@ async def test_process_supplier_responses_endpoint(
         session,
         *,
         provider_id=None,
+        supplier_response_config_id=None,
         date_from=None,
         date_to=None,
     ):
         assert provider_id == 77
+        assert supplier_response_config_id is None
         assert str(date_from) == "2026-04-03"
         assert str(date_to) == "2026-04-04"
         return {
@@ -364,6 +366,10 @@ async def test_process_supplier_responses_endpoint(
             "matched_orders": 1,
             "stored_attachments": 1,
             "parsed_response_files": 1,
+            "parsed_text_positions": 0,
+            "recognized_positions": 2,
+            "unresolved_positions": 1,
+            "unresolved_examples": ["ABC123: строка заказа не найдена"],
             "updated_items": 2,
             "updated_orders": 1,
             "unmapped_statuses": 1,

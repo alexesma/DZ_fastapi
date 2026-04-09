@@ -30,7 +30,8 @@ from dz_fastapi.models.partner import (TYPE_PRICES, Customer,
                                        ProviderAbbreviation,
                                        ProviderConfigLastEmailUID,
                                        ProviderLastEmailUID,
-                                       ProviderPriceListConfig)
+                                       ProviderPriceListConfig,
+                                       SupplierResponseConfig)
 from dz_fastapi.schemas.autopart import AutoPartPricelist
 from dz_fastapi.schemas.partner import (CustomerCreate,
                                         CustomerPriceListConfigCreate,
@@ -51,7 +52,10 @@ from dz_fastapi.schemas.partner import (CustomerCreate,
                                         ProviderPriceListConfigCreate,
                                         ProviderPriceListConfigOut,
                                         ProviderPriceListConfigUpdate,
-                                        ProviderUpdate)
+                                        ProviderUpdate,
+                                        SupplierResponseConfigCreate,
+                                        SupplierResponseConfigOut,
+                                        SupplierResponseConfigUpdate)
 from dz_fastapi.services.utils import (brand_filters, individual_markups,
                                        normalize_markup, position_filters,
                                        price_intervals,
@@ -171,6 +175,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                     selectinload(Provider.pricelist_configs).selectinload(
                         ProviderPriceListConfig.last_email_uid
                     ),
+                    selectinload(Provider.supplier_response_configs),
                     selectinload(Provider.price_lists),
                     selectinload(Provider.abbreviations),
                 )
@@ -246,10 +251,18 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             pricelist_configs.sort(
                 key=lambda c: (c.name_price is None, c.name_price or '')
             )
+            supplier_response_configs = [
+                SupplierResponseConfigOut.model_validate(config)
+                for config in (provider.supplier_response_configs or [])
+            ]
+            supplier_response_configs.sort(
+                key=lambda c: (c.name is None, c.name or '', c.id)
+            )
             return ProviderPageResponse(
                 provider=provider_core,
                 abbreviations=abbreviations,
                 pricelist_configs=pricelist_configs,
+                supplier_response_configs=supplier_response_configs,
             )
         except Exception as e:
             logger.error(
@@ -552,6 +565,9 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         if provider.pricelist_configs:
             return False
 
+        if provider.supplier_response_configs:
+            return False
+
         return True
 
     async def merge_providers(
@@ -597,6 +613,13 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                 update(ProviderPriceListConfig)
                 .where(
                     ProviderPriceListConfig.provider_id == source_provider_id
+                )
+                .values(provider_id=target_provider_id)
+            )
+            await session.execute(
+                update(SupplierResponseConfig)
+                .where(
+                    SupplierResponseConfig.provider_id == source_provider_id
                 )
                 .values(provider_id=target_provider_id)
             )
@@ -2072,6 +2095,83 @@ class CRUDProviderPriceListConfig(
 
 crud_provider_pricelist_config = CRUDProviderPriceListConfig(
     ProviderPriceListConfig
+)
+
+
+class CRUDSupplierResponseConfig(
+    CRUDBase[
+        SupplierResponseConfig,
+        SupplierResponseConfigCreate,
+        SupplierResponseConfigUpdate,
+    ]
+):
+    async def get_configs(
+        self,
+        provider_id: int,
+        session: AsyncSession,
+        only_active: bool = False,
+    ) -> List[SupplierResponseConfig]:
+        stmt = select(SupplierResponseConfig).where(
+            SupplierResponseConfig.provider_id == provider_id
+        )
+        if only_active:
+            stmt = stmt.where(SupplierResponseConfig.is_active.is_(True))
+        stmt = stmt.order_by(SupplierResponseConfig.id.asc())
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_by_id(
+        self,
+        config_id: int,
+        session: AsyncSession,
+    ) -> Optional[SupplierResponseConfig]:
+        result = await session.execute(
+            select(SupplierResponseConfig).where(
+                SupplierResponseConfig.id == config_id
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def create(
+        self,
+        provider_id: int,
+        config_in: SupplierResponseConfigCreate,
+        session: AsyncSession,
+        **kwargs,
+    ) -> SupplierResponseConfig:
+        await crud_provider.get_by_id(provider_id=provider_id, session=session)
+        new_config = SupplierResponseConfig(
+            provider_id=provider_id,
+            **config_in.model_dump(exclude_unset=True),
+        )
+        session.add(new_config)
+        await session.commit()
+        await session.refresh(new_config)
+        return new_config
+
+    async def update(
+        self,
+        db_obj: SupplierResponseConfig,
+        obj_in: Union[SupplierResponseConfigUpdate, Dict[str, Any]],
+        session: AsyncSession,
+        **kwargs,
+    ) -> SupplierResponseConfig:
+        if isinstance(obj_in, dict):
+            update_data = obj_in
+        else:
+            update_data = obj_in.model_dump(exclude_unset=True)
+
+        for field, value in update_data.items():
+            setattr(db_obj, field, value)
+
+        session.add(db_obj)
+        await session.commit()
+        await session.refresh(db_obj)
+        return db_obj
+
+
+crud_supplier_response_config = CRUDSupplierResponseConfig(
+    SupplierResponseConfig
 )
 
 

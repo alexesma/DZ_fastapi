@@ -22,6 +22,22 @@ class ProviderDeliveryMethod(str, Enum):
     COURIER_CAR = 'Courier car'
 
 
+class SupplierResponseType(str, Enum):
+    FILE = 'file'
+    TEXT = 'text'
+
+
+class SupplierResponseFileFormat(str, Enum):
+    EXCEL = 'excel'
+    CSV = 'csv'
+
+
+class SupplierResponseValueAfterArticleType(str, Enum):
+    NUMBER = 'number'
+    TEXT = 'text'
+    BOTH = 'both'
+
+
 class ClientBase(BaseModel):
     name: str
     type_prices: TypePrices = TypePrices.WHOLESALE
@@ -399,6 +415,205 @@ class ProviderPriceListConfigUpdate(BaseModel):
 class ProviderPriceListConfigResponse(ProviderPriceListConfigBase):
     id: int
     provider_id: int
+    model_config = ConfigDict(from_attributes=True)
+
+
+def _normalize_email_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        raw_values = [value]
+    elif isinstance(value, (list, tuple, set)):
+        raw_values = list(value)
+    else:
+        raw_values = [value]
+    result: list[str] = []
+    seen: set[str] = set()
+    for raw in raw_values:
+        for item in str(raw or '').split(','):
+            cleaned = item.strip().lower()
+            if not cleaned or cleaned in seen:
+                continue
+            seen.add(cleaned)
+            result.append(cleaned)
+    return result
+
+
+def _normalize_string_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        raw_values = [value]
+    elif isinstance(value, (list, tuple, set)):
+        raw_values = list(value)
+    else:
+        raw_values = [value]
+    result: list[str] = []
+    seen: set[str] = set()
+    for raw in raw_values:
+        for item in str(raw or '').split(','):
+            cleaned = item.strip()
+            if not cleaned:
+                continue
+            marker = cleaned.casefold()
+            if marker in seen:
+                continue
+            seen.add(marker)
+            result.append(cleaned)
+    return result
+
+
+class SupplierResponseConfigBase(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    is_active: bool = True
+    inbox_email_account_id: Optional[int] = Field(default=None, ge=1)
+    sender_emails: List[str] = Field(default_factory=list)
+    response_type: SupplierResponseType = SupplierResponseType.FILE
+    process_shipping_docs: bool = True
+    file_format: Optional[SupplierResponseFileFormat] = (
+        SupplierResponseFileFormat.EXCEL
+    )
+    filename_pattern: Optional[str] = None
+    shipping_doc_filename_pattern: Optional[str] = None
+    start_row: int = Field(default=1, ge=1)
+    oem_col: Optional[int] = Field(default=None, ge=1)
+    brand_col: Optional[int] = Field(default=None, ge=1)
+    qty_col: Optional[int] = Field(default=None, ge=1)
+    status_col: Optional[int] = Field(default=None, ge=1)
+    comment_col: Optional[int] = Field(default=None, ge=1)
+    price_col: Optional[int] = Field(default=None, ge=1)
+    confirm_keywords: List[str] = Field(
+        default_factory=lambda: [
+            'в наличии',
+            'есть',
+            'отгружаем',
+            'собрали',
+            'да',
+        ]
+    )
+    reject_keywords: List[str] = Field(
+        default_factory=lambda: [
+            'нет',
+            '0',
+            'отсутствует',
+            'не можем',
+            'снято с производства',
+        ]
+    )
+    value_after_article_type: SupplierResponseValueAfterArticleType = (
+        SupplierResponseValueAfterArticleType.BOTH
+    )
+
+    @field_validator(
+        'filename_pattern',
+        'shipping_doc_filename_pattern',
+        mode='before',
+    )
+    def normalize_patterns(cls, v):
+        if v is None:
+            return None
+        value = str(v).strip()
+        return value or None
+
+    @field_validator('name', mode='before')
+    def normalize_name(cls, v):
+        return str(v or '').strip()
+
+    @field_validator('sender_emails', mode='before')
+    def normalize_sender_emails(cls, v):
+        return _normalize_email_list(v)
+
+    @field_validator('confirm_keywords', 'reject_keywords', mode='before')
+    def normalize_keyword_lists(cls, v):
+        return _normalize_string_list(v)
+
+
+class SupplierResponseConfigCreate(SupplierResponseConfigBase):
+    pass
+
+
+class SupplierResponseConfigUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    is_active: Optional[bool] = None
+    inbox_email_account_id: Optional[int] = Field(default=None, ge=1)
+    sender_emails: Optional[List[str]] = None
+    response_type: Optional[SupplierResponseType] = None
+    process_shipping_docs: Optional[bool] = None
+    file_format: Optional[SupplierResponseFileFormat] = None
+    filename_pattern: Optional[str] = None
+    shipping_doc_filename_pattern: Optional[str] = None
+    start_row: Optional[int] = Field(default=None, ge=1)
+    oem_col: Optional[int] = Field(default=None, ge=1)
+    brand_col: Optional[int] = Field(default=None, ge=1)
+    qty_col: Optional[int] = Field(default=None, ge=1)
+    status_col: Optional[int] = Field(default=None, ge=1)
+    comment_col: Optional[int] = Field(default=None, ge=1)
+    price_col: Optional[int] = Field(default=None, ge=1)
+    confirm_keywords: Optional[List[str]] = None
+    reject_keywords: Optional[List[str]] = None
+    value_after_article_type: Optional[
+        SupplierResponseValueAfterArticleType
+    ] = (
+        None
+    )
+
+    @field_validator('name', mode='before')
+    def normalize_update_name(cls, v):
+        if v is None:
+            return None
+        value = str(v).strip()
+        return value or None
+
+    @field_validator(
+        'filename_pattern',
+        'shipping_doc_filename_pattern',
+        mode='before',
+    )
+    def normalize_update_patterns(cls, v):
+        if v is None:
+            return None
+        value = str(v).strip()
+        return value or None
+
+    @field_validator('sender_emails', mode='before')
+    def normalize_update_sender_emails(cls, v):
+        if v is None:
+            return None
+        return _normalize_email_list(v)
+
+    @field_validator('confirm_keywords', 'reject_keywords', mode='before')
+    def normalize_update_keyword_lists(cls, v):
+        if v is None:
+            return None
+        return _normalize_string_list(v)
+
+
+class SupplierResponseConfigOut(BaseModel):
+    id: int
+    provider_id: int
+    name: str
+    is_active: bool = True
+    inbox_email_account_id: Optional[int] = None
+    sender_emails: List[str] = Field(default_factory=list)
+    response_type: SupplierResponseType = SupplierResponseType.FILE
+    process_shipping_docs: bool = True
+    file_format: Optional[SupplierResponseFileFormat] = (
+        SupplierResponseFileFormat.EXCEL
+    )
+    filename_pattern: Optional[str] = None
+    shipping_doc_filename_pattern: Optional[str] = None
+    start_row: int = 1
+    oem_col: Optional[int] = None
+    brand_col: Optional[int] = None
+    qty_col: Optional[int] = None
+    status_col: Optional[int] = None
+    comment_col: Optional[int] = None
+    price_col: Optional[int] = None
+    confirm_keywords: List[str] = Field(default_factory=list)
+    reject_keywords: List[str] = Field(default_factory=list)
+    value_after_article_type: SupplierResponseValueAfterArticleType = (
+        SupplierResponseValueAfterArticleType.BOTH
+    )
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -862,5 +1077,8 @@ class ProviderPageResponse(BaseModel):
     provider: ProviderCoreOut
     abbreviations: List[ProviderAbbreviationOut] = Field(default_factory=list)
     pricelist_configs: List[ProviderPriceListConfigOut] = Field(
+        default_factory=list
+    )
+    supplier_response_configs: List[SupplierResponseConfigOut] = Field(
         default_factory=list
     )

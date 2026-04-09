@@ -204,6 +204,12 @@ class Provider(Client):
         lazy='selectin',
         single_parent=True,
     )
+    supplier_response_configs = relationship(
+        'SupplierResponseConfig',
+        back_populates='provider',
+        cascade='all, delete-orphan',
+        lazy='selectin',
+    )
     provider_last_uid = relationship(
         'ProviderLastEmailUID', back_populates='provider', uselist=False
     )
@@ -463,6 +469,46 @@ class ProviderPriceListConfig(Base):
         uselist=False,
         cascade='all, delete-orphan',
     )
+
+
+class SupplierResponseConfig(Base):
+    provider_id = Column(
+        Integer,
+        ForeignKey('provider.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+    name = Column(String(255), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    inbox_email_account_id = Column(
+        Integer,
+        ForeignKey('emailaccount.id'),
+        nullable=True,
+    )
+    sender_emails = Column(JSON, default=[])
+    response_type = Column(String(16), default='file', nullable=False)
+    process_shipping_docs = Column(Boolean, default=True, nullable=False)
+
+    file_format = Column(String(16), nullable=True)
+    filename_pattern = Column(String(255), nullable=True)
+    shipping_doc_filename_pattern = Column(String(255), nullable=True)
+    start_row = Column(Integer, default=1, nullable=False)
+    oem_col = Column(Integer, nullable=True)
+    brand_col = Column(Integer, nullable=True)
+    qty_col = Column(Integer, nullable=True)
+    status_col = Column(Integer, nullable=True)
+    comment_col = Column(Integer, nullable=True)
+    price_col = Column(Integer, nullable=True)
+
+    confirm_keywords = Column(JSON, default=[])
+    reject_keywords = Column(JSON, default=[])
+    value_after_article_type = Column(
+        String(16), default='both', nullable=False
+    )
+
+    provider = relationship(
+        'Provider', back_populates='supplier_response_configs'
+    )
+    inbox_email_account = relationship('EmailAccount', lazy='selectin')
 
 
 class CustomerPriceListConfig(Base):

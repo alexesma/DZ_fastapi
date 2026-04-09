@@ -13,6 +13,7 @@ from dz_fastapi.crud.partner import crud_customer_pricelist, crud_pricelist
 from dz_fastapi.main import app
 from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.email_account import EmailAccount
 from dz_fastapi.models.partner import (Customer, CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
                                        CustomerPriceListConfig,
@@ -559,6 +560,79 @@ async def test_update_provider_pricelist_config(
     assert data['name_price'] == 'UPDATED_PRICE'
     assert data['min_delivery_day'] == 2
     assert data['max_delivery_day'] == 5
+
+
+@pytest.mark.asyncio
+async def test_supplier_response_config_crud(
+    created_providers: list[Provider],
+    async_client: AsyncClient,
+    test_session: AsyncSession,
+):
+    provider = created_providers[0]
+    mailbox = EmailAccount(
+        name='Supplier Inbox',
+        email='supplier.inbox@example.com',
+        password='secret',
+        purposes=['orders_out'],
+        is_active=True,
+    )
+    test_session.add(mailbox)
+    await test_session.commit()
+    await test_session.refresh(mailbox)
+
+    create_payload = {
+        'name': 'Response config #1',
+        'inbox_email_account_id': mailbox.id,
+        'sender_emails': ['supplier@example.com', 'orders@example.com'],
+        'response_type': 'text',
+        'process_shipping_docs': True,
+        'value_after_article_type': 'both',
+        'confirm_keywords': ['есть', 'да'],
+        'reject_keywords': ['нет', '0'],
+    }
+    response = await async_client.post(
+        f'/providers/{provider.id}/supplier-response-config/',
+        json=create_payload,
+    )
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    config_id = payload['id']
+    assert payload['provider_id'] == provider.id
+    assert payload['response_type'] == 'text'
+    assert payload['sender_emails'] == [
+        'supplier@example.com',
+        'orders@example.com',
+    ]
+
+    get_response = await async_client.get(f'/providers/{provider.id}/full')
+    assert get_response.status_code == 200, get_response.text
+    full_payload = get_response.json()
+    configs = full_payload.get('supplier_response_configs') or []
+    assert len(configs) == 1
+    assert configs[0]['id'] == config_id
+    assert configs[0]['name'] == 'Response config #1'
+
+    patch_response = await async_client.patch(
+        f'/providers/{provider.id}/supplier-response-config/{config_id}/',
+        json={
+            'response_type': 'file',
+            'file_format': 'excel',
+            'start_row': 2,
+            'oem_col': 1,
+            'qty_col': 2,
+        },
+    )
+    assert patch_response.status_code == 200, patch_response.text
+    updated = patch_response.json()
+    assert updated['response_type'] == 'file'
+    assert updated['start_row'] == 2
+    assert updated['oem_col'] == 1
+    assert updated['qty_col'] == 2
+
+    delete_response = await async_client.delete(
+        f'/providers/{provider.id}/supplier-response-config/{config_id}/'
+    )
+    assert delete_response.status_code == 204, delete_response.text
 
 
 @pytest.mark.asyncio

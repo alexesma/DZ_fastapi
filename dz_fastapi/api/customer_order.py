@@ -1115,6 +1115,7 @@ async def list_supplier_receipt_candidates_endpoint(
 )
 async def process_supplier_responses_endpoint(
     provider_id: Optional[int] = None,
+    supplier_response_config_id: Optional[int] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     session: AsyncSession = Depends(get_session),
@@ -1123,6 +1124,7 @@ async def process_supplier_responses_endpoint(
     result = await process_supplier_response_messages(
         session=session,
         provider_id=provider_id,
+        supplier_response_config_id=supplier_response_config_id,
         date_from=date_from,
         date_to=date_to,
     )

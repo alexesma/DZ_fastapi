@@ -552,6 +552,10 @@ class SupplierResponseProcessResult(BaseModel):
     matched_orders: int = 0
     stored_attachments: int = 0
     parsed_response_files: int = 0
+    parsed_text_positions: int = 0
+    recognized_positions: int = 0
+    unresolved_positions: int = 0
+    unresolved_examples: List[str] = Field(default_factory=list)
     updated_items: int = 0
     updated_orders: int = 0
     unmapped_statuses: int = 0
