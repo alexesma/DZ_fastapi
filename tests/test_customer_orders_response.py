@@ -6,6 +6,7 @@ import pytest
 from openpyxl import Workbook, load_workbook
 from sqlalchemy import select
 
+import dz_fastapi.services.supplier_order_responses as response_service
 from dz_fastapi.models.order_status_mapping import (ExternalStatusMapping,
                                                     ExternalStatusMatchMode,
                                                     ExternalStatusUnmapped,
@@ -24,8 +25,9 @@ from dz_fastapi.services.customer_orders import (
     _supplier_order_override_email, send_supplier_orders)
 from dz_fastapi.services.order_status_mapping import \
     EXTERNAL_STATUS_SOURCE_SUPPLIER_EMAIL
-from dz_fastapi.services.supplier_order_responses import \
-    process_supplier_response_messages
+from dz_fastapi.services.supplier_order_responses import (
+    _extract_supplier_order_id, _get_message_match_context,
+    process_supplier_response_messages)
 
 
 def test_apply_response_updates_excel_writes_ship_price_when_configured():
@@ -146,6 +148,46 @@ def test_build_supplier_order_recipient_uses_stub_override(monkeypatch):
         _build_supplier_order_recipient(provider, use_override=False)
         == "supplier@example.com"
     )
+
+
+def test_extract_supplier_order_id_ignores_int32_overflow():
+    assert (
+        _extract_supplier_order_id("Заказ поставщику #5709826577")
+        is None
+    )
+    assert (
+        _extract_supplier_order_id("supplier_order_2147483647.xlsx")
+        == 2147483647
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_message_match_context_ignores_out_of_range_order_id(
+    monkeypatch,
+    test_session,
+    created_providers,
+):
+    provider = created_providers[0]
+    provider.email_contact = "supplier@example.com"
+    await test_session.commit()
+
+    monkeypatch.setattr(
+        response_service,
+        "_extract_supplier_order_id",
+        lambda *args: 5_709_826_577,
+    )
+
+    order, matched_provider = await _get_message_match_context(
+        test_session,
+        sender_email="supplier@example.com",
+        subject="Заказ поставщику #5709826577",
+        body_preview=None,
+        attachments=[],
+    )
+
+    assert order is None
+    assert matched_provider is not None
+    assert matched_provider.id == provider.id
 
 
 @pytest.mark.asyncio
@@ -1436,6 +1478,93 @@ async def test_use_response_filename_pattern_for_spreadsheets(
     assert result["processed_messages"] == 1
     assert result["parsed_response_files"] == 0
     assert item.confirmed_quantity is None
+
+
+@pytest.mark.asyncio
+async def test_use_response_filename_pattern_for_mime_encoded_filename(
+    monkeypatch,
+    test_session,
+    created_providers,
+    created_autopart,
+    tmp_path,
+):
+    provider = created_providers[0]
+    provider.email_contact = "otvet@aruda.ru"
+    provider.supplier_response_allow_text_status = False
+    provider.supplier_response_filename_pattern = r"Ответ"
+    order = SupplierOrder(
+        provider_id=provider.id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    item = SupplierOrderItem(
+        supplier_order_id=order.id,
+        autopart_id=created_autopart.id,
+        oem_number=created_autopart.oem_number,
+        brand_name=created_autopart.brand.name,
+        autopart_name=created_autopart.name,
+        quantity=5,
+        price=150.0,
+    )
+    test_session.add(item)
+    await test_session.commit()
+
+    response_frame = pd.DataFrame(
+        [
+            {
+                "OEM": created_autopart.oem_number,
+                "Brand": created_autopart.brand.name,
+                "Qty": 2,
+            }
+        ]
+    )
+    buffer = BytesIO()
+    response_frame.to_excel(buffer, index=False)
+    payload = buffer.getvalue()
+
+    async def fake_fetch_messages(session, *, date_from, date_to=None):
+        return [
+            (
+                SimpleNamespace(
+                    from_="otvet@aruda.ru",
+                    subject=f"Ответ по заказу {order.id}",
+                    text="",
+                    html=None,
+                    attachments=[
+                        SimpleNamespace(
+                            filename="=?UTF-8?B?0J7RgtCy0LXRgi5YTFM=?=",
+                            payload=payload,
+                        )
+                    ],
+                    received_at=None,
+                    date=None,
+                    external_id="supplier-msg-mime-pattern",
+                    uid=None,
+                    folder_name="INBOX",
+                ),
+                None,
+            )
+        ]
+
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_fetch_supplier_response_messages"
+        ),
+        fake_fetch_messages,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.supplier_order_responses.SUPPLIER_RESPONSE_DIR",
+        str(tmp_path),
+    )
+
+    result = await process_supplier_response_messages(test_session)
+    await test_session.refresh(item)
+
+    assert result["processed_messages"] == 1
+    assert result["parsed_response_files"] == 1
+    assert item.confirmed_quantity == 2
 
 
 @pytest.mark.asyncio
