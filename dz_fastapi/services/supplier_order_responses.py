@@ -6,6 +6,7 @@ import os
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
+from email.header import decode_header
 from io import BytesIO
 from typing import Iterable, Optional
 
@@ -94,6 +95,7 @@ _DEFAULT_REJECT_KEYWORDS = [
     "не можем",
     "снято с производства",
 ]
+_MAX_INT32 = 2_147_483_647
 
 
 @dataclass(slots=True)
@@ -458,11 +460,34 @@ def _get_message_body_preview(msg: object) -> Optional[str]:
     return None
 
 
+def _decode_mime_text(value: Optional[str]) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    try:
+        parts = decode_header(text)
+    except Exception:
+        return text
+    decoded: list[str] = []
+    for part, encoding in parts:
+        if isinstance(part, bytes):
+            try:
+                decoded.append(
+                    part.decode(encoding or "utf-8", errors="ignore")
+                )
+            except Exception:
+                decoded.append(part.decode("utf-8", errors="ignore"))
+        else:
+            decoded.append(str(part))
+    result = "".join(decoded).strip()
+    return result or text
+
+
 def _iter_message_attachments(msg: object) -> list[SimpleAttachment]:
     attachments = getattr(msg, "attachments", None) or []
     result: list[SimpleAttachment] = []
     for attachment in attachments:
-        filename = getattr(attachment, "filename", None)
+        filename = _decode_mime_text(getattr(attachment, "filename", None))
         payload = getattr(attachment, "payload", None)
         if payload is None and isinstance(attachment, SimpleAttachment):
             payload = attachment.payload
@@ -481,9 +506,18 @@ def _extract_supplier_order_id(*values: Optional[str]) -> Optional[int]:
             match = pattern.search(text)
             if match:
                 try:
-                    return int(match.group(1))
+                    parsed = int(match.group(1))
                 except (TypeError, ValueError):
                     continue
+                if 1 <= parsed <= _MAX_INT32:
+                    return parsed
+                logger.info(
+                    (
+                        "Supplier response order id candidate ignored: "
+                        "value=%s out_of_int32_range"
+                    ),
+                    parsed,
+                )
     return None
 
 
@@ -538,7 +572,7 @@ def _classify_attachment_kind(
     response_pattern: Optional[re.Pattern] = None,
     shipping_pattern: Optional[re.Pattern] = None,
 ) -> Optional[str]:
-    raw_name = str(filename or "").strip()
+    raw_name = _decode_mime_text(filename)
     if not raw_name:
         return None
     lower_name = raw_name.lower()
@@ -647,22 +681,49 @@ def _normalize_sender_emails(value: object) -> set[str]:
     return result
 
 
+def _config_mismatch_reasons(
+    config: SupplierResponseConfig,
+    *,
+    sender_email: str,
+    account: Optional[EmailAccount],
+) -> list[str]:
+    reasons: list[str] = []
+    account_id = account.id if account else None
+    if (
+        config.inbox_email_account_id is not None
+        and config.inbox_email_account_id != account_id
+    ):
+        reasons.append(
+            (
+                "inbox_email mismatch "
+                f"(expected account_id={config.inbox_email_account_id}, "
+                f"got account_id={account_id})"
+            )
+        )
+    allowed_senders = _normalize_sender_emails(config.sender_emails)
+    normalized_sender = str(sender_email or "").strip().lower()
+    if allowed_senders and normalized_sender not in allowed_senders:
+        reasons.append(
+            (
+                "sender_email mismatch "
+                f"(expected one of {sorted(allowed_senders)}, "
+                f"got {normalized_sender or '<empty>'})"
+            )
+        )
+    return reasons
+
+
 def _config_matches_message(
     config: SupplierResponseConfig,
     *,
     sender_email: str,
     account: Optional[EmailAccount],
 ) -> bool:
-    account_id = account.id if account else None
-    if (
-        config.inbox_email_account_id is not None
-        and config.inbox_email_account_id != account_id
-    ):
-        return False
-    allowed_senders = _normalize_sender_emails(config.sender_emails)
-    if allowed_senders and sender_email.lower() not in allowed_senders:
-        return False
-    return True
+    return not _config_mismatch_reasons(
+        config,
+        sender_email=sender_email,
+        account=account,
+    )
 
 
 def _select_best_supplier_response_config(
@@ -1100,6 +1161,15 @@ async def _get_message_match_context(
         body_preview,
         *attachment_names,
     )
+    if order_id is not None and not (1 <= order_id <= _MAX_INT32):
+        logger.warning(
+            (
+                "Supplier response parsed order id ignored before lookup: "
+                "value=%s out_of_int32_range"
+            ),
+            order_id,
+        )
+        order_id = None
     order = None
     if order_id is not None:
         order = (
@@ -1875,6 +1945,25 @@ async def process_supplier_response_messages(
                     sender_email=sender_email,
                     account=account,
                 ):
+                    reasons = _config_mismatch_reasons(
+                        active_response_config,
+                        sender_email=sender_email,
+                        account=account,
+                    )
+                    logger.info(
+                        (
+                            "Supplier response message skipped: "
+                            "selected config mismatch config_id=%s "
+                            "provider_id=%s sender=%s account_id=%s "
+                            "reasons=%s subject=%s"
+                        ),
+                        active_response_config.id,
+                        active_response_config.provider_id,
+                        sender_email or "<empty>",
+                        account.id if account else None,
+                        reasons,
+                        subject[:200],
+                    )
                     stats.skipped_messages += 1
                     continue
             elif provider is not None:
@@ -1890,6 +1979,30 @@ async def process_supplier_response_messages(
                     provider_specific_configs
                     and active_response_config is None
                 ):
+                    details = [
+                        (
+                            f"cfg#{cfg.id}: "
+                            f"{'; '.join(_config_mismatch_reasons(  # noqa: E501
+                                cfg,
+                                sender_email=sender_email,
+                                account=account,
+                            ))}"
+                        )
+                        for cfg in provider_specific_configs
+                    ]
+                    logger.info(
+                        (
+                            "Supplier response message skipped: "
+                            "no provider config matched provider_id=%s "
+                            "sender=%s account_id=%s details=%s "
+                            "subject=%s"
+                        ),
+                        provider.id,
+                        sender_email or "<empty>",
+                        account.id if account else None,
+                        details,
+                        subject[:200],
+                    )
                     stats.skipped_messages += 1
                     continue
             else:
@@ -1920,6 +2033,16 @@ async def process_supplier_response_messages(
                         provider_id is not None
                         or supplier_response_config_id is not None
                 ):
+                    logger.info(
+                        (
+                            "Supplier response message skipped: "
+                            "provider not resolved for sender=%s "
+                            "subject=%s account_id=%s"
+                        ),
+                        sender_email or "<empty>",
+                        subject[:200],
+                        account.id if account else None,
+                    )
                     stats.skipped_messages += 1
                     continue
                 await _notify_admins(
@@ -2156,6 +2279,48 @@ async def process_supplier_response_messages(
             file_payload_is_document = (
                 normalized_file_payload_type == "document"
             )
+            logger.info(
+                (
+                    "Supplier response config resolved: config_id=%s "
+                    "provider_id=%s response_type=%s sender_filter=%s "
+                    "filename_pattern=%s shipping_pattern=%s "
+                    "payload_type=%s account_filter=%s"
+                ),
+                active_response_config.id if active_response_config else None,
+                provider.id,
+                (
+                    str(getattr(response_type_raw, "value", response_type_raw))
+                    .strip()
+                    .lower()
+                    if active_response_config is not None
+                    else "legacy"
+                ),
+                (
+                    sorted(
+                        _normalize_sender_emails(
+                            active_response_config.sender_emails
+                        )
+                    )
+                    if active_response_config is not None
+                    else []
+                ),
+                (
+                    response_filename_pattern.pattern
+                    if response_filename_pattern is not None
+                    else None
+                ),
+                (
+                    shipping_doc_filename_pattern.pattern
+                    if shipping_doc_filename_pattern is not None
+                    else None
+                ),
+                normalized_file_payload_type,
+                (
+                    active_response_config.inbox_email_account_id
+                    if active_response_config is not None
+                    else None
+                ),
+            )
 
             if not allow_text_status:
                 raw_status = None
@@ -2234,12 +2399,46 @@ async def process_supplier_response_messages(
                     )
                 else:
                     response_candidate = attachment_kind == "RESPONSE_FILE"
+                    if not response_candidate and is_spreadsheet:
+                        logger.info(
+                            (
+                                "Supplier response attachment skipped by "
+                                "filename_pattern: config_id=%s filename=%s "
+                                "pattern=%s"
+                            ),
+                            (
+                                active_response_config.id
+                                if active_response_config is not None
+                                else None
+                            ),
+                            attachment.filename or "<empty>",
+                            response_filename_pattern.pattern,
+                        )
                 if (
                     response_candidate
                     and extension not in _allowed_attachment_extensions(
                         response_file_format
                     )
                 ):
+                    logger.info(
+                        (
+                            "Supplier response attachment skipped by "
+                            "file_format: config_id=%s filename=%s "
+                            "extension=%s allowed=%s"
+                        ),
+                        (
+                            active_response_config.id
+                            if active_response_config is not None
+                            else None
+                        ),
+                        attachment.filename or "<empty>",
+                        extension or "<none>",
+                        sorted(
+                            _allowed_attachment_extensions(
+                                response_file_format
+                            )
+                        ),
+                    )
                     response_candidate = False
                 if (
                     allow_response_files
