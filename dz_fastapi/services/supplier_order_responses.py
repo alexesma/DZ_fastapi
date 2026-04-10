@@ -240,6 +240,16 @@ async def _fetch_supplier_response_messages(
 ) -> list[tuple[object, Optional[EmailAccount]]]:
     accounts: list[EmailAccount] = []
     account_map: dict[int, EmailAccount] = {}
+    logger.info(
+        (
+            "Supplier response inbox fetch init: date_from=%s date_to=%s "
+            "include_default_orders_out=%s explicit_account_ids=%s"
+        ),
+        date_from,
+        date_to,
+        include_default_orders_out,
+        sorted(account_ids or []),
+    )
     if include_default_orders_out:
         default_accounts = await crud_email_account.get_active_by_purpose(
             session,
@@ -269,11 +279,30 @@ async def _fetch_supplier_response_messages(
                 getattr(account, "imap_additional_folders", None),
                 default=EMAIL_FOLDER_ORDER or DEFAULT_IMAP_FOLDER,
             )
+            logger.info(
+                (
+                    "Supplier response inbox account start: account_id=%s "
+                    "email=%s transport=%s folders=%s"
+                ),
+                account.id,
+                account.email,
+                transport,
+                folders,
+            )
             if transport == "resend_api":
                 try:
                     account_messages = await _fetch_resend_messages(
                         account,
                         date_from,
+                    )
+                    logger.info(
+                        (
+                            "Supplier response inbox account done: "
+                            "account_id=%s email=%s fetched=%s"
+                        ),
+                        account.id,
+                        account.email,
+                        len(account_messages),
                     )
                     messages.extend((msg, account) for msg in account_messages)
                 except Exception as exc:
@@ -291,6 +320,15 @@ async def _fetch_supplier_response_messages(
                 try:
                     account_messages = []
                     for label in folders:
+                        logger.info(
+                            (
+                                "Supplier response Gmail fetch: "
+                                "account_id=%s email=%s label=%s"
+                            ),
+                            account.id,
+                            account.email,
+                            label,
+                        )
                         account_messages.extend(
                             await _fetch_gmail_messages(
                                 account,
@@ -298,6 +336,15 @@ async def _fetch_supplier_response_messages(
                                 label=label,
                             )
                         )
+                    logger.info(
+                        (
+                            "Supplier response inbox account done: "
+                            "account_id=%s email=%s fetched=%s"
+                        ),
+                        account.id,
+                        account.email,
+                        len(account_messages),
+                    )
                     messages.extend((msg, account) for msg in account_messages)
                 except Exception as exc:
                     logger.error(
@@ -312,6 +359,15 @@ async def _fetch_supplier_response_messages(
             try:
                 account_messages = []
                 for folder in folders:
+                    logger.info(
+                        (
+                            "Supplier response IMAP fetch: "
+                            "account_id=%s email=%s folder=%s"
+                        ),
+                        account.id,
+                        account.email,
+                        folder,
+                    )
                     account_messages.extend(
                         await _fetch_order_messages(
                             host,
@@ -324,6 +380,15 @@ async def _fetch_supplier_response_messages(
                             ssl=True,
                         )
                     )
+                logger.info(
+                    (
+                        "Supplier response inbox account done: "
+                        "account_id=%s email=%s fetched=%s"
+                    ),
+                    account.id,
+                    account.email,
+                    len(account_messages),
+                )
                 messages.extend((msg, account) for msg in account_messages)
             except Exception as exc:
                 if _is_too_many_connections_error(exc):
@@ -341,6 +406,10 @@ async def _fetch_supplier_response_messages(
                     )
     elif EMAIL_NAME_ORDER and EMAIL_PASSWORD_ORDER and EMAIL_HOST_ORDER:
         try:
+            logger.info(
+                "Supplier response fallback inbox fetch start: email=%s",
+                EMAIL_NAME_ORDER,
+            )
             fallback_messages = await _fetch_order_messages(
                 EMAIL_HOST_ORDER,
                 EMAIL_NAME_ORDER,
@@ -350,6 +419,10 @@ async def _fetch_supplier_response_messages(
                 False,
                 port=IMAP_SERVER,
                 ssl=True,
+            )
+            logger.info(
+                "Supplier response fallback inbox done: fetched=%s",
+                len(fallback_messages),
             )
             messages = [(msg, None) for msg in fallback_messages]
         except Exception as exc:
@@ -1741,7 +1814,8 @@ async def process_supplier_response_messages(
         supplier_response_config_id,
     )
 
-    for msg, account in messages:
+    total_messages = len(messages)
+    for index, (msg, account) in enumerate(messages, start=1):
         source_uid = _build_source_uid(msg, account)
         source_message_id = _build_source_message_id(msg)
         if await _message_already_processed(
@@ -1749,12 +1823,34 @@ async def process_supplier_response_messages(
             source_uid=source_uid,
             source_message_id=source_message_id,
         ):
+            logger.info(
+                (
+                    "Supplier response message skipped as duplicate: "
+                    "idx=%s/%s source_uid=%s source_message_id=%s"
+                ),
+                index,
+                total_messages,
+                source_uid,
+                source_message_id,
+            )
             stats.skipped_messages += 1
             continue
 
         attachments = _iter_message_attachments(msg)
         sender_email = _extract_email(getattr(msg, "from_", None))
         subject = str(getattr(msg, "subject", "") or "")
+        logger.info(
+            (
+                "Supplier response message start: idx=%s/%s sender=%s "
+                "subject=%s attachments=%s account_id=%s"
+            ),
+            index,
+            total_messages,
+            sender_email,
+            subject[:200],
+            len(attachments),
+            account.id if account else None,
+        )
         body_preview = _get_message_body_preview(msg)
         message_text = _get_message_text_content(msg)
         raw_status = _detect_supplier_status(subject, body_preview)
@@ -2549,6 +2645,22 @@ async def process_supplier_response_messages(
 
             await session.commit()
             stats.processed_messages += 1
+            logger.info(
+                (
+                    "Supplier response message done: idx=%s/%s "
+                    "processed=%s recognized_positions=%s "
+                    "unresolved_positions=%s receipts_created=%s "
+                    "receipts_updated=%s receipts_posted=%s"
+                ),
+                index,
+                total_messages,
+                stats.processed_messages,
+                stats.recognized_positions,
+                stats.unresolved_positions,
+                stats.created_receipts,
+                stats.updated_receipts,
+                stats.posted_receipts,
+            )
         except Exception as exc:
             await session.rollback()
             logger.error(
