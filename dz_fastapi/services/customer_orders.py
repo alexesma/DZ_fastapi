@@ -87,6 +87,10 @@ ORDER_ERROR_DETAIL_MAX_LEN = 500
 CUSTOMER_ORDERS_FETCH_LIMIT = int(
     os.getenv('CUSTOMER_ORDERS_FETCH_LIMIT') or '0'
 )
+CUSTOMER_ORDERS_IMAP_TIMEOUT_SEC = max(
+    5,
+    int(os.getenv('CUSTOMER_ORDERS_IMAP_TIMEOUT_SEC', '30')),
+)
 CUSTOMER_ORDERS_IMAP_RETRIES = max(
     1,
     int(os.getenv('CUSTOMER_ORDERS_IMAP_RETRIES', '3')),
@@ -172,10 +176,15 @@ async def _notify_admins(
         )
 
 
-def _create_mailbox(server_mail: str, port: int, ssl: bool = True):
+def _create_mailbox(
+        server_mail: str,
+        port: int,
+        ssl: bool = True,
+        timeout: int = 30
+):
     if ssl and MailBoxSsl is not None:
-        return MailBoxSsl(server_mail, port)
-    return MailBox(server_mail, port)
+        return MailBoxSsl(server_mail, port, timeout=timeout)
+    return MailBox(server_mail, port, timeout=timeout)
 
 
 @dataclass
@@ -228,7 +237,12 @@ async def _fetch_order_messages(
     ssl: bool = True,
 ) -> list:
     def _fetch():
-        with _create_mailbox(server_mail, port, ssl).login(
+        with _create_mailbox(
+                server_mail,
+                port,
+                ssl,
+                timeout=CUSTOMER_ORDERS_IMAP_TIMEOUT_SEC
+        ).login(
             email_account, email_password
         ) as mailbox:
             mailbox.folder.set(folder)
