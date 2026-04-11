@@ -475,6 +475,7 @@ class SupplierResponseConfigBase(BaseModel):
     sender_emails: List[str] = Field(default_factory=list)
     response_type: SupplierResponseType = SupplierResponseType.FILE
     process_shipping_docs: bool = True
+    auto_confirm_unmentioned_items: bool = False
     file_format: Optional[SupplierResponseFileFormat] = (
         SupplierResponseFileFormat.EXCEL
     )
@@ -553,6 +554,7 @@ class SupplierResponseConfigUpdate(BaseModel):
     sender_emails: Optional[List[str]] = None
     response_type: Optional[SupplierResponseType] = None
     process_shipping_docs: Optional[bool] = None
+    auto_confirm_unmentioned_items: Optional[bool] = None
     file_format: Optional[SupplierResponseFileFormat] = None
     file_payload_type: Optional[SupplierResponseFilePayloadType] = None
     filename_pattern: Optional[str] = None
@@ -620,6 +622,7 @@ class SupplierResponseConfigOut(BaseModel):
     sender_emails: List[str] = Field(default_factory=list)
     response_type: SupplierResponseType = SupplierResponseType.FILE
     process_shipping_docs: bool = True
+    auto_confirm_unmentioned_items: bool = False
     file_format: Optional[SupplierResponseFileFormat] = (
         SupplierResponseFileFormat.EXCEL
     )

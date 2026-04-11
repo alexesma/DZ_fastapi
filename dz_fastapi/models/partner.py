@@ -488,6 +488,9 @@ class SupplierResponseConfig(Base):
     sender_emails = Column(JSON, default=[])
     response_type = Column(String(16), default='file', nullable=False)
     process_shipping_docs = Column(Boolean, default=True, nullable=False)
+    auto_confirm_unmentioned_items = Column(
+        Boolean, default=False, nullable=False
+    )
 
     file_format = Column(String(16), nullable=True)
     file_payload_type = Column(
