@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Iterable, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -388,19 +388,18 @@ async def create_supplier_receipt(
                 f'{item.oem_number or item.autopart_name or item.id}'
             )
 
-        if post_now:
-            current_received = int(item.received_quantity or 0)
-            expected_quantity = (
-                int(item.confirmed_quantity)
-                if item.confirmed_quantity is not None
-                else int(item.quantity or 0)
-            )
-            pending_quantity = max(expected_quantity - current_received, 0)
-            received_quantity = min(received_quantity, pending_quantity)
-            if received_quantity <= 0:
-                continue
-            item.received_quantity = current_received + received_quantity
-            item.received_at = now_moscow()
+        current_received = int(item.received_quantity or 0)
+        expected_quantity = (
+            int(item.confirmed_quantity)
+            if item.confirmed_quantity is not None
+            else int(item.quantity or 0)
+        )
+        pending_quantity = max(expected_quantity - current_received, 0)
+        received_quantity = min(received_quantity, pending_quantity)
+        if received_quantity <= 0:
+            continue
+        item.received_quantity = current_received + received_quantity
+        item.received_at = now_moscow()
 
         receipt_item = SupplierReceiptItem(
             receipt_id=receipt.id,
@@ -458,6 +457,36 @@ async def post_supplier_receipt(
 
     if receipt.posted_at is None:
         current_dt = now_moscow()
+        order_item_ids = [
+            int(receipt_item.supplier_order_item_id)
+            for receipt_item in (receipt.items or [])
+            if receipt_item.supplier_order_item_id is not None
+        ]
+        other_receipts_totals: dict[int, int] = {}
+        if order_item_ids:
+            totals_stmt = (
+                select(
+                    SupplierReceiptItem.supplier_order_item_id,
+                    func.coalesce(
+                        func.sum(SupplierReceiptItem.received_quantity),
+                        0,
+                    ),
+                )
+                .where(
+                    SupplierReceiptItem.supplier_order_item_id.in_(
+                        order_item_ids
+                    ),
+                    SupplierReceiptItem.receipt_id != receipt.id,
+                )
+                .group_by(SupplierReceiptItem.supplier_order_item_id)
+            )
+            totals_rows = (await session.execute(totals_stmt)).all()
+            other_receipts_totals = {
+                int(item_id): int(total_qty or 0)
+                for item_id, total_qty in totals_rows
+                if item_id is not None
+            }
+
         for receipt_item in receipt.items or []:
             order_item = receipt_item.supplier_order_item
             if order_item is None:
@@ -470,13 +499,15 @@ async def post_supplier_receipt(
                 if order_item.confirmed_quantity is not None
                 else int(order_item.quantity or 0)
             )
+            other_total = other_receipts_totals.get(int(order_item.id), 0)
+            target_total = min(
+                expected_quantity,
+                max(other_total + requested_quantity, 0),
+            )
             current_received = int(order_item.received_quantity or 0)
-            pending_quantity = max(expected_quantity - current_received, 0)
-            applied_quantity = min(requested_quantity, pending_quantity)
-            receipt_item.received_quantity = applied_quantity
-            if applied_quantity <= 0:
+            if current_received >= target_total:
                 continue
-            order_item.received_quantity = current_received + applied_quantity
+            order_item.received_quantity = target_total
             order_item.received_at = current_dt
 
         receipt.posted_at = current_dt
