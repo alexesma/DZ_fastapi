@@ -24,10 +24,9 @@ from dz_fastapi.crud.email_account import crud_email_account
 from dz_fastapi.crud.settings import crud_customer_order_inbox_settings
 from dz_fastapi.models.email_account import EmailAccount
 from dz_fastapi.models.notification import AppNotificationLevel
-from dz_fastapi.models.partner import (Provider, SupplierOrder,
-                                       SupplierOrderAttachment,
+from dz_fastapi.models.partner import (SUPPLIER_ORDER_STATUS, Provider,
+                                       SupplierOrder, SupplierOrderAttachment,
                                        SupplierOrderItem, SupplierOrderMessage,
-                                       SUPPLIER_ORDER_STATUS,
                                        SupplierReceipt, SupplierReceiptItem,
                                        SupplierResponseConfig)
 from dz_fastapi.services.customer_orders import (
