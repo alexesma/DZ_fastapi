@@ -48,6 +48,7 @@ from dz_fastapi.schemas.partner import (CustomerCreate,
                                         ProviderAbbreviationOut,
                                         ProviderAbbreviationUpdate,
                                         ProviderCoreOut, ProviderCreate,
+                                        ProviderCustomerPriceListSourceUsageOut,
                                         ProviderPageResponse,
                                         ProviderPriceListConfigCreate,
                                         ProviderPriceListConfigOut,
@@ -259,11 +260,70 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             supplier_response_configs.sort(
                 key=lambda c: (c.name is None, c.name or '', c.id)
             )
+
+            source_usage_rows = (
+                await session.execute(
+                    select(
+                        CustomerPriceListSource,
+                        CustomerPriceListConfig,
+                        Customer,
+                        ProviderPriceListConfig,
+                    )
+                    .join(
+                        CustomerPriceListConfig,
+                        CustomerPriceListConfig.id
+                        == CustomerPriceListSource.customer_config_id,
+                    )
+                    .join(
+                        Customer,
+                        Customer.id == CustomerPriceListConfig.customer_id,
+                    )
+                    .join(
+                        ProviderPriceListConfig,
+                        ProviderPriceListConfig.id
+                        == CustomerPriceListSource.provider_config_id,
+                    )
+                    .where(
+                        ProviderPriceListConfig.provider_id == provider_id
+                    )
+                    .order_by(
+                        Customer.name.asc(),
+                        CustomerPriceListConfig.name.asc(),
+                        ProviderPriceListConfig.name_price.asc(),
+                        CustomerPriceListSource.id.asc(),
+                    )
+                )
+            ).all()
+            customer_pricelist_sources_usage = [
+                ProviderCustomerPriceListSourceUsageOut(
+                    source_id=source.id,
+                    customer_id=customer.id,
+                    customer_name=customer.name,
+                    customer_config_id=customer_cfg.id,
+                    customer_config_name=customer_cfg.name,
+                    provider_config_id=provider_cfg.id,
+                    provider_config_name=provider_cfg.name_price,
+                    enabled=bool(source.enabled),
+                    markup=float(source.markup or 1.0),
+                    brand_filters=source.brand_filters or {},
+                    position_filters=source.position_filters or {},
+                    min_price=source.min_price,
+                    max_price=source.max_price,
+                    min_quantity=source.min_quantity,
+                    max_quantity=source.max_quantity,
+                    additional_filters=source.additional_filters or {},
+                )
+                for source, customer_cfg, customer, provider_cfg
+                in source_usage_rows
+            ]
             return ProviderPageResponse(
                 provider=provider_core,
                 abbreviations=abbreviations,
                 pricelist_configs=pricelist_configs,
                 supplier_response_configs=supplier_response_configs,
+                customer_pricelist_sources_usage=(
+                    customer_pricelist_sources_usage
+                ),
             )
         except Exception as e:
             logger.error(

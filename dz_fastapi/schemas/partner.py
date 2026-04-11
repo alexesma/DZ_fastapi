@@ -476,6 +476,7 @@ class SupplierResponseConfigBase(BaseModel):
     response_type: SupplierResponseType = SupplierResponseType.FILE
     process_shipping_docs: bool = True
     auto_confirm_unmentioned_items: bool = False
+    auto_confirm_after_minutes: Optional[int] = Field(default=None, ge=1)
     file_format: Optional[SupplierResponseFileFormat] = (
         SupplierResponseFileFormat.EXCEL
     )
@@ -555,6 +556,7 @@ class SupplierResponseConfigUpdate(BaseModel):
     response_type: Optional[SupplierResponseType] = None
     process_shipping_docs: Optional[bool] = None
     auto_confirm_unmentioned_items: Optional[bool] = None
+    auto_confirm_after_minutes: Optional[int] = Field(default=None, ge=1)
     file_format: Optional[SupplierResponseFileFormat] = None
     file_payload_type: Optional[SupplierResponseFilePayloadType] = None
     filename_pattern: Optional[str] = None
@@ -623,6 +625,7 @@ class SupplierResponseConfigOut(BaseModel):
     response_type: SupplierResponseType = SupplierResponseType.FILE
     process_shipping_docs: bool = True
     auto_confirm_unmentioned_items: bool = False
+    auto_confirm_after_minutes: Optional[int] = None
     file_format: Optional[SupplierResponseFileFormat] = (
         SupplierResponseFileFormat.EXCEL
     )
@@ -1104,6 +1107,25 @@ class ProviderPriceListConfigOption(BaseModel):
     is_own_price: bool = False
 
 
+class ProviderCustomerPriceListSourceUsageOut(BaseModel):
+    source_id: int
+    customer_id: int
+    customer_name: Optional[str] = None
+    customer_config_id: int
+    customer_config_name: Optional[str] = None
+    provider_config_id: int
+    provider_config_name: Optional[str] = None
+    enabled: bool = True
+    markup: float = 1.0
+    brand_filters: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    position_filters: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    min_price: Optional[Decimal] = None
+    max_price: Optional[Decimal] = None
+    min_quantity: Optional[int] = None
+    max_quantity: Optional[int] = None
+    additional_filters: Optional[Dict[str, Any]] = Field(default_factory=dict)
+
+
 CustomerResponse.model_rebuild()
 PriceListResponse.model_rebuild()
 
@@ -1117,3 +1139,6 @@ class ProviderPageResponse(BaseModel):
     supplier_response_configs: List[SupplierResponseConfigOut] = Field(
         default_factory=list
     )
+    customer_pricelist_sources_usage: List[
+        ProviderCustomerPriceListSourceUsageOut
+    ] = Field(default_factory=list)

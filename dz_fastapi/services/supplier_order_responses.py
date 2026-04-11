@@ -27,6 +27,7 @@ from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import (Provider, SupplierOrder,
                                        SupplierOrderAttachment,
                                        SupplierOrderItem, SupplierOrderMessage,
+                                       SUPPLIER_ORDER_STATUS,
                                        SupplierReceipt, SupplierReceiptItem,
                                        SupplierResponseConfig)
 from dz_fastapi.services.customer_orders import (
@@ -79,8 +80,10 @@ _SUPPLIER_STATUS_PATTERNS = (
     (re.compile(r"готов", re.I), "готово"),
     (re.compile(r"ожида", re.I), "ожидаем"),
 )
-_ARTICLE_TOKEN_RE = re.compile(r"(?:[A-Za-z].*[0-9]|[0-9].*[A-Za-z])")
-_TEXT_TOKEN_RE = re.compile(r"[A-Za-zА-Яа-яЁё0-9]+")
+_ARTICLE_TOKEN_RE = re.compile(
+    r"(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9._/-]+"
+)
+_TEXT_TOKEN_RE = re.compile(r"[A-Za-zА-Яа-яЁё0-9][A-Za-zА-Яа-яЁё0-9._/-]*")
 _DEFAULT_CONFIRM_KEYWORDS = [
     "в наличии",
     "есть",
@@ -95,12 +98,23 @@ _DEFAULT_REJECT_KEYWORDS = [
     "не можем",
     "снято с производства",
 ]
+_FUTURE_CONFIRM_WORDS = {
+    "будет",
+    "будут",
+    "будем",
+}
 _MAX_INT32 = 2_147_483_647
 _AUTO_CONFIRM_MISSING_COMMENT = (
     "Автоподтверждено: позиция отсутствует в ответе "
     "(режим исключений)"
 )
 _AUTO_CONFIRM_MISSING_STATUS = "автоподтверждено"
+_AUTO_CONFIRM_TIMEOUT_COMMENT_TEMPLATE = (
+    "Автоподтверждено: нет ответа поставщика более {minutes} мин"
+)
+_AUTO_CONFIRM_TIMEOUT_STATUS_TEMPLATE = (
+    "автоподтверждено по таймауту ответа {minutes} мин"
+)
 
 
 @dataclass(slots=True)
@@ -161,6 +175,7 @@ class SupplierResponseProcessingStats:
     posted_receipts: int = 0
     draft_receipts: int = 0
     receipt_items_added: int = 0
+    timeout_auto_confirmed_orders: int = 0
 
     def add_unresolved(self, value: str) -> None:
         self.unresolved_positions += 1
@@ -187,6 +202,9 @@ class SupplierResponseProcessingStats:
             "posted_receipts": self.posted_receipts,
             "draft_receipts": self.draft_receipts,
             "receipt_items_added": self.receipt_items_added,
+            "timeout_auto_confirmed_orders": (
+                self.timeout_auto_confirmed_orders
+            ),
         }
 
 
@@ -816,6 +834,66 @@ def _parse_text_value_after_article(
     return None, None
 
 
+def _keyword_matches_text_token(
+    token: str,
+    keywords: set[str],
+) -> bool:
+    normalized = normalize_external_status_text(token)
+    if not normalized:
+        return False
+    for keyword in keywords:
+        marker = str(keyword or "").strip()
+        if not marker:
+            continue
+        if len(marker) == 1:
+            if normalized == marker:
+                return True
+            continue
+        if normalized == marker or marker in normalized:
+            return True
+    return False
+
+
+def _parse_text_value_after_article_window(
+    tokens: list[str],
+    *,
+    start_index: int,
+    value_mode: str,
+    confirm_keywords: set[str],
+    reject_keywords: set[str],
+) -> tuple[Optional[str], Optional[int], Optional[str]]:
+    end_index = min(len(tokens), start_index + 12)
+    if start_index >= end_index:
+        return None, None, None
+    window = tokens[start_index:end_index]
+
+    if value_mode in {"text", "both"}:
+        for token in window:
+            if _keyword_matches_text_token(token, reject_keywords):
+                return "reject", 0, token
+
+    for idx, token in enumerate(window):
+        normalized = normalize_external_status_text(token)
+        if normalized in _FUTURE_CONFIRM_WORDS and idx + 1 < len(window):
+            qty_candidate = window[idx + 1]
+            qty_value = _safe_float(qty_candidate)
+            if qty_value is None:
+                continue
+            parsed_qty = _safe_int(qty_value)
+            if parsed_qty is None:
+                parsed_qty = int(qty_value)
+            if parsed_qty <= 0:
+                return "reject", 0, f"{token} {qty_candidate}"
+            return "confirm", parsed_qty, f"{token} {qty_candidate}"
+
+    if value_mode in {"text", "both"}:
+        for token in window:
+            if _keyword_matches_text_token(token, confirm_keywords):
+                return "confirm", None, token
+
+    return None, None, None
+
+
 def _parse_supplier_text_response(
     text: str,
     *,
@@ -846,12 +924,37 @@ def _parse_supplier_text_response(
             )
             continue
         status_token = tokens[index + 1]
-        decision, qty = _parse_text_value_after_article(
+        immediate_decision, immediate_qty = _parse_text_value_after_article(
             status_token,
             value_mode=value_mode,
             confirm_keywords=confirm_set,
             reject_keywords=reject_set,
         )
+        window_decision, window_qty, window_token = (
+            _parse_text_value_after_article_window(
+                tokens,
+                start_index=index + 1,
+                value_mode=value_mode,
+                confirm_keywords=confirm_set,
+                reject_keywords=reject_set,
+            )
+        )
+        decision = immediate_decision
+        qty = immediate_qty
+        if window_decision is not None:
+            normalized_window = normalize_external_status_text(
+                window_token or ""
+            )
+            immediate_token_is_numeric = _safe_float(status_token) is not None
+            if (
+                window_decision == "reject"
+                or normalized_window in _FUTURE_CONFIRM_WORDS
+                or immediate_decision is None
+                or (window_qty is not None and immediate_token_is_numeric)
+            ):
+                decision = window_decision
+                qty = window_qty
+                status_token = window_token or status_token
         if decision is None:
             result.unresolved.append(
                 f"{token}: не удалось интерпретировать "
@@ -1492,6 +1595,122 @@ def _auto_confirm_unmentioned_order_items(
             )
         )
     return updated, generated_rows
+
+
+async def _auto_confirm_orders_without_response_timeout(
+    session: AsyncSession,
+    *,
+    response_configs: list[SupplierResponseConfig],
+    stats: SupplierResponseProcessingStats,
+) -> None:
+    provider_timeouts: dict[int, int] = {}
+    for config in response_configs:
+        minutes_value = _safe_int(
+            getattr(config, "auto_confirm_after_minutes", None)
+        )
+        if minutes_value is None or minutes_value <= 0:
+            continue
+        provider_key = int(config.provider_id)
+        prev_value = provider_timeouts.get(provider_key)
+        if prev_value is None or minutes_value < prev_value:
+            provider_timeouts[provider_key] = minutes_value
+    if not provider_timeouts:
+        return
+
+    now_dt = now_moscow()
+    has_changes = False
+    for provider_key, timeout_minutes in provider_timeouts.items():
+        cutoff_dt = now_dt - timedelta(minutes=timeout_minutes)
+        orders_stmt = (
+            select(SupplierOrder)
+            .options(selectinload(SupplierOrder.items))
+            .where(
+                SupplierOrder.provider_id == provider_key,
+                SupplierOrder.status == SUPPLIER_ORDER_STATUS.SENT,
+                SupplierOrder.sent_at.is_not(None),
+                SupplierOrder.sent_at <= cutoff_dt,
+            )
+            .order_by(SupplierOrder.sent_at.asc(), SupplierOrder.id.asc())
+        )
+        provider_orders = (
+            await session.execute(orders_stmt)
+        ).scalars().all()
+        if not provider_orders:
+            continue
+
+        for order in provider_orders:
+            sent_at = order.sent_at
+            if sent_at is None:
+                continue
+            has_message_stmt = (
+                select(SupplierOrderMessage.id)
+                .where(
+                    SupplierOrderMessage.supplier_order_id == order.id,
+                    SupplierOrderMessage.received_at >= sent_at,
+                )
+                .limit(1)
+            )
+            has_message = (
+                (await session.execute(has_message_stmt)).scalar_one_or_none()
+                is not None
+            )
+            if has_message:
+                continue
+
+            status_label = _AUTO_CONFIRM_TIMEOUT_STATUS_TEMPLATE.format(
+                minutes=timeout_minutes
+            )
+            comment_label = _AUTO_CONFIRM_TIMEOUT_COMMENT_TEMPLATE.format(
+                minutes=timeout_minutes
+            )
+            changed_fields = 0
+            for order_item in order.items or []:
+                if order_item.confirmed_quantity is not None:
+                    continue
+                expected_quantity = max(int(order_item.quantity or 0), 0)
+                order_item.confirmed_quantity = expected_quantity
+                changed_fields += 1
+                if not str(order_item.response_comment or "").strip():
+                    order_item.response_comment = comment_label
+                    changed_fields += 1
+                raw_status = str(order_item.response_status_raw or "").strip()
+                if not raw_status:
+                    order_item.response_status_raw = status_label
+                    raw_status = status_label
+                    changed_fields += 1
+                normalized_status = normalize_external_status_text(raw_status)
+                if (
+                    order_item.response_status_normalized
+                    != (normalized_status or None)
+                ):
+                    order_item.response_status_normalized = (
+                        normalized_status or None
+                    )
+                    changed_fields += 1
+                order_item.response_status_synced_at = now_dt
+            if changed_fields <= 0:
+                continue
+            has_changes = True
+            stats.updated_items += changed_fields
+            stats.updated_orders += 1
+            stats.timeout_auto_confirmed_orders += 1
+            order.response_status_raw = status_label
+            order.response_status_normalized = normalize_external_status_text(
+                status_label
+            ) or None
+            order.response_status_synced_at = now_dt
+            logger.info(
+                (
+                    "Auto-confirmed supplier order by timeout: "
+                    "provider_id=%s order_id=%s minutes=%s"
+                ),
+                provider_key,
+                order.id,
+                timeout_minutes,
+            )
+
+    if has_changes:
+        await session.commit()
 
 
 def _supplier_order_item_expected_quantity(item: SupplierOrderItem) -> int:
@@ -3196,13 +3415,28 @@ async def process_supplier_response_messages(
             )
             stats.skipped_messages += 1
 
+    try:
+        await _auto_confirm_orders_without_response_timeout(
+            session,
+            response_configs=response_configs,
+            stats=stats,
+        )
+    except Exception as exc:
+        await session.rollback()
+        logger.error(
+            "Failed to auto-confirm supplier orders by timeout: %s",
+            exc,
+            exc_info=True,
+        )
+
     result = stats.as_dict()
     logger.info(
         (
             "Supplier response processing finished: "
             "provider_id=%s config_id=%s fetched=%s processed=%s "
             "recognized=%s unresolved=%s created_receipts=%s "
-            "updated_receipts=%s posted_receipts=%s"
+            "updated_receipts=%s posted_receipts=%s "
+            "timeout_auto_confirmed_orders=%s"
         ),
         provider_id,
         supplier_response_config_id,
@@ -3213,6 +3447,7 @@ async def process_supplier_response_messages(
         result.get("created_receipts", 0),
         result.get("updated_receipts", 0),
         result.get("posted_receipts", 0),
+        result.get("timeout_auto_confirmed_orders", 0),
     )
     return result
 
@@ -3252,6 +3487,16 @@ async def list_supplier_response_import_errors(
     if bool(getattr(config, "auto_confirm_unmentioned_items", False)):
         expectations.append(
             "Режим исключений: неуказанные позиции автоподтверждаются"
+        )
+    timeout_minutes = _safe_int(
+        getattr(config, "auto_confirm_after_minutes", None)
+    )
+    if timeout_minutes and timeout_minutes > 0:
+        expectations.append(
+            (
+                "Таймер авто-подтверждения без ответа: "
+                f"{timeout_minutes} мин после отправки заказа"
+            )
         )
     if expected_senders:
         expectations.append(

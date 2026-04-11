@@ -296,9 +296,15 @@ class CRUDSupplierOrder:
         status: Optional[str] = None,
         date_from: Optional[date] = None,
         date_to: Optional[date] = None,
+        use_sent_at_for_period: bool = False,
         skip: int = 0,
         limit: int = 100,
     ) -> List[SupplierOrder]:
+        period_column = (
+            func.coalesce(SupplierOrder.sent_at, SupplierOrder.created_at)
+            if use_sent_at_for_period
+            else SupplierOrder.created_at
+        )
         stmt = select(SupplierOrder).options(
             selectinload(SupplierOrder.provider),
             selectinload(SupplierOrder.items)
@@ -322,17 +328,22 @@ class CRUDSupplierOrder:
             stmt = stmt.where(SupplierOrder.status == status)
         if date_from is not None:
             stmt = stmt.where(
-                SupplierOrder.created_at
+                period_column
                 >= datetime.combine(date_from, datetime.min.time())
             )
         if date_to is not None:
             stmt = stmt.where(
-                SupplierOrder.created_at
+                period_column
                 <= datetime.combine(date_to, datetime.max.time())
             )
-        stmt = stmt.order_by(
-            SupplierOrder.created_at.desc()
-        ).offset(skip).limit(limit)
+        if use_sent_at_for_period:
+            stmt = stmt.order_by(
+                period_column.desc(),
+                SupplierOrder.id.desc(),
+            )
+        else:
+            stmt = stmt.order_by(SupplierOrder.created_at.desc())
+        stmt = stmt.offset(skip).limit(limit)
         result = await session.execute(stmt)
         return result.scalars().unique().all()
 

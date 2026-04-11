@@ -504,6 +504,7 @@ class SupplierReceiptCreateItem(BaseModel):
 
 class SupplierReceiptCreate(BaseModel):
     provider_id: int
+    post_now: bool = Field(default=False)
     document_number: Optional[str] = Field(default=None, max_length=120)
     document_date: Optional[date] = None
     comment: Optional[str] = None
@@ -569,6 +570,7 @@ class SupplierResponseProcessResult(BaseModel):
     posted_receipts: int = 0
     draft_receipts: int = 0
     receipt_items_added: int = 0
+    timeout_auto_confirmed_orders: int = 0
 
 
 class SupplierResponseImportErrorItem(BaseModel):

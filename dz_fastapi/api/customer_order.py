@@ -51,8 +51,8 @@ from dz_fastapi.services.supplier_order_responses import \
     process_supplier_response_messages
 from dz_fastapi.services.supplier_workflow import (
     create_supplier_receipt, list_supplier_receipt_candidates,
-    serialize_stock_order, serialize_supplier_receipt,
-    update_stock_order_item_pick)
+    list_supplier_receipts, post_supplier_receipt, serialize_stock_order,
+    serialize_supplier_receipt, update_stock_order_item_pick)
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -1143,6 +1143,34 @@ async def process_supplier_responses_endpoint(
     return SupplierResponseProcessResult(**result)
 
 
+@router.get(
+    "/supplier-receipts",
+    response_model=List[SupplierReceiptResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def list_supplier_receipts_endpoint(
+    provider_id: Optional[int] = None,
+    posted: Optional[bool] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    receipts = await list_supplier_receipts(
+        session=session,
+        provider_id=provider_id,
+        posted=posted,
+        date_from=date_from,
+        date_to=date_to,
+    )
+    return [
+        SupplierReceiptResponse.model_validate(
+            serialize_supplier_receipt(receipt)
+        )
+        for receipt in receipts
+    ]
+
+
 @router.post(
     "/supplier-receipts",
     response_model=SupplierReceiptResponse,
@@ -1159,6 +1187,7 @@ async def create_supplier_receipt_endpoint(
             user=current_user,
             provider_id=payload.provider_id,
             items_payload=[item.model_dump() for item in payload.items],
+            post_now=payload.post_now,
             document_number=payload.document_number,
             document_date=payload.document_date,
             comment=payload.comment,
@@ -1170,10 +1199,48 @@ async def create_supplier_receipt_endpoint(
     await _notify_current_user(
         session,
         current_user,
-        title="Поступление оформлено",
+        title=(
+            "Поступление проведено"
+            if payload.post_now
+            else "Черновик поступления создан"
+        ),
         message=(
             f"Поступление по поставщику #{payload.provider_id} "
-            f"сформировано по {len(payload.items)} строкам."
+            f"сформировано по {len(payload.items)} строкам. "
+            f'Статус: {"проведено" if payload.post_now else "черновик"}.'
+        ),
+        level=AppNotificationLevel.SUCCESS,
+        link="/customer-orders/receipts",
+    )
+    return SupplierReceiptResponse.model_validate(
+        serialize_supplier_receipt(receipt)
+    )
+
+
+@router.post(
+    "/supplier-receipts/{receipt_id}/post",
+    response_model=SupplierReceiptResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def post_supplier_receipt_endpoint(
+    receipt_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        receipt = await post_supplier_receipt(
+            session=session,
+            receipt_id=receipt_id,
+            user=current_user,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await _notify_current_user(
+        session,
+        current_user,
+        title="Поступление проведено",
+        message=(
+            f"Документ поступления #{receipt_id} проведен."
         ),
         level=AppNotificationLevel.SUCCESS,
         link="/customer-orders/receipts",
@@ -1350,8 +1417,18 @@ async def send_supplier_orders_endpoint(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
+    logger.info(
+        "Manual supplier orders send requested: user_id=%s orders=%s",
+        current_user.id,
+        supplier_order_ids,
+    )
     result = await send_supplier_orders(
         session=session, supplier_order_ids=supplier_order_ids
+    )
+    logger.info(
+        "Manual supplier orders send finished: user_id=%s result=%s",
+        current_user.id,
+        result,
     )
     sent_count = result.get("sent", 0)
     error_count = result.get("failed", 0)
@@ -1380,7 +1457,16 @@ async def send_scheduled_supplier_orders_endpoint(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
+    logger.info(
+        "Scheduled supplier orders send requested: user_id=%s",
+        current_user.id,
+    )
     result = await send_scheduled_supplier_orders(session)
+    logger.info(
+        "Scheduled supplier orders send finished: user_id=%s result=%s",
+        current_user.id,
+        result,
+    )
     sent_count = result.get("sent", 0)
     error_count = result.get("failed", 0)
     await _notify_current_user(

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Iterable, Optional
 
 from sqlalchemy import select
@@ -167,6 +167,7 @@ async def list_supplier_receipt_candidates(
         provider_id=provider_id,
         date_from=date_from,
         date_to=date_to,
+        use_sent_at_for_period=True,
         limit=500,
     )
     rows: list[dict] = []
@@ -257,12 +258,49 @@ async def list_supplier_receipt_candidates(
     return rows
 
 
+async def list_supplier_receipts(
+    session: AsyncSession,
+    *,
+    provider_id: Optional[int] = None,
+    posted: Optional[bool] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+) -> list[SupplierReceipt]:
+    stmt = (
+        select(SupplierReceipt)
+        .options(
+            joinedload(SupplierReceipt.provider),
+            joinedload(SupplierReceipt.created_by_user),
+            selectinload(SupplierReceipt.items),
+        )
+        .order_by(SupplierReceipt.created_at.desc(), SupplierReceipt.id.desc())
+    )
+    if provider_id is not None:
+        stmt = stmt.where(SupplierReceipt.provider_id == provider_id)
+    if posted is True:
+        stmt = stmt.where(SupplierReceipt.posted_at.is_not(None))
+    elif posted is False:
+        stmt = stmt.where(SupplierReceipt.posted_at.is_(None))
+    if date_from is not None:
+        stmt = stmt.where(
+            SupplierReceipt.created_at
+            >= datetime.combine(date_from, datetime.min.time())
+        )
+    if date_to is not None:
+        stmt = stmt.where(
+            SupplierReceipt.created_at
+            <= datetime.combine(date_to, datetime.max.time())
+        )
+    return (await session.execute(stmt)).scalars().unique().all()
+
+
 async def create_supplier_receipt(
     session: AsyncSession,
     *,
     user: User,
     provider_id: int,
     items_payload: Iterable[dict],
+    post_now: bool = False,
     document_number: Optional[str] = None,
     document_date: Optional[date] = None,
     comment: Optional[str] = None,
@@ -287,18 +325,54 @@ async def create_supplier_receipt(
         raise LookupError('Не все строки заказов поставщикам найдены')
 
     supplier_order_ids: set[int] = set()
-    receipt = SupplierReceipt(
-        provider_id=provider_id,
-        supplier_order_id=None,
-        document_number=document_number or None,
-        document_date=document_date or now_moscow().date(),
-        created_by_user_id=user.id,
-        created_at=now_moscow(),
-        posted_at=now_moscow(),
-        comment=comment,
-    )
-    session.add(receipt)
-    await session.flush()
+    if post_now:
+        receipt = SupplierReceipt(
+            provider_id=provider_id,
+            supplier_order_id=None,
+            document_number=document_number or None,
+            document_date=document_date or now_moscow().date(),
+            created_by_user_id=user.id,
+            created_at=now_moscow(),
+            posted_at=now_moscow(),
+            comment=comment,
+        )
+        session.add(receipt)
+        await session.flush()
+    else:
+        open_stmt = (
+            select(SupplierReceipt)
+            .where(
+                SupplierReceipt.provider_id == provider_id,
+                SupplierReceipt.posted_at.is_(None),
+            )
+            .order_by(
+                SupplierReceipt.created_at.desc(),
+                SupplierReceipt.id.desc(),
+            )
+        )
+        receipt = (await session.execute(open_stmt)).scalars().first()
+        if receipt is None:
+            receipt = SupplierReceipt(
+                provider_id=provider_id,
+                supplier_order_id=None,
+                document_number=document_number or None,
+                document_date=document_date or now_moscow().date(),
+                created_by_user_id=user.id,
+                created_at=now_moscow(),
+                posted_at=None,
+                comment=comment,
+            )
+            session.add(receipt)
+            await session.flush()
+        else:
+            if document_number:
+                receipt.document_number = document_number
+            if document_date:
+                receipt.document_date = document_date
+            if comment:
+                receipt.comment = comment
+            if receipt.created_by_user_id is None:
+                receipt.created_by_user_id = user.id
 
     for payload in items_payload:
         item = items_by_id[int(payload['supplier_order_item_id'])]
@@ -308,15 +382,25 @@ async def create_supplier_receipt(
             )
         supplier_order_ids.add(int(item.supplier_order_id))
         received_quantity = int(payload.get('received_quantity') or 0)
-        current_received = int(item.received_quantity or 0)
-        if current_received + received_quantity > int(item.quantity or 0):
+        if received_quantity > int(item.quantity or 0):
             raise ValueError(
                 f'Полученное количество превышает заказанное для OEM '
                 f'{item.oem_number or item.autopart_name or item.id}'
             )
 
-        item.received_quantity = current_received + received_quantity
-        item.received_at = now_moscow()
+        if post_now:
+            current_received = int(item.received_quantity or 0)
+            expected_quantity = (
+                int(item.confirmed_quantity)
+                if item.confirmed_quantity is not None
+                else int(item.quantity or 0)
+            )
+            pending_quantity = max(expected_quantity - current_received, 0)
+            received_quantity = min(received_quantity, pending_quantity)
+            if received_quantity <= 0:
+                continue
+            item.received_quantity = current_received + received_quantity
+            item.received_at = now_moscow()
 
         receipt_item = SupplierReceiptItem(
             receipt_id=receipt.id,
@@ -349,6 +433,67 @@ async def create_supplier_receipt(
         .where(SupplierReceipt.id == receipt.id)
     )
     return (await session.execute(stmt)).scalar_one()
+
+
+async def post_supplier_receipt(
+    session: AsyncSession,
+    *,
+    receipt_id: int,
+    user: User,
+) -> SupplierReceipt:
+    stmt = (
+        select(SupplierReceipt)
+        .options(
+            joinedload(SupplierReceipt.provider),
+            joinedload(SupplierReceipt.created_by_user),
+            selectinload(SupplierReceipt.items).joinedload(
+                SupplierReceiptItem.supplier_order_item
+            ),
+        )
+        .where(SupplierReceipt.id == receipt_id)
+    )
+    receipt = (await session.execute(stmt)).scalar_one_or_none()
+    if receipt is None:
+        raise LookupError('Документ поступления не найден')
+
+    if receipt.posted_at is None:
+        current_dt = now_moscow()
+        for receipt_item in receipt.items or []:
+            order_item = receipt_item.supplier_order_item
+            if order_item is None:
+                continue
+            requested_quantity = int(receipt_item.received_quantity or 0)
+            if requested_quantity <= 0:
+                continue
+            expected_quantity = (
+                int(order_item.confirmed_quantity)
+                if order_item.confirmed_quantity is not None
+                else int(order_item.quantity or 0)
+            )
+            current_received = int(order_item.received_quantity or 0)
+            pending_quantity = max(expected_quantity - current_received, 0)
+            applied_quantity = min(requested_quantity, pending_quantity)
+            receipt_item.received_quantity = applied_quantity
+            if applied_quantity <= 0:
+                continue
+            order_item.received_quantity = current_received + applied_quantity
+            order_item.received_at = current_dt
+
+        receipt.posted_at = current_dt
+        if receipt.created_by_user_id is None:
+            receipt.created_by_user_id = user.id
+        await session.commit()
+
+    refresh_stmt = (
+        select(SupplierReceipt)
+        .options(
+            joinedload(SupplierReceipt.provider),
+            joinedload(SupplierReceipt.created_by_user),
+            selectinload(SupplierReceipt.items),
+        )
+        .where(SupplierReceipt.id == receipt.id)
+    )
+    return (await session.execute(refresh_stmt)).scalar_one()
 
 
 def serialize_supplier_receipt(receipt: SupplierReceipt) -> dict:

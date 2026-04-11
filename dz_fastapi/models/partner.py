@@ -491,6 +491,7 @@ class SupplierResponseConfig(Base):
     auto_confirm_unmentioned_items = Column(
         Boolean, default=False, nullable=False
     )
+    auto_confirm_after_minutes = Column(Integer, nullable=True)
 
     file_format = Column(String(16), nullable=True)
     file_payload_type = Column(
