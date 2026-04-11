@@ -819,6 +819,13 @@ class SupplierOrderMessage(Base):
     parse_confidence = Column(Float, nullable=True)
     source_uid = Column(String(128), nullable=True, index=True)
     source_message_id = Column(String(255), nullable=True, index=True)
+    response_config_id = Column(
+        Integer,
+        ForeignKey('supplierresponseconfig.id'),
+        nullable=True,
+        index=True,
+    )
+    import_error_details = Column(String(500), nullable=True)
     mapping_id = Column(
         Integer,
         ForeignKey('external_status_mapping.id'),
@@ -831,6 +838,7 @@ class SupplierOrderMessage(Base):
         back_populates='messages',
     )
     provider = relationship('Provider')
+    response_config = relationship('SupplierResponseConfig')
     mapping = relationship('ExternalStatusMapping')
     attachments = relationship(
         'SupplierOrderAttachment',

@@ -569,3 +569,33 @@ class SupplierResponseProcessResult(BaseModel):
     posted_receipts: int = 0
     draft_receipts: int = 0
     receipt_items_added: int = 0
+
+
+class SupplierResponseImportErrorItem(BaseModel):
+    id: int
+    received_at: datetime
+    sender_email: Optional[str] = None
+    subject: Optional[str] = None
+    subject_raw: Optional[str] = None
+    body_preview: Optional[str] = None
+    message_type: Optional[str] = None
+    import_error_details: Optional[str] = None
+    import_error_reasons: List[str] = Field(default_factory=list)
+    config_expectations: List[str] = Field(default_factory=list)
+    source_uid: Optional[str] = None
+    source_message_id: Optional[str] = None
+    account_id: Optional[int] = None
+    account_name: Optional[str] = None
+    account_email: Optional[str] = None
+    source_folder: Optional[str] = None
+    source_message_uid: Optional[str] = None
+    attachment_filenames: List[str] = Field(default_factory=list)
+    attachment_details: List[str] = Field(default_factory=list)
+    manager_hints: List[str] = Field(default_factory=list)
+
+
+class SupplierResponseRetryErrorsResult(SupplierResponseProcessResult):
+    config_id: int
+    total: int = 0
+    queued: int = 0
+    unretryable: int = 0

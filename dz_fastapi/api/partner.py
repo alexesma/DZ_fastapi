@@ -33,7 +33,9 @@ from dz_fastapi.models.partner import (TYPE_PRICES, Customer,
                                        CustomerPriceListSource, PriceList,
                                        Provider, ProviderPriceListConfig)
 from dz_fastapi.schemas.autopart import AutoPartResponse
-from dz_fastapi.schemas.customer_order import SupplierResponseProcessResult
+from dz_fastapi.schemas.customer_order import (
+    SupplierResponseImportErrorItem, SupplierResponseProcessResult,
+    SupplierResponseRetryErrorsResult)
 from dz_fastapi.schemas.partner import (AutoPartInPricelist,
                                         CustomerAllPriceListResponse,
                                         CustomerCreate, CustomerListSummary,
@@ -72,8 +74,9 @@ from dz_fastapi.services.process import (check_start_and_finish_date,
                                          parse_exclude_positions_file,
                                          process_customer_pricelist,
                                          process_provider_pricelist)
-from dz_fastapi.services.supplier_order_responses import \
-    process_supplier_response_messages
+from dz_fastapi.services.supplier_order_responses import (
+    list_supplier_response_import_errors, process_supplier_response_messages,
+    retry_supplier_response_import_errors_for_config)
 
 logger = logging.getLogger('dz_fastapi')
 router = APIRouter()
@@ -1203,6 +1206,78 @@ async def check_supplier_response_config_now(
         result.get('posted_receipts', 0),
     )
     return SupplierResponseProcessResult(**result)
+
+
+@router.get(
+    (
+        '/providers/{provider_id}/supplier-response-config/'
+        '{config_id}/import-errors'
+    ),
+    tags=['providers', 'supplier-response-config'],
+    status_code=status.HTTP_200_OK,
+    summary='List supplier response import errors for selected configuration',
+    response_model=List[SupplierResponseImportErrorItem],
+)
+async def list_supplier_response_config_import_errors(
+    provider_id: int,
+    config_id: int,
+    limit: int = Query(50, ge=1, le=200),
+    session: AsyncSession = Depends(get_session),
+):
+    provider = await crud_provider.get_by_id(
+        provider_id=provider_id,
+        session=session,
+    )
+    if not provider:
+        raise HTTPException(status_code=404, detail='Provider not found')
+    config = await crud_supplier_response_config.get_by_id(config_id, session)
+    if not config or config.provider_id != provider_id:
+        raise HTTPException(
+            status_code=404,
+            detail='Supplier response configuration not found for provider',
+        )
+    rows = await list_supplier_response_import_errors(
+        session=session,
+        provider_id=provider_id,
+        supplier_response_config_id=config_id,
+        limit=limit,
+    )
+    return [SupplierResponseImportErrorItem(**row) for row in rows]
+
+
+@router.post(
+    (
+        '/providers/{provider_id}/supplier-response-config/'
+        '{config_id}/retry-errors'
+    ),
+    tags=['providers', 'supplier-response-config'],
+    status_code=status.HTTP_200_OK,
+    summary='Retry supplier response import errors for selected configuration',
+    response_model=SupplierResponseRetryErrorsResult,
+)
+async def retry_supplier_response_config_import_errors(
+    provider_id: int,
+    config_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    provider = await crud_provider.get_by_id(
+        provider_id=provider_id,
+        session=session,
+    )
+    if not provider:
+        raise HTTPException(status_code=404, detail='Provider not found')
+    config = await crud_supplier_response_config.get_by_id(config_id, session)
+    if not config or config.provider_id != provider_id:
+        raise HTTPException(
+            status_code=404,
+            detail='Supplier response configuration not found for provider',
+        )
+    result = await retry_supplier_response_import_errors_for_config(
+        session=session,
+        provider_id=provider_id,
+        supplier_response_config_id=config_id,
+    )
+    return SupplierResponseRetryErrorsResult(**result)
 
 
 # @router.post(

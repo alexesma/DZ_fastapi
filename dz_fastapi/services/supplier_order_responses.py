@@ -12,7 +12,7 @@ from typing import Iterable, Optional
 
 import aiofiles
 import pandas as pd
-from sqlalchemy import or_, select
+from sqlalchemy import desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -1238,6 +1238,115 @@ async def _message_already_processed(
     return False
 
 
+def _build_import_error_details(reasons: Iterable[str]) -> Optional[str]:
+    seen: set[str] = set()
+    normalized: list[str] = []
+    for raw in reasons:
+        item = str(raw or "").strip()
+        if not item:
+            continue
+        if item in seen:
+            continue
+        seen.add(item)
+        normalized.append(item)
+    if not normalized:
+        return None
+    return "; ".join(normalized)[:500]
+
+
+def _parse_source_uid(
+    source_uid: Optional[str],
+) -> tuple[Optional[int], Optional[str], Optional[str]]:
+    if not source_uid:
+        return None, None, None
+    raw = str(source_uid)
+    first, sep, rest = raw.partition(":")
+    account_id: Optional[int] = None
+    try:
+        parsed = int(first.strip())
+        if parsed > 0:
+            account_id = parsed
+    except (TypeError, ValueError):
+        account_id = None
+    if not sep:
+        return account_id, None, None
+    folder_raw, sep2, uid_raw = rest.partition(":")
+    folder = folder_raw.strip() or None
+    if not sep2:
+        return account_id, folder, None
+    uid = uid_raw.strip() or None
+    return account_id, folder, uid
+
+
+def _extract_account_id_from_source_uid(
+    source_uid: Optional[str],
+) -> Optional[int]:
+    account_id, _, _ = _parse_source_uid(source_uid)
+    return account_id
+
+
+def _build_import_error_hints(
+    *,
+    response_type: str,
+    reasons: list[str],
+    has_attachments: bool,
+    subject: str,
+    subject_raw: Optional[str],
+) -> list[str]:
+    hints: list[str] = []
+    lowered = [item.lower() for item in reasons]
+    if subject_raw and subject and subject_raw != subject:
+        hints.append(
+            (
+                "Тема декодирована из MIME. Если шаблон ищется по теме, "
+                "сверяйте с полем «Тема (как прочитана)»."
+            )
+        )
+    if response_type == "file" and not has_attachments:
+        hints.append(
+            (
+                "В конфигурации выбран режим «Файл», но во входящем письме "
+                "нет вложений."
+            )
+        )
+    if any("шаблон" in item and "имя файла" in item for item in lowered):
+        hints.append(
+            (
+                "Проверьте regex «Шаблон имени файла»: он должен совпадать "
+                "с фактическим именем вложения."
+            )
+        )
+    if any("формат файла" in item for item in lowered):
+        hints.append(
+            (
+                "Проверьте «Формат файла» (Excel/CSV): формат письма и "
+                "настройки должны совпадать."
+            )
+        )
+    if any("текст письма не удалось разобрать" in item for item in lowered):
+        hints.append(
+            (
+                "Для текстового ответа проверьте словари статусов и "
+                "«Что ожидаем после артикула»."
+            )
+        )
+    if any("позиции не сопоставлены" in item for item in lowered):
+        hints.append(
+            (
+                "Проверьте OEM/бренд в ответе: позиции не сопоставились "
+                "с открытыми заказами поставщику."
+            )
+        )
+    if has_attachments and response_type == "file":
+        hints.append(
+            (
+                "Сверьте список вложений ниже: имя файла и расширение "
+                "должны соответствовать настройке."
+            )
+        )
+    return hints
+
+
 async def _store_supplier_message_attachment(
     *,
     message_id: int,
@@ -1925,6 +2034,7 @@ async def process_supplier_response_messages(
         message_text = _get_message_text_content(msg)
         raw_status = _detect_supplier_status(subject, body_preview)
         normalized_status = normalize_external_status_text(raw_status)
+        recognized_before = stats.recognized_positions
         order = None
         provider = None
         try:
@@ -2188,6 +2298,7 @@ async def process_supplier_response_messages(
                     "both",
                 )
             else:
+                response_type = "file"
                 allow_shipping_docs = bool(
                     getattr(
                         provider,
@@ -2279,6 +2390,12 @@ async def process_supplier_response_messages(
             file_payload_is_document = (
                 normalized_file_payload_type == "document"
             )
+            expects_file_payload = (
+                active_response_config is not None and response_type == "file"
+            )
+            expects_text_payload = (
+                active_response_config is not None and response_type == "text"
+            )
             logger.info(
                 (
                     "Supplier response config resolved: config_id=%s "
@@ -2343,6 +2460,11 @@ async def process_supplier_response_messages(
                 supplier_order_id=order.id if order else None,
                 provider_id=provider.id,
                 message_type="UNKNOWN",
+                response_config_id=(
+                    active_response_config.id
+                    if active_response_config is not None
+                    else None
+                ),
                 subject=subject[:500] or None,
                 sender_email=sender_email or None,
                 received_at=_get_message_received_at(msg) or now_moscow(),
@@ -2362,6 +2484,7 @@ async def process_supplier_response_messages(
             parsed_response_file = False
             parsed_text_rows = False
             has_shipping_doc = False
+            import_error_reasons: list[str] = []
             shipping_doc_filenames: list[str] = []
             matched_orders: dict[int, SupplierOrder] = {}
             if order is not None:
@@ -2400,6 +2523,12 @@ async def process_supplier_response_messages(
                 else:
                     response_candidate = attachment_kind == "RESPONSE_FILE"
                     if not response_candidate and is_spreadsheet:
+                        import_error_reasons.append(
+                            (
+                                "Имя файла не подходит под шаблон: "
+                                f"{attachment.filename or '<empty>'}"
+                            )
+                        )
                         logger.info(
                             (
                                 "Supplier response attachment skipped by "
@@ -2420,6 +2549,12 @@ async def process_supplier_response_messages(
                         response_file_format
                     )
                 ):
+                    import_error_reasons.append(
+                        (
+                            "Формат файла не подходит для конфигурации: "
+                            f"{attachment.filename or '<empty>'}"
+                        )
+                    )
                     logger.info(
                         (
                             "Supplier response attachment skipped by "
@@ -2466,6 +2601,12 @@ async def process_supplier_response_messages(
                             ),
                         )
                     except Exception as exc:
+                        import_error_reasons.append(
+                            (
+                                "Ошибка разбора вложения "
+                                f"{attachment.filename or '<empty>'}: {exc}"
+                            )
+                        )
                         logger.warning(
                             (
                                 "Failed to parse supplier response "
@@ -2559,6 +2700,23 @@ async def process_supplier_response_messages(
                 )
                 stats.stored_attachments += 1
 
+            if expects_file_payload and not attachments:
+                import_error_reasons.append(
+                    "В письме нет вложений для разбора ответа"
+                )
+            if (
+                expects_file_payload
+                and attachments
+                and not parsed_response_file
+                and not has_shipping_doc
+            ):
+                import_error_reasons.append(
+                    (
+                        "Не найдено подходящее вложение ответа "
+                        "по текущим настройкам"
+                    )
+                )
+
             if (
                 allow_text_status
                 and provider is not None
@@ -2632,6 +2790,10 @@ async def process_supplier_response_messages(
                         )
                     if matched_count:
                         parsed_text_rows = True
+            if expects_text_payload and not parsed_text_rows:
+                import_error_reasons.append(
+                    "Текст письма не удалось разобрать по текущим правилам"
+                )
 
             if matched_order_ids_from_rows:
                 order_rows = (
@@ -2833,14 +2995,58 @@ async def process_supplier_response_messages(
                                     created_receipt,
                                 )
 
-            if has_shipping_doc:
-                message_row.message_type = "SHIPPING_DOC"
-            elif parsed_response_file:
-                message_row.message_type = "RESPONSE_FILE"
-            elif parsed_text_rows:
-                message_row.message_type = "TEXT_RESPONSE"
-            elif raw_status:
-                message_row.message_type = "STATUS"
+            recognized_for_message = (
+                stats.recognized_positions - recognized_before
+            )
+            if (
+                (expects_file_payload and parsed_response_file)
+                or (expects_text_payload and parsed_text_rows)
+            ) and recognized_for_message <= 0:
+                import_error_reasons.append(
+                    "Ответ распознан, но позиции не сопоставлены с заказами"
+                )
+            import_error_details = _build_import_error_details(
+                import_error_reasons
+            )
+            is_import_error = False
+            if expects_file_payload:
+                if not has_shipping_doc and not parsed_response_file:
+                    is_import_error = True
+                elif parsed_response_file and recognized_for_message <= 0:
+                    is_import_error = True
+            if expects_text_payload:
+                if not parsed_text_rows:
+                    is_import_error = True
+                elif recognized_for_message <= 0:
+                    is_import_error = True
+            if (
+                not is_import_error
+                and import_error_details
+                and not has_shipping_doc
+                and not parsed_response_file
+                and not parsed_text_rows
+            ):
+                is_import_error = True
+
+            if is_import_error:
+                message_row.message_type = "IMPORT_ERROR"
+                message_row.import_error_details = (
+                    import_error_details
+                    or (
+                        "Не удалось обработать сообщение "
+                        "по текущей конфигурации"
+                    )
+                )
+            else:
+                if has_shipping_doc:
+                    message_row.message_type = "SHIPPING_DOC"
+                elif parsed_response_file:
+                    message_row.message_type = "RESPONSE_FILE"
+                elif parsed_text_rows:
+                    message_row.message_type = "TEXT_RESPONSE"
+                elif raw_status:
+                    message_row.message_type = "STATUS"
+                message_row.import_error_details = None
 
             await session.commit()
             stats.processed_messages += 1
@@ -2849,7 +3055,8 @@ async def process_supplier_response_messages(
                     "Supplier response message done: idx=%s/%s "
                     "processed=%s recognized_positions=%s "
                     "unresolved_positions=%s receipts_created=%s "
-                    "receipts_updated=%s receipts_posted=%s"
+                    "receipts_updated=%s receipts_posted=%s "
+                    "message_type=%s import_error=%s"
                 ),
                 index,
                 total_messages,
@@ -2859,6 +3066,8 @@ async def process_supplier_response_messages(
                 stats.created_receipts,
                 stats.updated_receipts,
                 stats.posted_receipts,
+                message_row.message_type,
+                message_row.import_error_details,
             )
         except Exception as exc:
             await session.rollback()
@@ -2900,3 +3109,287 @@ async def process_supplier_response_messages(
         result.get("posted_receipts", 0),
     )
     return result
+
+
+async def list_supplier_response_import_errors(
+    session: AsyncSession,
+    *,
+    provider_id: int,
+    supplier_response_config_id: int,
+    limit: int = 50,
+) -> list[dict[str, object]]:
+    config = await session.get(
+        SupplierResponseConfig,
+        supplier_response_config_id,
+    )
+    if not config or int(config.provider_id) != int(provider_id):
+        raise LookupError("Supplier response config not found")
+    safe_limit = max(1, min(int(limit or 50), 200))
+    response_type_raw = getattr(config, "response_type", "file")
+    response_type = str(
+        getattr(response_type_raw, "value", response_type_raw) or "file"
+    ).strip().lower()
+    response_mode_label = (
+        "Файл"
+        if response_type == "file"
+        else "Текст письма"
+    )
+    expected_senders = sorted(_normalize_sender_emails(config.sender_emails))
+    expectations: list[str] = []
+    expectations.append(
+        (
+            "Конфигурация: "
+            f"#{config.id} {str(getattr(config, 'name', '') or '').strip()}"
+        )
+    )
+    expectations.append(f"Режим ответа: {response_mode_label}")
+    if expected_senders:
+        expectations.append(
+            f"Ожидаемый sender_email: {', '.join(expected_senders)}"
+        )
+    inbox_account_id = getattr(config, "inbox_email_account_id", None)
+    if inbox_account_id:
+        expectations.append(
+            f"Ожидаемый inbox_email_account_id: {inbox_account_id}"
+        )
+    if response_type == "file":
+        pattern = str(getattr(config, "filename_pattern", "") or "").strip()
+        if pattern:
+            expectations.append(
+                f"Шаблон имени файла (regex): {pattern}"
+            )
+        file_format = str(getattr(config, "file_format", "") or "").strip()
+        if file_format:
+            expectations.append(f"Формат файла: {file_format}")
+        payload_type_raw = getattr(config, "file_payload_type", "response")
+        payload_type = str(
+            getattr(payload_type_raw, "value", payload_type_raw) or "response"
+        ).strip().lower()
+        payload_type_label = (
+            "документ (УПД/накладная)"
+            if payload_type == "document"
+            else "ответ по позициям"
+        )
+        expectations.append(f"Тип файла: {payload_type_label}")
+        start_row = getattr(config, "start_row", None)
+        if start_row:
+            expectations.append(f"Начальная строка: {start_row}")
+        allowed_ext = sorted(
+            _allowed_attachment_extensions(
+                getattr(config, "file_format", None)
+            )
+        )
+        expectations.append(
+            f"Допустимые расширения: {', '.join(allowed_ext)}"
+        )
+    else:
+        mode = _normalize_value_after_article_type(
+            getattr(config, "value_after_article_type", "both")
+        )
+        expectations.append(
+            (
+                "Разбор текста после артикула: "
+                f"{mode}"
+            )
+        )
+    stmt = (
+        select(SupplierOrderMessage)
+        .options(selectinload(SupplierOrderMessage.attachments))
+        .where(
+            SupplierOrderMessage.provider_id == provider_id,
+            (
+                SupplierOrderMessage.response_config_id
+                == supplier_response_config_id
+            ),
+            SupplierOrderMessage.message_type == "IMPORT_ERROR",
+        )
+        .order_by(
+            desc(SupplierOrderMessage.received_at),
+            desc(SupplierOrderMessage.id),
+        )
+        .limit(safe_limit)
+    )
+    rows = (await session.execute(stmt)).scalars().all()
+    parsed_source_by_message: dict[
+        int,
+        tuple[Optional[int], Optional[str], Optional[str]],
+    ] = {}
+    account_ids: set[int] = set()
+    for row in rows:
+        account_id, folder_name, source_uid_value = _parse_source_uid(
+            row.source_uid
+        )
+        parsed_source_by_message[int(row.id)] = (
+            account_id,
+            folder_name,
+            source_uid_value,
+        )
+        if account_id is not None:
+            account_ids.add(account_id)
+
+    account_by_id: dict[int, EmailAccount] = {}
+    if account_ids:
+        account_rows = (
+            await session.execute(
+                select(EmailAccount).where(EmailAccount.id.in_(account_ids))
+            )
+        ).scalars().all()
+        account_by_id = {int(item.id): item for item in account_rows}
+
+    result: list[dict[str, object]] = []
+    for row in rows:
+        subject_raw = row.subject
+        subject = _decode_mime_text(subject_raw)
+        reasons = [
+            item.strip()
+            for item in str(row.import_error_details or "").split(";")
+            if item.strip()
+        ]
+        account_id, source_folder, source_message_uid = (
+            parsed_source_by_message.get(int(row.id), (None, None, None))
+        )
+        account = (
+            account_by_id.get(account_id)
+            if account_id is not None
+            else None
+        )
+        attachment_filenames: list[str] = []
+        attachment_details: list[str] = []
+        for att in row.attachments or []:
+            raw_name = str(att.filename or "").strip()
+            decoded_name = _decode_mime_text(raw_name) or raw_name
+            display_name = decoded_name or "<без имени>"
+            kind = str(att.parsed_kind or "").strip()
+            if decoded_name:
+                attachment_filenames.append(decoded_name)
+            elif raw_name:
+                attachment_filenames.append(raw_name)
+            if kind:
+                details = f"{display_name} [{kind}]"
+            else:
+                details = display_name
+            if raw_name and decoded_name and raw_name != decoded_name:
+                details = f"{details} (raw: {raw_name})"
+            attachment_details.append(details)
+        manager_hints = _build_import_error_hints(
+            response_type=response_type,
+            reasons=reasons,
+            has_attachments=bool(row.attachments),
+            subject=subject or "",
+            subject_raw=subject_raw,
+        )
+        result.append(
+            {
+                "id": int(row.id),
+                "received_at": row.received_at,
+                "sender_email": row.sender_email,
+                "subject": subject or subject_raw,
+                "subject_raw": subject_raw,
+                "body_preview": row.body_preview,
+                "message_type": row.message_type,
+                "import_error_details": row.import_error_details,
+                "import_error_reasons": reasons,
+                "config_expectations": expectations,
+                "source_uid": row.source_uid,
+                "source_message_id": row.source_message_id,
+                "account_id": account_id,
+                "account_name": (
+                    str(getattr(account, "name", "") or "").strip()
+                    if account is not None
+                    else None
+                ),
+                "account_email": (
+                    str(getattr(account, "email", "") or "").strip()
+                    if account is not None
+                    else None
+                ),
+                "source_folder": source_folder,
+                "source_message_uid": source_message_uid,
+                "attachment_filenames": attachment_filenames,
+                "attachment_details": attachment_details,
+                "manager_hints": manager_hints,
+            }
+        )
+    return result
+
+
+async def retry_supplier_response_import_errors_for_config(
+    session: AsyncSession,
+    *,
+    provider_id: int,
+    supplier_response_config_id: int,
+) -> dict[str, object]:
+    config = await session.get(
+        SupplierResponseConfig,
+        supplier_response_config_id,
+    )
+    if not config or int(config.provider_id) != int(provider_id):
+        raise LookupError("Supplier response config not found")
+
+    stmt = (
+        select(SupplierOrderMessage)
+        .where(
+            SupplierOrderMessage.provider_id == provider_id,
+            (
+                SupplierOrderMessage.response_config_id
+                == supplier_response_config_id
+            ),
+            SupplierOrderMessage.message_type == "IMPORT_ERROR",
+        )
+        .order_by(
+            SupplierOrderMessage.received_at.asc(),
+            SupplierOrderMessage.id.asc(),
+        )
+    )
+    rows = (await session.execute(stmt)).scalars().all()
+    if not rows:
+        return {
+            "config_id": supplier_response_config_id,
+            "total": 0,
+            "queued": 0,
+            "unretryable": 0,
+            **SupplierResponseProcessingStats().as_dict(),
+        }
+
+    retryable = 0
+    unretryable = 0
+    date_from_values: list[date] = []
+    for row in rows:
+        if row.source_uid or row.source_message_id:
+            row.source_uid = None
+            row.source_message_id = None
+            row.message_type = "RETRY_PENDING"
+            retryable += 1
+            received_date = (
+                row.received_at.date()
+                if row.received_at is not None
+                else supplier_response_cutoff()
+            )
+            date_from_values.append(received_date)
+        else:
+            unretryable += 1
+    await session.commit()
+
+    if retryable <= 0:
+        return {
+            "config_id": supplier_response_config_id,
+            "total": len(rows),
+            "queued": 0,
+            "unretryable": unretryable,
+            **SupplierResponseProcessingStats().as_dict(),
+        }
+
+    retry_result = await process_supplier_response_messages(
+        session=session,
+        provider_id=provider_id,
+        supplier_response_config_id=supplier_response_config_id,
+        date_from=min(date_from_values) if date_from_values else None,
+        date_to=None,
+    )
+    return {
+        "config_id": supplier_response_config_id,
+        "total": len(rows),
+        "queued": retryable,
+        "unretryable": unretryable,
+        **retry_result,
+    }
