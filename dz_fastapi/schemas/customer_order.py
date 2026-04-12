@@ -601,3 +601,53 @@ class SupplierResponseRetryErrorsResult(SupplierResponseProcessResult):
     total: int = 0
     queued: int = 0
     unretryable: int = 0
+
+
+class SupplierResponseInboxMessageItem(BaseModel):
+    id: int
+    received_at: datetime
+    sender_email: Optional[str] = None
+    subject: Optional[str] = None
+    subject_raw: Optional[str] = None
+    body_preview: Optional[str] = None
+    message_type: Optional[str] = None
+    import_error_details: Optional[str] = None
+    source_uid: Optional[str] = None
+    source_message_id: Optional[str] = None
+    account_id: Optional[int] = None
+    account_name: Optional[str] = None
+    account_email: Optional[str] = None
+    source_folder: Optional[str] = None
+    source_message_uid: Optional[str] = None
+    attachment_details: List[str] = Field(default_factory=list)
+    suggested_message_type: Optional[str] = None
+    suggested_confidence: Optional[float] = None
+    suggested_explanation: Optional[str] = None
+    suggested_source: Optional[str] = None
+    can_retry: bool = False
+
+
+class SupplierResponseMessageClassifyIn(BaseModel):
+    message_type: Literal[
+        "UNKNOWN",
+        "IMPORT_ERROR",
+        "RESPONSE_FILE",
+        "TEXT_RESPONSE",
+        "SHIPPING_DOC",
+        "STATUS",
+        "IGNORED",
+        "RETRY_PENDING",
+    ]
+
+
+class SupplierResponseMessageActionResult(BaseModel):
+    id: int
+    message_type: str
+    detail: Optional[str] = None
+
+
+class SupplierResponseRetryMessageResult(SupplierResponseProcessResult):
+    config_id: int
+    message_id: int
+    queued: int = 0
+    unretryable: int = 0

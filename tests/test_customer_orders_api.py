@@ -325,6 +325,7 @@ async def test_supplier_receipt_candidates_and_create_receipt(
     assert payload["provider_id"] == created_providers[0].id
     assert payload["document_number"] == "RC-77"
     assert payload["items"][0]["received_quantity"] == 2
+    receipt_id = payload["id"]
 
     await test_session.refresh(supplier_item)
     assert supplier_item.received_quantity == 2
@@ -336,8 +337,34 @@ async def test_supplier_receipt_candidates_and_create_receipt(
     )
     assert response.status_code == 200, response.text
     rows = response.json()
-    assert rows[0]["pending_quantity"] == 1
-    assert rows[0]["last_receipt_number"] == "RC-77"
+    assert rows == []
+
+    response = await async_client.post(
+        f"/customer-orders/supplier-receipts/{receipt_id}/post",
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["posted_at"] is not None
+
+    response = await async_client.post(
+        f"/customer-orders/supplier-receipts/{receipt_id}/unpost",
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["posted_at"] is None
+
+    response = await async_client.delete(
+        f"/customer-orders/supplier-receipts/{receipt_id}",
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["deleted"] is True
+
+    response = await async_client.get(
+        "/customer-orders/supplier-receipts/candidates",
+        params={"provider_id": created_providers[0].id},
+    )
+    assert response.status_code == 200, response.text
+    rows = response.json()
+    assert len(rows) == 1
+    assert rows[0]["pending_quantity"] == 3
 
 
 @pytest.mark.asyncio

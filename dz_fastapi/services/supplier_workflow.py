@@ -15,6 +15,8 @@ from dz_fastapi.models.partner import (STOCK_ORDER_STATUS, CustomerOrderItem,
                                        SupplierOrderItem, SupplierReceipt,
                                        SupplierReceiptItem)
 from dz_fastapi.models.user import User
+from dz_fastapi.services.customer_orders import \
+    try_finalize_customer_order_response
 
 
 @dataclass(slots=True)
@@ -111,6 +113,30 @@ async def update_stock_order_item_pick(
         and refreshed_item.picked_by_user_id == user.id
     ):
         refreshed_item.picked_by_user = user
+
+    customer_order_item_id = getattr(
+        refreshed_item,
+        "customer_order_item_id",
+        None,
+    )
+    if customer_order_item_id is not None:
+        customer_order_id = (
+            await session.execute(
+                select(CustomerOrderItem.order_id).where(
+                    CustomerOrderItem.id == customer_order_item_id
+                )
+            )
+        ).scalar_one_or_none()
+        if customer_order_id is not None:
+            try:
+                await try_finalize_customer_order_response(
+                    session,
+                    order_id=int(customer_order_id),
+                )
+            except Exception:
+                # Do not block picking flow on auto-reply checks.
+                pass
+
     return StockPickResult(
         item=refreshed_item,
         stock_order_status=(
@@ -174,6 +200,8 @@ async def list_supplier_receipt_candidates(
     for order in orders:
         provider_name = getattr(order.provider, 'name', None)
         for item in order.items or []:
+            if item.receipt_items:
+                continue
             customer_order = None
             customer = None
             if item.customer_order_item and item.customer_order_item.order:
@@ -194,6 +222,9 @@ async def list_supplier_receipt_candidates(
                 if item.confirmed_quantity is not None
                 else int(item.quantity or 0)
             )
+            pending_quantity = max(expected_quantity - already_received, 0)
+            if pending_quantity <= 0:
+                continue
             rows.append(
                 {
                     'supplier_order_item_id': item.id,
@@ -218,10 +249,7 @@ async def list_supplier_receipt_candidates(
                     'ordered_quantity': int(item.quantity or 0),
                     'confirmed_quantity': item.confirmed_quantity,
                     'already_received_quantity': already_received,
-                    'pending_quantity': max(
-                        expected_quantity - already_received,
-                        0,
-                    ),
+                    'pending_quantity': pending_quantity,
                     'price': item.price,
                     'response_price': item.response_price,
                     'response_comment': item.response_comment,
@@ -325,6 +353,7 @@ async def create_supplier_receipt(
         raise LookupError('Не все строки заказов поставщикам найдены')
 
     supplier_order_ids: set[int] = set()
+    affected_customer_order_ids: set[int] = set()
     if post_now:
         receipt = SupplierReceipt(
             provider_id=provider_id,
@@ -381,6 +410,10 @@ async def create_supplier_receipt(
                 'Все строки должны относиться к одному поставщику'
             )
         supplier_order_ids.add(int(item.supplier_order_id))
+        if item.customer_order_item and item.customer_order_item.order:
+            affected_customer_order_ids.add(
+                int(item.customer_order_item.order.id)
+            )
         received_quantity = int(payload.get('received_quantity') or 0)
         if received_quantity > int(item.quantity or 0):
             raise ValueError(
@@ -421,7 +454,18 @@ async def create_supplier_receipt(
     if len(supplier_order_ids) == 1:
         receipt.supplier_order_id = next(iter(supplier_order_ids))
 
+    receipt_id = int(receipt.id)
     await session.commit()
+
+    for customer_order_id in sorted(affected_customer_order_ids):
+        try:
+            await try_finalize_customer_order_response(
+                session,
+                order_id=customer_order_id,
+            )
+        except Exception:
+            await session.rollback()
+
     stmt = (
         select(SupplierReceipt)
         .options(
@@ -429,7 +473,7 @@ async def create_supplier_receipt(
             joinedload(SupplierReceipt.created_by_user),
             selectinload(SupplierReceipt.items),
         )
-        .where(SupplierReceipt.id == receipt.id)
+        .where(SupplierReceipt.id == receipt_id)
     )
     return (await session.execute(stmt)).scalar_one()
 
@@ -525,6 +569,124 @@ async def post_supplier_receipt(
         .where(SupplierReceipt.id == receipt.id)
     )
     return (await session.execute(refresh_stmt)).scalar_one()
+
+
+async def _recalculate_supplier_order_items_received(
+    session: AsyncSession,
+    *,
+    order_item_ids: set[int],
+) -> None:
+    if not order_item_ids:
+        return
+    item_ids = {int(item_id) for item_id in order_item_ids if item_id}
+    if not item_ids:
+        return
+
+    order_items = (
+        await session.execute(
+            select(SupplierOrderItem).where(SupplierOrderItem.id.in_(item_ids))
+        )
+    ).scalars().all()
+    if not order_items:
+        return
+
+    totals_rows = (
+        await session.execute(
+            select(
+                SupplierReceiptItem.supplier_order_item_id,
+                func.coalesce(
+                    func.sum(SupplierReceiptItem.received_quantity),
+                    0,
+                ),
+            )
+            .where(SupplierReceiptItem.supplier_order_item_id.in_(item_ids))
+            .group_by(SupplierReceiptItem.supplier_order_item_id)
+        )
+    ).all()
+    totals_by_item_id = {
+        int(item_id): int(total_qty or 0)
+        for item_id, total_qty in totals_rows
+        if item_id is not None
+    }
+    current_dt = now_moscow()
+    for item in order_items:
+        expected_quantity = (
+            int(item.confirmed_quantity)
+            if item.confirmed_quantity is not None
+            else int(item.quantity or 0)
+        )
+        expected_quantity = max(expected_quantity, 0)
+        target_received = min(
+            max(totals_by_item_id.get(int(item.id), 0), 0),
+            expected_quantity,
+        )
+        item.received_quantity = target_received
+        item.received_at = current_dt if target_received > 0 else None
+
+
+async def unpost_supplier_receipt(
+    session: AsyncSession,
+    *,
+    receipt_id: int,
+    user: User,
+) -> SupplierReceipt:
+    stmt = (
+        select(SupplierReceipt)
+        .options(
+            joinedload(SupplierReceipt.provider),
+            joinedload(SupplierReceipt.created_by_user),
+            selectinload(SupplierReceipt.items),
+        )
+        .where(SupplierReceipt.id == receipt_id)
+    )
+    receipt = (await session.execute(stmt)).scalar_one_or_none()
+    if receipt is None:
+        raise LookupError('Документ поступления не найден')
+
+    if receipt.posted_at is not None:
+        receipt.posted_at = None
+        if receipt.created_by_user_id is None:
+            receipt.created_by_user_id = user.id
+        await session.commit()
+
+    refresh_stmt = (
+        select(SupplierReceipt)
+        .options(
+            joinedload(SupplierReceipt.provider),
+            joinedload(SupplierReceipt.created_by_user),
+            selectinload(SupplierReceipt.items),
+        )
+        .where(SupplierReceipt.id == receipt.id)
+    )
+    return (await session.execute(refresh_stmt)).scalar_one()
+
+
+async def delete_supplier_receipt(
+    session: AsyncSession,
+    *,
+    receipt_id: int,
+) -> None:
+    stmt = (
+        select(SupplierReceipt)
+        .options(selectinload(SupplierReceipt.items))
+        .where(SupplierReceipt.id == receipt_id)
+    )
+    receipt = (await session.execute(stmt)).scalar_one_or_none()
+    if receipt is None:
+        raise LookupError('Документ поступления не найден')
+
+    affected_order_item_ids = {
+        int(item.supplier_order_item_id)
+        for item in (receipt.items or [])
+        if item.supplier_order_item_id is not None
+    }
+    await session.delete(receipt)
+    await session.flush()
+    await _recalculate_supplier_order_items_received(
+        session,
+        order_item_ids=affected_order_item_ids,
+    )
+    await session.commit()
 
 
 def serialize_supplier_receipt(receipt: SupplierReceipt) -> dict:

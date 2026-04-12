@@ -50,9 +50,10 @@ from dz_fastapi.services.notifications import create_notification
 from dz_fastapi.services.supplier_order_responses import \
     process_supplier_response_messages
 from dz_fastapi.services.supplier_workflow import (
-    create_supplier_receipt, list_supplier_receipt_candidates,
-    list_supplier_receipts, post_supplier_receipt, serialize_stock_order,
-    serialize_supplier_receipt, update_stock_order_item_pick)
+    create_supplier_receipt, delete_supplier_receipt,
+    list_supplier_receipt_candidates, list_supplier_receipts,
+    post_supplier_receipt, serialize_stock_order, serialize_supplier_receipt,
+    unpost_supplier_receipt, update_stock_order_item_pick)
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -1144,7 +1145,7 @@ async def process_supplier_responses_endpoint(
 
 
 @router.get(
-    "/supplier-receipts",
+    "/supplier-receipts/list",
     response_model=List[SupplierReceiptResponse],
     status_code=status.HTTP_200_OK,
 )
@@ -1248,6 +1249,64 @@ async def post_supplier_receipt_endpoint(
     return SupplierReceiptResponse.model_validate(
         serialize_supplier_receipt(receipt)
     )
+
+
+@router.post(
+    "/supplier-receipts/{receipt_id}/unpost",
+    response_model=SupplierReceiptResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def unpost_supplier_receipt_endpoint(
+    receipt_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        receipt = await unpost_supplier_receipt(
+            session=session,
+            receipt_id=receipt_id,
+            user=current_user,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await _notify_current_user(
+        session,
+        current_user,
+        title="Документ поступления распроведен",
+        message=f"Документ поступления #{receipt_id} распроведен.",
+        level=AppNotificationLevel.WARNING,
+        link="/documents/incoming",
+    )
+    return SupplierReceiptResponse.model_validate(
+        serialize_supplier_receipt(receipt)
+    )
+
+
+@router.delete(
+    "/supplier-receipts/{receipt_id}",
+    status_code=status.HTTP_200_OK,
+)
+async def delete_supplier_receipt_endpoint(
+    receipt_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        await delete_supplier_receipt(
+            session=session,
+            receipt_id=receipt_id,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await _notify_current_user(
+        session,
+        current_user,
+        title="Документ поступления удален",
+        message=f"Документ поступления #{receipt_id} удален.",
+        level=AppNotificationLevel.WARNING,
+        link="/documents/incoming",
+    )
+    return {"id": receipt_id, "deleted": True}
 
 
 @router.get(

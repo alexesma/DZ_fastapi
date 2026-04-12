@@ -2233,6 +2233,125 @@ async def _send_order_response_email(
     await session.commit()
 
 
+async def _is_customer_order_ready_for_response(
+    session: AsyncSession,
+    order: CustomerOrder,
+) -> bool:
+    if not order.items:
+        return False
+
+    customer_order_item_ids = [int(item.id) for item in (order.items or [])]
+    if not customer_order_item_ids:
+        return False
+
+    supplier_rows = (
+        await session.execute(
+            select(SupplierOrderItem).where(
+                SupplierOrderItem.customer_order_item_id.in_(
+                    customer_order_item_ids
+                )
+            )
+        )
+    ).scalars().all()
+    stock_rows = (
+        await session.execute(
+            select(StockOrderItem).where(
+                StockOrderItem.customer_order_item_id.in_(
+                    customer_order_item_ids
+                )
+            )
+        )
+    ).scalars().all()
+
+    supplier_by_customer_item = {
+        int(row.customer_order_item_id): row
+        for row in supplier_rows
+        if row.customer_order_item_id is not None
+    }
+    stock_by_customer_item = {
+        int(row.customer_order_item_id): row
+        for row in stock_rows
+        if row.customer_order_item_id is not None
+    }
+
+    for item in order.items or []:
+        requested_qty = max(int(item.requested_qty or 0), 0)
+        status_value = item.status
+
+        if status_value == CUSTOMER_ORDER_ITEM_STATUS.REJECTED:
+            continue
+
+        if status_value == CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK:
+            stock_item = stock_by_customer_item.get(int(item.id))
+            if stock_item is None:
+                return False
+            expected_qty = max(
+                int(stock_item.quantity or requested_qty),
+                requested_qty,
+            )
+            picked_qty = int(stock_item.picked_quantity or 0)
+            if picked_qty < expected_qty:
+                return False
+            continue
+
+        if status_value == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER:
+            supplier_item = supplier_by_customer_item.get(int(item.id))
+            if supplier_item is None:
+                return False
+            received_qty = int(supplier_item.received_quantity or 0)
+            confirmed_qty = supplier_item.confirmed_quantity
+            if received_qty >= requested_qty:
+                continue
+            if confirmed_qty is not None:
+                continue
+            return False
+
+        return False
+
+    return True
+
+
+async def try_finalize_customer_order_response(
+    session: AsyncSession,
+    *,
+    order_id: int,
+) -> bool:
+    order = (
+        await session.execute(
+            select(CustomerOrder)
+            .options(joinedload(CustomerOrder.items))
+            .where(CustomerOrder.id == order_id)
+        )
+    ).scalar_one_or_none()
+    if not order:
+        return False
+    if order.status == CUSTOMER_ORDER_STATUS.SENT:
+        return False
+    if not order.order_config_id:
+        return False
+    if not order.response_file_path or not os.path.isfile(
+        order.response_file_path
+    ):
+        return False
+    if not _customer_order_auto_reply_enabled():
+        return False
+    if not await _is_customer_order_ready_for_response(session, order):
+        return False
+
+    config = await crud_customer_order_config.get_by_id(
+        session=session,
+        config_id=order.order_config_id,
+    )
+    if not config:
+        return False
+
+    await _send_order_response_email(session, config, order)
+    return order.status in (
+        CUSTOMER_ORDER_STATUS.SENT,
+        CUSTOMER_ORDER_STATUS.PROCESSED,
+    )
+
+
 async def _complete_imported_order_processing(
     session: AsyncSession,
     config: CustomerOrderConfig,
@@ -2252,6 +2371,7 @@ async def _complete_imported_order_processing(
     await _write_order_response_file(
         order, filename, file_ext, response_buffer
     )
+    order.status = CUSTOMER_ORDER_STATUS.PROCESSED
     order.error_details = None
     await session.commit()
 
@@ -2268,12 +2388,18 @@ async def _complete_imported_order_processing(
     )
     await _send_reject_report(session, order, rejected_items)
     if _customer_order_auto_reply_enabled():
-        await _send_order_response_email(
+        sent = await try_finalize_customer_order_response(
             session,
-            config,
-            order,
-            attachment_bytes=response_buffer.getvalue(),
+            order_id=order.id,
         )
+        if not sent:
+            logger.info(
+                (
+                    "Automatic customer order response deferred: "
+                    "order_id=%s not ready yet"
+                ),
+                order.id,
+            )
     else:
         logger.info(
             'Automatic customer order response email disabled; '
@@ -2584,7 +2710,15 @@ async def retry_customer_order(
 
     if order.response_file_path and os.path.isfile(order.response_file_path):
         if _customer_order_auto_reply_enabled():
-            await _send_order_response_email(session, config, order)
+            sent = await try_finalize_customer_order_response(
+                session,
+                order_id=order.id,
+            )
+            if not sent:
+                order.status = CUSTOMER_ORDER_STATUS.PROCESSED
+                order.error_details = None
+                session.add(order)
+                await session.commit()
         else:
             order.status = CUSTOMER_ORDER_STATUS.PROCESSED
             order.error_details = None
@@ -2637,16 +2771,20 @@ async def retry_customer_order(
             await _write_order_response_file(
                 order, filename, file_ext, response_buffer
             )
+            order.status = CUSTOMER_ORDER_STATUS.PROCESSED
             order.error_details = None
             session.add(order)
             await session.commit()
             if _customer_order_auto_reply_enabled():
-                await _send_order_response_email(
+                sent = await try_finalize_customer_order_response(
                     session,
-                    config,
-                    order,
-                    attachment_bytes=response_buffer.getvalue(),
+                    order_id=order.id,
                 )
+                if not sent:
+                    order.status = CUSTOMER_ORDER_STATUS.PROCESSED
+                    order.error_details = None
+                    session.add(order)
+                    await session.commit()
             else:
                 order.status = CUSTOMER_ORDER_STATUS.PROCESSED
                 order.error_details = None
@@ -3681,6 +3819,13 @@ async def update_customer_order_item_manual(
         )
         await session.commit()
         await session.refresh(item)
+        try:
+            await try_finalize_customer_order_response(
+                session,
+                order_id=int(item.order_id),
+            )
+        except Exception:
+            await session.rollback()
         return item
 
     if target_status == CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK:
@@ -3752,6 +3897,13 @@ async def update_customer_order_item_manual(
 
         await session.commit()
         await session.refresh(item)
+        try:
+            await try_finalize_customer_order_response(
+                session,
+                order_id=int(item.order_id),
+            )
+        except Exception:
+            await session.rollback()
         return item
 
     if existing_item and existing_order:
@@ -3849,6 +4001,13 @@ async def update_customer_order_item_manual(
 
     await session.commit()
     await session.refresh(item)
+    try:
+        await try_finalize_customer_order_response(
+            session,
+            order_id=int(item.order_id),
+        )
+    except Exception:
+        await session.rollback()
     return item
 
 

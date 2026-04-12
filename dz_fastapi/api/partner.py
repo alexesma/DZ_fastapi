@@ -34,8 +34,10 @@ from dz_fastapi.models.partner import (TYPE_PRICES, Customer,
                                        Provider, ProviderPriceListConfig)
 from dz_fastapi.schemas.autopart import AutoPartResponse
 from dz_fastapi.schemas.customer_order import (
-    SupplierResponseImportErrorItem, SupplierResponseProcessResult,
-    SupplierResponseRetryErrorsResult)
+    SupplierResponseImportErrorItem, SupplierResponseInboxMessageItem,
+    SupplierResponseMessageActionResult, SupplierResponseMessageClassifyIn,
+    SupplierResponseProcessResult, SupplierResponseRetryErrorsResult,
+    SupplierResponseRetryMessageResult)
 from dz_fastapi.schemas.partner import (AutoPartInPricelist,
                                         CustomerAllPriceListResponse,
                                         CustomerCreate, CustomerListSummary,
@@ -75,8 +77,11 @@ from dz_fastapi.services.process import (check_start_and_finish_date,
                                          process_customer_pricelist,
                                          process_provider_pricelist)
 from dz_fastapi.services.supplier_order_responses import (
-    list_supplier_response_import_errors, process_supplier_response_messages,
-    retry_supplier_response_import_errors_for_config)
+    classify_supplier_response_message, list_supplier_response_import_errors,
+    list_supplier_response_messages_for_config,
+    process_supplier_response_messages,
+    retry_supplier_response_import_errors_for_config,
+    retry_supplier_response_message_for_config)
 
 logger = logging.getLogger('dz_fastapi')
 router = APIRouter()
@@ -1278,6 +1283,129 @@ async def retry_supplier_response_config_import_errors(
         supplier_response_config_id=config_id,
     )
     return SupplierResponseRetryErrorsResult(**result)
+
+
+@router.get(
+    '/providers/{provider_id}/supplier-response-config/{config_id}/messages',
+    tags=['providers', 'supplier-response-config'],
+    status_code=status.HTTP_200_OK,
+    summary='List processed supplier response messages for configuration',
+    response_model=List[SupplierResponseInboxMessageItem],
+)
+async def list_supplier_response_config_messages(
+    provider_id: int,
+    config_id: int,
+    limit: int = Query(100, ge=1, le=300),
+    message_type: Optional[str] = Query(
+        None,
+        description='Optional message_type filter',
+    ),
+    session: AsyncSession = Depends(get_session),
+):
+    provider = await crud_provider.get_by_id(
+        provider_id=provider_id,
+        session=session,
+    )
+    if not provider:
+        raise HTTPException(status_code=404, detail='Provider not found')
+    config = await crud_supplier_response_config.get_by_id(config_id, session)
+    if not config or config.provider_id != provider_id:
+        raise HTTPException(
+            status_code=404,
+            detail='Supplier response configuration not found for provider',
+        )
+    rows = await list_supplier_response_messages_for_config(
+        session=session,
+        provider_id=provider_id,
+        supplier_response_config_id=config_id,
+        limit=limit,
+        message_type=message_type,
+    )
+    return [SupplierResponseInboxMessageItem(**row) for row in rows]
+
+
+@router.patch(
+    (
+        '/providers/{provider_id}/supplier-response-config/'
+        '{config_id}/messages/{message_id}/classify'
+    ),
+    tags=['providers', 'supplier-response-config'],
+    status_code=status.HTTP_200_OK,
+    summary='Manually classify supplier response message',
+    response_model=SupplierResponseMessageActionResult,
+)
+async def classify_supplier_response_config_message(
+    provider_id: int,
+    config_id: int,
+    message_id: int,
+    payload: SupplierResponseMessageClassifyIn,
+    session: AsyncSession = Depends(get_session),
+):
+    provider = await crud_provider.get_by_id(
+        provider_id=provider_id,
+        session=session,
+    )
+    if not provider:
+        raise HTTPException(status_code=404, detail='Provider not found')
+    config = await crud_supplier_response_config.get_by_id(config_id, session)
+    if not config or config.provider_id != provider_id:
+        raise HTTPException(
+            status_code=404,
+            detail='Supplier response configuration not found for provider',
+        )
+    try:
+        result = await classify_supplier_response_message(
+            session=session,
+            provider_id=provider_id,
+            supplier_response_config_id=config_id,
+            message_id=message_id,
+            message_type=payload.message_type,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return SupplierResponseMessageActionResult(**result)
+
+
+@router.post(
+    (
+        '/providers/{provider_id}/supplier-response-config/'
+        '{config_id}/messages/{message_id}/retry'
+    ),
+    tags=['providers', 'supplier-response-config'],
+    status_code=status.HTTP_200_OK,
+    summary='Retry single supplier response message',
+    response_model=SupplierResponseRetryMessageResult,
+)
+async def retry_supplier_response_config_message(
+    provider_id: int,
+    config_id: int,
+    message_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    provider = await crud_provider.get_by_id(
+        provider_id=provider_id,
+        session=session,
+    )
+    if not provider:
+        raise HTTPException(status_code=404, detail='Provider not found')
+    config = await crud_supplier_response_config.get_by_id(config_id, session)
+    if not config or config.provider_id != provider_id:
+        raise HTTPException(
+            status_code=404,
+            detail='Supplier response configuration not found for provider',
+        )
+    try:
+        result = await retry_supplier_response_message_for_config(
+            session=session,
+            provider_id=provider_id,
+            supplier_response_config_id=config_id,
+            message_id=message_id,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return SupplierResponseRetryMessageResult(**result)
 
 
 # @router.post(

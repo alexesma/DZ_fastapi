@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import os
 import re
@@ -8,9 +9,10 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from email.header import decode_header
 from io import BytesIO
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 
 import aiofiles
+import httpx
 import pandas as pd
 from sqlalchemy import desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,7 +26,8 @@ from dz_fastapi.crud.email_account import crud_email_account
 from dz_fastapi.crud.settings import crud_customer_order_inbox_settings
 from dz_fastapi.models.email_account import EmailAccount
 from dz_fastapi.models.notification import AppNotificationLevel
-from dz_fastapi.models.partner import (SUPPLIER_ORDER_STATUS, Provider,
+from dz_fastapi.models.partner import (SUPPLIER_ORDER_STATUS,
+                                       CustomerOrderItem, Provider,
                                        SupplierOrder, SupplierOrderAttachment,
                                        SupplierOrderItem, SupplierOrderMessage,
                                        SupplierReceipt, SupplierReceiptItem,
@@ -36,7 +39,7 @@ from dz_fastapi.services.customer_orders import (
     _fetch_resend_messages, _is_too_many_connections_error,
     _load_brand_alias_map, _message_sort_key, _normalize_key,
     _normalize_oem_key, _repair_cp1251_mojibake, _safe_float, _safe_int,
-    _strip_html)
+    _strip_html, try_finalize_customer_order_response)
 from dz_fastapi.services.notifications import create_admin_notifications
 from dz_fastapi.services.order_status_mapping import (
     EXTERNAL_STATUS_SOURCE_SUPPLIER_EMAIL,
@@ -113,6 +116,66 @@ _AUTO_CONFIRM_TIMEOUT_COMMENT_TEMPLATE = (
 )
 _AUTO_CONFIRM_TIMEOUT_STATUS_TEMPLATE = (
     "автоподтверждено по таймауту ответа {minutes} мин"
+)
+_SUPPLIER_RESPONSE_AI_ALLOWED_TYPES = {
+    "UNKNOWN",
+    "IMPORT_ERROR",
+    "RESPONSE_FILE",
+    "TEXT_RESPONSE",
+    "SHIPPING_DOC",
+    "STATUS",
+    "IGNORED",
+    "RETRY_PENDING",
+}
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = str(os.getenv(name, "")).strip().lower()
+    if not raw:
+        return default
+    return raw in {"1", "true", "yes", "y", "on"}
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = str(os.getenv(name, "")).strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return default
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = str(os.getenv(name, "")).strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return default
+
+
+_SUPPLIER_RESPONSE_AI_CLASSIFIER_ENABLED = _env_bool(
+    "SUPPLIER_RESPONSE_AI_CLASSIFIER_ENABLED",
+    False,
+)
+_SUPPLIER_RESPONSE_AI_CLASSIFIER_MODEL = str(
+    os.getenv("SUPPLIER_RESPONSE_AI_CLASSIFIER_MODEL", "gpt-4o-mini")
+).strip() or "gpt-4o-mini"
+_SUPPLIER_RESPONSE_AI_CLASSIFIER_BASE_URL = str(
+    os.getenv("SUPPLIER_RESPONSE_AI_CLASSIFIER_BASE_URL", "")
+).strip() or "https://api.openai.com/v1"
+_SUPPLIER_RESPONSE_AI_CLASSIFIER_API_KEY = str(
+    os.getenv("OPENAI_API_KEY", "")
+).strip()
+_SUPPLIER_RESPONSE_AI_CLASSIFIER_TIMEOUT_SEC = max(
+    3.0,
+    _env_float("SUPPLIER_RESPONSE_AI_CLASSIFIER_TIMEOUT_SEC", 10.0),
+)
+_SUPPLIER_RESPONSE_AI_CLASSIFIER_MAX_PER_REQUEST = max(
+    0,
+    _env_int("SUPPLIER_RESPONSE_AI_CLASSIFIER_MAX_PER_REQUEST", 20),
 )
 
 
@@ -2234,6 +2297,7 @@ async def process_supplier_response_messages(
         lookback_days,
     )
     stats = SupplierResponseProcessingStats()
+    pending_customer_order_ids: set[int] = set()
     response_configs = await _load_supplier_response_configs(
         session,
         provider_id=provider_id,
@@ -3135,6 +3199,27 @@ async def process_supplier_response_messages(
                             ).extend(auto_rows)
                         auto_confirmed_order_ids.add(order_key)
                 stats.matched_orders += len(matched_orders)
+                affected_customer_order_item_ids = {
+                    int(order_item.customer_order_item_id)
+                    for matched_order in matched_orders.values()
+                    for order_item in (matched_order.items or [])
+                    if order_item.customer_order_item_id is not None
+                }
+                if affected_customer_order_item_ids:
+                    order_id_rows = (
+                        await session.execute(
+                            select(CustomerOrderItem.order_id).where(
+                                CustomerOrderItem.id.in_(
+                                    affected_customer_order_item_ids
+                                )
+                            )
+                        )
+                    ).scalars().all()
+                    pending_customer_order_ids.update(
+                        int(order_id)
+                        for order_id in order_id_rows
+                        if order_id is not None
+                    )
                 for matched_order in matched_orders.values():
                     if raw_status:
                         matched_order.response_status_raw = raw_status
@@ -3427,6 +3512,21 @@ async def process_supplier_response_messages(
             exc,
             exc_info=True,
         )
+
+    for customer_order_id in sorted(pending_customer_order_ids):
+        try:
+            await try_finalize_customer_order_response(
+                session,
+                order_id=customer_order_id,
+            )
+        except Exception as exc:
+            await session.rollback()
+            logger.error(
+                "Failed to finalize customer order response order_id=%s: %s",
+                customer_order_id,
+                exc,
+                exc_info=True,
+            )
 
     result = stats.as_dict()
     logger.info(
@@ -3745,5 +3845,503 @@ async def retry_supplier_response_import_errors_for_config(
         "total": len(rows),
         "queued": retryable,
         "unretryable": unretryable,
+        **retry_result,
+    }
+
+
+_MANUAL_SUPPLIER_MESSAGE_TYPES = {
+    "UNKNOWN",
+    "IMPORT_ERROR",
+    "RESPONSE_FILE",
+    "TEXT_RESPONSE",
+    "SHIPPING_DOC",
+    "STATUS",
+    "IGNORED",
+    "RETRY_PENDING",
+}
+
+
+def _normalize_suggested_message_type(value: object) -> Optional[str]:
+    normalized = str(value or "").strip().upper()
+    if normalized in _SUPPLIER_RESPONSE_AI_ALLOWED_TYPES:
+        return normalized
+    return None
+
+
+def _normalize_suggestion_confidence(
+    value: object,
+    default: float = 0.5,
+) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        parsed = default
+    return min(max(parsed, 0.0), 1.0)
+
+
+def _extract_text_from_ai_message_content(content: Any) -> str:
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        chunks: list[str] = []
+        for item in content:
+            if isinstance(item, dict):
+                text = str(item.get("text", "")).strip()
+                if text:
+                    chunks.append(text)
+            else:
+                text = str(item or "").strip()
+                if text:
+                    chunks.append(text)
+        return "\n".join(chunks).strip()
+    return str(content or "").strip()
+
+
+def _extract_json_object(text: str) -> Optional[dict[str, Any]]:
+    payload_text = str(text or "").strip()
+    if not payload_text:
+        return None
+    try:
+        parsed = json.loads(payload_text)
+        if isinstance(parsed, dict):
+            return parsed
+    except (TypeError, ValueError):
+        pass
+    start = payload_text.find("{")
+    end = payload_text.rfind("}")
+    if start < 0 or end <= start:
+        return None
+    candidate = payload_text[start:end + 1]
+    try:
+        parsed = json.loads(candidate)
+    except (TypeError, ValueError):
+        return None
+    if isinstance(parsed, dict):
+        return parsed
+    return None
+
+
+def _guess_message_type_for_manager_rules(
+    row: SupplierOrderMessage,
+) -> dict[str, object]:
+    attachment_kinds = {
+        str(item.parsed_kind or "").strip().upper()
+        for item in (row.attachments or [])
+        if str(item.parsed_kind or "").strip()
+    }
+    if "SHIPPING_DOC" in attachment_kinds:
+        return {
+            "suggested_message_type": "SHIPPING_DOC",
+            "suggested_confidence": 0.98,
+            "suggested_explanation": (
+                "Во вложениях уже определён тип SHIPPING_DOC."
+            ),
+            "suggested_source": "rules",
+        }
+    if "RESPONSE_FILE" in attachment_kinds:
+        return {
+            "suggested_message_type": "RESPONSE_FILE",
+            "suggested_confidence": 0.95,
+            "suggested_explanation": (
+                "Во вложениях уже определён тип RESPONSE_FILE."
+            ),
+            "suggested_source": "rules",
+        }
+    preview = str(row.body_preview or "").strip()
+    normalized_preview = normalize_external_status_text(preview)
+    if preview and _ARTICLE_TOKEN_RE.search(preview):
+        if any(
+            token in normalized_preview
+            for token in ("нет", "отказ", "будет", "есть", "в наличии")
+        ):
+            return {
+                "suggested_message_type": "TEXT_RESPONSE",
+                "suggested_confidence": 0.82,
+                "suggested_explanation": (
+                    "В тексте найден артикул и слова ответа поставщика."
+                ),
+                "suggested_source": "rules",
+            }
+        return {
+            "suggested_message_type": "TEXT_RESPONSE",
+            "suggested_confidence": 0.72,
+            "suggested_explanation": (
+                "В тексте найден артикул вида буквы+цифры."
+            ),
+            "suggested_source": "rules",
+        }
+    if str(row.raw_status or "").strip():
+        return {
+            "suggested_message_type": "STATUS",
+            "suggested_confidence": 0.65,
+            "suggested_explanation": (
+                "Определён короткий статус из темы/текста письма."
+            ),
+            "suggested_source": "rules",
+        }
+    if str(row.import_error_details or "").strip():
+        return {
+            "suggested_message_type": "IMPORT_ERROR",
+            "suggested_confidence": 0.60,
+            "suggested_explanation": (
+                "Письмо ранее завершилось ошибкой импорта."
+            ),
+            "suggested_source": "rules",
+        }
+    return {
+        "suggested_message_type": "UNKNOWN",
+        "suggested_confidence": 0.35,
+        "suggested_explanation": (
+            "Недостаточно признаков для уверенной классификации."
+        ),
+        "suggested_source": "rules",
+    }
+
+
+async def _guess_message_type_for_manager_ai(
+    row: SupplierOrderMessage,
+) -> Optional[dict[str, object]]:
+    if not _SUPPLIER_RESPONSE_AI_CLASSIFIER_ENABLED:
+        return None
+    if not _SUPPLIER_RESPONSE_AI_CLASSIFIER_API_KEY:
+        return None
+    user_payload = {
+        "sender_email": row.sender_email,
+        "subject": _decode_mime_text(row.subject),
+        "body_preview": str(row.body_preview or "")[:1500],
+        "raw_status": row.raw_status,
+        "current_message_type": row.message_type,
+        "import_error_details": row.import_error_details,
+        "attachments": [
+            {
+                "filename": _decode_mime_text(att.filename),
+                "parsed_kind": att.parsed_kind,
+            }
+            for att in (row.attachments or [])
+        ],
+    }
+    system_prompt = (
+        "Ты классифицируешь входящее письмо поставщика. "
+        "Верни JSON с полями: "
+        "message_type (одно из UNKNOWN, IMPORT_ERROR, RESPONSE_FILE, "
+        "TEXT_RESPONSE, SHIPPING_DOC, STATUS, IGNORED, RETRY_PENDING), "
+        "confidence (0..1), explanation (кратко). "
+        "Ответ только JSON без markdown."
+    )
+    payload = {
+        "model": _SUPPLIER_RESPONSE_AI_CLASSIFIER_MODEL,
+        "temperature": 0,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {
+                "role": "user",
+                "content": json.dumps(user_payload, ensure_ascii=False),
+            },
+        ],
+    }
+    url = (
+        _SUPPLIER_RESPONSE_AI_CLASSIFIER_BASE_URL.rstrip("/")
+        + "/chat/completions"
+    )
+    try:
+        async with httpx.AsyncClient(
+            timeout=_SUPPLIER_RESPONSE_AI_CLASSIFIER_TIMEOUT_SEC
+        ) as client:
+            response = await client.post(
+                url,
+                headers={
+                    "Authorization": (
+                        "Bearer "
+                        + _SUPPLIER_RESPONSE_AI_CLASSIFIER_API_KEY
+                    ),
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+        response.raise_for_status()
+        data = response.json()
+        choices = data.get("choices") or []
+        if not choices:
+            return None
+        content = _extract_text_from_ai_message_content(
+            choices[0].get("message", {}).get("content")
+        )
+        parsed = _extract_json_object(content)
+        if not parsed:
+            return None
+        suggested_type = _normalize_suggested_message_type(
+            parsed.get("message_type")
+        )
+        if not suggested_type:
+            return None
+        return {
+            "suggested_message_type": suggested_type,
+            "suggested_confidence": _normalize_suggestion_confidence(
+                parsed.get("confidence"),
+                default=0.55,
+            ),
+            "suggested_explanation": str(
+                parsed.get("explanation")
+                or "Классификация получена от AI-модуля."
+            )[:500],
+            "suggested_source": "ai",
+        }
+    except Exception as exc:
+        logger.debug(
+            "Supplier response AI classify failed for message_id=%s: %s",
+            row.id,
+            exc,
+        )
+        return None
+
+
+async def list_supplier_response_messages_for_config(
+    session: AsyncSession,
+    *,
+    provider_id: int,
+    supplier_response_config_id: int,
+    limit: int = 100,
+    message_type: Optional[str] = None,
+) -> list[dict[str, object]]:
+    config = await session.get(
+        SupplierResponseConfig,
+        supplier_response_config_id,
+    )
+    if not config or int(config.provider_id) != int(provider_id):
+        raise LookupError("Supplier response config not found")
+    safe_limit = max(1, min(int(limit or 100), 300))
+    normalized_filter = str(message_type or "").strip().upper()
+    stmt = (
+        select(SupplierOrderMessage)
+        .options(selectinload(SupplierOrderMessage.attachments))
+        .where(
+            SupplierOrderMessage.provider_id == provider_id,
+            (
+                SupplierOrderMessage.response_config_id
+                == supplier_response_config_id
+            ),
+        )
+    )
+    if normalized_filter:
+        stmt = stmt.where(
+            SupplierOrderMessage.message_type == normalized_filter
+        )
+    stmt = (
+        stmt
+        .order_by(
+            desc(SupplierOrderMessage.received_at),
+            desc(SupplierOrderMessage.id),
+        )
+        .limit(safe_limit)
+    )
+    rows = (await session.execute(stmt)).scalars().all()
+
+    parsed_source_by_message: dict[
+        int,
+        tuple[Optional[int], Optional[str], Optional[str]],
+    ] = {}
+    account_ids: set[int] = set()
+    for row in rows:
+        account_id, folder_name, source_uid_value = _parse_source_uid(
+            row.source_uid
+        )
+        parsed_source_by_message[int(row.id)] = (
+            account_id,
+            folder_name,
+            source_uid_value,
+        )
+        if account_id is not None:
+            account_ids.add(account_id)
+
+    account_by_id: dict[int, EmailAccount] = {}
+    if account_ids:
+        account_rows = (
+            await session.execute(
+                select(EmailAccount).where(EmailAccount.id.in_(account_ids))
+            )
+        ).scalars().all()
+        account_by_id = {int(item.id): item for item in account_rows}
+
+    ai_budget = (
+        _SUPPLIER_RESPONSE_AI_CLASSIFIER_MAX_PER_REQUEST
+        if (
+            _SUPPLIER_RESPONSE_AI_CLASSIFIER_ENABLED
+            and _SUPPLIER_RESPONSE_AI_CLASSIFIER_API_KEY
+        )
+        else 0
+    )
+    result: list[dict[str, object]] = []
+    for row in rows:
+        suggestion = _guess_message_type_for_manager_rules(row)
+        base_confidence = _normalize_suggestion_confidence(
+            suggestion.get("suggested_confidence"),
+            default=0.0,
+        )
+        if ai_budget > 0 and base_confidence < 0.95:
+            ai_budget -= 1
+            ai_suggestion = await _guess_message_type_for_manager_ai(row)
+            if ai_suggestion:
+                ai_confidence = _normalize_suggestion_confidence(
+                    ai_suggestion.get("suggested_confidence"),
+                    default=0.0,
+                )
+                if ai_confidence >= base_confidence:
+                    suggestion = ai_suggestion
+
+        account_id, source_folder, source_message_uid = (
+            parsed_source_by_message.get(int(row.id), (None, None, None))
+        )
+        account = (
+            account_by_id.get(account_id)
+            if account_id is not None
+            else None
+        )
+        subject_raw = row.subject
+        subject = _decode_mime_text(subject_raw)
+        attachment_details: list[str] = []
+        for att in row.attachments or []:
+            raw_name = str(att.filename or "").strip()
+            decoded_name = _decode_mime_text(raw_name) or raw_name
+            display_name = decoded_name or "<без имени>"
+            kind = str(att.parsed_kind or "").strip()
+            if kind:
+                attachment_details.append(f"{display_name} [{kind}]")
+            else:
+                attachment_details.append(display_name)
+        result.append(
+            {
+                "id": int(row.id),
+                "received_at": row.received_at,
+                "sender_email": row.sender_email,
+                "subject": subject or subject_raw,
+                "subject_raw": subject_raw,
+                "body_preview": row.body_preview,
+                "message_type": row.message_type,
+                "import_error_details": row.import_error_details,
+                "source_uid": row.source_uid,
+                "source_message_id": row.source_message_id,
+                "account_id": account_id,
+                "account_name": (
+                    str(getattr(account, "name", "") or "").strip()
+                    if account is not None
+                    else None
+                ),
+                "account_email": (
+                    str(getattr(account, "email", "") or "").strip()
+                    if account is not None
+                    else None
+                ),
+                "source_folder": source_folder,
+                "source_message_uid": source_message_uid,
+                "attachment_details": attachment_details,
+                "suggested_message_type": suggestion.get(
+                    "suggested_message_type"
+                ),
+                "suggested_confidence": suggestion.get(
+                    "suggested_confidence"
+                ),
+                "suggested_explanation": suggestion.get(
+                    "suggested_explanation"
+                ),
+                "suggested_source": suggestion.get(
+                    "suggested_source"
+                ),
+                "can_retry": bool(row.source_uid or row.source_message_id),
+            }
+        )
+    return result
+
+
+async def classify_supplier_response_message(
+    session: AsyncSession,
+    *,
+    provider_id: int,
+    supplier_response_config_id: int,
+    message_id: int,
+    message_type: str,
+) -> dict[str, object]:
+    config = await session.get(
+        SupplierResponseConfig,
+        supplier_response_config_id,
+    )
+    if not config or int(config.provider_id) != int(provider_id):
+        raise LookupError("Supplier response config not found")
+    message_row = await session.get(SupplierOrderMessage, message_id)
+    if (
+        message_row is None
+        or int(message_row.provider_id) != int(provider_id)
+        or int(message_row.response_config_id or 0)
+        != int(supplier_response_config_id)
+    ):
+        raise LookupError("Supplier response message not found")
+    normalized_type = str(message_type or "").strip().upper()
+    if normalized_type not in _MANUAL_SUPPLIER_MESSAGE_TYPES:
+        raise ValueError("Unsupported supplier response message_type")
+    message_row.message_type = normalized_type
+    if normalized_type != "IMPORT_ERROR":
+        message_row.import_error_details = None
+    session.add(message_row)
+    await session.commit()
+    return {
+        "id": int(message_row.id),
+        "message_type": message_row.message_type,
+        "detail": "Классификация письма обновлена",
+    }
+
+
+async def retry_supplier_response_message_for_config(
+    session: AsyncSession,
+    *,
+    provider_id: int,
+    supplier_response_config_id: int,
+    message_id: int,
+) -> dict[str, object]:
+    config = await session.get(
+        SupplierResponseConfig,
+        supplier_response_config_id,
+    )
+    if not config or int(config.provider_id) != int(provider_id):
+        raise LookupError("Supplier response config not found")
+    message_row = await session.get(SupplierOrderMessage, message_id)
+    if (
+        message_row is None
+        or int(message_row.provider_id) != int(provider_id)
+        or int(message_row.response_config_id or 0)
+        != int(supplier_response_config_id)
+    ):
+        raise LookupError("Supplier response message not found")
+
+    if not (message_row.source_uid or message_row.source_message_id):
+        return {
+            "config_id": supplier_response_config_id,
+            "message_id": int(message_id),
+            "queued": 0,
+            "unretryable": 1,
+            **SupplierResponseProcessingStats().as_dict(),
+        }
+
+    received_date = (
+        message_row.received_at.date()
+        if message_row.received_at is not None
+        else supplier_response_cutoff()
+    )
+    message_row.source_uid = None
+    message_row.source_message_id = None
+    message_row.message_type = "RETRY_PENDING"
+    session.add(message_row)
+    await session.commit()
+
+    retry_result = await process_supplier_response_messages(
+        session=session,
+        provider_id=provider_id,
+        supplier_response_config_id=supplier_response_config_id,
+        date_from=received_date,
+        date_to=None,
+    )
+    return {
+        "config_id": supplier_response_config_id,
+        "message_id": int(message_id),
+        "queued": 1,
+        "unretryable": 0,
         **retry_result,
     }
