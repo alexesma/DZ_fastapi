@@ -268,30 +268,67 @@ def _apply_source_filters(
     )
 
 
+def _normalize_source_brand_markup_key(value: object) -> str:
+    normalized = normalize_mixed_cyrillic(str(value or '')).strip()
+    normalized = re.sub(r'\s+', ' ', normalized)
+    return normalized.upper()
+
+
+def _resolve_source_brand_markup_multipliers(source) -> dict[str, float]:
+    raw_map = getattr(source, 'brand_markups', None) or {}
+    if not isinstance(raw_map, dict):
+        return {}
+    result: dict[str, float] = {}
+    for raw_brand, raw_markup in raw_map.items():
+        key = _normalize_source_brand_markup_key(raw_brand)
+        if not key:
+            continue
+        result[key] = normalize_markup(raw_markup)
+    return result
+
+
 def _apply_source_markups(
     df: pd.DataFrame,
     config: CustomerPriceListConfig,
     source,
 ) -> pd.DataFrame:
     df = df.copy()
-    base_multiplier = normalize_markup(config.general_markup)
-    base_multiplier *= normalize_markup(source.markup)
+    general_multiplier = normalize_markup(config.general_markup)
+    default_source_multiplier = normalize_markup(source.markup)
+    brand_markup_multipliers = _resolve_source_brand_markup_multipliers(
+        source
+    )
 
     own_multiplier = normalize_markup(config.own_price_list_markup)
     third_multiplier = normalize_markup(config.third_party_markup)
 
     df['price'] = pd.to_numeric(df['price'], errors='coerce')
     df['is_own_price'] = df.get('is_own_price', False)
+    df['__brand_markup_key'] = (
+        df.get('brand', '')
+        .fillna('')
+        .astype(str)
+        .map(_normalize_source_brand_markup_key)
+    )
+    df['__source_multiplier'] = df['__brand_markup_key'].map(
+        brand_markup_multipliers
+    ).fillna(default_source_multiplier)
 
     def _row_multiplier(is_own: bool) -> float:
         return own_multiplier if is_own else third_multiplier
 
     df['price'] = df.apply(
-        lambda row: row['price'] * base_multiplier * _row_multiplier(
-            bool(row.get('is_own_price'))
+        lambda row: (
+            row['price']
+            * general_multiplier
+            * float(row.get('__source_multiplier') or 1.0)
+            * _row_multiplier(
+                bool(row.get('is_own_price'))
+            )
         ),
         axis=1,
     )
+    df = df.drop(columns=['__brand_markup_key', '__source_multiplier'])
     return _sanitize_positive_price_quantity(df, context='source_markups')
 
 

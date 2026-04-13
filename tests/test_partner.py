@@ -1430,6 +1430,119 @@ async def test_customer_pricelist_source_min_price_filter(
 
 
 @pytest.mark.asyncio
+async def test_customer_pricelist_source_brand_markups_applied(
+    test_session: AsyncSession,
+    async_client: AsyncClient,
+    created_customers: list[Customer],
+    created_brand: Brand,
+):
+    customer = created_customers[0]
+
+    second_brand = Brand(name='SECOND-BRAND')
+    test_session.add(second_brand)
+    await test_session.commit()
+    await test_session.refresh(second_brand)
+
+    provider = Provider(
+        name='Brand Markup Provider',
+        email_contact='brand-markup@example.com',
+        email_incoming_price='brand-markup-prices@example.com',
+        description='Brand markup provider',
+        comment='',
+        type_prices='Wholesale',
+    )
+    test_session.add(provider)
+    await test_session.commit()
+    await test_session.refresh(provider)
+
+    cfg = ProviderPriceListConfig(
+        provider_id=provider.id,
+        start_row=1,
+        oem_col=0,
+        qty_col=1,
+        price_col=2,
+        name_price='BRAND_MARKUP_CFG',
+        name_mail='BRAND_MARKUP_MAIL',
+    )
+    test_session.add(cfg)
+    await test_session.commit()
+    await test_session.refresh(cfg)
+
+    part_one = AutoPartPricelist(
+        oem_number='OEM-MARKUP-001',
+        brand=created_brand.name,
+        name='Part One',
+    )
+    part_two = AutoPartPricelist(
+        oem_number='OEM-MARKUP-002',
+        brand=second_brand.name,
+        name='Part Two',
+    )
+    await crud_pricelist.create(
+        obj_in=PriceListCreate(
+            provider_id=provider.id,
+            provider_config_id=cfg.id,
+            autoparts=[
+                PriceListAutoPartAssociationCreate(
+                    autopart=part_one, quantity=5, price=100.0
+                ),
+                PriceListAutoPartAssociationCreate(
+                    autopart=part_two, quantity=5, price=100.0
+                ),
+            ],
+        ),
+        session=test_session,
+    )
+
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name='BRAND MARKUP CONFIG',
+        general_markup=1.0,
+        own_price_list_markup=1.0,
+        third_party_markup=1.0,
+        additional_filters={},
+    )
+    test_session.add(config)
+    await test_session.commit()
+    await test_session.refresh(config)
+
+    test_session.add(
+        CustomerPriceListSource(
+            customer_config_id=config.id,
+            provider_config_id=cfg.id,
+            enabled=True,
+            markup=1.0,
+            brand_markups={
+                created_brand.name: 10.0,
+                second_brand.name: 40.0,
+            },
+            brand_filters={},
+            position_filters={},
+            additional_filters={},
+        )
+    )
+    await test_session.commit()
+
+    request_data = {
+        'date': str(date.today()),
+        'customer_id': customer.id,
+        'config_id': config.id,
+        'items': [],
+        'excluded_own_positions': [],
+        'excluded_supplier_positions': [],
+    }
+    response = await async_client.post(
+        f'/customers/{customer.id}/pricelists/', json=request_data
+    )
+
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    by_oem = {item['oem_number']: item for item in payload['autoparts']}
+    assert abs(float(by_oem['OEM-MARKUP-001']['price']) - 110.0) < 0.01
+    assert abs(float(by_oem['OEM-MARKUP-002']['price']) - 140.0) < 0.01
+
+
+@pytest.mark.asyncio
 async def test_customer_pricelist_send_now_updates_last_sent_at(
     test_session: AsyncSession,
     async_client: AsyncClient,

@@ -1005,6 +1005,7 @@ class CustomerPriceListSource(Base):
     )
     enabled = Column(Boolean, default=True)
     markup = Column(Float, default=1.0)
+    brand_markups = Column(JSON, default={})
     brand_filters = Column(JSON, default={})
     position_filters = Column(JSON, default={})
     min_price = Column(DECIMAL(10, 2), nullable=True)

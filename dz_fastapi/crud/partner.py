@@ -294,6 +294,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                     provider_config_name=provider_cfg.name_price,
                     enabled=bool(source.enabled),
                     markup=float(source.markup or 1.0),
+                    brand_markups=source.brand_markups or {},
                     brand_filters=source.brand_filters or {},
                     position_filters=source.position_filters or {},
                     min_price=source.min_price,

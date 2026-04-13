@@ -865,6 +865,7 @@ class CustomerPriceListSourceBase(BaseModel):
     provider_config_id: int
     enabled: bool = True
     markup: float = 1.0
+    brand_markups: Optional[Dict[str, float]] = Field(default_factory=dict)
     brand_filters: Optional[Dict[str, Any]] = Field(default_factory=dict)
     position_filters: Optional[Dict[str, Any]] = Field(default_factory=dict)
     min_price: Optional[Decimal] = None
@@ -897,6 +898,26 @@ class CustomerPriceListSourceBase(BaseModel):
             return None
         return numeric
 
+    @field_validator('brand_markups', mode='before')
+    def normalize_brand_markups(cls, value):
+        if value in (None, ''):
+            return {}
+        if not isinstance(value, dict):
+            return {}
+        normalized: Dict[str, float] = {}
+        for raw_brand, raw_markup in value.items():
+            brand_name = str(raw_brand or '').strip()
+            if not brand_name:
+                continue
+            try:
+                markup_value = float(raw_markup)
+            except (TypeError, ValueError):
+                continue
+            if markup_value <= 0:
+                continue
+            normalized[brand_name.upper()] = markup_value
+        return normalized
+
 
 class CustomerPriceListSourceCreate(CustomerPriceListSourceBase):
     pass
@@ -906,6 +927,7 @@ class CustomerPriceListSourceUpdate(BaseModel):
     provider_config_id: Optional[int] = None
     enabled: Optional[bool] = None
     markup: Optional[float] = None
+    brand_markups: Optional[Dict[str, float]] = None
     brand_filters: Optional[Dict[str, Any]] = None
     position_filters: Optional[Dict[str, Any]] = None
     min_price: Optional[Decimal] = None
@@ -937,6 +959,26 @@ class CustomerPriceListSourceUpdate(BaseModel):
         if numeric <= 0:
             return None
         return numeric
+
+    @field_validator('brand_markups', mode='before')
+    def normalize_brand_markups(cls, value):
+        if value in (None, ''):
+            return {}
+        if not isinstance(value, dict):
+            return {}
+        normalized: Dict[str, float] = {}
+        for raw_brand, raw_markup in value.items():
+            brand_name = str(raw_brand or '').strip()
+            if not brand_name:
+                continue
+            try:
+                markup_value = float(raw_markup)
+            except (TypeError, ValueError):
+                continue
+            if markup_value <= 0:
+                continue
+            normalized[brand_name.upper()] = markup_value
+        return normalized
 
 
 class CustomerPriceListSourceResponse(CustomerPriceListSourceBase):
@@ -1117,6 +1159,7 @@ class ProviderCustomerPriceListSourceUsageOut(BaseModel):
     provider_config_name: Optional[str] = None
     enabled: bool = True
     markup: float = 1.0
+    brand_markups: Optional[Dict[str, float]] = Field(default_factory=dict)
     brand_filters: Optional[Dict[str, Any]] = Field(default_factory=dict)
     position_filters: Optional[Dict[str, Any]] = Field(default_factory=dict)
     min_price: Optional[Decimal] = None

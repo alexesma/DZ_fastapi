@@ -48,3 +48,19 @@ def test_customer_pricelist_source_response_hides_invalid_zero_limits():
     assert response.max_price is None
     assert response.min_quantity is None
     assert response.max_quantity is None
+
+
+def test_customer_pricelist_source_brand_markups_normalized():
+    payload = CustomerPriceListSourceCreate(
+        provider_config_id=20,
+        brand_markups={
+            ' toyota ': '10',
+            'Lexus': 0,
+            '': 15,
+            'GEELY': '40',
+        },
+    )
+    assert payload.brand_markups == {
+        'TOYOTA': 10.0,
+        'GEELY': 40.0,
+    }
