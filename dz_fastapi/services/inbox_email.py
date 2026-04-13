@@ -1085,19 +1085,31 @@ async def setup_email_rule(
 
             if existing_cfg:
                 update_data: dict = {}
-                if not existing_cfg.order_email:
+                email_being_set = not existing_cfg.order_email
+                if email_being_set:
                     update_data['order_email'] = inbox_email.from_email
                 if customer_config.subject_pattern and not existing_cfg.order_subject_pattern:
                     update_data['order_subject_pattern'] = customer_config.subject_pattern
                 if customer_config.filename_pattern and not existing_cfg.order_filename_pattern:
                     update_data['order_filename_pattern'] = customer_config.filename_pattern
 
+                # Set email_account_id if not already configured
+                if inbox_email.email_account_id and not existing_cfg.email_account_id:
+                    update_data['email_account_id'] = inbox_email.email_account_id
+
+                # When email is being linked for the first time, reset UID tracking
+                # so the scheduler will re-scan and pick up this email on next run.
+                if email_being_set or update_data.get('email_account_id'):
+                    update_data['last_uid'] = 0
+                    update_data['folder_last_uids'] = {}
+
                 if update_data:
                     await crud_customer_order_config.update(session, existing_cfg, update_data)
                     action = 'updated'
                     note = (
                         f'Email {inbox_email.from_email} и паттерны добавлены в '
-                        f'конфигурацию заказов клиента «{customer_name}».'
+                        f'конфигурацию заказов клиента «{customer_name}». '
+                        'Шедулер обработает письмо при следующем запуске.'
                     )
                 else:
                     action = 'already_linked'
