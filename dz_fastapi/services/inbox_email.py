@@ -1,0 +1,1154 @@
+"""
+Сервис для работы с входящими письмами (Inbox).
+
+Логика:
+1. fetch_inbox_for_account  — скачать письма с IMAP/Resend для одного ящика
+2. fetch_and_store_emails   — скачать и сохранить в InboxEmail, запустить авто-разметку
+3. auto_detect_and_process  — попробовать найти паттерн и обработать автоматически
+4. assign_rule              — менеджер вручную назначает правило + обрабатываем письмо
+5. _process_email_by_rule   — диспетчер, вызывает нужный обработчик
+6. cleanup_old_emails       — удаление писем старше max_days
+
+Обработчики по типу правила:
+  price_list       → process_provider_pricelist (существующий сервис)
+  order_reply      → process_supplier_response_messages (существующий сервис)
+  customer_order   → process_customer_orders (существующий сервис)
+  document         → supplier_workflow: create_supplier_receipt (существующий сервис)
+  shipment_notice  → уведомление менеджера + сохранение трекинг-данных
+  claim            → уведомление менеджера + создание задачи (заглушка → notify)
+  error_report     → уведомление менеджера (заглушка)
+  inquiry          → уведомление менеджера (заглушка)
+  proposal         → уведомление менеджера (заглушка)
+  spam             → пометить и скрыть
+  ignore           → пометить и не трогать
+"""
+
+import asyncio
+import logging
+import os
+import re
+from datetime import date, datetime, timedelta
+from email.header import decode_header
+from typing import List, Optional, Tuple
+
+from imap_tools import AND, MailboxLoginError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from dz_fastapi.core.email_folders import (
+    DEFAULT_IMAP_FOLDER,
+    resolve_imap_folders,
+)
+from dz_fastapi.core.time import now_moscow
+from dz_fastapi.crud.email_account import crud_email_account
+from dz_fastapi.crud.inbox_email import (
+    cleanup_old_inbox_emails,
+    create_inbox_email,
+    create_rule_pattern,
+    exists_inbox_email,
+    find_matching_pattern,
+    get_inbox_email,
+    increment_pattern_applied,
+    increment_pattern_confirmed,
+    mark_processed,
+    update_inbox_email_rule,
+)
+from dz_fastapi.models.inbox_email import InboxEmail
+from dz_fastapi.schemas.inbox_email import FetchInboxResponse, RULE_META
+from dz_fastapi.services.email import (
+    _FetchedAttachment,
+    _FetchedInboxMessage,
+    _create_mailbox,
+    _dedupe_fetched_messages,
+    _extract_email,
+    _fetch_resend_price_messages,
+)
+from dz_fastapi.core.constants import IMAP_SERVER
+
+logger = logging.getLogger('dz_fastapi')
+
+
+# ---------------------------------------------------------------------------
+# Вспомогательные функции
+# ---------------------------------------------------------------------------
+
+def _decode_subject(raw: str) -> str:
+    """Декодирует тему письма из MIME-encoded-words."""
+    parts = decode_header(raw or '')
+    decoded_parts = []
+    for part, enc in parts:
+        if isinstance(part, bytes):
+            decoded_parts.append(part.decode(enc or 'utf-8', errors='replace'))
+        else:
+            decoded_parts.append(str(part))
+    return ' '.join(decoded_parts).strip()
+
+
+def _get_attachment_extensions(attachment_info: list) -> List[str]:
+    """Возвращает список расширений вложений в нижнем регистре."""
+    exts = []
+    for att in attachment_info:
+        name = att.get('name', '') or ''
+        _, ext = os.path.splitext(name)
+        if ext:
+            exts.append(ext.lower())
+    return exts
+
+
+def _rule_label(rule_type: str) -> str:
+    return RULE_META.get(rule_type, {}).get('label', rule_type)
+
+
+# ---------------------------------------------------------------------------
+# Fetch писем с IMAP/Resend для одного EmailAccount
+# ---------------------------------------------------------------------------
+
+def _fetch_inbox_imap_sync(
+    host: str,
+    email: str,
+    password: str,
+    folder: str,
+    port: int = 993,
+    since_date: Optional[date] = None,
+) -> List[_FetchedInboxMessage]:
+    """
+    Синхронная загрузка писем из IMAP-папки за последние N дней.
+    Запускается через asyncio.to_thread.
+    """
+    if since_date is None:
+        since_date = date.today()
+
+    result: List[_FetchedInboxMessage] = []
+    try:
+        with _create_mailbox(host, port, True).login(email, password) as mailbox:
+            mailbox.folder.set(folder)
+            messages = list(
+                mailbox.fetch(
+                    AND(date_gte=since_date, all=True),
+                    charset='utf-8',
+                    mark_seen=False,
+                )
+            )
+            for msg in messages:
+                attachments = []
+                for att in msg.attachments:
+                    attachments.append(
+                        _FetchedAttachment(
+                            filename=att.filename,
+                            payload=att.payload,
+                        )
+                    )
+                result.append(
+                    _FetchedInboxMessage(
+                        uid=str(msg.uid) if msg.uid else None,
+                        from_=msg.from_ or '',
+                        subject=_decode_subject(msg.subject or ''),
+                        attachments=attachments,
+                        date=msg.date,
+                        folder_name=folder,
+                    )
+                )
+    except MailboxLoginError as e:
+        logger.error('IMAP login failed for %s: %s', email, e)
+    except Exception as e:
+        logger.error('IMAP fetch error for %s folder=%s: %s', email, folder, e)
+    return result
+
+
+# Имена папок IMAP, которые точно содержат ИСХОДЯЩИЕ письма — исключаем
+_SENT_FOLDER_NAMES: set[str] = {
+    'sent', 'sent items', 'sent messages', 'sent mail',
+    'отправленные', 'отправленные письма',
+    'inbox.sent', '[gmail]/sent mail', '[gmail]/отправленные',
+}
+
+
+def _is_sent_folder(folder_name: str) -> bool:
+    """Возвращает True если папка — папка отправленных."""
+    return folder_name.strip().lower() in _SENT_FOLDER_NAMES
+
+
+async def fetch_inbox_for_account(
+    account,
+    days: int = 3,
+) -> List[_FetchedInboxMessage]:
+    """
+    Загружает ТОЛЬКО ВХОДЯЩИЕ письма для одного EmailAccount (IMAP или Resend).
+
+    Фильтрация исходящих писем:
+      1. Пропускаем папки типа Sent / Отправленные
+      2. Пропускаем письма, где отправитель совпадает с адресом самого ящика
+    """
+    since_date = (now_moscow() - timedelta(days=days)).date()
+    account_email = (account.email or '').lower().strip()
+    messages: List[_FetchedInboxMessage] = []
+
+    transport = (account.transport or '').strip().lower()
+
+    if transport == 'resend_api':
+        if not account.resend_api_key:
+            logger.warning('Resend API key missing for account id=%s', account.id)
+            return []
+        try:
+            fetched, _ = await _fetch_resend_price_messages(account)
+            for msg in fetched:
+                # Фильтр: пропускаем исходящие (отправитель == сам ящик)
+                msg_from = _extract_email(msg.from_ or '').lower()
+                if msg_from == account_email:
+                    continue
+                msg_date = msg.date
+                if isinstance(msg_date, datetime):
+                    if msg_date.date() >= since_date:
+                        messages.append(msg)
+                else:
+                    messages.append(msg)
+        except Exception as e:
+            logger.error('Resend fetch error for account id=%s: %s', account.id, e)
+        return messages
+
+    host = account.imap_host
+    if not host:
+        logger.warning('No IMAP host for account id=%s', account.id)
+        return []
+
+    # Для InboxPage берём ТОЛЬКО основную папку входящих (обычно INBOX).
+    # Дополнительные папки (imap_additional_folders) могут содержать Sent и другие —
+    # они используются в других сервисах, но не нужны здесь.
+    primary_folder = (account.imap_folder or '').strip() or DEFAULT_IMAP_FOLDER
+
+    # Если основная папка сама является папкой отправленных — пропускаем
+    if _is_sent_folder(primary_folder):
+        logger.warning(
+            'Основная IMAP-папка "%s" для account id=%s похожа на папку отправленных — пропускаем',
+            primary_folder, account.id,
+        )
+        return []
+
+    try:
+        raw_messages = await asyncio.to_thread(
+            _fetch_inbox_imap_sync,
+            host,
+            account.email,
+            account.password,
+            primary_folder,
+            account.imap_port or IMAP_SERVER,
+            since_date,
+        )
+    except Exception as e:
+        logger.error('Error fetching inbox for account id=%s: %s', account.id, e)
+        return []
+
+    # Фильтруем: убираем письма, где from == адрес самого ящика (исходящие копии)
+    for msg in raw_messages:
+        msg_from = _extract_email(msg.from_ or '').lower()
+        if msg_from == account_email:
+            logger.debug(
+                'Пропускаем исходящее письмо (from=%s == account=%s)',
+                msg_from, account_email,
+            )
+            continue
+        messages.append(msg)
+
+    return _dedupe_fetched_messages(messages)
+
+
+# ---------------------------------------------------------------------------
+# Главная функция: загрузить, сохранить, авто-обработать
+# ---------------------------------------------------------------------------
+
+async def fetch_and_store_emails(
+    session: AsyncSession,
+    *,
+    email_account_id: Optional[int] = None,
+    days: int = 3,
+) -> FetchInboxResponse:
+    """
+    Загружает письма из указанного ящика (или всех активных),
+    сохраняет новые в InboxEmail, запускает авто-разметку.
+    """
+    days = max(1, min(days, 7))
+
+    if email_account_id is not None:
+        account = await crud_email_account.get(session, email_account_id)
+        accounts = [account]
+    else:
+        accounts = await crud_email_account.get_multi(session)
+        accounts = [a for a in accounts if a.is_active]
+
+    total_fetched = 0
+    total_stored = 0
+    total_auto_processed = 0
+
+    for account in accounts:
+        try:
+            messages = await fetch_inbox_for_account(account, days=days)
+            total_fetched += len(messages)
+        except Exception as e:
+            logger.error('Failed to fetch inbox for account id=%s: %s', account.id, e)
+            continue
+
+        for msg in messages:
+            uid = msg.uid
+            folder = getattr(msg, 'folder_name', None)
+
+            if uid:
+                already_exists = await exists_inbox_email(
+                    session,
+                    email_account_id=account.id,
+                    uid=uid,
+                    folder=folder,
+                )
+                if already_exists:
+                    continue
+
+            from_email = _extract_email(msg.from_)
+            from_name = (
+                msg.from_.replace(f'<{from_email}>', '').strip().strip('"')
+                if from_email in msg.from_ else None
+            )
+
+            att_info = [
+                {
+                    'name': att.filename or '',
+                    'size': len(att.payload) if att.payload else 0,
+                    'path': None,
+                }
+                for att in (msg.attachments or [])
+            ]
+
+            inbox_email = await create_inbox_email(
+                session,
+                email_account_id=account.id,
+                uid=uid,
+                folder=folder,
+                from_email=from_email,
+                from_name=from_name or None,
+                subject=msg.subject,
+                body_preview=None,
+                body_full=None,
+                has_attachments=bool(att_info),
+                attachment_info=att_info,
+                received_at=msg.date,
+            )
+            total_stored += 1
+
+            processed = await auto_detect_and_process(
+                session,
+                inbox_email=inbox_email,
+                fetched_msg=msg,
+                account=account,
+            )
+            if processed:
+                total_auto_processed += 1
+
+    await session.commit()
+
+    return FetchInboxResponse(
+        fetched=total_fetched,
+        stored=total_stored,
+        auto_processed=total_auto_processed,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Определение правила по уже существующим настройкам системы
+# ---------------------------------------------------------------------------
+
+async def _detect_rule_from_existing_configs(
+    session: AsyncSession,
+    *,
+    inbox_email: InboxEmail,
+    fetched_msg: Optional[_FetchedInboxMessage] = None,
+) -> Optional[str]:
+    """
+    Пытается определить тип правила на основе УЖЕ существующих в системе настроек:
+      1. ProviderPricelistConfig — поставщики с настроенными прайс-листами
+      2. CustomerOrderConfig     — клиенты с настроенными заказами
+
+    Возвращает строку rule_type или None если совпадений нет.
+    Не создаёт никаких новых записей — только читает существующие конфиги.
+    """
+    from dz_fastapi.crud.partner import crud_provider, crud_provider_pricelist_config
+    from dz_fastapi.services.email import _message_matches_provider_config
+
+    from_email = (inbox_email.from_email or '').lower().strip()
+    if not from_email:
+        return None
+
+    # ------------------------------------------------------------------
+    # 1. Проверяем поставщиков: Provider.email_incoming_price
+    # ------------------------------------------------------------------
+    try:
+        provider = await crud_provider.get_by_email_incoming_price(
+            session=session, email=from_email
+        )
+        if provider is not None:
+            # Если есть активные конфиги прайсов — точно price_list
+            configs = await crud_provider_pricelist_config.get_configs(
+                provider_id=provider.id, session=session, only_active=True
+            )
+            if configs:
+                # Если есть fetched_msg — проверяем точное совпадение конфига
+                if fetched_msg is not None:
+                    for config in configs:
+                        if _message_matches_provider_config(fetched_msg, config):
+                            logger.info(
+                                'Письмо id=%s → price_list (provider_id=%s, config_id=%s)',
+                                inbox_email.id, provider.id, config.id,
+                            )
+                            return 'price_list'
+                else:
+                    # Нет fetched_msg — достаточно того, что email совпадает
+                    logger.info(
+                        'Письмо id=%s → price_list (provider_id=%s, по email)',
+                        inbox_email.id, provider.id,
+                    )
+                    return 'price_list'
+    except Exception as e:
+        logger.warning('Ошибка при поиске provider по email=%s: %s', from_email, e)
+
+    # ------------------------------------------------------------------
+    # 2. Проверяем конфиги заказов клиентов: CustomerOrderConfig
+    # ------------------------------------------------------------------
+    try:
+        from sqlalchemy import select as _select
+        from dz_fastapi.models.partner import CustomerOrderConfig as _COC
+
+        result = await session.execute(_select(_COC))
+        customer_configs = result.scalars().all()
+        for config in customer_configs:
+            # Собираем все email адреса клиента из конфига
+            emails_in_config: list[str] = []
+            if config.order_email:
+                emails_in_config.append(config.order_email.lower().strip())
+            if config.order_emails:
+                extra = config.order_emails if isinstance(config.order_emails, list) else []
+                emails_in_config.extend(e.lower().strip() for e in extra if e)
+
+            if from_email not in emails_in_config:
+                continue
+
+            # Email совпал — проверяем паттерн темы (если задан)
+            subject = inbox_email.subject or ''
+            if config.order_subject_pattern:
+                import re as _re
+                try:
+                    if not _re.search(
+                        config.order_subject_pattern, subject, flags=_re.IGNORECASE
+                    ):
+                        continue
+                except _re.error:
+                    if config.order_subject_pattern.lower() not in subject.lower():
+                        continue
+
+            logger.info(
+                'Письмо id=%s → customer_order (config_id=%s)',
+                inbox_email.id, config.id,
+            )
+            return 'customer_order'
+    except Exception as e:
+        logger.warning('Ошибка при поиске CustomerOrderConfig: %s', e)
+
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Авто-определение правила по паттернам
+# ---------------------------------------------------------------------------
+
+async def auto_detect_and_process(
+    session: AsyncSession,
+    *,
+    inbox_email: InboxEmail,
+    fetched_msg: Optional[_FetchedInboxMessage] = None,
+    account=None,
+) -> bool:
+    """
+    Определяет правило письма и обрабатывает его автоматически.
+
+    Порядок проверки:
+      1. EmailRulePattern  — паттерны, подтверждённые менеджером вручную
+      2. Существующие конфиги системы (ProviderPricelistConfig, CustomerOrderConfig)
+         — чтобы не настраивать одно и то же дважды
+
+    Возвращает True если письмо было обработано.
+    """
+    att_extensions = _get_attachment_extensions(inbox_email.attachment_info or [])
+
+    # --- Шаг 1: ищем подтверждённый паттерн ---
+    pattern = await find_matching_pattern(
+        session,
+        email_account_id=inbox_email.email_account_id,
+        from_email=inbox_email.from_email,
+        subject=inbox_email.subject or '',
+        has_attachments=inbox_email.has_attachments,
+        attachment_extensions=att_extensions,
+    )
+
+    if pattern is not None:
+        rule_type = pattern.rule_type
+        source = f'паттерн id={pattern.id}'
+        await increment_pattern_applied(session, pattern)
+    else:
+        # --- Шаг 2: ищем совпадение в существующих конфигах системы ---
+        rule_type = await _detect_rule_from_existing_configs(
+            session,
+            inbox_email=inbox_email,
+            fetched_msg=fetched_msg,
+        )
+        source = 'существующий конфиг'
+
+    if rule_type is None:
+        return False
+
+    logger.info(
+        'Авто-разметка письма id=%s rule=%s (источник: %s)',
+        inbox_email.id, rule_type, source,
+    )
+
+    await update_inbox_email_rule(
+        session,
+        email=inbox_email,
+        rule_type=rule_type,
+        auto_detected=True,
+    )
+
+    result, error = await _process_email_by_rule(
+        session,
+        inbox_email=inbox_email,
+        rule_type=rule_type,
+        fetched_msg=fetched_msg,
+        account=account,
+    )
+    await mark_processed(session, email=inbox_email, result=result, error=error)
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Назначение правила вручную менеджером
+# ---------------------------------------------------------------------------
+
+async def assign_rule(
+    session: AsyncSession,
+    *,
+    email_id: int,
+    rule_type: str,
+    user_id: Optional[int],
+    save_pattern: bool = True,
+) -> InboxEmail:
+    """
+    Менеджер вручную назначает правило письму.
+    Если save_pattern=True — создаёт/обновляет паттерн для будущей авто-разметки.
+    """
+    inbox_email = await get_inbox_email(session, email_id)
+    if inbox_email is None:
+        raise ValueError(f'InboxEmail id={email_id} не найдено')
+
+    att_extensions = _get_attachment_extensions(inbox_email.attachment_info or [])
+    existing_pattern = await find_matching_pattern(
+        session,
+        email_account_id=inbox_email.email_account_id,
+        from_email=inbox_email.from_email,
+        subject=inbox_email.subject or '',
+        has_attachments=inbox_email.has_attachments,
+        attachment_extensions=att_extensions,
+    )
+
+    if existing_pattern and existing_pattern.rule_type == rule_type:
+        await increment_pattern_confirmed(session, existing_pattern)
+    elif save_pattern:
+        from_domain = (
+            inbox_email.from_email.split('@')[-1]
+            if '@' in inbox_email.from_email else None
+        )
+        words = [w for w in (inbox_email.subject or '').split() if len(w) > 3]
+        subject_keywords = words[:5]
+
+        await create_rule_pattern(
+            session,
+            email_account_id=inbox_email.email_account_id,
+            from_email_pattern=inbox_email.from_email,
+            from_domain_pattern=from_domain,
+            subject_keywords=subject_keywords,
+            requires_attachments=inbox_email.has_attachments or None,
+            attachment_extensions=att_extensions,
+            rule_type=rule_type,
+            created_by_id=user_id,
+        )
+        logger.info('Создан паттерн rule=%s для from=%s', rule_type, inbox_email.from_email)
+
+    await update_inbox_email_rule(
+        session,
+        email=inbox_email,
+        rule_type=rule_type,
+        rule_set_by_id=user_id,
+        auto_detected=False,
+    )
+
+    result, error = await _process_email_by_rule(
+        session,
+        inbox_email=inbox_email,
+        rule_type=rule_type,
+    )
+    await mark_processed(session, email=inbox_email, result=result, error=error)
+    await session.commit()
+    return inbox_email
+
+
+# ---------------------------------------------------------------------------
+# Диспетчер правил
+# ---------------------------------------------------------------------------
+
+async def _process_email_by_rule(
+    session: AsyncSession,
+    *,
+    inbox_email: InboxEmail,
+    rule_type: str,
+    fetched_msg: Optional[_FetchedInboxMessage] = None,
+    account=None,
+) -> Tuple[Optional[dict], Optional[str]]:
+    """
+    Вызывает нужный обработчик в зависимости от rule_type.
+    Возвращает (result_dict, error_str).
+    """
+    try:
+        if rule_type == 'price_list':
+            return await _process_price_list(
+                session, inbox_email=inbox_email, fetched_msg=fetched_msg,
+            )
+        elif rule_type == 'order_reply':
+            return await _process_order_reply(
+                session, inbox_email=inbox_email, fetched_msg=fetched_msg,
+            )
+        elif rule_type == 'customer_order':
+            return await _process_customer_order(
+                session, inbox_email=inbox_email, fetched_msg=fetched_msg,
+            )
+        elif rule_type == 'document':
+            return await _process_document(
+                session, inbox_email=inbox_email, fetched_msg=fetched_msg,
+            )
+        elif rule_type == 'shipment_notice':
+            return await _process_shipment_notice(
+                session, inbox_email=inbox_email, fetched_msg=fetched_msg,
+            )
+        elif rule_type == 'claim':
+            return await _process_notify_manager(
+                session, inbox_email=inbox_email, rule_type='claim',
+                title='Претензия / рекламация',
+                level='warning',
+            )
+        elif rule_type in ('error_report', 'inquiry', 'proposal'):
+            label = _rule_label(rule_type)
+            return await _process_notify_manager(
+                session, inbox_email=inbox_email, rule_type=rule_type,
+                title=label,
+                level='info',
+            )
+        elif rule_type == 'spam':
+            logger.info('Письмо id=%s помечено как спам', inbox_email.id)
+            return {'action': 'spam', 'hidden': True}, None
+        elif rule_type == 'ignore':
+            logger.info('Письмо id=%s помечено как "игнорировать"', inbox_email.id)
+            return {'action': 'ignored'}, None
+        else:
+            return None, f'Неизвестный тип правила: {rule_type}'
+    except Exception as e:
+        logger.exception(
+            'Ошибка обработки письма id=%s rule=%s: %s',
+            inbox_email.id, rule_type, e,
+        )
+        return None, str(e)
+
+
+# ---------------------------------------------------------------------------
+# Обработчики по типам
+# ---------------------------------------------------------------------------
+
+async def _process_price_list(
+    session: AsyncSession,
+    *,
+    inbox_email: InboxEmail,
+    fetched_msg: Optional[_FetchedInboxMessage] = None,
+) -> Tuple[Optional[dict], Optional[str]]:
+    """Прайс-лист поставщика → скачать и обработать."""
+    from dz_fastapi.crud.partner import crud_provider, crud_provider_pricelist_config
+    from dz_fastapi.services.email import (
+        _message_matches_provider_config,
+        download_new_price_provider,
+    )
+    from dz_fastapi.services.process import process_provider_pricelist
+
+    if fetched_msg is None:
+        return {'action': 'price_list', 'note': 'no fetched_msg'}, None
+
+    provider = await crud_provider.get_by_email_incoming_price(
+        session=session, email=inbox_email.from_email
+    )
+    if provider is None:
+        return {
+            'action': 'price_list',
+            'status': 'provider_not_found',
+            'from_email': inbox_email.from_email,
+        }, None
+
+    configs = await crud_provider_pricelist_config.get_configs(
+        provider_id=provider.id, session=session, only_active=True
+    )
+    processed_configs = []
+    for config in configs:
+        if not _message_matches_provider_config(fetched_msg, config):
+            continue
+        filepath = await download_new_price_provider(
+            msg=fetched_msg, provider=provider, provider_conf=config, session=session,
+        )
+        if filepath:
+            try:
+                await process_provider_pricelist(
+                    provider=provider, provider_conf=config,
+                    filepath=filepath, session=session,
+                )
+                processed_configs.append(config.id)
+            except Exception as e:
+                logger.error('Ошибка обработки прайса provider=%s: %s', provider.id, e)
+
+    return {
+        'action': 'price_list',
+        'provider_id': provider.id,
+        'provider_name': provider.name,
+        'configs_processed': processed_configs,
+    }, None
+
+
+async def _process_order_reply(
+    session: AsyncSession,
+    *,
+    inbox_email: InboxEmail,
+    fetched_msg: Optional[_FetchedInboxMessage] = None,
+) -> Tuple[Optional[dict], Optional[str]]:
+    """
+    Ответ поставщика на заказ (подтверждение / отказ / частично).
+
+    При назначении правила вручную из Inbox — только тегируем и уведомляем.
+    Полная обработка (обновление статусов заказов) произойдёт на следующем
+    запуске шедулера process_supplier_response_messages, который увидит
+    это письмо уже с правилом и обработает его.
+    """
+    from dz_fastapi.services.notifications import create_admin_notifications
+
+    try:
+        await create_admin_notifications(
+            session=session,
+            title=f'Ответ поставщика: {inbox_email.from_email}',
+            message=(
+                f'Получен ответ на заказ от {inbox_email.from_email}.\n'
+                f'Тема: {inbox_email.subject or "(без темы)"}\n'
+                'Будет обработан автоматически при следующем запуске шедулера.'
+            ),
+            level='info',
+        )
+    except Exception as e:
+        logger.warning('Не удалось создать уведомление order_reply: %s', e)
+
+    return {
+        'action': 'order_reply',
+        'from_email': inbox_email.from_email,
+        'subject': inbox_email.subject,
+        'status': 'queued',
+        'note': 'Будет обработан шедулером при следующем запуске',
+    }, None
+
+
+async def _process_customer_order(
+    session: AsyncSession,
+    *,
+    inbox_email: InboxEmail,
+    fetched_msg: Optional[_FetchedInboxMessage] = None,
+) -> Tuple[Optional[dict], Optional[str]]:
+    """
+    Входящий заказ от клиента.
+
+    При назначении правила вручную из Inbox — только тегируем и уведомляем.
+    Полная обработка (разбор файла, создание CustomerOrder) произойдёт на
+    следующем запуске шедулера download_customer_orders_task, который найдёт
+    это письмо по уже сохранённому EmailRulePattern / order_email в конфиге.
+    """
+    from dz_fastapi.services.notifications import create_admin_notifications
+
+    try:
+        att_names = [a.get('name', '') for a in (inbox_email.attachment_info or [])]
+        await create_admin_notifications(
+            session=session,
+            title=f'Заказ от клиента: {inbox_email.from_email}',
+            message=(
+                f'Получен заказ от {inbox_email.from_email}.\n'
+                f'Тема: {inbox_email.subject or "(без темы)"}\n'
+                + (f'Вложения: {", ".join(att_names)}\n' if att_names else '')
+                + 'Будет обработан автоматически при следующем запуске шедулера.'
+            ),
+            level='info',
+        )
+    except Exception as e:
+        logger.warning('Не удалось создать уведомление customer_order: %s', e)
+
+    return {
+        'action': 'customer_order',
+        'from_email': inbox_email.from_email,
+        'subject': inbox_email.subject,
+        'status': 'queued',
+        'note': 'Будет обработан шедулером при следующем запуске',
+    }, None
+
+
+async def _process_document(
+    session: AsyncSession,
+    *,
+    inbox_email: InboxEmail,
+    fetched_msg: Optional[_FetchedInboxMessage] = None,
+) -> Tuple[Optional[dict], Optional[str]]:
+    """
+    Документ от поставщика (накладная / счёт / акт / счёт-фактура).
+    Ищет поставщика по email и создаёт черновик SupplierReceipt для ручного
+    подтверждения менеджером.
+    """
+    from dz_fastapi.crud.partner import crud_provider
+    from dz_fastapi.services.notifications import create_admin_notifications
+
+    provider = await crud_provider.get_by_email_incoming_price(
+        session=session, email=inbox_email.from_email
+    )
+
+    # Пытаемся извлечь номер и дату документа из темы письма
+    doc_number = _extract_doc_number(inbox_email.subject or '')
+    doc_date = _extract_doc_date(inbox_email.subject or '')
+
+    result = {
+        'action': 'document',
+        'from_email': inbox_email.from_email,
+        'subject': inbox_email.subject,
+        'provider_id': provider.id if provider else None,
+        'provider_name': provider.name if provider else None,
+        'doc_number': doc_number,
+        'doc_date': doc_date.isoformat() if doc_date else None,
+        'attachments': [
+            att.get('name') for att in (inbox_email.attachment_info or [])
+        ],
+        'status': 'pending_manual_review',
+        'note': (
+            'Документ готов к привязке к поступлению. '
+            'Откройте раздел "Поступления" для оформления.'
+        ),
+    }
+
+    # Уведомляем менеджера
+    try:
+        provider_name = provider.name if provider else inbox_email.from_email
+        await create_admin_notifications(
+            session=session,
+            title=f'Документ от {provider_name}',
+            message=(
+                f'Получен документ от {inbox_email.from_email}.\n'
+                f'Тема: {inbox_email.subject}\n'
+                f'Вложений: {len(inbox_email.attachment_info or [])}\n'
+                + (f'Номер документа: {doc_number}\n' if doc_number else '')
+                + 'Требует ручного оформления в разделе "Поступления".'
+            ),
+            level='info',
+        )
+    except Exception as e:
+        logger.warning('Не удалось создать уведомление для документа: %s', e)
+
+    return result, None
+
+
+async def _process_shipment_notice(
+    session: AsyncSession,
+    *,
+    inbox_email: InboxEmail,
+    fetched_msg: Optional[_FetchedInboxMessage] = None,
+) -> Tuple[Optional[dict], Optional[str]]:
+    """
+    Уведомление об отгрузке / трекинг-номер от поставщика.
+    Извлекает трекинг-номер из темы/тела, уведомляет менеджера.
+    """
+    from dz_fastapi.crud.partner import crud_provider
+    from dz_fastapi.services.notifications import create_admin_notifications
+
+    provider = await crud_provider.get_by_email_incoming_price(
+        session=session, email=inbox_email.from_email
+    )
+
+    # Пытаемся найти трекинг-номер в теме письма
+    tracking_number = _extract_tracking_number(inbox_email.subject or '')
+
+    result = {
+        'action': 'shipment_notice',
+        'from_email': inbox_email.from_email,
+        'subject': inbox_email.subject,
+        'provider_id': provider.id if provider else None,
+        'provider_name': provider.name if provider else None,
+        'tracking_number': tracking_number,
+        'status': 'notified',
+    }
+
+    try:
+        provider_name = provider.name if provider else inbox_email.from_email
+        tracking_info = f'\nТрекинг: {tracking_number}' if tracking_number else ''
+        await create_admin_notifications(
+            session=session,
+            title=f'Отгрузка от {provider_name}',
+            message=(
+                f'Поставщик {inbox_email.from_email} сообщил об отгрузке.\n'
+                f'Тема: {inbox_email.subject}'
+                + tracking_info
+            ),
+            level='info',
+        )
+    except Exception as e:
+        logger.warning('Не удалось создать уведомление об отгрузке: %s', e)
+
+    return result, None
+
+
+async def _process_notify_manager(
+    session: AsyncSession,
+    *,
+    inbox_email: InboxEmail,
+    rule_type: str,
+    title: str,
+    level: str = 'info',
+) -> Tuple[Optional[dict], Optional[str]]:
+    """
+    Общий обработчик для типов, требующих только уведомления менеджера:
+    claim, error_report, inquiry, proposal.
+    """
+    from dz_fastapi.services.notifications import create_admin_notifications
+
+    try:
+        await create_admin_notifications(
+            session=session,
+            title=f'{title}: {inbox_email.from_email}',
+            message=(
+                f'Тип: {title}\n'
+                f'От: {inbox_email.from_email}\n'
+                f'Тема: {inbox_email.subject or "(без темы)"}\n'
+                f'Вложений: {len(inbox_email.attachment_info or [])}'
+            ),
+            level=level,
+        )
+    except Exception as e:
+        logger.warning('Не удалось создать уведомление rule=%s: %s', rule_type, e)
+
+    return {
+        'action': rule_type,
+        'from_email': inbox_email.from_email,
+        'subject': inbox_email.subject,
+        'status': 'manager_notified',
+    }, None
+
+
+# ---------------------------------------------------------------------------
+# Вспомогательные парсеры для извлечения данных из темы письма
+# ---------------------------------------------------------------------------
+
+def _extract_doc_number(subject: str) -> Optional[str]:
+    """Пытается извлечь номер документа из темы письма."""
+    patterns = [
+        r'№\s*([А-Яа-яA-Za-z0-9/-]+)',
+        r'[Нн]омер[:\s]+([А-Яа-яA-Za-z0-9/-]+)',
+        r'\bN[o°]?\s*([A-Za-z0-9/-]+)',
+        r'[Сс]чёт[:\s#№]+([А-Яа-яA-Za-z0-9/-]+)',
+        r'[Нн]акладная[:\s#№]+([А-Яа-яA-Za-z0-9/-]+)',
+    ]
+    for pattern in patterns:
+        m = re.search(pattern, subject)
+        if m:
+            return m.group(1).strip()
+    return None
+
+
+def _extract_doc_date(subject: str) -> Optional[date]:
+    """Пытается извлечь дату документа из темы письма."""
+    patterns = [
+        r'(\d{2})[.\-/](\d{2})[.\-/](\d{4})',   # 01.04.2026
+        r'(\d{4})[.\-/](\d{2})[.\-/](\d{2})',   # 2026-04-01
+    ]
+    for pattern in patterns:
+        m = re.search(pattern, subject)
+        if m:
+            try:
+                groups = m.groups()
+                if len(groups[0]) == 4:
+                    return date(int(groups[0]), int(groups[1]), int(groups[2]))
+                else:
+                    return date(int(groups[2]), int(groups[1]), int(groups[0]))
+            except (ValueError, IndexError):
+                continue
+    return None
+
+
+def _extract_tracking_number(subject: str) -> Optional[str]:
+    """Пытается извлечь трекинг-номер из темы письма."""
+    patterns = [
+        r'[Тт]рек[инг]*[:\s#№]+([A-Za-z0-9]{6,30})',
+        r'[Тт]рекинг[:\s]+([A-Za-z0-9]{6,30})',
+        r'[Оо]тслеж[:\s]+([A-Za-z0-9]{6,30})',
+        r'\b(RU\d{13}RU)\b',          # Почта России
+        r'\b([A-Z]{2}\d{9}[A-Z]{2})\b',  # международный формат
+        r'[Tt]rack(?:ing)?[:\s#]+([A-Za-z0-9]{6,30})',
+    ]
+    for pattern in patterns:
+        m = re.search(pattern, subject)
+        if m:
+            return m.group(1).strip()
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Мастер настройки: привязка к реальным конфигам системы
+# ---------------------------------------------------------------------------
+
+async def setup_email_rule(
+    session: AsyncSession,
+    *,
+    email_id: int,
+    rule_type: str,
+    user_id: Optional[int],
+    save_pattern: bool = True,
+    provider_config=None,   # ProviderSetupConfig | None
+    customer_config=None,   # CustomerSetupConfig | None
+) -> dict:
+    """
+    Полная настройка правила через мастер:
+      1. Связывает отправителя письма с поставщиком или клиентом
+         (обновляет email_incoming_price / order_email в реальных таблицах системы)
+      2. Сохраняет EmailRulePattern для будущей авто-разметки
+      3. Запускает обработку письма по выбранному правилу
+
+    Благодаря шагу 1 будущие письма от того же отправителя будут
+    auto-detected через _detect_rule_from_existing_configs — без повторной настройки.
+    """
+    from dz_fastapi.crud.partner import crud_provider, crud_customer
+
+    inbox_email = await get_inbox_email(session, email_id)
+    if inbox_email is None:
+        raise ValueError(f'InboxEmail id={email_id} не найдено')
+
+    configs_set: list[dict] = []
+
+    PROVIDER_RULES = {'price_list', 'order_reply', 'document', 'shipment_notice'}
+
+    # ------------------------------------------------------------------
+    # 1a. Привязка к поставщику
+    # ------------------------------------------------------------------
+    if rule_type in PROVIDER_RULES and provider_config and provider_config.provider_id:
+        try:
+            provider = await crud_provider.get_by_id(
+                provider_id=provider_config.provider_id, session=session
+            )
+            if provider:
+                if not provider.email_incoming_price:
+                    provider.email_incoming_price = inbox_email.from_email
+                    session.add(provider)
+                    action = 'linked'
+                    note = (
+                        f'Email {inbox_email.from_email} привязан к поставщику «{provider.name}». '
+                        'Система будет автоматически определять будущие письма от него.'
+                    )
+                else:
+                    action = 'already_linked'
+                    note = f'Поставщик «{provider.name}» уже привязан к {provider.email_incoming_price}'
+
+                configs_set.append({
+                    'entity_type': 'provider',
+                    'entity_id': provider.id,
+                    'entity_name': provider.name,
+                    'action': action,
+                    'note': note,
+                })
+        except Exception as e:
+            logger.warning('Ошибка привязки поставщика id=%s: %s', provider_config.provider_id, e)
+
+    # ------------------------------------------------------------------
+    # 1b. Привязка к клиенту — обновляем order_email в CustomerOrderConfig
+    # ------------------------------------------------------------------
+    elif rule_type == 'customer_order' and customer_config and customer_config.customer_id:
+        try:
+            from dz_fastapi.crud.customer_order import crud_customer_order_config
+
+            existing_cfg = await crud_customer_order_config.get_by_customer_id(
+                session, customer_config.customer_id
+            )
+            customer = await crud_customer.get_by_id(
+                customer_config.customer_id, session
+            )
+            customer_name = customer.name if customer else str(customer_config.customer_id)
+
+            if existing_cfg:
+                update_data: dict = {}
+                if not existing_cfg.order_email:
+                    update_data['order_email'] = inbox_email.from_email
+                if customer_config.subject_pattern and not existing_cfg.order_subject_pattern:
+                    update_data['order_subject_pattern'] = customer_config.subject_pattern
+                if customer_config.filename_pattern and not existing_cfg.order_filename_pattern:
+                    update_data['order_filename_pattern'] = customer_config.filename_pattern
+
+                if update_data:
+                    await crud_customer_order_config.update(session, existing_cfg, update_data)
+                    action = 'updated'
+                    note = (
+                        f'Email {inbox_email.from_email} и паттерны добавлены в '
+                        f'конфигурацию заказов клиента «{customer_name}».'
+                    )
+                else:
+                    action = 'already_linked'
+                    note = f'Конфигурация клиента «{customer_name}» уже содержит email и паттерны.'
+            else:
+                action = 'no_config'
+                note = (
+                    f'У клиента «{customer_name}» нет конфигурации заказов. '
+                    'Создайте её в разделе "Клиенты → Настройка заказов", '
+                    'затем вернитесь и переназначьте правило.'
+                )
+
+            configs_set.append({
+                'entity_type': 'customer',
+                'entity_id': customer_config.customer_id,
+                'entity_name': customer_name,
+                'action': action,
+                'note': note,
+            })
+        except Exception as e:
+            logger.warning('Ошибка привязки клиента id=%s: %s', customer_config.customer_id, e)
+
+    # ------------------------------------------------------------------
+    # 2. Назначаем правило + паттерн + запускаем обработку
+    # ------------------------------------------------------------------
+    updated = await assign_rule(
+        session,
+        email_id=email_id,
+        rule_type=rule_type,
+        user_id=user_id,
+        save_pattern=save_pattern,
+    )
+
+    return {
+        'email_id': updated.id,
+        'rule_type': updated.rule_type,
+        'processed': updated.processed,
+        'processing_result': updated.processing_result,
+        'processing_error': updated.processing_error,
+        'configs_set': configs_set,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Очистка старых писем (вызывается из шедулера)
+# ---------------------------------------------------------------------------
+
+async def cleanup_inbox_emails(
+    session: AsyncSession, max_days: int = 7
+) -> int:
+    """Удаляет письма старше max_days дней."""
+    deleted = await cleanup_old_inbox_emails(session, max_days=max_days)
+    logger.info('Удалено %d устаревших писем из InboxEmail', deleted)
+    return deleted
