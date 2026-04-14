@@ -286,7 +286,9 @@ async def find_matching_pattern(
         active_only=True,
     )
 
-    from_domain = from_email.split('@')[-1].lower() if '@' in from_email else ''
+    from_domain = (
+        from_email.split('@')[-1].lower() if '@' in from_email else ''
+    )
     subject_lower = subject.lower() if subject else ''
 
     for pattern in patterns:
@@ -302,7 +304,9 @@ async def find_matching_pattern(
 
         # Проверка ключевых слов в теме
         keywords = pattern.subject_keywords or []
-        if keywords and not all(kw.lower() in subject_lower for kw in keywords):
+        if keywords and not all(
+            kw.lower() in subject_lower for kw in keywords
+        ):
             continue
 
         # Проверка наличия вложений

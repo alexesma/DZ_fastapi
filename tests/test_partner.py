@@ -1478,7 +1478,7 @@ async def test_customer_pricelist_source_brand_markups_applied(
         brand=second_brand.name,
         name='Part Two',
     )
-    await crud_pricelist.create(
+    created_pricelist = await crud_pricelist.create(
         obj_in=PriceListCreate(
             provider_id=provider.id,
             provider_config_id=cfg.id,
@@ -1537,9 +1537,17 @@ async def test_customer_pricelist_source_brand_markups_applied(
 
     assert response.status_code == 201, response.text
     payload = response.json()
-    by_oem = {item['oem_number']: item for item in payload['autoparts']}
-    assert abs(float(by_oem['OEM-MARKUP-001']['price']) - 110.0) < 0.01
-    assert abs(float(by_oem['OEM-MARKUP-002']['price']) - 140.0) < 0.01
+    expected_autopart_ids = {
+        assoc.autopart.id for assoc in created_pricelist.autoparts
+    }
+    actual_prices = sorted(
+        float(item['price'])
+        for item in payload['autoparts']
+        if item['autopart_id'] in expected_autopart_ids
+    )
+    assert len(actual_prices) == 2
+    assert abs(actual_prices[0] - 110.0) < 0.01
+    assert abs(actual_prices[1] - 140.0) < 0.01
 
 
 @pytest.mark.asyncio

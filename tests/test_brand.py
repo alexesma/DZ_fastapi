@@ -36,6 +36,26 @@ async def test_create_brand(test_session):
 
 
 @pytest.mark.asyncio
+async def test_create_brand_with_cyrillic_name(test_session):
+    payload = {
+        'name': 'Лифан',
+        'country_of_origin': 'Russia',
+        'website': 'https://example.ru',
+        'description': 'Бренд на кириллице',
+        'main_brand': False,
+        'synonyms': [],
+    }
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+        response = await ac.post('/brand/', json=payload)
+
+    assert response.status_code == 201, response.text
+    data = response.json()
+    assert data['name'] == 'ЛИФАН'
+    assert data['country_of_origin'] == 'Russia'
+
+
+@pytest.mark.asyncio
 async def test_upload_logo(test_session, created_brand: Brand):
 
     with tempfile.TemporaryDirectory() as temp_upload_dir:

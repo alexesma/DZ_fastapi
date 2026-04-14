@@ -42,6 +42,8 @@ from dz_fastapi.services.customer_orders import (
     cleanup_order_error_files, cleanup_order_reports, process_customer_orders,
     send_scheduled_supplier_orders)
 from dz_fastapi.services.email import get_emails
+from dz_fastapi.services.inbox_email import (cleanup_inbox_emails,
+                                             fetch_and_store_emails)
 from dz_fastapi.services.monitoring import (build_snapshot_payload,
                                             get_monitor_summary)
 from dz_fastapi.services.notifications import create_admin_notifications
@@ -253,15 +255,31 @@ def start_scheduler(app: FastAPI):
         replace_existing=True,
     )
 
-    # scheduler.add_job(
-    #     func=,
-    #     trigger='cron',
-    #     args=[app],
-    #     id='download_all_price_providers',
-    #     name='Download prices over providers',
-    #     minute='*/5',  # каждые 5 минут
-    #     # hour='9',  # каждый день в 9 утра
-    # )
+    # Автоматическая загрузка входящих писем каждые 10 минут.
+    # Интервал 10 мин — баланс между актуальностью и нагрузкой на IMAP-сервер.
+    # Каждый запрос открывает IMAP-соединение; чаще 5 мин не рекомендуется.
+    scheduler.add_job(
+        func=fetch_inbox_emails_task,
+        trigger='cron',
+        args=[app],
+        id='fetch_inbox_emails',
+        name='Fetch inbox emails (all accounts)',
+        minute='*/10',
+        jitter=30,
+        replace_existing=True,
+    )
+
+    # Очистка старых писем из InboxEmail (старше 7 дней) — раз в сутки в 04:00
+    scheduler.add_job(
+        func=cleanup_inbox_emails_task,
+        trigger='cron',
+        args=[app],
+        id='cleanup_inbox_emails',
+        name='Cleanup old inbox emails',
+        hour=4,
+        minute=0,
+        replace_existing=True,
+    )
 
     scheduler.start()
     logger.info('Scheduler started.')
@@ -1199,3 +1217,32 @@ async def notify_watchlist_task(app: FastAPI):
                     f'watchlist.\nТекст ошибки: {e}'
                 ),
             )
+
+
+async def fetch_inbox_emails_task(app: FastAPI):
+    """Автоматически забирает письма со всех активных IMAP-ящиков."""
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            logger.info('Starting fetch_inbox_emails_task')
+            result = await fetch_and_store_emails(session, days=3)
+            logger.info(
+                'fetch_inbox_emails_task done: '
+                'fetched=%s stored=%s auto_processed=%s',
+                result.fetched, result.stored, result.auto_processed,
+            )
+        except Exception as e:
+            logger.error('Error in fetch_inbox_emails_task: %s', e)
+
+
+async def cleanup_inbox_emails_task(app: FastAPI):
+    """Удаляет письма из InboxEmail старше 7 дней."""
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            deleted = await cleanup_inbox_emails(session, max_days=7)
+            logger.info(
+                'cleanup_inbox_emails_task: deleted %s old emails', deleted
+            )
+        except Exception as e:
+            logger.error('Error in cleanup_inbox_emails_task: %s', e)

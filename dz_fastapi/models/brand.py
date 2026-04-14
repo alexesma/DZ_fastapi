@@ -47,7 +47,9 @@ class Brand(Base):
     )
     __table_args__ = (
         CheckConstraint(
-            text("name ~ '^[a-zA-Z0-9]+(?:[ -]?[a-zA-Z0-9]+)*$'"),
+            text(
+                "name ~ '^[A-Za-zА-Яа-яЁё0-9]+(?:[ -]?[A-Za-zА-Яа-яЁё0-9]+)*$'"
+            ),
             name='check_name_brand',
         ),
     )

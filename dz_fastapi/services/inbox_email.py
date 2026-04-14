@@ -3,9 +3,12 @@
 
 Логика:
 1. fetch_inbox_for_account  — скачать письма с IMAP/Resend для одного ящика
-2. fetch_and_store_emails   — скачать и сохранить в InboxEmail, запустить авто-разметку
-3. auto_detect_and_process  — попробовать найти паттерн и обработать автоматически
-4. assign_rule              — менеджер вручную назначает правило + обрабатываем письмо
+2. fetch_and_store_emails   — скачать и сохранить в InboxEmail,
+                              запустить авто-разметку
+3. auto_detect_and_process  — попробовать найти паттерн и
+                              обработать автоматически
+4. assign_rule              — менеджер вручную назначает правило +
+                              обрабатываем письмо
 5. _process_email_by_rule   — диспетчер, вызывает нужный обработчик
 6. cleanup_old_emails       — удаление писем старше max_days
 
@@ -13,9 +16,10 @@
   price_list       → process_provider_pricelist (существующий сервис)
   order_reply      → process_supplier_response_messages (существующий сервис)
   customer_order   → process_customer_orders (существующий сервис)
-  document         → supplier_workflow: create_supplier_receipt (существующий сервис)
+  document         → supplier_workflow: create_supplier_receipt
   shipment_notice  → уведомление менеджера + сохранение трекинг-данных
-  claim            → уведомление менеджера + создание задачи (заглушка → notify)
+  claim            → уведомление менеджера + создание задачи
+                     (заглушка → notify)
   error_report     → уведомление менеджера (заглушка)
   inquiry          → уведомление менеджера (заглушка)
   proposal         → уведомление менеджера (заглушка)
@@ -29,42 +33,42 @@ import os
 import re
 from datetime import date, datetime, timedelta
 from email.header import decode_header
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
+import aiofiles
+import numpy as np
+import pandas as pd
 from imap_tools import AND, MailboxLoginError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.core.email_folders import (
-    DEFAULT_IMAP_FOLDER,
-    resolve_imap_folders,
-)
+from dz_fastapi.core.constants import IMAP_SERVER
+from dz_fastapi.core.email_folders import DEFAULT_IMAP_FOLDER
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.email_account import crud_email_account
-from dz_fastapi.crud.inbox_email import (
-    cleanup_old_inbox_emails,
-    create_inbox_email,
-    create_rule_pattern,
-    exists_inbox_email,
-    find_matching_pattern,
-    get_inbox_email,
-    increment_pattern_applied,
-    increment_pattern_confirmed,
-    mark_processed,
-    update_inbox_email_rule,
-)
+from dz_fastapi.crud.inbox_email import (cleanup_old_inbox_emails,
+                                         create_inbox_email,
+                                         create_rule_pattern,
+                                         find_matching_pattern,
+                                         get_inbox_email,
+                                         increment_pattern_applied,
+                                         increment_pattern_confirmed,
+                                         mark_processed,
+                                         update_inbox_email_rule)
 from dz_fastapi.models.inbox_email import InboxEmail
-from dz_fastapi.schemas.inbox_email import FetchInboxResponse, RULE_META
-from dz_fastapi.services.email import (
-    _FetchedAttachment,
-    _FetchedInboxMessage,
-    _create_mailbox,
-    _dedupe_fetched_messages,
-    _extract_email,
-    _fetch_resend_price_messages,
-)
-from dz_fastapi.core.constants import IMAP_SERVER
+from dz_fastapi.schemas.inbox_email import RULE_META, FetchInboxResponse
+from dz_fastapi.services.email import (_create_mailbox,
+                                       _dedupe_fetched_messages,
+                                       _extract_email,
+                                       _fetch_resend_price_messages,
+                                       _FetchedAttachment,
+                                       _FetchedInboxMessage)
 
 logger = logging.getLogger('dz_fastapi')
+PROJECT_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', '..')
+)
+PREVIEWABLE_ATTACHMENT_EXTENSIONS = {'.xls', '.xlsx', '.csv'}
+MAX_PREVIEWABLE_ATTACHMENT_SIZE_BYTES = 5 * 1024 * 1024
 
 
 # ---------------------------------------------------------------------------
@@ -99,6 +103,132 @@ def _rule_label(rule_type: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Предпросмотр вложений
+# ---------------------------------------------------------------------------
+
+def _read_attachment_preview_sync(
+    file_path: str,
+    max_rows: int = 25,
+) -> Dict:
+    """Синхронное чтение файла вложения для предпросмотра (XLS/XLSX/CSV)."""
+    _, ext = os.path.splitext(file_path)
+    ext = ext.lower()
+
+    if ext == '.xls':
+        df = pd.read_excel(file_path, engine='xlrd', header=None)
+    elif ext == '.xlsx':
+        df = pd.read_excel(file_path, engine='openpyxl', header=None)
+    elif ext == '.csv':
+        df = pd.read_csv(file_path, header=None)
+    else:
+        raise ValueError(f'Unsupported file extension: {ext}')
+
+    total_rows = len(df)
+    df = df.head(max_rows)
+    # Replace NaN with empty string
+    df = df.replace({np.nan: ''})
+    rows = df.values.tolist()
+    # Convert all values to strings for JSON serialisation
+    rows = [[str(cell) if cell != '' else '' for cell in row] for row in rows]
+    columns = len(df.columns)
+    return {'rows': rows, 'total_rows': total_rows, 'columns': columns}
+
+
+async def read_attachment_preview(
+    file_path: str,
+    max_rows: int = 25,
+) -> Dict:
+    """Асинхронная обёртка для чтения предпросмотра файла вложения."""
+    return await asyncio.to_thread(
+        _read_attachment_preview_sync, file_path, max_rows
+    )
+
+
+def resolve_inbox_attachment_fs_path(file_path: Optional[str]) -> str:
+    """
+    Преобразует путь вложения из БД в абсолютный путь ФС.
+    В БД обычно хранится относительный путь вида uploads/inbox_attachments/...
+    """
+    if not file_path:
+        return ''
+    if os.path.isabs(file_path):
+        return file_path
+    return os.path.join(PROJECT_ROOT, file_path)
+
+
+def inbox_attachment_exists(file_path: Optional[str]) -> bool:
+    resolved = resolve_inbox_attachment_fs_path(file_path)
+    return bool(resolved and os.path.exists(resolved))
+
+
+def _build_attachment_relative_path(
+    *,
+    account_id: int,
+    msg_uid: Optional[str],
+    msg_date: object,
+    filename: str,
+) -> str:
+    if isinstance(msg_date, datetime):
+        date_str = msg_date.strftime('%Y%m%d')
+    elif isinstance(msg_date, date):
+        date_str = msg_date.strftime('%Y%m%d')
+    else:
+        date_str = datetime.today().strftime('%Y%m%d')
+    safe_filename = re.sub(r'[^A-Za-z0-9._-]', '_', filename or '')
+    if not safe_filename:
+        safe_filename = 'attachment.bin'
+    uid_str = msg_uid or 'nouid'
+    return os.path.join(
+        'uploads',
+        'inbox_attachments',
+        str(account_id),
+        date_str,
+        f'{uid_str}_{safe_filename}',
+    )
+
+
+async def _build_attachment_info_for_message(
+    msg: _FetchedInboxMessage,
+    *,
+    account_id: int,
+) -> list[dict]:
+    att_info: list[dict] = []
+    for att in (msg.attachments or []):
+        att_entry = {
+            'name': att.filename or '',
+            'size': len(att.payload) if att.payload else 0,
+            'path': None,
+        }
+        try:
+            filename = att.filename or ''
+            _, ext = os.path.splitext(filename)
+            if (
+                ext.lower() in PREVIEWABLE_ATTACHMENT_EXTENSIONS
+                and att.payload
+                and len(att.payload) <= MAX_PREVIEWABLE_ATTACHMENT_SIZE_BYTES
+            ):
+                rel_path = _build_attachment_relative_path(
+                    account_id=account_id,
+                    msg_uid=msg.uid,
+                    msg_date=msg.date,
+                    filename=filename,
+                )
+                abs_path = resolve_inbox_attachment_fs_path(rel_path)
+                os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+                async with aiofiles.open(abs_path, 'wb') as fh:
+                    await fh.write(att.payload)
+                att_entry['path'] = rel_path
+        except Exception as save_err:
+            logger.warning(
+                'Failed to save attachment %s: %s',
+                att.filename,
+                save_err,
+            )
+        att_info.append(att_entry)
+    return att_info
+
+
+# ---------------------------------------------------------------------------
 # Fetch писем с IMAP/Resend для одного EmailAccount
 # ---------------------------------------------------------------------------
 
@@ -119,7 +249,8 @@ def _fetch_inbox_imap_sync(
 
     result: List[_FetchedInboxMessage] = []
     try:
-        with _create_mailbox(host, port, True).login(email, password) as mailbox:
+        mb = _create_mailbox(host, port, True).login(email, password)
+        with mb as mailbox:
             mailbox.folder.set(folder)
             messages = list(
                 mailbox.fetch(
@@ -186,7 +317,9 @@ async def fetch_inbox_for_account(
 
     if transport == 'resend_api':
         if not account.resend_api_key:
-            logger.warning('Resend API key missing for account id=%s', account.id)
+            logger.warning(
+                'Resend API key missing for account id=%s', account.id
+            )
             return []
         try:
             fetched, _ = await _fetch_resend_price_messages(account)
@@ -202,7 +335,9 @@ async def fetch_inbox_for_account(
                 else:
                     messages.append(msg)
         except Exception as e:
-            logger.error('Resend fetch error for account id=%s: %s', account.id, e)
+            logger.error(
+                'Resend fetch error for account id=%s: %s', account.id, e
+            )
         return messages
 
     host = account.imap_host
@@ -211,14 +346,15 @@ async def fetch_inbox_for_account(
         return []
 
     # Для InboxPage берём ТОЛЬКО основную папку входящих (обычно INBOX).
-    # Дополнительные папки (imap_additional_folders) могут содержать Sent и другие —
-    # они используются в других сервисах, но не нужны здесь.
+    # Дополнительные папки (imap_additional_folders) могут содержать
+    # Sent и другие — они используются в других сервисах.
     primary_folder = (account.imap_folder or '').strip() or DEFAULT_IMAP_FOLDER
 
     # Если основная папка сама является папкой отправленных — пропускаем
     if _is_sent_folder(primary_folder):
         logger.warning(
-            'Основная IMAP-папка "%s" для account id=%s похожа на папку отправленных — пропускаем',
+            'Основная IMAP-папка "%s" для account id=%s '
+            'похожа на папку отправленных — пропускаем',
             primary_folder, account.id,
         )
         return []
@@ -234,10 +370,13 @@ async def fetch_inbox_for_account(
             since_date,
         )
     except Exception as e:
-        logger.error('Error fetching inbox for account id=%s: %s', account.id, e)
+        logger.error(
+            'Error fetching inbox for account id=%s: %s', account.id, e
+        )
         return []
 
-    # Фильтруем: убираем письма, где from == адрес самого ящика (исходящие копии)
+    # Фильтруем: убираем письма, где from == адрес самого ящика
+    # (исходящие копии)
     for msg in raw_messages:
         msg_from = _extract_email(msg.from_ or '').lower()
         if msg_from == account_email:
@@ -254,6 +393,62 @@ async def fetch_inbox_for_account(
 # ---------------------------------------------------------------------------
 # Главная функция: загрузить, сохранить, авто-обработать
 # ---------------------------------------------------------------------------
+
+async def _get_existing_inbox_email_by_uid(
+    session: AsyncSession,
+    *,
+    email_account_id: int,
+    uid: str,
+    folder: Optional[str] = None,
+) -> Optional[InboxEmail]:
+    from sqlalchemy import and_, select
+
+    filters = [
+        InboxEmail.email_account_id == email_account_id,
+        InboxEmail.uid == uid,
+    ]
+    if folder is not None:
+        filters.append(InboxEmail.folder == folder)
+    result = await session.execute(
+        select(InboxEmail)
+        .where(and_(*filters))
+        .order_by(InboxEmail.id.desc())
+        .limit(1)
+    )
+    return result.scalars().first()
+
+
+async def _restore_existing_email_attachments_if_missing(
+    session: AsyncSession,
+    *,
+    inbox_email: InboxEmail,
+    msg: _FetchedInboxMessage,
+    account_id: int,
+) -> bool:
+    existing_info = inbox_email.attachment_info or []
+    has_missing_files = (
+        not existing_info
+        or any(
+            not att.get('path') or not inbox_attachment_exists(att.get('path'))
+            for att in existing_info
+        )
+    )
+    if not has_missing_files or not msg.attachments:
+        return False
+
+    rebuilt_att_info = await _build_attachment_info_for_message(
+        msg, account_id=account_id
+    )
+    if not rebuilt_att_info:
+        return False
+
+    inbox_email.has_attachments = bool(rebuilt_att_info)
+    inbox_email.attachment_info = rebuilt_att_info
+    inbox_email.fetched_at = now_moscow()
+    session.add(inbox_email)
+    await session.flush()
+    return True
+
 
 async def fetch_and_store_emails(
     session: AsyncSession,
@@ -283,7 +478,10 @@ async def fetch_and_store_emails(
             messages = await fetch_inbox_for_account(account, days=days)
             total_fetched += len(messages)
         except Exception as e:
-            logger.error('Failed to fetch inbox for account id=%s: %s', account.id, e)
+            logger.error(
+                'Failed to fetch inbox for account id=%s: %s',
+                account.id, e
+            )
             continue
 
         for msg in messages:
@@ -291,13 +489,29 @@ async def fetch_and_store_emails(
             folder = getattr(msg, 'folder_name', None)
 
             if uid:
-                already_exists = await exists_inbox_email(
+                existing_email = await _get_existing_inbox_email_by_uid(
                     session,
                     email_account_id=account.id,
                     uid=uid,
                     folder=folder,
                 )
-                if already_exists:
+                if existing_email is not None:
+                    restored = await (
+                        _restore_existing_email_attachments_if_missing(
+                            session,
+                            inbox_email=existing_email,
+                            msg=msg,
+                            account_id=account.id,
+                        )
+                    )
+                    if restored:
+                        logger.info(
+                            'Restored attachment files for inbox email '
+                            'id=%s account_id=%s uid=%s',
+                            existing_email.id,
+                            account.id,
+                            uid,
+                        )
                     continue
 
             from_email = _extract_email(msg.from_)
@@ -306,14 +520,9 @@ async def fetch_and_store_emails(
                 if from_email in msg.from_ else None
             )
 
-            att_info = [
-                {
-                    'name': att.filename or '',
-                    'size': len(att.payload) if att.payload else 0,
-                    'path': None,
-                }
-                for att in (msg.attachments or [])
-            ]
+            att_info = await _build_attachment_info_for_message(
+                msg, account_id=account.id
+            )
 
             inbox_email = await create_inbox_email(
                 session,
@@ -360,14 +569,15 @@ async def _detect_rule_from_existing_configs(
     fetched_msg: Optional[_FetchedInboxMessage] = None,
 ) -> Optional[str]:
     """
-    Пытается определить тип правила на основе УЖЕ существующих в системе настроек:
+    Пытается определить тип правила на основе УЖЕ существующих настроек:
       1. ProviderPricelistConfig — поставщики с настроенными прайс-листами
       2. CustomerOrderConfig     — клиенты с настроенными заказами
 
     Возвращает строку rule_type или None если совпадений нет.
     Не создаёт никаких новых записей — только читает существующие конфиги.
     """
-    from dz_fastapi.crud.partner import crud_provider, crud_provider_pricelist_config
+    from dz_fastapi.crud.partner import (crud_provider,
+                                         crud_provider_pricelist_config)
     from dz_fastapi.services.email import _message_matches_provider_config
 
     from_email = (inbox_email.from_email or '').lower().strip()
@@ -390,9 +600,12 @@ async def _detect_rule_from_existing_configs(
                 # Если есть fetched_msg — проверяем точное совпадение конфига
                 if fetched_msg is not None:
                     for config in configs:
-                        if _message_matches_provider_config(fetched_msg, config):
+                        if _message_matches_provider_config(
+                            fetched_msg, config
+                        ):
                             logger.info(
-                                'Письмо id=%s → price_list (provider_id=%s, config_id=%s)',
+                                'Письмо id=%s → price_list '
+                                '(provider_id=%s, config_id=%s)',
                                 inbox_email.id, provider.id, config.id,
                             )
                             return 'price_list'
@@ -404,13 +617,16 @@ async def _detect_rule_from_existing_configs(
                     )
                     return 'price_list'
     except Exception as e:
-        logger.warning('Ошибка при поиске provider по email=%s: %s', from_email, e)
+        logger.warning(
+            'Ошибка при поиске provider по email=%s: %s', from_email, e
+        )
 
     # ------------------------------------------------------------------
     # 2. Проверяем конфиги заказов клиентов: CustomerOrderConfig
     # ------------------------------------------------------------------
     try:
         from sqlalchemy import select as _select
+
         from dz_fastapi.models.partner import CustomerOrderConfig as _COC
 
         result = await session.execute(_select(_COC))
@@ -421,7 +637,10 @@ async def _detect_rule_from_existing_configs(
             if config.order_email:
                 emails_in_config.append(config.order_email.lower().strip())
             if config.order_emails:
-                extra = config.order_emails if isinstance(config.order_emails, list) else []
+                extra = (
+                    config.order_emails
+                    if isinstance(config.order_emails, list) else []
+                )
                 emails_in_config.extend(e.lower().strip() for e in extra if e)
 
             if from_email not in emails_in_config:
@@ -433,11 +652,14 @@ async def _detect_rule_from_existing_configs(
                 import re as _re
                 try:
                     if not _re.search(
-                        config.order_subject_pattern, subject, flags=_re.IGNORECASE
+                        config.order_subject_pattern,
+                        subject,
+                        flags=_re.IGNORECASE
                     ):
                         continue
                 except _re.error:
-                    if config.order_subject_pattern.lower() not in subject.lower():
+                    if (config.order_subject_pattern.lower()
+                            not in subject.lower()):
                         continue
 
             logger.info(
@@ -467,12 +689,15 @@ async def auto_detect_and_process(
 
     Порядок проверки:
       1. EmailRulePattern  — паттерны, подтверждённые менеджером вручную
-      2. Существующие конфиги системы (ProviderPricelistConfig, CustomerOrderConfig)
+      2. Существующие конфиги системы
+         (ProviderPricelistConfig, CustomerOrderConfig)
          — чтобы не настраивать одно и то же дважды
 
     Возвращает True если письмо было обработано.
     """
-    att_extensions = _get_attachment_extensions(inbox_email.attachment_info or [])
+    att_extensions = _get_attachment_extensions(
+        inbox_email.attachment_info or []
+    )
 
     # --- Шаг 1: ищем подтверждённый паттерн ---
     pattern = await find_matching_pattern(
@@ -519,7 +744,9 @@ async def auto_detect_and_process(
         fetched_msg=fetched_msg,
         account=account,
     )
-    await mark_processed(session, email=inbox_email, result=result, error=error)
+    await mark_processed(
+        session, email=inbox_email, result=result, error=error
+    )
     return True
 
 
@@ -537,13 +764,16 @@ async def assign_rule(
 ) -> InboxEmail:
     """
     Менеджер вручную назначает правило письму.
-    Если save_pattern=True — создаёт/обновляет паттерн для будущей авто-разметки.
+    Если save_pattern=True — создаёт/обновляет паттерн
+    для будущей авто-разметки.
     """
     inbox_email = await get_inbox_email(session, email_id)
     if inbox_email is None:
         raise ValueError(f'InboxEmail id={email_id} не найдено')
 
-    att_extensions = _get_attachment_extensions(inbox_email.attachment_info or [])
+    att_extensions = _get_attachment_extensions(
+        inbox_email.attachment_info or []
+    )
     existing_pattern = await find_matching_pattern(
         session,
         email_account_id=inbox_email.email_account_id,
@@ -574,7 +804,10 @@ async def assign_rule(
             rule_type=rule_type,
             created_by_id=user_id,
         )
-        logger.info('Создан паттерн rule=%s для from=%s', rule_type, inbox_email.from_email)
+        logger.info(
+            'Создан паттерн rule=%s для from=%s',
+            rule_type, inbox_email.from_email
+        )
 
     await update_inbox_email_rule(
         session,
@@ -589,7 +822,9 @@ async def assign_rule(
         inbox_email=inbox_email,
         rule_type=rule_type,
     )
-    await mark_processed(session, email=inbox_email, result=result, error=error)
+    await mark_processed(
+        session, email=inbox_email, result=result, error=error
+    )
     await session.commit()
     return inbox_email
 
@@ -648,7 +883,9 @@ async def _process_email_by_rule(
             logger.info('Письмо id=%s помечено как спам', inbox_email.id)
             return {'action': 'spam', 'hidden': True}, None
         elif rule_type == 'ignore':
-            logger.info('Письмо id=%s помечено как "игнорировать"', inbox_email.id)
+            logger.info(
+                'Письмо id=%s помечено как "игнорировать"', inbox_email.id
+            )
             return {'action': 'ignored'}, None
         else:
             return None, f'Неизвестный тип правила: {rule_type}'
@@ -671,11 +908,10 @@ async def _process_price_list(
     fetched_msg: Optional[_FetchedInboxMessage] = None,
 ) -> Tuple[Optional[dict], Optional[str]]:
     """Прайс-лист поставщика → скачать и обработать."""
-    from dz_fastapi.crud.partner import crud_provider, crud_provider_pricelist_config
-    from dz_fastapi.services.email import (
-        _message_matches_provider_config,
-        download_new_price_provider,
-    )
+    from dz_fastapi.crud.partner import (crud_provider,
+                                         crud_provider_pricelist_config)
+    from dz_fastapi.services.email import (_message_matches_provider_config,
+                                           download_new_price_provider)
     from dz_fastapi.services.process import process_provider_pricelist
 
     if fetched_msg is None:
@@ -699,17 +935,23 @@ async def _process_price_list(
         if not _message_matches_provider_config(fetched_msg, config):
             continue
         filepath = await download_new_price_provider(
-            msg=fetched_msg, provider=provider, provider_conf=config, session=session,
+            msg=fetched_msg, provider=provider,
+            provider_conf=config, session=session,
         )
         if filepath:
             try:
                 await process_provider_pricelist(
-                    provider=provider, provider_conf=config,
-                    filepath=filepath, session=session,
+                    provider=provider,
+                    provider_conf=config,
+                    filepath=filepath,
+                    session=session,
                 )
                 processed_configs.append(config.id)
             except Exception as e:
-                logger.error('Ошибка обработки прайса provider=%s: %s', provider.id, e)
+                logger.error(
+                    'Ошибка обработки прайса provider=%s: %s',
+                    provider.id, e
+                )
 
     return {
         'action': 'price_list',
@@ -769,13 +1011,15 @@ async def _process_customer_order(
 
     При назначении правила вручную из Inbox — только тегируем и уведомляем.
     Полная обработка (разбор файла, создание CustomerOrder) произойдёт на
-    следующем запуске шедулера download_customer_orders_task, который найдёт
-    это письмо по уже сохранённому EmailRulePattern / order_email в конфиге.
+    следующем запуске шедулера download_customer_orders_task, который
+    найдёт это письмо по EmailRulePattern / order_email в конфиге.
     """
     from dz_fastapi.services.notifications import create_admin_notifications
 
     try:
-        att_names = [a.get('name', '') for a in (inbox_email.attachment_info or [])]
+        att_names = [
+            a.get('name', '') for a in (inbox_email.attachment_info or [])
+        ]
         await create_admin_notifications(
             session=session,
             title=f'Заказ от клиента: {inbox_email.from_email}',
@@ -783,7 +1027,10 @@ async def _process_customer_order(
                 f'Получен заказ от {inbox_email.from_email}.\n'
                 f'Тема: {inbox_email.subject or "(без темы)"}\n'
                 + (f'Вложения: {", ".join(att_names)}\n' if att_names else '')
-                + 'Будет обработан автоматически при следующем запуске шедулера.'
+                + (
+                    'Будет обработан автоматически при следующем запуске '
+                    'шедулера.'
+                )
             ),
             level='info',
         )
@@ -892,7 +1139,9 @@ async def _process_shipment_notice(
 
     try:
         provider_name = provider.name if provider else inbox_email.from_email
-        tracking_info = f'\nТрекинг: {tracking_number}' if tracking_number else ''
+        tracking_info = (
+            f'\nТрекинг: {tracking_number}' if tracking_number else ''
+        )
         await create_admin_notifications(
             session=session,
             title=f'Отгрузка от {provider_name}',
@@ -936,7 +1185,11 @@ async def _process_notify_manager(
             level=level,
         )
     except Exception as e:
-        logger.warning('Не удалось создать уведомление rule=%s: %s', rule_type, e)
+        logger.warning(
+            'Не удалось создать уведомление rule=%s: %s',
+            rule_type,
+            e,
+        )
 
     return {
         'action': rule_type,
@@ -1020,14 +1273,16 @@ async def setup_email_rule(
     """
     Полная настройка правила через мастер:
       1. Связывает отправителя письма с поставщиком или клиентом
-         (обновляет email_incoming_price / order_email в реальных таблицах системы)
+         (обновляет email_incoming_price / order_email
+         в реальных таблицах системы)
       2. Сохраняет EmailRulePattern для будущей авто-разметки
       3. Запускает обработку письма по выбранному правилу
 
     Благодаря шагу 1 будущие письма от того же отправителя будут
-    auto-detected через _detect_rule_from_existing_configs — без повторной настройки.
+    auto-detected через _detect_rule_from_existing_configs
+    — без повторной настройки.
     """
-    from dz_fastapi.crud.partner import crud_provider, crud_customer
+    from dz_fastapi.crud.partner import crud_customer, crud_provider
 
     inbox_email = await get_inbox_email(session, email_id)
     if inbox_email is None:
@@ -1035,28 +1290,46 @@ async def setup_email_rule(
 
     configs_set: list[dict] = []
 
-    PROVIDER_RULES = {'price_list', 'order_reply', 'document', 'shipment_notice'}
+    PROVIDER_RULES = {
+        'price_list',
+        'order_reply',
+        'document',
+        'shipment_notice',
+    }
 
     # ------------------------------------------------------------------
-    # 1a. Привязка к поставщику
+    # 1a. Привязка к поставщику + обновление конфигурации файла
     # ------------------------------------------------------------------
-    if rule_type in PROVIDER_RULES and provider_config and provider_config.provider_id:
+    if (
+        rule_type in PROVIDER_RULES
+        and provider_config
+        and provider_config.provider_id
+    ):
         try:
+            from dz_fastapi.crud.partner import (
+                crud_provider_pricelist_config, crud_supplier_response_config)
+            from dz_fastapi.schemas.partner import (
+                ProviderPriceListConfigCreate, SupplierResponseConfigCreate)
+
             provider = await crud_provider.get_by_id(
                 provider_id=provider_config.provider_id, session=session
             )
             if provider:
+                # Привязываем email к поставщику
                 if not provider.email_incoming_price:
                     provider.email_incoming_price = inbox_email.from_email
                     session.add(provider)
                     action = 'linked'
                     note = (
-                        f'Email {inbox_email.from_email} привязан к поставщику «{provider.name}». '
-                        'Система будет автоматически определять будущие письма от него.'
+                        f'Email {inbox_email.from_email} привязан к '
+                        f'поставщику «{provider.name}».'
                     )
                 else:
                     action = 'already_linked'
-                    note = f'Поставщик «{provider.name}» уже привязан к {provider.email_incoming_price}'
+                    note = (
+                        f'Поставщик «{provider.name}» уже привязан к '
+                        f'{provider.email_incoming_price}.'
+                    )
 
                 configs_set.append({
                     'entity_type': 'provider',
@@ -1065,72 +1338,614 @@ async def setup_email_rule(
                     'action': action,
                     'note': note,
                 })
+
+                cfg_mode = getattr(
+                    provider_config, 'config_mode', 'skip'
+                )
+
+                # --- price_list: ProviderPriceListConfig ---
+                if rule_type == 'price_list' and cfg_mode != 'skip':
+                    def _col(v):
+                        return int(v) if v is not None else None
+
+                    if cfg_mode == 'existing' and provider_config.config_id:
+                        pl_cfg = await (
+                            crud_provider_pricelist_config.get_config(
+                                provider_id=provider.id,
+                                config_id=provider_config.config_id,
+                                session=session,
+                            )
+                        )
+                        if pl_cfg:
+                            upd: dict = {}
+                            if provider_config.subject_pattern:
+                                upd['name_mail'] = (
+                                    provider_config.subject_pattern
+                                )
+                            if provider_config.filename_pattern:
+                                upd['name_price'] = (
+                                    provider_config.filename_pattern
+                                )
+                            for fld in (
+                                'start_row', 'oem_col', 'qty_col',
+                                'price_col', 'brand_col', 'name_col',
+                            ):
+                                v = getattr(provider_config, fld, None)
+                                if v is not None:
+                                    upd[fld] = _col(v)
+                            if upd:
+                                await crud_provider_pricelist_config.update(
+                                    session, pl_cfg, upd
+                                )
+                            configs_set.append({
+                                'entity_type': 'pricelist_config',
+                                'entity_id': pl_cfg.id,
+                                'entity_name': (
+                                    pl_cfg.name_price or f'#{pl_cfg.id}'
+                                ),
+                                'action': 'updated',
+                                'note': (
+                                    f'Конфигурация прайс-листа '
+                                    f'#{pl_cfg.id} обновлена.'
+                                ),
+                            })
+
+                    elif cfg_mode == 'new':
+                        oem = getattr(provider_config, 'oem_col', None)
+                        qty = getattr(provider_config, 'qty_col', None)
+                        prc = getattr(provider_config, 'price_col', None)
+                        if oem and qty and prc:
+                            new_pl = ProviderPriceListConfigCreate(
+                                start_row=int(
+                                    provider_config.start_row or 1
+                                ),
+                                oem_col=_col(oem),
+                                qty_col=_col(qty),
+                                price_col=_col(prc),
+                                brand_col=_col(
+                                    getattr(provider_config, 'brand_col', None)
+                                ),
+                                name_col=_col(
+                                    getattr(provider_config, 'name_col', None)
+                                ),
+                                name_mail=provider_config.subject_pattern,
+                                name_price=provider_config.filename_pattern,
+                            )
+                            created_pl = await (
+                                crud_provider_pricelist_config.create(
+                                    session=session,
+                                    provider_id=provider.id,
+                                    config=new_pl,
+                                )
+                            )
+                            configs_set.append({
+                                'entity_type': 'pricelist_config',
+                                'entity_id': created_pl.id,
+                                'entity_name': (
+                                    created_pl.name_price
+                                    or f'#{created_pl.id}'
+                                ),
+                                'action': 'created',
+                                'note': (
+                                    f'Создана конфигурация прайс-листа '
+                                    f'#{created_pl.id} для '
+                                    f'«{provider.name}».'
+                                ),
+                            })
+
+                # --- order_reply / document: SupplierResponseConfig ---
+                elif (
+                    rule_type in ('order_reply', 'document')
+                    and cfg_mode != 'skip'
+                ):
+                    payload_type = (
+                        'response'
+                        if rule_type == 'order_reply'
+                        else 'document'
+                    )
+                    response_type = getattr(
+                        provider_config, 'response_type', None
+                    )
+                    response_type = str(
+                        getattr(response_type, 'value', response_type) or ''
+                    ).strip().lower()
+                    if response_type not in {'file', 'text'}:
+                        response_type = None
+                    # В мастере тип ответа применяем только для order_reply.
+                    if rule_type != 'order_reply':
+                        response_type = None
+
+                    def _sr_col(v):
+                        return int(v) if v is not None else None
+
+                    col_fields = (
+                        'start_row', 'oem_col', 'qty_col', 'price_col',
+                        'brand_col', 'status_col', 'comment_col',
+                        'document_number_col', 'document_date_col',
+                    )
+
+                    if (
+                        cfg_mode == 'existing'
+                        and provider_config.config_id
+                    ):
+                        sr_cfg = await (
+                            crud_supplier_response_config.get_by_id(
+                                config_id=provider_config.config_id,
+                                session=session,
+                            )
+                        )
+                        if sr_cfg:
+                            sr_upd: dict = {}
+                            if response_type is not None:
+                                sr_upd['response_type'] = response_type
+                            if response_type == 'text':
+                                # Для текстового ответа файл/колонки не нужны.
+                                sr_upd['file_format'] = None
+                                sr_upd['file_payload_type'] = 'response'
+                                sr_upd['filename_pattern'] = None
+                                sr_upd['start_row'] = 1
+                                for fld in (
+                                    'oem_col', 'qty_col', 'price_col',
+                                    'brand_col', 'status_col', 'comment_col',
+                                    'document_number_col',
+                                    'document_date_col', 'gtd_col',
+                                    'country_code_col', 'country_name_col',
+                                    'total_price_with_vat_col',
+                                ):
+                                    sr_upd[fld] = None
+                                if (
+                                    getattr(
+                                        provider_config,
+                                        'confirm_keywords',
+                                        None
+                                    ) is not None
+                                ):
+                                    sr_upd['confirm_keywords'] = list(
+                                        provider_config.confirm_keywords or []
+                                    )
+                                if (
+                                    getattr(
+                                        provider_config,
+                                        'reject_keywords',
+                                        None
+                                    ) is not None
+                                ):
+                                    sr_upd['reject_keywords'] = list(
+                                        provider_config.reject_keywords or []
+                                    )
+                                value_after_article_type = getattr(
+                                    provider_config,
+                                    'value_after_article_type',
+                                    None,
+                                )
+                                if value_after_article_type in {
+                                    'number',
+                                    'text',
+                                    'both',
+                                }:
+                                    sr_upd['value_after_article_type'] = (
+                                        value_after_article_type
+                                    )
+                            else:
+                                if provider_config.filename_pattern:
+                                    sr_upd['filename_pattern'] = (
+                                        provider_config.filename_pattern
+                                    )
+                                for fld in col_fields:
+                                    v = getattr(provider_config, fld, None)
+                                    if v is not None:
+                                        sr_upd[fld] = _sr_col(v)
+                            # Добавляем email отправителя
+                            sender_emails = list(
+                                getattr(sr_cfg, 'sender_emails', None)
+                                or []
+                            )
+                            if (
+                                inbox_email.from_email
+                                and inbox_email.from_email
+                                not in sender_emails
+                            ):
+                                sender_emails.append(inbox_email.from_email)
+                                sr_upd['sender_emails'] = sender_emails
+                            if sr_upd:
+                                await crud_supplier_response_config.update(
+                                    session=session,
+                                    config=sr_cfg,
+                                    update_data=sr_upd,
+                                )
+                            configs_set.append({
+                                'entity_type': 'response_config',
+                                'entity_id': sr_cfg.id,
+                                'entity_name': sr_cfg.name or f'#{sr_cfg.id}',
+                                'action': 'updated',
+                                'note': (
+                                    f'Конфигурация «{sr_cfg.name}» '
+                                    f'обновлена.'
+                                ),
+                            })
+
+                    elif cfg_mode == 'new':
+                        cfg_name = (
+                            getattr(provider_config, 'config_name', None)
+                            or f'{provider.name} — {rule_type}'
+                        )
+                        create_payload: dict = {
+                            'name': cfg_name,
+                            'file_payload_type': payload_type,
+                            'sender_emails': [inbox_email.from_email],
+                            'inbox_email_account_id': (
+                                inbox_email.email_account_id or None
+                            ),
+                        }
+                        create_response_type = (
+                            response_type
+                            if response_type in {'file', 'text'}
+                            else 'file'
+                        )
+                        create_payload['response_type'] = create_response_type
+                        if create_response_type == 'text':
+                            create_payload['file_format'] = None
+                            create_payload['filename_pattern'] = None
+                            confirm_keywords = getattr(
+                                provider_config,
+                                'confirm_keywords',
+                                None,
+                            )
+                            reject_keywords = getattr(
+                                provider_config,
+                                'reject_keywords',
+                                None,
+                            )
+                            value_after_article_type = getattr(
+                                provider_config,
+                                'value_after_article_type',
+                                None,
+                            )
+                            if confirm_keywords is not None:
+                                create_payload['confirm_keywords'] = list(
+                                    confirm_keywords or []
+                                )
+                            if reject_keywords is not None:
+                                create_payload['reject_keywords'] = list(
+                                    reject_keywords or []
+                                )
+                            if value_after_article_type in {
+                                'number',
+                                'text',
+                                'both',
+                            }:
+                                create_payload['value_after_article_type'] = (
+                                    value_after_article_type
+                                )
+                        else:
+                            create_payload['filename_pattern'] = (
+                                provider_config.filename_pattern or None
+                            )
+                            create_payload.update(
+                                {
+                                    fld: _sr_col(
+                                        getattr(provider_config, fld, None)
+                                    )
+                                    for fld in col_fields
+                                    if getattr(provider_config, fld, None)
+                                    is not None
+                                }
+                            )
+                        create_data = SupplierResponseConfigCreate(
+                            **create_payload
+                        )
+                        created_sr = await (
+                            crud_supplier_response_config.create(
+                                provider_id=provider.id,
+                                config_in=create_data,
+                                session=session,
+                            )
+                        )
+                        configs_set.append({
+                            'entity_type': 'response_config',
+                            'entity_id': created_sr.id,
+                            'entity_name': created_sr.name,
+                            'action': 'created',
+                            'note': (
+                                f'Создана конфигурация «{created_sr.name}» '
+                                f'для «{provider.name}».'
+                            ),
+                        })
+
         except Exception as e:
-            logger.warning('Ошибка привязки поставщика id=%s: %s', provider_config.provider_id, e)
+            logger.warning(
+                'Ошибка привязки поставщика id=%s: %s',
+                provider_config.provider_id,
+                e,
+            )
 
     # ------------------------------------------------------------------
     # 1b. Привязка к клиенту — обновляем order_email в CustomerOrderConfig
     # ------------------------------------------------------------------
-    elif rule_type == 'customer_order' and customer_config and customer_config.customer_id:
+    elif (
+        rule_type == 'customer_order'
+        and customer_config
+        and customer_config.customer_id
+    ):
+        target_customer_config_id: Optional[int] = None
+        target_customer_id = int(customer_config.customer_id)
         try:
-            from dz_fastapi.crud.customer_order import crud_customer_order_config
+            from dz_fastapi.crud.customer_order import \
+                crud_customer_order_config
 
-            existing_cfg = await crud_customer_order_config.get_by_customer_id(
-                session, customer_config.customer_id
-            )
             customer = await crud_customer.get_by_id(
                 customer_config.customer_id, session
             )
-            customer_name = customer.name if customer else str(customer_config.customer_id)
+            customer_name = (
+                customer.name if customer else str(customer_config.customer_id)
+            )
 
-            if existing_cfg:
-                update_data: dict = {}
-                email_being_set = not existing_cfg.order_email
-                if email_being_set:
-                    update_data['order_email'] = inbox_email.from_email
-                if customer_config.subject_pattern and not existing_cfg.order_subject_pattern:
-                    update_data['order_subject_pattern'] = customer_config.subject_pattern
-                if customer_config.filename_pattern and not existing_cfg.order_filename_pattern:
-                    update_data['order_filename_pattern'] = customer_config.filename_pattern
+            selected_config_id = getattr(customer_config, 'config_id', None)
+            config_mode = getattr(customer_config, 'config_mode', 'existing')
+            order_config = getattr(customer_config, 'order_config', None) or {}
 
-                # Set email_account_id if not already configured
-                if inbox_email.email_account_id and not existing_cfg.email_account_id:
-                    update_data['email_account_id'] = inbox_email.email_account_id
+            def _to_zero_based_column(value):
+                if value is None or value == '':
+                    return None
+                parsed = int(value)
+                if parsed < 1:
+                    raise ValueError('Номера колонок должны быть >= 1')
+                return parsed - 1
 
-                # When email is being linked for the first time, reset UID tracking
-                # so the scheduler will re-scan and pick up this email on next run.
-                if email_being_set or update_data.get('email_account_id'):
-                    update_data['last_uid'] = 0
-                    update_data['folder_last_uids'] = {}
+            def _to_optional_int(value):
+                if value is None or value == '':
+                    return None
+                return int(value)
 
-                if update_data:
-                    await crud_customer_order_config.update(session, existing_cfg, update_data)
-                    action = 'updated'
+            if config_mode == 'new':
+                if not order_config:
+                    action = 'no_config'
                     note = (
-                        f'Email {inbox_email.from_email} и паттерны добавлены в '
-                        f'конфигурацию заказов клиента «{customer_name}». '
-                        'Шедулер обработает письмо при следующем запуске.'
+                        'Выбран режим создания новой конфигурации, но не '
+                        'переданы настройки файла заказа.'
                     )
                 else:
-                    action = 'already_linked'
-                    note = f'Конфигурация клиента «{customer_name}» уже содержит email и паттерны.'
-            else:
-                action = 'no_config'
-                note = (
-                    f'У клиента «{customer_name}» нет конфигурации заказов. '
-                    'Создайте её в разделе "Клиенты → Настройка заказов", '
-                    'затем вернитесь и переназначьте правило.'
-                )
+                    if not order_config.get('pricelist_config_id'):
+                        raise ValueError(
+                            'Для новой конфигурации укажите прайс клиента'
+                        )
+                    if not order_config.get('oem_col'):
+                        raise ValueError(
+                            'Для новой конфигурации укажите колонку OEM'
+                        )
+                    if not order_config.get('brand_col'):
+                        raise ValueError(
+                            'Для новой конфигурации укажите колонку Бренд'
+                        )
+                    if not order_config.get('qty_col'):
+                        raise ValueError(
+                            'Для новой конфигурации укажите колонку Кол-во'
+                        )
 
-            configs_set.append({
+                    create_data = {
+                        'order_email': inbox_email.from_email,
+                        'order_subject_pattern': (
+                            customer_config.subject_pattern or None
+                        ),
+                        'order_filename_pattern': (
+                            customer_config.filename_pattern or None
+                        ),
+                        'email_account_id': inbox_email.email_account_id,
+                        'pricelist_config_id': int(
+                            order_config['pricelist_config_id']
+                        ),
+                        'order_start_row': int(
+                            order_config.get('order_start_row') or 1
+                        ),
+                        'order_number_row': _to_optional_int(
+                            order_config.get('order_number_row')
+                        ),
+                        'order_date_row': _to_optional_int(
+                            order_config.get('order_date_row')
+                        ),
+                        'order_number_source': order_config.get(
+                            'order_number_source'
+                        ),
+                        'order_number_regex_subject': order_config.get(
+                            'order_number_regex_subject'
+                        ),
+                        'order_number_regex_filename': order_config.get(
+                            'order_number_regex_filename'
+                        ),
+                        'order_number_regex_body': order_config.get(
+                            'order_number_regex_body'
+                        ),
+                        'order_number_prefix': order_config.get(
+                            'order_number_prefix'
+                        ),
+                        'order_number_suffix': order_config.get(
+                            'order_number_suffix'
+                        ),
+                        'oem_col': _to_zero_based_column(
+                            order_config.get('oem_col')
+                        ),
+                        'brand_col': _to_zero_based_column(
+                            order_config.get('brand_col')
+                        ),
+                        'name_col': _to_zero_based_column(
+                            order_config.get('name_col')
+                        ),
+                        'qty_col': _to_zero_based_column(
+                            order_config.get('qty_col')
+                        ),
+                        'price_col': _to_zero_based_column(
+                            order_config.get('price_col')
+                        ),
+                        'ship_qty_col': _to_zero_based_column(
+                            order_config.get('ship_qty_col')
+                        ),
+                        'ship_price_col': _to_zero_based_column(
+                            order_config.get('ship_price_col')
+                        ),
+                        'reject_qty_col': _to_zero_based_column(
+                            order_config.get('reject_qty_col')
+                        ),
+                        'order_number_column': _to_zero_based_column(
+                            order_config.get('order_number_column')
+                        ),
+                        'order_date_column': _to_zero_based_column(
+                            order_config.get('order_date_column')
+                        ),
+                    }
+                    if order_config.get('ship_mode'):
+                        create_data['ship_mode'] = order_config['ship_mode']
+                    if order_config.get('price_tolerance_pct') is not None:
+                        create_data['price_tolerance_pct'] = float(
+                            order_config['price_tolerance_pct']
+                        )
+                    if order_config.get('price_warning_pct') is not None:
+                        create_data['price_warning_pct'] = float(
+                            order_config['price_warning_pct']
+                        )
+                    if order_config.get('is_active') is not None:
+                        create_data['is_active'] = bool(
+                            order_config['is_active']
+                        )
+
+                    created_cfg = await crud_customer_order_config.create(
+                        session=session,
+                        customer_id=target_customer_id,
+                        data=create_data,
+                    )
+                    target_customer_config_id = int(created_cfg.id)
+                    action = 'created'
+                    note = (
+                        f'Создана новая конфигурация заказов клиента '
+                        f'«{customer_name}» (ID {created_cfg.id}).'
+                    )
+            else:
+                existing_cfg = None
+                if selected_config_id:
+                    existing_cfg = await crud_customer_order_config.get_by_id(
+                        session, int(selected_config_id)
+                    )
+                if (
+                    existing_cfg is None
+                    and (selected_config_id is None)
+                ):
+                    existing_cfg = (
+                        await crud_customer_order_config.get_by_customer_id(
+                            session, target_customer_id
+                        )
+                    )
+
+                if (
+                    existing_cfg
+                    and existing_cfg.customer_id == target_customer_id
+                ):
+                    target_customer_config_id = int(existing_cfg.id)
+                    update_data: dict = {}
+                    email_being_set = not existing_cfg.order_email
+                    if email_being_set:
+                        update_data['order_email'] = inbox_email.from_email
+                    if (
+                        customer_config.subject_pattern
+                        and not existing_cfg.order_subject_pattern
+                    ):
+                        update_data['order_subject_pattern'] = (
+                            customer_config.subject_pattern
+                        )
+                    if (
+                        customer_config.filename_pattern
+                        and not existing_cfg.order_filename_pattern
+                    ):
+                        update_data['order_filename_pattern'] = (
+                            customer_config.filename_pattern
+                        )
+                    if (
+                        inbox_email.email_account_id
+                        and not existing_cfg.email_account_id
+                    ):
+                        update_data['email_account_id'] = (
+                            inbox_email.email_account_id
+                        )
+                    if email_being_set or update_data.get('email_account_id'):
+                        update_data['last_uid'] = 0
+                        update_data['folder_last_uids'] = {}
+
+                    # Применяем изменения столбцов если менеджер
+                    # скорректировал их в мастере
+                    if order_config:
+                        col_fields = [
+                            'order_start_row', 'oem_col', 'brand_col',
+                            'qty_col', 'name_col', 'price_col',
+                            'ship_qty_col', 'reject_qty_col',
+                        ]
+                        for field in col_fields:
+                            if order_config.get(field) is not None:
+                                if field == 'order_start_row':
+                                    update_data[field] = int(
+                                        order_config[field]
+                                    )
+                                else:
+                                    update_data[field] = (
+                                        _to_zero_based_column(
+                                            order_config[field]
+                                        )
+                                    )
+
+                    if update_data:
+                        await crud_customer_order_config.update(
+                            session,
+                            existing_cfg,
+                            update_data
+                        )
+                        action = 'updated'
+                        note = (
+                            f'Обновлена конфигурация заказов клиента '
+                            f'«{customer_name}» (ID {existing_cfg.id}).'
+                        )
+                    else:
+                        action = 'already_linked'
+                        note = (
+                            f'Конфигурация клиента «{customer_name}» '
+                            f'(ID {existing_cfg.id}) уже актуальна.'
+                        )
+                else:
+                    action = 'no_config'
+                    if selected_config_id:
+                        note = (
+                            f'Конфигурация ID {selected_config_id} не найдена '
+                            'или не принадлежит выбранному клиенту.'
+                        )
+                    else:
+                        note = (
+                            f'У клиента «{customer_name}» нет конфигурации '
+                            'заказов. Выберите "Создать новую".'
+                        )
+
+            config_entry = {
                 'entity_type': 'customer',
                 'entity_id': customer_config.customer_id,
                 'entity_name': customer_name,
                 'action': action,
                 'note': note,
-            })
+            }
+            if target_customer_config_id is not None:
+                config_entry['entity_id'] = target_customer_config_id
+            configs_set.append(config_entry)
+
+            if target_customer_config_id is not None:
+                configs_set.append({
+                    'entity_type': 'customer',
+                    'entity_id': target_customer_config_id,
+                    'entity_name': customer_name,
+                    'action': 'queued',
+                    'note': (
+                        'Конфигурация сохранена. Обработка письма запустится '
+                        'чуть позже по расписанию шедулера.'
+                    ),
+                })
         except Exception as e:
-            logger.warning('Ошибка привязки клиента id=%s: %s', customer_config.customer_id, e)
+            logger.warning(
+                'Ошибка привязки клиента id=%s: %s',
+                customer_config.customer_id, e
+            )
 
     # ------------------------------------------------------------------
     # 2. Назначаем правило + паттерн + запускаем обработку
@@ -1160,7 +1975,45 @@ async def setup_email_rule(
 async def cleanup_inbox_emails(
     session: AsyncSession, max_days: int = 7
 ) -> int:
-    """Удаляет письма старше max_days дней."""
+    """
+    Удаляет письма старше max_days дней.
+    Перед удалением из БД удаляет файлы вложений с диска.
+    Файлы хранятся не дольше max_days дней (по умолчанию 7).
+    """
+    from datetime import timedelta
+
+    from sqlalchemy.future import select as sa_select
+
+    cutoff = now_moscow() - timedelta(days=max_days)
+
+    # Получаем пути файлов перед удалением из БД
+    result = await session.execute(
+        sa_select(InboxEmail.attachment_info).where(
+            InboxEmail.fetched_at < cutoff
+        )
+    )
+    files_deleted = 0
+    for (att_info,) in result:
+        for att in (att_info or []):
+            path = att.get('path')
+            fs_path = resolve_inbox_attachment_fs_path(path)
+            if fs_path and os.path.exists(fs_path):
+                try:
+                    os.remove(fs_path)
+                    files_deleted += 1
+                    # Удаляем пустые родительские папки
+                    parent = os.path.dirname(fs_path)
+                    if os.path.isdir(parent) and not os.listdir(parent):
+                        os.rmdir(parent)
+                except Exception as e:
+                    logger.warning(
+                        'Не удалось удалить файл %s: %s', fs_path, e
+                    )
+
     deleted = await cleanup_old_inbox_emails(session, max_days=max_days)
-    logger.info('Удалено %d устаревших писем из InboxEmail', deleted)
+    logger.info(
+        'Удалено %d устаревших писем из InboxEmail, '
+        '%d файлов вложений с диска',
+        deleted, files_deleted,
+    )
     return deleted

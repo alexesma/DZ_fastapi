@@ -391,12 +391,14 @@ async def test_download_price_provider_uses_uid_fallback_on_search_error(
         name_price='alyprice',
         file_url=None,
     )
+    recent_msg_date = datetime.now().replace(microsecond=0)
+
     header_msg = SimpleNamespace(
         uid='105',
         from_='supplier@example.com',
         subject='Остатки товаров',
         attachments=[],
-        date=datetime(2026, 4, 5, 12, 0, 0),
+        date=recent_msg_date,
         headers={},
         obj={},
     )
@@ -410,7 +412,7 @@ async def test_download_price_provider_uses_uid_fallback_on_search_error(
                 payload=b'payload',
             )
         ],
-        date=datetime(2026, 4, 5, 12, 0, 0),
+        date=recent_msg_date,
         headers={'Subject': 'Остатки товаров'},
         obj={'Subject': 'Остатки товаров'},
     )

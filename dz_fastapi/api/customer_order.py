@@ -515,13 +515,32 @@ async def list_customer_order_summary(
                 else item.matched_price
             )
             price_value = _money(price)
-            ship_qty = item.ship_qty or item.requested_qty or 0
-            reject_qty = item.reject_qty or 0
-            if item.status == CUSTOMER_ORDER_ITEM_STATUS.REJECTED:
-                if reject_qty == 0:
-                    reject_qty = item.requested_qty or 0
+            requested_qty = int(item.requested_qty or 0)
+            reject_qty = int(item.reject_qty or 0)
+
+            # Для частичных отказов reject_qty может быть заполнен при
+            # статусах OWN_STOCK/SUPPLIER, и его нужно включать в итог.
+            if (
+                    reject_qty == 0
+                    and item.status == CUSTOMER_ORDER_ITEM_STATUS.REJECTED
+            ):
+                reject_qty = requested_qty
+            if reject_qty > 0:
                 rejected_sum += Decimal(reject_qty) * price_value
-            elif item.status == CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK:
+
+            ship_qty = 0
+            if item.status in (
+                CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK,
+                CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER,
+            ):
+                if item.ship_qty is not None:
+                    ship_qty = int(item.ship_qty or 0)
+                elif reject_qty > 0:
+                    ship_qty = max(requested_qty - reject_qty, 0)
+                else:
+                    ship_qty = requested_qty
+
+            if item.status == CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK:
                 stock_sum += Decimal(ship_qty) * price_value
             elif item.status == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER:
                 supplier_sum += Decimal(ship_qty) * price_value

@@ -6,38 +6,31 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.api.deps import get_current_user, require_admin
 from dz_fastapi.core.db import get_session
-from dz_fastapi.crud.inbox_email import (
-    create_rule_pattern,
-    delete_rule_pattern,
-    get_inbox_email,
-    get_rule_pattern,
-    list_inbox_emails,
-    list_rule_patterns,
-    update_rule_pattern,
-)
+from dz_fastapi.crud.inbox_email import (create_rule_pattern,
+                                         delete_rule_pattern, get_inbox_email,
+                                         get_rule_pattern, list_inbox_emails,
+                                         list_rule_patterns,
+                                         update_rule_pattern)
 from dz_fastapi.models.user import User
-from dz_fastapi.schemas.inbox_email import (
-    AssignRuleRequest,
-    AssignRuleResponse,
-    ConfigSetupInfo,
-    EmailRulePatternCreate,
-    EmailRulePatternOut,
-    EmailRulePatternUpdate,
-    FetchInboxRequest,
-    FetchInboxResponse,
-    InboxEmailBrief,
-    InboxEmailDetail,
-    InboxEmailListResponse,
-    InboxSetupOptions,
-    InboxSetupRequest,
-    InboxSetupResponse,
-    SetupOption,
-)
-from dz_fastapi.services.inbox_email import (
-    assign_rule,
-    fetch_and_store_emails,
-    setup_email_rule,
-)
+from dz_fastapi.schemas.inbox_email import (AssignRuleRequest,
+                                            AssignRuleResponse,
+                                            ConfigSetupInfo,
+                                            EmailRulePatternCreate,
+                                            EmailRulePatternOut,
+                                            EmailRulePatternUpdate,
+                                            FetchInboxRequest,
+                                            FetchInboxResponse,
+                                            InboxEmailBrief, InboxEmailDetail,
+                                            InboxEmailListResponse,
+                                            InboxSetupOptions,
+                                            InboxSetupRequest,
+                                            InboxSetupResponse, SetupOption)
+from dz_fastapi.services.inbox_email import (assign_rule,
+                                             fetch_and_store_emails,
+                                             inbox_attachment_exists,
+                                             read_attachment_preview,
+                                             resolve_inbox_attachment_fs_path,
+                                             setup_email_rule)
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -99,6 +92,74 @@ async def get_email_detail(
     if email is None:
         raise HTTPException(status_code=404, detail='Письмо не найдено')
     return InboxEmailDetail.model_validate(email)
+
+
+@router.get(
+    '/emails/{email_id}/attachment-preview',
+    summary='Предпросмотр вложения письма (XLS/XLSX/CSV)',
+)
+async def get_attachment_preview(
+    email_id: int,
+    attachment_index: int = Query(default=0, ge=0),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Возвращает первые 25 строк вложения (XLS/XLSX/CSV) для предпросмотра.
+    Если файл не был сохранён на диск (письмо получено до введения
+    этой функции) — возвращает 404.
+    """
+    email = await get_inbox_email(session, email_id)
+    if email is None:
+        raise HTTPException(status_code=404, detail='Письмо не найдено')
+
+    att_info = email.attachment_info or []
+    if attachment_index >= len(att_info):
+        raise HTTPException(
+            status_code=404,
+            detail=f'Вложение с индексом {attachment_index} не найдено',
+        )
+
+    att = att_info[attachment_index]
+    file_path = att.get('path')
+
+    if not file_path:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                'Файл не сохранён на диске. '
+                'Письма, полученные до введения функции предпросмотра, '
+                'не имеют сохранённых вложений. '
+                'Загрузите письмо повторно для сохранения вложений.'
+            ),
+        )
+
+    if not inbox_attachment_exists(file_path):
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f'Файл вложения не найден на диске: {file_path}. '
+                'Попробуйте повторно загрузить письма — система восстановит '
+                'сохранённые вложения для уже известных UID.'
+            ),
+        )
+
+    fs_path = resolve_inbox_attachment_fs_path(file_path)
+    try:
+        preview = await read_attachment_preview(fs_path, max_rows=25)
+    except Exception as e:
+        logger.exception('Ошибка чтения вложения %s: %s', fs_path, e)
+        raise HTTPException(
+            status_code=500,
+            detail=f'Не удалось прочитать файл: {e}',
+        )
+
+    return {
+        'filename': att.get('name', ''),
+        'rows': preview['rows'],
+        'total_rows': preview['total_rows'],
+        'columns': preview['columns'],
+    }
 
 
 @router.post(
@@ -188,7 +249,7 @@ async def get_setup_options(
     Возвращает списки поставщиков и клиентов для выпадающих списков
     в мастере назначения правила.
     """
-    from dz_fastapi.crud.partner import crud_provider, crud_customer
+    from dz_fastapi.crud.partner import crud_customer, crud_provider
 
     # Используем проверенные CRUD-методы, которые уже корректно
     # обрабатывают joined-table inheritance (Client → Provider/Customer)
@@ -214,10 +275,99 @@ async def get_setup_options(
     return InboxSetupOptions(providers=providers, customers=customers)
 
 
+@router.get(
+    '/provider/{provider_id}/configs',
+    summary='Конфигурации поставщика для мастера настройки',
+)
+async def get_provider_configs_for_wizard(
+    provider_id: int,
+    rule_type: str = Query(
+        ...,
+        description='price_list | order_reply | document'
+    ),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Возвращает существующие конфигурации поставщика в зависимости от
+    типа правила: ProviderPriceListConfig (price_list) или
+    SupplierResponseConfig (order_reply / document).
+    """
+    from dz_fastapi.crud.partner import (crud_provider_pricelist_config,
+                                         crud_supplier_response_config)
+
+    if rule_type == 'price_list':
+        configs = await crud_provider_pricelist_config.get_configs(
+            provider_id=provider_id, session=session
+        )
+        return [
+            {
+                'id': c.id,
+                'label': (
+                    f'#{c.id} • {c.name_price}'
+                    if c.name_price else f'Конфигурация #{c.id}'
+                ),
+                'name_price': c.name_price,
+                'name_mail': c.name_mail,
+                'start_row': c.start_row,
+                'oem_col': c.oem_col,
+                'qty_col': c.qty_col,
+                'price_col': c.price_col,
+                'brand_col': c.brand_col,
+                'name_col': c.name_col,
+            }
+            for c in (configs or [])
+        ]
+
+    if rule_type in ('order_reply', 'document'):
+        payload_type = (
+            'response' if rule_type == 'order_reply' else 'document'
+        )
+        all_cfgs = await crud_supplier_response_config.get_configs(
+            provider_id=provider_id, session=session
+        )
+        filtered = [
+            c for c in (all_cfgs or [])
+            if getattr(c, 'file_payload_type', 'response') == payload_type
+        ]
+        return [
+            {
+                'id': c.id,
+                'label': f'#{c.id} • {c.name}' if c.name else f'#{c.id}',
+                'name': c.name,
+                'response_type': getattr(c, 'response_type', 'file'),
+                'file_payload_type': getattr(c, 'file_payload_type', None),
+                'filename_pattern': getattr(c, 'filename_pattern', None),
+                'start_row': getattr(c, 'start_row', 1),
+                'oem_col': getattr(c, 'oem_col', None),
+                'qty_col': getattr(c, 'qty_col', None),
+                'price_col': getattr(c, 'price_col', None),
+                'brand_col': getattr(c, 'brand_col', None),
+                'status_col': getattr(c, 'status_col', None),
+                'comment_col': getattr(c, 'comment_col', None),
+                'confirm_keywords': getattr(c, 'confirm_keywords', None),
+                'reject_keywords': getattr(c, 'reject_keywords', None),
+                'value_after_article_type': getattr(
+                    c, 'value_after_article_type', None
+                ),
+                'document_number_col': getattr(
+                    c, 'document_number_col', None
+                ),
+                'document_date_col': getattr(c, 'document_date_col', None),
+            }
+            for c in filtered
+        ]
+
+    return []
+
+
 @router.post(
     '/emails/{email_id}/setup',
     response_model=InboxSetupResponse,
-    summary='Мастер настройки: назначить правило + создать/обновить конфигурацию в системе',
+    summary=(
+        'Мастер настройки: назначить правило + '
+        'создать/обновить конфигурацию в системе'
+    ),
 )
 async def setup_email(
     email_id: int,
@@ -228,7 +378,8 @@ async def setup_email(
     """
     Полный мастер назначения правила:
     - Привязывает email-отправителя к поставщику или клиенту
-      (обновляет email_incoming_price / order_email в реальных конфигах системы)
+      (обновляет email_incoming_price / order_email
+       в реальных конфигах системы)
     - Сохраняет паттерн EmailRulePattern для будущей авто-разметки
     - Немедленно обрабатывает письмо по выбранному правилу
 
@@ -258,7 +409,9 @@ async def setup_email(
         processed=result['processed'],
         processing_result=result.get('processing_result'),
         processing_error=result.get('processing_error'),
-        configs_set=[ConfigSetupInfo(**c) for c in result.get('configs_set', [])],
+        configs_set=[
+            ConfigSetupInfo(**c) for c in result.get('configs_set', [])
+        ],
     )
 
 

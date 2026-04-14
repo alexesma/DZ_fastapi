@@ -187,6 +187,50 @@ async def test_customer_order_item_stats_monthly_breakdown(
 
 
 @pytest.mark.asyncio
+async def test_customer_order_summary_includes_partial_reject_qty(
+    async_client, test_session, created_customers
+):
+    await _create_user(test_session, "summary@example.com", UserRole.MANAGER)
+    await _login(async_client, "summary@example.com")
+
+    customer = created_customers[0]
+    order = CustomerOrder(
+        customer_id=customer.id,
+        status="PROCESSED",
+        received_at=now_moscow(),
+    )
+    test_session.add(order)
+    await test_session.flush()
+
+    test_session.add(
+        CustomerOrderItem(
+            order_id=order.id,
+            oem="16626AD200",
+            brand="NISSAN",
+            requested_qty=16,
+            requested_price=Decimal("100.00"),
+            ship_qty=10,
+            reject_qty=6,
+            status="OWN_STOCK",
+        )
+    )
+    await test_session.commit()
+
+    response = await async_client.get(
+        "/customer-orders/summary",
+        params={"customer_id": customer.id},
+    )
+    assert response.status_code == 200, response.text
+    rows = response.json()
+    row = next((item for item in rows if item["id"] == order.id), None)
+    assert row is not None
+    assert row["stock_sum"] == pytest.approx(1000.0)
+    assert row["rejected_sum"] == pytest.approx(600.0)
+    assert row["total_sum"] == pytest.approx(1600.0)
+    assert row["rejected_pct"] == pytest.approx(37.5)
+
+
+@pytest.mark.asyncio
 async def test_stock_order_pick_endpoint_updates_progress(
     async_client,
     test_session,

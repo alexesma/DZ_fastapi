@@ -1,13 +1,5 @@
-from sqlalchemy import (
-    JSON,
-    Boolean,
-    Column,
-    DateTime,
-    ForeignKey,
-    Integer,
-    String,
-    Text,
-)
+from sqlalchemy import (JSON, Boolean, Column, DateTime, ForeignKey, Integer,
+                        String, Text)
 
 from dz_fastapi.core.db import Base
 from dz_fastapi.core.time import now_moscow
@@ -70,8 +62,12 @@ class EmailRulePattern(Base):
     )
 
     # Критерии совпадения
-    from_email_pattern = Column(String(255), nullable=True)   # точный email
-    from_domain_pattern = Column(String(255), nullable=True)  # домен отправителя
+    from_email_pattern = Column(
+        String(255), nullable=True
+    )   # точный email
+    from_domain_pattern = Column(
+        String(255), nullable=True
+    )  # домен отправителя
     # ключевые слова в теме письма (все должны присутствовать)
     subject_keywords = Column(JSON, default=list)
     # None = не важно, True/False = наличие вложений обязательно/запрещено

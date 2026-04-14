@@ -9,12 +9,14 @@ from pydantic import BaseModel, ConfigDict
 RuleType = Literal[
     # --- Полностью реализованы ---
     'price_list',        # Прайс-лист поставщика
-    'order_reply',       # Ответ поставщика на заказ (подтверждение / отказ / частично)
-    # --- Реализованы (подключение к существующим сервисам) ---
+    'order_reply',       # Ответ поставщика на заказ
+                         # (подтверждение / отказ / частично)
+    # --- Реализованы (существующие сервисы) ---
     'customer_order',    # Входящий заказ от клиента
-    'document',          # Документ от поставщика (накладная / счёт / акт / счёт-фактура)
-    'shipment_notice',   # Уведомление об отгрузке / трекинг-номер
-    'claim',             # Претензия / рекламация от клиента или к поставщику
+    'document',          # Документ от поставщика
+                         # (накладная / счёт / акт / счёт-фактура)
+    'shipment_notice',   # Уведомление об отгрузке / трекинг
+    'claim',             # Претензия / рекламация от клиента
     # --- Заглушки: уведомление менеджера, логика позже ---
     'error_report',      # Сообщение об ошибке
     'inquiry',           # Вопрос
@@ -26,17 +28,33 @@ RuleType = Literal[
 
 # Метаданные для UI и логов
 RULE_META: dict[str, dict] = {
-    'price_list':      {'label': 'Прайс-лист',            'group': 'auto',    'color': 'blue'},
-    'order_reply':     {'label': 'Ответ на заказ',         'group': 'auto',    'color': 'green'},
-    'customer_order':  {'label': 'Заказ от клиента',       'group': 'auto',    'color': 'cyan'},
-    'document':        {'label': 'Документ',               'group': 'auto',    'color': 'purple'},
-    'shipment_notice': {'label': 'Уведомление об отгрузке','group': 'auto',    'color': 'geekblue'},
-    'claim':           {'label': 'Претензия / рекламация', 'group': 'notify',  'color': 'red'},
-    'error_report':    {'label': 'Ошибка',                 'group': 'notify',  'color': 'orange'},
-    'inquiry':         {'label': 'Вопрос',                 'group': 'notify',  'color': 'gold'},
-    'proposal':        {'label': 'Предложение',            'group': 'notify',  'color': 'lime'},
-    'spam':            {'label': 'Спам',                   'group': 'service', 'color': 'default'},
-    'ignore':          {'label': 'Игнорировать',           'group': 'service', 'color': 'default'},
+    'price_list': {
+        'label': 'Прайс-лист', 'group': 'auto', 'color': 'blue'},
+    'order_reply': {
+        'label': 'Ответ на заказ',
+        'group': 'auto', 'color': 'green'},
+    'customer_order': {
+        'label': 'Заказ от клиента',
+        'group': 'auto', 'color': 'cyan'},
+    'document': {
+        'label': 'Документ', 'group': 'auto', 'color': 'purple'},
+    'shipment_notice': {
+        'label': 'Уведомление об отгрузке',
+        'group': 'auto', 'color': 'geekblue'},
+    'claim': {
+        'label': 'Претензия / рекламация',
+        'group': 'notify', 'color': 'red'},
+    'error_report': {
+        'label': 'Ошибка', 'group': 'notify', 'color': 'orange'},
+    'inquiry': {
+        'label': 'Вопрос', 'group': 'notify', 'color': 'gold'},
+    'proposal': {
+        'label': 'Предложение', 'group': 'notify', 'color': 'lime'},
+    'spam': {
+        'label': 'Спам', 'group': 'service', 'color': 'default'},
+    'ignore': {
+        'label': 'Игнорировать',
+        'group': 'service', 'color': 'default'},
 }
 
 
@@ -78,7 +96,9 @@ class InboxEmailBrief(BaseModel):
 
 
 class InboxEmailDetail(InboxEmailBrief):
-    """Полное представление письма (включая body_full и результат обработки)."""
+    """Полное представление письма
+    (включая body_full и результат обработки).
+    """
 
     body_full: Optional[str] = None
     processing_result: Optional[dict] = None
@@ -154,18 +174,54 @@ class EmailRulePatternOut(EmailRulePatternBase):
 # ---------------------------------------------------------------------------
 
 class ProviderSetupConfig(BaseModel):
-    """Настройка привязки письма к поставщику (прайс / ответ / документ / отгрузка)."""
+    """Настройка привязки письма к поставщику
+    (прайс / ответ / документ / отгрузка).
+    """
     provider_id: int
-    # Необязательные паттерны — запоминаем для будущего авто-определения
-    subject_pattern: Optional[str] = None   # name_mail в ProviderPricelistConfig
-    filename_pattern: Optional[str] = None  # name_price в ProviderPricelistConfig
+    # Паттерны для авто-определения будущих писем
+    subject_pattern: Optional[str] = None   # name_mail in pricelist config
+    filename_pattern: Optional[str] = None  # name_price / filename_pattern
+
+    # Режим конфигурации столбцов файла
+    # 'existing' — обновить выбранную конфигурацию
+    # 'new'      — создать новую конфигурацию
+    # 'skip'     — только привязать email, не трогать конфиги
+    config_mode: Literal['existing', 'new', 'skip'] = 'skip'
+    config_id: Optional[int] = None        # ID ProviderPriceListConfig или
+    #                                         SupplierResponseConfig
+    config_name: Optional[str] = None  # имя для новой SupplierResponseConfig
+
+    # Общие поля столбцов (для price_list, order_reply, document)
+    start_row: Optional[int] = None
+    oem_col: Optional[int] = None
+    qty_col: Optional[int] = None
+    price_col: Optional[int] = None
+    brand_col: Optional[int] = None
+    name_col: Optional[int] = None         # только для price_list
+
+    # Дополнительно для order_reply
+    response_type: Optional[Literal['file', 'text']] = None
+    status_col: Optional[int] = None
+    comment_col: Optional[int] = None
+    confirm_keywords: Optional[List[str]] = None
+    reject_keywords: Optional[List[str]] = None
+    value_after_article_type: Optional[
+        Literal['number', 'text', 'both']
+    ] = None
+
+    # Дополнительно для document
+    document_number_col: Optional[int] = None
+    document_date_col: Optional[int] = None
 
 
 class CustomerSetupConfig(BaseModel):
     """Настройка привязки письма к клиенту (входящий заказ)."""
     customer_id: int
+    config_mode: Literal['existing', 'new'] = 'existing'
+    config_id: Optional[int] = None
     subject_pattern: Optional[str] = None   # order_subject_pattern (regex)
     filename_pattern: Optional[str] = None  # order_filename_pattern (regex)
+    order_config: Optional[dict] = None
 
 
 class InboxSetupRequest(BaseModel):
@@ -176,7 +232,7 @@ class InboxSetupRequest(BaseModel):
     """
     rule_type: RuleType
     save_pattern: bool = True
-    # Заполняется только для price_list / order_reply / document / shipment_notice
+    # Заполняется для price_list / order_reply / document / shipment_notice
     provider_config: Optional[ProviderSetupConfig] = None
     # Заполняется только для customer_order
     customer_config: Optional[CustomerSetupConfig] = None
@@ -187,7 +243,8 @@ class ConfigSetupInfo(BaseModel):
     entity_type: str      # 'provider' | 'customer'
     entity_id: int
     entity_name: str
-    action: str           # 'linked' | 'updated' | 'already_linked' | 'no_config'
+    # 'linked' | 'updated' | 'already_linked' | 'no_config'
+    action: str
     note: Optional[str] = None
 
 

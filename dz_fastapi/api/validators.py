@@ -21,15 +21,23 @@ def normalize_brand_name(brand_name: str) -> str:
     Функция для изменения имени бренда
     "АВТОЗАПЧАСТ�� ДЛЯ Haval f7" в "Автозапчасть для HAVAL F7"
     '''
-    # Приведение к верхнему регистру для ASCII символов
+    # Приведение к верхнему регистру для ASCII и кириллицы
     brand_name = ''.join(
         [
-            char.upper() if char in string.ascii_letters else char
+            char.upper()
+            if char in string.ascii_letters or _is_cyrillic(char)
+            else char
             for char in brand_name
         ]
     )
-    # Удаление всех символов, кроме a-z, A-Z, 0-9, пробелов и дефисов
-    brand_name = re.sub(r'[^a-zA-Z0-9 -]', '', brand_name)
+    # Разрешаем только латиницу/кириллицу, цифры, пробел и дефис
+    filtered = []
+    for char in brand_name:
+        if char.isdigit() or char in {' ', '-'}:
+            filtered.append(char)
+        elif char in string.ascii_letters or _is_cyrillic(char):
+            filtered.append(char)
+    brand_name = ''.join(filtered)
     # Замена нескольких пробелов или дефисов на один
     brand_name = re.sub(r'[ -]{2,}', '-', brand_name)
     # Удаление начальных и конечных пробелов или дефисов

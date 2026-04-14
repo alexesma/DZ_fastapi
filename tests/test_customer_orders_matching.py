@@ -19,6 +19,7 @@ def test_normalize_oem_key_matches_autopart_storage_rules():
 def test_normalize_brand_name_matches_existing_rules():
     assert normalize_brand_name('Toyota') == 'TOYOTA'
     assert normalize_brand_name('  lexus  ') == 'LEXUS'
+    assert normalize_brand_name('Лифан') == 'ЛИФАН'
 
 
 def test_normalize_key_uses_brand_aliases_for_synonyms():

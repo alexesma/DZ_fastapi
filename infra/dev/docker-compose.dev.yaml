@@ -41,8 +41,8 @@ services:
       dockerfile: Dockerfile
     container_name: dz_fastapi_dev
     restart: always
-#    volumes:
-#      - ../..:/app
+    volumes:
+      - inbox_uploads_data:/app/uploads
     logging:
       driver: "json-file"
       options:
@@ -65,3 +65,4 @@ services:
 
 volumes:
   postgres_data:
+  inbox_uploads_data:
