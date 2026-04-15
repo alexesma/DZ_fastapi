@@ -764,7 +764,9 @@ async def get_supplier_receipt_detail(
             joinedload(SupplierReceipt.created_by_user),
             selectinload(SupplierReceipt.items).joinedload(
                 SupplierReceiptItem.customer_order_item
-            ).joinedload(CustomerOrderItem.order).joinedload(CustomerOrder.customer),
+            ).joinedload(
+                CustomerOrderItem.order
+            ).joinedload(CustomerOrder.customer),
         )
         .where(SupplierReceipt.id == receipt_id)
     )
