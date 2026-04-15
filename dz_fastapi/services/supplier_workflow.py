@@ -10,10 +10,10 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.customer_order import crud_supplier_order
-from dz_fastapi.models.partner import (STOCK_ORDER_STATUS, CustomerOrderItem,
-                                       StockOrder, StockOrderItem,
-                                       SupplierOrderItem, SupplierReceipt,
-                                       SupplierReceiptItem)
+from dz_fastapi.models.partner import (STOCK_ORDER_STATUS, CustomerOrder,
+                                       CustomerOrderItem, StockOrder,
+                                       StockOrderItem, SupplierOrderItem,
+                                       SupplierReceipt, SupplierReceiptItem)
 from dz_fastapi.models.user import User
 from dz_fastapi.services.customer_orders import \
     try_finalize_customer_order_response
@@ -689,11 +689,52 @@ async def delete_supplier_receipt(
     await session.commit()
 
 
+def _serialize_receipt_item(item: SupplierReceiptItem) -> dict:
+    customer_name = None
+    customer_order_number = None
+    try:
+        coi = item.customer_order_item
+        if coi is not None:
+            co = coi.order
+            if co is not None:
+                customer_order_number = co.order_number
+                if co.customer is not None:
+                    customer_name = co.customer.name
+    except Exception:
+        pass
+    return {
+        'id': item.id,
+        'supplier_order_id': item.supplier_order_id,
+        'supplier_order_item_id': item.supplier_order_item_id,
+        'customer_order_item_id': item.customer_order_item_id,
+        'autopart_id': item.autopart_id,
+        'oem_number': item.oem_number,
+        'brand_name': item.brand_name,
+        'autopart_name': item.autopart_name,
+        'ordered_quantity': item.ordered_quantity,
+        'confirmed_quantity': item.confirmed_quantity,
+        'received_quantity': item.received_quantity,
+        'price': item.price,
+        'total_price_with_vat': item.total_price_with_vat,
+        'gtd_code': item.gtd_code,
+        'country_code': item.country_code,
+        'country_name': item.country_name,
+        'comment': item.comment,
+        'customer_name': customer_name,
+        'customer_order_number': customer_order_number,
+    }
+
+
 def serialize_supplier_receipt(receipt: SupplierReceipt) -> dict:
     return {
         'id': receipt.id,
         'provider_id': receipt.provider_id,
         'provider_name': receipt.provider.name if receipt.provider else None,
+        'provider_is_vat_payer': (
+            receipt.provider.is_vat_payer
+            if receipt.provider is not None
+            else False
+        ),
         'supplier_order_id': receipt.supplier_order_id,
         'source_message_id': receipt.source_message_id,
         'document_number': receipt.document_number,
@@ -707,22 +748,27 @@ def serialize_supplier_receipt(receipt: SupplierReceipt) -> dict:
         'created_at': receipt.created_at,
         'posted_at': receipt.posted_at,
         'comment': receipt.comment,
-        'items': [
-            {
-                'id': item.id,
-                'supplier_order_id': item.supplier_order_id,
-                'supplier_order_item_id': item.supplier_order_item_id,
-                'customer_order_item_id': item.customer_order_item_id,
-                'autopart_id': item.autopart_id,
-                'oem_number': item.oem_number,
-                'brand_name': item.brand_name,
-                'autopart_name': item.autopart_name,
-                'ordered_quantity': item.ordered_quantity,
-                'confirmed_quantity': item.confirmed_quantity,
-                'received_quantity': item.received_quantity,
-                'price': item.price,
-                'comment': item.comment,
-            }
-            for item in receipt.items
-        ],
+        'items': [_serialize_receipt_item(item) for item in receipt.items],
     }
+
+
+async def get_supplier_receipt_detail(
+    session: AsyncSession,
+    *,
+    receipt_id: int,
+) -> SupplierReceipt:
+    stmt = (
+        select(SupplierReceipt)
+        .options(
+            joinedload(SupplierReceipt.provider),
+            joinedload(SupplierReceipt.created_by_user),
+            selectinload(SupplierReceipt.items).joinedload(
+                SupplierReceiptItem.customer_order_item
+            ).joinedload(CustomerOrderItem.order).joinedload(CustomerOrder.customer),
+        )
+        .where(SupplierReceipt.id == receipt_id)
+    )
+    receipt = (await session.execute(stmt)).scalar_one_or_none()
+    if receipt is None:
+        raise LookupError('Документ поступления не найден')
+    return receipt

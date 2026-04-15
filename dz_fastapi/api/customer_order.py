@@ -51,9 +51,10 @@ from dz_fastapi.services.supplier_order_responses import \
     process_supplier_response_messages
 from dz_fastapi.services.supplier_workflow import (
     create_supplier_receipt, delete_supplier_receipt,
-    list_supplier_receipt_candidates, list_supplier_receipts,
-    post_supplier_receipt, serialize_stock_order, serialize_supplier_receipt,
-    unpost_supplier_receipt, update_stock_order_item_pick)
+    get_supplier_receipt_detail, list_supplier_receipt_candidates,
+    list_supplier_receipts, post_supplier_receipt, serialize_stock_order,
+    serialize_supplier_receipt, unpost_supplier_receipt,
+    update_stock_order_item_pick)
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -1189,6 +1190,27 @@ async def list_supplier_receipts_endpoint(
         )
         for receipt in receipts
     ]
+
+
+@router.get(
+    "/supplier-receipts/{receipt_id}",
+    response_model=SupplierReceiptResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_supplier_receipt_endpoint(
+    receipt_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        receipt = await get_supplier_receipt_detail(
+            session=session, receipt_id=receipt_id
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return SupplierReceiptResponse.model_validate(
+        serialize_supplier_receipt(receipt)
+    )
 
 
 @router.post(

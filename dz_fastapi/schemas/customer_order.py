@@ -529,6 +529,9 @@ class SupplierReceiptItemResponse(BaseModel):
     country_code: Optional[str] = None
     country_name: Optional[str] = None
     comment: Optional[str] = None
+    # Customer info (populated in detail view)
+    customer_name: Optional[str] = None
+    customer_order_number: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -537,6 +540,7 @@ class SupplierReceiptResponse(BaseModel):
     id: int
     provider_id: int
     provider_name: Optional[str] = None
+    provider_is_vat_payer: bool = False
     supplier_order_id: Optional[int] = None
     source_message_id: Optional[int] = None
     document_number: Optional[str] = None

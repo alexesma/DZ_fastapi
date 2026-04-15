@@ -66,6 +66,7 @@ class ClientBase(BaseModel):
 class ProviderBase(ClientBase):
     email_incoming_price: Optional[EmailStr] = None
     is_own_price: Optional[bool] = False
+    is_vat_payer: Optional[bool] = False
     order_schedule_days: Optional[List[str]] = None
     order_schedule_times: Optional[List[str]] = None
     order_schedule_enabled: Optional[bool] = None
@@ -118,6 +119,7 @@ class ProviderUpdate(BaseModel):
     email_incoming_price: Optional[EmailStr] = None
     is_virtual: Optional[bool] = None
     is_own_price: Optional[bool] = None
+    is_vat_payer: Optional[bool] = None
     order_schedule_days: Optional[List[str]] = None
     order_schedule_times: Optional[List[str]] = None
     order_schedule_enabled: Optional[bool] = None
@@ -1055,6 +1057,7 @@ class ProviderAbbreviationUpdate(BaseModel):
 class ProviderCoreOut(ProviderBase):
     id: int
     is_virtual: Optional[bool] = False
+    is_vat_payer: Optional[bool] = False
     last_email_uid: Optional[ProviderLastUIDOut] = None
     model_config = ConfigDict(from_attributes=True)
 

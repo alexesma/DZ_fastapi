@@ -216,6 +216,7 @@ class Provider(Client):
     )
     is_virtual = Column(Boolean, default=False)
     is_own_price = Column(Boolean, default=False)
+    is_vat_payer = Column(Boolean, default=False, nullable=False)
     order_schedule_days = Column(JSON, default=[])
     order_schedule_times = Column(JSON, default=[])
     order_schedule_enabled = Column(Boolean, default=False)
