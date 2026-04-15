@@ -674,6 +674,10 @@ async def delete_supplier_receipt(
     receipt = (await session.execute(stmt)).scalar_one_or_none()
     if receipt is None:
         raise LookupError('Документ поступления не найден')
+    if receipt.posted_at is not None:
+        raise ValueError(
+            'Нельзя удалить проведённый документ. Сначала распроведите его.'
+        )
 
     affected_order_item_ids = {
         int(item.supplier_order_item_id)
@@ -774,3 +778,195 @@ async def get_supplier_receipt_detail(
     if receipt is None:
         raise LookupError('Документ поступления не найден')
     return receipt
+
+
+async def _reload_receipt_detail(
+    session: AsyncSession, receipt_id: int
+) -> SupplierReceipt:
+    return await get_supplier_receipt_detail(session, receipt_id=receipt_id)
+
+
+async def update_supplier_receipt(
+    session: AsyncSession,
+    *,
+    receipt_id: int,
+    document_number: Optional[str] = None,
+    document_date: Optional[date] = None,
+    comment: Optional[str] = None,
+) -> SupplierReceipt:
+    stmt = select(SupplierReceipt).where(SupplierReceipt.id == receipt_id)
+    receipt = (await session.execute(stmt)).scalar_one_or_none()
+    if receipt is None:
+        raise LookupError('Документ поступления не найден')
+    if receipt.posted_at is not None:
+        raise ValueError('Нельзя редактировать проведённый документ')
+    if document_number is not None:
+        receipt.document_number = document_number or None
+    if document_date is not None:
+        receipt.document_date = document_date
+    if comment is not None:
+        receipt.comment = comment or None
+    await session.commit()
+    return await _reload_receipt_detail(session, receipt_id)
+
+
+async def update_supplier_receipt_item(
+    session: AsyncSession,
+    *,
+    item_id: int,
+    **fields,
+) -> SupplierReceipt:
+    stmt = (
+        select(SupplierReceiptItem)
+        .where(SupplierReceiptItem.id == item_id)
+    )
+    item = (await session.execute(stmt)).scalar_one_or_none()
+    if item is None:
+        raise LookupError('Строка документа не найдена')
+    receipt_stmt = select(SupplierReceipt).where(
+        SupplierReceipt.id == item.receipt_id
+    )
+    receipt = (await session.execute(receipt_stmt)).scalar_one_or_none()
+    if receipt is None or receipt.posted_at is not None:
+        raise ValueError('Нельзя редактировать строку проведённого документа')
+
+    allowed = {
+        'oem_number', 'brand_name', 'autopart_name',
+        'received_quantity', 'price', 'total_price_with_vat',
+        'gtd_code', 'country_code', 'country_name', 'comment',
+    }
+    for key, value in fields.items():
+        if key in allowed and value is not None:
+            setattr(item, key, value)
+    await session.commit()
+    return await _reload_receipt_detail(session, item.receipt_id)
+
+
+async def add_supplier_receipt_items(
+    session: AsyncSession,
+    *,
+    receipt_id: int,
+    items_payload: list[dict],
+) -> SupplierReceipt:
+    stmt = select(SupplierReceipt).where(SupplierReceipt.id == receipt_id)
+    receipt = (await session.execute(stmt)).scalar_one_or_none()
+    if receipt is None:
+        raise LookupError('Документ поступления не найден')
+    if receipt.posted_at is not None:
+        raise ValueError('Нельзя добавлять строки в проведённый документ')
+
+    for payload in items_payload:
+        supplier_order_item_id = payload.get('supplier_order_item_id')
+        customer_order_item_id = None
+        supplier_order_id = None
+        oem_number = payload.get('oem_number')
+        brand_name = payload.get('brand_name')
+        autopart_name = payload.get('autopart_name')
+        ordered_quantity = None
+        confirmed_quantity = None
+
+        if supplier_order_item_id:
+            soi_stmt = (
+                select(SupplierOrderItem)
+                .options(
+                    joinedload(SupplierOrderItem.supplier_order),
+                    joinedload(SupplierOrderItem.customer_order_item),
+                )
+                .where(SupplierOrderItem.id == supplier_order_item_id)
+            )
+            soi = (await session.execute(soi_stmt)).scalar_one_or_none()
+            if soi:
+                supplier_order_id = soi.supplier_order_id
+                customer_order_item_id = soi.customer_order_item_id
+                oem_number = oem_number or soi.oem
+                brand_name = brand_name or soi.brand
+                autopart_name = autopart_name or soi.name
+                ordered_quantity = soi.ship_qty or soi.requested_qty
+                confirmed_quantity = soi.ship_qty
+
+        new_item = SupplierReceiptItem(
+            receipt_id=receipt_id,
+            supplier_order_id=supplier_order_id,
+            supplier_order_item_id=supplier_order_item_id,
+            customer_order_item_id=customer_order_item_id,
+            oem_number=oem_number,
+            brand_name=brand_name,
+            autopart_name=autopart_name,
+            ordered_quantity=ordered_quantity,
+            confirmed_quantity=confirmed_quantity,
+            received_quantity=int(payload.get('received_quantity', 0)),
+            price=payload.get('price'),
+            total_price_with_vat=payload.get('total_price_with_vat'),
+            gtd_code=payload.get('gtd_code'),
+            country_code=payload.get('country_code'),
+            country_name=payload.get('country_name'),
+            comment=payload.get('comment'),
+        )
+        session.add(new_item)
+
+    await session.commit()
+    return await _reload_receipt_detail(session, receipt_id)
+
+
+async def delete_supplier_receipt_item(
+    session: AsyncSession,
+    *,
+    item_id: int,
+) -> SupplierReceipt:
+    stmt = select(SupplierReceiptItem).where(SupplierReceiptItem.id == item_id)
+    item = (await session.execute(stmt)).scalar_one_or_none()
+    if item is None:
+        raise LookupError('Строка документа не найдена')
+    receipt_stmt = select(SupplierReceipt).where(
+        SupplierReceipt.id == item.receipt_id
+    )
+    receipt = (await session.execute(receipt_stmt)).scalar_one_or_none()
+    if receipt is None or receipt.posted_at is not None:
+        raise ValueError('Нельзя удалять строки проведённого документа')
+    receipt_id = item.receipt_id
+    await session.delete(item)
+    await session.commit()
+    return await _reload_receipt_detail(session, receipt_id)
+
+
+async def create_manual_supplier_receipt(
+    session: AsyncSession,
+    *,
+    user: User,
+    provider_id: int,
+    items_payload: list[dict],
+    post_now: bool = False,
+    document_number: Optional[str] = None,
+    document_date: Optional[date] = None,
+    comment: Optional[str] = None,
+) -> SupplierReceipt:
+    receipt = SupplierReceipt(
+        provider_id=provider_id,
+        document_number=document_number or None,
+        document_date=document_date or now_moscow().date(),
+        created_by_user_id=user.id,
+        created_at=now_moscow(),
+        posted_at=now_moscow() if post_now else None,
+        comment=comment,
+    )
+    session.add(receipt)
+    await session.flush()
+
+    for payload in items_payload:
+        new_item = SupplierReceiptItem(
+            receipt_id=receipt.id,
+            oem_number=payload.get('oem_number'),
+            brand_name=payload.get('brand_name'),
+            autopart_name=payload.get('autopart_name'),
+            received_quantity=int(payload.get('received_quantity', 0)),
+            price=payload.get('price'),
+            total_price_with_vat=payload.get('total_price_with_vat'),
+            gtd_code=payload.get('gtd_code'),
+            country_code=payload.get('country_code'),
+            country_name=payload.get('country_name'),
+            comment=payload.get('comment'),
+        )
+        session.add(new_item)
+
+    await session.commit()
+    return await _reload_receipt_detail(session, receipt.id)

@@ -38,7 +38,11 @@ from dz_fastapi.schemas.customer_order import (CustomerOrderConfigCreate,
                                                SupplierOrderSummaryResponse,
                                                SupplierReceiptCandidateRow,
                                                SupplierReceiptCreate,
+                                               SupplierReceiptItemUpdate,
+                                               SupplierReceiptManualCreate,
+                                               SupplierReceiptManualItem,
                                                SupplierReceiptResponse,
+                                               SupplierReceiptUpdate,
                                                SupplierResponseProcessResult)
 from dz_fastapi.services.customer_orders import (
     create_manual_customer_order, create_manual_supplier_order,
@@ -50,11 +54,13 @@ from dz_fastapi.services.notifications import create_notification
 from dz_fastapi.services.supplier_order_responses import \
     process_supplier_response_messages
 from dz_fastapi.services.supplier_workflow import (
+    add_supplier_receipt_items, create_manual_supplier_receipt,
     create_supplier_receipt, delete_supplier_receipt,
-    get_supplier_receipt_detail, list_supplier_receipt_candidates,
-    list_supplier_receipts, post_supplier_receipt, serialize_stock_order,
-    serialize_supplier_receipt, unpost_supplier_receipt,
-    update_stock_order_item_pick)
+    delete_supplier_receipt_item, get_supplier_receipt_detail,
+    list_supplier_receipt_candidates, list_supplier_receipts,
+    post_supplier_receipt, serialize_stock_order, serialize_supplier_receipt,
+    unpost_supplier_receipt, update_stock_order_item_pick,
+    update_supplier_receipt, update_supplier_receipt_item)
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -1348,6 +1354,135 @@ async def delete_supplier_receipt_endpoint(
         link="/documents/incoming",
     )
     return {"id": receipt_id, "deleted": True}
+
+
+@router.post(
+    "/supplier-receipts/manual",
+    response_model=SupplierReceiptResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_manual_supplier_receipt_endpoint(
+    payload: SupplierReceiptManualCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        receipt = await create_manual_supplier_receipt(
+            session=session,
+            user=current_user,
+            provider_id=payload.provider_id,
+            items_payload=[item.model_dump() for item in payload.items],
+            post_now=payload.post_now,
+            document_number=payload.document_number,
+            document_date=payload.document_date,
+            comment=payload.comment,
+        )
+    except (LookupError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return SupplierReceiptResponse.model_validate(
+        serialize_supplier_receipt(receipt)
+    )
+
+
+@router.patch(
+    "/supplier-receipts/{receipt_id}",
+    response_model=SupplierReceiptResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def update_supplier_receipt_endpoint(
+    receipt_id: int,
+    payload: SupplierReceiptUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        receipt = await update_supplier_receipt(
+            session=session,
+            receipt_id=receipt_id,
+            **payload.model_dump(exclude_none=True),
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return SupplierReceiptResponse.model_validate(
+        serialize_supplier_receipt(receipt)
+    )
+
+
+@router.post(
+    "/supplier-receipts/{receipt_id}/items",
+    response_model=SupplierReceiptResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def add_supplier_receipt_items_endpoint(
+    receipt_id: int,
+    payload: List[SupplierReceiptManualItem],
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        receipt = await add_supplier_receipt_items(
+            session=session,
+            receipt_id=receipt_id,
+            items_payload=[item.model_dump() for item in payload],
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return SupplierReceiptResponse.model_validate(
+        serialize_supplier_receipt(receipt)
+    )
+
+
+@router.patch(
+    "/supplier-receipt-items/{item_id}",
+    response_model=SupplierReceiptResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def update_supplier_receipt_item_endpoint(
+    item_id: int,
+    payload: SupplierReceiptItemUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        receipt = await update_supplier_receipt_item(
+            session=session,
+            item_id=item_id,
+            **payload.model_dump(exclude_unset=True),
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return SupplierReceiptResponse.model_validate(
+        serialize_supplier_receipt(receipt)
+    )
+
+
+@router.delete(
+    "/supplier-receipt-items/{item_id}",
+    response_model=SupplierReceiptResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def delete_supplier_receipt_item_endpoint(
+    item_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        receipt = await delete_supplier_receipt_item(
+            session=session, item_id=item_id
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return SupplierReceiptResponse.model_validate(
+        serialize_supplier_receipt(receipt)
+    )
 
 
 @router.get(

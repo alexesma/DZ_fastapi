@@ -511,6 +511,48 @@ class SupplierReceiptCreate(BaseModel):
     items: List[SupplierReceiptCreateItem] = Field(default_factory=list)
 
 
+class SupplierReceiptUpdate(BaseModel):
+    document_number: Optional[str] = Field(default=None, max_length=120)
+    document_date: Optional[date] = None
+    comment: Optional[str] = None
+
+
+class SupplierReceiptManualItem(BaseModel):
+    supplier_order_item_id: Optional[int] = None
+    oem_number: Optional[str] = Field(default=None, max_length=120)
+    brand_name: Optional[str] = Field(default=None, max_length=120)
+    autopart_name: Optional[str] = Field(default=None, max_length=512)
+    received_quantity: int = Field(ge=0)
+    price: Optional[Decimal] = None
+    total_price_with_vat: Optional[Decimal] = None
+    gtd_code: Optional[str] = Field(default=None, max_length=64)
+    country_code: Optional[str] = Field(default=None, max_length=16)
+    country_name: Optional[str] = Field(default=None, max_length=120)
+    comment: Optional[str] = Field(default=None, max_length=500)
+
+
+class SupplierReceiptManualCreate(BaseModel):
+    provider_id: int
+    post_now: bool = Field(default=False)
+    document_number: Optional[str] = Field(default=None, max_length=120)
+    document_date: Optional[date] = None
+    comment: Optional[str] = None
+    items: List[SupplierReceiptManualItem] = Field(default_factory=list)
+
+
+class SupplierReceiptItemUpdate(BaseModel):
+    oem_number: Optional[str] = Field(default=None, max_length=120)
+    brand_name: Optional[str] = Field(default=None, max_length=120)
+    autopart_name: Optional[str] = Field(default=None, max_length=512)
+    received_quantity: Optional[int] = Field(default=None, ge=0)
+    price: Optional[Decimal] = None
+    total_price_with_vat: Optional[Decimal] = None
+    gtd_code: Optional[str] = Field(default=None, max_length=64)
+    country_code: Optional[str] = Field(default=None, max_length=16)
+    country_name: Optional[str] = Field(default=None, max_length=120)
+    comment: Optional[str] = Field(default=None, max_length=500)
+
+
 class SupplierReceiptItemResponse(BaseModel):
     id: int
     supplier_order_id: Optional[int] = None
