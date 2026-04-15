@@ -519,6 +519,7 @@ class SupplierReceiptUpdate(BaseModel):
 
 class SupplierReceiptManualItem(BaseModel):
     supplier_order_item_id: Optional[int] = None
+    autopart_id: Optional[int] = None
     oem_number: Optional[str] = Field(default=None, max_length=120)
     brand_name: Optional[str] = Field(default=None, max_length=120)
     autopart_name: Optional[str] = Field(default=None, max_length=512)
@@ -541,6 +542,7 @@ class SupplierReceiptManualCreate(BaseModel):
 
 
 class SupplierReceiptItemUpdate(BaseModel):
+    autopart_id: Optional[int] = None
     oem_number: Optional[str] = Field(default=None, max_length=120)
     brand_name: Optional[str] = Field(default=None, max_length=120)
     autopart_name: Optional[str] = Field(default=None, max_length=512)

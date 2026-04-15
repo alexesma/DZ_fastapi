@@ -831,7 +831,7 @@ async def update_supplier_receipt_item(
         raise ValueError('Нельзя редактировать строку проведённого документа')
 
     allowed = {
-        'oem_number', 'brand_name', 'autopart_name',
+        'autopart_id', 'oem_number', 'brand_name', 'autopart_name',
         'received_quantity', 'price', 'total_price_with_vat',
         'gtd_code', 'country_code', 'country_name', 'comment',
     }
@@ -889,6 +889,7 @@ async def add_supplier_receipt_items(
             supplier_order_id=supplier_order_id,
             supplier_order_item_id=supplier_order_item_id,
             customer_order_item_id=customer_order_item_id,
+            autopart_id=payload.get('autopart_id'),
             oem_number=oem_number,
             brand_name=brand_name,
             autopart_name=autopart_name,
@@ -955,6 +956,7 @@ async def create_manual_supplier_receipt(
     for payload in items_payload:
         new_item = SupplierReceiptItem(
             receipt_id=receipt.id,
+            autopart_id=payload.get('autopart_id'),
             oem_number=payload.get('oem_number'),
             brand_name=payload.get('brand_name'),
             autopart_name=payload.get('autopart_name'),
