@@ -27,6 +27,10 @@ SCHEDULER_SETTING_DEFAULTS = {
         'days': [],
         'times': [],
     },
+    'supplier_responses_check': {
+        'days': [],
+        'times': [],
+    },
 }
 
 SCHEDULER_SETTING_KEYS = list(SCHEDULER_SETTING_DEFAULTS.keys())

@@ -52,6 +52,8 @@ from dz_fastapi.services.placed_orders import (cleanup_old_tracking_history,
 from dz_fastapi.services.price_control import run_price_control
 from dz_fastapi.services.process import (process_customer_pricelist,
                                          process_provider_pricelist)
+from dz_fastapi.services.supplier_order_responses import \
+    process_supplier_response_messages
 from dz_fastapi.services.watchlist import send_watchlist_daily_notifications
 from dz_fastapi.services.watchlist_site import check_watchlist_site
 
@@ -65,6 +67,47 @@ PRICELIST_STALE_ALERT_RETENTION_DAYS = int(
 ENABLE_LEGACY_ZZAP_AUTO_SEND = os.getenv(
     'ENABLE_LEGACY_ZZAP_AUTO_SEND', '0'
 ).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def _env_int_with_min(
+    name: str,
+    default: int,
+    min_value: int = 1,
+    max_value: int = 59,
+) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        value = int(str(raw).strip())
+    except (TypeError, ValueError):
+        logger.warning(
+            'Invalid integer env %s=%r. Using default=%s',
+            name,
+            raw,
+            default,
+        )
+        return default
+    if value < min_value or value > max_value:
+        logger.warning(
+            'Out-of-range env %s=%s. Clamping to [%s, %s].',
+            name,
+            value,
+            min_value,
+            max_value,
+        )
+    return max(min_value, min(value, max_value))
+
+
+CUSTOMER_ORDERS_CHECK_MINUTES = _env_int_with_min(
+    'SCHED_CUSTOMER_ORDERS_EVERY_MINUTES', 2
+)
+SUPPLIER_RESPONSES_CHECK_MINUTES = _env_int_with_min(
+    'SCHED_SUPPLIER_RESPONSES_EVERY_MINUTES', 2
+)
+FETCH_INBOX_EMAILS_MINUTES = _env_int_with_min(
+    'SCHED_FETCH_INBOX_EVERY_MINUTES', 30
+)
 
 
 async def _notify_scheduler_issue(
@@ -146,7 +189,18 @@ def start_scheduler(app: FastAPI):
         args=[app],
         id='download_customer_orders',
         name='Download customer orders',
-        minute='*/5',
+        minute=f'*/{CUSTOMER_ORDERS_CHECK_MINUTES}',
+        jitter=5,
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        func=process_supplier_responses_task,
+        trigger='cron',
+        args=[app],
+        id='process_supplier_responses',
+        name='Process supplier responses',
+        minute=f'*/{SUPPLIER_RESPONSES_CHECK_MINUTES}',
         jitter=5,
         replace_existing=True,
     )
@@ -255,16 +309,15 @@ def start_scheduler(app: FastAPI):
         replace_existing=True,
     )
 
-    # Автоматическая загрузка входящих писем каждые 10 минут.
-    # Интервал 10 мин — баланс между актуальностью и нагрузкой на IMAP-сервер.
-    # Каждый запрос открывает IMAP-соединение; чаще 5 мин не рекомендуется.
+    # Автоматическая загрузка писем во вспомогательную InboxEmail (редко).
+    # Заказы и ответы поставщиков обрабатываются отдельными задачами.
     scheduler.add_job(
         func=fetch_inbox_emails_task,
         trigger='cron',
         args=[app],
         id='fetch_inbox_emails',
         name='Fetch inbox emails (all accounts)',
-        minute='*/10',
+        minute=f'*/{FETCH_INBOX_EMAILS_MINUTES}',
         jitter=30,
         replace_existing=True,
     )
@@ -458,6 +511,39 @@ async def download_customer_orders_task(app: FastAPI):
                 text=(
                     'Ошибка при автоматической обработке заказов клиентов.\n'
                     f'Текст ошибки: {e}'
+                ),
+            )
+
+
+async def process_supplier_responses_task(app: FastAPI):
+    logger.info('Starting process_supplier_responses_task')
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            should_run, setting = await _should_run_scheduled_job(
+                session, 'supplier_responses_check'
+            )
+            if not should_run:
+                return
+            summary = await process_supplier_response_messages(session)
+            logger.info(
+                'Completed process_supplier_responses_task summary=%s',
+                summary,
+            )
+            if setting:
+                await _mark_scheduler_ran(session, setting, now_moscow())
+        except Exception as e:
+            logger.error(
+                'Error processing supplier responses: %s',
+                e,
+                exc_info=True,
+            )
+            await _notify_scheduler_issue(
+                session,
+                subject='Ошибка регламента обработки ответов поставщиков',
+                text=(
+                    'Ошибка при автоматической обработке ответов '
+                    f'поставщиков.\nТекст ошибки: {e}'
                 ),
             )
 

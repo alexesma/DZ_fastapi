@@ -233,6 +233,7 @@ async def _fetch_order_messages(
     folder: str,
     date_from: date,
     mark_seen: bool,
+    last_uid: Optional[int] = None,
     port: int = 993,
     ssl: bool = True,
 ) -> list:
@@ -246,11 +247,29 @@ async def _fetch_order_messages(
             email_account, email_password
         ) as mailbox:
             mailbox.folder.set(folder)
-            fetched = mailbox.fetch(
-                AND(date_gte=date_from, all=True),
-                mark_seen=mark_seen,
-                charset='utf-8',
-            )
+            fetched = None
+            if last_uid and int(last_uid) > 0:
+                uid_criteria = f'UID {int(last_uid) + 1}:*'
+                try:
+                    fetched = mailbox.fetch(
+                        uid_criteria,
+                        mark_seen=mark_seen,
+                    )
+                except Exception as uid_exc:
+                    logger.warning(
+                        'UID fetch failed for order inbox %s '
+                        '(folder=%s, uid>%s). Fallback to date search: %s',
+                        email_account,
+                        folder,
+                        last_uid,
+                        uid_exc,
+                    )
+            if fetched is None:
+                fetched = mailbox.fetch(
+                    AND(date_gte=date_from, all=True),
+                    mark_seen=mark_seen,
+                    charset='utf-8',
+                )
             messages = list(fetched)
             folder_name = normalize_imap_folder(folder)
             for message in messages:
@@ -2409,22 +2428,44 @@ async def _complete_imported_order_processing(
     return order
 
 
+def _apply_matched_email_state_for_configs(
+    session: AsyncSession,
+    configs: list[CustomerOrderConfig],
+    msg,
+    inbox_account,
+) -> None:
+    seen_ids: set[int] = set()
+    for config in configs:
+        config_id = int(getattr(config, 'id', 0) or 0)
+        if config_id and config_id in seen_ids:
+            continue
+        if config_id:
+            seen_ids.add(config_id)
+        _advance_config_last_uid(
+            config,
+            getattr(msg, 'uid', None),
+            getattr(msg, 'folder_name', None),
+        )
+        session.add(config)
+
+    if _mark_inbox_account_received_at(
+        inbox_account, getattr(msg, 'received_at', None)
+    ):
+        session.add(inbox_account)
+
+
 def _apply_matched_email_state(
     session: AsyncSession,
     config: CustomerOrderConfig,
     msg,
     inbox_account,
 ) -> None:
-    _advance_config_last_uid(
-        config,
-        getattr(msg, 'uid', None),
-        getattr(msg, 'folder_name', None),
+    _apply_matched_email_state_for_configs(
+        session,
+        [config],
+        msg,
+        inbox_account,
     )
-    session.add(config)
-    if _mark_inbox_account_received_at(
-        inbox_account, getattr(msg, 'received_at', None)
-    ):
-        session.add(inbox_account)
 
 
 async def _create_import_order_stub(
@@ -2495,6 +2536,7 @@ async def _store_import_error(
     msg,
     inbox_account,
     file_bytes: bytes,
+    configs_for_uid_update: Optional[list[CustomerOrderConfig]] = None,
     *,
     reason: str,
     total_amount: Optional[float] = None,
@@ -2502,7 +2544,12 @@ async def _store_import_error(
 ) -> CustomerOrder:
     _mark_order_error(order, reason)
     await _save_order_source_file(order, file_bytes)
-    _apply_matched_email_state(session, config, msg, inbox_account)
+    _apply_matched_email_state_for_configs(
+        session,
+        configs_for_uid_update or [config],
+        msg,
+        inbox_account,
+    )
     session.add(order)
     await session.commit()
     await _send_order_import_notification(
@@ -3049,6 +3096,8 @@ async def process_customer_orders(
     config_by_email: dict[str, list[CustomerOrderConfig]] = {}
     global_sender_filter: set[str] = set()
     account_sender_filter: dict[int, set[str]] = {}
+    global_configs_for_uid: list[CustomerOrderConfig] = []
+    account_configs_for_uid: dict[int, list[CustomerOrderConfig]] = {}
     for config in configs:
         emails = _normalize_email_list(config.order_emails)
         if config.order_email:
@@ -3061,6 +3110,17 @@ async def process_customer_orders(
                 account_sender_filter.setdefault(
                     int(config.email_account_id), set()
                 ).add(email)
+        if config.email_account_id is None:
+            global_configs_for_uid.append(config)
+        else:
+            account_configs_for_uid.setdefault(
+                int(config.email_account_id), []
+            ).append(config)
+
+    # Для автоматического шедулера ускоряем IMAP-запросы по UID.
+    # В ручных запусках (customer_id/config_id) сохраняем старую
+    # дату-поиска, чтобы можно было импортировать исторические письма.
+    use_uid_optimization = customer_id is None and config_id is None
 
     inbox_settings = await crud_customer_order_inbox_settings.get_or_create(
         session
@@ -3102,6 +3162,22 @@ async def process_customer_orders(
             allowed_senders.update(
                 account_sender_filter.get(int(account.id), set())
             )
+            folder_uid_floor: dict[str, int] = {}
+            if use_uid_optimization:
+                uid_configs = list(global_configs_for_uid)
+                uid_configs.extend(
+                    account_configs_for_uid.get(int(account.id), [])
+                )
+                for folder in folders:
+                    normalized_folder = normalize_imap_folder(folder)
+                    floor_uid = 0
+                    for cfg in uid_configs:
+                        floor_uid = max(
+                            floor_uid,
+                            _get_config_last_uid(cfg, normalized_folder),
+                        )
+                    if floor_uid > 0:
+                        folder_uid_floor[folder] = floor_uid
             if transport == 'resend_api':
                 try:
                     account_messages = await _fetch_resend_messages(
@@ -3176,6 +3252,7 @@ async def process_customer_orders(
                             folder,
                             date_from,
                             mark_seen,
+                            last_uid=folder_uid_floor.get(folder),
                             port=account.imap_port or IMAP_SERVER,
                             ssl=True,
                         )
@@ -3209,6 +3286,17 @@ async def process_customer_orders(
                 continue
     else:
         try:
+            fallback_last_uid = None
+            if use_uid_optimization:
+                normalized_folder = normalize_imap_folder(EMAIL_FOLDER_ORDER)
+                uid_floor = 0
+                for cfg in configs:
+                    uid_floor = max(
+                        uid_floor,
+                        _get_config_last_uid(cfg, normalized_folder),
+                    )
+                if uid_floor > 0:
+                    fallback_last_uid = uid_floor
             fallback_messages = await _fetch_order_messages(
                 EMAIL_HOST_ORDER,
                 EMAIL_NAME_ORDER,
@@ -3216,6 +3304,7 @@ async def process_customer_orders(
                 EMAIL_FOLDER_ORDER,
                 date_from,
                 mark_seen,
+                last_uid=fallback_last_uid,
                 port=IMAP_SERVER,
                 ssl=True,
             )
@@ -3281,6 +3370,7 @@ async def process_customer_orders(
             candidate_configs = _pick_configs_for_account(
                 configs_for_sender, account_id
             )
+            configs_for_uid_update = list(candidate_configs)
             if configs_for_sender and not candidate_configs:
                 logger.debug(
                     'Sender=%s matched configs=%s but none for account_id=%s',
@@ -3382,7 +3472,12 @@ async def process_customer_orders(
             )
             existing_order = existing.scalars().first()
             if existing_order:
-                _apply_matched_email_state(session, config, msg, inbox_account)
+                _apply_matched_email_state_for_configs(
+                    session,
+                    configs_for_uid_update or [config],
+                    msg,
+                    inbox_account,
+                )
                 await _send_order_import_notification(
                     session,
                     config,
@@ -3440,6 +3535,7 @@ async def process_customer_orders(
                     msg,
                     inbox_account,
                     file_bytes,
+                    configs_for_uid_update,
                     reason=(
                         str(exc)
                         if str(exc).startswith('Неподдерживаемый тип файла:')
@@ -3465,6 +3561,7 @@ async def process_customer_orders(
                     msg,
                     inbox_account,
                     file_bytes,
+                    configs_for_uid_update,
                     reason='Не удалось распознать строки заказа',
                     total_amount=requested_total,
                     rows_count=0,
@@ -3482,7 +3579,12 @@ async def process_customer_orders(
                     filename,
                     requested_total,
                 )
-                _apply_matched_email_state(session, config, msg, inbox_account)
+                _apply_matched_email_state_for_configs(
+                    session,
+                    configs_for_uid_update or [config],
+                    msg,
+                    inbox_account,
+                )
                 await session.commit()
             except Exception as exc:
                 await session.rollback()
@@ -3510,6 +3612,7 @@ async def process_customer_orders(
                     msg,
                     inbox_account,
                     file_bytes,
+                    configs_for_uid_update,
                     reason=f'Ошибка обработки: {exc}',
                     total_amount=requested_total,
                     rows_count=len(parsed_rows),
@@ -3538,6 +3641,7 @@ async def process_customer_orders(
                         msg,
                         inbox_account,
                         file_bytes,
+                        configs_for_uid_update if config else None,
                         reason=f'Ошибка обработки: {exc}',
                         total_amount=requested_total,
                         rows_count=len(parsed_rows or []),

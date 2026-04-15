@@ -625,52 +625,89 @@ async def _detect_rule_from_existing_configs(
     # 2. Проверяем конфиги заказов клиентов: CustomerOrderConfig
     # ------------------------------------------------------------------
     try:
-        from sqlalchemy import select as _select
-
-        from dz_fastapi.models.partner import CustomerOrderConfig as _COC
-
-        result = await session.execute(_select(_COC))
-        customer_configs = result.scalars().all()
-        for config in customer_configs:
-            # Собираем все email адреса клиента из конфига
-            emails_in_config: list[str] = []
-            if config.order_email:
-                emails_in_config.append(config.order_email.lower().strip())
-            if config.order_emails:
-                extra = (
-                    config.order_emails
-                    if isinstance(config.order_emails, list) else []
-                )
-                emails_in_config.extend(e.lower().strip() for e in extra if e)
-
-            if from_email not in emails_in_config:
-                continue
-
-            # Email совпал — проверяем паттерн темы (если задан)
-            subject = inbox_email.subject or ''
-            if config.order_subject_pattern:
-                import re as _re
-                try:
-                    if not _re.search(
-                        config.order_subject_pattern,
-                        subject,
-                        flags=_re.IGNORECASE
-                    ):
-                        continue
-                except _re.error:
-                    if (config.order_subject_pattern.lower()
-                            not in subject.lower()):
-                        continue
-
+        matched_config_ids = await _find_matching_customer_order_configs(
+            session,
+            from_email=inbox_email.from_email,
+            subject=inbox_email.subject,
+            email_account_id=inbox_email.email_account_id,
+        )
+        if matched_config_ids:
             logger.info(
-                'Письмо id=%s → customer_order (config_id=%s)',
-                inbox_email.id, config.id,
+                'Письмо id=%s → customer_order (config_ids=%s)',
+                inbox_email.id,
+                matched_config_ids,
             )
             return 'customer_order'
     except Exception as e:
         logger.warning('Ошибка при поиске CustomerOrderConfig: %s', e)
 
     return None
+
+
+async def _find_matching_customer_order_configs(
+    session: AsyncSession,
+    *,
+    from_email: Optional[str],
+    subject: Optional[str],
+    email_account_id: Optional[int] = None,
+) -> list[int]:
+    """
+    Возвращает id активных CustomerOrderConfig,
+    подходящих по отправителю и теме письма.
+    """
+    from sqlalchemy import select as _select
+
+    from dz_fastapi.models.partner import CustomerOrderConfig as _COC
+
+    normalized_email = (from_email or '').lower().strip()
+    if not normalized_email:
+        return []
+
+    result = await session.execute(
+        _select(_COC).where(_COC.is_active.is_(True))
+    )
+    configs = result.scalars().all()
+    matched_ids: list[int] = []
+    subject_text = subject or ''
+
+    for config in configs:
+        if (
+            email_account_id is not None
+            and config.email_account_id not in (None, email_account_id)
+        ):
+            continue
+
+        emails_in_config: list[str] = []
+        if config.order_email:
+            emails_in_config.append(config.order_email.lower().strip())
+        if config.order_emails:
+            extra = (
+                config.order_emails
+                if isinstance(config.order_emails, list) else []
+            )
+            emails_in_config.extend(e.lower().strip() for e in extra if e)
+
+        if normalized_email not in emails_in_config:
+            continue
+
+        if config.order_subject_pattern:
+            try:
+                if not re.search(
+                    config.order_subject_pattern,
+                    subject_text,
+                    flags=re.IGNORECASE,
+                ):
+                    continue
+            except re.error:
+                if (
+                    config.order_subject_pattern.lower()
+                    not in subject_text.lower()
+                ):
+                    continue
+
+        matched_ids.append(int(config.id))
+
+    return matched_ids
 
 
 # ---------------------------------------------------------------------------
@@ -1016,6 +1053,46 @@ async def _process_customer_order(
     """
     from dz_fastapi.services.notifications import create_admin_notifications
 
+    matched_config_ids = await _find_matching_customer_order_configs(
+        session,
+        from_email=inbox_email.from_email,
+        subject=inbox_email.subject,
+        email_account_id=inbox_email.email_account_id,
+    )
+    if not matched_config_ids:
+        reason = (
+            'Не найден активный конфиг заказа клиента '
+            'для отправителя/темы письма'
+        )
+        try:
+            await create_admin_notifications(
+                session=session,
+                title='Заказ клиента без активного конфига',
+                message=(
+                    f'Письмо от {inbox_email.from_email} '
+                    'помечено как customer_order, но '
+                    'подходящий CustomerOrderConfig не найден.\n'
+                    f'Тема: {inbox_email.subject or "(без темы)"}\n'
+                    'Проверьте раздел "Заказы клиентов → Конфигурация".'
+                ),
+                level='warning',
+            )
+        except Exception as e:
+            logger.warning(
+                'Не удалось создать уведомление о missing config: %s', e
+            )
+        return {
+            'action': 'customer_order',
+            'from_email': inbox_email.from_email,
+            'subject': inbox_email.subject,
+            'status': 'missing_config',
+            'reason': reason,
+            'note': (
+                'Письмо не будет загружено в заказы, '
+                'пока не добавлен активный конфиг.'
+            ),
+        }, None
+
     try:
         att_names = [
             a.get('name', '') for a in (inbox_email.attachment_info or [])
@@ -1041,6 +1118,7 @@ async def _process_customer_order(
         'action': 'customer_order',
         'from_email': inbox_email.from_email,
         'subject': inbox_email.subject,
+        'matched_config_ids': matched_config_ids,
         'status': 'queued',
         'note': 'Будет обработан шедулером при следующем запуске',
     }, None

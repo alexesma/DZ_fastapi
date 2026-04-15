@@ -4,10 +4,9 @@ import pandas as pd
 
 from dz_fastapi.api.validators import normalize_brand_name
 from dz_fastapi.crud.partner import crud_customer_pricelist
-from dz_fastapi.services.customer_orders import (_canonicalize_brand_key,
-                                                 _normalize_key,
-                                                 _normalize_oem_key,
-                                                 _repair_cp1251_mojibake)
+from dz_fastapi.services.customer_orders import (
+    _apply_matched_email_state_for_configs, _canonicalize_brand_key,
+    _normalize_key, _normalize_oem_key, _repair_cp1251_mojibake)
 from dz_fastapi.services.process import _apply_source_filters
 
 
@@ -127,3 +126,29 @@ def test_repair_cp1251_mojibake_keeps_normal_text():
     assert _repair_cp1251_mojibake('Подкрылок колесной арки T19C') == (
         'Подкрылок колесной арки T19C'
     )
+
+
+def test_apply_matched_email_state_updates_all_candidate_configs():
+    class _Session:
+        def __init__(self):
+            self.added = []
+
+        def add(self, obj):
+            self.added.append(obj)
+
+    session = _Session()
+    config_old = SimpleNamespace(id=3, last_uid=100, folder_last_uids={})
+    config_new = SimpleNamespace(id=4, last_uid=95, folder_last_uids={})
+    msg = SimpleNamespace(uid='105', folder_name='INBOX', received_at=None)
+
+    _apply_matched_email_state_for_configs(
+        session,
+        [config_old, config_new],
+        msg,
+        inbox_account=None,
+    )
+
+    assert config_old.last_uid == 105
+    assert config_new.last_uid == 105
+    assert config_old.folder_last_uids['INBOX'] == 105
+    assert config_new.folder_last_uids['INBOX'] == 105
