@@ -31,6 +31,11 @@ SCHEDULER_SETTING_DEFAULTS = {
         'days': [],
         'times': [],
     },
+    'supplier_orders_send': {
+        'enabled': False,
+        'days': [],
+        'times': [],
+    },
 }
 
 SCHEDULER_SETTING_KEYS = list(SCHEDULER_SETTING_DEFAULTS.keys())

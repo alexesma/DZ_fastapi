@@ -46,6 +46,36 @@ async def test_scheduler_settings(async_client):
 
 
 @pytest.mark.asyncio
+async def test_supplier_orders_send_scheduler_setting(async_client):
+    response = await async_client.get("/settings/scheduler")
+    assert response.status_code == 200
+    data = response.json()
+
+    supplier_setting = next(
+        (item for item in data if item["key"] == "supplier_orders_send"),
+        None,
+    )
+    assert supplier_setting is not None
+    assert supplier_setting["enabled"] is False
+
+    payload = {
+        "enabled": True,
+        "days": ["mon", "wed"],
+        "times": ["09:00", "14:30", "18:45"],
+    }
+    response = await async_client.put(
+        "/settings/scheduler/supplier_orders_send",
+        json=payload,
+    )
+    assert response.status_code == 200
+    updated = response.json()
+    assert updated["key"] == "supplier_orders_send"
+    assert updated["enabled"] is True
+    assert updated["days"] == ["mon", "wed"]
+    assert updated["times"] == ["09:00", "14:30", "18:45"]
+
+
+@pytest.mark.asyncio
 async def test_monitoring_endpoints(async_client):
     response = await async_client.get("/settings/monitor/summary")
     assert response.status_code == 200

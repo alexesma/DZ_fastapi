@@ -271,7 +271,7 @@ def start_scheduler(app: FastAPI):
         args=[app],
         id='send_supplier_orders',
         name='Send scheduled supplier orders',
-        minute='*/5',
+        minute='*',
         jitter=5,
         replace_existing=True,
     )
@@ -553,7 +553,21 @@ async def send_scheduled_supplier_orders_task(app: FastAPI):
     async_session_factory = app.state.session_factory
     async with async_session_factory() as session:
         try:
-            await send_scheduled_supplier_orders(session)
+            should_run, setting = await _should_run_scheduled_job(
+                session, 'supplier_orders_send'
+            )
+            if not should_run:
+                return
+            summary = await send_scheduled_supplier_orders(
+                session,
+                use_provider_schedule=False,
+            )
+            logger.info(
+                'Completed send_scheduled_supplier_orders_task summary=%s',
+                summary,
+            )
+            if setting:
+                await _mark_scheduler_ran(session, setting, now_moscow())
         except Exception as e:
             logger.error(
                 f'Error sending scheduled supplier orders: {e}',
@@ -682,6 +696,8 @@ async def _should_run_scheduled_job(
     now = now_moscow()
     days = setting.days or defaults.get('days', [])
     times = setting.times or defaults.get('times', [])
+    if key == 'supplier_orders_send' and not times:
+        return False, setting
     day_key = _day_key(now)
     time_key = now.strftime('%H:%M')
     if days and day_key not in days:

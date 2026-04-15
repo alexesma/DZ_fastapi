@@ -3765,8 +3765,21 @@ async def send_supplier_orders(
 
 
 async def send_scheduled_supplier_orders(
-        session: AsyncSession
+    session: AsyncSession,
+    *,
+    use_provider_schedule: bool = True,
 ) -> Dict[str, int]:
+    if not use_provider_schedule:
+        orders_stmt = select(SupplierOrder.id).where(
+            SupplierOrder.status == SUPPLIER_ORDER_STATUS.NEW,
+        )
+        order_ids = [row[0] for row in (
+            await session.execute(orders_stmt)
+        ).all()]
+        if not order_ids:
+            return {'sent': 0, 'failed': 0}
+        return await send_supplier_orders(session, order_ids)
+
     now = now_moscow()
     day_key = {
         0: 'mon',
