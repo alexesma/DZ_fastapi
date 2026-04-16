@@ -107,9 +107,11 @@ async def test_restore_inbox_email_attachments_from_source(monkeypatch):
         fake_build_attachment_info,
     )
 
-    restored = await inbox_email_service.restore_inbox_email_attachments_from_source(
-        session,
-        inbox_email=inbox_email,
+    restored = await (
+        inbox_email_service.restore_inbox_email_attachments_from_source(
+            session,
+            inbox_email=inbox_email,
+        )
     )
 
     assert restored is True
