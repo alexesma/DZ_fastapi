@@ -474,19 +474,37 @@ async def _get_existing_inbox_email_by_uid(
 ) -> Optional[InboxEmail]:
     from sqlalchemy import and_, select
 
-    filters = [
+    base_filters = [
         InboxEmail.email_account_id == email_account_id,
         InboxEmail.uid == uid,
     ]
+
+    filters = list(base_filters)
     if folder is not None:
         filters.append(InboxEmail.folder == folder)
+
     result = await session.execute(
         select(InboxEmail)
         .where(and_(*filters))
         .order_by(InboxEmail.id.desc())
         .limit(1)
     )
-    return result.scalars().first()
+    found = result.scalars().first()
+    if found is not None:
+        return found
+
+    # Fallback: старые записи могли быть без folder.
+    # Ищем по uid без учета folder, чтобы можно было восстановить вложения.
+    if folder is not None:
+        fallback_result = await session.execute(
+            select(InboxEmail)
+            .where(and_(*base_filters))
+            .order_by(InboxEmail.id.desc())
+            .limit(1)
+        )
+        return fallback_result.scalars().first()
+
+    return None
 
 
 async def _restore_existing_email_attachments_if_missing(
@@ -2160,9 +2178,97 @@ async def cleanup_inbox_emails(
                     )
 
     deleted = await cleanup_old_inbox_emails(session, max_days=max_days)
+    orphan_files_deleted, orphan_dirs_deleted = await (
+        _cleanup_orphan_inbox_attachment_files(
+            session=session,
+            cutoff=cutoff,
+        )
+    )
     logger.info(
         'Удалено %d устаревших писем из InboxEmail, '
-        '%d файлов вложений с диска',
-        deleted, files_deleted,
+        '%d файлов вложений с диска. '
+        'Дополнительно удалено сиротских файлов: %d, папок: %d',
+        deleted, files_deleted, orphan_files_deleted, orphan_dirs_deleted,
     )
     return deleted
+
+
+async def _cleanup_orphan_inbox_attachment_files(
+    *,
+    session: AsyncSession,
+    cutoff: datetime,
+) -> tuple[int, int]:
+    """
+    Удаляет сиротские файлы в uploads/inbox_attachments:
+      - отсутствуют в attachment_info любой записи InboxEmail
+      - и старше cutoff (по mtime)
+    """
+    from sqlalchemy.future import select as sa_select
+
+    referenced_paths: set[str] = set()
+    result = await session.execute(
+        sa_select(InboxEmail.attachment_info).where(
+            InboxEmail.has_attachments.is_(True)
+        )
+    )
+    for (att_info,) in result:
+        for att in (att_info or []):
+            path = att.get('path')
+            fs_path = resolve_inbox_attachment_fs_path(path)
+            if fs_path:
+                referenced_paths.add(os.path.realpath(fs_path))
+
+    root_dir = resolve_inbox_attachment_fs_path(
+        os.path.join('uploads', 'inbox_attachments')
+    )
+    cutoff_ts = cutoff.timestamp()
+    return await asyncio.to_thread(
+        _cleanup_orphan_inbox_attachment_files_sync,
+        root_dir=root_dir,
+        referenced_paths=referenced_paths,
+        cutoff_ts=cutoff_ts,
+    )
+
+
+def _cleanup_orphan_inbox_attachment_files_sync(
+    *,
+    root_dir: str,
+    referenced_paths: set[str],
+    cutoff_ts: float,
+) -> tuple[int, int]:
+    if not root_dir or not os.path.isdir(root_dir):
+        return 0, 0
+
+    removed_files = 0
+    removed_dirs = 0
+    for dirpath, _dirnames, filenames in os.walk(root_dir, topdown=False):
+        for filename in filenames:
+            file_path = os.path.realpath(os.path.join(dirpath, filename))
+            if file_path in referenced_paths:
+                continue
+            try:
+                mtime = os.path.getmtime(file_path)
+            except OSError:
+                continue
+            if mtime > cutoff_ts:
+                continue
+            try:
+                os.remove(file_path)
+                removed_files += 1
+            except Exception as exc:
+                logger.warning(
+                    'Не удалось удалить сиротский файл %s: %s',
+                    file_path,
+                    exc,
+                )
+
+        if dirpath == root_dir:
+            continue
+        try:
+            if os.path.isdir(dirpath) and not os.listdir(dirpath):
+                os.rmdir(dirpath)
+                removed_dirs += 1
+        except Exception:
+            continue
+
+    return removed_files, removed_dirs

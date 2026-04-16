@@ -1,8 +1,43 @@
+import os
+import time
 from types import SimpleNamespace
 
 import pytest
 
 from dz_fastapi.services import inbox_email as inbox_email_service
+
+
+def test_cleanup_orphan_inbox_attachment_files_sync(tmp_path):
+    base = tmp_path / "uploads" / "inbox_attachments" / "3" / "20260416"
+    base.mkdir(parents=True, exist_ok=True)
+
+    referenced_file = base / "referenced.xlsx"
+    orphan_old_file = base / "orphan_old.xlsx"
+    orphan_new_file = base / "orphan_new.xlsx"
+    for file_path in (referenced_file, orphan_old_file, orphan_new_file):
+        file_path.write_bytes(b"test")
+
+    now_ts = time.time()
+    cutoff_ts = now_ts - 7 * 24 * 60 * 60
+    old_ts = cutoff_ts - 60
+    new_ts = cutoff_ts + 60
+    os.utime(orphan_old_file, (old_ts, old_ts))
+    os.utime(orphan_new_file, (new_ts, new_ts))
+    os.utime(referenced_file, (old_ts, old_ts))
+
+    removed_files, removed_dirs = (
+        inbox_email_service._cleanup_orphan_inbox_attachment_files_sync(
+            root_dir=str(tmp_path / "uploads" / "inbox_attachments"),
+            referenced_paths={os.path.realpath(referenced_file)},
+            cutoff_ts=cutoff_ts,
+        )
+    )
+
+    assert removed_files == 1
+    assert removed_dirs == 0
+    assert referenced_file.exists()
+    assert not orphan_old_file.exists()
+    assert orphan_new_file.exists()
 
 
 @pytest.mark.asyncio

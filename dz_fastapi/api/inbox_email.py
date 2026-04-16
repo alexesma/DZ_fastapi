@@ -13,6 +13,7 @@ from dz_fastapi.crud.inbox_email import (create_rule_pattern,
                                          get_rule_pattern, list_inbox_emails,
                                          list_rule_patterns,
                                          update_rule_pattern)
+from dz_fastapi.models.inbox_email import InboxEmail
 from dz_fastapi.models.user import User
 from dz_fastapi.schemas.inbox_email import (AssignRuleRequest,
                                             AssignRuleResponse,
@@ -126,6 +127,62 @@ async def get_attachment_preview(
 
     att = att_info[attachment_index]
     file_path = att.get('path')
+
+    if file_path and not inbox_attachment_exists(file_path) and email.uid:
+        # Файл у текущей записи может отсутствовать после переносов/пересборок.
+        # Пытаемся найти запись того же UID с живым файлом и восстановить путь.
+        siblings = (
+            await session.execute(
+                select(InboxEmail)
+                .where(
+                    InboxEmail.email_account_id == email.email_account_id,
+                    InboxEmail.uid == email.uid,
+                    InboxEmail.id != email.id,
+                )
+                .order_by(InboxEmail.fetched_at.desc(), InboxEmail.id.desc())
+                .limit(20)
+            )
+        ).scalars().all()
+        recovered_path: Optional[str] = None
+        current_name = str(att.get('name') or '').strip()
+        for sibling in siblings:
+            sibling_info = sibling.attachment_info or []
+            # 1) пробуем тот же индекс
+            if attachment_index < len(sibling_info):
+                candidate = (sibling_info[attachment_index] or {}).get('path')
+                if candidate and inbox_attachment_exists(candidate):
+                    recovered_path = candidate
+                    break
+            # 2) пробуем по имени файла
+            if current_name:
+                for sibling_att in sibling_info:
+                    if (
+                        str(sibling_att.get('name') or '').strip()
+                        == current_name
+                    ):
+                        candidate = sibling_att.get('path')
+                        if candidate and inbox_attachment_exists(candidate):
+                            recovered_path = candidate
+                            break
+                if recovered_path:
+                    break
+
+        if recovered_path:
+            att_info = list(att_info)
+            repaired_att = dict(att_info[attachment_index] or {})
+            repaired_att['path'] = recovered_path
+            att_info[attachment_index] = repaired_att
+            email.attachment_info = att_info
+            session.add(email)
+            await session.commit()
+            file_path = recovered_path
+            logger.info(
+                'Recovered missing inbox attachment '
+                'path: email_id=%s uid=%s path=%s',
+                email.id,
+                email.uid,
+                recovered_path,
+            )
 
     if not file_path:
         raise HTTPException(

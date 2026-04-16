@@ -23,7 +23,7 @@ except ImportError:  # pragma: no cover - fallback for older imap_tools
 from openpyxl import load_workbook
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.sql import func
 
 from dz_fastapi.api.validators import normalize_brand_name
@@ -2338,7 +2338,7 @@ async def try_finalize_customer_order_response(
     order = (
         await session.execute(
             select(CustomerOrder)
-            .options(joinedload(CustomerOrder.items))
+            .options(selectinload(CustomerOrder.items))
             .where(CustomerOrder.id == order_id)
         )
     ).scalar_one_or_none()
@@ -3342,6 +3342,7 @@ async def process_customer_orders(
         config = None
         attachment = None
         order = None
+        order_id = None
         sender = _extract_email(msg.from_)
         filename = None
         file_bytes = b''
@@ -3502,6 +3503,7 @@ async def process_customer_orders(
                 file_hash,
                 order_number=order_number_hint,
             )
+            order_id = order.id
 
             try:
                 (
@@ -3520,7 +3522,7 @@ async def process_customer_orders(
                 )
                 order = await _ensure_import_order_stub(
                     session,
-                    order_id=getattr(order, 'id', None),
+                    order_id=order_id,
                     config=config,
                     sender=sender,
                     msg=msg,
@@ -3528,6 +3530,7 @@ async def process_customer_orders(
                     file_hash=file_hash,
                     order_number=order_number_hint,
                 )
+                order_id = order.id
                 await _store_import_error(
                     session,
                     config,
@@ -3596,7 +3599,7 @@ async def process_customer_orders(
                 )
                 order = await _ensure_import_order_stub(
                     session,
-                    order_id=getattr(order, 'id', None),
+                    order_id=order_id,
                     config=config,
                     sender=sender,
                     msg=msg,
@@ -3605,6 +3608,7 @@ async def process_customer_orders(
                     order_number=order_number_file or order_number_hint,
                     order_date=order_date,
                 )
+                order_id = order.id
                 await _store_import_error(
                     session,
                     config,
@@ -3623,7 +3627,7 @@ async def process_customer_orders(
                 try:
                     order = await _ensure_import_order_stub(
                         session,
-                        order_id=getattr(order, 'id', None),
+                        order_id=order_id,
                         config=config,
                         sender=sender,
                         msg=msg,
@@ -3634,6 +3638,7 @@ async def process_customer_orders(
                         ),
                         order_number=order_number_hint,
                     )
+                    order_id = order.id
                     await _store_import_error(
                         session,
                         config,
