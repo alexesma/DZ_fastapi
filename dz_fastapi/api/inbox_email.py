@@ -2,8 +2,8 @@ import logging
 import time
 from typing import Optional
 
-from sqlalchemy import select
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.api.deps import get_current_user, require_admin
@@ -159,7 +159,8 @@ async def get_attachment_preview(
         )
 
     logger.info(
-        'Attachment preview prepared: email_id=%s attachment_index=%s rows=%s total_rows=%s columns=%s elapsed_ms=%.1f',
+        'Attachment preview prepared: email_id=%s '
+        'attachment_index=%s rows=%s total_rows=%s columns=%s elapsed_ms=%.1f',
         email_id,
         attachment_index,
         len(preview.get('rows', []) or []),
@@ -294,7 +295,8 @@ async def get_setup_options(
     ]
 
     logger.info(
-        'Inbox setup options prepared: providers=%s customers=%s elapsed_ms=%.1f',
+        'Inbox setup options prepared: '
+        'providers=%s customers=%s elapsed_ms=%.1f',
         len(providers),
         len(customers),
         (time.perf_counter() - started) * 1000,
