@@ -1,6 +1,8 @@
 import logging
+import time
 from typing import Optional
 
+from sqlalchemy import select
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -109,6 +111,8 @@ async def get_attachment_preview(
     Если файл не был сохранён на диск (письмо получено до введения
     этой функции) — возвращает 404.
     """
+    started = time.perf_counter()
+
     email = await get_inbox_email(session, email_id)
     if email is None:
         raise HTTPException(status_code=404, detail='Письмо не найдено')
@@ -153,6 +157,16 @@ async def get_attachment_preview(
             status_code=500,
             detail=f'Не удалось прочитать файл: {e}',
         )
+
+    logger.info(
+        'Attachment preview prepared: email_id=%s attachment_index=%s rows=%s total_rows=%s columns=%s elapsed_ms=%.1f',
+        email_id,
+        attachment_index,
+        len(preview.get('rows', []) or []),
+        preview.get('total_rows', 0),
+        preview.get('columns', 0),
+        (time.perf_counter() - started) * 1000,
+    )
 
     return {
         'filename': att.get('name', ''),
@@ -249,27 +263,41 @@ async def get_setup_options(
     Возвращает списки поставщиков и клиентов для выпадающих списков
     в мастере назначения правила.
     """
-    from dz_fastapi.crud.partner import crud_customer, crud_provider
+    from dz_fastapi.models.partner import Customer, Provider
 
-    # Используем проверенные CRUD-методы, которые уже корректно
-    # обрабатывают joined-table inheritance (Client → Provider/Customer)
-    all_providers = await crud_provider.get_multi(session, skip=0, limit=2000)
-    providers = sorted(
-        [
-            SetupOption(
-                id=p.id,
-                name=p.name,
-                email=getattr(p, 'email_incoming_price', None),
-            )
-            for p in all_providers
-        ],
-        key=lambda x: x.name or '',
-    )
+    started = time.perf_counter()
 
-    all_customers = await crud_customer.get_multi(session, skip=0, limit=2000)
-    customers = sorted(
-        [SetupOption(id=c.id, name=c.name) for c in all_customers],
-        key=lambda x: x.name or '',
+    # Для мастера нужны только id/name/email.
+    # Не грузим связанные price_lists/customer_price_lists — это сильно
+    # ускоряет ответ на больших продовых базах.
+    providers_rows = (
+        await session.execute(
+            select(
+                Provider.id,
+                Provider.name,
+                Provider.email_incoming_price,
+            ).order_by(Provider.name.asc())
+        )
+    ).all()
+    providers = [
+        SetupOption(id=row.id, name=row.name, email=row.email_incoming_price)
+        for row in providers_rows
+    ]
+
+    customers_rows = (
+        await session.execute(
+            select(Customer.id, Customer.name).order_by(Customer.name.asc())
+        )
+    ).all()
+    customers = [
+        SetupOption(id=row.id, name=row.name) for row in customers_rows
+    ]
+
+    logger.info(
+        'Inbox setup options prepared: providers=%s customers=%s elapsed_ms=%.1f',
+        len(providers),
+        len(customers),
+        (time.perf_counter() - started) * 1000,
     )
 
     return InboxSetupOptions(providers=providers, customers=customers)

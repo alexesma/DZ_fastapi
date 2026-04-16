@@ -28,6 +28,7 @@
 """
 
 import asyncio
+import csv
 import logging
 import os
 import re
@@ -36,8 +37,6 @@ from email.header import decode_header
 from typing import Dict, List, Optional, Tuple
 
 import aiofiles
-import numpy as np
-import pandas as pd
 from imap_tools import AND, MailboxLoginError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -111,27 +110,99 @@ def _read_attachment_preview_sync(
     max_rows: int = 25,
 ) -> Dict:
     """Синхронное чтение файла вложения для предпросмотра (XLS/XLSX/CSV)."""
+    def _stringify_cell(value: object) -> str:
+        if value is None:
+            return ''
+        if isinstance(value, float):
+            # NaN
+            if value != value:
+                return ''
+            if value.is_integer():
+                return str(int(value))
+        text = str(value)
+        return '' if text.lower() == 'nan' else text
+
+    def _pad_rows(rows: list[list[str]], columns: int) -> list[list[str]]:
+        if columns <= 0:
+            return rows
+        return [row + [''] * (columns - len(row)) for row in rows]
+
     _, ext = os.path.splitext(file_path)
     ext = ext.lower()
 
     if ext == '.xls':
-        df = pd.read_excel(file_path, engine='xlrd', header=None)
+        import xlrd
+
+        workbook = xlrd.open_workbook(file_path, on_demand=True)
+        try:
+            if workbook.nsheets == 0:
+                return {'rows': [], 'total_rows': 0, 'columns': 0}
+            sheet = workbook.sheet_by_index(0)
+            total_rows = int(sheet.nrows or 0)
+            rows: list[list[str]] = []
+            columns = 0
+            for idx in range(min(max_rows, total_rows)):
+                row_values = [
+                    _stringify_cell(cell) for cell in sheet.row_values(idx)
+                ]
+                rows.append(row_values)
+                columns = max(columns, len(row_values))
+            return {
+                'rows': _pad_rows(rows, columns),
+                'total_rows': total_rows,
+                'columns': columns,
+            }
+        finally:
+            workbook.release_resources()
     elif ext == '.xlsx':
-        df = pd.read_excel(file_path, engine='openpyxl', header=None)
+        from openpyxl import load_workbook
+
+        workbook = load_workbook(file_path, read_only=True, data_only=True)
+        try:
+            if not workbook.worksheets:
+                return {'rows': [], 'total_rows': 0, 'columns': 0}
+            sheet = workbook.worksheets[0]
+            total_rows = int(sheet.max_row or 0)
+            rows: list[list[str]] = []
+            columns = 0
+            for row in sheet.iter_rows(
+                min_row=1, max_row=max_rows, values_only=True
+            ):
+                row_values = [_stringify_cell(cell) for cell in row]
+                rows.append(row_values)
+                columns = max(columns, len(row_values))
+            return {
+                'rows': _pad_rows(rows, columns),
+                'total_rows': total_rows,
+                'columns': columns,
+            }
+        finally:
+            workbook.close()
     elif ext == '.csv':
-        df = pd.read_csv(file_path, header=None)
+        rows: list[list[str]] = []
+        total_rows = 0
+        columns = 0
+        with open(
+            file_path,
+            mode='r',
+            encoding='utf-8-sig',
+            errors='replace',
+            newline='',
+        ) as fh:
+            reader = csv.reader(fh)
+            for row in reader:
+                total_rows += 1
+                if len(rows) < max_rows:
+                    row_values = [_stringify_cell(cell) for cell in row]
+                    rows.append(row_values)
+                    columns = max(columns, len(row_values))
+        return {
+            'rows': _pad_rows(rows, columns),
+            'total_rows': total_rows,
+            'columns': columns,
+        }
     else:
         raise ValueError(f'Unsupported file extension: {ext}')
-
-    total_rows = len(df)
-    df = df.head(max_rows)
-    # Replace NaN with empty string
-    df = df.replace({np.nan: ''})
-    rows = df.values.tolist()
-    # Convert all values to strings for JSON serialisation
-    rows = [[str(cell) if cell != '' else '' for cell in row] for row in rows]
-    columns = len(df.columns)
-    return {'rows': rows, 'total_rows': total_rows, 'columns': columns}
 
 
 async def read_attachment_preview(
