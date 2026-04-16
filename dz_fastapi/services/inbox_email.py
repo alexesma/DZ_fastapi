@@ -299,6 +299,137 @@ async def _build_attachment_info_for_message(
     return att_info
 
 
+def _fetch_inbox_message_by_uid_imap_sync(
+    *,
+    host: str,
+    email: str,
+    password: str,
+    folder: str,
+    uid: str,
+    port: int,
+) -> Optional[_FetchedInboxMessage]:
+    """
+    Загружает одно письмо из IMAP по UID в указанной папке.
+    Возвращает None если письмо не найдено или возникла ошибка.
+    """
+    try:
+        with _create_mailbox(host, port, True).login(email, password) as mailbox:
+            mailbox.folder.set(folder)
+            raw_messages = list(
+                mailbox.fetch(
+                    f'UID {uid}:{uid}',
+                    mark_seen=False,
+                )
+            )
+            if not raw_messages:
+                return None
+            msg = raw_messages[-1]
+            attachments = [
+                _FetchedAttachment(
+                    filename=att.filename,
+                    payload=att.payload,
+                )
+                for att in (msg.attachments or [])
+            ]
+            return _FetchedInboxMessage(
+                uid=str(msg.uid) if msg.uid else str(uid),
+                from_=msg.from_ or '',
+                subject=_decode_subject(msg.subject or ''),
+                attachments=attachments,
+                date=getattr(msg, 'date', None),
+                folder_name=folder,
+            )
+    except Exception as exc:
+        logger.warning(
+            'Failed to fetch IMAP message by UID: host=%s folder=%s uid=%s error=%s',
+            host,
+            folder,
+            uid,
+            exc,
+        )
+        return None
+
+
+async def restore_inbox_email_attachments_from_source(
+    session: AsyncSession,
+    *,
+    inbox_email: InboxEmail,
+) -> bool:
+    """
+    Пытается восстановить вложения inbox-письма из источника (IMAP) по UID.
+    Возвращает True, если attachment_info обновлён и сохранён в БД.
+    """
+    if not inbox_email.uid or not inbox_email.email_account_id:
+        return False
+
+    account = await crud_email_account.get(session, inbox_email.email_account_id)
+    if account is None:
+        return False
+
+    transport = (getattr(account, 'transport', '') or '').strip().lower()
+    if transport == 'resend_api':
+        # Для Resend в текущей реализации нет точечного fetch по UID.
+        return False
+
+    host = (getattr(account, 'imap_host', '') or '').strip()
+    email = (getattr(account, 'email', '') or '').strip()
+    password = str(getattr(account, 'password', '') or '')
+    if not host or not email or not password:
+        return False
+
+    folders: list[str] = []
+    seen_folders: set[str] = set()
+    for raw_folder in (
+        inbox_email.folder,
+        getattr(account, 'imap_folder', None),
+        DEFAULT_IMAP_FOLDER,
+    ):
+        folder = str(raw_folder or '').strip() or DEFAULT_IMAP_FOLDER
+        key = folder.lower()
+        if key in seen_folders:
+            continue
+        seen_folders.add(key)
+        folders.append(folder)
+
+    for folder in folders:
+        fetched_msg = await asyncio.to_thread(
+            _fetch_inbox_message_by_uid_imap_sync,
+            host=host,
+            email=email,
+            password=password,
+            folder=folder,
+            uid=str(inbox_email.uid),
+            port=int(getattr(account, 'imap_port', None) or IMAP_SERVER),
+        )
+        if fetched_msg is None:
+            continue
+        if not fetched_msg.attachments:
+            continue
+
+        rebuilt_att_info = await _build_attachment_info_for_message(
+            fetched_msg, account_id=account.id
+        )
+        if not rebuilt_att_info:
+            continue
+
+        inbox_email.has_attachments = bool(rebuilt_att_info)
+        inbox_email.attachment_info = rebuilt_att_info
+        inbox_email.fetched_at = now_moscow()
+        session.add(inbox_email)
+        await session.commit()
+        logger.info(
+            'Restored inbox attachments from source: email_id=%s account_id=%s uid=%s folder=%s files=%s',
+            inbox_email.id,
+            account.id,
+            inbox_email.uid,
+            folder,
+            len(rebuilt_att_info),
+        )
+        return True
+
+    return False
+
+
 # ---------------------------------------------------------------------------
 # Fetch писем с IMAP/Resend для одного EmailAccount
 # ---------------------------------------------------------------------------

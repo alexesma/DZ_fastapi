@@ -41,6 +41,84 @@ def test_cleanup_orphan_inbox_attachment_files_sync(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_restore_inbox_email_attachments_from_source(monkeypatch):
+    class DummySession:
+        def __init__(self):
+            self.added = []
+            self.commits = 0
+
+        def add(self, obj):
+            self.added.append(obj)
+
+        async def commit(self):
+            self.commits += 1
+
+    session = DummySession()
+    inbox_email = SimpleNamespace(
+        id=15,
+        uid='196146',
+        email_account_id=3,
+        folder='INBOX',
+        has_attachments=False,
+        attachment_info=[],
+        fetched_at=None,
+    )
+    account = SimpleNamespace(
+        id=3,
+        transport='smtp',
+        imap_host='imap.gmail.com',
+        imap_port=993,
+        imap_folder='INBOX',
+        email='orders@example.com',
+        password='secret',
+    )
+
+    async def fake_get_account(_session, _account_id):
+        return account
+
+    def fake_fetch_by_uid(**_kwargs):
+        return SimpleNamespace(
+            attachments=[SimpleNamespace(filename='order.xlsx', payload=b'1')]
+        )
+
+    async def fake_build_attachment_info(_msg, *, account_id):
+        assert account_id == 3
+        return [
+            {
+                'name': 'order.xlsx',
+                'size': 1,
+                'path': 'uploads/inbox_attachments/3/20260416/order.xlsx',
+            }
+        ]
+
+    monkeypatch.setattr(
+        inbox_email_service.crud_email_account,
+        'get',
+        fake_get_account,
+    )
+    monkeypatch.setattr(
+        inbox_email_service,
+        '_fetch_inbox_message_by_uid_imap_sync',
+        fake_fetch_by_uid,
+    )
+    monkeypatch.setattr(
+        inbox_email_service,
+        '_build_attachment_info_for_message',
+        fake_build_attachment_info,
+    )
+
+    restored = await inbox_email_service.restore_inbox_email_attachments_from_source(
+        session,
+        inbox_email=inbox_email,
+    )
+
+    assert restored is True
+    assert inbox_email.has_attachments is True
+    assert inbox_email.attachment_info
+    assert session.commits == 1
+
+
+@pytest.mark.asyncio
 async def test_process_customer_order_returns_missing_config_status(
     monkeypatch,
 ):

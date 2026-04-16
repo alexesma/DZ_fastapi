@@ -32,6 +32,7 @@ from dz_fastapi.services.inbox_email import (assign_rule,
                                              fetch_and_store_emails,
                                              inbox_attachment_exists,
                                              read_attachment_preview,
+                                             restore_inbox_email_attachments_from_source,
                                              resolve_inbox_attachment_fs_path,
                                              setup_email_rule)
 
@@ -183,6 +184,19 @@ async def get_attachment_preview(
                 email.uid,
                 recovered_path,
             )
+
+    # Если локальный файл по-прежнему недоступен, пробуем восстановить
+    # вложения из исходного почтового сервера по UID.
+    if (not file_path or not inbox_attachment_exists(file_path)) and email.uid:
+        restored = await restore_inbox_email_attachments_from_source(
+            session,
+            inbox_email=email,
+        )
+        if restored:
+            att_info = email.attachment_info or []
+            if attachment_index < len(att_info):
+                att = att_info[attachment_index]
+                file_path = att.get('path')
 
     if not file_path:
         raise HTTPException(
