@@ -28,13 +28,10 @@ from dz_fastapi.schemas.inbox_email import (AssignRuleRequest,
                                             InboxSetupOptions,
                                             InboxSetupRequest,
                                             InboxSetupResponse, SetupOption)
-from dz_fastapi.services.inbox_email import (assign_rule,
-                                             fetch_and_store_emails,
-                                             inbox_attachment_exists,
-                                             read_attachment_preview,
-                                             restore_inbox_email_attachments_from_source,
-                                             resolve_inbox_attachment_fs_path,
-                                             setup_email_rule)
+from dz_fastapi.services.inbox_email import (
+    assign_rule, fetch_and_store_emails, inbox_attachment_exists,
+    read_attachment_preview, resolve_inbox_attachment_fs_path,
+    restore_inbox_email_attachments_from_source, setup_email_rule)
 
 logger = logging.getLogger('dz_fastapi')
 

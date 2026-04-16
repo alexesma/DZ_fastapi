@@ -313,7 +313,9 @@ def _fetch_inbox_message_by_uid_imap_sync(
     Возвращает None если письмо не найдено или возникла ошибка.
     """
     try:
-        with _create_mailbox(host, port, True).login(email, password) as mailbox:
+        with _create_mailbox(
+                host, port, True
+        ).login(email, password) as mailbox:
             mailbox.folder.set(folder)
             raw_messages = list(
                 mailbox.fetch(
@@ -341,7 +343,8 @@ def _fetch_inbox_message_by_uid_imap_sync(
             )
     except Exception as exc:
         logger.warning(
-            'Failed to fetch IMAP message by UID: host=%s folder=%s uid=%s error=%s',
+            'Failed to fetch IMAP message by UID: '
+            'host=%s folder=%s uid=%s error=%s',
             host,
             folder,
             uid,
@@ -362,7 +365,10 @@ async def restore_inbox_email_attachments_from_source(
     if not inbox_email.uid or not inbox_email.email_account_id:
         return False
 
-    account = await crud_email_account.get(session, inbox_email.email_account_id)
+    account = await crud_email_account.get(
+        session,
+        inbox_email.email_account_id
+    )
     if account is None:
         return False
 
@@ -418,7 +424,8 @@ async def restore_inbox_email_attachments_from_source(
         session.add(inbox_email)
         await session.commit()
         logger.info(
-            'Restored inbox attachments from source: email_id=%s account_id=%s uid=%s folder=%s files=%s',
+            'Restored inbox attachments from source: email_id=%s '
+            'account_id=%s uid=%s folder=%s files=%s',
             inbox_email.id,
             account.id,
             inbox_email.uid,
