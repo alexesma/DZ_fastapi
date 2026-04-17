@@ -10,8 +10,10 @@ async def _create_user(
     password: str,
     role: UserRole = UserRole.MANAGER,
     status: UserStatus = UserStatus.PENDING,
+    name: str | None = None,
 ):
     user = User(
+        name=name,
         email=email.lower().strip(),
         password_hash=get_password_hash(password),
         role=role,
@@ -25,11 +27,16 @@ async def _create_user(
 
 @pytest.mark.asyncio
 async def test_register_success(async_client, test_session):
-    payload = {"email": "newuser@example.com", "password": "secret123"}
+    payload = {
+        "name": "New User",
+        "email": "newuser@example.com",
+        "password": "secret123",
+    }
     response = await async_client.post("/auth/register", json=payload)
     assert response.status_code == 200
     data = response.json()
     assert data["email"] == payload["email"]
+    assert data["name"] == payload["name"]
     assert data["status"] == "pending"
 
     # duplicate
@@ -206,6 +213,43 @@ async def test_admin_approve_disable_and_role(async_client, test_session):
     response = await async_client.post(f"/admin/users/{pending.id}/disable")
     assert response.status_code == 200
     assert response.json()["status"] == "disabled"
+
+
+@pytest.mark.asyncio
+async def test_admin_patch_user_name_role_status(async_client, test_session):
+    admin = await _create_user(
+        test_session,
+        email="admin@example.com",
+        password="secret123",
+        role=UserRole.ADMIN,
+        status=UserStatus.ACTIVE,
+    )
+    pending = await _create_user(
+        test_session,
+        email="pending@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        status=UserStatus.PENDING,
+    )
+
+    await async_client.post(
+        "/auth/login",
+        json={"email": "admin@example.com", "password": "secret123"},
+    )
+    response = await async_client.patch(
+        f"/admin/users/{pending.id}",
+        json={
+            "name": "Иван Петров",
+            "role": "admin",
+            "status": "active",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "Иван Петров"
+    assert data["role"] == "admin"
+    assert data["status"] == "active"
+    assert data["approved_by"] == admin.id
 
 
 @pytest.mark.asyncio

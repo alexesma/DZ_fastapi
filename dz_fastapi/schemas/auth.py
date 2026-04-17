@@ -8,6 +8,7 @@ from dz_fastapi.models.user import UserRole, UserStatus
 
 class UserBase(BaseModel):
     email: EmailStr
+    name: Optional[str] = Field(default=None, max_length=255)
 
 
 class UserRegister(UserBase):
@@ -31,3 +32,9 @@ class UserResponse(UserBase):
 
 class UserRoleUpdate(BaseModel):
     role: UserRole
+
+
+class UserAdminUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, max_length=255)
+    role: Optional[UserRole] = None
+    status: Optional[UserStatus] = None

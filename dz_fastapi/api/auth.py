@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -8,11 +9,12 @@ from dz_fastapi.core.config import settings
 from dz_fastapi.core.db import get_session
 from dz_fastapi.crud.user import crud_user
 from dz_fastapi.models.user import User, UserStatus
-from dz_fastapi.schemas.auth import (UserLogin, UserRegister, UserResponse,
-                                     UserRoleUpdate)
+from dz_fastapi.schemas.auth import (UserAdminUpdate, UserLogin, UserRegister,
+                                     UserResponse, UserRoleUpdate)
 from dz_fastapi.services.auth import create_access_token, verify_password
 
 router = APIRouter(tags=["auth"])
+logger = logging.getLogger("dz_fastapi")
 
 
 def _set_auth_cookie(response: Response, token: str) -> None:
@@ -96,11 +98,17 @@ async def approve_user(
 ):
     user = await crud_user.get(session, user_id)
     if user.status == UserStatus.ACTIVE:
+        logger.info(
+            "Admin %s tried to approve already active user %s",
+            admin.id,
+            user.id,
+        )
         return user
     user.approve(admin.id)
     session.add(user)
     await session.commit()
     await session.refresh(user)
+    logger.info("Admin %s approved user %s", admin.id, user.id)
     return user
 
 
@@ -108,13 +116,14 @@ async def approve_user(
 async def disable_user(
     user_id: int,
     session: AsyncSession = Depends(get_session),
-    _: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
 ):
     user = await crud_user.get(session, user_id)
     user.status = UserStatus.DISABLED
     session.add(user)
     await session.commit()
     await session.refresh(user)
+    logger.info("Admin %s disabled user %s", admin.id, user.id)
     return user
 
 
@@ -123,11 +132,60 @@ async def update_user_role(
     user_id: int,
     role_in: UserRoleUpdate,
     session: AsyncSession = Depends(get_session),
-    _: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
 ):
     user = await crud_user.get(session, user_id)
     user.role = role_in.role
     session.add(user)
     await session.commit()
     await session.refresh(user)
+    logger.info(
+        "Admin %s changed user %s role to %s",
+        admin.id,
+        user.id,
+        user.role,
+    )
+    return user
+
+
+@router.patch("/admin/users/{user_id}", response_model=UserResponse)
+async def update_user(
+    user_id: int,
+    update_in: UserAdminUpdate,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(require_admin),
+):
+    user = await crud_user.get(session, user_id)
+    update_data = update_in.model_dump(exclude_unset=True)
+
+    if "name" in update_data:
+        name = update_data["name"]
+        if name is None:
+            user.name = None
+        else:
+            user.name = str(name).strip() or None
+
+    if "role" in update_data and update_data["role"] is not None:
+        user.role = update_data["role"]
+
+    if "status" in update_data and update_data["status"] is not None:
+        new_status = update_data["status"]
+        if new_status == UserStatus.ACTIVE:
+            user.approve(admin.id)
+        else:
+            user.status = new_status
+            if new_status == UserStatus.PENDING:
+                user.approved_by = None
+                user.approved_at = None
+
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    logger.info(
+        "Admin %s updated user %s: role=%s status=%s",
+        admin.id,
+        user.id,
+        user.role,
+        user.status,
+    )
     return user

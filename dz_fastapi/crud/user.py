@@ -10,6 +10,13 @@ from dz_fastapi.schemas.auth import UserRegister
 from dz_fastapi.services.auth import get_password_hash
 
 
+def _normalize_name(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    return normalized or None
+
+
 class CRUDUser(CRUDBase[User, UserRegister, UserRegister]):
     async def get_by_email(
         self, session: AsyncSession, email: str
@@ -34,6 +41,7 @@ class CRUDUser(CRUDBase[User, UserRegister, UserRegister]):
             )
         user = User(
             email=email,
+            name=_normalize_name(user_in.name),
             password_hash=get_password_hash(user_in.password),
             role=role,
             status=status,
