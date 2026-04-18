@@ -485,6 +485,7 @@ class SupplierResponseConfigBase(BaseModel):
     file_payload_type: SupplierResponseFilePayloadType = (
         SupplierResponseFilePayloadType.RESPONSE
     )
+    subject_pattern: Optional[str] = None
     filename_pattern: Optional[str] = None
     shipping_doc_filename_pattern: Optional[str] = None
     start_row: int = Field(default=1, ge=1)
@@ -523,6 +524,7 @@ class SupplierResponseConfigBase(BaseModel):
     )
 
     @field_validator(
+        'subject_pattern',
         'filename_pattern',
         'shipping_doc_filename_pattern',
         mode='before',
@@ -561,6 +563,7 @@ class SupplierResponseConfigUpdate(BaseModel):
     auto_confirm_after_minutes: Optional[int] = Field(default=None, ge=1)
     file_format: Optional[SupplierResponseFileFormat] = None
     file_payload_type: Optional[SupplierResponseFilePayloadType] = None
+    subject_pattern: Optional[str] = None
     filename_pattern: Optional[str] = None
     shipping_doc_filename_pattern: Optional[str] = None
     start_row: Optional[int] = Field(default=None, ge=1)
@@ -592,6 +595,7 @@ class SupplierResponseConfigUpdate(BaseModel):
         return value or None
 
     @field_validator(
+        'subject_pattern',
         'filename_pattern',
         'shipping_doc_filename_pattern',
         mode='before',
@@ -634,6 +638,7 @@ class SupplierResponseConfigOut(BaseModel):
     file_payload_type: SupplierResponseFilePayloadType = (
         SupplierResponseFilePayloadType.RESPONSE
     )
+    subject_pattern: Optional[str] = None
     filename_pattern: Optional[str] = None
     shipping_doc_filename_pattern: Optional[str] = None
     start_row: int = 1

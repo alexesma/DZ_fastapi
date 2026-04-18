@@ -498,6 +498,7 @@ class SupplierResponseConfig(Base):
     file_payload_type = Column(
         String(16), default='response', nullable=False
     )
+    subject_pattern = Column(String(255), nullable=True)
     filename_pattern = Column(String(255), nullable=True)
     shipping_doc_filename_pattern = Column(String(255), nullable=True)
     start_row = Column(Integer, default=1, nullable=False)

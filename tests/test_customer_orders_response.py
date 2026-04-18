@@ -1,3 +1,4 @@
+from datetime import timedelta
 from io import BytesIO
 from types import SimpleNamespace
 
@@ -7,6 +8,7 @@ from openpyxl import Workbook, load_workbook
 from sqlalchemy import select
 
 import dz_fastapi.services.supplier_order_responses as response_service
+from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.order_status_mapping import (ExternalStatusMapping,
                                                     ExternalStatusMatchMode,
                                                     ExternalStatusUnmapped,
@@ -842,7 +844,7 @@ async def test_document_payload_file_posts_receipt_with_doc_fields(
             (
                 SimpleNamespace(
                     from_="supplier@example.com",
-                    subject=f"Документ поставки #{order.id}",
+                    subject=f"Заказ поставщику #{order.id}: документ поставки",
                     text="",
                     html=None,
                     attachments=[
@@ -1735,3 +1737,472 @@ async def test_parse_text_response_using_supplier_response_config(
     assert result["unresolved_positions"] >= 1
     assert item.confirmed_quantity == 5
     assert message_row.message_type == "TEXT_RESPONSE"
+
+
+@pytest.mark.asyncio
+async def test_auto_confirm_timeout_creates_draft_receipt(
+    monkeypatch,
+    test_session,
+    created_providers,
+    created_autopart,
+):
+    provider = created_providers[0]
+    provider.email_contact = None
+    provider.email_incoming_price = None
+    order = SupplierOrder(
+        provider_id=provider.id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+        sent_at=now_moscow() - timedelta(minutes=45),
+    )
+    test_session.add(order)
+    await test_session.flush()
+    item = SupplierOrderItem(
+        supplier_order_id=order.id,
+        autopart_id=created_autopart.id,
+        oem_number=created_autopart.oem_number,
+        brand_name=created_autopart.brand.name,
+        autopart_name=created_autopart.name,
+        quantity=3,
+        price=150.0,
+    )
+    test_session.add(item)
+    test_session.add(
+        SupplierResponseConfig(
+            provider_id=provider.id,
+            name="Timeout config",
+            sender_emails=["timeout@example.com"],
+            response_type="text",
+            auto_confirm_after_minutes=40,
+            is_active=True,
+        )
+    )
+    await test_session.commit()
+
+    async def fake_fetch_messages(
+        session, *, date_from, date_to=None, **kwargs
+    ):
+        return []
+
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_fetch_supplier_response_messages"
+        ),
+        fake_fetch_messages,
+    )
+
+    result = await process_supplier_response_messages(test_session)
+    await test_session.refresh(item)
+
+    receipt = (
+        await test_session.execute(
+            select(SupplierReceipt).where(
+                SupplierReceipt.provider_id == provider.id
+            )
+        )
+    ).scalar_one()
+    receipt_items = (
+        await test_session.execute(
+            select(SupplierReceiptItem).where(
+                SupplierReceiptItem.receipt_id == receipt.id
+            )
+        )
+    ).scalars().all()
+
+    assert result["timeout_auto_confirmed_orders"] == 1
+    assert result["created_receipts"] == 1
+    assert result["draft_receipts"] == 1
+    assert item.confirmed_quantity == 3
+    assert receipt.posted_at is None
+    assert len(receipt_items) == 1
+    assert receipt_items[0].received_quantity == 3
+
+
+@pytest.mark.asyncio
+async def test_auto_confirm_timeout_ignores_import_error_message(
+    monkeypatch,
+    test_session,
+    created_providers,
+    created_autopart,
+):
+    provider = created_providers[0]
+    provider.email_contact = None
+    provider.email_incoming_price = None
+    order = SupplierOrder(
+        provider_id=provider.id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+        sent_at=now_moscow() - timedelta(minutes=50),
+    )
+    test_session.add(order)
+    await test_session.flush()
+    item = SupplierOrderItem(
+        supplier_order_id=order.id,
+        autopart_id=created_autopart.id,
+        oem_number=created_autopart.oem_number,
+        brand_name=created_autopart.brand.name,
+        autopart_name=created_autopart.name,
+        quantity=4,
+        price=220.0,
+    )
+    test_session.add(item)
+    test_session.add(
+        SupplierResponseConfig(
+            provider_id=provider.id,
+            name="Timeout config",
+            sender_emails=["timeout@example.com"],
+            response_type="text",
+            auto_confirm_after_minutes=40,
+            is_active=True,
+        )
+    )
+    test_session.add(
+        SupplierOrderMessage(
+            supplier_order_id=order.id,
+            provider_id=provider.id,
+            message_type="IMPORT_ERROR",
+            sender_email="timeout@example.com",
+            received_at=now_moscow() - timedelta(minutes=20),
+            source_uid="1:INBOX:111",
+        )
+    )
+    await test_session.commit()
+
+    async def fake_fetch_messages(
+        session, *, date_from, date_to=None, **kwargs
+    ):
+        return []
+
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_fetch_supplier_response_messages"
+        ),
+        fake_fetch_messages,
+    )
+
+    result = await process_supplier_response_messages(test_session)
+    await test_session.refresh(item)
+
+    assert result["timeout_auto_confirmed_orders"] == 1
+    assert item.confirmed_quantity == 4
+
+
+@pytest.mark.asyncio
+async def test_document_payload_includes_unmatched_rows_and_rejects_missing(
+    monkeypatch,
+    test_session,
+    created_providers,
+    created_autopart,
+    tmp_path,
+):
+    provider = created_providers[0]
+    provider.email_contact = "supplier@example.com"
+    order = SupplierOrder(
+        provider_id=provider.id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    matched_item = SupplierOrderItem(
+        supplier_order_id=order.id,
+        autopart_id=created_autopart.id,
+        oem_number=created_autopart.oem_number,
+        brand_name=created_autopart.brand.name,
+        autopart_name=created_autopart.name,
+        quantity=5,
+        price=120.0,
+    )
+    missing_item = SupplierOrderItem(
+        supplier_order_id=order.id,
+        autopart_id=created_autopart.id,
+        oem_number="MISS-002",
+        brand_name=created_autopart.brand.name,
+        autopart_name="Missing row item",
+        quantity=4,
+        price=90.0,
+    )
+    test_session.add_all([matched_item, missing_item])
+    test_session.add(
+        SupplierResponseConfig(
+            provider_id=provider.id,
+            name="Doc parser with extras",
+            sender_emails=["supplier@example.com"],
+            response_type="file",
+            file_payload_type="document",
+            file_format="excel",
+            start_row=1,
+            oem_col=1,
+            brand_col=2,
+            qty_col=3,
+            price_col=4,
+            process_shipping_docs=True,
+            is_active=True,
+        )
+    )
+    await test_session.commit()
+
+    response_frame = pd.DataFrame(
+        [
+            [
+                created_autopart.oem_number,
+                created_autopart.brand.name,
+                2,
+                101.0,
+            ],
+            ["EXTRA-999", "EXTRA-BRAND", 7, 333.0],
+        ]
+    )
+    buffer = BytesIO()
+    response_frame.to_excel(buffer, index=False, header=False)
+    payload = buffer.getvalue()
+
+    async def fake_fetch_messages(
+        session, *, date_from, date_to=None, **kwargs
+    ):
+        return [
+            (
+                SimpleNamespace(
+                    from_="supplier@example.com",
+                    subject=f"Заказ поставщику #{order.id}: документ поставки",
+                    text="",
+                    html=None,
+                    attachments=[
+                        SimpleNamespace(
+                            filename="doc_with_extra.xlsx",
+                            payload=payload,
+                        )
+                    ],
+                    received_at=None,
+                    date=None,
+                    external_id="supplier-msg-doc-extra",
+                    uid=None,
+                    folder_name="INBOX",
+                ),
+                None,
+            )
+        ]
+
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_fetch_supplier_response_messages"
+        ),
+        fake_fetch_messages,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.supplier_order_responses.SUPPLIER_RESPONSE_DIR",
+        str(tmp_path),
+    )
+
+    result = await process_supplier_response_messages(test_session)
+    await test_session.refresh(matched_item)
+    await test_session.refresh(missing_item)
+    receipt = (
+        await test_session.execute(
+            select(SupplierReceipt).where(
+                SupplierReceipt.provider_id == provider.id
+            )
+        )
+    ).scalar_one()
+    receipt_items = (
+        await test_session.execute(
+            select(SupplierReceiptItem).where(
+                SupplierReceiptItem.receipt_id == receipt.id
+            )
+        )
+    ).scalars().all()
+    linked_rows = [
+        row
+        for row in receipt_items
+        if row.supplier_order_item_id == matched_item.id
+    ]
+    unlinked_rows = [
+        row for row in receipt_items if row.supplier_order_item_id is None
+    ]
+
+    assert result["processed_messages"] == 1
+    assert result["posted_receipts"] == 1
+    assert len(linked_rows) == 1
+    assert linked_rows[0].received_quantity == 2
+    assert len(unlinked_rows) == 1
+    assert unlinked_rows[0].oem_number == "EXTRA999"
+    assert unlinked_rows[0].received_quantity == 7
+    assert missing_item.confirmed_quantity == 0
+    assert missing_item.response_status_raw == "автоотказ по документу"
+
+
+@pytest.mark.asyncio
+async def test_text_response_global_keyword_confirm_creates_draft_receipt(
+    monkeypatch,
+    test_session,
+    created_providers,
+    created_autopart,
+    tmp_path,
+):
+    provider = created_providers[0]
+    provider.email_contact = None
+    provider.email_incoming_price = None
+    order = SupplierOrder(
+        provider_id=provider.id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    item = SupplierOrderItem(
+        supplier_order_id=order.id,
+        autopart_id=created_autopart.id,
+        oem_number=created_autopart.oem_number,
+        brand_name=created_autopart.brand.name,
+        autopart_name=created_autopart.name,
+        quantity=3,
+        price=115.0,
+    )
+    test_session.add(item)
+    test_session.add(
+        SupplierResponseConfig(
+            provider_id=provider.id,
+            name="Text status config",
+            sender_emails=["supplier@example.com"],
+            response_type="text",
+            confirm_keywords=["подтверждаем", "в работе"],
+            reject_keywords=["нет", "отказ"],
+            is_active=True,
+        )
+    )
+    await test_session.commit()
+
+    async def fake_fetch_messages(
+        session, *, date_from, date_to=None, **kwargs
+    ):
+        return [
+            (
+                SimpleNamespace(
+                    from_="supplier@example.com",
+                    subject=f"Ответ по заказу #{order.id}",
+                    text="Подтверждаем заказ, готовим к отгрузке.",
+                    html=None,
+                    attachments=[],
+                    received_at=None,
+                    date=None,
+                    external_id="supplier-msg-text-global",
+                    uid=None,
+                    folder_name="INBOX",
+                ),
+                None,
+            )
+        ]
+
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_fetch_supplier_response_messages"
+        ),
+        fake_fetch_messages,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.supplier_order_responses.SUPPLIER_RESPONSE_DIR",
+        str(tmp_path),
+    )
+
+    result = await process_supplier_response_messages(test_session)
+    await test_session.refresh(item)
+    message_row = (
+        await test_session.execute(
+            select(SupplierOrderMessage).where(
+                SupplierOrderMessage.source_message_id
+                == "supplier-msg-text-global"
+            )
+        )
+    ).scalar_one()
+    receipt = (
+        await test_session.execute(
+            select(SupplierReceipt).where(
+                SupplierReceipt.provider_id == provider.id
+            )
+        )
+    ).scalar_one()
+    receipt_item = (
+        await test_session.execute(
+            select(SupplierReceiptItem).where(
+                SupplierReceiptItem.receipt_id == receipt.id
+            )
+        )
+    ).scalar_one()
+
+    assert result["processed_messages"] == 1
+    assert result["draft_receipts"] == 1
+    assert message_row.message_type == "TEXT_RESPONSE"
+    assert message_row.import_error_details is None
+    assert item.confirmed_quantity == 3
+    assert receipt.posted_at is None
+    assert receipt_item.received_quantity == 3
+
+
+@pytest.mark.asyncio
+async def test_subject_pattern_filters_supplier_response_messages(
+    monkeypatch,
+    test_session,
+    created_providers,
+    tmp_path,
+):
+    provider = created_providers[0]
+    provider.email_contact = None
+    provider.email_incoming_price = None
+    test_session.add(
+        SupplierResponseConfig(
+            provider_id=provider.id,
+            name="Subject filter config",
+            sender_emails=["supplier@example.com"],
+            response_type="text",
+            subject_pattern=r"^Ответ по заказу\\s+#?\\d+$",
+            is_active=True,
+        )
+    )
+    await test_session.commit()
+
+    async def fake_fetch_messages(
+        session, *, date_from, date_to=None, **kwargs
+    ):
+        return [
+            (
+                SimpleNamespace(
+                    from_="supplier@example.com",
+                    subject="Свободная тема без номера",
+                    text="Подтверждаем.",
+                    html=None,
+                    attachments=[],
+                    received_at=None,
+                    date=None,
+                    external_id="supplier-msg-subject-filter",
+                    uid=None,
+                    folder_name="INBOX",
+                ),
+                None,
+            )
+        ]
+
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_fetch_supplier_response_messages"
+        ),
+        fake_fetch_messages,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.supplier_order_responses.SUPPLIER_RESPONSE_DIR",
+        str(tmp_path),
+    )
+
+    result = await process_supplier_response_messages(test_session)
+    message_rows = (
+        await test_session.execute(
+            select(SupplierOrderMessage).where(
+                SupplierOrderMessage.source_message_id
+                == "supplier-msg-subject-filter"
+            )
+        )
+    ).scalars().all()
+
+    assert result["processed_messages"] == 0
+    assert result["skipped_messages"] == 1
+    assert message_rows == []
