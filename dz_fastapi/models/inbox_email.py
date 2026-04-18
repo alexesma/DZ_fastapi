@@ -90,3 +90,32 @@ class EmailRulePattern(Base):
         DateTime(timezone=True), default=now_moscow, onupdate=now_moscow
     )
     is_active = Column(Boolean, default=True)
+
+
+class InboxForceProcessAudit(Base):
+    __tablename__ = 'inbox_force_process_audit'
+
+    inbox_email_id = Column(
+        Integer,
+        ForeignKey('inboxemail.id', ondelete='SET NULL'),
+        nullable=True,
+        index=True,
+    )
+    requested_by_user_id = Column(
+        Integer,
+        ForeignKey('app_user.id', ondelete='SET NULL'),
+        nullable=True,
+        index=True,
+    )
+    rule_type = Column(String(64), nullable=False)
+    mode = Column(String(16), nullable=False)
+    allow_reprocess = Column(Boolean, default=False, nullable=False)
+    status = Column(String(64), nullable=False, index=True)
+    reason_code = Column(String(128), nullable=True)
+    reason_text = Column(String(1000), nullable=True)
+    details = Column(JSON, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        index=True,
+    )

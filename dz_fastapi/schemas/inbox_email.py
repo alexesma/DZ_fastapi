@@ -129,6 +129,19 @@ class AssignRuleResponse(BaseModel):
     processing_error: Optional[str] = None
 
 
+class ForceProcessRequest(BaseModel):
+    # True: разрешить повторную обработку уже импортированного письма
+    allow_reprocess: bool = True
+
+
+class ForceProcessResponse(BaseModel):
+    id: int
+    rule_type: str
+    processed: bool
+    processing_result: Optional[dict] = None
+    processing_error: Optional[str] = None
+
+
 # ---------------------------------------------------------------------------
 # EmailRulePattern schemas
 # ---------------------------------------------------------------------------

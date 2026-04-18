@@ -1,5 +1,6 @@
 import os
 import time
+from datetime import datetime
 from types import SimpleNamespace
 
 import pytest
@@ -202,3 +203,340 @@ async def test_process_customer_order_returns_queued_with_matched_config_ids(
     assert result['matched_config_ids'] == [7, 9]
     assert notifications
     assert notifications[0]['level'] == 'info'
+
+
+@pytest.mark.asyncio
+async def test_force_process_email_triggers_customer_order_configs(
+    monkeypatch,
+):
+    class DummySession:
+        def __init__(self):
+            self.commits = 0
+            self.rollbacks = 0
+            self.refreshed = []
+
+        async def commit(self):
+            self.commits += 1
+
+        async def rollback(self):
+            self.rollbacks += 1
+
+        async def refresh(self, obj):
+            self.refreshed.append(obj)
+
+    session = DummySession()
+    inbox_email = SimpleNamespace(
+        id=101,
+        rule_type='customer_order',
+        from_email='orders@example.com',
+        subject='Заказ #501',
+        email_account_id=3,
+        received_at=datetime(2026, 4, 18, 10, 30, 0),
+        processed=False,
+        processing_result=None,
+        processing_error=None,
+    )
+    called_configs = []
+    audit_calls = []
+
+    async def fake_get_inbox_email(_session, _email_id):
+        return inbox_email
+
+    async def fake_find_configs(*_args, **_kwargs):
+        return [11, 12]
+
+    async def fake_process_customer_orders(_session, **kwargs):
+        called_configs.append(kwargs.get('config_id'))
+
+    async def fake_mark_processed(_session, *, email, result=None, error=None):
+        email.processed = True
+        email.processing_result = result
+        email.processing_error = error
+        return email
+
+    async def fake_create_audit(*_args, **kwargs):
+        audit_calls.append(kwargs)
+        return SimpleNamespace(id=501, details=kwargs.get('details'))
+
+    monkeypatch.setattr(
+        inbox_email_service,
+        'get_inbox_email',
+        fake_get_inbox_email,
+    )
+    monkeypatch.setattr(
+        inbox_email_service,
+        '_find_matching_customer_order_configs',
+        fake_find_configs,
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.customer_orders.process_customer_orders',
+        fake_process_customer_orders,
+    )
+    monkeypatch.setattr(
+        inbox_email_service,
+        'mark_processed',
+        fake_mark_processed,
+    )
+    monkeypatch.setattr(
+        inbox_email_service,
+        '_create_force_process_audit_record',
+        fake_create_audit,
+    )
+
+    result = await inbox_email_service.force_process_email(
+        session,
+        email_id=101,
+        user_id=77,
+        allow_reprocess=True,
+    )
+
+    assert called_configs == [11, 12]
+    assert result['processed'] is True
+    assert result['processing_error'] is None
+    assert result['processing_result']['status'] == 'triggered'
+    assert result['processing_result']['reason_code'] == 'triggered'
+    assert result['processing_result']['triggered_config_ids'] == [11, 12]
+    assert result['processing_result']['summary']['matched_configs_count'] == 2
+    assert (
+        result['processing_result']['summary']['triggered_configs_count'] == 2
+    )
+    assert result['processing_result']['audit_id'] == 501
+    assert audit_calls and audit_calls[0]['status'] == 'triggered'
+    assert session.commits == 1
+    assert session.rollbacks == 0
+    assert session.refreshed == [inbox_email]
+
+
+@pytest.mark.asyncio
+async def test_force_process_email_triggers_supplier_response_retry(
+    monkeypatch,
+):
+    class DummySession:
+        def __init__(self):
+            self.commits = 0
+            self.rollbacks = 0
+            self.refreshed = []
+
+        async def commit(self):
+            self.commits += 1
+
+        async def rollback(self):
+            self.rollbacks += 1
+
+        async def refresh(self, obj):
+            self.refreshed.append(obj)
+
+    session = DummySession()
+    inbox_email = SimpleNamespace(
+        id=201,
+        rule_type='order_reply',
+        from_email='supplier@example.com',
+        subject='Ответ на заказ',
+        email_account_id=3,
+        folder='INBOX',
+        uid='999',
+        received_at=datetime(2026, 4, 18, 12, 5, 0),
+        processed=False,
+        processing_result=None,
+        processing_error=None,
+    )
+    called = []
+    audit_calls = []
+
+    async def fake_get_inbox_email(_session, _email_id):
+        return inbox_email
+
+    async def fake_find_matching_configs(*_args, **_kwargs):
+        return [SimpleNamespace(id=31, provider_id=919)]
+
+    async def fake_reset_markers(*_args, **_kwargs):
+        return 1
+
+    async def fake_process_supplier_response_messages(
+        session=None,
+        provider_id=None,
+        supplier_response_config_id=None,
+        date_from=None,
+        date_to=None,
+    ):
+        called.append(
+            {
+                'provider_id': provider_id,
+                'config_id': supplier_response_config_id,
+                'date_from': date_from,
+                'date_to': date_to,
+            }
+        )
+        return {
+            'processed_messages': 1,
+            'matched_orders': 1,
+            'skipped_messages': 0,
+        }
+
+    async def fake_mark_processed(_session, *, email, result=None, error=None):
+        email.processed = True
+        email.processing_result = result
+        email.processing_error = error
+        return email
+
+    async def fake_create_audit(*_args, **kwargs):
+        audit_calls.append(kwargs)
+        return SimpleNamespace(id=777, details=kwargs.get('details'))
+
+    monkeypatch.setattr(
+        inbox_email_service,
+        'get_inbox_email',
+        fake_get_inbox_email,
+    )
+    monkeypatch.setattr(
+        inbox_email_service,
+        '_find_matching_supplier_response_configs',
+        fake_find_matching_configs,
+    )
+    monkeypatch.setattr(
+        inbox_email_service,
+        '_reset_supplier_message_source_markers',
+        fake_reset_markers,
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.supplier_order_responses.'
+        'process_supplier_response_messages',
+        fake_process_supplier_response_messages,
+    )
+    monkeypatch.setattr(
+        inbox_email_service,
+        'mark_processed',
+        fake_mark_processed,
+    )
+    monkeypatch.setattr(
+        inbox_email_service,
+        '_create_force_process_audit_record',
+        fake_create_audit,
+    )
+
+    result = await inbox_email_service.force_process_email(
+        session,
+        email_id=201,
+        user_id=77,
+        allow_reprocess=True,
+    )
+
+    assert result['processed'] is True
+    assert result['processing_error'] is None
+    assert result['processing_result']['status'] == 'triggered'
+    assert result['processing_result']['reason_code'] == 'triggered'
+    assert result['processing_result']['triggered_config_ids'] == [31]
+    assert result['processing_result']['reprocess_reset_messages'] == 1
+    assert (
+        result['processing_result']['summary']['reprocess_reset_messages']
+        == 1
+    )
+    assert result['processing_result']['audit_id'] == 777
+    assert audit_calls and audit_calls[0]['status'] == 'triggered'
+    assert called and called[0]['provider_id'] == 919
+    assert called[0]['config_id'] == 31
+    assert str(called[0]['date_from']) == '2026-04-18'
+    assert session.commits == 2
+    assert session.rollbacks == 0
+    assert session.refreshed == [inbox_email]
+
+
+@pytest.mark.asyncio
+async def test_force_process_email_rejects_unsupported_rule(monkeypatch):
+    async def fake_get_inbox_email(_session, _email_id):
+        return SimpleNamespace(id=5, rule_type='price_list')
+
+    monkeypatch.setattr(
+        inbox_email_service,
+        'get_inbox_email',
+        fake_get_inbox_email,
+    )
+
+    with pytest.raises(ValueError):
+        await inbox_email_service.force_process_email(
+            session=SimpleNamespace(),
+            email_id=5,
+            user_id=1,
+            allow_reprocess=True,
+        )
+
+
+@pytest.mark.asyncio
+async def test_force_process_email_returns_missing_config_reason(monkeypatch):
+    class DummySession:
+        def __init__(self):
+            self.commits = 0
+            self.rollbacks = 0
+
+        async def commit(self):
+            self.commits += 1
+
+        async def rollback(self):
+            self.rollbacks += 1
+
+        async def refresh(self, _obj):
+            return None
+
+    session = DummySession()
+    inbox_email = SimpleNamespace(
+        id=301,
+        rule_type='customer_order',
+        from_email='orders@example.com',
+        subject='Заказ #999',
+        email_account_id=3,
+        processed=False,
+        processing_result=None,
+        processing_error=None,
+    )
+
+    async def fake_get_inbox_email(_session, _email_id):
+        return inbox_email
+
+    async def fake_find_configs(*_args, **_kwargs):
+        return []
+
+    async def fake_mark_processed(_session, *, email, result=None, error=None):
+        email.processed = True
+        email.processing_result = result
+        email.processing_error = error
+        return email
+
+    async def fake_create_audit(*_args, **_kwargs):
+        return SimpleNamespace(id=998, details={})
+
+    monkeypatch.setattr(
+        inbox_email_service,
+        'get_inbox_email',
+        fake_get_inbox_email,
+    )
+    monkeypatch.setattr(
+        inbox_email_service,
+        '_find_matching_customer_order_configs',
+        fake_find_configs,
+    )
+    monkeypatch.setattr(
+        inbox_email_service,
+        'mark_processed',
+        fake_mark_processed,
+    )
+    monkeypatch.setattr(
+        inbox_email_service,
+        '_create_force_process_audit_record',
+        fake_create_audit,
+    )
+
+    result = await inbox_email_service.force_process_email(
+        session=session,
+        email_id=301,
+        user_id=55,
+        allow_reprocess=False,
+    )
+
+    assert result['processing_result']['status'] == 'missing_config'
+    assert result['processing_result']['reason_code'] == 'missing_config'
+    assert 'Не найден активный CustomerOrderConfig' in (
+        result['processing_result']['reason']
+    )
+    assert result['processing_result']['mode'] == 'check'
+    assert result['processing_result']['summary']['matched_configs_count'] == 0
+    assert session.commits == 1

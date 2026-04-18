@@ -23,14 +23,17 @@ from dz_fastapi.schemas.inbox_email import (AssignRuleRequest,
                                             EmailRulePatternUpdate,
                                             FetchInboxRequest,
                                             FetchInboxResponse,
+                                            ForceProcessRequest,
+                                            ForceProcessResponse,
                                             InboxEmailBrief, InboxEmailDetail,
                                             InboxEmailListResponse,
                                             InboxSetupOptions,
                                             InboxSetupRequest,
                                             InboxSetupResponse, SetupOption)
 from dz_fastapi.services.inbox_email import (
-    assign_rule, fetch_and_store_emails, inbox_attachment_exists,
-    read_attachment_preview, resolve_inbox_attachment_fs_path,
+    assign_rule, fetch_and_store_emails, force_process_email,
+    inbox_attachment_exists, read_attachment_preview,
+    resolve_inbox_attachment_fs_path,
     restore_inbox_email_attachments_from_source, setup_email_rule)
 
 logger = logging.getLogger('dz_fastapi')
@@ -313,6 +316,46 @@ async def assign_rule_to_email(
         processing_result=updated.processing_result,
         processing_error=updated.processing_error,
     )
+
+
+@router.post(
+    '/emails/{email_id}/force-process',
+    response_model=ForceProcessResponse,
+    summary='Принудительно обработать письмо по назначенному правилу',
+)
+async def force_process_email_route(
+    email_id: int,
+    payload: ForceProcessRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Принудительно запускает обработку письма с уже назначенным правилом.
+
+    Поддерживаемые типы:
+    - customer_order
+    - order_reply
+    - document
+    """
+    try:
+        result = await force_process_email(
+            session,
+            email_id=email_id,
+            user_id=current_user.id,
+            allow_reprocess=payload.allow_reprocess,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception('Ошибка принудительной обработки письма: %s', e)
+        raise HTTPException(
+            status_code=500,
+            detail=f'Ошибка принудительной обработки: {e}',
+        )
+
+    return ForceProcessResponse(**result)
 
 
 # ---------------------------------------------------------------------------

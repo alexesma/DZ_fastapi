@@ -8,6 +8,8 @@ from dz_fastapi.models.autopart import (AutoPart, AutoPartRestockDecision,
 from dz_fastapi.models.brand import Brand, brand_synonyms  # noqa
 from dz_fastapi.models.cross import AutoPartCross, AutoPartSubstitution  # noqa
 from dz_fastapi.models.email_account import EmailAccount  # noqa
+from dz_fastapi.models.inbox_email import (EmailRulePattern, InboxEmail,
+                                           InboxForceProcessAudit)
 from dz_fastapi.models.notification import AppNotification  # noqa
 from dz_fastapi.models.order_status_mapping import (ExternalStatusMapping,
                                                     ExternalStatusUnmapped)
@@ -90,6 +92,9 @@ __all__ = [
     'ChatMessage',
     'User',
     'EmailAccount',
+    'InboxEmail',
+    'EmailRulePattern',
+    'InboxForceProcessAudit',
     'AppNotification',
     'ExternalStatusMapping',
     'ExternalStatusUnmapped',

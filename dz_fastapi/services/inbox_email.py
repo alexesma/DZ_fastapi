@@ -53,7 +53,7 @@ from dz_fastapi.crud.inbox_email import (cleanup_old_inbox_emails,
                                          increment_pattern_confirmed,
                                          mark_processed,
                                          update_inbox_email_rule)
-from dz_fastapi.models.inbox_email import InboxEmail
+from dz_fastapi.models.inbox_email import InboxEmail, InboxForceProcessAudit
 from dz_fastapi.schemas.inbox_email import RULE_META, FetchInboxResponse
 from dz_fastapi.services.email import (_create_mailbox,
                                        _dedupe_fetched_messages,
@@ -68,6 +68,7 @@ PROJECT_ROOT = os.path.abspath(
 )
 PREVIEWABLE_ATTACHMENT_EXTENSIONS = {'.xls', '.xlsx', '.csv'}
 MAX_PREVIEWABLE_ATTACHMENT_SIZE_BYTES = 5 * 1024 * 1024
+FORCE_PROCESSABLE_RULES = {'order_reply', 'customer_order', 'document'}
 
 
 # ---------------------------------------------------------------------------
@@ -1091,6 +1092,515 @@ async def assign_rule(
     )
     await session.commit()
     return inbox_email
+
+
+def _normalize_sender_emails(value: object) -> set[str]:
+    if value is None:
+        return set()
+    if isinstance(value, str):
+        chunks = value.split(',')
+    elif isinstance(value, (list, tuple, set)):
+        chunks = [str(item or '') for item in value]
+    else:
+        chunks = [str(value)]
+    normalized: set[str] = set()
+    for chunk in chunks:
+        cleaned = chunk.strip().lower()
+        if cleaned:
+            normalized.add(cleaned)
+    return normalized
+
+
+def _subject_matches_pattern(
+    pattern: Optional[str],
+    subject: Optional[str],
+) -> bool:
+    if not pattern:
+        return True
+    subject_text = subject or ''
+    try:
+        return bool(re.search(pattern, subject_text, flags=re.IGNORECASE))
+    except re.error:
+        return pattern.lower() in subject_text.lower()
+
+
+def _rule_matches_payload_type(
+    *,
+    rule_type: str,
+    payload_type: Optional[str],
+) -> bool:
+    normalized_payload = (payload_type or 'response').strip().lower()
+    if rule_type == 'order_reply':
+        return normalized_payload == 'response'
+    if rule_type == 'document':
+        return normalized_payload == 'document'
+    return False
+
+
+async def _find_matching_supplier_response_configs(
+    session: AsyncSession,
+    *,
+    inbox_email: InboxEmail,
+    rule_type: str,
+) -> list:
+    from sqlalchemy import select as _select
+
+    from dz_fastapi.models.partner import SupplierResponseConfig as _SRC
+
+    sender_email = (inbox_email.from_email or '').strip().lower()
+    if not sender_email:
+        return []
+
+    result = await session.execute(
+        _select(_SRC).where(_SRC.is_active.is_(True))
+    )
+    configs = result.scalars().all()
+    matched: list = []
+
+    for config in configs:
+        if not _rule_matches_payload_type(
+            rule_type=rule_type,
+            payload_type=getattr(config, 'file_payload_type', None),
+        ):
+            continue
+        if (
+            inbox_email.email_account_id is not None
+            and config.inbox_email_account_id
+            not in (None, inbox_email.email_account_id)
+        ):
+            continue
+        senders = _normalize_sender_emails(config.sender_emails)
+        if senders and sender_email not in senders:
+            continue
+        if not _subject_matches_pattern(
+            config.subject_pattern,
+            inbox_email.subject,
+        ):
+            continue
+        matched.append(config)
+
+    return matched
+
+
+def _build_supplier_source_uid_for_inbox_email(
+    inbox_email: InboxEmail,
+) -> Optional[str]:
+    uid = getattr(inbox_email, 'uid', None)
+    if uid in (None, ''):
+        return None
+    folder = str(getattr(inbox_email, 'folder', '') or '').strip()
+    account_id = int(getattr(inbox_email, 'email_account_id', 0) or 0)
+    return f'{account_id}:{folder}:{uid}'[:128]
+
+
+async def _reset_supplier_message_source_markers(
+    session: AsyncSession,
+    *,
+    source_uid: Optional[str],
+    allow_reprocess: bool,
+) -> int:
+    if not allow_reprocess or not source_uid:
+        return 0
+
+    from sqlalchemy import select as _select
+
+    from dz_fastapi.models.partner import SupplierOrderMessage
+
+    rows = (
+        await session.execute(
+            _select(SupplierOrderMessage).where(
+                SupplierOrderMessage.source_uid == source_uid
+            )
+        )
+    ).scalars().all()
+    changed = 0
+    for row in rows:
+        if row.source_uid is None and row.source_message_id is None:
+            continue
+        row.source_uid = None
+        row.source_message_id = None
+        row.message_type = 'RETRY_PENDING'
+        session.add(row)
+        changed += 1
+    if changed:
+        await session.flush()
+    return changed
+
+
+def _build_force_processing_error_text(
+    failed_configs: list[dict],
+) -> Optional[str]:
+    if not failed_configs:
+        return None
+    chunks = []
+    for item in failed_configs[:3]:
+        config_id = item.get('config_id')
+        error = str(item.get('error') or 'unknown error')
+        chunks.append(f'config {config_id}: {error}')
+    extra = len(failed_configs) - len(chunks)
+    if extra > 0:
+        chunks.append(f'+{extra} more errors')
+    return '; '.join(chunks)
+
+
+async def _create_force_process_audit_record(
+    session: AsyncSession,
+    *,
+    inbox_email_id: int,
+    user_id: Optional[int],
+    rule_type: str,
+    allow_reprocess: bool,
+    status: str,
+    reason_code: Optional[str],
+    reason_text: Optional[str],
+    details: dict,
+) -> InboxForceProcessAudit:
+    mode = 'reprocess' if allow_reprocess else 'check'
+    audit = InboxForceProcessAudit(
+        inbox_email_id=inbox_email_id,
+        requested_by_user_id=user_id,
+        rule_type=rule_type,
+        mode=mode,
+        allow_reprocess=bool(allow_reprocess),
+        status=status,
+        reason_code=reason_code,
+        reason_text=reason_text,
+        details=details,
+    )
+    session.add(audit)
+    await session.flush()
+    return audit
+
+
+async def force_process_email(
+    session: AsyncSession,
+    *,
+    email_id: int,
+    user_id: Optional[int],
+    allow_reprocess: bool = True,
+) -> dict:
+    """
+    Принудительно запускает обработку письма по уже назначенному правилу.
+    Поддерживаются:
+      - customer_order
+      - order_reply
+      - document
+    """
+    inbox_email = await get_inbox_email(session, email_id)
+    if inbox_email is None:
+        raise LookupError(f'InboxEmail id={email_id} не найдено')
+
+    rule_type = str(inbox_email.rule_type or '').strip()
+    if not rule_type:
+        raise ValueError('Для письма не назначено правило')
+    if rule_type not in FORCE_PROCESSABLE_RULES:
+        raise ValueError(
+            'Принудительная обработка доступна только для правил: '
+            'customer_order, order_reply, document'
+        )
+
+    processing_result: dict = {
+        'action': 'force_process',
+        'status': 'started',
+        'reason_code': None,
+        'reason': None,
+        'reasons': [],
+        'rule_type': rule_type,
+        'mode': 'reprocess' if allow_reprocess else 'check',
+        'allow_reprocess': bool(allow_reprocess),
+        'requested_by_user_id': user_id,
+        'forced_at': now_moscow().isoformat(),
+        'summary': {
+            'matched_configs_count': 0,
+            'triggered_configs_count': 0,
+            'failed_configs_count': 0,
+            'reprocess_reset_messages': 0,
+        },
+    }
+    failed_configs: list[dict] = []
+
+    try:
+        if rule_type == 'customer_order':
+            from dz_fastapi.services.customer_orders import \
+                process_customer_orders
+
+            matched_config_ids = await _find_matching_customer_order_configs(
+                session,
+                from_email=inbox_email.from_email,
+                subject=inbox_email.subject,
+                email_account_id=inbox_email.email_account_id,
+            )
+            processing_result['matched_config_ids'] = matched_config_ids
+            processing_result['summary']['matched_configs_count'] = len(
+                matched_config_ids
+            )
+            if not matched_config_ids:
+                reason = (
+                    'Не найден активный CustomerOrderConfig для этого письма'
+                )
+                processing_result['status'] = 'missing_config'
+                processing_result['reason_code'] = 'missing_config'
+                processing_result['reason'] = reason
+                processing_result['reasons'].append(
+                    {
+                        'code': 'missing_config',
+                        'message': reason,
+                    }
+                )
+            else:
+                triggered_config_ids: list[int] = []
+                for config_id in matched_config_ids:
+                    try:
+                        await process_customer_orders(
+                            session,
+                            config_id=config_id,
+                        )
+                        triggered_config_ids.append(int(config_id))
+                    except Exception as exc:
+                        await session.rollback()
+                        logger.exception(
+                            'Force processing customer_order failed: '
+                            'email_id=%s config_id=%s error=%s',
+                            inbox_email.id,
+                            config_id,
+                            exc,
+                        )
+                        failed_entry = {
+                            'config_id': int(config_id),
+                            'code': 'config_processing_failed',
+                            'error': str(exc),
+                        }
+                        failed_configs.append(failed_entry)
+                        processing_result['reasons'].append(
+                            {
+                                'code': 'config_processing_failed',
+                                'config_id': int(config_id),
+                                'message': str(exc),
+                            }
+                        )
+                processing_result['triggered_config_ids'] = (
+                    triggered_config_ids
+                )
+                if failed_configs and triggered_config_ids:
+                    processing_result['status'] = 'partially_triggered'
+                    processing_result['reason_code'] = 'partial_failure'
+                    processing_result['reason'] = (
+                        'Часть конфигураций завершилась с ошибкой'
+                    )
+                elif failed_configs:
+                    processing_result['status'] = 'failed'
+                    processing_result['reason_code'] = 'processing_failed'
+                    processing_result['reason'] = (
+                        'Обработка не запустилась ни по одной конфигурации'
+                    )
+                else:
+                    processing_result['status'] = 'triggered'
+                    processing_result['reason_code'] = 'triggered'
+                    processing_result['reason'] = (
+                        'Обработка успешно запущена'
+                    )
+                processing_result['summary']['triggered_configs_count'] = len(
+                    triggered_config_ids
+                )
+                processing_result['summary']['failed_configs_count'] = len(
+                    failed_configs
+                )
+        else:
+            from dz_fastapi.services.supplier_order_responses import (
+                process_supplier_response_messages, supplier_response_cutoff)
+
+            matched_configs = await _find_matching_supplier_response_configs(
+                session,
+                inbox_email=inbox_email,
+                rule_type=rule_type,
+            )
+            matched_config_ids = [
+                int(config.id) for config in matched_configs
+            ]
+            processing_result['matched_config_ids'] = matched_config_ids
+            processing_result['summary']['matched_configs_count'] = len(
+                matched_config_ids
+            )
+
+            if not matched_configs:
+                reason = (
+                    'Не найден активный SupplierResponseConfig '
+                    'для этого письма'
+                )
+                processing_result['status'] = 'missing_config'
+                processing_result['reason_code'] = 'missing_config'
+                processing_result['reason'] = reason
+                processing_result['reasons'].append(
+                    {
+                        'code': 'missing_config',
+                        'message': reason,
+                    }
+                )
+            else:
+                source_uid = _build_supplier_source_uid_for_inbox_email(
+                    inbox_email
+                )
+                reset_messages = await _reset_supplier_message_source_markers(
+                    session,
+                    source_uid=source_uid,
+                    allow_reprocess=allow_reprocess,
+                )
+                processing_result['source_uid'] = source_uid
+                processing_result['reprocess_reset_messages'] = reset_messages
+                processing_result['summary']['reprocess_reset_messages'] = (
+                    reset_messages
+                )
+                if allow_reprocess and source_uid and not reset_messages:
+                    processing_result['reasons'].append(
+                        {
+                            'code': 'nothing_to_reprocess',
+                            'message': (
+                                'Для письма не найдено ранее обработанных '
+                                'записей для сброса дедупликации'
+                            ),
+                        }
+                    )
+                if reset_messages:
+                    await session.commit()
+
+                received_at = getattr(inbox_email, 'received_at', None)
+                if isinstance(received_at, datetime):
+                    date_from = received_at.date()
+                elif isinstance(received_at, date):
+                    date_from = received_at
+                else:
+                    date_from = supplier_response_cutoff()
+
+                triggered_config_ids: list[int] = []
+                run_summaries: list[dict] = []
+                for config in matched_configs:
+                    config_id = int(config.id)
+                    try:
+                        run_result = await process_supplier_response_messages(
+                            session=session,
+                            provider_id=int(config.provider_id),
+                            supplier_response_config_id=config_id,
+                            date_from=date_from,
+                            date_to=None,
+                        )
+                        run_summaries.append(
+                            {'config_id': config_id, **run_result}
+                        )
+                        triggered_config_ids.append(config_id)
+                    except Exception as exc:
+                        await session.rollback()
+                        logger.exception(
+                            'Force processing supplier response failed: '
+                            'email_id=%s config_id=%s error=%s',
+                            inbox_email.id,
+                            config_id,
+                            exc,
+                        )
+                        failed_entry = {
+                            'config_id': config_id,
+                            'code': 'config_processing_failed',
+                            'error': str(exc),
+                        }
+                        failed_configs.append(failed_entry)
+                        processing_result['reasons'].append(
+                            {
+                                'code': 'config_processing_failed',
+                                'config_id': config_id,
+                                'message': str(exc),
+                            }
+                        )
+
+                processing_result['triggered_config_ids'] = (
+                    triggered_config_ids
+                )
+                processing_result['runs'] = run_summaries
+                if failed_configs and triggered_config_ids:
+                    processing_result['status'] = 'partially_triggered'
+                    processing_result['reason_code'] = 'partial_failure'
+                    processing_result['reason'] = (
+                        'Часть конфигураций завершилась с ошибкой'
+                    )
+                elif failed_configs:
+                    processing_result['status'] = 'failed'
+                    processing_result['reason_code'] = 'processing_failed'
+                    processing_result['reason'] = (
+                        'Обработка не запустилась ни по одной конфигурации'
+                    )
+                else:
+                    processing_result['status'] = 'triggered'
+                    processing_result['reason_code'] = 'triggered'
+                    processing_result['reason'] = (
+                        'Обработка успешно запущена'
+                    )
+                processing_result['summary']['triggered_configs_count'] = len(
+                    triggered_config_ids
+                )
+                processing_result['summary']['failed_configs_count'] = len(
+                    failed_configs
+                )
+    except Exception as exc:
+        await session.rollback()
+        logger.exception(
+            'Unexpected force processing error: email_id=%s error=%s',
+            inbox_email.id,
+            exc,
+        )
+        processing_result['status'] = 'failed'
+        processing_result['reason_code'] = 'unexpected_error'
+        processing_result['reason'] = (
+            'Непредвиденная ошибка во время принудительной обработки'
+        )
+        processing_result['reasons'].append(
+            {
+                'code': 'unexpected_error',
+                'message': str(exc),
+            }
+        )
+        failed_configs.append(
+            {
+                'config_id': None,
+                'code': 'unexpected_error',
+                'error': str(exc),
+            }
+        )
+
+    processing_result['failed_configs'] = failed_configs
+    processing_result['summary']['failed_configs_count'] = len(failed_configs)
+    if processing_result.get('reason_code') is None:
+        processing_result['reason_code'] = 'unknown'
+    if processing_result.get('reason') is None:
+        processing_result['reason'] = 'Статус обработки обновлён'
+
+    audit = await _create_force_process_audit_record(
+        session,
+        inbox_email_id=inbox_email.id,
+        user_id=user_id,
+        rule_type=rule_type,
+        allow_reprocess=allow_reprocess,
+        status=str(processing_result.get('status') or 'unknown'),
+        reason_code=str(processing_result.get('reason_code') or '') or None,
+        reason_text=str(processing_result.get('reason') or '') or None,
+        details=processing_result,
+    )
+    processing_result['audit_id'] = int(audit.id)
+    audit.details = processing_result
+
+    error_text = _build_force_processing_error_text(failed_configs)
+    await mark_processed(
+        session,
+        email=inbox_email,
+        result=processing_result,
+        error=error_text,
+    )
+    await session.commit()
+    await session.refresh(inbox_email)
+    return {
+        'id': inbox_email.id,
+        'rule_type': inbox_email.rule_type,
+        'processed': inbox_email.processed,
+        'processing_result': inbox_email.processing_result,
+        'processing_error': inbox_email.processing_error,
+    }
 
 
 # ---------------------------------------------------------------------------
