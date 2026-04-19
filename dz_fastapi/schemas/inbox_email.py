@@ -213,7 +213,7 @@ class ProviderSetupConfig(BaseModel):
     price_col: Optional[int] = None
     brand_col: Optional[int] = None
     name_col: Optional[int] = None         # только для price_list
-    min_quantity: Optional[int] = None     # только для price_list
+    multiplicity_col: Optional[int] = None  # только для price_list
 
     # Дополнительно для order_reply
     response_type: Optional[Literal['file', 'text']] = None

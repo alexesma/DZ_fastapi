@@ -456,8 +456,8 @@ async def get_provider_configs_for_wizard(
                 'qty_col': c.qty_col,
                 'price_col': c.price_col,
                 'brand_col': c.brand_col,
+                'multiplicity_col': c.multiplicity_col,
                 'name_col': c.name_col,
-                'min_quantity': c.min_quantity,
             }
             for c in (configs or [])
         ]

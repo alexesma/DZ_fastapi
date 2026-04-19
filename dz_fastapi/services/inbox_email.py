@@ -2127,16 +2127,6 @@ async def setup_email_rule(
         price_filename_pattern = str(
             getattr(provider_config, 'filename_pattern', '') or ''
         ).strip()
-        raw_min_quantity = getattr(provider_config, 'min_quantity', None)
-        min_quantity = (
-            int(raw_min_quantity)
-            if raw_min_quantity is not None and raw_min_quantity != ''
-            else None
-        )
-        if min_quantity is not None and min_quantity < 0:
-            raise ValueError(
-                'Минимальное количество для прайс-листа должно быть >= 0'
-            )
         if (
             rule_type == 'price_list'
             and cfg_mode == 'existing'
@@ -2144,6 +2134,11 @@ async def setup_email_rule(
         ):
             raise ValueError(
                 'Выберите конфигурацию прайс-листа для обновления'
+            )
+        if rule_type == 'price_list' and cfg_mode == 'skip':
+            raise ValueError(
+                'Для прайс-листа выберите режим: '
+                '«Обновить готовую» или «Создать новую»'
             )
         if rule_type == 'price_list' and cfg_mode == 'new':
             if not price_cfg_name:
@@ -2222,11 +2217,10 @@ async def setup_email_rule(
                                 upd['filename_pattern'] = (
                                     price_filename_pattern
                                 )
-                            if min_quantity is not None:
-                                upd['min_quantity'] = min_quantity
                             for fld in (
                                 'start_row', 'oem_col', 'qty_col',
                                 'price_col', 'brand_col', 'name_col',
+                                'multiplicity_col',
                             ):
                                 v = getattr(provider_config, fld, None)
                                 if v is not None:
@@ -2265,12 +2259,16 @@ async def setup_email_rule(
                             name_col=_col(
                                 getattr(provider_config, 'name_col', None)
                             ),
+                            multiplicity_col=_col(
+                                getattr(
+                                    provider_config, 'multiplicity_col', None
+                                )
+                            ),
                             filename_pattern=(
                                 price_filename_pattern or None
                             ),
                             name_mail=provider_config.subject_pattern,
                             name_price=price_cfg_name,
-                            min_quantity=min_quantity,
                         )
                         created_pl = await (
                             crud_provider_pricelist_config.create(
@@ -2516,11 +2514,16 @@ async def setup_email_rule(
         except ValueError:
             raise
         except Exception as e:
-            logger.warning(
+            logger.exception(
                 'Ошибка привязки поставщика id=%s: %s',
                 provider_config.provider_id,
                 e,
             )
+            if rule_type == 'price_list' and cfg_mode != 'skip':
+                raise ValueError(
+                    'Не удалось сохранить конфигурацию прайс-листа. '
+                    'Проверьте поля и повторите.'
+                )
 
     # ------------------------------------------------------------------
     # 1b. Привязка к клиенту — обновляем order_email в CustomerOrderConfig
