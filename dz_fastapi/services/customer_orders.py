@@ -2064,7 +2064,7 @@ def _build_supplier_order_body_html(
     )
     return (
         '<div>'
-        '<p><b>Заказ поставщику</b></p>'
+        f'<p><b>Заказ поставщику № {escape(str(order.id))}</b></p>'
         '<table cellspacing="0" cellpadding="2">'
         f'<tr><td><b>Дата</b></td><td>{escape(order_datetime_text)}</td></tr>'
         f'<tr><td><b>{escape(str(order.id))}</b></td>'
