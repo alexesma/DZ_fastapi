@@ -448,6 +448,7 @@ async def get_provider_configs_for_wizard(
                     f'#{c.id} • {c.name_price}'
                     if c.name_price else f'Конфигурация #{c.id}'
                 ),
+                'filename_pattern': getattr(c, 'filename_pattern', None),
                 'name_price': c.name_price,
                 'name_mail': c.name_mail,
                 'start_row': c.start_row,
@@ -456,6 +457,7 @@ async def get_provider_configs_for_wizard(
                 'price_col': c.price_col,
                 'brand_col': c.brand_col,
                 'name_col': c.name_col,
+                'min_quantity': c.min_quantity,
             }
             for c in (configs or [])
         ]
@@ -539,7 +541,11 @@ async def setup_email(
             customer_config=payload.customer_config,
         )
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        detail = str(e)
+        status_code = (
+            404 if 'не найден' in detail.lower() else 400
+        )
+        raise HTTPException(status_code=status_code, detail=detail)
     except Exception as e:
         logger.exception('Ошибка мастера настройки: %s', e)
         raise HTTPException(status_code=500, detail=f'Ошибка настройки: {e}')

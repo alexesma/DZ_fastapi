@@ -243,14 +243,18 @@ def _message_matches_provider_config(
     attachments = getattr(msg, 'attachments', []) or []
     if not attachments:
         return False
-    if not provider_conf.name_price:
+    raw_pattern = (
+        getattr(provider_conf, 'filename_pattern', None)
+        or provider_conf.name_price
+    )
+    if not raw_pattern:
         return True
-    name_price_norm = normalize_str(provider_conf.name_price)
+    pattern_norm = normalize_str(raw_pattern)
     for att in attachments:
         filename_norm = normalize_str(getattr(att, 'filename', '') or '')
         if (
-            name_price_norm in filename_norm
-            or filename_norm in name_price_norm
+            pattern_norm in filename_norm
+            or filename_norm in pattern_norm
         ):
             return True
     return False
@@ -875,10 +879,14 @@ async def download_price_provider(
             )
 
         since_date = date.today() - timedelta(days=DEPTH_DAY_EMAIL)
+        filename_pattern = (
+            getattr(provider_conf, 'filename_pattern', None)
+            or provider_conf.name_price
+        )
         logger.debug(
             f'Email criteria: from = {provider.email_incoming_price}, '
             f'need name_mail = {provider_conf.name_mail}, '
-            f'need name_price = {provider_conf.name_price}'
+            f'need filename_pattern = {filename_pattern}'
         )
 
         logger.debug(
@@ -1061,14 +1069,16 @@ async def download_price_provider(
             for att in msg.attachments:
                 logger.debug(f'Found attachment: {att.filename}')
                 filename_norm = normalize_str(att.filename).lower()
-                name_price_norm = normalize_str(
-                    provider_conf.name_price or ''
+                filename_pattern_norm = normalize_str(
+                    getattr(provider_conf, 'filename_pattern', None)
+                    or provider_conf.name_price
+                    or ''
                 ).lower()
                 if (
-                    name_price_norm
+                    filename_pattern_norm
                     and (
-                        name_price_norm in filename_norm
-                        or filename_norm in name_price_norm
+                        filename_pattern_norm in filename_norm
+                        or filename_norm in filename_pattern_norm
                     )
                 ):
                     filepath = os.path.join(DOWNLOAD_FOLDER, att.filename)
@@ -1088,12 +1098,12 @@ async def download_price_provider(
                             folder=getattr(msg, 'folder_name', None),
                         )
                     return filepath
-                if not name_price_norm:
+                if not filename_pattern_norm:
                     filepath = os.path.join(DOWNLOAD_FOLDER, att.filename)
                     with open(filepath, 'wb') as f:
                         f.write(att.payload)
                     logger.debug(
-                        'name_price is empty, '
+                        'filename_pattern is empty, '
                         'downloaded first attachment: '
                         '%s',
                         filepath,
@@ -1383,10 +1393,14 @@ async def download_new_price_provider(
     for att in msg.attachments:
         logger.debug(f'Found attachment: {att.filename}')
 
+        raw_pattern = (
+            getattr(provider_conf, 'filename_pattern', None)
+            or provider_conf.name_price
+        )
+        normalized_pattern = normalize_str(raw_pattern or '')
         if (
-            not provider_conf.name_price
-            or normalize_str(provider_conf.name_price)
-            in normalize_str(att.filename)
+            not normalized_pattern
+            or normalized_pattern in normalize_str(att.filename)
         ):
             logger.debug('Имя вложения совпало')
             filepath = os.path.join(DOWNLOAD_FOLDER, att.filename)

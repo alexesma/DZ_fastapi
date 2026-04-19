@@ -193,7 +193,8 @@ class ProviderSetupConfig(BaseModel):
     provider_id: int
     # Паттерны для авто-определения будущих писем
     subject_pattern: Optional[str] = None   # name_mail in pricelist config
-    filename_pattern: Optional[str] = None  # name_price / filename_pattern
+    # filename_pattern in pricelist config
+    filename_pattern: Optional[str] = None
 
     # Режим конфигурации столбцов файла
     # 'existing' — обновить выбранную конфигурацию
@@ -202,7 +203,8 @@ class ProviderSetupConfig(BaseModel):
     config_mode: Literal['existing', 'new', 'skip'] = 'skip'
     config_id: Optional[int] = None        # ID ProviderPriceListConfig или
     #                                         SupplierResponseConfig
-    config_name: Optional[str] = None  # имя для новой SupplierResponseConfig
+    # имя новой конфигурации (обязательно для нового price_list)
+    config_name: Optional[str] = None
 
     # Общие поля столбцов (для price_list, order_reply, document)
     start_row: Optional[int] = None
@@ -211,6 +213,7 @@ class ProviderSetupConfig(BaseModel):
     price_col: Optional[int] = None
     brand_col: Optional[int] = None
     name_col: Optional[int] = None         # только для price_list
+    min_quantity: Optional[int] = None     # только для price_list
 
     # Дополнительно для order_reply
     response_type: Optional[Literal['file', 'text']] = None

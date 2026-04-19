@@ -442,6 +442,7 @@ class ProviderPriceListConfig(Base):
     multiplicity_col = Column(Integer, nullable=True)
     qty_col = Column(Integer, nullable=False)
     price_col = Column(Integer, nullable=False)
+    filename_pattern = Column(String(255), nullable=True)
     name_price = Column(String, nullable=True)
     name_mail = Column(String, nullable=True)
     file_url = Column(String, nullable=True)

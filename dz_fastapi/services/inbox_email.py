@@ -2120,6 +2120,49 @@ async def setup_email_rule(
         and provider_config
         and provider_config.provider_id
     ):
+        cfg_mode = getattr(provider_config, 'config_mode', 'skip')
+        price_cfg_name = str(
+            getattr(provider_config, 'config_name', '') or ''
+        ).strip()
+        price_filename_pattern = str(
+            getattr(provider_config, 'filename_pattern', '') or ''
+        ).strip()
+        raw_min_quantity = getattr(provider_config, 'min_quantity', None)
+        min_quantity = (
+            int(raw_min_quantity)
+            if raw_min_quantity is not None and raw_min_quantity != ''
+            else None
+        )
+        if min_quantity is not None and min_quantity < 0:
+            raise ValueError(
+                'Минимальное количество для прайс-листа должно быть >= 0'
+            )
+        if (
+            rule_type == 'price_list'
+            and cfg_mode == 'existing'
+            and not getattr(provider_config, 'config_id', None)
+        ):
+            raise ValueError(
+                'Выберите конфигурацию прайс-листа для обновления'
+            )
+        if rule_type == 'price_list' and cfg_mode == 'new':
+            if not price_cfg_name:
+                raise ValueError(
+                    'Для новой конфигурации прайс-листа '
+                    'укажите имя конфигурации'
+                )
+            if not getattr(provider_config, 'oem_col', None):
+                raise ValueError(
+                    'Для новой конфигурации прайс-листа укажите колонку OEM'
+                )
+            if not getattr(provider_config, 'qty_col', None):
+                raise ValueError(
+                    'Для новой конфигурации прайс-листа укажите колонку Кол-во'
+                )
+            if not getattr(provider_config, 'price_col', None):
+                raise ValueError(
+                    'Для новой конфигурации прайс-листа укажите колонку Цена'
+                )
         try:
             from dz_fastapi.crud.partner import (
                 crud_provider_pricelist_config, crud_supplier_response_config)
@@ -2154,10 +2197,6 @@ async def setup_email_rule(
                     'note': note,
                 })
 
-                cfg_mode = getattr(
-                    provider_config, 'config_mode', 'skip'
-                )
-
                 # --- price_list: ProviderPriceListConfig ---
                 if rule_type == 'price_list' and cfg_mode != 'skip':
                     def _col(v):
@@ -2177,10 +2216,14 @@ async def setup_email_rule(
                                 upd['name_mail'] = (
                                     provider_config.subject_pattern
                                 )
-                            if provider_config.filename_pattern:
-                                upd['name_price'] = (
-                                    provider_config.filename_pattern
+                            if price_cfg_name:
+                                upd['name_price'] = price_cfg_name
+                            if price_filename_pattern:
+                                upd['filename_pattern'] = (
+                                    price_filename_pattern
                                 )
+                            if min_quantity is not None:
+                                upd['min_quantity'] = min_quantity
                             for fld in (
                                 'start_row', 'oem_col', 'qty_col',
                                 'price_col', 'brand_col', 'name_col',
@@ -2209,44 +2252,47 @@ async def setup_email_rule(
                         oem = getattr(provider_config, 'oem_col', None)
                         qty = getattr(provider_config, 'qty_col', None)
                         prc = getattr(provider_config, 'price_col', None)
-                        if oem and qty and prc:
-                            new_pl = ProviderPriceListConfigCreate(
-                                start_row=int(
-                                    provider_config.start_row or 1
-                                ),
-                                oem_col=_col(oem),
-                                qty_col=_col(qty),
-                                price_col=_col(prc),
-                                brand_col=_col(
-                                    getattr(provider_config, 'brand_col', None)
-                                ),
-                                name_col=_col(
-                                    getattr(provider_config, 'name_col', None)
-                                ),
-                                name_mail=provider_config.subject_pattern,
-                                name_price=provider_config.filename_pattern,
+                        new_pl = ProviderPriceListConfigCreate(
+                            start_row=int(
+                                provider_config.start_row or 1
+                            ),
+                            oem_col=_col(oem),
+                            qty_col=_col(qty),
+                            price_col=_col(prc),
+                            brand_col=_col(
+                                getattr(provider_config, 'brand_col', None)
+                            ),
+                            name_col=_col(
+                                getattr(provider_config, 'name_col', None)
+                            ),
+                            filename_pattern=(
+                                price_filename_pattern or None
+                            ),
+                            name_mail=provider_config.subject_pattern,
+                            name_price=price_cfg_name,
+                            min_quantity=min_quantity,
+                        )
+                        created_pl = await (
+                            crud_provider_pricelist_config.create(
+                                session=session,
+                                provider_id=provider.id,
+                                config=new_pl,
                             )
-                            created_pl = await (
-                                crud_provider_pricelist_config.create(
-                                    session=session,
-                                    provider_id=provider.id,
-                                    config=new_pl,
-                                )
-                            )
-                            configs_set.append({
-                                'entity_type': 'pricelist_config',
-                                'entity_id': created_pl.id,
-                                'entity_name': (
-                                    created_pl.name_price
-                                    or f'#{created_pl.id}'
-                                ),
-                                'action': 'created',
-                                'note': (
-                                    f'Создана конфигурация прайс-листа '
-                                    f'#{created_pl.id} для '
-                                    f'«{provider.name}».'
-                                ),
-                            })
+                        )
+                        configs_set.append({
+                            'entity_type': 'pricelist_config',
+                            'entity_id': created_pl.id,
+                            'entity_name': (
+                                created_pl.name_price
+                                or f'#{created_pl.id}'
+                            ),
+                            'action': 'created',
+                            'note': (
+                                f'Создана конфигурация прайс-листа '
+                                f'#{created_pl.id} для '
+                                f'«{provider.name}».'
+                            ),
+                        })
 
                 # --- order_reply / document: SupplierResponseConfig ---
                 elif (
@@ -2467,6 +2513,8 @@ async def setup_email_rule(
                             ),
                         })
 
+        except ValueError:
+            raise
         except Exception as e:
             logger.warning(
                 'Ошибка привязки поставщика id=%s: %s',

@@ -378,6 +378,7 @@ class ProviderPriceListConfigBase(BaseModel):
     multiplicity_col: Optional[int] = None
     qty_col: int
     price_col: int
+    filename_pattern: Optional[str] = None
     name_price: Optional[str] = None
     name_mail: Optional[str] = None
     file_url: Optional[str] = None
@@ -405,6 +406,7 @@ class ProviderPriceListConfigUpdate(BaseModel):
     multiplicity_col: Optional[int] = Field(default=None, ge=0)
     qty_col: Optional[int] = Field(default=None, ge=0)
     price_col: Optional[int] = Field(default=None, ge=0)
+    filename_pattern: Optional[str] = None
     name_price: Optional[str] = None
     name_mail: Optional[str] = None
     file_url: Optional[str] = None
@@ -1125,6 +1127,7 @@ class ProviderPricelistAnalysisResponse(BaseModel):
 class ProviderPriceListConfigOut(BaseModel):
     id: int
     incoming_email_account_id: int | None = None
+    filename_pattern: str | None = None
     name_price: str | None = None
     name_mail: str | None = None
     file_url: str | None = None
