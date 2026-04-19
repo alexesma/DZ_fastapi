@@ -63,6 +63,7 @@ _RESPONSE_SUBJECT_RE = re.compile(
     r"заказ\w*(?:\s+поставщику)?\s*[#№]?\s*(\d+)",
     re.I,
 )
+_RESPONSE_ALNUM_CODE_RE = re.compile(r"[AА](\d{7,12})", re.I)
 _DOCUMENT_KEYWORDS = (
     "наклад",
     "упд",
@@ -83,7 +84,11 @@ _SUPPLIER_STATUS_PATTERNS = (
     (re.compile(r"ожида", re.I), "ожидаем"),
 )
 _ARTICLE_TOKEN_RE = re.compile(
+    r"(?:"
     r"(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9._/-]+"
+    r"|"
+    r"(?=(?:[^0-9]*[0-9]){6,})[0-9]+(?:[-/][0-9]+)+"
+    r")"
 )
 _TEXT_TOKEN_RE = re.compile(r"[A-Za-zА-Яа-яЁё0-9][A-Za-zА-Яа-яЁё0-9._/-]*")
 _DEFAULT_CONFIRM_KEYWORDS = [
@@ -603,7 +608,11 @@ def _extract_supplier_order_id(*values: Optional[str]) -> Optional[int]:
         text = str(value or "").strip()
         if not text:
             continue
-        for pattern in (_RESPONSE_FILENAME_RE, _RESPONSE_SUBJECT_RE):
+        for pattern in (
+            _RESPONSE_FILENAME_RE,
+            _RESPONSE_SUBJECT_RE,
+            _RESPONSE_ALNUM_CODE_RE,
+        ):
             match = pattern.search(text)
             if match:
                 try:

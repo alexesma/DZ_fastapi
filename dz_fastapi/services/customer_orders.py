@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from email import message_from_bytes
 from email.header import decode_header
+from html import escape
 from io import BytesIO
 from typing import Dict, List, Optional, Tuple
 
@@ -20,7 +21,9 @@ try:
 except ImportError:  # pragma: no cover - fallback for older imap_tools
     from imap_tools import AND, MailBox
     MailBoxSsl = None
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Alignment, Border, Font, Side
+from openpyxl.utils import get_column_letter
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
@@ -1752,6 +1755,349 @@ async def _send_email_attachment_async(
         filename,
         use_tls,
         **kwargs,
+    )
+
+
+def _supplier_order_print_code(order_id: int) -> str:
+    return f'A{int(order_id):010d}'
+
+
+def _supplier_order_attachment_filename(order_id: int) -> str:
+    return f'МастерА{int(order_id):010d}.xlsx'
+
+
+def _supplier_order_provider_alias(provider: Optional[Provider]) -> str:
+    if not provider:
+        return ''
+    for raw_email in (
+        getattr(provider, 'email_contact', None),
+        getattr(provider, 'email_incoming_price', None),
+    ):
+        value = str(raw_email or '').strip()
+        if '@' in value:
+            local = value.split('@', 1)[0].strip()
+            if local:
+                return local.upper()
+    return ''
+
+
+def _format_numeric_for_excel(value: Optional[float]) -> object:
+    if value is None:
+        return ''
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return value
+    if parsed.is_integer():
+        return int(parsed)
+    return round(parsed, 2)
+
+
+def _build_supplier_order_rows(
+    order: SupplierOrder,
+) -> tuple[list[dict[str, object]], int, float]:
+    rows: list[dict[str, object]] = []
+    total_qty = 0
+    total_sum = 0.0
+    for index, item in enumerate(order.items or [], start=1):
+        autopart = item.autopart
+        brand_name = (
+            autopart.brand.name if autopart and autopart.brand else ''
+        )
+        oem_number = (
+            item.oem_number
+            or (autopart.oem_number if autopart else '')
+            or ''
+        )
+        part_name = (
+            item.autopart_name
+            or (autopart.name if autopart else '')
+            or ''
+        )
+        quantity = int(item.quantity or 0)
+        price = float(item.price) if item.price is not None else 0.0
+        line_sum = round(quantity * price, 2)
+        total_qty += quantity
+        total_sum += line_sum
+        rows.append(
+            {
+                'index': index,
+                'brand': brand_name,
+                'oem': oem_number,
+                'comment': (
+                    int(item.customer_order_item_id)
+                    if item.customer_order_item_id is not None
+                    else ''
+                ),
+                'name': part_name,
+                'note': '',
+                'qty': quantity,
+                'price': _format_numeric_for_excel(price),
+                'sum': _format_numeric_for_excel(line_sum),
+                'price_code': '',
+            }
+        )
+    return rows, total_qty, round(total_sum, 2)
+
+
+def _build_supplier_order_attachment_bytes(
+    *,
+    order: SupplierOrder,
+    rows: list[dict[str, object]],
+    total_qty: int,
+    total_sum: float,
+) -> bytes:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = 'TDSheet'
+
+    column_widths = [
+        6.0,
+        15.5,
+        13.83,
+        10.5,
+        23.33,
+        10.5,
+        8.0,
+        10.5,
+        10.5,
+        10.5,
+    ]
+    for index, width in enumerate(column_widths, start=1):
+        sheet.column_dimensions[get_column_letter(index)].width = width
+
+    row_heights = {
+        1: 15.75,
+        3: 15.75,
+        5: 15.75,
+        6: 11.25,
+        8: 12.75,
+        9: 12.75,
+    }
+    for row_idx, height in row_heights.items():
+        sheet.row_dimensions[row_idx].height = height
+
+    thin_side = Side(style='thin', color='000000')
+    no_side = Side(style=None)
+
+    def _make_border(
+        *,
+        left: bool = False,
+        right: bool = False,
+        top: bool = False,
+        bottom: bool = False,
+    ) -> Border:
+        return Border(
+            left=thin_side if left else no_side,
+            right=thin_side if right else no_side,
+            top=thin_side if top else no_side,
+            bottom=thin_side if bottom else no_side,
+        )
+
+    font_title = Font(name='Arial', size=12)
+    font_main = Font(name='Arial', size=10)
+    font_small = Font(name='Arial', size=8)
+    align_left = Alignment(horizontal='left', vertical='center')
+    align_right = Alignment(horizontal='right', vertical='center')
+    align_general = Alignment(horizontal='general', vertical='center')
+    align_right_wrap = Alignment(
+        horizontal='right',
+        vertical='center',
+        wrap_text=True,
+    )
+
+    order_datetime = order.created_at or now_moscow()
+    order_datetime_text = order_datetime.strftime('%d.%m.%Y %H:%M:%S')
+    provider_name = str(
+        getattr(getattr(order, 'provider', None), 'name', '') or ''
+    ).strip()
+    provider_alias = _supplier_order_provider_alias(order.provider)
+    provider_line = ' '.join(
+        part for part in [provider_name, provider_alias] if part
+    ).strip()
+
+    sheet.merge_cells('H1:J1')
+    cell_h1 = sheet['H1']
+    cell_h1.value = 'Заказ поставщику'
+    cell_h1.font = font_title
+    cell_h1.alignment = align_right_wrap
+
+    sheet['C3'].value = 'Дата'
+    sheet['C3'].font = font_main
+    sheet['C3'].alignment = align_left
+    sheet['C3'].border = _make_border(left=True, top=True, bottom=True)
+
+    sheet.merge_cells('D3:E3')
+    sheet['D3'].value = order_datetime_text
+    sheet['D3'].font = font_title
+    sheet['D3'].alignment = align_left
+    sheet['D3'].border = _make_border(top=True, right=True, bottom=True)
+
+    sheet['C5'].value = int(order.id)
+    sheet['C5'].font = font_title
+    sheet['C5'].alignment = align_left
+    sheet['C5'].border = _make_border(
+        left=True,
+        right=True,
+        top=True,
+        bottom=True,
+    )
+
+    sheet['E5'].value = _supplier_order_print_code(order.id)
+    sheet['E5'].font = font_title
+    sheet['E5'].alignment = align_left
+    sheet['E5'].border = _make_border(
+        left=True,
+        right=True,
+        top=True,
+        bottom=True,
+    )
+
+    sheet['E6'].value = provider_line
+    sheet['E6'].font = font_small
+    sheet['E6'].alignment = align_left
+    sheet['E6'].border = _make_border(
+        left=True,
+        right=True,
+        top=True,
+        bottom=True,
+    )
+
+    sheet['F8'].value = 'Итого:'
+    sheet['F8'].font = font_main
+    sheet['F8'].alignment = align_left
+    sheet['G8'].value = total_qty
+    sheet['G8'].font = font_main
+    sheet['G8'].alignment = align_right
+    sheet['G8'].number_format = '0.00'
+    sheet['H8'].value = 'RUR'
+    sheet['H8'].font = font_main
+    sheet['H8'].alignment = align_left
+    sheet['I8'].value = round(total_sum, 2)
+    sheet['I8'].font = font_main
+    sheet['I8'].alignment = align_right
+    sheet['I8'].number_format = '0.00'
+
+    headers = [
+        '№',
+        'Производитель',
+        'Номер детали',
+        'Комментарий',
+        'Наименование',
+        'Примечание',
+        'Кол-во',
+        'Цена',
+        'Сумма',
+        'Прайс',
+    ]
+    for col_idx, title in enumerate(headers, start=1):
+        cell = sheet.cell(row=9, column=col_idx)
+        cell.value = title
+        cell.font = font_main
+        cell.alignment = align_left
+        cell.border = _make_border(left=True, right=True, top=True)
+
+    data_row_start = 10
+    for index, row in enumerate(rows):
+        row_idx = data_row_start + index
+        sheet.row_dimensions[row_idx].height = 12.75
+        values = [
+            row['index'],
+            row['brand'],
+            row['oem'],
+            row['comment'],
+            row['name'],
+            row['note'],
+            row['qty'],
+            row['price'],
+            row['sum'],
+            row['price_code'],
+        ]
+        for col_idx, value in enumerate(values, start=1):
+            cell = sheet.cell(row=row_idx, column=col_idx, value=value)
+            cell.font = font_main
+            if col_idx in {1, 7, 8, 9}:
+                cell.alignment = align_right
+            elif col_idx == 3:
+                cell.alignment = align_general
+            else:
+                cell.alignment = align_left
+            cell.border = _make_border(left=True, right=True, bottom=True)
+
+    output = BytesIO()
+    workbook.save(output)
+    return output.getvalue()
+
+
+def _build_supplier_order_body_html(
+    *,
+    order: SupplierOrder,
+    rows: list[dict[str, object]],
+    total_qty: int,
+    total_sum: float,
+) -> str:
+    order_datetime = order.created_at or now_moscow()
+    order_datetime_text = order_datetime.strftime('%d.%m.%Y %H:%M:%S')
+    provider_name = str(
+        getattr(getattr(order, 'provider', None), 'name', '') or ''
+    ).strip()
+    provider_alias = _supplier_order_provider_alias(order.provider)
+    provider_line = ' '.join(
+        part for part in [provider_name, provider_alias] if part
+    ).strip()
+    row_lines = ''.join(
+        (
+            '<tr>'
+            f'<td>{escape(str(row["index"]))}</td>'
+            f'<td>{escape(str(row["brand"] or ""))}</td>'
+            f'<td>{escape(str(row["oem"] or ""))}</td>'
+            f'<td>{escape(str(row["comment"] or ""))}</td>'
+            f'<td>{escape(str(row["name"] or ""))}</td>'
+            f'<td>{escape(str(row["note"] or ""))}</td>'
+            f'<td>{escape(str(row["qty"] or ""))}</td>'
+            f'<td>{escape(str(row["price"] or ""))}</td>'
+            f'<td>{escape(str(row["sum"] or ""))}</td>'
+            f'<td>{escape(str(row["price_code"] or ""))}</td>'
+            '</tr>'
+        )
+        for row in rows
+    )
+    return (
+        '<div>'
+        '<p><b>Заказ поставщику</b></p>'
+        '<table cellspacing="0" cellpadding="2">'
+        f'<tr><td><b>Дата</b></td><td>{escape(order_datetime_text)}</td></tr>'
+        f'<tr><td><b>{escape(str(order.id))}</b></td>'
+        f'<td><b>{escape(_supplier_order_print_code(order.id))}</b></td></tr>'
+        f'<tr><td></td><td>{escape(provider_line)}</td></tr>'
+        '</table>'
+        '<br/>'
+        '<table border="1" cellpadding="4" cellspacing="0" '
+        'style="border-collapse: collapse;">'
+        '<thead>'
+        '<tr>'
+        '<th>№</th>'
+        '<th>Производитель</th>'
+        '<th>Номер детали</th>'
+        '<th>Комментарий</th>'
+        '<th>Наименование</th>'
+        '<th>Примечание</th>'
+        '<th>Кол-во</th>'
+        '<th>Цена</th>'
+        '<th>Сумма</th>'
+        '<th>Прайс</th>'
+        '</tr>'
+        '</thead>'
+        f'<tbody>{row_lines}</tbody>'
+        '<tfoot>'
+        f'<tr><td colspan="6"><b>Итого:</b></td>'
+        f'<td>{escape(str(total_qty))}</td>'
+        '<td>RUR</td>'
+        f'<td>{escape(f"{total_sum:.2f}")}</td>'
+        '<td></td></tr>'
+        '</tfoot>'
+        '</table>'
+        '</div>'
     )
 
 
@@ -3708,48 +4054,45 @@ async def send_supplier_orders(
             failed += 1
             continue
 
-        rows = []
-        for item in order.items:
-            autopart = item.autopart
-            brand_name = (
-                autopart.brand.name if autopart and autopart.brand else ''
-            )
-            rows.append(
-                {
-                    'OEM': autopart.oem_number if autopart else '',
-                    'Brand': brand_name,
-                    'Name': autopart.name if autopart else '',
-                    'Qty': item.quantity,
-                    'Price': float(item.price) if item.price else None,
-                }
-            )
-
-        buffer = BytesIO()
-        pd.DataFrame(rows).to_excel(buffer, index=False)
-        buffer.seek(0)
+        rows, total_qty, total_sum = _build_supplier_order_rows(order)
+        attachment_bytes = _build_supplier_order_attachment_bytes(
+            order=order,
+            rows=rows,
+            total_qty=total_qty,
+            total_sum=total_sum,
+        )
         try:
-            body = 'Во вложении заказ на поставку.'
-            subject = f'Заказ поставщику #{order.id}'
+            provider_name = (
+                provider.name if provider and provider.name else 'Поставщик'
+            )
+            body = _build_supplier_order_body_html(
+                order=order,
+                rows=rows,
+                total_qty=total_qty,
+                total_sum=total_sum,
+            )
+            subject = f'Заказ поставщику № {order.id}'
             if override_email:
-                provider_name = provider.name if provider else 'не указан'
                 original_recipient_label = (
                     original_recipient or 'не указан'
                 )
                 subject = f'[STUB] {subject}'
                 body = (
-                    'Заглушка отправки заказа поставщику. Письмо отправлено '
-                    f'только на {override_email} для ручной сверки.\n'
-                    f'Поставщик: {provider_name}\n'
-                    f'Исходный адресат: {original_recipient_label}\n\n'
-                    'Во вложении заказ на поставку.'
+                    '<p><b>Заглушка отправки заказа поставщику.</b></p>'
+                    f'<p>Письмо отправлено только на '
+                    f'{escape(override_email)} для ручной сверки.<br/>'
+                    f'Поставщик: {escape(provider_name)}<br/>'
+                    f'Исходный адресат: '
+                    f'{escape(original_recipient_label)}</p>'
+                    f'{body}'
                 )
             await _send_email_attachment_async(
                 to_email,
                 subject,
                 body,
-                buffer.getvalue(),
-                f'supplier_order_{order.id}.xlsx',
-                False,
+                attachment_bytes,
+                _supplier_order_attachment_filename(order.id),
+                True,
                 **smtp_kwargs,
             )
             order.status = SUPPLIER_ORDER_STATUS.SENT

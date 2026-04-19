@@ -163,6 +163,13 @@ def test_extract_supplier_order_id_ignores_int32_overflow():
     )
 
 
+def test_extract_supplier_order_id_from_alnum_code():
+    assert (
+        _extract_supplier_order_id("МастерА0000002485.xlsx")
+        == 2485
+    )
+
+
 @pytest.mark.asyncio
 async def test_get_message_match_context_ignores_out_of_range_order_id(
     monkeypatch,
@@ -235,6 +242,7 @@ async def test_send_supplier_orders_uses_stub_override_email(
                 "body": body,
                 "filename": filename,
                 "use_tls": use_tls,
+                "attachment": attachment,
             }
         )
 
@@ -257,21 +265,26 @@ async def test_send_supplier_orders_uses_stub_override_email(
     assert result == {"sent": 1, "failed": 0}
     assert order.status == SUPPLIER_ORDER_STATUS.SENT
     assert order.sent_at is not None
-    assert sent_calls == [
-        {
-            "to_email": "info@dragonzap.ru",
-            "subject": f"[STUB] Заказ поставщику #{order.id}",
-            "body": (
-                "Заглушка отправки заказа поставщику. Письмо отправлено "
-                "только на info@dragonzap.ru для ручной сверки.\n"
-                f"Поставщик: {provider.name}\n"
-                "Исходный адресат: supplier@example.com\n\n"
-                "Во вложении заказ на поставку."
-            ),
-            "filename": f"supplier_order_{order.id}.xlsx",
-            "use_tls": False,
-        }
-    ]
+    assert len(sent_calls) == 1
+    sent = sent_calls[0]
+    assert sent["to_email"] == "info@dragonzap.ru"
+    assert sent["subject"] == f"[STUB] Заказ поставщику № {order.id}"
+    assert f"Заказ поставщику № {order.id}" in sent["body"]
+    assert "Заглушка отправки заказа поставщику." in sent["body"]
+    assert "Исходный адресат: supplier@example.com" in sent["body"]
+    assert sent["filename"] == f"МастерА{order.id:010d}.xlsx"
+    assert sent["use_tls"] is True
+    workbook = load_workbook(BytesIO(sent["attachment"]))
+    sheet = workbook.active
+    assert sheet.title == "TDSheet"
+    assert sheet["H1"].value == "Заказ поставщику"
+    assert sheet["C3"].value == "Дата"
+    assert sheet["C5"].value == order.id
+    assert sheet["E5"].value == f"A{order.id:010d}"
+    assert sheet["A9"].value == "№"
+    assert sheet["C10"].value == created_autopart.oem_number
+    assert sheet["G8"].value == 2
+    assert float(sheet["I8"].value) == 300.0
 
 
 @pytest.mark.asyncio
@@ -343,13 +356,13 @@ async def test_send_supplier_orders_uses_provider_email_when_stub_disabled(
     result = await send_supplier_orders(test_session, [order.id])
 
     assert result == {"sent": 1, "failed": 0}
-    assert sent_calls == [
-        {
-            "to_email": "supplier@example.com",
-            "subject": f"Заказ поставщику #{order.id}",
-            "body": "Во вложении заказ на поставку.",
-        }
-    ]
+    assert len(sent_calls) == 1
+    sent = sent_calls[0]
+    assert sent["to_email"] == "supplier@example.com"
+    assert sent["subject"] == f"Заказ поставщику № {order.id}"
+    assert f"Заказ поставщику № {order.id}" in sent["body"]
+    assert "<b>Заказ поставщику</b>" in sent["body"]
+    assert "<table" in sent["body"]
 
 
 @pytest.mark.asyncio
@@ -2136,6 +2149,98 @@ async def test_text_response_global_keyword_confirm_creates_draft_receipt(
     assert item.confirmed_quantity == 3
     assert receipt.posted_at is None
     assert receipt_item.received_quantity == 3
+
+
+@pytest.mark.asyncio
+async def test_text_response_parses_numeric_hyphen_oem_with_reserve_keyword(
+    monkeypatch,
+    test_session,
+    created_providers,
+    created_autopart,
+    tmp_path,
+):
+    provider = created_providers[0]
+    provider.email_contact = None
+    provider.email_incoming_price = None
+    order = SupplierOrder(
+        provider_id=provider.id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    item = SupplierOrderItem(
+        supplier_order_id=order.id,
+        autopart_id=created_autopart.id,
+        oem_number="90178-11001",
+        brand_name=created_autopart.brand.name,
+        autopart_name=created_autopart.name,
+        quantity=9,
+        price=70.0,
+    )
+    test_session.add(item)
+    test_session.add(
+        SupplierResponseConfig(
+            provider_id=provider.id,
+            name="Text reserve config",
+            sender_emails=["supplier@example.com"],
+            response_type="text",
+            confirm_keywords=["в резерве"],
+            reject_keywords=["нет", "0"],
+            value_after_article_type="text",
+            is_active=True,
+        )
+    )
+    await test_session.commit()
+
+    async def fake_fetch_messages(
+        session, *, date_from, date_to=None, **kwargs
+    ):
+        return [
+            (
+                SimpleNamespace(
+                    from_="supplier@example.com",
+                    subject=f"Заказ поставщику #{order.id}",
+                    text="90178-11001 В РЕЗЕРВЕ",
+                    html=None,
+                    attachments=[],
+                    received_at=None,
+                    date=None,
+                    external_id="supplier-msg-text-reserve",
+                    uid=None,
+                    folder_name="INBOX",
+                ),
+                None,
+            )
+        ]
+
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_fetch_supplier_response_messages"
+        ),
+        fake_fetch_messages,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.supplier_order_responses.SUPPLIER_RESPONSE_DIR",
+        str(tmp_path),
+    )
+
+    result = await process_supplier_response_messages(test_session)
+    await test_session.refresh(item)
+    message_row = (
+        await test_session.execute(
+            select(SupplierOrderMessage).where(
+                SupplierOrderMessage.source_message_id
+                == "supplier-msg-text-reserve"
+            )
+        )
+    ).scalar_one()
+
+    assert result["processed_messages"] == 1
+    assert result["recognized_positions"] >= 1
+    assert message_row.message_type == "TEXT_RESPONSE"
+    assert message_row.import_error_details is None
+    assert item.confirmed_quantity == 9
 
 
 @pytest.mark.asyncio
