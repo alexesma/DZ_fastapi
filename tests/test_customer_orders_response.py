@@ -361,7 +361,9 @@ async def test_send_supplier_orders_uses_provider_email_when_stub_disabled(
     assert sent["to_email"] == "supplier@example.com"
     assert sent["subject"] == f"Заказ поставщику № {order.id}"
     assert f"Заказ поставщику № {order.id}" in sent["body"]
-    assert "<b>Заказ поставщику</b>" in sent["body"]
+    assert (
+        f"<b>Заказ поставщику № {order.id}</b>" in sent["body"]
+    )
     assert "<table" in sent["body"]
 
 
