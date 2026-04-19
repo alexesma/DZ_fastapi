@@ -1,12 +1,14 @@
 import logging
 from datetime import datetime, timedelta
-from typing import List, Optional, Tuple
+from typing import List, Optional, Set, Tuple
 
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.inbox_email import EmailRulePattern, InboxEmail
+from dz_fastapi.models.partner import (CustomerOrderConfig, Provider,
+                                       SupplierResponseConfig)
 
 logger = logging.getLogger('dz_fastapi')
 
@@ -32,6 +34,10 @@ async def list_inbox_emails(
     page: int = 1,
     page_size: int = 50,
     only_unprocessed: bool = False,
+    subject_contains: Optional[str] = None,
+    sender_contains: Optional[str] = None,
+    customer_id: Optional[int] = None,
+    provider_id: Optional[int] = None,
 ) -> Tuple[List[InboxEmail], int]:
     """Список писем с фильтрацией по ящику и глубине (дни)."""
     since = now_moscow() - timedelta(days=days)
@@ -41,6 +47,32 @@ async def list_inbox_emails(
         filters.append(InboxEmail.email_account_id == email_account_id)
     if only_unprocessed:
         filters.append(InboxEmail.rule_type.is_(None))
+    normalized_subject = (subject_contains or '').strip()
+    if normalized_subject:
+        filters.append(InboxEmail.subject.ilike(f'%{normalized_subject}%'))
+
+    normalized_sender = (sender_contains or '').strip().lower()
+    if normalized_sender:
+        filters.append(
+            func.lower(InboxEmail.from_email).like(f'%{normalized_sender}%')
+        )
+
+    has_partner_filter = customer_id is not None or provider_id is not None
+    if has_partner_filter:
+        partner_emails: Set[str] = set()
+        if customer_id is not None:
+            partner_emails.update(
+                await _collect_customer_order_emails(session, customer_id)
+            )
+        if provider_id is not None:
+            partner_emails.update(
+                await _collect_provider_sender_emails(session, provider_id)
+            )
+        if not partner_emails:
+            return [], 0
+        filters.append(
+            func.lower(InboxEmail.from_email).in_(sorted(partner_emails))
+        )
 
     total_result = await session.execute(
         select(func.count()).select_from(InboxEmail).where(and_(*filters))
@@ -55,6 +87,75 @@ async def list_inbox_emails(
         .limit(page_size)
     )
     return items_result.scalars().all(), total
+
+
+def _normalize_email_set(value: object) -> Set[str]:
+    if value is None:
+        return set()
+    if isinstance(value, str):
+        chunks = value.split(',')
+    elif isinstance(value, (list, tuple, set)):
+        chunks = [str(item or '') for item in value]
+    else:
+        chunks = [str(value)]
+
+    normalized: Set[str] = set()
+    for chunk in chunks:
+        cleaned = chunk.strip().lower()
+        if cleaned:
+            normalized.add(cleaned)
+    return normalized
+
+
+async def _collect_customer_order_emails(
+    session: AsyncSession, customer_id: int
+) -> Set[str]:
+    rows = (
+        await session.execute(
+            select(
+                CustomerOrderConfig.order_email,
+                CustomerOrderConfig.order_emails,
+            ).where(
+                CustomerOrderConfig.customer_id == customer_id,
+                CustomerOrderConfig.is_active.is_(True),
+            )
+        )
+    ).all()
+
+    emails: Set[str] = set()
+    for row in rows:
+        emails.update(_normalize_email_set(row.order_email))
+        emails.update(_normalize_email_set(row.order_emails))
+    return emails
+
+
+async def _collect_provider_sender_emails(
+    session: AsyncSession, provider_id: int
+) -> Set[str]:
+    emails: Set[str] = set()
+
+    provider = (
+        await session.execute(
+            select(Provider.email_incoming_price).where(
+                Provider.id == provider_id
+            )
+        )
+    ).first()
+    if provider is not None:
+        emails.update(_normalize_email_set(provider.email_incoming_price))
+
+    rows = (
+        await session.execute(
+            select(SupplierResponseConfig.sender_emails).where(
+                SupplierResponseConfig.provider_id == provider_id,
+                SupplierResponseConfig.is_active.is_(True),
+            )
+        )
+    ).all()
+    for row in rows:
+        emails.update(_normalize_email_set(row.sender_emails))
+
+    return emails
 
 
 async def exists_inbox_email(

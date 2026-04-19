@@ -63,6 +63,18 @@ async def list_emails(
     only_unprocessed: bool = Query(
         default=False, description='Только письма без правила'
     ),
+    subject_contains: Optional[str] = Query(
+        default=None, description='Поиск по теме письма (содержит)'
+    ),
+    sender_contains: Optional[str] = Query(
+        default=None, description='Поиск по адресу отправителя (содержит)'
+    ),
+    customer_id: Optional[int] = Query(
+        default=None, ge=1, description='Фильтр по клиенту'
+    ),
+    provider_id: Optional[int] = Query(
+        default=None, ge=1, description='Фильтр по поставщику'
+    ),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -73,6 +85,10 @@ async def list_emails(
         page=page,
         page_size=page_size,
         only_unprocessed=only_unprocessed,
+        subject_contains=subject_contains,
+        sender_contains=sender_contains,
+        customer_id=customer_id,
+        provider_id=provider_id,
     )
     return InboxEmailListResponse(
         items=[InboxEmailBrief.model_validate(e) for e in items],

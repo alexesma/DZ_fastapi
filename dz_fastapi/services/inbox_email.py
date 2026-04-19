@@ -2274,7 +2274,7 @@ async def setup_email_rule(
                             crud_provider_pricelist_config.create(
                                 session=session,
                                 provider_id=provider.id,
-                                config=new_pl,
+                                config_in=new_pl,
                             )
                         )
                         configs_set.append({
