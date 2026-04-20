@@ -102,7 +102,8 @@ _DOCUMENT_NUMBER_RE = re.compile(
     r'(?:№|N)\s*([A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9._/-]*)'
 )
 _DOCUMENT_NUMBER_FALLBACK_RE = re.compile(
-    r'(?:УПД|UPD|накладн\w*|invoice)\s*([A-Za-zА-Яа-я0-9._/-]+)',
+    r'(?:УПД|UPD|накладн\w*|invoice)\s*'
+    r'([A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9._/-]*)',
     re.I,
 )
 _RUS_MONTHS = {
@@ -867,6 +868,11 @@ def _parse_document_number_from_text(
             cleaned = _clean_text_value(extracted)
             if cleaned:
                 return cleaned[:120]
+    if re.fullmatch(
+        r"[A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9._/-]*",
+        text,
+    ):
+        return text[:120]
     direct = _DOCUMENT_NUMBER_RE.search(text)
     if direct is not None:
         cleaned = _clean_text_value(direct.group(1))

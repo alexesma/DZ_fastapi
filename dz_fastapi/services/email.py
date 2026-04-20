@@ -1537,28 +1537,33 @@ async def get_emails(
         for account in accounts
         if getattr(account, 'id', None) is not None
     }
-    config_account_ids = (
-        await session.execute(
-            select(ProviderPriceListConfig.incoming_email_account_id).where(
-                ProviderPriceListConfig.is_active.is_(True),
-                ProviderPriceListConfig.incoming_email_account_id.is_not(None),
+    if session is not None:
+        config_account_ids = (
+            await session.execute(
+                select(
+                    ProviderPriceListConfig.incoming_email_account_id
+                ).where(
+                    ProviderPriceListConfig.is_active.is_(True),
+                    ProviderPriceListConfig.incoming_email_account_id.is_not(
+                        None
+                    ),
+                )
             )
-        )
-    ).scalars().all()
-    for account_id in config_account_ids:
-        try:
-            normalized_account_id = int(account_id)
-        except (TypeError, ValueError):
-            continue
-        if normalized_account_id in accounts_by_id:
-            continue
-        extra_account = await crud_email_account.get(
-            session, normalized_account_id
-        )
-        if not extra_account or not bool(extra_account.is_active):
-            continue
-        accounts.append(extra_account)
-        accounts_by_id[normalized_account_id] = extra_account
+        ).scalars().all()
+        for account_id in config_account_ids:
+            try:
+                normalized_account_id = int(account_id)
+            except (TypeError, ValueError):
+                continue
+            if normalized_account_id in accounts_by_id:
+                continue
+            extra_account = await crud_email_account.get(
+                session, normalized_account_id
+            )
+            if not extra_account or not bool(extra_account.is_active):
+                continue
+            accounts.append(extra_account)
+            accounts_by_id[normalized_account_id] = extra_account
 
     if accounts:
         for account in accounts:
@@ -1717,7 +1722,7 @@ async def get_emails(
         )
         if filepath:
             downloaded_files.append((provider, filepath, provider_conf))
-    if resend_cursors:
+    if resend_cursors and session is not None:
         for account in accounts:
             if account.id in resend_cursors:
                 account.resend_last_received_at = resend_cursors[account.id]
