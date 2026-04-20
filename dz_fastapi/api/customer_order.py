@@ -1021,7 +1021,8 @@ async def list_supplier_orders(
             supplier_sum += Decimal(item.quantity) * price_value
 
         # "Сумма отказа" = what the supplier confirmed they CANNOT deliver.
-        # Only counted when the supplier has actually responded (confirmed_quantity set).
+        # Only counted when the supplier has actually responded
+        # (confirmed_quantity set).
         # A brand-new order with no supplier response will always show 0.
         rejected_sum = Decimal("0")
         for item in order.items or []:
