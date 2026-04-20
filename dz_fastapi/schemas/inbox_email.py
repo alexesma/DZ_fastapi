@@ -212,7 +212,7 @@ class ProviderSetupConfig(BaseModel):
     qty_col: Optional[int] = None
     price_col: Optional[int] = None
     brand_col: Optional[int] = None
-    name_col: Optional[int] = None         # только для price_list
+    name_col: Optional[int] = None         # price_list / document
     multiplicity_col: Optional[int] = None  # только для price_list
 
     # Дополнительно для order_reply
@@ -228,6 +228,12 @@ class ProviderSetupConfig(BaseModel):
     # Дополнительно для document
     document_number_col: Optional[int] = None
     document_date_col: Optional[int] = None
+    document_number_cell: Optional[str] = None
+    document_date_cell: Optional[str] = None
+    document_meta_cell: Optional[str] = None
+    fixed_brand_name: Optional[str] = None
+    brand_priority_list: Optional[List[str]] = None
+    brand_from_name_regex: Optional[str] = None
 
 
 class CustomerSetupConfig(BaseModel):

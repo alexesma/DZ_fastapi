@@ -1,3 +1,4 @@
+import re
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
@@ -472,6 +473,23 @@ def _normalize_string_list(value: Any) -> list[str]:
     return result
 
 
+_CELL_REF_RE = re.compile(r'^\s*([A-Za-z]+)\s*([0-9]+)\s*$')
+
+
+def _normalize_cell_reference(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    text = str(value).strip().upper()
+    if not text:
+        return None
+    match = _CELL_REF_RE.fullmatch(text)
+    if match is None:
+        raise ValueError(
+            'Cell reference must be in A1 format (for example: A1, B3, AA12)'
+        )
+    return f'{match.group(1)}{int(match.group(2))}'
+
+
 class SupplierResponseConfigBase(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     is_active: bool = True
@@ -493,12 +511,19 @@ class SupplierResponseConfigBase(BaseModel):
     start_row: int = Field(default=1, ge=1)
     oem_col: Optional[int] = Field(default=None, ge=1)
     brand_col: Optional[int] = Field(default=None, ge=1)
+    name_col: Optional[int] = Field(default=None, ge=1)
+    fixed_brand_name: Optional[str] = None
+    brand_priority_list: List[str] = Field(default_factory=list)
+    brand_from_name_regex: Optional[str] = None
     qty_col: Optional[int] = Field(default=None, ge=1)
     status_col: Optional[int] = Field(default=None, ge=1)
     comment_col: Optional[int] = Field(default=None, ge=1)
     price_col: Optional[int] = Field(default=None, ge=1)
     document_number_col: Optional[int] = Field(default=None, ge=1)
     document_date_col: Optional[int] = Field(default=None, ge=1)
+    document_number_cell: Optional[str] = None
+    document_date_cell: Optional[str] = None
+    document_meta_cell: Optional[str] = None
     gtd_col: Optional[int] = Field(default=None, ge=1)
     country_code_col: Optional[int] = Field(default=None, ge=1)
     country_name_col: Optional[int] = Field(default=None, ge=1)
@@ -529,6 +554,7 @@ class SupplierResponseConfigBase(BaseModel):
         'subject_pattern',
         'filename_pattern',
         'shipping_doc_filename_pattern',
+        'brand_from_name_regex',
         mode='before',
     )
     def normalize_patterns(cls, v):
@@ -548,6 +574,36 @@ class SupplierResponseConfigBase(BaseModel):
     @field_validator('confirm_keywords', 'reject_keywords', mode='before')
     def normalize_keyword_lists(cls, v):
         return _normalize_string_list(v)
+
+    @field_validator('brand_priority_list', mode='before')
+    def normalize_brand_priority_list(cls, v):
+        return _normalize_string_list(v)
+
+    @field_validator('fixed_brand_name', mode='before')
+    def normalize_fixed_brand_name(cls, v):
+        if v is None:
+            return None
+        value = str(v).strip()
+        return value or None
+
+    @field_validator(
+        'document_number_cell',
+        'document_date_cell',
+        'document_meta_cell',
+        mode='before',
+    )
+    def normalize_document_cell_refs(cls, v):
+        return _normalize_cell_reference(v)
+
+    @field_validator('brand_from_name_regex')
+    def validate_brand_from_name_regex(cls, v):
+        if v is None:
+            return None
+        try:
+            re.compile(v)
+        except re.error as exc:
+            raise ValueError(f'Invalid brand_from_name_regex: {exc}') from exc
+        return v
 
 
 class SupplierResponseConfigCreate(SupplierResponseConfigBase):
@@ -571,12 +627,19 @@ class SupplierResponseConfigUpdate(BaseModel):
     start_row: Optional[int] = Field(default=None, ge=1)
     oem_col: Optional[int] = Field(default=None, ge=1)
     brand_col: Optional[int] = Field(default=None, ge=1)
+    name_col: Optional[int] = Field(default=None, ge=1)
+    fixed_brand_name: Optional[str] = None
+    brand_priority_list: Optional[List[str]] = None
+    brand_from_name_regex: Optional[str] = None
     qty_col: Optional[int] = Field(default=None, ge=1)
     status_col: Optional[int] = Field(default=None, ge=1)
     comment_col: Optional[int] = Field(default=None, ge=1)
     price_col: Optional[int] = Field(default=None, ge=1)
     document_number_col: Optional[int] = Field(default=None, ge=1)
     document_date_col: Optional[int] = Field(default=None, ge=1)
+    document_number_cell: Optional[str] = None
+    document_date_cell: Optional[str] = None
+    document_meta_cell: Optional[str] = None
     gtd_col: Optional[int] = Field(default=None, ge=1)
     country_code_col: Optional[int] = Field(default=None, ge=1)
     country_name_col: Optional[int] = Field(default=None, ge=1)
@@ -600,6 +663,7 @@ class SupplierResponseConfigUpdate(BaseModel):
         'subject_pattern',
         'filename_pattern',
         'shipping_doc_filename_pattern',
+        'brand_from_name_regex',
         mode='before',
     )
     def normalize_update_patterns(cls, v):
@@ -619,6 +683,38 @@ class SupplierResponseConfigUpdate(BaseModel):
         if v is None:
             return None
         return _normalize_string_list(v)
+
+    @field_validator('brand_priority_list', mode='before')
+    def normalize_update_brand_priority_list(cls, v):
+        if v is None:
+            return None
+        return _normalize_string_list(v)
+
+    @field_validator('fixed_brand_name', mode='before')
+    def normalize_update_fixed_brand_name(cls, v):
+        if v is None:
+            return None
+        value = str(v).strip()
+        return value or None
+
+    @field_validator(
+        'document_number_cell',
+        'document_date_cell',
+        'document_meta_cell',
+        mode='before',
+    )
+    def normalize_update_document_cell_refs(cls, v):
+        return _normalize_cell_reference(v)
+
+    @field_validator('brand_from_name_regex')
+    def validate_update_brand_from_name_regex(cls, v):
+        if v is None:
+            return None
+        try:
+            re.compile(v)
+        except re.error as exc:
+            raise ValueError(f'Invalid brand_from_name_regex: {exc}') from exc
+        return v
 
 
 class SupplierResponseConfigOut(BaseModel):
@@ -646,12 +742,19 @@ class SupplierResponseConfigOut(BaseModel):
     start_row: int = 1
     oem_col: Optional[int] = None
     brand_col: Optional[int] = None
+    name_col: Optional[int] = None
+    fixed_brand_name: Optional[str] = None
+    brand_priority_list: List[str] = Field(default_factory=list)
+    brand_from_name_regex: Optional[str] = None
     qty_col: Optional[int] = None
     status_col: Optional[int] = None
     comment_col: Optional[int] = None
     price_col: Optional[int] = None
     document_number_col: Optional[int] = None
     document_date_col: Optional[int] = None
+    document_number_cell: Optional[str] = None
+    document_date_cell: Optional[str] = None
+    document_meta_cell: Optional[str] = None
     gtd_col: Optional[int] = None
     country_code_col: Optional[int] = None
     country_name_col: Optional[int] = None

@@ -28,6 +28,7 @@ try:
 except ImportError:  # pragma: no cover - older imap_tools fallback
     MailboxUidsError = Exception
 from jinja2 import Environment, FileSystemLoader
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.constants import DEPTH_DAY_EMAIL, IMAP_SERVER
@@ -182,6 +183,7 @@ class _FetchedInboxMessage:
     attachments: list[_FetchedAttachment]
     date: Optional[datetime] = None
     folder_name: Optional[str] = None
+    email_account_id: Optional[int] = None
 
 
 def _message_sort_key(msg: _FetchedInboxMessage) -> tuple[int, float]:
@@ -212,6 +214,7 @@ def _message_identity_key(msg: _FetchedInboxMessage) -> tuple:
         str(getattr(msg, 'subject', '') or '').strip(),
         str(msg_date or ''),
         attachments,
+        int(getattr(msg, 'email_account_id', 0) or 0),
     )
 
 
@@ -233,6 +236,17 @@ def _message_matches_provider_config(
     msg: _FetchedInboxMessage,
     provider_conf: ProviderPriceListConfig,
 ) -> bool:
+    expected_account_id = getattr(
+        provider_conf, 'incoming_email_account_id', None
+    )
+    msg_account_id = getattr(msg, 'email_account_id', None)
+    if (
+        expected_account_id is not None
+        and msg_account_id is not None
+        and int(msg_account_id) != int(expected_account_id)
+    ):
+        return False
+
     subject = str(getattr(msg, 'subject', '') or '')
     if provider_conf.name_mail and (
         normalize_str(provider_conf.name_mail) not in normalize_str(subject)
@@ -1490,6 +1504,7 @@ async def _fetch_resend_price_messages(
                     for att in (item.get('attachments') or [])
                 ],
                 date=item.get('created_at'),
+                email_account_id=getattr(account, 'id', None),
             )
         )
     last_received_at = emails[-1].get('created_at') if emails else None
@@ -1516,6 +1531,35 @@ async def get_emails(
     accounts = await crud_email_account.get_active_by_purpose(
         session, 'prices_in'
     )
+    accounts = list(accounts or [])
+    accounts_by_id = {
+        int(account.id): account
+        for account in accounts
+        if getattr(account, 'id', None) is not None
+    }
+    config_account_ids = (
+        await session.execute(
+            select(ProviderPriceListConfig.incoming_email_account_id).where(
+                ProviderPriceListConfig.is_active.is_(True),
+                ProviderPriceListConfig.incoming_email_account_id.is_not(None),
+            )
+        )
+    ).scalars().all()
+    for account_id in config_account_ids:
+        try:
+            normalized_account_id = int(account_id)
+        except (TypeError, ValueError):
+            continue
+        if normalized_account_id in accounts_by_id:
+            continue
+        extra_account = await crud_email_account.get(
+            session, normalized_account_id
+        )
+        if not extra_account or not bool(extra_account.is_active):
+            continue
+        accounts.append(extra_account)
+        accounts_by_id[normalized_account_id] = extra_account
+
     if accounts:
         for account in accounts:
             try:
@@ -1545,7 +1589,7 @@ async def get_emails(
                     default=main_box or DEFAULT_IMAP_FOLDER,
                 )
                 for folder in folders:
-                    messages.extend(
+                    folder_messages = (
                         await asyncio.to_thread(
                             _fetch_mailbox_messages,
                             host,
@@ -1556,6 +1600,9 @@ async def get_emails(
                             True,
                         )
                     )
+                    for msg in folder_messages:
+                        setattr(msg, 'email_account_id', account.id)
+                    messages.extend(folder_messages)
                 messages = _dedupe_fetched_messages(messages)
                 all_emails.extend(messages)
             except Exception as exc:

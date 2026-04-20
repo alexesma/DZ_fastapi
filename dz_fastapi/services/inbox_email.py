@@ -38,6 +38,7 @@ from typing import Dict, List, Optional, Tuple
 
 import aiofiles
 from imap_tools import AND, MailboxLoginError
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.constants import IMAP_SERVER
@@ -2161,6 +2162,7 @@ async def setup_email_rule(
         try:
             from dz_fastapi.crud.partner import (
                 crud_provider_pricelist_config, crud_supplier_response_config)
+            from dz_fastapi.models.partner import ProviderConfigLastEmailUID
             from dz_fastapi.schemas.partner import (
                 ProviderPriceListConfigCreate, SupplierResponseConfigCreate)
 
@@ -2168,15 +2170,35 @@ async def setup_email_rule(
                 provider_id=provider_config.provider_id, session=session
             )
             if provider:
-                # Привязываем email к поставщику
-                if not provider.email_incoming_price:
-                    provider.email_incoming_price = inbox_email.from_email
+                mailbox_account_id = (
+                    int(inbox_email.email_account_id)
+                    if inbox_email.email_account_id is not None
+                    else None
+                )
+                sender_email = str(
+                    inbox_email.from_email or ''
+                ).strip().lower()
+                previous_sender = str(
+                    provider.email_incoming_price or ''
+                ).strip().lower()
+
+                # Для мастера из Inbox отправитель всегда становится
+                # актуальным email поставщика для прайсов.
+                if sender_email and previous_sender != sender_email:
+                    provider.email_incoming_price = sender_email
                     session.add(provider)
-                    action = 'linked'
-                    note = (
-                        f'Email {inbox_email.from_email} привязан к '
-                        f'поставщику «{provider.name}».'
-                    )
+                    if previous_sender:
+                        action = 'relinked'
+                        note = (
+                            f'Поставщик «{provider.name}» перепривязан: '
+                            f'{previous_sender} → {sender_email}.'
+                        )
+                    else:
+                        action = 'linked'
+                        note = (
+                            f'Email {sender_email} привязан к '
+                            f'поставщику «{provider.name}».'
+                        )
                 else:
                     action = 'already_linked'
                     note = (
@@ -2194,6 +2216,28 @@ async def setup_email_rule(
 
                 # --- price_list: ProviderPriceListConfig ---
                 if rule_type == 'price_list' and cfg_mode != 'skip':
+                    async def _reset_pricelist_uid_state(
+                        config_id: int,
+                    ) -> None:
+                        uid_state = (
+                            await session.execute(
+                                select(ProviderConfigLastEmailUID).where(
+                                    ProviderConfigLastEmailUID
+                                    .provider_config_id == config_id
+                                )
+                            )
+                        ).scalar_one_or_none()
+                        if uid_state is None:
+                            uid_state = ProviderConfigLastEmailUID(
+                                provider_config_id=config_id,
+                                last_uid=0,
+                                folder_last_uids={},
+                            )
+                        else:
+                            uid_state.last_uid = 0
+                            uid_state.folder_last_uids = {}
+                        session.add(uid_state)
+
                     def _col(v):
                         return int(v) if v is not None else None
 
@@ -2217,6 +2261,14 @@ async def setup_email_rule(
                                 upd['filename_pattern'] = (
                                     price_filename_pattern
                                 )
+                            if (
+                                mailbox_account_id is not None
+                                and pl_cfg.incoming_email_account_id
+                                != mailbox_account_id
+                            ):
+                                upd['incoming_email_account_id'] = (
+                                    mailbox_account_id
+                                )
                             for fld in (
                                 'start_row', 'oem_col', 'qty_col',
                                 'price_col', 'brand_col', 'name_col',
@@ -2227,8 +2279,11 @@ async def setup_email_rule(
                                     upd[fld] = _col(v)
                             if upd:
                                 await crud_provider_pricelist_config.update(
-                                    session, pl_cfg, upd
+                                    db_obj=pl_cfg,
+                                    obj_in=upd,
+                                    session=session,
                                 )
+                            await _reset_pricelist_uid_state(pl_cfg.id)
                             configs_set.append({
                                 'entity_type': 'pricelist_config',
                                 'entity_id': pl_cfg.id,
@@ -2238,7 +2293,11 @@ async def setup_email_rule(
                                 'action': 'updated',
                                 'note': (
                                     f'Конфигурация прайс-листа '
-                                    f'#{pl_cfg.id} обновлена.'
+                                    f'#{pl_cfg.id} обновлена. '
+                                    f'Источник: ящик '
+                                    f'#{mailbox_account_id or "?"}, '
+                                    'указатель UID сброшен для повторной '
+                                    'проверки свежих писем.'
                                 ),
                             })
 
@@ -2269,6 +2328,7 @@ async def setup_email_rule(
                             ),
                             name_mail=provider_config.subject_pattern,
                             name_price=price_cfg_name,
+                            incoming_email_account_id=mailbox_account_id,
                         )
                         created_pl = await (
                             crud_provider_pricelist_config.create(
@@ -2277,6 +2337,7 @@ async def setup_email_rule(
                                 config_in=new_pl,
                             )
                         )
+                        await _reset_pricelist_uid_state(created_pl.id)
                         configs_set.append({
                             'entity_type': 'pricelist_config',
                             'entity_id': created_pl.id,
@@ -2288,7 +2349,10 @@ async def setup_email_rule(
                             'note': (
                                 f'Создана конфигурация прайс-листа '
                                 f'#{created_pl.id} для '
-                                f'«{provider.name}».'
+                                f'«{provider.name}». '
+                                f'Источник: ящик '
+                                f'#{mailbox_account_id or "?"}, '
+                                'указатель UID сброшен для старта импорта.'
                             ),
                         })
 
@@ -2317,10 +2381,18 @@ async def setup_email_rule(
                     def _sr_col(v):
                         return int(v) if v is not None else None
 
-                    col_fields = (
+                    numeric_col_fields = (
                         'start_row', 'oem_col', 'qty_col', 'price_col',
-                        'brand_col', 'status_col', 'comment_col',
+                        'brand_col', 'name_col', 'status_col', 'comment_col',
                         'document_number_col', 'document_date_col',
+                    )
+                    passthrough_fields = (
+                        'fixed_brand_name',
+                        'brand_priority_list',
+                        'brand_from_name_regex',
+                        'document_number_cell',
+                        'document_date_cell',
+                        'document_meta_cell',
                     )
 
                     if (
@@ -2345,12 +2417,15 @@ async def setup_email_rule(
                                 sr_upd['start_row'] = 1
                                 for fld in (
                                     'oem_col', 'qty_col', 'price_col',
-                                    'brand_col', 'status_col', 'comment_col',
+                                    'brand_col', 'name_col', 'status_col',
+                                    'comment_col',
                                     'document_number_col',
                                     'document_date_col', 'gtd_col',
                                     'country_code_col', 'country_name_col',
                                     'total_price_with_vat_col',
                                 ):
+                                    sr_upd[fld] = None
+                                for fld in passthrough_fields:
                                     sr_upd[fld] = None
                                 if (
                                     getattr(
@@ -2386,14 +2461,23 @@ async def setup_email_rule(
                                         value_after_article_type
                                     )
                             else:
+                                sr_upd['file_payload_type'] = payload_type
                                 if provider_config.filename_pattern:
                                     sr_upd['filename_pattern'] = (
                                         provider_config.filename_pattern
                                     )
-                                for fld in col_fields:
+                                for fld in numeric_col_fields:
                                     v = getattr(provider_config, fld, None)
                                     if v is not None:
                                         sr_upd[fld] = _sr_col(v)
+                                for fld in passthrough_fields:
+                                    v = getattr(provider_config, fld, None)
+                                    if v is None:
+                                        continue
+                                    if fld == 'brand_priority_list':
+                                        sr_upd[fld] = list(v or [])
+                                    else:
+                                        sr_upd[fld] = v
                             # Добавляем email отправителя
                             sender_emails = list(
                                 getattr(sr_cfg, 'sender_emails', None)
@@ -2406,6 +2490,14 @@ async def setup_email_rule(
                             ):
                                 sender_emails.append(inbox_email.from_email)
                                 sr_upd['sender_emails'] = sender_emails
+                            if (
+                                inbox_email.email_account_id
+                                and sr_cfg.inbox_email_account_id
+                                != inbox_email.email_account_id
+                            ):
+                                sr_upd['inbox_email_account_id'] = (
+                                    inbox_email.email_account_id
+                                )
                             if sr_upd:
                                 await crud_supplier_response_config.update(
                                     session=session,
@@ -2485,11 +2577,19 @@ async def setup_email_rule(
                                     fld: _sr_col(
                                         getattr(provider_config, fld, None)
                                     )
-                                    for fld in col_fields
+                                    for fld in numeric_col_fields
                                     if getattr(provider_config, fld, None)
                                     is not None
                                 }
                             )
+                            for fld in passthrough_fields:
+                                v = getattr(provider_config, fld, None)
+                                if v is None:
+                                    continue
+                                if fld == 'brand_priority_list':
+                                    create_payload[fld] = list(v or [])
+                                else:
+                                    create_payload[fld] = v
                         create_data = SupplierResponseConfigCreate(
                             **create_payload
                         )

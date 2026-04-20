@@ -15,13 +15,17 @@ import aiofiles
 import httpx
 import pandas as pd
 from sqlalchemy import desc, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
+from dz_fastapi.core.base import AutoPart
 from dz_fastapi.core.constants import IMAP_SERVER
 from dz_fastapi.core.email_folders import (DEFAULT_IMAP_FOLDER,
                                            resolve_imap_folders)
 from dz_fastapi.core.time import now_moscow
+from dz_fastapi.crud.autopart import crud_autopart
+from dz_fastapi.crud.brand import brand_crud
 from dz_fastapi.crud.email_account import crud_email_account
 from dz_fastapi.crud.settings import crud_customer_order_inbox_settings
 from dz_fastapi.models.email_account import EmailAccount
@@ -91,6 +95,38 @@ _ARTICLE_TOKEN_RE = re.compile(
     r")"
 )
 _TEXT_TOKEN_RE = re.compile(r"[A-Za-zА-Яа-яЁё0-9][A-Za-zА-Яа-яЁё0-9._/-]*")
+_CELL_REF_RE = re.compile(r'^\s*([A-Za-z]+)\s*([0-9]+)\s*$')
+_RC_CELL_REF_RE = re.compile(r'^\s*R\s*([0-9]+)\s*C\s*([0-9]+)\s*$', re.I)
+_DIGIT_PAIR_CELL_REF_RE = re.compile(r'^\s*([0-9]+)\s*[,;:xX]\s*([0-9]+)\s*$')
+_DOCUMENT_NUMBER_RE = re.compile(
+    r'(?:№|N)\s*([A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9._/-]*)'
+)
+_DOCUMENT_NUMBER_FALLBACK_RE = re.compile(
+    r'(?:УПД|UPD|накладн\w*|invoice)\s*([A-Za-zА-Яа-я0-9._/-]+)',
+    re.I,
+)
+_RUS_MONTHS = {
+    "январ": 1,
+    "феврал": 2,
+    "март": 3,
+    "апрел": 4,
+    "ма": 5,
+    "июн": 6,
+    "июл": 7,
+    "август": 8,
+    "сентябр": 9,
+    "октябр": 10,
+    "ноябр": 11,
+    "декабр": 12,
+}
+_DOCUMENT_TEXT_DATE_RE = re.compile(
+    r'([0-3]?\d)\s+'
+    r'(январ[ьяе]?|феврал[ьяе]?|март[ае]?|апрел[ьяе]?|ма[йяе]|'
+    r'июн[ьяе]?|июл[ьяе]?|август[ае]?|сентябр[ьяе]?|'
+    r'октябр[ьяе]?|ноябр[ьяе]?|декабр[ьяе]?)'
+    r'\s+(\d{2,4})',
+    re.I,
+)
 _DEFAULT_CONFIRM_KEYWORDS = [
     "в наличии",
     "есть",
@@ -148,6 +184,7 @@ _SUPPLIER_RESPONSE_AI_ALLOWED_TYPES = {
     "IGNORED",
     "RETRY_PENDING",
 }
+_DRAGONZAP_BRAND_KEY = "DRAGONZAP"
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -215,6 +252,7 @@ class ParsedSupplierResponseRow:
     country_code: Optional[str] = None
     country_name: Optional[str] = None
     total_price_with_vat: Optional[float] = None
+    source_name: Optional[str] = None
 
 
 @dataclass(slots=True)
@@ -743,6 +781,60 @@ def _resolve_column_by_number(
     return df.columns[index]
 
 
+def _column_label_to_index(label: str) -> Optional[int]:
+    clean = str(label or "").strip().upper()
+    if not clean:
+        return None
+    index = 0
+    for char in clean:
+        if not ("A" <= char <= "Z"):
+            return None
+        index = index * 26 + (ord(char) - ord("A") + 1)
+    return index - 1 if index > 0 else None
+
+
+def _resolve_cell_coordinates(reference: object) -> Optional[tuple[int, int]]:
+    if reference in (None, ""):
+        return None
+    text = str(reference).strip()
+    if not text:
+        return None
+    match = _CELL_REF_RE.fullmatch(text)
+    if match is not None:
+        col_index = _column_label_to_index(match.group(1))
+        row_index = _parse_positive_int(match.group(2))
+        if col_index is None or row_index is None:
+            return None
+        return row_index - 1, col_index
+    match = _RC_CELL_REF_RE.fullmatch(text)
+    if match is not None:
+        row_index = _parse_positive_int(match.group(1))
+        col_index = _parse_positive_int(match.group(2))
+        if row_index is None or col_index is None:
+            return None
+        return row_index - 1, col_index - 1
+    match = _DIGIT_PAIR_CELL_REF_RE.fullmatch(text)
+    if match is not None:
+        row_index = _parse_positive_int(match.group(1))
+        col_index = _parse_positive_int(match.group(2))
+        if row_index is None or col_index is None:
+            return None
+        return row_index - 1, col_index - 1
+    return None
+
+
+def _read_cell_value(df: pd.DataFrame, reference: object) -> object:
+    coordinates = _resolve_cell_coordinates(reference)
+    if coordinates is None:
+        return None
+    row_index, col_index = coordinates
+    if row_index < 0 or col_index < 0:
+        return None
+    if row_index >= len(df.index) or col_index >= len(df.columns):
+        return None
+    return df.iat[row_index, col_index]
+
+
 def _clean_text_value(value: object) -> Optional[str]:
     if value is None:
         return None
@@ -751,6 +843,107 @@ def _clean_text_value(value: object) -> Optional[str]:
     text = _repair_cp1251_mojibake(value)
     text = str(text or "").strip()
     return text or None
+
+
+def _parse_document_number_from_text(
+    value: object,
+    *,
+    custom_regex: Optional[str] = None,
+) -> Optional[str]:
+    text = _clean_text_value(value)
+    if not text:
+        return None
+    if custom_regex:
+        try:
+            match = re.search(custom_regex, text, flags=re.I)
+        except re.error:
+            match = None
+        if match is not None:
+            extracted = (
+                match.group(1)
+                if match.lastindex and match.lastindex >= 1
+                else match.group(0)
+            )
+            cleaned = _clean_text_value(extracted)
+            if cleaned:
+                return cleaned[:120]
+    direct = _DOCUMENT_NUMBER_RE.search(text)
+    if direct is not None:
+        cleaned = _clean_text_value(direct.group(1))
+        if cleaned:
+            return cleaned[:120]
+    fallback = _DOCUMENT_NUMBER_FALLBACK_RE.search(text)
+    if fallback is not None:
+        cleaned = _clean_text_value(fallback.group(1))
+        if cleaned:
+            return cleaned[:120]
+    return None
+
+
+def _parse_human_date_from_text(value: object) -> Optional[date]:
+    text = _clean_text_value(value)
+    if not text:
+        return None
+    direct = _parse_excel_like_date(text)
+    if direct is not None:
+        return direct
+    match = _DOCUMENT_TEXT_DATE_RE.search(text)
+    if match is None:
+        return None
+    day = _safe_int(match.group(1))
+    raw_month = str(match.group(2) or "").strip().lower()
+    year = _safe_int(match.group(3))
+    if day is None or year is None:
+        return None
+    if year < 100:
+        year += 2000
+    month = None
+    for prefix, number in _RUS_MONTHS.items():
+        if raw_month.startswith(prefix):
+            month = number
+            break
+    if month is None:
+        return None
+    try:
+        return date(year, month, day)
+    except ValueError:
+        return None
+
+
+def _extract_brand_from_name_text(
+    *,
+    text: Optional[str],
+    oem_value: Optional[str],
+    custom_regex: Optional[str] = None,
+) -> Optional[str]:
+    source = _clean_text_value(text)
+    if not source:
+        return None
+    if custom_regex:
+        try:
+            match = re.search(custom_regex, source, flags=re.I)
+        except re.error:
+            match = None
+        if match is not None:
+            extracted = (
+                match.group(1)
+                if match.lastindex and match.lastindex >= 1
+                else match.group(0)
+            )
+            normalized = _clean_text_value(extracted)
+            if normalized:
+                return normalized
+    skip_oem = _normalize_oem_key(oem_value)
+    for token in re.findall(r"[A-Za-zА-Яа-яЁё0-9._/-]+", source):
+        cleaned = _clean_text_value(token)
+        if not cleaned:
+            continue
+        if _normalize_oem_key(cleaned) == skip_oem:
+            continue
+        if not re.search(r"[A-Za-zА-Яа-яЁё]", cleaned):
+            continue
+        return cleaned
+    return None
 
 
 def _parse_excel_like_date(value: object) -> Optional[date]:
@@ -1211,12 +1404,17 @@ def _parse_supplier_response_attachment(
     start_row: object = 1,
     oem_col: object = None,
     brand_col: object = None,
+    name_col: object = None,
+    brand_from_name_regex: Optional[str] = None,
     qty_col: object = None,
     price_col: object = None,
     comment_col: object = None,
     status_col: object = None,
     document_number_col: object = None,
     document_date_col: object = None,
+    document_number_cell: Optional[str] = None,
+    document_date_cell: Optional[str] = None,
+    document_meta_cell: Optional[str] = None,
     gtd_col: object = None,
     country_code_col: object = None,
     country_name_col: object = None,
@@ -1241,6 +1439,7 @@ def _parse_supplier_response_attachment(
         )
     else:
         return []
+    full_df = df.copy()
     start_row_num = _parse_positive_int(start_row) or 1
     if start_row_num > 1:
         df = df.iloc[start_row_num - 1:].reset_index(drop=True)
@@ -1252,6 +1451,7 @@ def _parse_supplier_response_attachment(
         if oem_column is None:
             return []
         brand_column = _resolve_column_by_number(df, brand_col)
+        name_column = _resolve_column_by_number(df, name_col)
         qty_column = _resolve_column_by_number(df, qty_col)
         price_column = _resolve_column_by_number(df, price_col)
         comment_column = _resolve_column_by_number(df, comment_col)
@@ -1287,6 +1487,17 @@ def _parse_supplier_response_attachment(
         for candidate in ("brand", "бренд", "марка"):
             if candidate in headers:
                 brand_column = headers[candidate]
+                break
+        name_column = None
+        for candidate in (
+            "name",
+            "наименование",
+            "товар",
+            "description",
+            "номенклатура",
+        ):
+            if candidate in headers:
+                name_column = headers[candidate]
                 break
 
         qty_column = None
@@ -1378,6 +1589,27 @@ def _parse_supplier_response_attachment(
                 total_price_with_vat_column = headers[candidate]
                 break
 
+    static_document_number_raw = _read_cell_value(
+        full_df,
+        document_number_cell,
+    )
+    static_document_number = (
+        _parse_document_number_from_text(static_document_number_raw)
+        or _clean_text_value(static_document_number_raw)
+    )
+    static_document_date_raw = _read_cell_value(full_df, document_date_cell)
+    static_document_date = (
+        _parse_human_date_from_text(static_document_date_raw)
+        or _parse_excel_like_date(static_document_date_raw)
+    )
+    meta_cell_raw = _read_cell_value(full_df, document_meta_cell)
+    meta_document_number = _parse_document_number_from_text(meta_cell_raw)
+    meta_document_date = _parse_human_date_from_text(meta_cell_raw)
+    if static_document_number is None:
+        static_document_number = meta_document_number
+    if static_document_date is None:
+        static_document_date = meta_document_date
+
     parsed_rows: list[ParsedSupplierResponseRow] = []
     for _, row in df.iterrows():
         oem_value = _normalize_oem_key(row.get(oem_column))
@@ -1388,6 +1620,15 @@ def _parse_supplier_response_attachment(
             raw_brand = row.get(brand_column)
             if raw_brand is not None and not pd.isna(raw_brand):
                 brand_value = str(raw_brand).strip() or None
+        name_value = None
+        if name_column is not None:
+            name_value = _clean_text_value(row.get(name_column))
+        if brand_value is None:
+            brand_value = _extract_brand_from_name_text(
+                text=name_value,
+                oem_value=oem_value,
+                custom_regex=brand_from_name_regex,
+            )
         qty_value = None
         if qty_column is not None:
             raw_qty = row.get(qty_column)
@@ -1422,14 +1663,22 @@ def _parse_supplier_response_attachment(
                 status_value = _repair_cp1251_mojibake(raw_status)
         document_number = None
         if document_number_column is not None:
-            document_number = _clean_text_value(
-                row.get(document_number_column)
+            raw_document_number = row.get(document_number_column)
+            document_number = (
+                _parse_document_number_from_text(raw_document_number)
+                or _clean_text_value(raw_document_number)
             )
+        if document_number is None:
+            document_number = static_document_number
         document_date = None
         if document_date_column is not None:
-            document_date = _parse_excel_like_date(
-                row.get(document_date_column)
+            raw_document_date = row.get(document_date_column)
+            document_date = (
+                _parse_human_date_from_text(raw_document_date)
+                or _parse_excel_like_date(raw_document_date)
             )
+        if document_date is None:
+            document_date = static_document_date
         gtd_code = None
         if gtd_column is not None:
             gtd_code = _clean_text_value(row.get(gtd_column))
@@ -1453,6 +1702,7 @@ def _parse_supplier_response_attachment(
                 country_code=country_code,
                 country_name=country_name,
                 total_price_with_vat=total_price_with_vat,
+                source_name=name_value,
             )
         )
         if (
@@ -1690,6 +1940,7 @@ async def _apply_parsed_response_rows(
     parsed_rows: list[ParsedSupplierResponseRow],
     default_raw_status: Optional[str],
     default_normalized_status: Optional[str],
+    response_config: Optional[SupplierResponseConfig] = None,
 ) -> tuple[
     int,
     int,
@@ -1708,6 +1959,10 @@ async def _apply_parsed_response_rows(
         oem_key = _normalize_oem_key(item.oem_number)
         if oem_key:
             oem_map.setdefault(oem_key, []).append(item)
+    priority_brand_keys = _config_priority_brand_keys(
+        response_config,
+        brand_aliases,
+    )
 
     updated = 0
     matched_count = 0
@@ -1715,25 +1970,31 @@ async def _apply_parsed_response_rows(
     applied_rows: list[AppliedSupplierResponseRow] = []
     unmatched_rows: list[ParsedSupplierResponseRow] = []
     for row in parsed_rows:
-        matched_item = None
-        exact_key = _normalize_key(
-            row.oem_number,
-            row.brand_name,
-            brand_aliases,
+        matched_item = _select_row_item_candidate(
+            row=row,
+            exact_map=exact_map,
+            oem_map=oem_map,
+            brand_aliases=brand_aliases,
+            priority_brand_keys=priority_brand_keys,
         )
-        exact_candidates = exact_map.get(exact_key) or []
-        if exact_candidates:
-            matched_item = exact_candidates.pop(0)
-        else:
-            oem_candidates = (
-                oem_map.get(_normalize_oem_key(row.oem_number)) or []
-            )
-            if len(oem_candidates) == 1:
-                matched_item = oem_candidates[0]
         if matched_item is None:
+            if row.brand_name is None and priority_brand_keys:
+                for key in priority_brand_keys:
+                    if key:
+                        row.brand_name = key
+                        break
+            if (
+                _canonical_brand_key_for_value(row.brand_name, brand_aliases)
+                == _DRAGONZAP_BRAND_KEY
+            ):
+                row.oem_number = _dragonzap_prefixed_oem_key(
+                    _normalize_oem_key(row.oem_number)
+                )
             unresolved_oems.append(row.oem_number)
             unmatched_rows.append(row)
             continue
+        if not row.brand_name:
+            row.brand_name = matched_item.brand_name
         matched_count += 1
 
         if _apply_row_to_item(
@@ -2050,10 +2311,142 @@ def _select_single_item_candidate(
     if len(pending_candidates) == 1:
         return pending_candidates[0]
     if len(pending_candidates) > 1:
-        return None
+        return pending_candidates[0]
     if len(candidates) == 1:
         return candidates[0]
-    return None
+    return candidates[0]
+
+
+def _canonical_brand_key_for_value(
+    brand_name: Optional[str],
+    brand_aliases: dict[str, str],
+) -> str:
+    return _normalize_key(None, brand_name, brand_aliases)[1]
+
+
+def _config_priority_brand_keys(
+    response_config: Optional[SupplierResponseConfig],
+    brand_aliases: dict[str, str],
+) -> list[str]:
+    if response_config is None:
+        return []
+    candidates: list[str] = []
+    fixed_brand_name = str(
+        getattr(response_config, "fixed_brand_name", "") or ""
+    ).strip()
+    if fixed_brand_name:
+        candidates.append(fixed_brand_name)
+    for raw in (getattr(response_config, "brand_priority_list", None) or []):
+        value = str(raw or "").strip()
+        if value:
+            candidates.append(value)
+    result: list[str] = []
+    seen: set[str] = set()
+    for raw in candidates:
+        canonical = _canonical_brand_key_for_value(raw, brand_aliases)
+        if not canonical or canonical in seen:
+            continue
+        seen.add(canonical)
+        result.append(canonical)
+    return result
+
+
+def _dragonzap_prefixed_oem_key(oem_key: str) -> str:
+    clean = str(oem_key or "").strip().upper()
+    if not clean:
+        return ""
+    if clean.startswith("DZ"):
+        return clean
+    return f"DZ{clean}"
+
+
+def _collect_row_candidate_oem_keys(
+    *,
+    row: ParsedSupplierResponseRow,
+    priority_brand_keys: list[str],
+    brand_aliases: dict[str, str],
+) -> list[str]:
+    keys: list[str] = []
+    primary = _normalize_oem_key(row.oem_number)
+    if primary:
+        keys.append(primary)
+    row_brand_key = _canonical_brand_key_for_value(
+        row.brand_name,
+        brand_aliases,
+    )
+    should_try_dragonzap = (
+        row_brand_key == _DRAGONZAP_BRAND_KEY
+        or _DRAGONZAP_BRAND_KEY in priority_brand_keys
+    )
+    if should_try_dragonzap and primary:
+        dragonzap_key = _dragonzap_prefixed_oem_key(primary)
+        if dragonzap_key and dragonzap_key not in keys:
+            keys.append(dragonzap_key)
+        if primary.startswith("DZ") and len(primary) > 2:
+            without_prefix = primary[2:]
+            if without_prefix and without_prefix not in keys:
+                keys.append(without_prefix)
+    return keys
+
+
+def _select_row_item_candidate(
+    *,
+    row: ParsedSupplierResponseRow,
+    exact_map: dict[tuple[str, str], list[SupplierOrderItem]],
+    oem_map: dict[str, list[SupplierOrderItem]],
+    brand_aliases: dict[str, str],
+    priority_brand_keys: list[str],
+) -> Optional[SupplierOrderItem]:
+    exact_key = _normalize_key(
+        row.oem_number,
+        row.brand_name,
+        brand_aliases,
+    )
+    exact_candidates = exact_map.get(exact_key) or []
+    if exact_candidates:
+        return exact_candidates.pop(0)
+
+    candidates: list[SupplierOrderItem] = []
+    seen_ids: set[int] = set()
+    for oem_key in _collect_row_candidate_oem_keys(
+        row=row,
+        priority_brand_keys=priority_brand_keys,
+        brand_aliases=brand_aliases,
+    ):
+        for item in (oem_map.get(oem_key) or []):
+            item_id = int(item.id)
+            if item_id in seen_ids:
+                continue
+            seen_ids.add(item_id)
+            candidates.append(item)
+    if not candidates:
+        return None
+
+    row_brand_key = _canonical_brand_key_for_value(
+        row.brand_name,
+        brand_aliases,
+    )
+    if row_brand_key:
+        same_brand = [
+            item for item in candidates
+            if _canonical_brand_key_for_value(item.brand_name, brand_aliases)
+            == row_brand_key
+        ]
+        selected = _select_single_item_candidate(same_brand)
+        if selected is not None:
+            return selected
+
+    for priority_key in priority_brand_keys:
+        preferred = [
+            item for item in candidates
+            if _canonical_brand_key_for_value(item.brand_name, brand_aliases)
+            == priority_key
+        ]
+        selected = _select_single_item_candidate(preferred)
+        if selected is not None:
+            return selected
+
+    return _select_single_item_candidate(candidates)
 
 
 def _build_applied_row_payload(
@@ -2169,6 +2562,7 @@ async def _apply_parsed_rows_without_order_id(
     default_raw_status: Optional[str],
     default_normalized_status: Optional[str],
     date_from: date,
+    response_config: Optional[SupplierResponseConfig] = None,
 ) -> tuple[
     int,
     int,
@@ -2203,27 +2597,39 @@ async def _apply_parsed_rows_without_order_id(
             oem_key = _normalize_oem_key(item.oem_number)
             if oem_key:
                 oem_map.setdefault(oem_key, []).append(item)
+    priority_brand_keys = _config_priority_brand_keys(
+        response_config,
+        brand_aliases,
+    )
     updated = 0
     matched_count = 0
     unresolved_oems: list[str] = []
     applied_rows_by_order: dict[int, list[AppliedSupplierResponseRow]] = {}
     for row in parsed_rows:
-        exact_key = _normalize_key(
-            row.oem_number,
-            row.brand_name,
-            brand_aliases,
-        )
-        matched_item = _select_single_item_candidate(
-            exact_map.get(exact_key) or []
+        matched_item = _select_row_item_candidate(
+            row=row,
+            exact_map=exact_map,
+            oem_map=oem_map,
+            brand_aliases=brand_aliases,
+            priority_brand_keys=priority_brand_keys,
         )
         if matched_item is None:
-            oem_key = _normalize_oem_key(row.oem_number)
-            matched_item = _select_single_item_candidate(
-                oem_map.get(oem_key) or []
-            )
-        if matched_item is None:
+            if row.brand_name is None and priority_brand_keys:
+                for key in priority_brand_keys:
+                    if key:
+                        row.brand_name = key
+                        break
+            if (
+                _canonical_brand_key_for_value(row.brand_name, brand_aliases)
+                == _DRAGONZAP_BRAND_KEY
+            ):
+                row.oem_number = _dragonzap_prefixed_oem_key(
+                    _normalize_oem_key(row.oem_number)
+                )
             unresolved_oems.append(row.oem_number)
             continue
+        if not row.brand_name:
+            row.brand_name = matched_item.brand_name
         matched_count += 1
         if _apply_row_to_item(
             row=row,
@@ -2377,6 +2783,7 @@ def _build_unlinked_receipt_items_from_rows(
                 "response_price": row.response_price,
                 "oem_number": row.oem_number,
                 "brand_name": row.brand_name,
+                "autopart_name": row.source_name,
                 "gtd_code": row.gtd_code,
                 "country_code": row.country_code,
                 "country_name": row.country_name,
@@ -2402,6 +2809,206 @@ async def _find_open_supplier_receipt(
     return (await session.execute(stmt)).scalars().first()
 
 
+def _first_configured_brand_name(
+    response_config: Optional[SupplierResponseConfig],
+) -> Optional[str]:
+    if response_config is None:
+        return None
+    fixed = str(getattr(response_config, "fixed_brand_name", "") or "").strip()
+    if fixed:
+        return fixed
+    for raw in (getattr(response_config, "brand_priority_list", None) or []):
+        value = str(raw or "").strip()
+        if value:
+            return value
+    return None
+
+
+async def _find_autoparts_by_oem(
+    session: AsyncSession,
+    *,
+    oem_key: str,
+) -> list[AutoPart]:
+    if not oem_key:
+        return []
+    stmt = (
+        select(AutoPart)
+        .options(selectinload(AutoPart.brand))
+        .where(AutoPart.oem_number == oem_key)
+    )
+    return list((await session.execute(stmt)).scalars().all())
+
+
+def _pick_autopart_by_priority(
+    autoparts: list[AutoPart],
+    *,
+    priority_brand_keys: list[str],
+    brand_aliases: dict[str, str],
+) -> Optional[AutoPart]:
+    if not autoparts:
+        return None
+    for key in priority_brand_keys:
+        for autopart in autoparts:
+            if (
+                _canonical_brand_key_for_value(
+                    getattr(autopart.brand, "name", None),
+                    brand_aliases,
+                )
+                == key
+            ):
+                return autopart
+    return autoparts[0]
+
+
+async def _get_or_create_dragonzap_autopart(
+    session: AsyncSession,
+    *,
+    oem_key: str,
+    fallback_name: Optional[str],
+) -> Optional[AutoPart]:
+    dragonzap_brand = await brand_crud.get_brand_by_name_or_none(
+        "Dragonzap",
+        session,
+    )
+    if dragonzap_brand is None:
+        return None
+    dz_oem = _dragonzap_prefixed_oem_key(oem_key)
+    existing = await crud_autopart.get_autopart_by_oem_brand_or_none(
+        oem_number=dz_oem,
+        brand_id=dragonzap_brand.id,
+        session=session,
+    )
+    if existing is not None:
+        return existing
+
+    source_same_brand = await crud_autopart.get_autopart_by_oem_brand_or_none(
+        oem_number=oem_key,
+        brand_id=dragonzap_brand.id,
+        session=session,
+    )
+    source_name = None
+    if source_same_brand is not None:
+        source_name = str(source_same_brand.name or "").strip() or None
+    if source_name is None:
+        any_source = await _find_autoparts_by_oem(session, oem_key=oem_key)
+        if any_source:
+            source_name = str(any_source[0].name or "").strip() or None
+    if source_name is None:
+        source_name = str(fallback_name or "").strip() or None
+    if source_name is None:
+        source_name = f"Автозапчасть {oem_key}"
+
+    created: Optional[AutoPart] = None
+    try:
+        async with session.begin_nested():
+            created = AutoPart(
+                brand_id=dragonzap_brand.id,
+                oem_number=dz_oem,
+                name=source_name,
+            )
+            session.add(created)
+            await session.flush()
+    except IntegrityError:
+        created = None
+    if created is not None:
+        await session.refresh(created)
+        return created
+    return await crud_autopart.get_autopart_by_oem_brand_or_none(
+        oem_number=dz_oem,
+        brand_id=dragonzap_brand.id,
+        session=session,
+    )
+
+
+async def _resolve_unlinked_payload_autopart(
+    session: AsyncSession,
+    *,
+    payload: dict[str, object],
+    response_config: Optional[SupplierResponseConfig],
+    priority_brand_keys: list[str],
+    brand_aliases: dict[str, str],
+) -> dict[str, object]:
+    oem_key = _normalize_oem_key(payload.get("oem_number"))
+    if not oem_key:
+        return {}
+
+    brand_name = str(payload.get("brand_name") or "").strip() or None
+    if brand_name is None:
+        brand_name = _first_configured_brand_name(response_config)
+
+    brand_key = _canonical_brand_key_for_value(brand_name, brand_aliases)
+    fallback_name = str(payload.get("autopart_name") or "").strip() or None
+
+    if (
+        brand_key == _DRAGONZAP_BRAND_KEY
+        or _DRAGONZAP_BRAND_KEY in priority_brand_keys
+    ):
+        dragonzap_part = await _get_or_create_dragonzap_autopart(
+            session,
+            oem_key=oem_key,
+            fallback_name=fallback_name,
+        )
+        dz_oem = _dragonzap_prefixed_oem_key(oem_key)
+        if dragonzap_part is not None:
+            return {
+                "autopart_id": int(dragonzap_part.id),
+                "oem_number": dragonzap_part.oem_number,
+                "brand_name": dragonzap_part.brand.name,
+                "autopart_name": dragonzap_part.name,
+            }
+        return {
+            "oem_number": dz_oem,
+            "brand_name": "Dragonzap",
+            "autopart_name": fallback_name,
+        }
+
+    if brand_name:
+        brand = await brand_crud.get_brand_by_name_or_none(brand_name, session)
+        if brand is not None:
+            matched = await crud_autopart.get_autopart_by_oem_brand_or_none(
+                oem_number=oem_key,
+                brand_id=brand.id,
+                session=session,
+            )
+            if matched is not None:
+                return {
+                    "autopart_id": int(matched.id),
+                    "oem_number": matched.oem_number,
+                    "brand_name": matched.brand.name,
+                    "autopart_name": matched.name,
+                }
+            return {
+                "oem_number": oem_key,
+                "brand_name": brand.name,
+                "autopart_name": fallback_name,
+            }
+
+    autoparts = await _find_autoparts_by_oem(session, oem_key=oem_key)
+    if not autoparts:
+        return {
+            "oem_number": oem_key,
+            "brand_name": brand_name,
+            "autopart_name": fallback_name,
+        }
+    selected = _pick_autopart_by_priority(
+        autoparts,
+        priority_brand_keys=priority_brand_keys,
+        brand_aliases=brand_aliases,
+    )
+    if selected is None:
+        return {
+            "oem_number": oem_key,
+            "brand_name": brand_name,
+            "autopart_name": fallback_name,
+        }
+    return {
+        "autopart_id": int(selected.id),
+        "oem_number": selected.oem_number,
+        "brand_name": selected.brand.name,
+        "autopart_name": selected.name,
+    }
+
+
 async def _append_supplier_receipt_items(
     session: AsyncSession,
     *,
@@ -2409,9 +3016,15 @@ async def _append_supplier_receipt_items(
     order: SupplierOrder,
     items_payload: list[dict[str, object]],
     post_now: bool,
+    response_config: Optional[SupplierResponseConfig] = None,
 ) -> int:
     if not items_payload:
         return 0
+    brand_aliases = await _load_brand_alias_map(session)
+    priority_brand_keys = _config_priority_brand_keys(
+        response_config,
+        brand_aliases,
+    )
     order_items_by_id = {
         int(order_item.id): order_item for order_item in (order.items or [])
     }
@@ -2423,6 +3036,13 @@ async def _append_supplier_receipt_items(
             quantity = int(payload.get("received_quantity") or 0)
             if quantity <= 0:
                 continue
+            resolved_identity = await _resolve_unlinked_payload_autopart(
+                session,
+                payload=payload,
+                response_config=response_config,
+                priority_brand_keys=priority_brand_keys,
+                brand_aliases=brand_aliases,
+            )
             supplier_order_ids.add(int(order.id))
             session.add(
                 SupplierReceiptItem(
@@ -2430,12 +3050,31 @@ async def _append_supplier_receipt_items(
                     supplier_order_id=order.id,
                     supplier_order_item_id=None,
                     customer_order_item_id=None,
-                    autopart_id=None,
-                    oem_number=str(payload.get("oem_number") or "").strip()
-                    or None,
-                    brand_name=str(payload.get("brand_name") or "").strip()
-                    or None,
-                    autopart_name=None,
+                    autopart_id=resolved_identity.get("autopart_id"),
+                    oem_number=(
+                        str(
+                            resolved_identity.get("oem_number")
+                            or payload.get("oem_number")
+                            or ""
+                        ).strip()
+                        or None
+                    ),
+                    brand_name=(
+                        str(
+                            resolved_identity.get("brand_name")
+                            or payload.get("brand_name")
+                            or ""
+                        ).strip()
+                        or None
+                    ),
+                    autopart_name=(
+                        str(
+                            resolved_identity.get("autopart_name")
+                            or payload.get("autopart_name")
+                            or ""
+                        ).strip()
+                        or None
+                    ),
                     ordered_quantity=None,
                     confirmed_quantity=None,
                     received_quantity=quantity,
@@ -2530,6 +3169,7 @@ async def _create_or_update_supplier_receipt_from_message(
     document_number: Optional[str] = None,
     document_date: Optional[date] = None,
     comment: Optional[str] = None,
+    response_config: Optional[SupplierResponseConfig] = None,
 ) -> tuple[Optional[SupplierReceipt], int, bool]:
     if not items_payload:
         return None, 0, False
@@ -2577,6 +3217,7 @@ async def _create_or_update_supplier_receipt_from_message(
         order=order,
         items_payload=items_payload,
         post_now=post_now,
+        response_config=response_config,
     )
     if added_items <= 0:
         if created:
@@ -2928,6 +3569,16 @@ async def process_supplier_response_messages(
                     "brand_col",
                     None,
                 )
+                response_name_col = getattr(
+                    active_response_config,
+                    "name_col",
+                    None,
+                )
+                response_brand_from_name_regex = getattr(
+                    active_response_config,
+                    "brand_from_name_regex",
+                    None,
+                )
                 response_qty_col = getattr(
                     active_response_config,
                     "qty_col",
@@ -2956,6 +3607,21 @@ async def process_supplier_response_messages(
                 response_document_date_col = getattr(
                     active_response_config,
                     "document_date_col",
+                    None,
+                )
+                response_document_number_cell = getattr(
+                    active_response_config,
+                    "document_number_cell",
+                    None,
+                )
+                response_document_date_cell = getattr(
+                    active_response_config,
+                    "document_date_cell",
+                    None,
+                )
+                response_document_meta_cell = getattr(
+                    active_response_config,
+                    "document_meta_cell",
                     None,
                 )
                 response_gtd_col = getattr(
@@ -3054,6 +3720,8 @@ async def process_supplier_response_messages(
                     "supplier_response_brand_col",
                     None,
                 )
+                response_name_col = None
+                response_brand_from_name_regex = None
                 response_qty_col = getattr(
                     provider,
                     "supplier_response_qty_col",
@@ -3076,6 +3744,9 @@ async def process_supplier_response_messages(
                 )
                 response_document_number_col = None
                 response_document_date_col = None
+                response_document_number_cell = None
+                response_document_date_cell = None
+                response_document_meta_cell = None
                 response_gtd_col = None
                 response_country_code_col = None
                 response_country_name_col = None
@@ -3298,12 +3969,21 @@ async def process_supplier_response_messages(
                             start_row=response_start_row,
                             oem_col=response_oem_col,
                             brand_col=response_brand_col,
+                            name_col=response_name_col,
+                            brand_from_name_regex=(
+                                response_brand_from_name_regex
+                            ),
                             qty_col=response_qty_col,
                             price_col=response_price_col,
                             comment_col=response_comment_col,
                             status_col=response_status_col,
                             document_number_col=response_document_number_col,
                             document_date_col=response_document_date_col,
+                            document_number_cell=(
+                                response_document_number_cell
+                            ),
+                            document_date_cell=response_document_date_cell,
+                            document_meta_cell=response_document_meta_cell,
                             gtd_col=response_gtd_col,
                             country_code_col=response_country_code_col,
                             country_name_col=response_country_name_col,
@@ -3352,6 +4032,7 @@ async def process_supplier_response_messages(
                                 parsed_rows=parsed_rows,
                                 default_raw_status=raw_status,
                                 default_normalized_status=normalized_status,
+                                response_config=active_response_config,
                             )
                         )
                         stats.updated_items += updated_items
@@ -3387,6 +4068,7 @@ async def process_supplier_response_messages(
                                 normalized_status or None
                             ),
                             date_from=date_from,
+                            response_config=active_response_config,
                         )
                         stats.updated_items += updated_items
                         stats.recognized_positions += matched_count
@@ -3470,6 +4152,7 @@ async def process_supplier_response_messages(
                             default_normalized_status=(
                                 normalized_status or None
                             ),
+                            response_config=active_response_config,
                         )
                         receipt_applied_rows_by_order.setdefault(
                             int(order.id),
@@ -3490,6 +4173,7 @@ async def process_supplier_response_messages(
                                 normalized_status or None
                             ),
                             date_from=date_from,
+                            response_config=active_response_config,
                         )
                         for order_key, rows in applied_rows_map.items():
                             matched_order_ids_from_rows.add(int(order_key))
@@ -3769,6 +4453,7 @@ async def process_supplier_response_messages(
                                 document_number=receipt_document_number,
                                 document_date=row_document_date,
                                 comment=receipt_comment,
+                                response_config=active_response_config,
                             )
                         )
                         if added_items > 0:
@@ -3831,6 +4516,7 @@ async def process_supplier_response_messages(
                                         "Авто-черновик поступления из ответа "
                                         "поставщика"
                                     ),
+                                    response_config=active_response_config,
                                 )
                             )
                             if added_items > 0:

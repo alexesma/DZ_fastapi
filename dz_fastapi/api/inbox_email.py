@@ -502,6 +502,12 @@ async def get_provider_configs_for_wizard(
                 'qty_col': getattr(c, 'qty_col', None),
                 'price_col': getattr(c, 'price_col', None),
                 'brand_col': getattr(c, 'brand_col', None),
+                'name_col': getattr(c, 'name_col', None),
+                'fixed_brand_name': getattr(c, 'fixed_brand_name', None),
+                'brand_priority_list': getattr(c, 'brand_priority_list', None),
+                'brand_from_name_regex': getattr(
+                    c, 'brand_from_name_regex', None
+                ),
                 'status_col': getattr(c, 'status_col', None),
                 'comment_col': getattr(c, 'comment_col', None),
                 'confirm_keywords': getattr(c, 'confirm_keywords', None),
@@ -513,6 +519,13 @@ async def get_provider_configs_for_wizard(
                     c, 'document_number_col', None
                 ),
                 'document_date_col': getattr(c, 'document_date_col', None),
+                'document_number_cell': getattr(
+                    c, 'document_number_cell', None
+                ),
+                'document_date_cell': getattr(
+                    c, 'document_date_cell', None
+                ),
+                'document_meta_cell': getattr(c, 'document_meta_cell', None),
             }
             for c in filtered
         ]
