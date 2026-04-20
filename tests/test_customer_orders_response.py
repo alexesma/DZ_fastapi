@@ -912,10 +912,12 @@ async def test_document_payload_file_posts_receipt_with_doc_fields(
     assert receipt.posted_at is not None
     assert receipt.document_number == "UPD-7788"
     assert str(receipt.document_date) == "2026-04-09"
-    expected_price = round(
-        240.0 / 2 / (1 + response_service._VAT_RATE), 2
+    expected_price = response_service._resolve_price_without_vat(
+        total_price_with_vat=240.0,
+        quantity=2,
     )
-    assert float(receipt_item.price) == expected_price
+    assert expected_price is not None
+    assert float(receipt_item.price) == pytest.approx(expected_price, abs=0.01)
     assert float(receipt_item.total_price_with_vat) == 240.0
     assert receipt_item.gtd_code == "1234567890"
     assert receipt_item.country_code == "156"

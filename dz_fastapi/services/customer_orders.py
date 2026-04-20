@@ -18,9 +18,14 @@ import pandas as pd
 
 try:
     from imap_tools import AND, MailBox, MailBoxSsl
+    from imap_tools.errors import MailboxFolderSelectError
 except ImportError:  # pragma: no cover - fallback for older imap_tools
     from imap_tools import AND, MailBox
     MailBoxSsl = None
+    try:
+        from imap_tools.errors import MailboxFolderSelectError
+    except ImportError:
+        MailboxFolderSelectError = Exception
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Border, Font, Side
 from openpyxl.utils import get_column_letter
@@ -3590,19 +3595,29 @@ async def process_customer_orders(
             try:
                 account_messages = []
                 for folder in folders:
-                    account_messages.extend(
-                        await _fetch_order_messages(
-                            host,
-                            account.email,
-                            account.password,
-                            folder,
-                            date_from,
-                            mark_seen,
-                            last_uid=folder_uid_floor.get(folder),
-                            port=account.imap_port or IMAP_SERVER,
-                            ssl=True,
+                    try:
+                        account_messages.extend(
+                            await _fetch_order_messages(
+                                host,
+                                account.email,
+                                account.password,
+                                folder,
+                                date_from,
+                                mark_seen,
+                                last_uid=folder_uid_floor.get(folder),
+                                port=account.imap_port or IMAP_SERVER,
+                                ssl=True,
+                            )
                         )
-                    )
+                    except MailboxFolderSelectError as folder_exc:
+                        logger.warning(
+                            'IMAP папка "%s" не найдена для %s — пропускаем. '
+                            'Проверьте название папки в настройках аккаунта. '
+                            'Ошибка: %s',
+                            folder,
+                            account.email,
+                            folder_exc,
+                        )
                 fetched_count = len(account_messages)
                 account_messages = _filter_messages_by_senders(
                     account_messages, allowed_senders

@@ -38,11 +38,17 @@ from typing import Dict, List, Optional, Tuple
 
 import aiofiles
 from imap_tools import AND, MailboxLoginError
+
+try:
+    from imap_tools.errors import MailboxFolderSelectError
+except ImportError:
+    MailboxFolderSelectError = Exception
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.constants import IMAP_SERVER
-from dz_fastapi.core.email_folders import DEFAULT_IMAP_FOLDER
+from dz_fastapi.core.email_folders import (DEFAULT_IMAP_FOLDER,
+                                           parse_imap_additional_folders)
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.email_account import crud_email_account
 from dz_fastapi.crud.inbox_email import (cleanup_old_inbox_emails,
@@ -556,47 +562,77 @@ async def fetch_inbox_for_account(
         logger.warning('No IMAP host for account id=%s', account.id)
         return []
 
-    # Для InboxPage берём ТОЛЬКО основную папку входящих (обычно INBOX).
-    # Дополнительные папки (imap_additional_folders) могут содержать
-    # Sent и другие — они используются в других сервисах.
+    # Собираем список папок для опроса:
+    # 1) основная папка (imap_folder или INBOX)
+    # 2) дополнительные папки из imap_additional_folders
     primary_folder = (account.imap_folder or '').strip() or DEFAULT_IMAP_FOLDER
+    additional_folders = parse_imap_additional_folders(
+        getattr(account, 'imap_additional_folders', None)
+    )
 
-    # Если основная папка сама является папкой отправленных — пропускаем
-    if _is_sent_folder(primary_folder):
-        logger.warning(
-            'Основная IMAP-папка "%s" для account id=%s '
-            'похожа на папку отправленных — пропускаем',
-            primary_folder, account.id,
-        )
-        return []
+    # Дедупликация: не читаем одну папку дважды
+    folders_to_fetch: list[str] = []
+    seen_folders: set[str] = set()
 
-    try:
-        raw_messages = await asyncio.to_thread(
-            _fetch_inbox_imap_sync,
-            host,
-            account.email,
-            account.password,
-            primary_folder,
-            account.imap_port or IMAP_SERVER,
-            since_date,
-        )
-    except Exception as e:
-        logger.error(
-            'Error fetching inbox for account id=%s: %s', account.id, e
-        )
-        return []
-
-    # Фильтруем: убираем письма, где from == адрес самого ящика
-    # (исходящие копии)
-    for msg in raw_messages:
-        msg_from = _extract_email(msg.from_ or '').lower()
-        if msg_from == account_email:
+    for folder in [primary_folder] + additional_folders:
+        folder_norm = folder.strip().lower()
+        if not folder_norm:
+            continue
+        if folder_norm in seen_folders:
+            continue
+        seen_folders.add(folder_norm)
+        # Пропускаем папки отправленных
+        if _is_sent_folder(folder):
             logger.debug(
-                'Пропускаем исходящее письмо (from=%s == account=%s)',
-                msg_from, account_email,
+                'Папка "%s" для account id=%s похожа '
+                'на папку отправленных — пропускаем',
+                folder, account.id,
             )
             continue
-        messages.append(msg)
+        folders_to_fetch.append(folder)
+
+    if not folders_to_fetch:
+        logger.warning(
+            'Нет подходящих IMAP-папок для account id=%s', account.id
+        )
+        return []
+
+    for folder in folders_to_fetch:
+        try:
+            raw_messages = await asyncio.to_thread(
+                _fetch_inbox_imap_sync,
+                host,
+                account.email,
+                account.password,
+                folder,
+                account.imap_port or IMAP_SERVER,
+                since_date,
+            )
+        except MailboxFolderSelectError as e:
+            logger.warning(
+                'IMAP папка "%s" не найдена для account id=%s — пропускаем. '
+                'Проверьте название папки в настройках. Ошибка: %s',
+                folder, account.id, e,
+            )
+            continue
+        except Exception as e:
+            logger.error(
+                'Error fetching inbox for account id=%s folder=%s: %s',
+                account.id, folder, e,
+            )
+            continue
+
+        # Фильтруем: убираем письма, где from == адрес самого ящика
+        # (исходящие копии)
+        for msg in raw_messages:
+            msg_from = _extract_email(msg.from_ or '').lower()
+            if msg_from == account_email:
+                logger.debug(
+                    'Пропускаем исходящее письмо (from=%s == account=%s)',
+                    msg_from, account_email,
+                )
+                continue
+            messages.append(msg)
 
     return _dedupe_fetched_messages(messages)
 
