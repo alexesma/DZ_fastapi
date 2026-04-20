@@ -766,6 +766,18 @@ class SupplierResponseConfigOut(BaseModel):
     )
     model_config = ConfigDict(from_attributes=True)
 
+    @field_validator(
+        'sender_emails',
+        'brand_priority_list',
+        'confirm_keywords',
+        'reject_keywords',
+        mode='before',
+    )
+    def normalize_out_lists(cls, v):
+        if v is None:
+            return []
+        return _normalize_string_list(v)
+
 
 class CustomerPriceListItem(BaseModel):
     autopart: AutoPartResponse

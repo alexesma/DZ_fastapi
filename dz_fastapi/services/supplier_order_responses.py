@@ -2806,6 +2806,7 @@ async def _find_open_supplier_receipt(
 ) -> Optional[SupplierReceipt]:
     stmt = (
         select(SupplierReceipt)
+        .options(selectinload(SupplierReceipt.items))
         .where(
             SupplierReceipt.provider_id == provider_id,
             SupplierReceipt.posted_at.is_(None),
@@ -2813,6 +2814,117 @@ async def _find_open_supplier_receipt(
         .order_by(SupplierReceipt.created_at.desc(), SupplierReceipt.id.desc())
     )
     return (await session.execute(stmt)).scalars().first()
+
+
+def _linked_receipt_quantities_by_order_item(
+    items_payload: list[dict[str, object]],
+) -> dict[int, int]:
+    quantities: dict[int, int] = {}
+    for payload in items_payload:
+        supplier_order_item_raw = payload.get("supplier_order_item_id")
+        if supplier_order_item_raw in (None, ""):
+            continue
+        try:
+            supplier_order_item_id = int(supplier_order_item_raw)
+        except (TypeError, ValueError):
+            continue
+        quantity = _safe_int(payload.get("received_quantity"))
+        if quantity is None:
+            continue
+        quantity = max(int(quantity), 0)
+        if quantity <= 0:
+            continue
+        quantities[supplier_order_item_id] = (
+            quantities.get(supplier_order_item_id, 0) + quantity
+        )
+    return quantities
+
+
+async def _consume_posted_quantities_from_open_draft(
+    session: AsyncSession,
+    *,
+    draft_receipt: SupplierReceipt,
+    order: SupplierOrder,
+    linked_items_payload: list[dict[str, object]],
+) -> tuple[int, bool]:
+    linked_quantities = _linked_receipt_quantities_by_order_item(
+        linked_items_payload
+    )
+    if not linked_quantities:
+        return 0, False
+
+    draft_items = (
+        await session.execute(
+            select(SupplierReceiptItem)
+            .where(
+                SupplierReceiptItem.receipt_id == draft_receipt.id,
+                SupplierReceiptItem.supplier_order_item_id.in_(
+                    tuple(linked_quantities.keys())
+                ),
+                or_(
+                    SupplierReceiptItem.supplier_order_id == order.id,
+                    SupplierReceiptItem.supplier_order_id.is_(None),
+                ),
+            )
+            .order_by(SupplierReceiptItem.id.asc())
+        )
+    ).scalars().all()
+
+    if not draft_items:
+        return 0, False
+
+    draft_items_by_order_item: dict[int, list[SupplierReceiptItem]] = {}
+    for draft_item in draft_items:
+        supplier_order_item_id = draft_item.supplier_order_item_id
+        if supplier_order_item_id is None:
+            continue
+        draft_items_by_order_item.setdefault(
+            int(supplier_order_item_id),
+            [],
+        ).append(draft_item)
+
+    updated_or_deleted = 0
+    for supplier_order_item_id, posted_qty in linked_quantities.items():
+        remaining_to_consume = posted_qty
+        for draft_item in draft_items_by_order_item.get(
+            supplier_order_item_id,
+            [],
+        ):
+            if remaining_to_consume <= 0:
+                break
+            current_qty = max(int(draft_item.received_quantity or 0), 0)
+            if current_qty <= 0:
+                continue
+            consume_qty = min(current_qty, remaining_to_consume)
+            remaining_to_consume -= consume_qty
+            new_qty = current_qty - consume_qty
+            if new_qty <= 0:
+                if draft_item in (draft_receipt.items or []):
+                    draft_receipt.items.remove(draft_item)
+                else:
+                    await session.delete(draft_item)
+            else:
+                draft_item.received_quantity = new_qty
+            updated_or_deleted += 1
+
+    if updated_or_deleted <= 0:
+        return 0, False
+
+    await session.flush()
+
+    has_items = (
+        await session.execute(
+            select(SupplierReceiptItem.id)
+            .where(SupplierReceiptItem.receipt_id == draft_receipt.id)
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if has_items is not None:
+        return updated_or_deleted, False
+
+    await session.delete(draft_receipt)
+    await session.flush()
+    return updated_or_deleted, True
 
 
 def _first_configured_brand_name(
@@ -4388,6 +4500,10 @@ async def process_supplier_response_messages(
 
             if matched_orders:
                 if has_shipping_doc:
+                    open_draft_receipt = await _find_open_supplier_receipt(
+                        session,
+                        provider_id=provider.id,
+                    )
                     for matched_order in matched_orders.values():
                         order_key = int(matched_order.id)
                         applied_rows = receipt_applied_rows_by_order.get(
@@ -4448,7 +4564,7 @@ async def process_supplier_response_messages(
                         receipt_writer = (
                             _create_or_update_supplier_receipt_from_message
                         )
-                        _, added_items, _ = (
+                        posted_receipt, added_items, _ = (
                             await receipt_writer(
                                 session,
                                 provider_id=provider.id,
@@ -4466,15 +4582,44 @@ async def process_supplier_response_messages(
                             stats.created_receipts += 1
                             stats.posted_receipts += 1
                             stats.receipt_items_added += added_items
+                            draft_consumed = 0
+                            draft_deleted = False
+                            if (
+                                open_draft_receipt is not None
+                                and posted_receipt is not None
+                                and open_draft_receipt.id != posted_receipt.id
+                                and linked_items_payload
+                            ):
+                                (
+                                    draft_consumed,
+                                    draft_deleted,
+                                ) = await (
+                                    _consume_posted_quantities_from_open_draft(
+                                        session,
+                                        draft_receipt=open_draft_receipt,
+                                        order=matched_order,
+                                        linked_items_payload=(
+                                            linked_items_payload
+                                        ),
+                                    )
+                                )
+                                if draft_consumed > 0:
+                                    stats.updated_receipts += 1
+                                if draft_deleted:
+                                    open_draft_receipt = None
                             logger.info(
                                 (
                                     "Auto-posted supplier receipt "
                                     "from message %s: "
-                                    "provider_id=%s, items=%s"
+                                    "provider_id=%s, items=%s, "
+                                    "draft_items_consumed=%s, "
+                                    "draft_deleted=%s"
                                 ),
                                 message_row.id,
                                 provider.id,
                                 added_items,
+                                draft_consumed,
+                                draft_deleted,
                             )
                 else:
                     for matched_order in matched_orders.values():

@@ -2426,7 +2426,10 @@ async def setup_email_rule(
                                 ):
                                     sr_upd[fld] = None
                                 for fld in passthrough_fields:
-                                    sr_upd[fld] = None
+                                    if fld == 'brand_priority_list':
+                                        sr_upd[fld] = []
+                                    else:
+                                        sr_upd[fld] = None
                                 if (
                                     getattr(
                                         provider_config,
