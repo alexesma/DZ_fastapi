@@ -95,6 +95,20 @@ _ARTICLE_TOKEN_RE = re.compile(
     r")"
 )
 _TEXT_TOKEN_RE = re.compile(r"[A-Za-zА-Яа-яЁё0-9][A-Za-zА-Яа-яЁё0-9._/-]*")
+# Detects the start of a quoted/forwarded reply block in email text.
+# Matches a line of 5+ dashes (common separator) or a standalone
+# "From:"/"Кому:" header line that indicates a forwarded message.
+_QUOTED_REPLY_SEPARATOR_RE = re.compile(
+    r"(?:^|\n)"                          # start of line
+    r"[ \t]*"                             # optional leading spaces
+    r"(?:"
+    r"-{5,}"                              # -----  long dash divider
+    r"|_{5,}"                             # _____  underscore divider
+    r"|(?:From|Кому|Отправитель)\s*:"     # forwarded-message header keywords
+    r")"
+    r"[ \t]*(?:\r?\n|$)",                 # rest of line must be blank/end
+    re.IGNORECASE,
+)
 _CELL_REF_RE = re.compile(r'^\s*([A-Za-z]+)\s*([0-9]+)\s*$')
 _RC_CELL_REF_RE = re.compile(r'^\s*R\s*([0-9]+)\s*C\s*([0-9]+)\s*$', re.I)
 _DIGIT_PAIR_CELL_REF_RE = re.compile(r'^\s*([0-9]+)\s*[,;:xX]\s*([0-9]+)\s*$')
@@ -131,6 +145,8 @@ _DOCUMENT_TEXT_DATE_RE = re.compile(
 _DEFAULT_CONFIRM_KEYWORDS = [
     "в наличии",
     "есть",
+    "в резерве",
+    "зарезервировано",
     "отгружаем",
     "собрали",
     "да",
@@ -1394,6 +1410,21 @@ def _allowed_attachment_extensions(file_format: object) -> set[str]:
     if normalized == "excel":
         return {"xlsx", "xls"}
     return {"xlsx", "xls", "csv"}
+
+
+def _strip_quoted_reply_content(text: str) -> str:
+    """Remove the quoted/forwarded reply block from an email body.
+
+    Suppliers often reply with a single word like "ЕСТЬ" and quote the
+    original order below a ``-----`` separator.  Parsing should only
+    see the supplier's own text, not the mirrored order content.
+    """
+    if not text:
+        return text
+    match = _QUOTED_REPLY_SEPARATOR_RE.search(text)
+    if match:
+        return text[: match.start()].strip()
+    return text
 
 
 def _get_message_text_content(msg: object) -> str:
@@ -4243,8 +4274,12 @@ async def process_supplier_response_messages(
                 and provider is not None
                 and message_text
             ):
+                # Strip the quoted/forwarded reply block so we only parse
+                # the supplier's own response text (e.g. "ЕСТЬ"), not the
+                # mirrored original order that was forwarded to them.
+                response_only_text = _strip_quoted_reply_content(message_text)
                 parsed_text = _parse_supplier_text_response(
-                    message_text,
+                    response_only_text,
                     value_after_article_type=value_after_article_type,
                     confirm_keywords=confirm_keywords,
                     reject_keywords=reject_keywords,
@@ -4324,7 +4359,7 @@ async def process_supplier_response_messages(
                         global_decision,
                         global_decision_token,
                     ) = _detect_global_text_decision(
-                        message_text,
+                        response_only_text,
                         confirm_keywords=confirm_keywords,
                         reject_keywords=reject_keywords,
                     )
