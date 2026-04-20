@@ -997,7 +997,8 @@ def _resolve_price_without_vat(
     total_price_with_vat: Optional[float],
     quantity: Optional[int],
 ) -> Optional[float]:
-    """Return per-unit price WITHOUT VAT given a total WITH VAT and quantity."""
+    """Return per-unit price WITHOUT VAT
+    given a total WITH VAT and quantity."""
     if total_price_with_vat is None:
         return None
     qty = _safe_int(quantity)
@@ -1400,6 +1401,45 @@ def _apply_global_text_decision_to_order(
             )
         )
     return updated, applied_rows
+
+
+def _build_global_decision_rows_from_text(
+    text: str,
+    *,
+    global_decision: str,
+    global_decision_token: Optional[str],
+) -> list["ParsedSupplierResponseRow"]:
+    """Extract all OEM article tokens from *text* and produce synthetic
+    ParsedSupplierResponseRow objects for a global confirm/reject.
+
+    Used when the email has no explicit order-ID but contains OEM numbers
+    (e.g. in a quoted original order).  ``confirmed_quantity`` is intentionally
+    left ``None`` so that ``_apply_row_to_item`` falls back to the order
+    item's own ``quantity`` field via ``text_decision``.
+    """
+    tokens = _TEXT_TOKEN_RE.findall(text or "")
+    seen: set[str] = set()
+    rows: list[ParsedSupplierResponseRow] = []
+    status_label = global_decision_token or global_decision
+    for token in tokens:
+        if not _ARTICLE_TOKEN_RE.fullmatch(token):
+            continue
+        norm = _normalize_oem_key(token)
+        if not norm or norm in seen:
+            continue
+        seen.add(norm)
+        rows.append(
+            ParsedSupplierResponseRow(
+                oem_number=token,
+                brand_name=None,
+                confirmed_quantity=None,
+                response_price=None,
+                response_comment=None,
+                response_status_raw=status_label,
+                text_decision=global_decision,
+            )
+        )
+    return rows
 
 
 def _allowed_attachment_extensions(file_format: object) -> set[str]:
@@ -4350,11 +4390,7 @@ async def process_supplier_response_messages(
                         )
                     if matched_count:
                         parsed_text_rows = True
-                if (
-                    not parsed_text_rows
-                    and order is not None
-                    and not parsed_response_file
-                ):
+                if not parsed_text_rows and not parsed_response_file:
                     (
                         global_decision,
                         global_decision_token,
@@ -4373,26 +4409,76 @@ async def process_supplier_response_messages(
                                 else "отказ"
                             )
                         )
-                        (
-                            updated_items,
-                            global_applied_rows,
-                        ) = _apply_global_text_decision_to_order(
-                            order,
-                            decision=global_decision,
-                            status_label=status_label,
-                        )
-                        if updated_items > 0:
-                            stats.updated_items += updated_items
-                        if global_applied_rows:
-                            receipt_applied_rows_by_order.setdefault(
-                                int(order.id),
-                                [],
-                            ).extend(global_applied_rows)
-                            stats.recognized_positions += len(
-                                global_applied_rows
+                        if order is not None:
+                            # Known order: apply decision to all its items
+                            (
+                                updated_items,
+                                global_applied_rows,
+                            ) = _apply_global_text_decision_to_order(
+                                order,
+                                decision=global_decision,
+                                status_label=status_label,
                             )
-                        stats.parsed_text_positions += 1
-                        parsed_text_rows = True
+                            if updated_items > 0:
+                                stats.updated_items += updated_items
+                            if global_applied_rows:
+                                receipt_applied_rows_by_order.setdefault(
+                                    int(order.id),
+                                    [],
+                                ).extend(global_applied_rows)
+                                stats.recognized_positions += len(
+                                    global_applied_rows
+                                )
+                            stats.parsed_text_positions += 1
+                            parsed_text_rows = True
+                        else:
+                            # Order not identified by ID in subject/body.
+                            # Use OEM tokens from the full email (including the
+                            # quoted forwarded order) to match order items by
+                            # article number, then apply the global decision.
+                            global_rows = (
+                                _build_global_decision_rows_from_text(
+                                    message_text,
+                                    global_decision=global_decision,
+                                    global_decision_token=(
+                                        global_decision_token
+                                    ),
+                                )
+                            )
+                            if global_rows:
+                                (
+                                    updated_items,
+                                    matched_count,
+                                    unresolved_oems,
+                                    applied_rows_map,
+                                ) = await _apply_parsed_rows_without_order_id(
+                                    session,
+                                    provider_id=provider.id,
+                                    parsed_rows=global_rows,
+                                    default_raw_status=status_label,
+                                    default_normalized_status=(
+                                        normalize_external_status_text(
+                                            status_label
+                                        )
+                                        or None
+                                    ),
+                                    date_from=date_from,
+                                    response_config=active_response_config,
+                                )
+                                stats.updated_items += updated_items
+                                stats.recognized_positions += matched_count
+                                for (order_key,
+                                     rows) in applied_rows_map.items():
+                                    matched_order_ids_from_rows.add(
+                                        int(order_key)
+                                    )
+                                    receipt_applied_rows_by_order.setdefault(
+                                        int(order_key),
+                                        [],
+                                    ).extend(rows)
+                                if matched_count > 0:
+                                    stats.parsed_text_positions += 1
+                                    parsed_text_rows = True
             if (
                 expects_text_payload
                 and not parsed_text_rows

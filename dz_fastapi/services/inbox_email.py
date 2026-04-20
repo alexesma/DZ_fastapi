@@ -1027,11 +1027,15 @@ async def assign_rule(
     rule_type: str,
     user_id: Optional[int],
     save_pattern: bool = True,
+    process_now: bool = True,
+    queued_note: Optional[str] = None,
 ) -> InboxEmail:
     """
     Менеджер вручную назначает правило письму.
     Если save_pattern=True — создаёт/обновляет паттерн
     для будущей авто-разметки.
+    Если process_now=False — письмо не обрабатывается сразу, а помечается
+    как queued (удобно для мастера, чтобы не держать UI в ожидании).
     """
     inbox_email = await get_inbox_email(session, email_id)
     if inbox_email is None:
@@ -1083,11 +1087,24 @@ async def assign_rule(
         auto_detected=False,
     )
 
-    result, error = await _process_email_by_rule(
-        session,
-        inbox_email=inbox_email,
-        rule_type=rule_type,
-    )
+    if process_now:
+        result, error = await _process_email_by_rule(
+            session,
+            inbox_email=inbox_email,
+            rule_type=rule_type,
+        )
+    else:
+        result, error = (
+            {
+                'action': rule_type,
+                'status': 'queued',
+                'note': (
+                    queued_note
+                    or 'Настройки сохранены. Обработка будет запущена позже.'
+                ),
+            },
+            None,
+        )
     await mark_processed(
         session, email=inbox_email, result=result, error=error
     )
@@ -1181,6 +1198,136 @@ async def _find_matching_supplier_response_configs(
         matched.append(config)
 
     return matched
+
+
+async def _create_supplier_response_registry_stub(
+    session: AsyncSession,
+    *,
+    inbox_email: InboxEmail,
+    rule_type: str,
+    provider_id: Optional[int] = None,
+    response_config_ids: Optional[list[int]] = None,
+    reason_text: Optional[str] = None,
+) -> int:
+    """
+    Создаёт служебную запись в SupplierOrderMessage, чтобы менеджер сразу видел
+    письмо в "Реестре обработанных писем" конкретной конфигурации.
+
+    Важно: source_uid не заполняем, чтобы не блокировать последующую
+    полноценную обработку тем же письмом в шедулере.
+    """
+    if rule_type not in {'order_reply', 'document'}:
+        return 0
+
+    from dz_fastapi.models.partner import SupplierOrderAttachment as _SOA
+    from dz_fastapi.models.partner import SupplierOrderMessage as _SOM
+    from dz_fastapi.models.partner import SupplierResponseConfig as _SRC
+
+    normalized_ids: list[int] = sorted(
+        {
+            int(raw_id)
+            for raw_id in (response_config_ids or [])
+            if raw_id not in (None, 0, '')
+        }
+    )
+    if not normalized_ids:
+        matched_configs = await _find_matching_supplier_response_configs(
+            session,
+            inbox_email=inbox_email,
+            rule_type=rule_type,
+        )
+        normalized_ids = sorted({int(cfg.id) for cfg in matched_configs})
+
+    targets: list[tuple[Optional[int], int]] = []
+    if normalized_ids:
+        cfg_rows = (
+            await session.execute(
+                select(_SRC).where(_SRC.id.in_(normalized_ids))
+            )
+        ).scalars().all()
+        for cfg in cfg_rows:
+            targets.append((int(cfg.id), int(cfg.provider_id)))
+    elif provider_id:
+        targets.append((None, int(provider_id)))
+    else:
+        return 0
+
+    created_count = 0
+    note = (
+        reason_text
+        or 'Назначено через Inbox. Ожидает обработки по расписанию.'
+    )[:500]
+    sender_email = (inbox_email.from_email or '').strip() or None
+    subject = (inbox_email.subject or '')[:500] or None
+    message_type = 'SHIPPING_DOC' if rule_type == 'document' else 'UNKNOWN'
+    received_at = inbox_email.received_at or now_moscow()
+
+    for config_id, target_provider_id in targets:
+        marker = (
+            f'inbox-setup:{int(inbox_email.id)}:{rule_type}:'
+            f'{int(config_id or 0)}'
+        )
+        existing = (
+            await session.execute(
+                select(_SOM).where(
+                    _SOM.source_message_id == marker,
+                    _SOM.provider_id == target_provider_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            continue
+
+        row = _SOM(
+            supplier_order_id=None,
+            provider_id=target_provider_id,
+            message_type=message_type,
+            response_config_id=config_id,
+            subject=subject,
+            sender_email=sender_email,
+            received_at=received_at,
+            body_preview=(
+                f'Inbox setup ({rule_type}) for email #{inbox_email.id}.'
+            ),
+            raw_status=None,
+            normalized_status=None,
+            parse_confidence=None,
+            source_uid=None,
+            source_message_id=marker,
+            import_error_details=note,
+            mapping_id=None,
+        )
+        session.add(row)
+        await session.flush()
+
+        for idx, att in enumerate(inbox_email.attachment_info or []):
+            filename = str(att.get('name') or '').strip()
+            if not filename:
+                filename = f'attachment_{idx + 1}'
+            file_path = str(att.get('path') or '').strip()
+            if not file_path:
+                file_path = (
+                    f'inbox-setup://email/{int(inbox_email.id)}/'
+                    f'attachment/{idx + 1}'
+                )
+            session.add(
+                _SOA(
+                    message_id=row.id,
+                    filename=filename[:255],
+                    mime_type=None,
+                    file_path=file_path[:1024],
+                    sha256=None,
+                    parsed_kind=(
+                        'SHIPPING_DOC'
+                        if rule_type == 'document'
+                        else 'RESPONSE_FILE'
+                    ),
+                )
+            )
+
+        created_count += 1
+
+    return created_count
 
 
 def _build_supplier_source_uid_for_inbox_email(
@@ -1897,8 +2044,8 @@ async def _process_document(
         ],
         'status': 'pending_manual_review',
         'note': (
-            'Документ готов к привязке к поступлению. '
-            'Откройте раздел "Поступления" для оформления.'
+            'Документ готов к ручному оформлению. '
+            'Откройте раздел "Документы → Входящие".'
         ),
     }
 
@@ -1913,7 +2060,8 @@ async def _process_document(
                 f'Тема: {inbox_email.subject}\n'
                 f'Вложений: {len(inbox_email.attachment_info or [])}\n'
                 + (f'Номер документа: {doc_number}\n' if doc_number else '')
-                + 'Требует ручного оформления в разделе "Поступления".'
+                + 'Требует ручного оформления в разделе '
+                '"Документы → Входящие".'
             ),
             level='info',
         )
@@ -2093,6 +2241,7 @@ async def setup_email_rule(
          в реальных таблицах системы)
       2. Сохраняет EmailRulePattern для будущей авто-разметки
       3. Запускает обработку письма по выбранному правилу
+         (или ставит в очередь для тяжёлых сценариев)
 
     Благодаря шагу 1 будущие письма от того же отправителя будут
     auto-detected через _detect_rule_from_existing_configs
@@ -2105,6 +2254,8 @@ async def setup_email_rule(
         raise ValueError(f'InboxEmail id={email_id} не найдено')
 
     configs_set: list[dict] = []
+    supplier_registry_provider_id: Optional[int] = None
+    supplier_registry_config_ids: list[int] = []
 
     PROVIDER_RULES = {
         'price_list',
@@ -2170,6 +2321,7 @@ async def setup_email_rule(
                 provider_id=provider_config.provider_id, session=session
             )
             if provider:
+                supplier_registry_provider_id = int(provider.id)
                 mailbox_account_id = (
                     int(inbox_email.email_account_id)
                     if inbox_email.email_account_id is not None
@@ -2401,13 +2553,22 @@ async def setup_email_rule(
                     if rule_type != 'order_reply':
                         response_type = None
 
-                    def _sr_col(v):
-                        return int(v) if v is not None else None
+                    def _sr_one_based_col(v):
+                        if v is None or v == '':
+                            return None
+                        parsed = int(v)
+                        if parsed < 1:
+                            raise ValueError(
+                                'Номера колонок и строк должны быть >= 1'
+                            )
+                        return parsed
 
                     numeric_col_fields = (
                         'start_row', 'oem_col', 'qty_col', 'price_col',
                         'brand_col', 'name_col', 'status_col', 'comment_col',
                         'document_number_col', 'document_date_col',
+                        'gtd_col', 'country_code_col', 'country_name_col',
+                        'total_price_with_vat_col',
                     )
                     passthrough_fields = (
                         'fixed_brand_name',
@@ -2495,7 +2656,7 @@ async def setup_email_rule(
                                 for fld in numeric_col_fields:
                                     v = getattr(provider_config, fld, None)
                                     if v is not None:
-                                        sr_upd[fld] = _sr_col(v)
+                                        sr_upd[fld] = _sr_one_based_col(v)
                                 for fld in passthrough_fields:
                                     v = getattr(provider_config, fld, None)
                                     if v is None:
@@ -2526,9 +2687,9 @@ async def setup_email_rule(
                                 )
                             if sr_upd:
                                 await crud_supplier_response_config.update(
+                                    db_obj=sr_cfg,
+                                    obj_in=sr_upd,
                                     session=session,
-                                    config=sr_cfg,
-                                    update_data=sr_upd,
                                 )
                             configs_set.append({
                                 'entity_type': 'response_config',
@@ -2540,6 +2701,7 @@ async def setup_email_rule(
                                     f'обновлена.'
                                 ),
                             })
+                            supplier_registry_config_ids.append(int(sr_cfg.id))
 
                     elif cfg_mode == 'new':
                         cfg_name = (
@@ -2600,7 +2762,7 @@ async def setup_email_rule(
                             )
                             create_payload.update(
                                 {
-                                    fld: _sr_col(
+                                    fld: _sr_one_based_col(
                                         getattr(provider_config, fld, None)
                                     )
                                     for fld in numeric_col_fields
@@ -2636,6 +2798,7 @@ async def setup_email_rule(
                                 f'для «{provider.name}».'
                             ),
                         })
+                        supplier_registry_config_ids.append(int(created_sr.id))
 
         except ValueError:
             raise
@@ -2942,12 +3105,60 @@ async def setup_email_rule(
     # ------------------------------------------------------------------
     # 2. Назначаем правило + паттерн + запускаем обработку
     # ------------------------------------------------------------------
+    process_now = rule_type not in {
+        'customer_order',
+        'order_reply',
+        'document'
+    }
+    if rule_type in {'order_reply', 'document'}:
+        try:
+            created_registry_rows = await (
+                _create_supplier_response_registry_stub(
+                    session,
+                    inbox_email=inbox_email,
+                    rule_type=rule_type,
+                    provider_id=supplier_registry_provider_id,
+                    response_config_ids=supplier_registry_config_ids,
+                    reason_text=(
+                        'Назначено через Inbox. '
+                        'Обработка письма запустится по расписанию.'
+                    ),
+                )
+            )
+            if created_registry_rows > 0:
+                configs_set.append({
+                    'entity_type': 'response_config',
+                    'entity_id': (
+                        supplier_registry_config_ids[0]
+                        if supplier_registry_config_ids
+                        else supplier_registry_provider_id
+                    ),
+                    'entity_name': (
+                        'Supplier response registry'
+                    ),
+                    'action': 'queued',
+                    'note': (
+                        'Письмо сразу добавлено в реестр обработанных писем '
+                        f'({created_registry_rows} шт.) с причиной ожидания.'
+                    ),
+                })
+        except Exception as exc:
+            logger.warning(
+                'Не удалось создать служебную запись реестра '
+                'для inbox email id=%s: %s',
+                email_id,
+                exc,
+            )
+
     updated = await assign_rule(
         session,
         email_id=email_id,
         rule_type=rule_type,
         user_id=user_id,
         save_pattern=save_pattern,
+        process_now=process_now,
+        queued_note='Настройки приняты. '
+                    'Обработка письма запустится чуть позже.',
     )
 
     return {
