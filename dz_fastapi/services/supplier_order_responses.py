@@ -974,10 +974,14 @@ def _parse_excel_like_date(value: object) -> Optional[date]:
     return parsed_ts.date()
 
 
+_VAT_RATE = 0.22  # Standard VAT rate used across the system
+
+
 def _resolve_price_without_vat(
     total_price_with_vat: Optional[float],
     quantity: Optional[int],
 ) -> Optional[float]:
+    """Return per-unit price WITHOUT VAT given a total WITH VAT and quantity."""
     if total_price_with_vat is None:
         return None
     qty = _safe_int(quantity)
@@ -986,7 +990,7 @@ def _resolve_price_without_vat(
     total = float(total_price_with_vat)
     if total <= 0:
         return None
-    return round(total / qty, 2)
+    return round(total / qty / (1 + _VAT_RATE), 2)
 
 
 def _normalize_sender_emails(value: object) -> set[str]:
