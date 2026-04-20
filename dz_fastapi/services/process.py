@@ -1,6 +1,7 @@
 import asyncio
 import copy
 import logging
+import os
 import re
 from datetime import date, datetime
 from functools import partial
@@ -83,6 +84,43 @@ from dz_fastapi.services.watchlist import handle_provider_pricelist_watch
 logger = logging.getLogger('dz_fastapi')
 
 DEFAULT_CUSTOMER_PRICELIST_FILE_NAME = 'zzap_kross'
+DEFAULT_CUSTOMER_PRICELIST_OUTBOX_EMAIL = os.getenv(
+    'CUSTOMER_PRICELIST_OUTBOX_EMAIL',
+    'price@dragonzap.online',
+).strip().lower()
+
+
+def _is_pricelist_out_account_eligible(account) -> bool:
+    purposes = [str(p).lower() for p in (account.purposes or [])]
+    return (
+        account.is_active
+        and (
+            'prices_out' in purposes
+            or 'orders_out' in purposes
+            or 'orders_in' in purposes
+        )
+    )
+
+
+async def _get_preferred_pricelist_out_account(
+    session: AsyncSession,
+):
+    if not DEFAULT_CUSTOMER_PRICELIST_OUTBOX_EMAIL:
+        return None
+    account = await crud_email_account.get_by_email(
+        session,
+        DEFAULT_CUSTOMER_PRICELIST_OUTBOX_EMAIL,
+    )
+    if not account:
+        return None
+    if not _is_pricelist_out_account_eligible(account):
+        logger.warning(
+            'Preferred customer pricelist outbox is inactive '
+            'or missing required purpose: email=%s',
+            DEFAULT_CUSTOMER_PRICELIST_OUTBOX_EMAIL,
+        )
+        return None
+    return account
 
 
 def _resolve_customer_pricelist_export_format(
@@ -1208,24 +1246,26 @@ async def send_pricelist(
     # Send the email asynchronously
     logger.debug('Send the email asynchronously')
     loop = asyncio.get_running_loop()
-    account = None
-    if config.outgoing_email_account_id:
-        selected = await crud_email_account.get(
-            session, config.outgoing_email_account_id
+    account = await _get_preferred_pricelist_out_account(session)
+    if account:
+        logger.info(
+            'Using preferred outgoing email account for pricelist send: '
+            'config=%s account_id=%s email=%s',
+            config.id,
+            account.id,
+            account.email,
         )
-        if not selected:
-            logger.warning(
-                'Configured outgoing mailbox not found: id=%s',
-                config.outgoing_email_account_id,
+    if config.outgoing_email_account_id:
+        if account is None:
+            selected = await crud_email_account.get(
+                session, config.outgoing_email_account_id
             )
-        else:
-            purposes = [str(p).lower() for p in (selected.purposes or [])]
-            can_send_prices = (
-                'prices_out' in purposes
-                or 'orders_out' in purposes
-                or 'orders_in' in purposes
-            )
-            if selected.is_active and can_send_prices:
+            if not selected:
+                logger.warning(
+                    'Configured outgoing mailbox not found: id=%s',
+                    config.outgoing_email_account_id,
+                )
+            elif _is_pricelist_out_account_eligible(selected):
                 account = selected
             else:
                 logger.warning(

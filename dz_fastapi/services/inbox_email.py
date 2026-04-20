@@ -2238,8 +2238,25 @@ async def setup_email_rule(
                             uid_state.folder_last_uids = {}
                         session.add(uid_state)
 
-                    def _col(v):
-                        return int(v) if v is not None else None
+                    def _to_zero_based_col(v):
+                        if v is None or v == '':
+                            return None
+                        parsed = int(v)
+                        if parsed < 1:
+                            raise ValueError(
+                                'Номера колонок должны быть >= 1'
+                            )
+                        return parsed - 1
+
+                    def _to_zero_based_row(v):
+                        if v is None or v == '':
+                            return None
+                        parsed = int(v)
+                        if parsed < 1:
+                            raise ValueError(
+                                'Номер строки начала должен быть >= 1'
+                            )
+                        return parsed - 1
 
                     if cfg_mode == 'existing' and provider_config.config_id:
                         pl_cfg = await (
@@ -2276,7 +2293,10 @@ async def setup_email_rule(
                             ):
                                 v = getattr(provider_config, fld, None)
                                 if v is not None:
-                                    upd[fld] = _col(v)
+                                    if fld == 'start_row':
+                                        upd[fld] = _to_zero_based_row(v)
+                                    else:
+                                        upd[fld] = _to_zero_based_col(v)
                             if upd:
                                 await crud_provider_pricelist_config.update(
                                     db_obj=pl_cfg,
@@ -2306,19 +2326,22 @@ async def setup_email_rule(
                         qty = getattr(provider_config, 'qty_col', None)
                         prc = getattr(provider_config, 'price_col', None)
                         new_pl = ProviderPriceListConfigCreate(
-                            start_row=int(
-                                provider_config.start_row or 1
+                            start_row=(
+                                _to_zero_based_row(
+                                    provider_config.start_row or 1
+                                )
+                                or 0
                             ),
-                            oem_col=_col(oem),
-                            qty_col=_col(qty),
-                            price_col=_col(prc),
-                            brand_col=_col(
+                            oem_col=_to_zero_based_col(oem),
+                            qty_col=_to_zero_based_col(qty),
+                            price_col=_to_zero_based_col(prc),
+                            brand_col=_to_zero_based_col(
                                 getattr(provider_config, 'brand_col', None)
                             ),
-                            name_col=_col(
+                            name_col=_to_zero_based_col(
                                 getattr(provider_config, 'name_col', None)
                             ),
-                            multiplicity_col=_col(
+                            multiplicity_col=_to_zero_based_col(
                                 getattr(
                                     provider_config, 'multiplicity_col', None
                                 )

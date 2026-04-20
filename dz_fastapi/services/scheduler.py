@@ -389,19 +389,18 @@ async def _process_one(item, app: FastAPI, sem: asyncio.Semaphore):
                         f'Успешно обработан прайс для провайдера {provider.id}'
                     )
 
-                    if provider.name == PROVIDER_IN['name']:
-                        if ENABLE_LEGACY_ZZAP_AUTO_SEND:
-                            logger.info(
-                                'Legacy ZZAP auto-send is enabled; '
-                                'running send_price_list_task'
-                            )
-                            await send_price_list_task(app)
-                        else:
-                            logger.info(
-                                'Legacy ZZAP auto-send is disabled; '
-                                'skip send_price_list_task and use '
-                                'CustomerPriceListConfig schedule instead'
-                            )
+                    if (
+                        provider.id == 1
+                        or provider.name == PROVIDER_IN['name']
+                    ):
+                        logger.info(
+                            'Auto-send CUSTOMER_IN branch is enabled for '
+                            'provider_id=%s (%s); '
+                            'running send_price_list_task.',
+                            provider.id,
+                            provider.name,
+                        )
+                        await send_price_list_task(app)
             except Exception as e:
                 logger.error(
                     f'Ошибка обработки прайса для провайдера {provider.id}: '
