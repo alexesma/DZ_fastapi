@@ -496,6 +496,12 @@ class SupplierReceiptCandidateRow(BaseModel):
     last_receipt_number: Optional[str] = None
 
 
+class SupplierReceiptProviderOption(BaseModel):
+    provider_id: int
+    provider_name: Optional[str] = None
+    orders_count: int = 0
+
+
 class SupplierReceiptCreateItem(BaseModel):
     supplier_order_item_id: int
     received_quantity: int = Field(ge=0)

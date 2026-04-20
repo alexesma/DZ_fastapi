@@ -41,6 +41,7 @@ from dz_fastapi.schemas.customer_order import (CustomerOrderConfigCreate,
                                                SupplierReceiptItemUpdate,
                                                SupplierReceiptManualCreate,
                                                SupplierReceiptManualItem,
+                                               SupplierReceiptProviderOption,
                                                SupplierReceiptResponse,
                                                SupplierReceiptUpdate,
                                                SupplierResponseProcessResult)
@@ -57,10 +58,11 @@ from dz_fastapi.services.supplier_workflow import (
     add_supplier_receipt_items, create_manual_supplier_receipt,
     create_supplier_receipt, delete_supplier_receipt,
     delete_supplier_receipt_item, get_supplier_receipt_detail,
-    list_supplier_receipt_candidates, list_supplier_receipts,
-    post_supplier_receipt, serialize_stock_order, serialize_supplier_receipt,
-    unpost_supplier_receipt, update_stock_order_item_pick,
-    update_supplier_receipt, update_supplier_receipt_item)
+    list_supplier_receipt_candidates, list_supplier_receipt_provider_options,
+    list_supplier_receipts, post_supplier_receipt, serialize_stock_order,
+    serialize_supplier_receipt, unpost_supplier_receipt,
+    update_stock_order_item_pick, update_supplier_receipt,
+    update_supplier_receipt_item)
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -1112,6 +1114,25 @@ async def list_supplier_orders(
         reverse=True,
     )
     return results
+
+
+@router.get(
+    "/supplier-receipts/providers",
+    response_model=List[SupplierReceiptProviderOption],
+    status_code=status.HTTP_200_OK,
+)
+async def list_supplier_receipt_providers_endpoint(
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    rows = await list_supplier_receipt_provider_options(
+        session=session,
+        date_from=date_from,
+        date_to=date_to,
+    )
+    return [SupplierReceiptProviderOption.model_validate(row) for row in rows]
 
 
 @router.get(

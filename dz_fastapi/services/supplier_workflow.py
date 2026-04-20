@@ -11,9 +11,10 @@ from sqlalchemy.orm import joinedload, selectinload
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.customer_order import crud_supplier_order
 from dz_fastapi.models.partner import (STOCK_ORDER_STATUS, CustomerOrder,
-                                       CustomerOrderItem, StockOrder,
-                                       StockOrderItem, SupplierOrderItem,
-                                       SupplierReceipt, SupplierReceiptItem)
+                                       CustomerOrderItem, Provider, StockOrder,
+                                       StockOrderItem, SupplierOrder,
+                                       SupplierOrderItem, SupplierReceipt,
+                                       SupplierReceiptItem)
 from dz_fastapi.models.user import User
 from dz_fastapi.services.customer_orders import \
     try_finalize_customer_order_response
@@ -284,6 +285,59 @@ async def list_supplier_receipt_candidates(
         reverse=True,
     )
     return rows
+
+
+async def list_supplier_receipt_provider_options(
+    session: AsyncSession,
+    *,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+) -> list[dict]:
+    if date_from is None or date_to is None:
+        default_from, default_to = get_default_supplier_activity_window()
+        date_from = date_from or default_from
+        date_to = date_to or default_to
+
+    period_column = func.coalesce(
+        SupplierOrder.sent_at,
+        SupplierOrder.created_at,
+    )
+    stmt = (
+        select(
+            SupplierOrder.provider_id,
+            Provider.name,
+            func.count(SupplierOrder.id),
+        )
+        .join(Provider, Provider.id == SupplierOrder.provider_id)
+        .group_by(SupplierOrder.provider_id, Provider.name)
+        .order_by(Provider.name.asc(), SupplierOrder.provider_id.asc())
+    )
+    if date_from is not None:
+        stmt = stmt.where(
+            period_column >= datetime.combine(date_from, datetime.min.time())
+        )
+    if date_to is not None:
+        stmt = stmt.where(
+            period_column <= datetime.combine(date_to, datetime.max.time())
+        )
+
+    rows = (await session.execute(stmt)).all()
+    result: list[dict] = []
+    for provider_id, provider_name, orders_count in rows:
+        if provider_id is None:
+            continue
+        result.append(
+            {
+                'provider_id': int(provider_id),
+                'provider_name': (
+                    str(provider_name).strip()
+                    if provider_name not in (None, '')
+                    else f'#{int(provider_id)}'
+                ),
+                'orders_count': int(orders_count or 0),
+            }
+        )
+    return result
 
 
 async def list_supplier_receipts(

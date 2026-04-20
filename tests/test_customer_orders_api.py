@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -469,3 +469,52 @@ async def test_process_supplier_responses_endpoint(
     payload = response.json()
     assert payload["processed_messages"] == 2
     assert payload["updated_items"] == 2
+
+
+@pytest.mark.asyncio
+async def test_supplier_receipt_providers_endpoint_filters_by_period(
+    async_client,
+    test_session,
+    created_providers,
+):
+    await _create_user(
+        test_session,
+        "providers-filter@example.com",
+        UserRole.MANAGER,
+    )
+    await _login(async_client, "providers-filter@example.com")
+
+    now_dt = now_moscow()
+    recent_provider = created_providers[0]
+    old_provider = created_providers[1]
+
+    test_session.add(
+        SupplierOrder(
+            provider_id=recent_provider.id,
+            status=SUPPLIER_ORDER_STATUS.SENT,
+            created_at=now_dt,
+            sent_at=now_dt,
+        )
+    )
+    test_session.add(
+        SupplierOrder(
+            provider_id=old_provider.id,
+            status=SUPPLIER_ORDER_STATUS.SENT,
+            created_at=now_dt - timedelta(days=15),
+            sent_at=now_dt - timedelta(days=15),
+        )
+    )
+    await test_session.commit()
+
+    response = await async_client.get(
+        "/customer-orders/supplier-receipts/providers",
+        params={
+            "date_from": (now_dt.date() - timedelta(days=2)).isoformat(),
+            "date_to": now_dt.date().isoformat(),
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    provider_ids = {row["provider_id"] for row in payload}
+    assert recent_provider.id in provider_ids
+    assert old_provider.id not in provider_ids

@@ -149,6 +149,8 @@ _DEFAULT_CONFIRM_KEYWORDS = [
     "зарезервировано",
     "отгружаем",
     "собрали",
+    "готово",
+    "отказов нет",
     "да",
 ]
 _DEFAULT_REJECT_KEYWORDS = [
@@ -1387,9 +1389,11 @@ def _apply_global_text_decision_to_order(
                 supplier_order_id=int(order.id),
                 received_quantity=target_qty,
                 comment=order_item.response_comment,
+                # Use the order item's own price (= supplier price-list price).
+                # Text-type responses don't carry price information.
                 response_price=(
-                    float(order_item.response_price)
-                    if order_item.response_price is not None
+                    float(order_item.price)
+                    if order_item.price is not None
                     else None
                 ),
                 document_number=None,
@@ -1450,6 +1454,24 @@ def _allowed_attachment_extensions(file_format: object) -> set[str]:
     if normalized == "excel":
         return {"xlsx", "xls"}
     return {"xlsx", "xls", "csv"}
+
+
+_SUBJECT_PREFIX_RE = re.compile(
+    r"^(?:re|fwd?|ответ|пересылка|fw)\s*:\s*",
+    re.IGNORECASE,
+)
+
+
+def _strip_email_subject_prefix(subject: Optional[str]) -> str:
+    """Strip Re:/Fwd:/Ответ: prefixes and return the meaningful part."""
+    text = str(subject or "").strip()
+    # Remove all leading Re:/Fwd: etc. prefixes
+    while True:
+        cleaned = _SUBJECT_PREFIX_RE.sub("", text).strip()
+        if cleaned == text:
+            break
+        text = cleaned
+    return text
 
 
 def _strip_quoted_reply_content(text: str) -> str:
@@ -2145,9 +2167,10 @@ def _auto_confirm_unmentioned_order_items(
                 supplier_order_id=int(order.id),
                 received_quantity=expected_quantity,
                 comment=order_item.response_comment,
+                # Use the order item's own price (= supplier price-list price).
                 response_price=(
-                    float(order_item.response_price)
-                    if order_item.response_price is not None
+                    float(order_item.price)
+                    if order_item.price is not None
                     else None
                 ),
                 document_number=None,
@@ -2535,28 +2558,42 @@ def _build_applied_row_payload(
     row: ParsedSupplierResponseRow,
     matched_item: SupplierOrderItem,
 ) -> AppliedSupplierResponseRow:
-    resolved_qty = row.confirmed_quantity
-    if resolved_qty is None:
+    # For text decisions (ЕСТЬ/ОТКАЗ), quantity and price always come from
+    # the supplier order item, NOT from the email.  This prevents misreading
+    # quoted original-order tables (where customer-order numbers appear in the
+    # "comment" column and get confused with quantities).
+    if row.text_decision:
         if row.text_decision == "reject":
-            resolved_qty = 0
-        elif row.text_decision == "confirm":
-            resolved_qty = matched_item.confirmed_quantity
-    parsed_qty = _safe_int(resolved_qty)
-    if parsed_qty is None and resolved_qty not in (None, ""):
-        try:
-            parsed_qty = int(float(resolved_qty))
-        except (TypeError, ValueError):
-            parsed_qty = None
-    if parsed_qty is None:
-        parsed_qty = 0
-    if parsed_qty < 0:
-        parsed_qty = 0
+            parsed_qty = 0
+        else:  # "confirm"
+            parsed_qty = max(int(matched_item.quantity or 0), 0)
+        # Price: use the order item's own price
+        # (= price from supplier price list)
+        receipt_price = (
+            float(
+                matched_item.price
+            ) if matched_item.price is not None else None
+        )
+    else:
+        resolved_qty = row.confirmed_quantity
+        parsed_qty = _safe_int(resolved_qty)
+        if parsed_qty is None and resolved_qty not in (None, ""):
+            try:
+                parsed_qty = int(float(resolved_qty))
+            except (TypeError, ValueError):
+                parsed_qty = None
+        if parsed_qty is None:
+            parsed_qty = 0
+        if parsed_qty < 0:
+            parsed_qty = 0
+        receipt_price = row.response_price
+
     return AppliedSupplierResponseRow(
         supplier_order_item_id=int(matched_item.id),
         supplier_order_id=int(matched_item.supplier_order_id),
         received_quantity=parsed_qty,
         comment=row.response_comment or matched_item.response_comment,
-        response_price=row.response_price,
+        response_price=receipt_price,
         document_number=row.document_number,
         document_date=row.document_date,
         gtd_code=row.gtd_code,
@@ -2574,20 +2611,31 @@ def _apply_row_to_item(
     default_normalized_status: Optional[str],
 ) -> bool:
     item_changed = False
-    next_confirmed_quantity = row.confirmed_quantity
-    if next_confirmed_quantity is None:
+
+    # For text decisions (ЕСТЬ/ОТКАЗ), quantity always comes from the order
+    # item — never from email parsing.  This avoids misreading quoted tables
+    # where customer order numbers appear in adjacent columns and get confused
+    # with quantities.
+    if row.text_decision:
         if row.text_decision == "reject":
             next_confirmed_quantity = 0
-        elif row.text_decision == "confirm":
+        else:  # "confirm"
             next_confirmed_quantity = matched_item.quantity
+    else:
+        next_confirmed_quantity = row.confirmed_quantity
+
     if (
         next_confirmed_quantity is not None
         and matched_item.confirmed_quantity != next_confirmed_quantity
     ):
         matched_item.confirmed_quantity = next_confirmed_quantity
         item_changed = True
+
+    # For text decisions don't update response_price on the order item —
+    # the receipt will use the order item's own price (= supplier price list).
     if (
         row.response_price is not None
+        and not row.text_decision
         and matched_item.response_price != row.response_price
     ):
         matched_item.response_price = row.response_price
@@ -4318,8 +4366,15 @@ async def process_supplier_response_messages(
                 # the supplier's own response text (e.g. "ЕСТЬ"), not the
                 # mirrored original order that was forwarded to them.
                 response_only_text = _strip_quoted_reply_content(message_text)
+                # Prepend the subject line so decisions written there
+                # (e.g. "Re: Заказ / отказ FZ01-19-241" or
+                # "Re: Заказ / отказов нет") are also parsed.
+                subject_stripped = _strip_email_subject_prefix(subject)
+                response_text_with_subject = "\n".join(
+                    s for s in [subject_stripped, response_only_text] if s
+                )
                 parsed_text = _parse_supplier_text_response(
-                    response_only_text,
+                    response_text_with_subject,
                     value_after_article_type=value_after_article_type,
                     confirm_keywords=confirm_keywords,
                     reject_keywords=reject_keywords,
@@ -4395,7 +4450,7 @@ async def process_supplier_response_messages(
                         global_decision,
                         global_decision_token,
                     ) = _detect_global_text_decision(
-                        response_only_text,
+                        response_text_with_subject,
                         confirm_keywords=confirm_keywords,
                         reject_keywords=reject_keywords,
                     )
