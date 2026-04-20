@@ -1013,28 +1013,27 @@ async def list_supplier_orders(
             if item.price is not None:
                 price_value = _money(item.price)
             else:
+                # Fallback to matched_price (supplier price list price),
+                # never to requested_price which is the customer's price
                 price_value = _money(
-                    order_item.requested_price
-                    if order_item and order_item.requested_price is not None
-                    else (order_item.matched_price if order_item else None)
+                    order_item.matched_price if order_item else None
                 )
             supplier_sum += Decimal(item.quantity) * price_value
 
+        # "Сумма отказа" = what the supplier confirmed they CANNOT deliver.
+        # Only counted when the supplier has actually responded (confirmed_quantity set).
+        # A brand-new order with no supplier response will always show 0.
         rejected_sum = Decimal("0")
-        for customer_order in customer_orders.values():
-            for item in customer_order.items or []:
-                if item.status != CUSTOMER_ORDER_ITEM_STATUS.REJECTED:
-                    continue
-                price = (
-                    item.requested_price
-                    if item.requested_price is not None
-                    else item.matched_price
-                )
-                price_value = _money(price)
-                reject_qty = int(item.reject_qty or 0)
-                if reject_qty == 0:
-                    reject_qty = int(item.requested_qty or 0)
-                rejected_sum += Decimal(reject_qty) * price_value
+        for item in order.items or []:
+            if item.confirmed_quantity is None:
+                # No supplier response yet — not a refusal
+                continue
+            ordered_qty = int(item.quantity or 0)
+            confirmed_qty = int(item.confirmed_quantity)
+            rejected_qty = max(ordered_qty - confirmed_qty, 0)
+            if rejected_qty > 0:
+                price_value = _money(item.response_price or item.price)
+                rejected_sum += Decimal(rejected_qty) * price_value
 
         total_sum = supplier_sum
         rejected_pct = (
