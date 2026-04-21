@@ -454,24 +454,6 @@ async def test_process_supplier_response_messages_updates_confirmed_quantities(
         fake_fetch_messages,
     )
     monkeypatch.setattr(
-        "dz_fastapi.services.supplier_order_responses._detect_supplier_status",
-        lambda _subject, _body_preview: raw_status,
-    )
-    monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_parse_supplier_text_response"
-        ),
-        lambda *_args, **_kwargs: SimpleNamespace(rows=[], unresolved=[]),
-    )
-    monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_detect_global_text_decision"
-        ),
-        lambda *_args, **_kwargs: (None, None),
-    )
-    monkeypatch.setattr(
         "dz_fastapi.services.supplier_order_responses.SUPPLIER_RESPONSE_DIR",
         str(tmp_path),
     )
@@ -1729,6 +1711,24 @@ async def test_process_supplier_response_messages_records_unmapped_status(
             "_fetch_supplier_response_messages"
         ),
         fake_fetch_messages,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.supplier_order_responses._detect_supplier_status",
+        lambda _subject, _body_preview: raw_status,
+    )
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_parse_supplier_text_response"
+        ),
+        lambda *_args, **_kwargs: SimpleNamespace(rows=[], unresolved=[]),
+    )
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_detect_global_text_decision"
+        ),
+        lambda *_args, **_kwargs: (None, None),
     )
     monkeypatch.setattr(
         "dz_fastapi.services.supplier_order_responses.SUPPLIER_RESPONSE_DIR",
