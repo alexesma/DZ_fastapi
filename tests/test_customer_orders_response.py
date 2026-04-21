@@ -1684,13 +1684,15 @@ async def test_process_supplier_response_messages_records_unmapped_status(
     test_session.add(order)
     await test_session.commit()
 
+    raw_status = f"zz_unmapped_status_{order.id}_ci"
+
     async def fake_fetch_messages(session, *, date_from, date_to=None):
         return [
             (
                 SimpleNamespace(
                     from_="supplier@example.com",
-                    subject=f"Заказ поставщику #{order.id} manual review",
-                    text="manual review",
+                    subject=f"Заказ поставщику #{order.id} {raw_status}",
+                    text=raw_status,
                     html=None,
                     attachments=[],
                     received_at=None,
@@ -1717,17 +1719,34 @@ async def test_process_supplier_response_messages_records_unmapped_status(
 
     result = await process_supplier_response_messages(test_session)
 
-    row = (
+    message_row = (
         await test_session.execute(
-            select(ExternalStatusUnmapped).where(
-                ExternalStatusUnmapped.source_key
-                == EXTERNAL_STATUS_SOURCE_SUPPLIER_EMAIL
+            select(SupplierOrderMessage).where(
+                SupplierOrderMessage.source_message_id == "supplier-msg-2"
             )
         )
     ).scalar_one()
+    rows = (
+        await test_session.execute(
+            select(ExternalStatusUnmapped).where(
+                ExternalStatusUnmapped.source_key
+                == EXTERNAL_STATUS_SOURCE_SUPPLIER_EMAIL,
+                ExternalStatusUnmapped.provider_id == provider.id,
+            )
+        )
+    ).scalars().all()
+    row = next(
+        (
+            candidate for candidate in rows
+            if (candidate.sample_payload or {}).get("supplier_message_id")
+            == message_row.id
+        ),
+        None,
+    )
 
     assert result["processed_messages"] == 1
     assert result["unmapped_statuses"] == 1
+    assert row is not None
     assert row.sample_payload["supplier_order_id"] == order.id
 
 
