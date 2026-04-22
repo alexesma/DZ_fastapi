@@ -626,6 +626,7 @@ class CustomerOrderConfig(Base):
     email_account_id = Column(
         Integer, ForeignKey('emailaccount.id'), nullable=True
     )
+    email_account_ids = Column(JSON, default=[])
 
     pricelist_config_id = Column(
         Integer, ForeignKey('customerpricelistconfig.id'), nullable=True

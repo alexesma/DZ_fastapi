@@ -53,3 +53,21 @@ def test_customer_order_config_response_serializes_columns_to_one_based():
     assert data['qty_col'] == 8
     assert data['price_col'] == 6
     assert data['ship_price_col'] == 7
+
+
+def test_customer_order_config_create_normalizes_email_account_ids():
+    payload = CustomerOrderConfigCreate(
+        customer_id=1,
+        order_emails=['info@example.com'],
+        email_account_ids=[3, '5', 3],
+        oem_col=3,
+        brand_col=2,
+        qty_col=8,
+    )
+
+    assert payload.email_account_ids == [3, 5]
+
+
+def test_customer_order_config_update_null_email_account_ids_becomes_empty():
+    payload = CustomerOrderConfigUpdate(email_account_ids=None)
+    assert payload.email_account_ids == []

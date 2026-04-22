@@ -17,6 +17,41 @@ from dz_fastapi.models.partner import (Customer, CustomerOrder,
 logger = logging.getLogger('dz_fastapi')
 
 
+def _normalize_email_account_ids(values) -> tuple[int, ...]:
+    if not values:
+        return tuple()
+    result: list[int] = []
+    seen: set[int] = set()
+    for value in values:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            continue
+        if parsed < 1 or parsed in seen:
+            continue
+        seen.add(parsed)
+        result.append(parsed)
+    return tuple(result)
+
+
+def _effective_order_mailbox_scope(
+    config: CustomerOrderConfig,
+) -> tuple[int, ...]:
+    scoped_ids = _normalize_email_account_ids(
+        getattr(config, 'email_account_ids', None)
+    )
+    if scoped_ids:
+        return scoped_ids
+    account_id = getattr(config, 'email_account_id', None)
+    if account_id is None:
+        return tuple()
+    try:
+        parsed = int(account_id)
+    except (TypeError, ValueError):
+        return tuple()
+    return (parsed,) if parsed > 0 else tuple()
+
+
 class CRUDCustomerOrderConfig:
     async def get_by_id(
         self, session: AsyncSession, config_id: int
@@ -81,13 +116,11 @@ class CRUDCustomerOrderConfig:
         config: CustomerOrderConfig,
         data: dict,
     ) -> CustomerOrderConfig:
-        should_reset_last_uid = (
-            'email_account_id' in data
-            and data.get('email_account_id') != config.email_account_id
-        )
+        previous_scope = _effective_order_mailbox_scope(config)
         for key, value in data.items():
             setattr(config, key, value)
-        if should_reset_last_uid:
+        new_scope = _effective_order_mailbox_scope(config)
+        if new_scope != previous_scope:
             config.last_uid = 0
         await session.commit()
         await session.refresh(config)
@@ -112,13 +145,11 @@ class CRUDCustomerOrderConfig:
             config = CustomerOrderConfig(customer_id=customer_id, **data)
             session.add(config)
         else:
-            should_reset_last_uid = (
-                'email_account_id' in data
-                and data.get('email_account_id') != config.email_account_id
-            )
+            previous_scope = _effective_order_mailbox_scope(config)
             for key, value in data.items():
                 setattr(config, key, value)
-            if should_reset_last_uid:
+            new_scope = _effective_order_mailbox_scope(config)
+            if new_scope != previous_scope:
                 config.last_uid = 0
         await session.commit()
         await session.refresh(config)

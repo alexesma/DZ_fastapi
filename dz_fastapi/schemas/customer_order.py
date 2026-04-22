@@ -41,6 +41,33 @@ def _to_one_based_column(value: int | None) -> int | None:
     return int(value) + 1
 
 
+def _normalize_email_account_ids(
+    value: list[int] | tuple[int, ...] | set[int] | int | str | None,
+) -> list[int]:
+    if value in (None, ""):
+        return []
+    if isinstance(value, str):
+        raw_values = value.split(",")
+    elif isinstance(value, (list, tuple, set)):
+        raw_values = list(value)
+    else:
+        raw_values = [value]
+
+    result: list[int] = []
+    seen: set[int] = set()
+    for raw in raw_values:
+        if raw in (None, ""):
+            continue
+        parsed = int(raw)
+        if parsed < 1:
+            raise ValueError("email_account_ids must contain positive ids")
+        if parsed in seen:
+            continue
+        seen.add(parsed)
+        result.append(parsed)
+    return result
+
+
 class CustomerOrderConfigBase(BaseModel):
     order_email: Optional[EmailStr] = None
     order_emails: List[EmailStr] = Field(default_factory=list)
@@ -48,6 +75,7 @@ class CustomerOrderConfigBase(BaseModel):
     order_filename_pattern: Optional[str] = None
     order_reply_emails: List[EmailStr] = Field(default_factory=list)
     email_account_id: Optional[int] = None
+    email_account_ids: List[int] = Field(default_factory=list)
     pricelist_config_id: Optional[int] = None
 
     order_start_row: int = 1
@@ -89,6 +117,10 @@ class CustomerOrderConfigBase(BaseModel):
             return None
         return v
 
+    @field_validator("email_account_ids", mode="before")
+    def normalize_email_account_ids(cls, value):
+        return _normalize_email_account_ids(value)
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -107,6 +139,7 @@ class CustomerOrderConfigUpdate(BaseModel):
     order_filename_pattern: Optional[str] = None
     order_reply_emails: Optional[List[EmailStr]] = None
     email_account_id: Optional[int] = None
+    email_account_ids: Optional[List[int]] = None
     pricelist_config_id: Optional[int] = None
 
     order_start_row: Optional[int] = None
@@ -151,6 +184,10 @@ class CustomerOrderConfigUpdate(BaseModel):
         if v == "":
             return None
         return v
+
+    @field_validator("email_account_ids", mode="before")
+    def normalize_email_account_ids(cls, value):
+        return _normalize_email_account_ids(value)
 
     @field_validator(*ORDER_CONFIG_COLUMN_FIELDS, mode="before")
     def columns_to_zero_based(cls, value):

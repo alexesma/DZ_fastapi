@@ -502,17 +502,62 @@ def _normalize_email_list(values: Optional[List[str]]) -> List[str]:
     return [str(v).strip().lower() for v in values if str(v).strip()]
 
 
+def _normalize_email_account_ids(values) -> list[int]:
+    if not values:
+        return []
+    result: list[int] = []
+    seen: set[int] = set()
+    for value in values:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            continue
+        if parsed < 1 or parsed in seen:
+            continue
+        seen.add(parsed)
+        result.append(parsed)
+    return result
+
+
+def _get_config_email_account_ids(config) -> list[int]:
+    scoped_ids = _normalize_email_account_ids(
+        getattr(config, 'email_account_ids', None)
+    )
+    if scoped_ids:
+        return scoped_ids
+    account_id = getattr(config, 'email_account_id', None)
+    if account_id is None:
+        return []
+    try:
+        parsed = int(account_id)
+    except (TypeError, ValueError):
+        return []
+    return [parsed] if parsed > 0 else []
+
+
+def _config_has_email_account_scope(config) -> bool:
+    return bool(_get_config_email_account_ids(config))
+
+
+def _config_uses_multiple_email_accounts(config) -> bool:
+    return len(_get_config_email_account_ids(config)) > 1
+
+
 def _pick_configs_for_account(configs, account_id: Optional[int]):
     if not configs:
         return []
     if account_id is not None:
         matched = [
-            cfg for cfg in configs if cfg.email_account_id == account_id
+            cfg
+            for cfg in configs
+            if account_id in _get_config_email_account_ids(cfg)
         ]
         if matched:
             return matched
-        return [cfg for cfg in configs if cfg.email_account_id is None]
-    return [cfg for cfg in configs if cfg.email_account_id is None]
+        return [
+            cfg for cfg in configs if not _config_has_email_account_scope(cfg)
+        ]
+    return [cfg for cfg in configs if not _config_has_email_account_scope(cfg)]
 
 
 def _filter_messages_by_senders(
@@ -1674,14 +1719,29 @@ def _advance_config_last_uid(
     config: CustomerOrderConfig,
     uid: Optional[object],
     folder_name: Optional[str] = None,
+    account_id: Optional[int] = None,
 ) -> bool:
     msg_uid_int = _safe_uid_as_int(uid)
     if msg_uid_int is None:
         return False
     config.last_uid = max(int(config.last_uid or 0), msg_uid_int)
     if folder_name:
+        normalized_folder = normalize_imap_folder(folder_name)
         folder_uids = dict(config.folder_last_uids or {})
-        folder_uids[normalize_imap_folder(folder_name)] = msg_uid_int
+        parsed_account_id: Optional[int]
+        try:
+            parsed_account_id = (
+                int(account_id) if account_id is not None else None
+            )
+        except (TypeError, ValueError):
+            parsed_account_id = None
+        if parsed_account_id and parsed_account_id > 0:
+            scoped_key = f'{parsed_account_id}:{normalized_folder}'
+            folder_uids[scoped_key] = msg_uid_int
+            if not _config_uses_multiple_email_accounts(config):
+                folder_uids[normalized_folder] = msg_uid_int
+        else:
+            folder_uids[normalized_folder] = msg_uid_int
         config.folder_last_uids = folder_uids
     return True
 
@@ -1689,10 +1749,29 @@ def _advance_config_last_uid(
 def _get_config_last_uid(
     config: CustomerOrderConfig,
     folder_name: Optional[str] = None,
+    account_id: Optional[int] = None,
 ) -> int:
     if folder_name:
         folder_uids = dict(config.folder_last_uids or {})
-        folder_uid = folder_uids.get(normalize_imap_folder(folder_name))
+        normalized_folder = normalize_imap_folder(folder_name)
+        parsed_account_id: Optional[int]
+        try:
+            parsed_account_id = (
+                int(account_id) if account_id is not None else None
+            )
+        except (TypeError, ValueError):
+            parsed_account_id = None
+        if parsed_account_id and parsed_account_id > 0:
+            scoped_key = f'{parsed_account_id}:{normalized_folder}'
+            scoped_uid = folder_uids.get(scoped_key)
+            if scoped_uid is not None:
+                try:
+                    return int(scoped_uid)
+                except (TypeError, ValueError):
+                    pass
+            if _config_uses_multiple_email_accounts(config):
+                return 0
+        folder_uid = folder_uids.get(normalized_folder)
         if folder_uid is not None:
             try:
                 return int(folder_uid)
@@ -2785,6 +2864,7 @@ def _apply_matched_email_state_for_configs(
     msg,
     inbox_account,
 ) -> None:
+    account_id = inbox_account.id if inbox_account else None
     seen_ids: set[int] = set()
     for config in configs:
         config_id = int(getattr(config, 'id', 0) or 0)
@@ -2796,6 +2876,7 @@ def _apply_matched_email_state_for_configs(
             config,
             getattr(msg, 'uid', None),
             getattr(msg, 'folder_name', None),
+            account_id,
         )
         session.add(config)
 
@@ -3432,11 +3513,9 @@ async def process_customer_orders(
         logger.info('No active customer order configs found.')
         return
 
-    specific_account_ids = {
-        cfg.email_account_id
-        for cfg in configs
-        if cfg.email_account_id is not None
-    }
+    specific_account_ids: set[int] = set()
+    for cfg in configs:
+        specific_account_ids.update(_get_config_email_account_ids(cfg))
     if order_accounts and specific_account_ids:
         order_accounts = [
             account
@@ -3453,20 +3532,23 @@ async def process_customer_orders(
         emails = _normalize_email_list(config.order_emails)
         if config.order_email:
             emails.append(config.order_email.lower())
+        config_account_ids = _get_config_email_account_ids(config)
         for email in emails:
             config_by_email.setdefault(email, []).append(config)
-            if config.email_account_id is None:
+            if not config_account_ids:
                 global_sender_filter.add(email)
             else:
-                account_sender_filter.setdefault(
-                    int(config.email_account_id), set()
-                ).add(email)
-        if config.email_account_id is None:
+                for account_id in config_account_ids:
+                    account_sender_filter.setdefault(
+                        account_id, set()
+                    ).add(email)
+        if not config_account_ids:
             global_configs_for_uid.append(config)
         else:
-            account_configs_for_uid.setdefault(
-                int(config.email_account_id), []
-            ).append(config)
+            for account_id in config_account_ids:
+                account_configs_for_uid.setdefault(account_id, []).append(
+                    config
+                )
 
     # Для автоматического шедулера ускоряем IMAP-запросы по UID.
     # В ручных запусках (customer_id/config_id) сохраняем старую
@@ -3525,7 +3607,11 @@ async def process_customer_orders(
                     for cfg in uid_configs:
                         floor_uid = max(
                             floor_uid,
-                            _get_config_last_uid(cfg, normalized_folder),
+                            _get_config_last_uid(
+                                cfg,
+                                normalized_folder,
+                                account_id=account.id,
+                            ),
                         )
                     if floor_uid > 0:
                         folder_uid_floor[folder] = floor_uid
@@ -3751,6 +3837,7 @@ async def process_customer_orders(
                 folder_last_uid = _get_config_last_uid(
                     candidate,
                     getattr(msg, 'folder_name', None),
+                    account_id=account_id,
                 )
                 if (
                     msg_uid_int is not None
@@ -4451,13 +4538,42 @@ async def update_customer_order_item_manual(
             session.add(supplier_order)
             await session.flush()
 
+    # Resolve supplier price: always use the supplier's own price list price,
+    # never fall back to the customer's requested_price (that is the customer-
+    # facing sale price, not what we pay the supplier).
+    # Priority:
+    #   1. Current supplier's price list (PriceListAutoPartAssociation)
+    #   2. matched_price already on the item
+    #      (may be from a previous pricelist run)
+    #   3. None (leave blank rather than use customer price)
+    supplier_price: Optional[float] = None
+    if item.autopart_id and supplier_id:
+        price_stmt = (
+            select(PriceListAutoPartAssociation.price)
+            .join(PriceList)
+            .where(
+                PriceList.provider_id == supplier_id,
+                PriceListAutoPartAssociation.autopart_id == item.autopart_id,
+            )
+            .order_by(
+                PriceList.date.desc().nullslast(),
+                PriceList.id.desc(),
+            )
+            .limit(1)
+        )
+        supplier_price = (
+            await session.execute(price_stmt)
+        ).scalar_one_or_none()
+    if not supplier_price and item.matched_price:
+        supplier_price = float(item.matched_price)
+
     if (
         existing_item
         and supplier_order
         and supplier_order.id == existing_order.id
     ):
         existing_item.quantity = item.requested_qty
-        existing_item.price = item.matched_price or item.requested_price
+        existing_item.price = supplier_price
         existing_item.autopart_id = item.autopart_id
     else:
         session.add(
@@ -4469,7 +4585,7 @@ async def update_customer_order_item_manual(
                 brand_name=item.brand,
                 autopart_name=item.name,
                 quantity=item.requested_qty,
-                price=item.matched_price or item.requested_price,
+                price=supplier_price,
             )
         )
 
