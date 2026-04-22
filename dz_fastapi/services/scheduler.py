@@ -49,12 +49,9 @@ from dz_fastapi.services.monitoring import (build_snapshot_payload,
 from dz_fastapi.services.notifications import (create_admin_notifications,
                                                notify_admin_all)
 from dz_fastapi.services.order_timing import (
-    OUTSIDE_WINDOW_SLOW_SECONDS,
-    get_active_supplier_response_provider_ids,
-    get_overdue_customer_windows,
-    get_overdue_supplier_responses,
-    is_in_any_order_window,
-)
+    OUTSIDE_WINDOW_SLOW_SECONDS, get_active_supplier_response_provider_ids,
+    get_overdue_customer_windows, get_overdue_supplier_responses,
+    is_in_any_order_window)
 from dz_fastapi.services.placed_orders import (cleanup_old_tracking_history,
                                                sync_site_tracking_statuses)
 from dz_fastapi.services.price_control import run_price_control
@@ -532,7 +529,8 @@ async def download_customer_orders_task(app: FastAPI):
             )
             if not should_run:
                 return
-            # Smart window: aggressive polling in expected windows, slow otherwise
+            # Smart window: aggressive polling
+            # in expected windows, slow otherwise
             in_window = False
             try:
                 in_window = await is_in_any_order_window(session)
@@ -575,6 +573,24 @@ async def process_supplier_responses_task(app: FastAPI):
             )
             if not should_run:
                 return
+            # Smart window: aggressive polling only when supplier orders
+            # are within the expected response window (40 min – 2 h after sent).
+            # Outside that window — slow down to avoid unnecessary IMAP calls.
+            active_providers: list[int] = []
+            try:
+                active_providers = await get_active_supplier_response_provider_ids(session)
+            except Exception as win_exc:
+                logger.warning('Could not check supplier response window: %s', win_exc)
+            if not active_providers:
+                last_run = setting.last_run_at if setting else None
+                if last_run is not None:
+                    elapsed = (now_moscow() - last_run).total_seconds()
+                    if elapsed < OUTSIDE_WINDOW_SLOW_SECONDS:
+                        logger.debug(
+                            'No suppliers in response window, slow mode: elapsed=%.0fs',
+                            elapsed,
+                        )
+                        return
             summary = await process_supplier_response_messages(
                 session, file_payload_mode='responses'
             )
@@ -629,17 +645,20 @@ async def process_supplier_documents_task(app: FastAPI):
 async def check_order_timing_alerts_task(app: FastAPI):
     """
     Checks for:
-    1. Customers whose expected order window has passed without an order arriving.
+    1. Customers whose expected order
+    window has passed without an order arriving.
     2. Supplier orders that sent 2+ hours ago with no response received.
-    Sends AppNotification + Telegram for each issue (deduplicated by title per day).
+    Sends AppNotification + Telegram for
+    each issue (deduplicated by title per day).
     """
     logger.info('Starting check_order_timing_alerts_task')
     async_session_factory = app.state.session_factory
     async with async_session_factory() as session:
         try:
+            from sqlalchemy import func as _func
+
             from dz_fastapi.core.time import now_moscow as _now
             from dz_fastapi.models.notification import AppNotification
-            from sqlalchemy import func as _func
 
             today_str = _now().strftime('%Y-%m-%d')
 
