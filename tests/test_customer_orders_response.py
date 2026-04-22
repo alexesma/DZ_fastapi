@@ -170,6 +170,43 @@ def test_extract_supplier_order_id_from_alnum_code():
     )
 
 
+def test_strip_quoted_reply_content_handles_inline_dash_separator():
+    body = (
+        "90916-02778 ОТКАЗ ---------------- "
+        "Кому: avtek3915@yandex.ru "
+        "90916-02778 36863"
+    )
+
+    assert (
+        response_service._strip_quoted_reply_content(body)
+        == "90916-02778 ОТКАЗ"
+    )
+
+
+def test_parse_supplier_text_response_keeps_reject_for_duplicate_oem():
+    text = (
+        "90916-02778 ОТКАЗ "
+        "90916-02778 36863 "
+        "90311-50064 36863"
+    )
+
+    parsed = response_service._parse_supplier_text_response(
+        text,
+        value_after_article_type="both",
+        confirm_keywords=["есть", "да"],
+        reject_keywords=["нет", "отказ", "0"],
+    )
+    rows_by_oem = {
+        response_service._normalize_oem_key(row.oem_number): row
+        for row in parsed.rows
+    }
+    rejected = rows_by_oem["9091602778"]
+
+    assert rejected.text_decision == "reject"
+    assert rejected.confirmed_quantity == 0
+    assert rejected.response_status_raw == "ОТКАЗ"
+
+
 @pytest.mark.asyncio
 async def test_get_message_match_context_ignores_out_of_range_order_id(
     monkeypatch,
