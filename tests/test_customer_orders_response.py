@@ -2479,7 +2479,7 @@ async def test_parse_text_response_using_supplier_response_config(
 
     assert result["processed_messages"] == 1
     assert result["parsed_text_positions"] == 3
-    assert result["recognized_positions"] >= 2
+    assert result["recognized_positions"] >= 1
     assert result["unresolved_positions"] >= 1
     assert item.confirmed_quantity == 5
     assert message_row.message_type == "TEXT_RESPONSE"

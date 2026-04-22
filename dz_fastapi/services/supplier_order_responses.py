@@ -288,6 +288,7 @@ class ParsedSupplierResponseRow:
 class ParsedSupplierTextResponse:
     rows: list[ParsedSupplierResponseRow] = field(default_factory=list)
     unresolved: list[str] = field(default_factory=list)
+    parsed_positions: int = 0
 
 
 @dataclass(slots=True)
@@ -1230,10 +1231,20 @@ def _parse_text_value_after_article_window(
     confirm_keywords: set[str],
     reject_keywords: set[str],
 ) -> tuple[Optional[str], Optional[int], Optional[str]]:
-    end_index = min(len(tokens), start_index + 12)
-    if start_index >= end_index:
+    max_end = min(len(tokens), start_index + 12)
+    if start_index >= max_end:
         return None, None, None
-    window = tokens[start_index:end_index]
+    window: list[str] = []
+    for token_index in range(start_index, max_end):
+        token = tokens[token_index]
+        if (
+            token_index > start_index
+            and _ARTICLE_TOKEN_RE.fullmatch(token or "")
+        ):
+            break
+        window.append(token)
+    if not window:
+        return None, None, None
 
     if value_mode in {"text", "both"}:
         for token in window:
@@ -1340,6 +1351,7 @@ def _parse_supplier_text_response(
             response_status_raw=status_token,
             text_decision=decision,
         )
+        result.parsed_positions += 1
         oem_key = _normalize_oem_key(token)
         existing_index = rows_by_oem.get(oem_key)
         if existing_index is None:
@@ -2983,10 +2995,12 @@ def _build_full_document_items_payload(
     all_orders_by_id: dict[int, SupplierOrder],
     unmatched_rows: list[ParsedSupplierResponseRow],
 ) -> list[dict[str, object]]:
-    """Build a single flat items payload for a document receipt spanning all orders.
+    """Build a single flat items payload for a
+    document receipt spanning all orders.
 
     All parsed rows from the document are included:
-    - Matched rows → linked to supplier order items (supplier_order_item_id set).
+    - Matched rows → linked to supplier order items
+    (supplier_order_item_id set).
     - Unmatched rows → not linked to any order (supplier_order_item_id=None).
     """
     all_order_items: dict[int, SupplierOrderItem] = {
@@ -3053,6 +3067,48 @@ def _build_full_document_items_payload(
             }
         )
 
+    return payload
+
+
+def _build_document_items_payload_from_pending_orders(
+    *,
+    orders_by_id: dict[int, SupplierOrder],
+) -> list[dict[str, object]]:
+    payload: list[dict[str, object]] = []
+    for order in orders_by_id.values():
+        order_id = int(order.id)
+        for order_item in order.items or []:
+            expected_quantity = (
+                int(order_item.confirmed_quantity)
+                if order_item.confirmed_quantity is not None
+                else int(order_item.quantity or 0)
+            )
+            current_received = int(order_item.received_quantity or 0)
+            pending_quantity = max(expected_quantity - current_received, 0)
+            if pending_quantity <= 0:
+                continue
+            payload.append(
+                {
+                    "supplier_order_item_id": int(order_item.id),
+                    "supplier_order_id": order_id,
+                    "received_quantity": pending_quantity,
+                    "response_price": order_item.response_price,
+                    "total_price_with_vat": None,
+                    "comment": order_item.response_comment,
+                    "gtd_code": None,
+                    "country_code": None,
+                    "country_name": None,
+                    "oem_number": order_item.oem_number,
+                    "brand_name": order_item.brand_name,
+                    "autopart_name": order_item.autopart_name,
+                    "ordered_quantity": order_item.quantity,
+                    "confirmed_quantity": order_item.confirmed_quantity,
+                    "autopart_id": order_item.autopart_id,
+                    "customer_order_item_id": (
+                        order_item.customer_order_item_id
+                    ),
+                }
+            )
     return payload
 
 
@@ -3276,6 +3332,28 @@ async def _find_open_supplier_receipt(
         .where(
             SupplierReceipt.provider_id == provider_id,
             SupplierReceipt.posted_at.is_(None),
+        )
+        .order_by(SupplierReceipt.created_at.desc(), SupplierReceipt.id.desc())
+    )
+    return (await session.execute(stmt)).scalars().first()
+
+
+async def _find_open_supplier_receipt_for_order(
+    session: AsyncSession,
+    *,
+    provider_id: int,
+    order_id: int,
+) -> Optional[SupplierReceipt]:
+    stmt = (
+        select(SupplierReceipt)
+        .options(selectinload(SupplierReceipt.items))
+        .where(
+            SupplierReceipt.provider_id == provider_id,
+            SupplierReceipt.posted_at.is_(None),
+            or_(
+                SupplierReceipt.supplier_order_id == order_id,
+                SupplierReceipt.supplier_order_id.is_(None),
+            ),
         )
         .order_by(SupplierReceipt.created_at.desc(), SupplierReceipt.id.desc())
     )
@@ -4460,7 +4538,8 @@ async def process_supplier_response_messages(
                 list[ParsedSupplierResponseRow],
             ] = {}
             # Document-receipt accumulators: collect ALL rows from the document
-            # so one receipt can be created covering all orders + unmatched items.
+            # so one receipt can be created
+            # covering all orders + unmatched items.
             document_all_applied_rows_by_order: dict[
                 int,
                 list[AppliedSupplierResponseRow],
@@ -4800,7 +4879,9 @@ async def process_supplier_response_messages(
                                 [],
                             ).extend(rows)
                     stats.updated_items += updated_items
-                    stats.parsed_text_positions += len(parsed_text.rows)
+                    stats.parsed_text_positions += (
+                        parsed_text.parsed_positions
+                    )
                     stats.recognized_positions += matched_count
                     for unresolved_oem in unresolved_oems:
                         stats.add_unresolved(
@@ -5062,6 +5143,12 @@ async def process_supplier_response_messages(
                     all_orders_by_id=all_orders_for_doc,
                     unmatched_rows=document_all_unmatched_rows,
                 )
+                if not doc_items_payload and all_orders_for_doc:
+                    doc_items_payload = (
+                        _build_document_items_payload_from_pending_orders(
+                            orders_by_id=all_orders_for_doc,
+                        )
+                    )
                 # Extract document number / date from any matched applied row
                 all_applied_flat = [
                     row
@@ -5111,6 +5198,45 @@ async def process_supplier_response_messages(
                         stats.created_receipts += 1
                         stats.posted_receipts += 1
                         stats.receipt_items_added += added_items
+                        linked_items_payload = [
+                            payload
+                            for payload in doc_items_payload
+                            if payload.get("supplier_order_item_id")
+                            not in (None, "")
+                        ]
+                        if linked_items_payload and all_orders_for_doc:
+                            updated_draft_receipt_ids: set[int] = set()
+                            for matched_order in all_orders_for_doc.values():
+                                draft_receipt = (
+                                    await _find_open_supplier_receipt_for_order(
+                                        session,
+                                        provider_id=provider.id,
+                                        order_id=int(matched_order.id),
+                                    )
+                                )
+                                if draft_receipt is None:
+                                    continue
+                                (
+                                    updated_rows,
+                                    _draft_deleted,
+                                ) = await (
+                                    _consume_posted_quantities_from_open_draft(
+                                        session,
+                                        draft_receipt=draft_receipt,
+                                        order=matched_order,
+                                        linked_items_payload=(
+                                            linked_items_payload
+                                        ),
+                                    )
+                                )
+                                if updated_rows <= 0:
+                                    continue
+                                updated_draft_receipt_ids.add(
+                                    int(draft_receipt.id)
+                                )
+                            stats.updated_receipts += len(
+                                updated_draft_receipt_ids
+                            )
                         logger.info(
                             (
                                 "Auto-posted single document receipt "
