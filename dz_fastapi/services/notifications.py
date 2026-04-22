@@ -113,3 +113,40 @@ async def create_admin_notifications(
         link=link,
         commit=commit,
     )
+
+
+async def notify_admin_all(
+    session: AsyncSession,
+    *,
+    title: str,
+    message: str,
+    level: str = AppNotificationLevel.INFO,
+    link: str | None = None,
+    commit: bool = True,
+) -> list[AppNotification]:
+    notifications = await create_admin_notifications(
+        session,
+        title=title,
+        message=message,
+        level=level,
+        link=link,
+        commit=commit,
+    )
+    try:
+        from dz_fastapi.services.webchat import send_telegram_message
+
+        emoji = (
+            '🔴' if level == 'error'
+            else '🟡' if level == 'warning'
+            else '🔵'
+        )
+        tg_text = f'{emoji} {title}\n\n{message}'
+        if link:
+            tg_text += f'\n\n{link}'
+        await send_telegram_message(tg_text)
+    except Exception as tg_exc:
+        import logging as _logging
+        _logging.getLogger('dz_fastapi').warning(
+            'Telegram notification failed (non-fatal): %s', tg_exc
+        )
+    return notifications

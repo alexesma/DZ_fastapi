@@ -3898,6 +3898,7 @@ async def _load_supplier_response_configs(
     *,
     provider_id: Optional[int] = None,
     supplier_response_config_id: Optional[int] = None,
+    file_payload_mode: str = 'all',
 ) -> list[SupplierResponseConfig]:
     stmt = (
         select(SupplierResponseConfig)
@@ -3909,6 +3910,17 @@ async def _load_supplier_response_configs(
     if supplier_response_config_id is not None:
         stmt = stmt.where(
             SupplierResponseConfig.id == supplier_response_config_id
+        )
+    if file_payload_mode == 'responses':
+        stmt = stmt.where(
+            or_(
+                SupplierResponseConfig.file_payload_type == 'response',
+                SupplierResponseConfig.file_payload_type.is_(None),
+            )
+        )
+    elif file_payload_mode == 'documents':
+        stmt = stmt.where(
+            SupplierResponseConfig.file_payload_type == 'document'
         )
     stmt = stmt.order_by(SupplierResponseConfig.id.asc())
     return list((await session.execute(stmt)).scalars().all())
@@ -3930,6 +3942,7 @@ async def process_supplier_response_messages(
     supplier_response_config_id: Optional[int] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
+    file_payload_mode: str = 'all',
 ) -> dict[str, object]:
     lookback_days = None
     if date_from is None:
@@ -3952,6 +3965,7 @@ async def process_supplier_response_messages(
         session,
         provider_id=provider_id,
         supplier_response_config_id=supplier_response_config_id,
+        file_payload_mode=file_payload_mode,
     )
     configs_by_provider = _group_response_configs_by_provider(response_configs)
     selected_config = None

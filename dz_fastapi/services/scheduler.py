@@ -46,7 +46,15 @@ from dz_fastapi.services.inbox_email import (cleanup_inbox_emails,
                                              fetch_and_store_emails)
 from dz_fastapi.services.monitoring import (build_snapshot_payload,
                                             get_monitor_summary)
-from dz_fastapi.services.notifications import create_admin_notifications
+from dz_fastapi.services.notifications import (create_admin_notifications,
+                                               notify_admin_all)
+from dz_fastapi.services.order_timing import (
+    OUTSIDE_WINDOW_SLOW_SECONDS,
+    get_active_supplier_response_provider_ids,
+    get_overdue_customer_windows,
+    get_overdue_supplier_responses,
+    is_in_any_order_window,
+)
 from dz_fastapi.services.placed_orders import (cleanup_old_tracking_history,
                                                sync_site_tracking_statuses)
 from dz_fastapi.services.price_control import run_price_control
@@ -107,6 +115,13 @@ SUPPLIER_RESPONSES_CHECK_MINUTES = _env_int_with_min(
 )
 FETCH_INBOX_EMAILS_MINUTES = _env_int_with_min(
     'SCHED_FETCH_INBOX_EVERY_MINUTES', 30
+)
+SUPPLIER_DOCUMENTS_CHECK_MINUTES = _env_int_with_min(
+    'SCHED_SUPPLIER_DOCUMENTS_EVERY_MINUTES', 30
+)
+# How long to "slow poll" for orders when outside expected windows (minutes)
+ORDERS_SLOW_POLL_MINUTES = _env_int_with_min(
+    'SCHED_ORDERS_SLOW_POLL_MINUTES', 20, min_value=5, max_value=59
 )
 
 
@@ -202,6 +217,26 @@ def start_scheduler(app: FastAPI):
         name='Process supplier responses',
         minute=f'*/{SUPPLIER_RESPONSES_CHECK_MINUTES}',
         jitter=5,
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        func=process_supplier_documents_task,
+        trigger='cron',
+        args=[app],
+        id='process_supplier_documents',
+        name='Process supplier documents (УПД/накладные)',
+        minute=f'*/{SUPPLIER_DOCUMENTS_CHECK_MINUTES}',
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        func=check_order_timing_alerts_task,
+        trigger='cron',
+        args=[app],
+        id='check_order_timing_alerts',
+        name='Check missing orders and supplier responses',
+        minute='*/10',
         replace_existing=True,
     )
 
@@ -497,6 +532,22 @@ async def download_customer_orders_task(app: FastAPI):
             )
             if not should_run:
                 return
+            # Smart window: aggressive polling in expected windows, slow otherwise
+            in_window = False
+            try:
+                in_window = await is_in_any_order_window(session)
+            except Exception as win_exc:
+                logger.warning('Could not compute order windows: %s', win_exc)
+            if not in_window:
+                last_run = setting.last_run_at if setting else None
+                if last_run is not None:
+                    elapsed = (now_moscow() - last_run).total_seconds()
+                    if elapsed < OUTSIDE_WINDOW_SLOW_SECONDS:
+                        logger.debug(
+                            'Outside order windows, slow mode: elapsed=%.0fs',
+                            elapsed,
+                        )
+                        return
             await process_customer_orders(session)
             if setting:
                 await _mark_scheduler_ran(session, setting, now_moscow())
@@ -524,7 +575,9 @@ async def process_supplier_responses_task(app: FastAPI):
             )
             if not should_run:
                 return
-            summary = await process_supplier_response_messages(session)
+            summary = await process_supplier_response_messages(
+                session, file_payload_mode='responses'
+            )
             logger.info(
                 'Completed process_supplier_responses_task summary=%s',
                 summary,
@@ -544,6 +597,114 @@ async def process_supplier_responses_task(app: FastAPI):
                     'Ошибка при автоматической обработке ответов '
                     f'поставщиков.\nТекст ошибки: {e}'
                 ),
+            )
+
+
+async def process_supplier_documents_task(app: FastAPI):
+    logger.info('Starting process_supplier_documents_task')
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            summary = await process_supplier_response_messages(
+                session, file_payload_mode='documents'
+            )
+            logger.info(
+                'Completed process_supplier_documents_task summary=%s',
+                summary,
+            )
+        except Exception as e:
+            logger.error(
+                'Error processing supplier documents: %s', e, exc_info=True
+            )
+            await _notify_scheduler_issue(
+                session,
+                subject='Ошибка обработки документов поставщиков',
+                text=(
+                    'Ошибка при автоматической обработке документов '
+                    f'(УПД/накладных).\nТекст ошибки: {e}'
+                ),
+            )
+
+
+async def check_order_timing_alerts_task(app: FastAPI):
+    """
+    Checks for:
+    1. Customers whose expected order window has passed without an order arriving.
+    2. Supplier orders that sent 2+ hours ago with no response received.
+    Sends AppNotification + Telegram for each issue (deduplicated by title per day).
+    """
+    logger.info('Starting check_order_timing_alerts_task')
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            from dz_fastapi.core.time import now_moscow as _now
+            from dz_fastapi.models.notification import AppNotification
+            from sqlalchemy import func as _func
+
+            today_str = _now().strftime('%Y-%m-%d')
+
+            async def _already_notified(title: str) -> bool:
+                """Check if we already sent this notification today."""
+                stmt = (
+                    select(AppNotification.id)
+                    .where(
+                        AppNotification.title == title,
+                        _func.date(AppNotification.created_at) == today_str,
+                    )
+                    .limit(1)
+                )
+                return (
+                    await session.execute(stmt)
+                ).scalar_one_or_none() is not None
+
+            # --- Missing customer orders ---
+            missing_orders = await get_overdue_customer_windows(session)
+            for alert in missing_orders:
+                title = f'Заказ не получен: {alert.customer_name}'
+                if await _already_notified(title):
+                    continue
+                msg = (
+                    f'Клиент «{alert.customer_name}» обычно присылает заказ '
+                    f'с {alert.expected_start.strftime("%H:%M")} '
+                    f'до {alert.expected_end.strftime("%H:%M")}, '
+                    f'но заказ ещё не получен.'
+                )
+                await notify_admin_all(
+                    session,
+                    title=title,
+                    message=msg,
+                    level='warning',
+                    link='/orders',
+                    commit=False,
+                )
+            await session.commit()
+
+            # --- Missing supplier responses ---
+            missing_responses = await get_overdue_supplier_responses(session)
+            for alert in missing_responses:
+                title = f'Нет ответа от поставщика: {alert.provider_name}'
+                if await _already_notified(title):
+                    continue
+                msg = (
+                    f'Заказ #{alert.supplier_order_id} поставщику '
+                    f'«{alert.provider_name}» отправлен в '
+                    f'{alert.sent_at.strftime("%H:%M")}, '
+                    f'но ответ не получен до '
+                    f'{alert.window_ended_at.strftime("%H:%M")}.'
+                )
+                await notify_admin_all(
+                    session,
+                    title=title,
+                    message=msg,
+                    level='warning',
+                    link='/supplier-orders',
+                    commit=False,
+                )
+            await session.commit()
+
+        except Exception as e:
+            logger.error(
+                'Error in check_order_timing_alerts_task: %s', e, exc_info=True
             )
 
 
