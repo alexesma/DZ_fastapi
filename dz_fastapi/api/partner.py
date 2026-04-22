@@ -1029,36 +1029,6 @@ async def get_provider_pricelist_config(
     return ProviderPriceListConfigOut.model_validate(provider_config)
 
 
-_DOCUMENT_SPECIFIC_FIELDS = (
-    "document_number_col",
-    "document_date_col",
-    "document_number_cell",
-    "document_date_cell",
-    "document_meta_cell",
-    "total_price_with_vat_col",
-    "gtd_col",
-    "country_code_col",
-    "country_name_col",
-)
-
-
-def _auto_detect_file_payload_type(config_data: object) -> None:
-    """
-    Automatically set file_payload_type based on presence of document-specific
-    fields. If any document field is filled → 'document', else → 'response'.
-    This removes the need for manual selection in the UI.
-    """
-    response_type = str(getattr(config_data, 'response_type', '') or '').strip()
-    if response_type != 'file':
-        config_data.file_payload_type = 'response'
-        return
-    has_doc_fields = any(
-        getattr(config_data, field, None) not in (None, '', 0)
-        for field in _DOCUMENT_SPECIFIC_FIELDS
-    )
-    config_data.file_payload_type = 'document' if has_doc_fields else 'response'
-
-
 @router.post(
     '/providers/{provider_id}/supplier-response-config/',
     tags=['providers', 'supplier-response-config'],
@@ -1081,7 +1051,6 @@ async def create_supplier_response_config(
         session,
         config_in.inbox_email_account_id,
     )
-    _auto_detect_file_payload_type(config_in)
     created = await crud_supplier_response_config.create(
         provider_id=provider_id,
         config_in=config_in,
@@ -1123,7 +1092,6 @@ async def update_supplier_response_config(
             session,
             config_in.inbox_email_account_id,
         )
-    _auto_detect_file_payload_type(config_in)
     updated = await crud_supplier_response_config.update(
         db_obj=config,
         obj_in=config_in,
