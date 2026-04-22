@@ -663,11 +663,18 @@ async def check_order_timing_alerts_task(app: FastAPI):
                 title = f'Заказ не получен: {alert.customer_name}'
                 if await _already_notified(title):
                     continue
+                received = alert.received_count
+                expected = alert.expected_count
+                if received > 0:
+                    orders_txt = (
+                        f'получено {received} из {expected} заказов'
+                    )
+                else:
+                    orders_txt = 'заказы не получены'
                 msg = (
-                    f'Клиент «{alert.customer_name}» обычно присылает заказ '
-                    f'с {alert.expected_start.strftime("%H:%M")} '
-                    f'до {alert.expected_end.strftime("%H:%M")}, '
-                    f'но заказ ещё не получен.'
+                    f'Клиент «{alert.customer_name}» — {orders_txt}. '
+                    f'Окно: {alert.expected_start.strftime("%H:%M")}–'
+                    f'{alert.expected_end.strftime("%H:%M")}.'
                 )
                 await notify_admin_all(
                     session,
