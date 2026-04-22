@@ -382,7 +382,6 @@ async def get_today_order_windows_status(
     result = []
     for w in today_windows:
         window_end_dt = datetime.combine(today, w.window_end).replace(tzinfo=tz)
-        window_start_dt = datetime.combine(today, w.window_start).replace(tzinfo=tz)
 
         customer_orders = orders_today.get(w.customer_id, [])
         received_count = len(customer_orders)
@@ -422,7 +421,13 @@ async def get_today_order_windows_status(
         })
 
     # Sort: overdue first, grace, partial, pending, received
-    STATUS_ORDER = {'overdue': 0, 'grace': 1, 'partial': 2, 'pending': 3, 'received': 4}
+    STATUS_ORDER = {
+        'overdue': 0,
+        'grace': 1,
+        'partial': 2,
+        'pending': 3,
+        'received': 4
+    }
     result.sort(
         key=lambda x: (STATUS_ORDER.get(x['status'], 9), x['customer_name'])
     )
