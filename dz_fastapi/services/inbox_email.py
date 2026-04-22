@@ -777,6 +777,7 @@ async def fetch_and_store_emails(
                             account.id,
                             uid,
                         )
+                        await session.commit()
                     continue
 
             from_email = _extract_email(msg.from_)
@@ -785,36 +786,44 @@ async def fetch_and_store_emails(
                 if from_email in msg.from_ else None
             )
 
+            # File I/O is done before opening the DB transaction to keep it short
             att_info = await _build_attachment_info_for_message(
                 msg, account_id=account.id
             )
 
-            inbox_email = await create_inbox_email(
-                session,
-                email_account_id=account.id,
-                uid=uid,
-                folder=folder,
-                from_email=from_email,
-                from_name=from_name or None,
-                subject=msg.subject,
-                body_preview=None,
-                body_full=None,
-                has_attachments=bool(att_info),
-                attachment_info=att_info,
-                received_at=msg.date,
-            )
-            total_stored += 1
+            try:
+                inbox_email = await create_inbox_email(
+                    session,
+                    email_account_id=account.id,
+                    uid=uid,
+                    folder=folder,
+                    from_email=from_email,
+                    from_name=from_name or None,
+                    subject=msg.subject,
+                    body_preview=None,
+                    body_full=None,
+                    has_attachments=bool(att_info),
+                    attachment_info=att_info,
+                    received_at=msg.date,
+                )
+                total_stored += 1
 
-            processed = await auto_detect_and_process(
-                session,
-                inbox_email=inbox_email,
-                fetched_msg=msg,
-                account=account,
-            )
-            if processed:
-                total_auto_processed += 1
+                processed = await auto_detect_and_process(
+                    session,
+                    inbox_email=inbox_email,
+                    fetched_msg=msg,
+                    account=account,
+                )
+                if processed:
+                    total_auto_processed += 1
 
-    await session.commit()
+                await session.commit()
+            except Exception as msg_err:
+                logger.error(
+                    'Failed to store/process inbox email uid=%s account_id=%s: %s',
+                    uid, account.id, msg_err,
+                )
+                await session.rollback()
 
     return FetchInboxResponse(
         fetched=total_fetched,
