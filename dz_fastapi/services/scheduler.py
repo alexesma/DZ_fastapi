@@ -236,7 +236,7 @@ def start_scheduler(app: FastAPI):
         args=[app],
         id='check_order_timing_alerts',
         name='Check missing orders and supplier responses',
-        minute='*/10',
+        minute='*/2',
         replace_existing=True,
     )
 
