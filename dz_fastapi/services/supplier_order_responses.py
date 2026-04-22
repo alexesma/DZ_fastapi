@@ -2842,7 +2842,11 @@ async def _apply_parsed_rows_without_order_id(
             int(matched_item.supplier_order_id),
             [],
         ).append(applied_row)
-    return updated, matched_count, unresolved_oems, applied_rows_by_order, unmatched_rows
+    return (updated,
+            matched_count,
+            unresolved_oems,
+            applied_rows_by_order,
+            unmatched_rows)
 
 
 def _extract_shipping_document_number(
@@ -5206,13 +5210,14 @@ async def process_supplier_response_messages(
                         ]
                         if linked_items_payload and all_orders_for_doc:
                             updated_draft_receipt_ids: set[int] = set()
+                            find_open_draft = (
+                                _find_open_supplier_receipt_for_order
+                            )
                             for matched_order in all_orders_for_doc.values():
-                                draft_receipt = (
-                                    await _find_open_supplier_receipt_for_order(
-                                        session,
-                                        provider_id=provider.id,
-                                        order_id=int(matched_order.id),
-                                    )
+                                draft_receipt = await find_open_draft(
+                                    session,
+                                    provider_id=provider.id,
+                                    order_id=int(matched_order.id),
                                 )
                                 if draft_receipt is None:
                                     continue
