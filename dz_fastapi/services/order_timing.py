@@ -3,9 +3,8 @@ from __future__ import annotations
 import logging
 import statistics
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
-from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,7 +40,8 @@ class CustomerWindowInfo:
     window_start: time
     window_end: time
     sample_count: int             # total historical orders used
-    expected_order_count: int     # typical number of orders per day in this window
+    expected_order_count: int     # typical number of
+    # orders per day in this window
 
 
 @dataclass
@@ -111,7 +111,8 @@ async def compute_customer_order_windows(
         customer_names = {r.id: r.name for r in name_rows}
 
     # Group by (customer_id, weekday):
-    #   minutes_list: all arrival times as minutes-since-midnight (for window calc)
+    #   minutes_list: all arrival times as minutes-since-midnight
+    #   (for window calc)
     #   dates_set:    distinct calendar dates (for expected-count calc)
     minutes_by_group: dict[tuple[int, int], list[float]] = defaultdict(list)
     dates_by_group: dict[tuple[int, int], set[date]] = defaultdict(set)
@@ -140,7 +141,10 @@ async def compute_customer_order_windows(
         except statistics.StatisticsError:
             std_m = 30.0
 
-        half = max(min(std_m, MAX_HALF_WINDOW_MINUTES), MIN_HALF_WINDOW_MINUTES)
+        half = max(
+            min(std_m, MAX_HALF_WINDOW_MINUTES),
+            MIN_HALF_WINDOW_MINUTES
+        )
 
         start_m = max(0, int(mean_m - half))
         end_m = min(23 * 60 + 59, int(mean_m + half))
@@ -203,14 +207,21 @@ async def is_in_any_order_window(session: AsyncSession) -> bool:
         if w.window_start <= current_t <= w.window_end:
             return True
         # Past window end → check grace period
-        window_end_dt = datetime.combine(today, w.window_end).replace(tzinfo=tz)
+        window_end_dt = datetime.combine(
+            today,
+            w.window_end
+        ).replace(tzinfo=tz)
         if now <= window_end_dt:
             continue
         elapsed = (now - window_end_dt).total_seconds()
         if elapsed > GRACE_PERIOD_SECONDS:
             continue
-        # In grace period — stay aggressive only if not all expected orders received
-        window_start_dt = datetime.combine(today, w.window_start).replace(tzinfo=tz)
+        # In grace period — stay aggressive
+        # only if not all expected orders received
+        window_start_dt = datetime.combine(
+            today,
+            w.window_start
+        ).replace(tzinfo=tz)
         received = await _count_orders_in_window(
             session,
             customer_id=w.customer_id,
@@ -241,11 +252,17 @@ async def get_overdue_customer_windows(
     for w in windows:
         if w.weekday != weekday:
             continue
-        window_end_dt = datetime.combine(today, w.window_end).replace(tzinfo=tz)
+        window_end_dt = datetime.combine(
+            today,
+            w.window_end
+        ).replace(tzinfo=tz)
         if now <= window_end_dt:
             continue  # window not yet ended
 
-        window_start_dt = datetime.combine(today, w.window_start).replace(tzinfo=tz)
+        window_start_dt = datetime.combine(
+            today,
+            w.window_start
+        ).replace(tzinfo=tz)
         received = await _count_orders_in_window(
             session,
             customer_id=w.customer_id,
@@ -335,13 +352,16 @@ async def get_today_order_windows_status(
     session: AsyncSession,
 ) -> list[dict]:
     """
-    Returns today's order window status for all customers that have a window today.
+    Returns today's order window status for all
+    customers that have a window today.
 
     Status values:
       'received'  — received_count >= expected_count (all orders in)
-      'partial'   — 0 < received_count < expected_count (some received, more expected)
+      'partial'   — 0 < received_count < expected_count
+      (some received, more expected)
       'pending'   — window not yet ended
-      'grace'     — window ended, received_count < expected_count, within grace period
+      'grace'     — window ended, received_count < expected_count,
+      within grace period
       'overdue'   — window ended + grace period passed, still missing orders
     """
     now = now_moscow()
@@ -381,7 +401,10 @@ async def get_today_order_windows_status(
 
     result = []
     for w in today_windows:
-        window_end_dt = datetime.combine(today, w.window_end).replace(tzinfo=tz)
+        window_end_dt = datetime.combine(
+            today,
+            w.window_end
+        ).replace(tzinfo=tz)
 
         customer_orders = orders_today.get(w.customer_id, [])
         received_count = len(customer_orders)

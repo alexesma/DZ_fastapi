@@ -574,20 +574,28 @@ async def process_supplier_responses_task(app: FastAPI):
             if not should_run:
                 return
             # Smart window: aggressive polling only when supplier orders
-            # are within the expected response window (40 min – 2 h after sent).
+            # are within the expected response window (40 min–2 h after sent).
             # Outside that window — slow down to avoid unnecessary IMAP calls.
             active_providers: list[int] = []
             try:
-                active_providers = await get_active_supplier_response_provider_ids(session)
+                active_providers = (
+                    await get_active_supplier_response_provider_ids(
+                        session
+                    )
+                )
             except Exception as win_exc:
-                logger.warning('Could not check supplier response window: %s', win_exc)
+                logger.warning(
+                    'Could not check supplier response window: %s',
+                    win_exc
+                )
             if not active_providers:
                 last_run = setting.last_run_at if setting else None
                 if last_run is not None:
                     elapsed = (now_moscow() - last_run).total_seconds()
                     if elapsed < OUTSIDE_WINDOW_SLOW_SECONDS:
                         logger.debug(
-                            'No suppliers in response window, slow mode: elapsed=%.0fs',
+                            'No suppliers in response window,'
+                            'slow mode: elapsed=%.0fs',
                             elapsed,
                         )
                         return
