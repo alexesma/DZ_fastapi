@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -266,6 +267,10 @@ _SUPPLIER_RESPONSE_AI_CLASSIFIER_MAX_PER_REQUEST = max(
     0,
     _env_int("SUPPLIER_RESPONSE_AI_CLASSIFIER_MAX_PER_REQUEST", 20),
 )
+_SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC = max(
+    15.0,
+    _env_float("SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC", 180.0),
+)
 
 
 @dataclass(slots=True)
@@ -469,9 +474,12 @@ async def _fetch_supplier_response_messages(
             )
             if transport == "resend_api":
                 try:
-                    account_messages = await _fetch_resend_messages(
-                        account,
-                        date_from,
+                    account_messages = await asyncio.wait_for(
+                        _fetch_resend_messages(
+                            account,
+                            date_from,
+                        ),
+                        timeout=_SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
                     )
                     logger.info(
                         (
@@ -483,6 +491,15 @@ async def _fetch_supplier_response_messages(
                         len(account_messages),
                     )
                     messages.extend((msg, account) for msg in account_messages)
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        (
+                            "Supplier response Resend fetch timeout "
+                            "for %s after %.0fs"
+                        ),
+                        account.email,
+                        _SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
+                    )
                 except Exception as exc:
                     logger.error(
                         (
@@ -507,13 +524,28 @@ async def _fetch_supplier_response_messages(
                             account.email,
                             label,
                         )
-                        account_messages.extend(
-                            await _fetch_gmail_messages(
-                                account,
-                                date_from,
-                                label=label,
+                        try:
+                            label_messages = await asyncio.wait_for(
+                                _fetch_gmail_messages(
+                                    account,
+                                    date_from,
+                                    label=label,
+                                ),
+                                timeout=_SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
                             )
-                        )
+                            account_messages.extend(label_messages)
+                        except asyncio.TimeoutError:
+                            logger.warning(
+                                (
+                                    "Supplier response Gmail fetch timeout: "
+                                    "account_id=%s email=%s label=%s "
+                                    "timeout=%.0fs"
+                                ),
+                                account.id,
+                                account.email,
+                                label,
+                                _SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
+                            )
                     logger.info(
                         (
                             "Supplier response inbox account done: "
@@ -548,15 +580,18 @@ async def _fetch_supplier_response_messages(
                             folder,
                         )
                         account_messages.extend(
-                            await _fetch_order_messages(
-                                host,
-                                account.email,
-                                account.password,
-                                folder,
-                                date_from,
-                                False,
-                                port=account.imap_port or IMAP_SERVER,
-                                ssl=True,
+                            await asyncio.wait_for(
+                                _fetch_order_messages(
+                                    host,
+                                    account.email,
+                                    account.password,
+                                    folder,
+                                    date_from,
+                                    False,
+                                    port=account.imap_port or IMAP_SERVER,
+                                    ssl=True,
+                                ),
+                                timeout=_SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
                             )
                         )
                     except MailboxFolderSelectError as folder_exc:
@@ -568,6 +603,18 @@ async def _fetch_supplier_response_messages(
                             folder,
                             account.email,
                             folder_exc,
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning(
+                            (
+                                "Supplier response IMAP fetch timeout: "
+                                "account_id=%s email=%s folder=%s "
+                                "timeout=%.0fs"
+                            ),
+                            account.id,
+                            account.email,
+                            folder,
+                            _SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
                         )
                 logger.info(
                     (
@@ -599,16 +646,30 @@ async def _fetch_supplier_response_messages(
                 "Supplier response fallback inbox fetch start: email=%s",
                 EMAIL_NAME_ORDER,
             )
-            fallback_messages = await _fetch_order_messages(
-                EMAIL_HOST_ORDER,
-                EMAIL_NAME_ORDER,
-                EMAIL_PASSWORD_ORDER,
-                EMAIL_FOLDER_ORDER,
-                date_from,
-                False,
-                port=IMAP_SERVER,
-                ssl=True,
-            )
+            try:
+                fallback_messages = await asyncio.wait_for(
+                    _fetch_order_messages(
+                        EMAIL_HOST_ORDER,
+                        EMAIL_NAME_ORDER,
+                        EMAIL_PASSWORD_ORDER,
+                        EMAIL_FOLDER_ORDER,
+                        date_from,
+                        False,
+                        port=IMAP_SERVER,
+                        ssl=True,
+                    ),
+                    timeout=_SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
+                )
+            except asyncio.TimeoutError:
+                logger.warning(
+                    (
+                        "Supplier response fallback inbox fetch timeout "
+                        "for %s after %.0fs"
+                    ),
+                    EMAIL_NAME_ORDER,
+                    _SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
+                )
+                fallback_messages = []
             logger.info(
                 "Supplier response fallback inbox done: fetched=%s",
                 len(fallback_messages),
