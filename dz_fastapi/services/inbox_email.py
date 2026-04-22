@@ -786,7 +786,8 @@ async def fetch_and_store_emails(
                 if from_email in msg.from_ else None
             )
 
-            # File I/O is done before opening the DB transaction to keep it short
+            # File I/O is done before opening the DB
+            # transaction to keep it short
             att_info = await _build_attachment_info_for_message(
                 msg, account_id=account.id
             )
@@ -820,7 +821,8 @@ async def fetch_and_store_emails(
                 await session.commit()
             except Exception as msg_err:
                 logger.error(
-                    'Failed to store/process inbox email uid=%s account_id=%s: %s',
+                    'Failed to store/process inbox '
+                    'email uid=%s account_id=%s: %s',
                     uid, account.id, msg_err,
                 )
                 await session.rollback()
