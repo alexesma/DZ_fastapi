@@ -29,6 +29,9 @@ RESPONSE_WINDOW_END_MINUTES = 120    # stop checking after 2 hours
 # Outside all windows → reduce polling to this interval (seconds)
 OUTSIDE_WINDOW_SLOW_SECONDS = 20 * 60  # 20 minutes
 
+# After window ends: keep intensive polling for this long (seconds)
+GRACE_PERIOD_SECONDS = 60 * 60  # 1 hour grace period after missed window
+
 
 @dataclass
 class CustomerWindowInfo:
@@ -137,18 +140,43 @@ async def compute_customer_order_windows(
 
 async def is_in_any_order_window(session: AsyncSession) -> bool:
     """
-    Returns True if the current Moscow time falls within any customer's
-    expected order window for today's weekday.
+    Returns True if:
+    - Current time is inside any customer's expected order window, OR
+    - Current time is within the 1-hour grace period after window end
+      (for customers who haven't received their order yet).
     Used to switch between aggressive (2 min) and slow (20 min) polling.
     """
     now = now_moscow()
     weekday = now.weekday()
     current_t = now.time().replace(second=0, microsecond=0)
+    today = now.date()
+    tz = now.tzinfo
 
     windows = await compute_customer_order_windows(session)
     for w in windows:
-        if w.weekday == weekday and w.window_start <= current_t <= w.window_end:
+        if w.weekday != weekday:
+            continue
+        # Inside window
+        if w.window_start <= current_t <= w.window_end:
             return True
+        # In grace period: window ended, but less than GRACE_PERIOD_SECONDS ago
+        window_end_dt = datetime.combine(today, w.window_end).replace(tzinfo=tz)
+        if now > window_end_dt:
+            elapsed_after_end = (now - window_end_dt).total_seconds()
+            if elapsed_after_end <= GRACE_PERIOD_SECONDS:
+                # Still in grace period — check if order already received
+                stmt = (
+                    select(CustomerOrder.id)
+                    .where(
+                        CustomerOrder.customer_id == w.customer_id,
+                        CustomerOrder.received_at >= window_end_dt - timedelta(hours=2),
+                        CustomerOrder.received_at <= now,
+                    )
+                    .limit(1)
+                )
+                received = (await session.execute(stmt)).scalar_one_or_none()
+                if received is None:
+                    return True  # Grace period, no order yet → stay aggressive
     return False
 
 
@@ -266,3 +294,85 @@ async def get_overdue_supplier_responses(
             )
         )
     return alerts
+
+
+async def get_today_order_windows_status(
+    session: AsyncSession,
+) -> list[dict]:
+    """
+    Returns today's order window status for all customers that have a window today.
+    Each entry has:
+      customer_id, customer_name, window_start, window_end, sample_count,
+      status: 'received' | 'pending' | 'overdue' | 'grace',
+      order_received_at: datetime | None,
+      order_id: int | None
+    """
+    from dz_fastapi.models.partner import Customer
+
+    now = now_moscow()
+    weekday = now.weekday()
+    current_t = now.time().replace(second=0, microsecond=0)
+    today = now.date()
+    tz = now.tzinfo
+
+    windows = await compute_customer_order_windows(session)
+    today_windows = [w for w in windows if w.weekday == weekday]
+
+    if not today_windows:
+        return []
+
+    # Fetch today's orders for relevant customers (broad window to catch late orders)
+    customer_ids = [w.customer_id for w in today_windows]
+    day_start = datetime.combine(today, time(0, 0)).replace(tzinfo=tz)
+    stmt = (
+        select(
+            CustomerOrder.id,
+            CustomerOrder.customer_id,
+            CustomerOrder.received_at,
+        )
+        .where(
+            CustomerOrder.customer_id.in_(customer_ids),
+            CustomerOrder.received_at >= day_start,
+        )
+        .order_by(CustomerOrder.received_at.asc())
+    )
+    order_rows = (await session.execute(stmt)).all()
+
+    # Map customer_id → first order today
+    orders_today: dict[int, tuple[int, datetime]] = {}
+    for row in order_rows:
+        if row.customer_id not in orders_today:
+            orders_today[row.customer_id] = (row.id, row.received_at)
+
+    result = []
+    for w in today_windows:
+        window_end_dt = datetime.combine(today, w.window_end).replace(tzinfo=tz)
+        window_start_dt = datetime.combine(today, w.window_start).replace(tzinfo=tz)
+
+        order_entry = orders_today.get(w.customer_id)
+        order_id = order_entry[0] if order_entry else None
+        order_received_at = order_entry[1] if order_entry else None
+
+        if order_received_at is not None:
+            status = 'received'
+        elif current_t <= w.window_end:
+            status = 'pending'
+        else:
+            elapsed = (now - window_end_dt).total_seconds()
+            status = 'grace' if elapsed <= GRACE_PERIOD_SECONDS else 'overdue'
+
+        result.append({
+            'customer_id': w.customer_id,
+            'customer_name': w.customer_name,
+            'window_start': w.window_start.strftime('%H:%M'),
+            'window_end': w.window_end.strftime('%H:%M'),
+            'sample_count': w.sample_count,
+            'status': status,
+            'order_received_at': order_received_at.isoformat() if order_received_at else None,
+            'order_id': order_id,
+        })
+
+    # Sort: overdue first, then grace, then pending, then received
+    STATUS_ORDER = {'overdue': 0, 'grace': 1, 'pending': 2, 'received': 3}
+    result.sort(key=lambda x: (STATUS_ORDER.get(x['status'], 9), x['customer_name']))
+    return result

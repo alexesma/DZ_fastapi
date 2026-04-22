@@ -72,6 +72,7 @@ from dz_fastapi.schemas.partner import (AutoPartInPricelist,
                                         SupplierResponseConfigOut,
                                         SupplierResponseConfigUpdate)
 from dz_fastapi.services.email import download_price_provider
+from dz_fastapi.services.order_timing import get_today_order_windows_status
 from dz_fastapi.services.process import (check_start_and_finish_date,
                                          parse_exclude_positions_file,
                                          process_customer_pricelist,
@@ -2502,4 +2503,24 @@ async def delete_supplier_response_config(
         )
     await session.delete(config)
     await session.commit()
+
+
+@router.get(
+    '/admin/order-windows/today',
+    tags=['admin', 'order-windows'],
+    summary='Today order arrival windows per customer',
+)
+async def get_today_order_windows(
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Returns today's expected order arrival windows for all customers
+    that have enough historical data, along with their current status.
+    """
+    data = await get_today_order_windows_status(session)
+    from dz_fastapi.core.time import now_moscow as _now
+    return {
+        'generated_at': _now().isoformat(),
+        'windows': data,
+    }
     return Response(status_code=status.HTTP_204_NO_CONTENT)
