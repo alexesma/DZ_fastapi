@@ -499,9 +499,7 @@ class SupplierResponseConfigBase(BaseModel):
     process_shipping_docs: bool = True
     auto_confirm_unmentioned_items: bool = False
     auto_confirm_after_minutes: Optional[int] = Field(default=None, ge=1)
-    file_format: Optional[SupplierResponseFileFormat] = (
-        SupplierResponseFileFormat.EXCEL
-    )
+    file_format: Optional[SupplierResponseFileFormat] = None
     file_payload_type: SupplierResponseFilePayloadType = (
         SupplierResponseFilePayloadType.RESPONSE
     )
@@ -730,9 +728,7 @@ class SupplierResponseConfigOut(BaseModel):
     process_shipping_docs: bool = True
     auto_confirm_unmentioned_items: bool = False
     auto_confirm_after_minutes: Optional[int] = None
-    file_format: Optional[SupplierResponseFileFormat] = (
-        SupplierResponseFileFormat.EXCEL
-    )
+    file_format: Optional[SupplierResponseFileFormat] = None
     file_payload_type: SupplierResponseFilePayloadType = (
         SupplierResponseFilePayloadType.RESPONSE
     )
