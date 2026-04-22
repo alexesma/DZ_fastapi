@@ -51,6 +51,11 @@ from dz_fastapi.services.order_status_mapping import (
     normalize_external_status_text, record_unmapped_external_status,
     select_best_mapping)
 
+try:
+    from imap_tools.errors import MailboxFolderSelectError
+except ImportError:  # pragma: no cover - compatibility fallback
+    MailboxFolderSelectError = Exception
+
 logger = logging.getLogger("dz_fastapi")
 
 DEFAULT_SUPPLIER_RESPONSE_LOOKBACK_DAYS = max(
@@ -156,6 +161,7 @@ _DEFAULT_CONFIRM_KEYWORDS = [
 _DEFAULT_REJECT_KEYWORDS = [
     "нет",
     "0",
+    "отказ",
     "отсутствует",
     "не можем",
     "снято с производства",
@@ -524,27 +530,38 @@ async def _fetch_supplier_response_messages(
             try:
                 account_messages = []
                 for folder in folders:
-                    logger.info(
-                        (
-                            "Supplier response IMAP fetch: "
-                            "account_id=%s email=%s folder=%s"
-                        ),
-                        account.id,
-                        account.email,
-                        folder,
-                    )
-                    account_messages.extend(
-                        await _fetch_order_messages(
-                            host,
+                    try:
+                        logger.info(
+                            (
+                                "Supplier response IMAP fetch: "
+                                "account_id=%s email=%s folder=%s"
+                            ),
+                            account.id,
                             account.email,
-                            account.password,
                             folder,
-                            date_from,
-                            False,
-                            port=account.imap_port or IMAP_SERVER,
-                            ssl=True,
                         )
-                    )
+                        account_messages.extend(
+                            await _fetch_order_messages(
+                                host,
+                                account.email,
+                                account.password,
+                                folder,
+                                date_from,
+                                False,
+                                port=account.imap_port or IMAP_SERVER,
+                                ssl=True,
+                            )
+                        )
+                    except MailboxFolderSelectError as folder_exc:
+                        logger.warning(
+                            (
+                                'Supplier response IMAP folder "%s" not found '
+                                "for %s, skipping folder. Error: %s"
+                            ),
+                            folder,
+                            account.email,
+                            folder_exc,
+                        )
                 logger.info(
                     (
                         "Supplier response inbox account done: "
@@ -999,8 +1016,11 @@ def _resolve_price_without_vat(
     total_price_with_vat: Optional[float],
     quantity: Optional[int],
 ) -> Optional[float]:
-    """Return per-unit price WITHOUT VAT
-    given a total WITH VAT and quantity."""
+    """Return per-unit price WITH VAT given a total WITH VAT and quantity.
+
+    All prices in the system are stored WITH VAT included, so no division
+    by (1 + VAT_RATE) is applied — the stored price is simply total / qty.
+    """
     if total_price_with_vat is None:
         return None
     qty = _safe_int(quantity)
@@ -1009,7 +1029,7 @@ def _resolve_price_without_vat(
     total = float(total_price_with_vat)
     if total <= 0:
         return None
-    return round(total / qty / (1 + _VAT_RATE), 2)
+    return round(total / qty, 2)
 
 
 def _normalize_sender_emails(value: object) -> set[str]:
