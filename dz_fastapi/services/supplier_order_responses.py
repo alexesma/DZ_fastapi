@@ -14,7 +14,9 @@ from typing import Any, Iterable, Optional
 import aiofiles
 import httpx
 import pandas as pd
-from sqlalchemy import desc, or_, select
+from sqlalchemy import desc
+from sqlalchemy import inspect as sa_inspect
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
@@ -1055,6 +1057,27 @@ def _normalize_sender_emails(value: object) -> set[str]:
     return result
 
 
+def _safe_email_account_id(account: Optional[EmailAccount]) -> Optional[int]:
+    if account is None:
+        return None
+    raw_id = getattr(account, "__dict__", {}).get("id")
+    if raw_id not in (None, ""):
+        try:
+            return int(raw_id)
+        except (TypeError, ValueError):
+            return None
+    try:
+        identity = sa_inspect(account).identity
+    except Exception:
+        identity = None
+    if identity and identity[0] not in (None, ""):
+        try:
+            return int(identity[0])
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
 def _config_mismatch_reasons(
     config: SupplierResponseConfig,
     *,
@@ -1063,7 +1086,7 @@ def _config_mismatch_reasons(
     subject: Optional[str] = None,
 ) -> list[str]:
     reasons: list[str] = []
-    account_id = account.id if account else None
+    account_id = _safe_email_account_id(account)
     if (
         config.inbox_email_account_id is not None
         and config.inbox_email_account_id != account_id
@@ -1938,7 +1961,7 @@ def _build_source_uid(
     if uid in (None, ""):
         return None
     folder_name = str(getattr(msg, "folder_name", "") or "").strip()
-    account_id = account.id if account else 0
+    account_id = _safe_email_account_id(account) or 0
     return f"{account_id}:{folder_name}:{uid}"[:128]
 
 
@@ -3619,7 +3642,7 @@ async def _resolve_unlinked_payload_autopart(
             return {
                 "autopart_id": int(dragonzap_part.id),
                 "oem_number": dragonzap_part.oem_number,
-                "brand_name": dragonzap_part.brand.name,
+                "brand_name": "Dragonzap",
                 "autopart_name": dragonzap_part.name,
             }
         return {
@@ -3640,7 +3663,7 @@ async def _resolve_unlinked_payload_autopart(
                 return {
                     "autopart_id": int(matched.id),
                     "oem_number": matched.oem_number,
-                    "brand_name": matched.brand.name,
+                    "brand_name": brand.name,
                     "autopart_name": matched.name,
                 }
             return {
@@ -3670,7 +3693,11 @@ async def _resolve_unlinked_payload_autopart(
     return {
         "autopart_id": int(selected.id),
         "oem_number": selected.oem_number,
-        "brand_name": selected.brand.name,
+        "brand_name": (
+            str(getattr(selected.brand, "name", "") or "").strip()
+            if "brand" in getattr(selected, "__dict__", {})
+            else brand_name
+        ),
         "autopart_name": selected.name,
     }
 
@@ -4043,6 +4070,7 @@ async def process_supplier_response_messages(
         attachments = _iter_message_attachments(msg)
         sender_email = _extract_email(getattr(msg, "from_", None))
         subject = str(getattr(msg, "subject", "") or "")
+        account_id = _safe_email_account_id(account)
         if opposite_mode_configs:
             opposite_match = _select_best_supplier_response_config(
                 opposite_mode_configs,
@@ -4060,7 +4088,7 @@ async def process_supplier_response_messages(
                     file_payload_mode,
                     opposite_match.id,
                     sender_email or "<empty>",
-                    account.id if account else None,
+                    account_id,
                     subject[:200],
                 )
                 stats.skipped_messages += 1
@@ -4075,7 +4103,7 @@ async def process_supplier_response_messages(
             sender_email,
             subject[:200],
             len(attachments),
-            account.id if account else None,
+            account_id,
         )
         body_preview = _get_message_body_preview(msg)
         message_text = _get_message_text_content(msg)
@@ -4119,7 +4147,7 @@ async def process_supplier_response_messages(
                         active_response_config.id,
                         active_response_config.provider_id,
                         sender_email or "<empty>",
-                        account.id if account else None,
+                        account_id,
                         reasons,
                         subject[:200],
                     )
@@ -4160,7 +4188,7 @@ async def process_supplier_response_messages(
                         ),
                         provider.id,
                         sender_email or "<empty>",
-                        account.id if account else None,
+                        account_id,
                         details,
                         subject[:200],
                     )
@@ -4203,7 +4231,7 @@ async def process_supplier_response_messages(
                         ),
                         sender_email or "<empty>",
                         subject[:200],
-                        account.id if account else None,
+                        account_id,
                     )
                     stats.skipped_messages += 1
                     continue
