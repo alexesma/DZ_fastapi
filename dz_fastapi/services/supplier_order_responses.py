@@ -3967,6 +3967,19 @@ async def process_supplier_response_messages(
         supplier_response_config_id=supplier_response_config_id,
         file_payload_mode=file_payload_mode,
     )
+    opposite_mode_configs: list[SupplierResponseConfig] = []
+    if file_payload_mode == "responses":
+        opposite_mode_configs = await _load_supplier_response_configs(
+            session,
+            provider_id=provider_id,
+            file_payload_mode="documents",
+        )
+    elif file_payload_mode == "documents":
+        opposite_mode_configs = await _load_supplier_response_configs(
+            session,
+            provider_id=provider_id,
+            file_payload_mode="responses",
+        )
     configs_by_provider = _group_response_configs_by_provider(response_configs)
     selected_config = None
     if supplier_response_config_id is not None and response_configs:
@@ -4030,6 +4043,28 @@ async def process_supplier_response_messages(
         attachments = _iter_message_attachments(msg)
         sender_email = _extract_email(getattr(msg, "from_", None))
         subject = str(getattr(msg, "subject", "") or "")
+        if opposite_mode_configs:
+            opposite_match = _select_best_supplier_response_config(
+                opposite_mode_configs,
+                sender_email=sender_email,
+                account=account,
+                subject=subject,
+            )
+            if opposite_match is not None:
+                logger.info(
+                    (
+                        "Supplier response message skipped by payload mode: "
+                        "mode=%s matched_other_config=%s sender=%s "
+                        "account_id=%s subject=%s"
+                    ),
+                    file_payload_mode,
+                    opposite_match.id,
+                    sender_email or "<empty>",
+                    account.id if account else None,
+                    subject[:200],
+                )
+                stats.skipped_messages += 1
+                continue
         logger.info(
             (
                 "Supplier response message start: idx=%s/%s sender=%s "

@@ -1806,6 +1806,139 @@ async def test_process_supplier_response_messages_records_unmapped_status(
 
 
 @pytest.mark.asyncio
+async def test_responses_mode_skips_messages_for_document_configs(
+    monkeypatch,
+    test_session,
+    created_providers,
+):
+    provider = created_providers[0]
+    test_session.add(
+        SupplierResponseConfig(
+            provider_id=provider.id,
+            name="Doc config",
+            is_active=True,
+            sender_emails=["docs@example.com"],
+            response_type="file",
+            file_payload_type="document",
+            subject_pattern=r"(?i)упд",
+            filename_pattern=r"(?i)^nk\d+\.xls$",
+        )
+    )
+    await test_session.commit()
+
+    async def fake_fetch_messages(session, *, date_from, date_to=None):
+        return [
+            (
+                SimpleNamespace(
+                    from_="docs@example.com",
+                    subject="УПД № 1",
+                    text="",
+                    html=None,
+                    attachments=[
+                        SimpleNamespace(
+                            filename="nk2026042200068.xls",
+                            payload=b"fake",
+                        )
+                    ],
+                    received_at=None,
+                    date=None,
+                    external_id="doc-msg-1",
+                    uid=None,
+                    folder_name="INBOX",
+                ),
+                None,
+            )
+        ]
+
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_fetch_supplier_response_messages"
+        ),
+        fake_fetch_messages,
+    )
+
+    result = await process_supplier_response_messages(
+        test_session,
+        file_payload_mode="responses",
+    )
+    rows = (
+        await test_session.execute(select(SupplierOrderMessage))
+    ).scalars().all()
+
+    assert result["fetched_messages"] == 1
+    assert result["processed_messages"] == 0
+    assert result["skipped_messages"] == 1
+    assert rows == []
+
+
+@pytest.mark.asyncio
+async def test_documents_mode_skips_messages_for_response_configs(
+    monkeypatch,
+    test_session,
+    created_providers,
+):
+    provider = created_providers[0]
+    test_session.add(
+        SupplierResponseConfig(
+            provider_id=provider.id,
+            name="Response config",
+            is_active=True,
+            sender_emails=["reply@example.com"],
+            response_type="file",
+            file_payload_type="response",
+            subject_pattern=r"(?i)ответ",
+        )
+    )
+    await test_session.commit()
+
+    async def fake_fetch_messages(session, *, date_from, date_to=None):
+        return [
+            (
+                SimpleNamespace(
+                    from_="reply@example.com",
+                    subject="Ответ",
+                    text="",
+                    html=None,
+                    attachments=[
+                        SimpleNamespace(
+                            filename="supplier_order_1.xlsx",
+                            payload=b"fake",
+                        )
+                    ],
+                    received_at=None,
+                    date=None,
+                    external_id="resp-msg-1",
+                    uid=None,
+                    folder_name="INBOX",
+                ),
+                None,
+            )
+        ]
+
+    monkeypatch.setattr(
+        (
+            "dz_fastapi.services.supplier_order_responses."
+            "_fetch_supplier_response_messages"
+        ),
+        fake_fetch_messages,
+    )
+
+    result = await process_supplier_response_messages(
+        test_session,
+        file_payload_mode="documents",
+    )
+    rows = (
+        await test_session.execute(select(SupplierOrderMessage))
+    ).scalars().all()
+
+    assert result["fetched_messages"] == 1
+    assert result["processed_messages"] == 0
+    assert result["skipped_messages"] == 1
+    assert rows == []
+
+
+@pytest.mark.asyncio
 async def test_supplier_response_skip_text_status_when_disabled(
     monkeypatch,
     test_session,
