@@ -1217,35 +1217,35 @@ def expand_dz_brands(df: pd.DataFrame) -> pd.DataFrame:
     Expand DRAGONZAP positions into separate rows per assigned brand,
     WITHOUT adding any label prefixes to names.
 
+    Works on the internal DataFrame format (columns: 'brand', 'oem_number').
+    Must be called BEFORE source filters so the resulting brand rows
+    can be included/excluded by brand_filters.
+
     Logic:
-    - Positions whose brand is already in ORIGINAL_BRANDS (CHERY, HAVAL, etc.)
-      are kept as-is (name unchanged).
     - Positions with brand == 'DRAGONZAP':
-        * Strip 'DZ' prefix from OEM number
+        * Strip leading 'DZ' prefix from oem_number
         * Determine target brand(s) via assign_brand()
-        * Explode into one row per brand
-    - Remaining positions (other brands) are also kept as-is.
+        * Explode into one row per assigned brand
+    - All other positions pass through unchanged.
     """
     df = df.copy()
 
-    mask_dz = df['Производитель'] == 'DRAGONZAP'
+    mask_dz = df['brand'].str.upper() == 'DRAGONZAP'
     dz_items = df.loc[mask_dz].copy()
 
     if not dz_items.empty:
-        # Strip 'DZ' prefix from article number
-        dz_items['Артикул'] = dz_items['Артикул'].apply(
-            lambda x: x[2:] if isinstance(
-                x, str
-            ) and x.upper().startswith('DZ') else x
+        # Strip 'DZ' prefix from OEM number
+        dz_items['oem_number'] = dz_items['oem_number'].apply(
+            lambda x: x[2:] if isinstance(x, str) and x.upper().startswith('DZ') else x
         )
-        # Determine brand(s) per article
-        dz_items['assigned_brands'] = dz_items['Артикул'].apply(assign_brand)
+        # Determine brand(s) per OEM
+        dz_items['assigned_brands'] = dz_items['oem_number'].apply(assign_brand)
         # One row per assigned brand
         dz_items = dz_items.explode('assigned_brands')
-        dz_items['Производитель'] = dz_items['assigned_brands']
+        dz_items['brand'] = dz_items['assigned_brands']
         dz_items = dz_items.drop(columns=['assigned_brands'])
 
-    # Combine non-DZ rows with the expanded DZ rows
+    # Combine non-DZ rows with expanded DZ rows
     df_result = pd.concat([df[~mask_dz], dz_items], ignore_index=True)
     return df_result
 
@@ -1438,6 +1438,18 @@ async def process_customer_pricelist(
             )
             logger.debug(f'Transform file to dataframe {df}')
 
+            # Expand DRAGONZAP → brand rows BEFORE filters,
+            # so brand_filters can include/exclude the resulting brands.
+            if (
+                source.additional_filters
+                and source.additional_filters.get('DZ_EXPAND_BRANDS')
+            ):
+                logger.debug(
+                    'Source %s: DZ_EXPAND_BRANDS — expanding DRAGONZAP rows',
+                    source.id,
+                )
+                df = expand_dz_brands(df)
+
             df = _apply_source_filters(df, source)
             if df.empty:
                 continue
@@ -1589,17 +1601,6 @@ async def process_customer_pricelist(
             price_zzap=df_excel, session=session
         )
         logger.debug(f'Измененный файл для ZZAP: {df_excel}')
-
-    # --- DZ brand expansion (без меток в наименовании) ---
-    if config.additional_filters and config.additional_filters.get(
-            'DZ_EXPAND_BRANDS'
-    ):
-        logger.debug(
-            'DZ_EXPAND_BRANDS включён: '
-            'разворачиваем позиции DRAGONZAP по брендам'
-        )
-        df_excel = expand_dz_brands(df_excel)
-        logger.debug(f'После DZ_EXPAND_BRANDS: {len(df_excel)} строк')
 
     if {'Производитель', 'Наименование'}.issubset(df_excel.columns):
         df_excel = df_excel.sort_values(

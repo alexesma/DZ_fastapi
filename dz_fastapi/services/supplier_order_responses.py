@@ -4157,29 +4157,58 @@ async def process_supplier_response_messages(
     )
     stats = SupplierResponseProcessingStats()
     pending_customer_order_ids: set[int] = set()
-    response_configs = await _load_supplier_response_configs(
-        session,
-        provider_id=provider_id,
-        supplier_response_config_id=supplier_response_config_id,
-        file_payload_mode=file_payload_mode,
-    )
-    opposite_mode_configs: list[SupplierResponseConfig] = []
-    if file_payload_mode == "responses":
-        opposite_mode_configs = await _load_supplier_response_configs(
+
+    async def _load_runtime_configs() -> tuple[
+        list[SupplierResponseConfig],
+        list[SupplierResponseConfig],
+        dict[int, list[SupplierResponseConfig]],
+        Optional[SupplierResponseConfig],
+    ]:
+        runtime_response_configs = await _load_supplier_response_configs(
             session,
             provider_id=provider_id,
-            file_payload_mode="documents",
+            supplier_response_config_id=supplier_response_config_id,
+            file_payload_mode=file_payload_mode,
         )
-    elif file_payload_mode == "documents":
-        opposite_mode_configs = await _load_supplier_response_configs(
-            session,
-            provider_id=provider_id,
-            file_payload_mode="responses",
+        runtime_opposite_mode_configs: list[SupplierResponseConfig] = []
+        if file_payload_mode == "responses":
+            runtime_opposite_mode_configs = (
+                await _load_supplier_response_configs(
+                    session,
+                    provider_id=provider_id,
+                    file_payload_mode="documents",
+                )
+            )
+        elif file_payload_mode == "documents":
+            runtime_opposite_mode_configs = (
+                await _load_supplier_response_configs(
+                    session,
+                    provider_id=provider_id,
+                    file_payload_mode="responses",
+                )
+            )
+        runtime_configs_by_provider = _group_response_configs_by_provider(
+            runtime_response_configs
         )
-    configs_by_provider = _group_response_configs_by_provider(response_configs)
-    selected_config = None
-    if supplier_response_config_id is not None and response_configs:
-        selected_config = response_configs[0]
+        runtime_selected_config = None
+        if (
+            supplier_response_config_id is not None
+            and runtime_response_configs
+        ):
+            runtime_selected_config = runtime_response_configs[0]
+        return (
+            runtime_response_configs,
+            runtime_opposite_mode_configs,
+            runtime_configs_by_provider,
+            runtime_selected_config,
+        )
+
+    (
+        response_configs,
+        opposite_mode_configs,
+        configs_by_provider,
+        selected_config,
+    ) = await _load_runtime_configs()
 
     explicit_account_ids = {
         int(config.inbox_email_account_id)
@@ -4231,7 +4260,16 @@ async def process_supplier_response_messages(
     )
 
     total_messages = len(messages)
+    reload_runtime_configs = False
     for index, (msg, account) in enumerate(messages, start=1):
+        if reload_runtime_configs:
+            (
+                response_configs,
+                opposite_mode_configs,
+                configs_by_provider,
+                selected_config,
+            ) = await _load_runtime_configs()
+            reload_runtime_configs = False
         source_uid = _build_source_uid(msg, account)
         source_message_id = _build_source_message_id(msg)
         if await _message_already_processed(
@@ -5127,6 +5165,7 @@ async def process_supplier_response_messages(
                             matched_count,
                             unresolved_oems,
                             applied_rows_map,
+                            _unused_unmatched_rows,
                         ) = await _apply_parsed_rows_without_order_id(
                             session,
                             provider_id=provider.id,
@@ -5682,6 +5721,7 @@ async def process_supplier_response_messages(
                 commit=True,
             )
             stats.skipped_messages += 1
+            reload_runtime_configs = True
 
     try:
         await _auto_confirm_orders_without_response_timeout(
