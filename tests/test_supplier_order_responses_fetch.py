@@ -46,8 +46,18 @@ async def test_fetch_supplier_responses_skips_missing_imap_folder(
         *,
         port,
         ssl,
+        from_email=None,
     ):
-        del host, email, password, date_from, mark_seen, port, ssl
+        del (
+            host,
+            email,
+            password,
+            date_from,
+            mark_seen,
+            port,
+            ssl,
+            from_email,
+        )
         if folder == "MISSING_FOLDER":
             raise MissingFolderError("SELECT No such folder")
         return [message]
@@ -77,4 +87,112 @@ async def test_fetch_supplier_responses_skips_missing_imap_folder(
     assert len(result) == 1
     fetched_message, fetched_account = result[0]
     assert fetched_message.external_id == "ok-message"
+    assert fetched_account.id == account.id
+
+
+@pytest.mark.asyncio
+async def test_fetch_supplier_responses_ignores_internal_senders(
+    monkeypatch,
+):
+    account = SimpleNamespace(
+        id=102,
+        email="masterzapzakaz@gmail.com",
+        imap_host="imap.gmail.com",
+        transport="smtp",
+        imap_folder="INBOX",
+        imap_additional_folders=[],
+        oauth_provider=None,
+        password="secret",
+        imap_port=993,
+    )
+    internal_message = SimpleNamespace(
+        uid="6001",
+        external_id="internal-message",
+        received_at=datetime(2026, 4, 22, 10, 0, 0),
+        date=None,
+        from_="masterzapzakaz@gmail.com",
+        subject="Заказ",
+    )
+    supplier_message = SimpleNamespace(
+        uid="6002",
+        external_id="supplier-message",
+        received_at=datetime(2026, 4, 22, 10, 5, 0),
+        date=None,
+        from_="zakaz@cosmopart.ru",
+        subject="Re: Заказ",
+    )
+
+    async def fake_get_active_by_purpose(_session, _purpose):
+        return [account]
+
+    async def fake_fetch_order_messages(
+        host,
+        email,
+        password,
+        folder,
+        date_from,
+        mark_seen,
+        *,
+        port,
+        ssl,
+        from_email=None,
+    ):
+        del (
+            host,
+            email,
+            password,
+            folder,
+            date_from,
+            mark_seen,
+            port,
+            ssl,
+            from_email,
+        )
+        return [internal_message, supplier_message]
+
+    class _Scalars:
+        def __init__(self, rows):
+            self._rows = rows
+
+        def all(self):
+            return self._rows
+
+    class _Result:
+        def __init__(self, rows):
+            self._rows = rows
+
+        def scalars(self):
+            return _Scalars(self._rows)
+
+    class _Session:
+        async def execute(self, _stmt):
+            return _Result(
+                [SimpleNamespace(email="masterzapzakaz@gmail.com", id=999)]
+            )
+
+    monkeypatch.setattr(
+        response_service.crud_email_account,
+        "get_active_by_purpose",
+        fake_get_active_by_purpose,
+    )
+    monkeypatch.setattr(
+        response_service,
+        "_fetch_order_messages",
+        fake_fetch_order_messages,
+    )
+    monkeypatch.setattr(
+        response_service,
+        "_SUPPLIER_RESPONSE_IGNORE_INTERNAL_SENDERS",
+        True,
+    )
+
+    result = await response_service._fetch_supplier_response_messages(
+        _Session(),
+        date_from=date(2026, 4, 20),
+        include_default_orders_out=True,
+    )
+
+    assert len(result) == 1
+    fetched_message, fetched_account = result[0]
+    assert fetched_message.external_id == "supplier-message"
     assert fetched_account.id == account.id

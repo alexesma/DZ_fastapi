@@ -244,6 +244,7 @@ async def _fetch_order_messages(
     last_uid: Optional[int] = None,
     port: int = 993,
     ssl: bool = True,
+    from_email: Optional[str] = None,
 ) -> list:
     def _fetch():
         with _create_mailbox(
@@ -273,8 +274,15 @@ async def _fetch_order_messages(
                         uid_exc,
                     )
             if fetched is None:
+                query_kwargs = {
+                    'date_gte': date_from,
+                    'all': True,
+                }
+                normalized_from = str(from_email or '').strip()
+                if normalized_from:
+                    query_kwargs['from_'] = normalized_from
                 fetched = mailbox.fetch(
-                    AND(date_gte=date_from, all=True),
+                    AND(**query_kwargs),
                     mark_seen=mark_seen,
                     charset='utf-8',
                 )

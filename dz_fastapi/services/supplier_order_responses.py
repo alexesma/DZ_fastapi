@@ -271,6 +271,14 @@ _SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC = max(
     15.0,
     _env_float("SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC", 180.0),
 )
+_SUPPLIER_RESPONSE_FETCH_MAX_FROM_FILTERS = max(
+    1,
+    _env_int("SUPPLIER_RESPONSE_FETCH_MAX_FROM_FILTERS", 30),
+)
+_SUPPLIER_RESPONSE_IGNORE_INTERNAL_SENDERS = _env_bool(
+    "SUPPLIER_RESPONSE_IGNORE_INTERNAL_SENDERS",
+    True,
+)
 
 
 @dataclass(slots=True)
@@ -420,18 +428,21 @@ async def _fetch_supplier_response_messages(
     date_to: Optional[date] = None,
     account_ids: Optional[set[int]] = None,
     include_default_orders_out: bool = True,
+    from_email_filters: Optional[Iterable[str]] = None,
 ) -> list[tuple[object, Optional[EmailAccount]]]:
     accounts: list[EmailAccount] = []
     account_map: dict[int, EmailAccount] = {}
     logger.info(
         (
             "Supplier response inbox fetch init: date_from=%s date_to=%s "
-            "include_default_orders_out=%s explicit_account_ids=%s"
+            "include_default_orders_out=%s explicit_account_ids=%s "
+            "from_filters=%s"
         ),
         date_from,
         date_to,
         include_default_orders_out,
         sorted(account_ids or []),
+        list(from_email_filters or []),
     )
     if include_default_orders_out:
         default_accounts = await crud_email_account.get_active_by_purpose(
@@ -453,6 +464,74 @@ async def _fetch_supplier_response_messages(
             account_map[account.id] = account
     accounts = sorted(account_map.values(), key=lambda item: item.id)
     messages: list[tuple[object, Optional[EmailAccount]]] = []
+    normalized_from_filters: list[str] = []
+    seen_filters: set[str] = set()
+    for raw_filter in from_email_filters or []:
+        normalized = str(raw_filter or "").strip().lower()
+        if not normalized or normalized in seen_filters:
+            continue
+        seen_filters.add(normalized)
+        normalized_from_filters.append(normalized)
+    if (
+        len(normalized_from_filters)
+        > _SUPPLIER_RESPONSE_FETCH_MAX_FROM_FILTERS
+    ):
+        logger.warning(
+            (
+                "Supplier response sender filters truncated: "
+                "requested=%s max=%s"
+            ),
+            len(normalized_from_filters),
+            _SUPPLIER_RESPONSE_FETCH_MAX_FROM_FILTERS,
+        )
+        normalized_from_filters = []
+
+    sender_filter_set = set(normalized_from_filters)
+    internal_sender_set: set[str] = set()
+    if _SUPPLIER_RESPONSE_IGNORE_INTERNAL_SENDERS and session is not None:
+        try:
+            internal_accounts = (
+                await session.execute(
+                    select(EmailAccount).where(
+                        EmailAccount.is_active.is_(True)
+                    )
+                )
+            ).scalars().all()
+            for account in internal_accounts:
+                sender_email = str(getattr(account, "email", "") or "")
+                sender_email = sender_email.strip().lower()
+                if sender_email:
+                    internal_sender_set.add(sender_email)
+        except Exception as internal_sender_exc:
+            logger.warning(
+                "Failed to load internal sender ignore list: %s",
+                internal_sender_exc,
+            )
+    if internal_sender_set:
+        logger.info(
+            "Supplier response internal sender ignore list loaded: count=%s",
+            len(internal_sender_set),
+        )
+
+    def _filter_messages_by_sender(
+        raw_messages: Iterable[object],
+    ) -> list[object]:
+        if not sender_filter_set and not internal_sender_set:
+            return list(raw_messages)
+        filtered_messages: list[object] = []
+        for raw_message in raw_messages:
+            sender = _extract_email(getattr(raw_message, "from_", None))
+            if sender in internal_sender_set:
+                continue
+            if sender in sender_filter_set:
+                filtered_messages.append(raw_message)
+            elif not sender_filter_set:
+                filtered_messages.append(raw_message)
+        return filtered_messages
+
+    fetch_from_filters: list[Optional[str]] = (
+        normalized_from_filters if normalized_from_filters else [None]
+    )
     if accounts:
         for account in accounts:
             host = account.imap_host or EMAIL_HOST_ORDER
@@ -465,12 +544,13 @@ async def _fetch_supplier_response_messages(
             logger.info(
                 (
                     "Supplier response inbox account start: account_id=%s "
-                    "email=%s transport=%s folders=%s"
+                    "email=%s transport=%s folders=%s from_filters=%s"
                 ),
                 account.id,
                 account.email,
                 transport,
                 folders,
+                normalized_from_filters or None,
             )
             if transport == "resend_api":
                 try:
@@ -481,6 +561,9 @@ async def _fetch_supplier_response_messages(
                         ),
                         timeout=_SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
                     )
+                    filtered_messages = _filter_messages_by_sender(
+                        account_messages
+                    )
                     logger.info(
                         (
                             "Supplier response inbox account done: "
@@ -488,9 +571,11 @@ async def _fetch_supplier_response_messages(
                         ),
                         account.id,
                         account.email,
-                        len(account_messages),
+                        len(filtered_messages),
                     )
-                    messages.extend((msg, account) for msg in account_messages)
+                    messages.extend(
+                        (msg, account) for msg in filtered_messages
+                    )
                 except asyncio.TimeoutError:
                     logger.warning(
                         (
@@ -546,6 +631,9 @@ async def _fetch_supplier_response_messages(
                                 label,
                                 _SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
                             )
+                    filtered_messages = _filter_messages_by_sender(
+                        account_messages
+                    )
                     logger.info(
                         (
                             "Supplier response inbox account done: "
@@ -553,9 +641,11 @@ async def _fetch_supplier_response_messages(
                         ),
                         account.id,
                         account.email,
-                        len(account_messages),
+                        len(filtered_messages),
                     )
-                    messages.extend((msg, account) for msg in account_messages)
+                    messages.extend(
+                        (msg, account) for msg in filtered_messages
+                    )
                 except Exception as exc:
                     logger.error(
                         "Supplier response inbox fetch failed for %s: %s",
@@ -570,30 +660,36 @@ async def _fetch_supplier_response_messages(
                 account_messages = []
                 for folder in folders:
                     try:
-                        logger.info(
-                            (
-                                "Supplier response IMAP fetch: "
-                                "account_id=%s email=%s folder=%s"
-                            ),
-                            account.id,
-                            account.email,
-                            folder,
-                        )
-                        account_messages.extend(
-                            await asyncio.wait_for(
-                                _fetch_order_messages(
-                                    host,
-                                    account.email,
-                                    account.password,
-                                    folder,
-                                    date_from,
-                                    False,
-                                    port=account.imap_port or IMAP_SERVER,
-                                    ssl=True,
+                        for from_filter in fetch_from_filters:
+                            logger.info(
+                                (
+                                    "Supplier response IMAP fetch: "
+                                    "account_id=%s email=%s folder=%s "
+                                    "from_filter=%s"
                                 ),
-                                timeout=_SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
+                                account.id,
+                                account.email,
+                                folder,
+                                from_filter,
                             )
-                        )
+                            account_messages.extend(
+                                await asyncio.wait_for(
+                                    _fetch_order_messages(
+                                        host,
+                                        account.email,
+                                        account.password,
+                                        folder,
+                                        date_from,
+                                        False,
+                                        port=account.imap_port or IMAP_SERVER,
+                                        ssl=True,
+                                        from_email=from_filter,
+                                    ),
+                                    timeout=(
+                                        _SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC
+                                    ),
+                                )
+                            )
                     except MailboxFolderSelectError as folder_exc:
                         logger.warning(
                             (
@@ -646,30 +742,34 @@ async def _fetch_supplier_response_messages(
                 "Supplier response fallback inbox fetch start: email=%s",
                 EMAIL_NAME_ORDER,
             )
-            try:
-                fallback_messages = await asyncio.wait_for(
-                    _fetch_order_messages(
-                        EMAIL_HOST_ORDER,
+            fallback_messages = []
+            for from_filter in fetch_from_filters:
+                try:
+                    fallback_messages.extend(
+                        await asyncio.wait_for(
+                            _fetch_order_messages(
+                                EMAIL_HOST_ORDER,
+                                EMAIL_NAME_ORDER,
+                                EMAIL_PASSWORD_ORDER,
+                                EMAIL_FOLDER_ORDER,
+                                date_from,
+                                False,
+                                port=IMAP_SERVER,
+                                ssl=True,
+                                from_email=from_filter,
+                            ),
+                            timeout=_SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
+                        )
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        (
+                            "Supplier response fallback inbox fetch timeout "
+                            "for %s after %.0fs"
+                        ),
                         EMAIL_NAME_ORDER,
-                        EMAIL_PASSWORD_ORDER,
-                        EMAIL_FOLDER_ORDER,
-                        date_from,
-                        False,
-                        port=IMAP_SERVER,
-                        ssl=True,
-                    ),
-                    timeout=_SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
-                )
-            except asyncio.TimeoutError:
-                logger.warning(
-                    (
-                        "Supplier response fallback inbox fetch timeout "
-                        "for %s after %.0fs"
-                    ),
-                    EMAIL_NAME_ORDER,
-                    _SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
-                )
-                fallback_messages = []
+                        _SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
+                    )
             logger.info(
                 "Supplier response fallback inbox done: fetched=%s",
                 len(fallback_messages),
@@ -4085,6 +4185,20 @@ async def process_supplier_response_messages(
         and selected_config.inbox_email_account_id is not None
     ):
         include_default_orders_out = False
+    sender_filters: set[str] = set()
+    for config in response_configs:
+        sender_filters.update(
+            _normalize_sender_emails(config.sender_emails)
+        )
+    from_email_filters: list[str] = []
+    if sender_filters:
+        should_apply_sender_filters = (
+            supplier_response_config_id is not None
+            or provider_id is not None
+            or len(sender_filters) <= _SUPPLIER_RESPONSE_FETCH_MAX_FROM_FILTERS
+        )
+        if should_apply_sender_filters:
+            from_email_filters = sorted(sender_filters)
 
     fetch_kwargs: dict[str, object] = {
         "date_from": date_from,
@@ -4094,6 +4208,8 @@ async def process_supplier_response_messages(
         fetch_kwargs["account_ids"] = explicit_account_ids
     if not include_default_orders_out:
         fetch_kwargs["include_default_orders_out"] = False
+    if from_email_filters:
+        fetch_kwargs["from_email_filters"] = from_email_filters
     messages = await _fetch_supplier_response_messages(session, **fetch_kwargs)
     stats.fetched_messages = len(messages)
     logger.info(
