@@ -488,21 +488,33 @@ async def test_supplier_receipt_providers_endpoint_filters_by_period(
     recent_provider = created_providers[0]
     old_provider = created_providers[1]
 
-    test_session.add(
-        SupplierOrder(
-            provider_id=recent_provider.id,
-            status=SUPPLIER_ORDER_STATUS.SENT,
-            created_at=now_dt,
-            sent_at=now_dt,
-        )
+    recent_order = SupplierOrder(
+        provider_id=recent_provider.id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+        created_at=now_dt,
+        sent_at=now_dt,
     )
-    test_session.add(
-        SupplierOrder(
-            provider_id=old_provider.id,
-            status=SUPPLIER_ORDER_STATUS.SENT,
-            created_at=now_dt - timedelta(days=15),
-            sent_at=now_dt - timedelta(days=15),
-        )
+    old_order = SupplierOrder(
+        provider_id=old_provider.id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+        created_at=now_dt - timedelta(days=15),
+        sent_at=now_dt - timedelta(days=15),
+    )
+    test_session.add_all([recent_order, old_order])
+    await test_session.flush()
+
+    # The providers endpoint returns only providers with pending receipt items.
+    test_session.add_all(
+        [
+            SupplierOrderItem(
+                supplier_order_id=recent_order.id,
+                quantity=2,
+            ),
+            SupplierOrderItem(
+                supplier_order_id=old_order.id,
+                quantity=1,
+            ),
+        ]
     )
     await test_session.commit()
 
