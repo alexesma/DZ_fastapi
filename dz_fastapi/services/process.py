@@ -1217,12 +1217,11 @@ def expand_dz_brands(df: pd.DataFrame) -> pd.DataFrame:
     Expand DRAGONZAP positions into separate rows per assigned brand,
     WITHOUT adding any label prefixes to names.
 
-    Works on the internal DataFrame format (columns: 'brand', 'oem_number').
-    Must be called BEFORE source filters so the resulting brand rows
-    can be included/excluded by brand_filters.
+    Works on the EXCEL DataFrame format (columns: 'Производитель', 'Артикул').
+    Must be called AFTER prepare_excel_data() — same stage as add_origin_brand_from_dz.
 
     Logic:
-    - Positions with brand == 'DRAGONZAP':
+    - Positions with Производитель == 'DRAGONZAP':
         * Strip leading 'DZ' prefix from oem_number
         * Determine target brand(s) via assign_brand()
         * Explode into one row per assigned brand
@@ -1230,26 +1229,22 @@ def expand_dz_brands(df: pd.DataFrame) -> pd.DataFrame:
     """
     df = df.copy()
 
-    mask_dz = df['brand'].str.upper() == 'DRAGONZAP'
+    mask_dz = df['Производитель'].str.upper() == 'DRAGONZAP'
     dz_items = df.loc[mask_dz].copy()
 
     if not dz_items.empty:
         # Strip 'DZ' prefix from OEM number
-        dz_items['oem_number'] = dz_items['oem_number'].apply(
-            lambda x: x[2:] if isinstance(
-                x, str
-            ) and x.upper().startswith('DZ') else x
+        dz_items['Артикул'] = dz_items['Артикул'].apply(
+            lambda x: x[2:] if isinstance(x, str) and x.upper().startswith('DZ') else x
         )
         # Determine brand(s) per OEM
-        dz_items[
-            'assigned_brands'
-        ] = dz_items['oem_number'].apply(assign_brand)
+        dz_items['assigned_brands'] = dz_items['Артикул'].apply(assign_brand)
         # One row per assigned brand
         dz_items = dz_items.explode('assigned_brands')
-        dz_items['brand'] = dz_items['assigned_brands']
+        dz_items['Производитель'] = dz_items['assigned_brands']
         dz_items = dz_items.drop(columns=['assigned_brands'])
 
-    # Combine non-DZ rows with expanded DZ rows
+    # Replace DRAGONZAP rows with expanded brand rows
     df_result = pd.concat([df[~mask_dz], dz_items], ignore_index=True)
     return df_result
 
@@ -1394,6 +1389,7 @@ async def process_customer_pricelist(
         )
 
     combined_data = []
+    dz_expand_enabled = False
 
     if request.items:
         for pricelist_id in request.items:
@@ -1421,6 +1417,11 @@ async def process_customer_pricelist(
                 status_code=400,
                 detail='No autoparts to include in the pricelist',
             )
+        dz_expand_enabled = any(
+            s.enabled
+            and (s.additional_filters or {}).get('DZ_EXPAND_BRANDS')
+            for s in sources
+        )
         for source in sources:
             if not source.enabled:
                 continue
@@ -1441,18 +1442,6 @@ async def process_customer_pricelist(
                 associations=associations, session=session
             )
             logger.debug(f'Transform file to dataframe {df}')
-
-            # Expand DRAGONZAP → brand rows BEFORE filters,
-            # so brand_filters can include/exclude the resulting brands.
-            if (
-                source.additional_filters
-                and source.additional_filters.get('DZ_EXPAND_BRANDS')
-            ):
-                logger.debug(
-                    'Source %s: DZ_EXPAND_BRANDS — expanding DRAGONZAP rows',
-                    source.id,
-                )
-                df = expand_dz_brands(df)
 
             df = _apply_source_filters(df, source)
             if df.empty:
@@ -1530,6 +1519,15 @@ async def process_customer_pricelist(
 
     # Prepare data for Excel file
     df_excel = prepare_excel_data(associations=associations)
+
+    # DZ brand expansion (without name labels) — applied at Excel level
+    # so that the brand column in output reflects assigned brands, not DRAGONZAP.
+    # dz_expand_enabled is set when iterating sources above.
+    if dz_expand_enabled:
+        logger.debug(
+            'DZ_EXPAND_BRANDS: expanding DRAGONZAP positions in Excel DF'
+        )
+        df_excel = expand_dz_brands(df_excel)
 
     if config.additional_filters.get('ZZAP'):
         logger.debug('Зашел в get additional_filters')
