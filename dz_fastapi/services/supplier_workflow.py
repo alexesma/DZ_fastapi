@@ -11,10 +11,9 @@ from sqlalchemy.orm import joinedload, selectinload
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.customer_order import crud_supplier_order
 from dz_fastapi.models.partner import (STOCK_ORDER_STATUS, CustomerOrder,
-                                       CustomerOrderItem, Provider, StockOrder,
-                                       StockOrderItem, SupplierOrder,
-                                       SupplierOrderItem, SupplierReceipt,
-                                       SupplierReceiptItem)
+                                       CustomerOrderItem, StockOrder,
+                                       StockOrderItem, SupplierOrderItem,
+                                       SupplierReceipt, SupplierReceiptItem)
 from dz_fastapi.models.user import User
 from dz_fastapi.services.customer_orders import \
     try_finalize_customer_order_response
@@ -309,7 +308,10 @@ async def list_supplier_receipt_provider_options(
             continue
         if pid not in provider_map:
             pname = row.get('provider_name') or f'#{pid}'
-            provider_map[pid] = {'provider_name': str(pname).strip(), 'count': 0}
+            provider_map[pid] = {
+                'provider_name': str(pname).strip(),
+                'count': 0
+            }
         provider_map[pid]['count'] += 1
 
     result = [
