@@ -1234,7 +1234,9 @@ def expand_dz_brands(df: pd.DataFrame) -> pd.DataFrame:
     if not dz_items.empty:
         # Strip 'DZ' prefix from article number
         dz_items['Артикул'] = dz_items['Артикул'].apply(
-            lambda x: x[2:] if isinstance(x, str) and x.upper().startswith('DZ') else x
+            lambda x: x[2:] if isinstance(
+                x, str
+            ) and x.upper().startswith('DZ') else x
         )
         # Determine brand(s) per article
         dz_items['assigned_brands'] = dz_items['Артикул'].apply(assign_brand)
@@ -1589,8 +1591,13 @@ async def process_customer_pricelist(
         logger.debug(f'Измененный файл для ZZAP: {df_excel}')
 
     # --- DZ brand expansion (без меток в наименовании) ---
-    if config.additional_filters and config.additional_filters.get('DZ_EXPAND_BRANDS'):
-        logger.debug('DZ_EXPAND_BRANDS включён: разворачиваем позиции DRAGONZAP по брендам')
+    if config.additional_filters and config.additional_filters.get(
+            'DZ_EXPAND_BRANDS'
+    ):
+        logger.debug(
+            'DZ_EXPAND_BRANDS включён: '
+            'разворачиваем позиции DRAGONZAP по брендам'
+        )
         df_excel = expand_dz_brands(df_excel)
         logger.debug(f'После DZ_EXPAND_BRANDS: {len(df_excel)} строк')
 
