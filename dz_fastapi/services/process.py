@@ -1212,6 +1212,42 @@ async def add_origin_brand_from_dz(
     return price_zzap
 
 
+def expand_dz_brands(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Expand DRAGONZAP positions into separate rows per assigned brand,
+    WITHOUT adding any label prefixes to names.
+
+    Logic:
+    - Positions whose brand is already in ORIGINAL_BRANDS (CHERY, HAVAL, etc.)
+      are kept as-is (name unchanged).
+    - Positions with brand == 'DRAGONZAP':
+        * Strip 'DZ' prefix from OEM number
+        * Determine target brand(s) via assign_brand()
+        * Explode into one row per brand
+    - Remaining positions (other brands) are also kept as-is.
+    """
+    df = df.copy()
+
+    mask_dz = df['Производитель'] == 'DRAGONZAP'
+    dz_items = df.loc[mask_dz].copy()
+
+    if not dz_items.empty:
+        # Strip 'DZ' prefix from article number
+        dz_items['Артикул'] = dz_items['Артикул'].apply(
+            lambda x: x[2:] if isinstance(x, str) and x.upper().startswith('DZ') else x
+        )
+        # Determine brand(s) per article
+        dz_items['assigned_brands'] = dz_items['Артикул'].apply(assign_brand)
+        # One row per assigned brand
+        dz_items = dz_items.explode('assigned_brands')
+        dz_items['Производитель'] = dz_items['assigned_brands']
+        dz_items = dz_items.drop(columns=['assigned_brands'])
+
+    # Combine non-DZ rows with the expanded DZ rows
+    df_result = pd.concat([df[~mask_dz], dz_items], ignore_index=True)
+    return df_result
+
+
 async def send_pricelist(
     session: AsyncSession,
     df_excel: pd.DataFrame,
@@ -1551,6 +1587,13 @@ async def process_customer_pricelist(
             price_zzap=df_excel, session=session
         )
         logger.debug(f'Измененный файл для ZZAP: {df_excel}')
+
+    # --- DZ brand expansion (без меток в наименовании) ---
+    if config.additional_filters and config.additional_filters.get('DZ_EXPAND_BRANDS'):
+        logger.debug('DZ_EXPAND_BRANDS включён: разворачиваем позиции DRAGONZAP по брендам')
+        df_excel = expand_dz_brands(df_excel)
+        logger.debug(f'После DZ_EXPAND_BRANDS: {len(df_excel)} строк')
+
     if {'Производитель', 'Наименование'}.issubset(df_excel.columns):
         df_excel = df_excel.sort_values(
             by=['Производитель', 'Наименование'], kind='stable'

@@ -719,9 +719,14 @@ async def _fetch_supplier_response_messages(
                     ),
                     account.id,
                     account.email,
-                    len(account_messages),
+                    len(_filter_messages_by_sender(account_messages)),
                 )
-                messages.extend((msg, account) for msg in account_messages)
+                filtered_messages = _filter_messages_by_sender(
+                    account_messages
+                )
+                messages.extend(
+                    (msg, account) for msg in filtered_messages
+                )
             except Exception as exc:
                 if _is_too_many_connections_error(exc):
                     logger.warning(
@@ -772,9 +777,12 @@ async def _fetch_supplier_response_messages(
                     )
             logger.info(
                 "Supplier response fallback inbox done: fetched=%s",
-                len(fallback_messages),
+                len(_filter_messages_by_sender(fallback_messages)),
             )
-            messages = [(msg, None) for msg in fallback_messages]
+            filtered_fallback = _filter_messages_by_sender(
+                fallback_messages
+            )
+            messages = [(msg, None) for msg in filtered_fallback]
         except Exception as exc:
             logger.error(
                 "Supplier response fallback inbox fetch failed: %s",
