@@ -880,6 +880,10 @@ class CustomerPriceListConfigBase(BaseModel):
     export_file_extension: Optional[str] = Field(
         default=None, description='File extension for exported pricelist'
     )
+    collapse_duplicates_by_min_price: bool = Field(
+        default=True,
+        description='Collapse duplicate OEM+brand rows by minimum price',
+    )
     schedule_days: Optional[List[str]] = Field(default_factory=list)
     schedule_times: Optional[List[str]] = Field(default_factory=list)
     emails: Optional[List[EmailStr]] = Field(default_factory=list)
@@ -945,6 +949,7 @@ class CustomerPriceListConfigUpdate(BaseModel):
     export_file_name: Optional[str] = None
     export_file_format: Optional[str] = None
     export_file_extension: Optional[str] = None
+    collapse_duplicates_by_min_price: Optional[bool] = None
     schedule_days: Optional[List[str]] = None
     schedule_times: Optional[List[str]] = None
     emails: Optional[List[EmailStr]] = None

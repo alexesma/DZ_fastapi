@@ -599,6 +599,11 @@ class CustomerPriceListConfig(Base):
         String(16), nullable=False, default='xlsx', server_default='xlsx'
     )
     export_file_extension = Column(String(16), nullable=True)
+    collapse_duplicates_by_min_price = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
     outgoing_email_account_id = Column(
         Integer, ForeignKey('emailaccount.id'), nullable=True
     )

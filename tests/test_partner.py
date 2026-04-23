@@ -985,6 +985,7 @@ async def test_create_customer_pricelist_config(
     assert config['name'] == "Test Config"
     assert config['general_markup'] == 1.0
     assert config['own_price_list_markup'] == 10.0
+    assert config['collapse_duplicates_by_min_price'] is True
     assert config['customer_id'] == customer.id
 
 
@@ -1012,6 +1013,7 @@ async def test_update_customer_pricelist_config(
     assert response.status_code == 200
     updated_config = response.json()
     assert updated_config['general_markup'] == 15.0
+    assert updated_config['collapse_duplicates_by_min_price'] is True
 
 
 @pytest.mark.asyncio
@@ -1279,6 +1281,7 @@ async def test_customer_pricelist_prioritizes_own_price(
         general_markup=1.0,
         own_price_list_markup=1.0,
         third_party_markup=1.0,
+        collapse_duplicates_by_min_price=False,
         additional_filters={},
     )
     test_session.add(config)
@@ -1323,6 +1326,146 @@ async def test_customer_pricelist_prioritizes_own_price(
     payload = response.json()
     assert len(payload['autoparts']) == 1
     assert abs(float(payload['autoparts'][0]['price']) - 120.0) < 0.01
+
+
+@pytest.mark.asyncio
+async def test_customer_pricelist_collapses_duplicates_by_min_price(
+    test_session: AsyncSession,
+    async_client: AsyncClient,
+    created_customers: list[Customer],
+    created_brand: Brand,
+):
+    customer = created_customers[0]
+
+    provider_own = Provider(
+        name='Own Provider Min',
+        email_contact='own-min@example.com',
+        email_incoming_price='own-min-prices@example.com',
+        description='Own provider',
+        comment='',
+        type_prices='Wholesale',
+        is_own_price=True,
+    )
+    provider_other = Provider(
+        name='Other Provider Min',
+        email_contact='other-min@example.com',
+        email_incoming_price='other-min-prices@example.com',
+        description='Other provider',
+        comment='',
+        type_prices='Wholesale',
+        is_own_price=False,
+    )
+    test_session.add_all([provider_own, provider_other])
+    await test_session.commit()
+    await test_session.refresh(provider_own)
+    await test_session.refresh(provider_other)
+
+    own_cfg = ProviderPriceListConfig(
+        provider_id=provider_own.id,
+        start_row=1,
+        oem_col=0,
+        qty_col=1,
+        price_col=2,
+        name_price='OWN_CFG_MIN',
+        name_mail='OWN_MAIL_MIN',
+    )
+    other_cfg = ProviderPriceListConfig(
+        provider_id=provider_other.id,
+        start_row=1,
+        oem_col=0,
+        qty_col=1,
+        price_col=2,
+        name_price='OTHER_CFG_MIN',
+        name_mail='OTHER_MAIL_MIN',
+    )
+    test_session.add_all([own_cfg, other_cfg])
+    await test_session.commit()
+    await test_session.refresh(own_cfg)
+    await test_session.refresh(other_cfg)
+
+    autopart = AutoPartPricelist(
+        oem_number='OEM-MIN-001',
+        brand=created_brand.name,
+        name='Test Part Min',
+    )
+    own_assoc = PriceListAutoPartAssociationCreate(
+        autopart=autopart,
+        quantity=5,
+        price=120.0,
+    )
+    other_assoc = PriceListAutoPartAssociationCreate(
+        autopart=autopart,
+        quantity=7,
+        price=100.0,
+    )
+    await crud_pricelist.create(
+        obj_in=PriceListCreate(
+            provider_id=provider_own.id,
+            provider_config_id=own_cfg.id,
+            autoparts=[own_assoc],
+        ),
+        session=test_session,
+    )
+    await crud_pricelist.create(
+        obj_in=PriceListCreate(
+            provider_id=provider_other.id,
+            provider_config_id=other_cfg.id,
+            autoparts=[other_assoc],
+        ),
+        session=test_session,
+    )
+
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name='MIN PRICE DUP CONFIG',
+        general_markup=1.0,
+        own_price_list_markup=1.0,
+        third_party_markup=1.0,
+        additional_filters={},
+    )
+    test_session.add(config)
+    await test_session.commit()
+    await test_session.refresh(config)
+
+    test_session.add_all([
+        CustomerPriceListSource(
+            customer_config_id=config.id,
+            provider_config_id=own_cfg.id,
+            enabled=True,
+            markup=1.0,
+            brand_filters={},
+            position_filters={},
+            additional_filters={},
+        ),
+        CustomerPriceListSource(
+            customer_config_id=config.id,
+            provider_config_id=other_cfg.id,
+            enabled=True,
+            markup=1.0,
+            brand_filters={},
+            position_filters={},
+            additional_filters={},
+        ),
+    ])
+    await test_session.commit()
+
+    request_data = {
+        'date': str(date.today()),
+        'customer_id': customer.id,
+        'config_id': config.id,
+        'items': [],
+        'excluded_own_positions': [],
+        'excluded_supplier_positions': [],
+    }
+    response = await async_client.post(
+        f'/customers/{customer.id}/pricelists/', json=request_data
+    )
+
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert len(payload['autoparts']) == 1
+    assert abs(float(payload['autoparts'][0]['price']) - 100.0) < 0.01
+    assert int(payload['autoparts'][0]['quantity']) == 7
 
 
 @pytest.mark.asyncio

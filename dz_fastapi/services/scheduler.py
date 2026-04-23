@@ -668,7 +668,7 @@ async def check_order_timing_alerts_task(app: FastAPI):
             from dz_fastapi.core.time import now_moscow as _now
             from dz_fastapi.models.notification import AppNotification
 
-            today_str = _now().strftime('%Y-%m-%d')
+            today_date = _now().date()
 
             async def _already_notified(title: str) -> bool:
                 """Check if we already sent this notification today."""
@@ -676,7 +676,7 @@ async def check_order_timing_alerts_task(app: FastAPI):
                     select(AppNotification.id)
                     .where(
                         AppNotification.title == title,
-                        _func.date(AppNotification.created_at) == today_str,
+                        _func.date(AppNotification.created_at) == today_date,
                     )
                     .limit(1)
                 )

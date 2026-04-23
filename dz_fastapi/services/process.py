@@ -380,6 +380,69 @@ def apply_price_overrides(
     return _sanitize_positive_price_quantity(df, context='price_overrides')
 
 
+def _normalize_dedup_oem_key(value: object) -> str:
+    normalized = preprocess_oem_number(str(value or '')).strip()
+    return normalized.upper()
+
+
+def _normalize_dedup_brand_key(value: object) -> str:
+    normalized = normalize_mixed_cyrillic(str(value or '')).strip()
+    normalized = re.sub(r'\s+', ' ', normalized)
+    return normalized.upper()
+
+
+def _collapse_duplicate_rows(
+    df: pd.DataFrame,
+    *,
+    prefer_min_price: bool,
+) -> pd.DataFrame:
+    if df.empty:
+        return df
+
+    collapsed = df.copy()
+    collapsed['price'] = pd.to_numeric(collapsed['price'], errors='coerce')
+    oem_series = (
+        collapsed['oem_number']
+        if 'oem_number' in collapsed.columns
+        else pd.Series('', index=collapsed.index)
+    )
+    brand_series = (
+        collapsed['brand']
+        if 'brand' in collapsed.columns
+        else pd.Series('', index=collapsed.index)
+    )
+    collapsed['__dedup_oem'] = oem_series.map(_normalize_dedup_oem_key)
+    collapsed['__dedup_brand'] = brand_series.map(_normalize_dedup_brand_key)
+
+    if prefer_min_price:
+        collapsed = collapsed.sort_values(
+            by=['__dedup_oem', '__dedup_brand', 'price'],
+            ascending=[True, True, True],
+        )
+    elif 'is_own_price' in collapsed.columns:
+        collapsed['__own_rank'] = (
+            collapsed['is_own_price'].astype(bool).astype(int)
+        )
+        collapsed = collapsed.sort_values(
+            by=['__dedup_oem', '__dedup_brand', '__own_rank', 'price'],
+            ascending=[True, True, False, True],
+        )
+    else:
+        collapsed = collapsed.sort_values(
+            by=['__dedup_oem', '__dedup_brand', 'price'],
+            ascending=[True, True, True],
+        )
+
+    collapsed = collapsed.drop_duplicates(
+        subset=['__dedup_oem', '__dedup_brand'],
+        keep='first',
+    )
+    return collapsed.drop(
+        columns=['__dedup_oem', '__dedup_brand', '__own_rank'],
+        errors='ignore',
+    )
+
+
 def open_csv(file: bytes) -> pd.DataFrame:
     encodings = [
         'utf-8-sig',
@@ -1458,22 +1521,6 @@ async def process_customer_pricelist(
 
     if combined_data:
         final_df = pd.concat(combined_data, ignore_index=True)
-
-        # Deduplicate with own-price priority, then lowest price
-        if 'is_own_price' in final_df.columns:
-            final_df['__own_rank'] = final_df['is_own_price'].astype(int)
-            final_df = (
-                final_df.sort_values(
-                    by=['oem_number', 'brand', '__own_rank', 'price'],
-                    ascending=[True, True, False, True],
-                )
-                .drop_duplicates(subset=['oem_number', 'brand'], keep='first')
-                .drop(columns=['__own_rank'])
-            )
-        else:
-            final_df = final_df.sort_values(
-                by=['oem_number', 'brand', 'price']
-            ).drop_duplicates(subset=['oem_number', 'brand'], keep='first')
     else:
         final_df = pd.DataFrame()
 
@@ -1502,6 +1549,12 @@ async def process_customer_pricelist(
                     excluded_autoparts=excluded_autoparts,
                     df=final_df,
                 )
+        final_df = _collapse_duplicate_rows(
+            final_df,
+            prefer_min_price=bool(
+                getattr(config, 'collapse_duplicates_by_min_price', True)
+            ),
+        )
         customer_autoparts_data = final_df.to_dict('records')
     else:
         raise HTTPException(
