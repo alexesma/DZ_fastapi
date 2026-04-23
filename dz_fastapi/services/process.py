@@ -1236,10 +1236,14 @@ def expand_dz_brands(df: pd.DataFrame) -> pd.DataFrame:
     if not dz_items.empty:
         # Strip 'DZ' prefix from OEM number
         dz_items['oem_number'] = dz_items['oem_number'].apply(
-            lambda x: x[2:] if isinstance(x, str) and x.upper().startswith('DZ') else x
+            lambda x: x[2:] if isinstance(
+                x, str
+            ) and x.upper().startswith('DZ') else x
         )
         # Determine brand(s) per OEM
-        dz_items['assigned_brands'] = dz_items['oem_number'].apply(assign_brand)
+        dz_items[
+            'assigned_brands'
+        ] = dz_items['oem_number'].apply(assign_brand)
         # One row per assigned brand
         dz_items = dz_items.explode('assigned_brands')
         dz_items['brand'] = dz_items['assigned_brands']
