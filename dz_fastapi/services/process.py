@@ -1218,7 +1218,8 @@ def expand_dz_brands(df: pd.DataFrame) -> pd.DataFrame:
     WITHOUT adding any label prefixes to names.
 
     Works on the EXCEL DataFrame format (columns: 'Производитель', 'Артикул').
-    Must be called AFTER prepare_excel_data() — same stage as add_origin_brand_from_dz.
+    Must be called AFTER prepare_excel_data() —
+    same stage as add_origin_brand_from_dz.
 
     Logic:
     - Positions with Производитель == 'DRAGONZAP':
@@ -1235,7 +1236,9 @@ def expand_dz_brands(df: pd.DataFrame) -> pd.DataFrame:
     if not dz_items.empty:
         # Strip 'DZ' prefix from OEM number
         dz_items['Артикул'] = dz_items['Артикул'].apply(
-            lambda x: x[2:] if isinstance(x, str) and x.upper().startswith('DZ') else x
+            lambda x: x[2:] if isinstance(
+                x, str
+            ) and x.upper().startswith('DZ') else x
         )
         # Determine brand(s) per OEM
         dz_items['assigned_brands'] = dz_items['Артикул'].apply(assign_brand)
@@ -1521,7 +1524,8 @@ async def process_customer_pricelist(
     df_excel = prepare_excel_data(associations=associations)
 
     # DZ brand expansion (without name labels) — applied at Excel level
-    # so that the brand column in output reflects assigned brands, not DRAGONZAP.
+    # so that the brand column in output reflects assigned brands,
+    # not DRAGONZAP.
     # dz_expand_enabled is set when iterating sources above.
     if dz_expand_enabled:
         logger.debug(
