@@ -293,50 +293,35 @@ async def list_supplier_receipt_provider_options(
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
 ) -> list[dict]:
-    if date_from is None or date_to is None:
-        default_from, default_to = get_default_supplier_activity_window()
-        date_from = date_from or default_from
-        date_to = date_to or default_to
-
-    period_column = func.coalesce(
-        SupplierOrder.sent_at,
-        SupplierOrder.created_at,
+    """
+    Return only providers that have at least one pending item to receive
+    (pending_quantity > 0, not yet in a receipt) within the given period.
+    Reuses list_supplier_receipt_candidates so the filter logic is identical.
+    """
+    candidates = await list_supplier_receipt_candidates(
+        session, date_from=date_from, date_to=date_to
     )
-    stmt = (
-        select(
-            SupplierOrder.provider_id,
-            Provider.name,
-            func.count(SupplierOrder.id),
-        )
-        .join(Provider, Provider.id == SupplierOrder.provider_id)
-        .group_by(SupplierOrder.provider_id, Provider.name)
-        .order_by(Provider.name.asc(), SupplierOrder.provider_id.asc())
-    )
-    if date_from is not None:
-        stmt = stmt.where(
-            period_column >= datetime.combine(date_from, datetime.min.time())
-        )
-    if date_to is not None:
-        stmt = stmt.where(
-            period_column <= datetime.combine(date_to, datetime.max.time())
-        )
 
-    rows = (await session.execute(stmt)).all()
-    result: list[dict] = []
-    for provider_id, provider_name, orders_count in rows:
-        if provider_id is None:
+    provider_map: dict[int, dict] = {}
+    for row in candidates:
+        pid = row.get('provider_id')
+        if pid is None:
             continue
-        result.append(
-            {
-                'provider_id': int(provider_id),
-                'provider_name': (
-                    str(provider_name).strip()
-                    if provider_name not in (None, '')
-                    else f'#{int(provider_id)}'
-                ),
-                'orders_count': int(orders_count or 0),
-            }
+        if pid not in provider_map:
+            pname = row.get('provider_name') or f'#{pid}'
+            provider_map[pid] = {'provider_name': str(pname).strip(), 'count': 0}
+        provider_map[pid]['count'] += 1
+
+    result = [
+        {
+            'provider_id': pid,
+            'provider_name': info['provider_name'],
+            'orders_count': info['count'],
+        }
+        for pid, info in sorted(
+            provider_map.items(), key=lambda x: x[1]['provider_name'].lower()
         )
+    ]
     return result
 
 
