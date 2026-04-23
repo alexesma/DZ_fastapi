@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Iterable, Optional
 
 from sqlalchemy import func, select
@@ -12,8 +12,9 @@ from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.customer_order import crud_supplier_order
 from dz_fastapi.models.partner import (STOCK_ORDER_STATUS, CustomerOrder,
                                        CustomerOrderItem, StockOrder,
-                                       StockOrderItem, SupplierOrderItem,
-                                       SupplierReceipt, SupplierReceiptItem)
+                                       StockOrderItem, SupplierOrder,
+                                       SupplierOrderItem, SupplierReceipt,
+                                       SupplierReceiptItem)
 from dz_fastapi.models.user import User
 from dz_fastapi.services.customer_orders import \
     try_finalize_customer_order_response
@@ -1013,3 +1014,107 @@ async def create_manual_supplier_receipt(
 
     await session.commit()
     return await _reload_receipt_detail(session, receipt.id)
+
+
+def _auto_refuse_deadline(
+    sent_at: datetime,
+    holiday_set: set,
+) -> datetime:
+    """Return the datetime when an item should be auto-refused.
+
+    Finds the next business day after *sent_at* (using holiday_set) and
+    sets deadline at 23:00 Moscow time of that day.
+
+    Sat/Sun sent_at → returns a far-future sentinel
+    (orders not sent those days).
+    """
+    from zoneinfo import ZoneInfo
+
+    from dz_fastapi.services.holidays import next_business_day
+
+    moscow = ZoneInfo('Europe/Moscow')
+    if sent_at.tzinfo is None:
+        sent_at_moscow = sent_at.replace(
+            tzinfo=timezone.utc
+        ).astimezone(moscow)
+    else:
+        sent_at_moscow = sent_at.astimezone(moscow)
+
+    if sent_at_moscow.weekday() >= 5:
+        # Saturday / Sunday — orders not sent; return far-future sentinel
+        return sent_at_moscow + timedelta(days=365)
+
+    deadline_date = next_business_day(sent_at_moscow.date(), holiday_set)
+    return datetime(
+        deadline_date.year,
+        deadline_date.month,
+        deadline_date.day,
+        23,
+        0,
+        0,
+        tzinfo=moscow,
+    )
+
+
+async def mark_auto_refused_supplier_items(session: AsyncSession) -> int:
+    """Mark SupplierOrderItems as auto-refused when no confirmation or receipt
+    arrived within one business day after the order was sent.
+
+    Returns the number of items newly marked.
+    """
+    from zoneinfo import ZoneInfo
+
+    from dz_fastapi.services.holidays import get_effective_holiday_set
+
+    moscow = ZoneInfo('Europe/Moscow')
+    now = datetime.now(tz=moscow)
+
+    # Pre-load holiday set for current + adjacent years
+    # (covers orders near year boundary)
+    current_year = now.year
+    holiday_set = await get_effective_holiday_set(
+        session, [current_year - 1, current_year, current_year + 1]
+    )
+
+    # Load all sent supplier orders
+    stmt = (
+        select(SupplierOrder)
+        .where(SupplierOrder.sent_at.isnot(None))
+        .options(
+            selectinload(SupplierOrder.items).selectinload(
+                SupplierOrderItem.receipt_items
+            )
+        )
+    )
+    result = await session.execute(stmt)
+    orders: list[SupplierOrder] = result.scalars().all()
+
+    marked = 0
+    for order in orders:
+        sent_at = order.sent_at
+        if sent_at is None:
+            continue
+
+        deadline = _auto_refuse_deadline(sent_at, holiday_set)
+        if now < deadline:
+            # Deadline not yet reached
+            continue
+
+        for item in order.items or []:
+            if item.auto_refused_at is not None:
+                # Already processed
+                continue
+            if item.confirmed_quantity is not None:
+                # Supplier already confirmed (even 0 is an explicit response)
+                continue
+            if item.receipt_items:
+                # Goods received — not a refusal
+                continue
+
+            item.auto_refused_at = now
+            marked += 1
+
+    if marked:
+        await session.commit()
+
+    return marked

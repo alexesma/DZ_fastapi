@@ -80,3 +80,25 @@ class PriceCheckLog(Base):
     status = Column(String(32), nullable=False)
     message = Column(String(255), nullable=True)
     checked_at = Column(DateTime(timezone=True), default=now_moscow)
+
+
+class SupplierHoliday(Base):
+    """Manual holiday calendar for supplier auto-refusal logic.
+
+    Records here either:
+      - Add a non-working day (is_working_day=False, default) — e.g. a public
+        holiday that ``python-holidays`` does not know about, or a custom
+        company day-off.
+      - Override an auto-detected holiday as a working day
+        (is_working_day=True)
+        — e.g. when a public holiday is moved to another day and this day
+        becomes a normal working day.
+      - Mark a weekend as a working day (is_working_day=True) — перенос
+        рабочего дня на субботу.
+    """
+
+    date = Column(Date, nullable=False, unique=True, index=True)
+    description = Column(String(255), nullable=True)
+    # False = non-working day (holiday); True = forced working day (override)
+    is_working_day = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=now_moscow)

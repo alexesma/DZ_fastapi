@@ -814,6 +814,7 @@ class SupplierOrderItem(Base):
     response_status_synced_at = Column(DateTime(timezone=True), nullable=True)
     received_quantity = Column(Integer, nullable=True)
     received_at = Column(DateTime(timezone=True), nullable=True)
+    auto_refused_at = Column(DateTime(timezone=True), nullable=True)
 
     supplier_order = relationship('SupplierOrder', back_populates='items')
     customer_order_item = relationship('CustomerOrderItem')

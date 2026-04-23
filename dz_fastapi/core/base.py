@@ -41,7 +41,7 @@ from dz_fastapi.models.price_control import (CustomerPriceListOverride,
 from dz_fastapi.models.settings import (CustomerOrderInboxSettings,
                                         PriceCheckLog, PriceCheckSchedule,
                                         PriceListStaleAlert, SchedulerSetting,
-                                        SystemMetricSnapshot)
+                                        SupplierHoliday, SystemMetricSnapshot)
 from dz_fastapi.models.user import User  # noqa
 from dz_fastapi.models.watchlist import PriceWatchItem
 from dz_fastapi.models.webchat import ChatMessage
@@ -104,6 +104,7 @@ __all__ = [
     'SystemMetricSnapshot',
     'PriceListStaleAlert',
     'CustomerOrderInboxSettings',
+    'SupplierHoliday',
     'PriceWatchItem',
     'CustomerPriceListOverride',
     'PriceControlConfig',

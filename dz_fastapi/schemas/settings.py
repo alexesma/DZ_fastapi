@@ -88,6 +88,22 @@ class SystemMetricSnapshotOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class SupplierHolidayCreate(BaseModel):
+    date: date
+    description: Optional[str] = None
+    is_working_day: bool = False
+
+
+class SupplierHolidayOut(BaseModel):
+    id: int
+    date: date
+    description: Optional[str] = None
+    is_working_day: bool = False
+    source: str = 'manual'  # 'manual' | 'auto'
+    created_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
 class MonitorDbTableOut(BaseModel):
     table: str
     size_bytes: int

@@ -59,6 +59,8 @@ from dz_fastapi.services.process import (process_customer_pricelist,
                                          process_provider_pricelist)
 from dz_fastapi.services.supplier_order_responses import \
     process_supplier_response_messages
+from dz_fastapi.services.supplier_workflow import \
+    mark_auto_refused_supplier_items
 from dz_fastapi.services.watchlist import send_watchlist_daily_notifications
 from dz_fastapi.services.watchlist_site import check_watchlist_site
 
@@ -362,6 +364,18 @@ def start_scheduler(app: FastAPI):
         id='cleanup_inbox_emails',
         name='Cleanup old inbox emails',
         hour=4,
+        minute=0,
+        replace_existing=True,
+    )
+
+    # Авто-отказ позиций заказов поставщику — раз в сутки в 23:00
+    scheduler.add_job(
+        func=auto_refuse_supplier_items_task,
+        trigger='cron',
+        args=[app],
+        id='auto_refuse_supplier_items',
+        name='Auto-refuse unconfirmed supplier order items',
+        hour=23,
         minute=0,
         replace_existing=True,
     )
@@ -1542,3 +1556,24 @@ async def cleanup_inbox_emails_task(app: FastAPI):
             )
         except Exception as e:
             logger.error('Error in cleanup_inbox_emails_task: %s', e)
+
+
+async def auto_refuse_supplier_items_task(app: FastAPI):
+    """Помечает позиции заказов поставщику как авто-отказ если
+    прошёл рабочий день без подтверждения или поступления товара."""
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            marked = await mark_auto_refused_supplier_items(session)
+            if marked:
+                logger.info(
+                    'auto_refuse_supplier_items_task: marked %s items '
+                    'as auto-refused',
+                    marked,
+                )
+            else:
+                logger.debug(
+                    'auto_refuse_supplier_items_task: nothing to mark'
+                )
+        except Exception as e:
+            logger.error('Error in auto_refuse_supplier_items_task: %s', e)

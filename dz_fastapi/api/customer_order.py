@@ -1022,18 +1022,22 @@ async def list_supplier_orders(
                 )
             supplier_sum += Decimal(item.quantity) * price_value
 
-        # "Сумма отказа" = what the supplier confirmed they CANNOT deliver.
-        # Only counted when the supplier has actually responded
-        # (confirmed_quantity set).
-        # A brand-new order with no supplier response will always show 0.
+        # "Сумма отказа" = what the supplier confirmed they CANNOT deliver,
+        # or items that were auto-refused due
+        # to no response within 1 business day.
         rejected_sum = Decimal("0")
         for item in order.items or []:
-            if item.confirmed_quantity is None:
+            ordered_qty = int(item.quantity or 0)
+            if item.confirmed_quantity is not None:
+                # Explicit supplier response
+                confirmed_qty = int(item.confirmed_quantity)
+                rejected_qty = max(ordered_qty - confirmed_qty, 0)
+            elif item.auto_refused_at is not None:
+                # Auto-refused: no response arrived within 1 business day
+                rejected_qty = ordered_qty
+            else:
                 # No supplier response yet — not a refusal
                 continue
-            ordered_qty = int(item.quantity or 0)
-            confirmed_qty = int(item.confirmed_quantity)
-            rejected_qty = max(ordered_qty - confirmed_qty, 0)
             if rejected_qty > 0:
                 price_value = _money(item.response_price or item.price)
                 rejected_sum += Decimal(rejected_qty) * price_value

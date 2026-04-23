@@ -406,6 +406,7 @@ class SupplierOrderItemDetailResponse(BaseModel):
     max_delivery_day: Optional[int] = None
     received_quantity: Optional[int] = None
     received_at: Optional[datetime] = None
+    auto_refused_at: Optional[datetime] = None
     requested_qty: Optional[int] = None
     ship_qty: Optional[int] = None
     reject_qty: Optional[int] = None

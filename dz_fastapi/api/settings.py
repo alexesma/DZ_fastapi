@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.db import get_session
@@ -9,6 +10,7 @@ from dz_fastapi.crud.settings import (crud_customer_order_inbox_settings,
                                       crud_price_stale_alert,
                                       crud_scheduler_setting,
                                       crud_system_metric_snapshot)
+from dz_fastapi.models.settings import SupplierHoliday
 from dz_fastapi.schemas.settings import (CustomerOrderInboxSettingsOut,
                                          CustomerOrderInboxSettingsUpdate,
                                          MonitorSummaryOut, PriceCheckLogOut,
@@ -17,7 +19,11 @@ from dz_fastapi.schemas.settings import (CustomerOrderInboxSettingsOut,
                                          PriceListStaleAlertOut,
                                          SchedulerSettingOut,
                                          SchedulerSettingUpdate,
+                                         SupplierHolidayCreate,
+                                         SupplierHolidayOut,
                                          SystemMetricSnapshotOut)
+from dz_fastapi.services.holidays import (_auto_holidays_for_years,
+                                          get_manual_holidays)
 from dz_fastapi.services.monitoring import (build_snapshot_payload,
                                             get_monitor_summary)
 
@@ -226,3 +232,121 @@ async def list_monitor_snapshots(
         session=session, limit=limit, offset=offset
     )
     return [SystemMetricSnapshotOut.model_validate(s) for s in snapshots]
+
+
+# ---------------------------------------------------------------------------
+# Supplier holiday calendar
+# ---------------------------------------------------------------------------
+
+@router.get(
+    '/settings/holidays',
+    tags=['settings'],
+    status_code=status.HTTP_200_OK,
+    response_model=list[SupplierHolidayOut],
+)
+async def list_holidays(
+    year: int = Query(
+        default=None, description='Год (по умолчанию — текущий)'
+    ),
+    session: AsyncSession = Depends(get_session),
+):
+    """Return combined holiday list for a given year:
+    auto-detected (python-holidays) + manual overrides from DB.
+    """
+    import datetime as _dt
+    from datetime import date
+    if year is None:
+        year = _dt.date.today().year
+
+    auto_dates = _auto_holidays_for_years([year])
+    manual_entries = await get_manual_holidays(session, [year])
+    manual_map: dict[
+        date,
+        SupplierHoliday
+    ] = {e.date: e for e in manual_entries}
+
+    result: list[SupplierHolidayOut] = []
+
+    # Manual entries first (they may override auto ones)
+    for entry in manual_entries:
+        result.append(
+            SupplierHolidayOut(
+                id=entry.id,
+                date=entry.date,
+                description=entry.description,
+                is_working_day=entry.is_working_day,
+                source='manual',
+                created_at=entry.created_at,
+            )
+        )
+
+    # Auto entries not already in manual_map
+    for d in sorted(auto_dates):
+        if d not in manual_map:
+            result.append(
+                SupplierHolidayOut(
+                    id=0,
+                    date=d,
+                    description=None,
+                    is_working_day=False,
+                    source='auto',
+                    created_at=None,
+                )
+            )
+
+    result.sort(key=lambda x: x.date)
+    return result
+
+
+@router.post(
+    '/settings/holidays',
+    tags=['settings'],
+    status_code=status.HTTP_201_CREATED,
+    response_model=SupplierHolidayOut,
+)
+async def create_holiday(
+    payload: SupplierHolidayCreate,
+    session: AsyncSession = Depends(get_session),
+):
+    """Add a manual holiday (or workday override) to the DB."""
+    existing = await session.execute(
+        select(SupplierHoliday).where(SupplierHoliday.date == payload.date)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f'Запись для даты {payload.date} уже существует',
+        )
+    entry = SupplierHoliday(
+        date=payload.date,
+        description=payload.description,
+        is_working_day=payload.is_working_day,
+    )
+    session.add(entry)
+    await session.commit()
+    await session.refresh(entry)
+    return SupplierHolidayOut(
+        id=entry.id,
+        date=entry.date,
+        description=entry.description,
+        is_working_day=entry.is_working_day,
+        source='manual',
+        created_at=entry.created_at,
+    )
+
+
+@router.delete(
+    '/settings/holidays/{holiday_id}',
+    tags=['settings'],
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_holiday(
+    holiday_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    """Delete a manual holiday entry."""
+    entry = await session.get(SupplierHoliday, holiday_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail='Запись не найдена')
+    await session.delete(entry)
+    await session.commit()
