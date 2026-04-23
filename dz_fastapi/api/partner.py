@@ -1739,6 +1739,35 @@ async def update_customer_pricelist_config(
     )
 
 
+@router.delete(
+    '/customers/{customer_id}/pricelist-configs/{config_id}',
+    tags=['customers'],
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary='Delete a pricelist configuration for a customer',
+)
+async def delete_customer_pricelist_config(
+    customer_id: int,
+    config_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    customer = await crud_customer.get_by_id(
+        customer_id=customer_id, session=session
+    )
+    if not customer:
+        raise HTTPException(status_code=404, detail='Customer not found')
+
+    config = await crud_customer_pricelist_config.get_by_id(
+        session=session, customer_id=customer_id, config_id=config_id
+    )
+    if not config or config.customer_id != customer_id:
+        raise HTTPException(
+            status_code=404, detail='Configuration not found for this customer'
+        )
+
+    await session.delete(config)
+    await session.commit()
+
+
 @router.get(
     '/customers/{customer_id}/pricelist-configs/',
     tags=['customers'],
