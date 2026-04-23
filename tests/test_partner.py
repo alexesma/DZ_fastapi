@@ -1468,6 +1468,43 @@ async def test_customer_pricelist_collapses_duplicates_by_min_price(
     assert int(payload['autoparts'][0]['quantity']) == 7
 
 
+def test_collapse_duplicate_excel_rows_removes_identical_rows():
+    df_excel = pd.DataFrame(
+        [
+            {
+                'Производитель': 'CHERY',
+                'Наименование': 'Сальник Коленвала Задний',
+                'Артикул': 'SMD359158',
+                'Количество': 5,
+                'Цена': 70,
+            },
+            {
+                'Производитель': 'CHERY',
+                'Наименование': 'Сальник Коленвала Задний',
+                'Артикул': 'SMD359158',
+                'Количество': 5,
+                'Цена': 70,
+            },
+            {
+                'Производитель': 'CHERY',
+                'Наименование': 'Другая позиция',
+                'Артикул': 'SMD359159',
+                'Количество': 3,
+                'Цена': 80,
+            },
+        ]
+    )
+
+    collapsed = process_service._collapse_duplicate_excel_rows(df_excel)
+    key_mask = (
+        (collapsed['Производитель'] == 'CHERY')
+        & (collapsed['Артикул'] == 'SMD359158')
+    )
+
+    assert len(collapsed) == 2
+    assert int(key_mask.sum()) == 1
+
+
 @pytest.mark.asyncio
 async def test_customer_pricelist_source_min_price_filter(
     test_session: AsyncSession,

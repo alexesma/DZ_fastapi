@@ -443,6 +443,46 @@ def _collapse_duplicate_rows(
     )
 
 
+def _collapse_duplicate_excel_rows(df_excel: pd.DataFrame) -> pd.DataFrame:
+    if df_excel.empty:
+        return df_excel
+    if not {'Производитель', 'Артикул'}.issubset(df_excel.columns):
+        return df_excel
+
+    collapsed = df_excel.copy()
+    collapsed['__dedup_oem'] = collapsed['Артикул'].map(
+        _normalize_dedup_oem_key
+    )
+    collapsed['__dedup_brand'] = collapsed['Производитель'].map(
+        _normalize_dedup_brand_key
+    )
+
+    if 'Цена' in collapsed.columns:
+        collapsed['__dedup_price'] = pd.to_numeric(
+            collapsed['Цена'], errors='coerce'
+        ).fillna(float('inf'))
+        collapsed = collapsed.sort_values(
+            by=['__dedup_oem', '__dedup_brand', '__dedup_price'],
+            ascending=[True, True, True],
+            kind='stable',
+        )
+    else:
+        collapsed = collapsed.sort_values(
+            by=['__dedup_oem', '__dedup_brand'],
+            ascending=[True, True],
+            kind='stable',
+        )
+
+    collapsed = collapsed.drop_duplicates(
+        subset=['__dedup_oem', '__dedup_brand'],
+        keep='first',
+    )
+    return collapsed.drop(
+        columns=['__dedup_oem', '__dedup_brand', '__dedup_price'],
+        errors='ignore',
+    )
+
+
 def open_csv(file: bytes) -> pd.DataFrame:
     encodings = [
         'utf-8-sig',
@@ -1660,6 +1700,9 @@ async def process_customer_pricelist(
             price_zzap=df_excel, session=session
         )
         logger.debug(f'Измененный файл для ZZAP: {df_excel}')
+
+    if bool(getattr(config, 'collapse_duplicates_by_min_price', True)):
+        df_excel = _collapse_duplicate_excel_rows(df_excel)
 
     if {'Производитель', 'Наименование'}.issubset(df_excel.columns):
         df_excel = df_excel.sort_values(
