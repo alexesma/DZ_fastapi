@@ -70,7 +70,11 @@ async def test_notify_scheduler_issue_creates_admin_notification(
 
 
 @pytest.mark.asyncio
-async def test_close_stale_supplier_response_messages(test_session):
+async def test_close_stale_supplier_response_messages(
+    test_session,
+    created_providers,
+):
+    provider_id = created_providers[0].id
     settings = CustomerOrderInboxSettings(
         lookback_days=1,
         mark_seen=False,
@@ -80,7 +84,7 @@ async def test_close_stale_supplier_response_messages(test_session):
         supplier_response_stale_days=7,
     )
     old_error = SupplierOrderMessage(
-        provider_id=937,
+        provider_id=provider_id,
         message_type='IMPORT_ERROR',
         sender_email='zakaz@cosmopart.ru',
         subject='Re: Заказ',
@@ -88,14 +92,14 @@ async def test_close_stale_supplier_response_messages(test_session):
         import_error_details='Ответ распознан, но не сопоставлен',
     )
     old_retry = SupplierOrderMessage(
-        provider_id=937,
+        provider_id=provider_id,
         message_type='RETRY_PENDING',
         sender_email='zakaz@cosmopart.ru',
         subject='Re: Заказ',
         received_at=now_moscow() - timedelta(days=8),
     )
     fresh_error = SupplierOrderMessage(
-        provider_id=937,
+        provider_id=provider_id,
         message_type='IMPORT_ERROR',
         sender_email='zakaz@cosmopart.ru',
         subject='Re: Заказ',
