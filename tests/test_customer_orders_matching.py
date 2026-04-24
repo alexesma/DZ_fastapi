@@ -1,12 +1,14 @@
 from types import SimpleNamespace
 
 import pandas as pd
+import pytest
 
 from dz_fastapi.api.validators import normalize_brand_name
 from dz_fastapi.crud.partner import crud_customer_pricelist
 from dz_fastapi.services.customer_orders import (
-    _apply_matched_email_state_for_configs, _canonicalize_brand_key,
-    _normalize_key, _normalize_oem_key, _repair_cp1251_mojibake)
+    _apply_matched_email_state_for_configs, _build_current_offers,
+    _canonicalize_brand_key, _normalize_key, _normalize_oem_key,
+    _repair_cp1251_mojibake)
 from dz_fastapi.services.process import _apply_source_filters
 
 
@@ -152,3 +154,95 @@ def test_apply_matched_email_state_updates_all_candidate_configs():
     assert config_new.last_uid == 105
     assert config_old.folder_last_uids['INBOX'] == 105
     assert config_new.folder_last_uids['INBOX'] == 105
+
+
+@pytest.mark.asyncio
+async def test_build_current_offers_keeps_supplier_price_before_markups(
+    monkeypatch,
+):
+    source = SimpleNamespace(
+        enabled=True,
+        provider_config_id=101,
+        markup=2,
+        brand_markups={},
+        brand_filters={},
+        position_filters={},
+        min_price=None,
+        max_price=None,
+        min_quantity=None,
+        max_quantity=None,
+    )
+    config = SimpleNamespace(
+        id=77,
+        individual_markups={},
+        default_filters={},
+        brand_filters=[],
+        category_filter=[],
+        price_intervals=[],
+        position_filters=[],
+        supplier_quantity_filters=[],
+        additional_filters={},
+        own_filters={},
+        other_filters={},
+        supplier_filters={},
+        general_markup=1.5,
+        own_price_list_markup=1,
+        third_party_markup=1,
+    )
+
+    async def _fake_sources(*args, **kwargs):
+        return [source]
+
+    async def _fake_latest_pricelist(*args, **kwargs):
+        return SimpleNamespace(id=501)
+
+    async def _fake_fetch_data(*args, **kwargs):
+        return [SimpleNamespace()]
+
+    async def _fake_transform(*args, **kwargs):
+        return pd.DataFrame(
+            [
+                {
+                    'autopart_id': 10,
+                    'provider_id': 937,
+                    'provider_config_id': 101,
+                    'oem_number': 'SMD359158',
+                    'brand': 'CHERY',
+                    'quantity': 5,
+                    'price': 100.0,
+                    'is_own_price': False,
+                }
+            ]
+        )
+
+    monkeypatch.setattr(
+        'dz_fastapi.services.customer_orders.'
+        'crud_customer_pricelist_source.get_by_config_id',
+        _fake_sources,
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.customer_orders.'
+        'crud_pricelist.get_latest_pricelist_by_config',
+        _fake_latest_pricelist,
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.customer_orders.'
+        'crud_pricelist.fetch_pricelist_data',
+        _fake_fetch_data,
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.customer_orders.'
+        'crud_pricelist.transform_to_dataframe',
+        _fake_transform,
+    )
+
+    offers = await _build_current_offers(
+        session=None,
+        config=config,
+        brand_aliases=None,
+    )
+
+    assert len(offers) == 1
+    offer = next(iter(offers.values()))
+    assert offer.supplier_price == pytest.approx(100.0)
+    assert offer.price == pytest.approx(300.0)

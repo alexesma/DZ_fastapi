@@ -104,11 +104,15 @@ async def test_orders_inbox_settings_support_supplier_response_controls(
     assert response.status_code == 200
     current = response.json()
     assert "supplier_response_lookback_days" in current
+    assert "supplier_response_auto_close_stale_enabled" in current
+    assert "supplier_response_stale_days" in current
     assert "supplier_order_stub_enabled" in current
     assert "supplier_order_stub_email" in current
 
     payload = {
         "supplier_response_lookback_days": 21,
+        "supplier_response_auto_close_stale_enabled": False,
+        "supplier_response_stale_days": 9,
         "supplier_order_stub_enabled": False,
         "supplier_order_stub_email": "orders-stub@example.com",
     }
@@ -119,5 +123,7 @@ async def test_orders_inbox_settings_support_supplier_response_controls(
     assert response.status_code == 200
     updated = response.json()
     assert updated["supplier_response_lookback_days"] == 21
+    assert updated["supplier_response_auto_close_stale_enabled"] is False
+    assert updated["supplier_response_stale_days"] == 9
     assert updated["supplier_order_stub_enabled"] is False
     assert updated["supplier_order_stub_email"] == "orders-stub@example.com"

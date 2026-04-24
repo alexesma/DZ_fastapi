@@ -30,7 +30,8 @@ from dz_fastapi.crud.settings import (crud_customer_order_inbox_settings,
                                       crud_scheduler_setting,
                                       crud_system_metric_snapshot)
 from dz_fastapi.models.partner import (CustomerPriceListConfig, PriceList,
-                                       Provider, ProviderPriceListConfig)
+                                       Provider, ProviderPriceListConfig,
+                                       SupplierOrderMessage)
 from dz_fastapi.models.price_control import PriceControlConfig
 from dz_fastapi.models.settings import PriceListStaleAlert
 from dz_fastapi.schemas.partner import (CustomerCreate,
@@ -145,6 +146,58 @@ async def _notify_scheduler_issue(
             exc,
             exc_info=True,
         )
+
+
+async def _close_stale_supplier_response_messages(
+    session: AsyncSession,
+) -> tuple[int, int]:
+    settings = await crud_customer_order_inbox_settings.get_or_create(
+        session=session
+    )
+    auto_close_enabled = bool(
+        getattr(
+            settings,
+            'supplier_response_auto_close_stale_enabled',
+            True,
+        )
+    )
+    stale_days = max(
+        1,
+        int(getattr(settings, 'supplier_response_stale_days', 7) or 7),
+    )
+    if not auto_close_enabled:
+        return 0, stale_days
+
+    cutoff_dt = now_moscow() - timedelta(days=stale_days)
+    rows = (
+        await session.execute(
+            select(SupplierOrderMessage).where(
+                SupplierOrderMessage.message_type.in_(
+                    ['IMPORT_ERROR', 'RETRY_PENDING']
+                ),
+                SupplierOrderMessage.received_at <= cutoff_dt,
+            )
+        )
+    ).scalars().all()
+    if not rows:
+        return 0, stale_days
+
+    closed_note = (
+        f'Автозакрыто как устаревшее: старше {stale_days} дн.'
+    )
+    for row in rows:
+        details = str(row.import_error_details or '').strip()
+        if details:
+            if closed_note not in details:
+                row.import_error_details = (
+                    f'{details}; {closed_note}'
+                )[:500]
+        else:
+            row.import_error_details = closed_note[:500]
+        row.message_type = 'IGNORED'
+        session.add(row)
+    await session.commit()
+    return len(rows), stale_days
 
 
 def start_scheduler(app: FastAPI):
@@ -620,6 +673,25 @@ async def process_supplier_responses_task(app: FastAPI):
                 'Completed process_supplier_responses_task summary=%s',
                 summary,
             )
+            try:
+                closed_count, stale_days = (
+                    await _close_stale_supplier_response_messages(session)
+                )
+                if closed_count > 0:
+                    logger.info(
+                        (
+                            'Supplier response stale cleanup completed: '
+                            'closed=%s stale_days=%s'
+                        ),
+                        closed_count,
+                        stale_days,
+                    )
+            except Exception as stale_exc:
+                logger.warning(
+                    'Supplier response stale cleanup failed: %s',
+                    stale_exc,
+                    exc_info=True,
+                )
             if setting:
                 await _mark_scheduler_ran(session, setting, now_moscow())
         except Exception as e:

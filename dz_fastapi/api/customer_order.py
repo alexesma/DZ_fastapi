@@ -1039,13 +1039,21 @@ async def list_supplier_orders(
                 # No supplier response yet — not a refusal
                 continue
             if rejected_qty > 0:
-                price_value = _money(item.response_price or item.price)
+                # Refusal percent/sum should be measured against the supplier
+                # order value (ordered price), not response override price.
+                order_item = item.customer_order_item
+                if item.price is not None:
+                    price_value = _money(item.price)
+                else:
+                    price_value = _money(
+                        order_item.matched_price if order_item else None
+                    )
                 rejected_sum += Decimal(rejected_qty) * price_value
 
         total_sum = supplier_sum
         rejected_pct = (
-            float((rejected_sum / (total_sum + rejected_sum)) * 100)
-            if (total_sum + rejected_sum) > 0
+            float((rejected_sum / total_sum) * 100)
+            if total_sum > 0
             else 0.0
         )
 

@@ -62,6 +62,8 @@ class CustomerOrderInboxSettingsOut(BaseModel):
     mark_seen: bool = False
     error_file_retention_days: int = 5
     supplier_response_lookback_days: int = 14
+    supplier_response_auto_close_stale_enabled: bool = True
+    supplier_response_stale_days: int = 7
     supplier_order_stub_enabled: bool = True
     supplier_order_stub_email: Optional[str] = 'info@dragonzap.ru'
     updated_at: Optional[datetime] = None
@@ -73,6 +75,8 @@ class CustomerOrderInboxSettingsUpdate(BaseModel):
     mark_seen: Optional[bool] = None
     error_file_retention_days: Optional[int] = None
     supplier_response_lookback_days: Optional[int] = None
+    supplier_response_auto_close_stale_enabled: Optional[bool] = None
+    supplier_response_stale_days: Optional[int] = None
     supplier_order_stub_enabled: Optional[bool] = None
     supplier_order_stub_email: Optional[str] = None
 

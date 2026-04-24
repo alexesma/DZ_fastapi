@@ -231,6 +231,75 @@ async def test_customer_order_summary_includes_partial_reject_qty(
 
 
 @pytest.mark.asyncio
+async def test_supplier_order_list_rejected_pct_uses_order_value_base(
+    async_client,
+    test_session,
+    created_customers,
+    created_providers,
+):
+    await _create_user(
+        test_session, "supplier-list@example.com", UserRole.MANAGER
+    )
+    await _login(async_client, "supplier-list@example.com")
+
+    customer_order = CustomerOrder(
+        customer_id=created_customers[0].id,
+        status="PROCESSED",
+        received_at=now_moscow(),
+    )
+    test_session.add(customer_order)
+    await test_session.flush()
+
+    customer_item = CustomerOrderItem(
+        order_id=customer_order.id,
+        oem="SMD359158",
+        brand="CHERY",
+        requested_qty=10,
+        requested_price=Decimal("140.00"),
+        ship_qty=10,
+        status="SUPPLIER",
+        matched_price=Decimal("100.00"),
+    )
+    test_session.add(customer_item)
+    await test_session.flush()
+
+    supplier_order = SupplierOrder(
+        provider_id=created_providers[0].id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+        created_at=now_moscow(),
+        sent_at=now_moscow(),
+    )
+    test_session.add(supplier_order)
+    await test_session.flush()
+
+    # Order value base: 10 * 100 = 1000
+    # Rejected value: (10 - 7) * 100 = 300 => 30%
+    # response_price must not affect rejection percent base.
+    test_session.add(
+        SupplierOrderItem(
+            supplier_order_id=supplier_order.id,
+            customer_order_item_id=customer_item.id,
+            quantity=10,
+            price=Decimal("100.00"),
+            confirmed_quantity=7,
+            response_price=Decimal("50.00"),
+        )
+    )
+    await test_session.commit()
+
+    response = await async_client.get("/customer-orders/supplier/list")
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    row = next((item for item in payload if item["id"] == supplier_order.id))
+
+    assert row is not None
+    assert row["supplier_sum"] == pytest.approx(1000.0)
+    assert row["total_sum"] == pytest.approx(1000.0)
+    assert row["rejected_sum"] == pytest.approx(300.0)
+    assert row["rejected_pct"] == pytest.approx(30.0)
+
+
+@pytest.mark.asyncio
 async def test_stock_order_pick_endpoint_updates_progress(
     async_client,
     test_session,

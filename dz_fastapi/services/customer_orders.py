@@ -212,6 +212,7 @@ class OfferRow:
     provider_config_id: Optional[int]
     quantity: int
     price: float
+    supplier_price: float
     is_own_price: bool
 
 
@@ -1250,6 +1251,12 @@ async def _build_current_offers(
         )
         if df.empty:
             continue
+        # Keep the original supplier price from the provider price list.
+        # Later we apply customer-facing markups to `price`, but supplier
+        # orders must use this raw source price.
+        df = df.copy()
+        df['price'] = pd.to_numeric(df['price'], errors='coerce')
+        df['supplier_price'] = df['price']
         df = crud_customer_pricelist.apply_coefficient(
             df,
             config,
@@ -1301,12 +1308,21 @@ async def _build_current_offers(
             str(row.get('__normalized_oem') or ''),
             str(row.get('__normalized_brand') or ''),
         )
+        supplier_price_raw = row.get('supplier_price')
+        if pd.isna(supplier_price_raw):
+            supplier_price_raw = row.get('price')
+        supplier_price = (
+            float(supplier_price_raw)
+            if pd.notna(supplier_price_raw)
+            else 0.0
+        )
         offers[key] = OfferRow(
             autopart_id=int(row.get('autopart_id')),
             provider_id=int(row.get('provider_id')),
             provider_config_id=row.get('provider_config_id'),
             quantity=int(row.get('quantity') or 0),
             price=float(row.get('price') or 0),
+            supplier_price=supplier_price,
             is_own_price=bool(row.get('is_own_price')),
         )
     return offers
@@ -2415,7 +2431,7 @@ async def _process_manual_rows(
                 customer_price, offered_price
             )
             item.price_diff_pct = diff_pct
-            item.matched_price = offered_price
+            item.matched_price = offer.supplier_price
 
             warning_pct = config.price_warning_pct or 5.0
             tolerance_pct = config.price_tolerance_pct or 2.0

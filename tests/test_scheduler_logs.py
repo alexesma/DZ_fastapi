@@ -1,9 +1,15 @@
+from datetime import timedelta
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy import select
 
-from dz_fastapi.services.scheduler import (_notify_scheduler_issue,
-                                           download_price_provider_task)
+from dz_fastapi.core.time import now_moscow
+from dz_fastapi.models.partner import SupplierOrderMessage
+from dz_fastapi.models.settings import CustomerOrderInboxSettings
+from dz_fastapi.services.scheduler import (
+    _close_stale_supplier_response_messages, _notify_scheduler_issue,
+    download_price_provider_task)
 
 
 @pytest.mark.asyncio
@@ -61,3 +67,59 @@ async def test_notify_scheduler_issue_creates_admin_notification(
     assert sent['message'] == 'Something failed'
     assert sent['level'] == 'error'
     assert sent['link'] == '/admin/settings'
+
+
+@pytest.mark.asyncio
+async def test_close_stale_supplier_response_messages(test_session):
+    settings = CustomerOrderInboxSettings(
+        lookback_days=1,
+        mark_seen=False,
+        error_file_retention_days=5,
+        supplier_response_lookback_days=14,
+        supplier_response_auto_close_stale_enabled=True,
+        supplier_response_stale_days=7,
+    )
+    old_error = SupplierOrderMessage(
+        provider_id=937,
+        message_type='IMPORT_ERROR',
+        sender_email='zakaz@cosmopart.ru',
+        subject='Re: Заказ',
+        received_at=now_moscow() - timedelta(days=10),
+        import_error_details='Ответ распознан, но не сопоставлен',
+    )
+    old_retry = SupplierOrderMessage(
+        provider_id=937,
+        message_type='RETRY_PENDING',
+        sender_email='zakaz@cosmopart.ru',
+        subject='Re: Заказ',
+        received_at=now_moscow() - timedelta(days=8),
+    )
+    fresh_error = SupplierOrderMessage(
+        provider_id=937,
+        message_type='IMPORT_ERROR',
+        sender_email='zakaz@cosmopart.ru',
+        subject='Re: Заказ',
+        received_at=now_moscow() - timedelta(days=2),
+    )
+    test_session.add_all([settings, old_error, old_retry, fresh_error])
+    await test_session.commit()
+
+    closed_count, stale_days = await _close_stale_supplier_response_messages(
+        test_session
+    )
+    assert stale_days == 7
+    assert closed_count == 2
+
+    rows = (
+        await test_session.execute(
+            select(SupplierOrderMessage)
+            .where(SupplierOrderMessage.sender_email == 'zakaz@cosmopart.ru')
+            .order_by(SupplierOrderMessage.id)
+        )
+    ).scalars().all()
+    types = [row.message_type for row in rows]
+    assert types == ['IGNORED', 'IGNORED', 'IMPORT_ERROR']
+    assert (
+        'Автозакрыто как устаревшее: старше 7 дн.'
+        in (rows[0].import_error_details or '')
+    )

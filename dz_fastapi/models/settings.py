@@ -39,6 +39,11 @@ class CustomerOrderInboxSettings(Base):
     mark_seen = Column(Boolean, default=False)
     error_file_retention_days = Column(Integer, default=5)
     supplier_response_lookback_days = Column(Integer, default=14)
+    supplier_response_auto_close_stale_enabled = Column(
+        Boolean,
+        default=True,
+    )
+    supplier_response_stale_days = Column(Integer, default=7)
     supplier_order_stub_enabled = Column(Boolean, default=True)
     supplier_order_stub_email = Column(
         String(255),

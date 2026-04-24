@@ -152,6 +152,8 @@ class CRUDCustomerOrderInboxSettings:
             mark_seen=False,
             error_file_retention_days=5,
             supplier_response_lookback_days=14,
+            supplier_response_auto_close_stale_enabled=True,
+            supplier_response_stale_days=7,
             supplier_order_stub_enabled=True,
             supplier_order_stub_email='info@dragonzap.ru',
         )
