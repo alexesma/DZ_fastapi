@@ -30,11 +30,12 @@ from dz_fastapi.crud.brand import brand_crud, brand_exists
 from dz_fastapi.models.autopart import (AutoPart, Category, StorageLocation,
                                         preprocess_oem_number)
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.cross import AutoPartCross
 from dz_fastapi.models.partner import (PriceList, PriceListAutoPartAssociation,
                                        Provider, ProviderPriceListConfig)
-from dz_fastapi.models.cross import AutoPartCross
 from dz_fastapi.schemas.autopart import (AutoPartCatalogItem,
-                                         AutoPartCatalogResponse, AutoPartCreate,
+                                         AutoPartCatalogResponse,
+                                         AutoPartCreate,
                                          AutoPartDetailResponse,
                                          AutoPartLookupItem, AutopartOfferRow,
                                          AutopartOffersResponse,
@@ -1302,7 +1303,10 @@ async def restock_autoparts(
     response_model=AutoPartCatalogResponse,
 )
 async def get_autoparts_catalog(
-    q: Optional[str] = Query(None, description='Поиск по OEM / наименованию / бренду'),
+    q: Optional[str] = Query(
+        None,
+        description='Поиск по OEM / наименованию / бренду'
+    ),
     brand_id: Optional[int] = Query(None),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
@@ -1320,9 +1324,15 @@ async def get_autoparts_catalog(
                 brand_name=ap.brand.name if ap.brand else None,
                 oem_number=ap.oem_number,
                 name=ap.name,
-                purchase_price=float(ap.purchase_price) if ap.purchase_price else None,
-                retail_price=float(ap.retail_price) if ap.retail_price else None,
-                wholesale_price=float(ap.wholesale_price) if ap.wholesale_price else None,
+                purchase_price=float(
+                    ap.purchase_price
+                ) if ap.purchase_price else None,
+                retail_price=float(
+                    ap.retail_price
+                ) if ap.retail_price else None,
+                wholesale_price=float(
+                    ap.wholesale_price
+                ) if ap.wholesale_price else None,
                 minimum_balance=ap.minimum_balance,
                 min_balance_auto=ap.min_balance_auto,
                 barcode=ap.barcode,
@@ -1332,7 +1342,12 @@ async def get_autoparts_catalog(
                 storage_locations=ap.storage_locations,
             )
         )
-    return AutoPartCatalogResponse(items=catalog_items, total=total, offset=offset, limit=limit)
+    return AutoPartCatalogResponse(
+        items=catalog_items,
+        total=total,
+        offset=offset,
+        limit=limit
+    )
 
 
 @router.get(
@@ -1381,9 +1396,13 @@ async def get_autopart_detail(
         height=ap.height,
         length=ap.length,
         weight=ap.weight,
-        purchase_price=float(ap.purchase_price) if ap.purchase_price else None,
+        purchase_price=float(
+            ap.purchase_price
+        ) if ap.purchase_price else None,
         retail_price=float(ap.retail_price) if ap.retail_price else None,
-        wholesale_price=float(ap.wholesale_price) if ap.wholesale_price else None,
+        wholesale_price=float(
+            ap.wholesale_price
+        ) if ap.wholesale_price else None,
         multiplicity=ap.multiplicity,
         minimum_balance=ap.minimum_balance,
         min_balance_auto=ap.min_balance_auto,
@@ -1409,7 +1428,10 @@ async def update_autopart_catalog(
     payload: AutoPartUpdate,
     session: AsyncSession = Depends(get_session),
 ):
-    ap = await crud_autopart.get_autopart_by_id(session=session, autopart_id=autopart_id)
+    ap = await crud_autopart.get_autopart_by_id(
+        session=session,
+        autopart_id=autopart_id
+    )
     if not ap:
         raise HTTPException(status_code=404, detail='Запчасть не найдена')
     data = payload.model_dump(exclude_unset=True)
@@ -1424,7 +1446,8 @@ async def update_autopart_catalog(
     summary='Создание запчасти через каталог',
     response_model=AutoPartDetailResponse,
     status_code=status.HTTP_201_CREATED,
-    include_in_schema=False,  # already exists as create_autopart_endpoint above
+    include_in_schema=False,
+    # already exists as create_autopart_endpoint above
 )
 async def create_autopart_catalog(
     payload: AutoPartCreate,
@@ -1436,7 +1459,7 @@ async def create_autopart_catalog(
     return await get_autopart_detail(autopart_id=ap.id, session=session)
 
 
-# ─── Cross-numbers endpoints ──────────────────────────────────────────────────
+# ─── Cross-numbers endpoints ────────────────────────────────────────────────
 
 @router.get(
     '/autoparts/{autopart_id}/crosses/',
@@ -1508,7 +1531,10 @@ async def add_autopart_cross(
         await session.refresh(cross)
     except IntegrityError:
         await session.rollback()
-        raise HTTPException(status_code=409, detail='Такой кросс-номер уже существует')
+        raise HTTPException(
+            status_code=409,
+            detail='Такой кросс-номер уже существует'
+        )
     brand_result = await session.get(Brand, cross.cross_brand_id)
     return CrossOut(
         id=cross.id,
@@ -1547,5 +1573,12 @@ async def delete_autopart_cross(
 async def list_storage_locations(
     session: AsyncSession = Depends(get_session),
 ):
-    result = await session.execute(select(StorageLocation).order_by(StorageLocation.name))
-    return [StorageLocationOut(id=s.id, name=s.name) for s in result.scalars().all()]
+    result = await session.execute(
+        select(StorageLocation).order_by(StorageLocation.name)
+    )
+    return [
+        StorageLocationOut(
+            id=s.id,
+            name=s.name
+        ) for s in result.scalars().all()
+    ]

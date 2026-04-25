@@ -210,7 +210,7 @@ class AutopartOffersResponse(BaseModel):
     nomenclature_name: Optional[str] = None
 
 
-# ─── Cross-numbers ────────────────────────────────────────────────────────────
+# ─── Cross-numbers ──────────────────────────────────────────────────────────
 
 class CrossCreate(BaseModel):
     cross_brand_id: int
@@ -270,7 +270,7 @@ class AutoPartCatalogResponse(BaseModel):
     limit: int
 
 
-# ─── Full detail (with crosses) ───────────────────────────────────────────────
+# ─── Full detail (with crosses) ─────────────────────────────────────────────
 
 class AutoPartDetailResponse(AutoPartResponse):
     brand_name: Optional[str] = None
@@ -285,7 +285,7 @@ class AutoPartDetailResponse(AutoPartResponse):
         return str(v)
 
 
-# ─── Storage location list item ───────────────────────────────────────────────
+# ─── Storage location list item ─────────────────────────────────────────────
 
 class StorageLocationOut(BaseModel):
     id: int

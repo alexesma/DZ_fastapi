@@ -407,7 +407,10 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         total_result = await session.execute(count_stmt)
         total = total_result.scalar_one()
 
-        items_stmt = base_stmt.order_by(Brand.name.asc(), AutoPart.oem_number.asc()).offset(offset).limit(limit)
+        items_stmt = base_stmt.order_by(
+            Brand.name.asc(),
+            AutoPart.oem_number.asc()
+        ).offset(offset).limit(limit)
         items_result = await session.execute(items_stmt)
         items = list(items_result.scalars().unique().all())
         return items, total
@@ -420,7 +423,10 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
     ) -> AutoPart:
         """Update autopart scalar fields + optional M2M replacement."""
         category_ids: Optional[list[int]] = data.pop('category_ids', None)
-        storage_location_ids: Optional[list[int]] = data.pop('storage_location_ids', None)
+        storage_location_ids: Optional[list[int]] = data.pop(
+            'storage_location_ids',
+            None
+        )
         # Remove legacy single-name fields (handled elsewhere)
         data.pop('category_name', None)
         data.pop('storage_location_name', None)
@@ -437,7 +443,9 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
 
         if storage_location_ids is not None:
             locs_result = await session.execute(
-                select(StorageLocation).where(StorageLocation.id.in_(storage_location_ids))
+                select(StorageLocation).where(StorageLocation.id.in_(
+                    storage_location_ids
+                ))
             )
             autopart.storage_locations = list(locs_result.scalars().all())
 
@@ -451,8 +459,8 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         session: AsyncSession,
         autopart_id: int,
     ) -> Optional[AutoPart]:
-        """Fetch autopart with all relations including crosses."""
-        from dz_fastapi.models.cross import AutoPartCross
+        """Fetch autopart with all relations
+        (crosses loaded separately in API)."""
         stmt = (
             select(AutoPart)
             .where(AutoPart.id == autopart_id)
