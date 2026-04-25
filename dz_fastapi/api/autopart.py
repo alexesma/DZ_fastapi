@@ -31,9 +31,14 @@ from dz_fastapi.models.autopart import (AutoPart, Category, StorageLocation,
                                         preprocess_oem_number)
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.cross import AutoPartCross
+from dz_fastapi.models.nomenclature import (ApplicabilityNode,
+                                            HonestSignCategory)
 from dz_fastapi.models.partner import (PriceList, PriceListAutoPartAssociation,
                                        Provider, ProviderPriceListConfig)
-from dz_fastapi.schemas.autopart import (AutoPartCatalogItem,
+from dz_fastapi.schemas.autopart import (ApplicabilityNodeCreate,
+                                         ApplicabilityNodeFlatOut,
+                                         ApplicabilityNodeOut,
+                                         AutoPartCatalogItem,
                                          AutoPartCatalogResponse,
                                          AutoPartCreate,
                                          AutoPartDetailResponse,
@@ -44,6 +49,8 @@ from dz_fastapi.schemas.autopart import (AutoPartCatalogItem,
                                          BulkUpdateResponse, CategoryCreate,
                                          CategoryResponse, CategoryUpdate,
                                          CrossCreate, CrossOut,
+                                         HonestSignCategoryCreate,
+                                         HonestSignCategoryOut,
                                          StorageLocationCreate,
                                          StorageLocationOut,
                                          StorageLocationResponse,
@@ -1303,18 +1310,53 @@ async def restock_autoparts(
     response_model=AutoPartCatalogResponse,
 )
 async def get_autoparts_catalog(
-    q: Optional[str] = Query(
-        None,
-        description='Поиск по OEM / наименованию / бренду'
+    q_oem: Optional[str] = Query(
+        None, description='Поиск по OEM-номеру (от 3 символов)'
     ),
-    brand_id: Optional[int] = Query(None),
+    q_name: Optional[str] = Query(
+        None, description='Поиск по наименованию (от 3 символов)'
+    ),
+    q_brand: Optional[str] = Query(
+        None, description='Поиск по бренду (от 3 символов)'
+    ),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
 ):
     items, total = await crud_autopart.list_for_catalog(
-        session, q=q, brand_id=brand_id, offset=offset, limit=limit
+        session,
+        q_oem=q_oem,
+        q_name=q_name,
+        q_brand=q_brand,
+        offset=offset,
+        limit=limit,
     )
+    # Get own pricelist IDs for stock lookup
+    own_pl_stmt = (
+        select(PriceList.id)
+        .join(Provider, Provider.id == PriceList.provider_id)
+        .where(Provider.is_own_price.is_(True), PriceList.is_active.is_(True))
+    )
+    own_pl_ids = (await session.execute(own_pl_stmt)).scalars().all()
+
+    # Fetch stock quantities for fetched autoparts
+    stock_map: dict[int, int] = {}
+    if own_pl_ids and items:
+        ap_ids = [ap.id for ap in items]
+        stock_stmt = (
+            select(
+                PriceListAutoPartAssociation.autopart_id,
+                func.sum(PriceListAutoPartAssociation.quantity).label('qty'),
+            )
+            .where(
+                PriceListAutoPartAssociation.pricelist_id.in_(own_pl_ids),
+                PriceListAutoPartAssociation.autopart_id.in_(ap_ids),
+            )
+            .group_by(PriceListAutoPartAssociation.autopart_id)
+        )
+        for row in (await session.execute(stock_stmt)).mappings().all():
+            stock_map[row['autopart_id']] = row['qty'] or 0
+
     catalog_items = []
     for ap in items:
         catalog_items.append(
@@ -1340,6 +1382,7 @@ async def get_autoparts_catalog(
                 applicability=ap.applicability,
                 categories=ap.categories,
                 storage_locations=ap.storage_locations,
+                stock_quantity=stock_map.get(ap.id, 0),
             )
         )
     return AutoPartCatalogResponse(
@@ -1414,6 +1457,14 @@ async def get_autopart_detail(
         categories=ap.categories,
         storage_locations=ap.storage_locations,
         crosses=crosses,
+        honest_sign_categories=[
+            HonestSignCategoryOut.model_validate(h)
+            for h in (ap.honest_sign_categories or [])
+        ],
+        applicability_nodes=[
+            ApplicabilityNodeFlatOut.model_validate(n)
+            for n in (ap.applicability_nodes or [])
+        ],
     )
 
 
@@ -1582,3 +1633,193 @@ async def list_storage_locations(
             name=s.name
         ) for s in result.scalars().all()
     ]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ЧЕСТНЫЙ ЗНАК (HonestSignCategory)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.get(
+    '/honest-sign-categories/',
+    tags=['nomenclature'],
+    summary='Список категорий Честного знака',
+    response_model=list[HonestSignCategoryOut],
+)
+async def list_honest_sign_categories(
+    session: AsyncSession = Depends(get_session),
+):
+    result = await session.execute(
+        select(HonestSignCategory).order_by(HonestSignCategory.name)
+    )
+    return result.scalars().all()
+
+
+@router.post(
+    '/honest-sign-categories/',
+    tags=['nomenclature'],
+    summary='Создать категорию Честного знака',
+    response_model=HonestSignCategoryOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_honest_sign_category(
+    payload: HonestSignCategoryCreate,
+    session: AsyncSession = Depends(get_session),
+):
+    existing = (await session.execute(
+        select(HonestSignCategory).where(
+            HonestSignCategory.name == payload.name
+        )
+    )).scalar_one_or_none()
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail=f'Категория «{payload.name}» уже существует'
+        )
+    obj = HonestSignCategory(**payload.model_dump())
+    session.add(obj)
+    await session.commit()
+    await session.refresh(obj)
+    return obj
+
+
+@router.post(
+    '/autoparts/{autopart_id}/honest-sign-categories/',
+    tags=['nomenclature'],
+    summary='Назначить категории ЧЗ для запчасти',
+    response_model=list[HonestSignCategoryOut],
+)
+async def assign_honest_sign_categories(
+    autopart_id: int,
+    category_ids: List[int] = Body(..., description='Список ID категорий ЧЗ'),
+    session: AsyncSession = Depends(get_session),
+):
+    # Load ap with the honest_sign_categories relationship already populated
+    ap_result = await session.execute(
+        select(AutoPart)
+        .where(AutoPart.id == autopart_id)
+        .options(selectinload(AutoPart.honest_sign_categories))
+    )
+    ap = ap_result.scalar_one_or_none()
+    if not ap:
+        raise HTTPException(status_code=404, detail='Запчасть не найдена')
+    cats = list((await session.execute(
+        select(HonestSignCategory).where(
+            HonestSignCategory.id.in_(category_ids)
+        )
+    )).scalars().all())
+    ap.honest_sign_categories = cats
+    await session.commit()
+    # Return cats we already have — avoids post-commit lazy-load
+    return [HonestSignCategoryOut.model_validate(c) for c in cats]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ПРИМЕНИМОСТЬ (ApplicabilityNode)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.get(
+    '/applicability-nodes/',
+    tags=['nomenclature'],
+    summary='Дерево применимости (только корневые узлы с детьми)',
+    response_model=list[ApplicabilityNodeOut],
+)
+async def list_applicability_nodes(
+    parent_id: Optional[int] = Query(
+        None,
+        description='ID родительского узла (None = корень)'
+    ),
+    session: AsyncSession = Depends(get_session),
+):
+    stmt = (
+        select(ApplicabilityNode)
+        .where(
+            ApplicabilityNode.parent_id == parent_id
+            if parent_id is not None
+            else ApplicabilityNode.parent_id.is_(None)
+        )
+        .options(selectinload(ApplicabilityNode.children))
+        .order_by(ApplicabilityNode.name)
+    )
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+
+@router.get(
+    '/applicability-nodes/all/',
+    tags=['nomenclature'],
+    summary='Все узлы применимости плоским списком '
+            '(с parent_id для построения дерева на фронте)',
+    response_model=list[ApplicabilityNodeFlatOut],
+)
+async def list_all_applicability_nodes(
+    session: AsyncSession = Depends(get_session),
+):
+    result = await session.execute(
+        select(ApplicabilityNode)
+        .order_by(
+            ApplicabilityNode.parent_id.asc().nullsfirst(),
+            ApplicabilityNode.name,
+        )
+    )
+    return [
+        ApplicabilityNodeFlatOut.model_validate(
+            n
+        ) for n in result.scalars().all()
+    ]
+
+
+@router.post(
+    '/applicability-nodes/',
+    tags=['nomenclature'],
+    summary='Создать узел применимости',
+    response_model=ApplicabilityNodeFlatOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_applicability_node(
+    payload: ApplicabilityNodeCreate,
+    session: AsyncSession = Depends(get_session),
+):
+    if payload.parent_id is not None:
+        parent = await session.get(ApplicabilityNode, payload.parent_id)
+        if not parent:
+            raise HTTPException(
+                status_code=404,
+                detail=f'Родительский узел #{payload.parent_id} не найден'
+            )
+    obj = ApplicabilityNode(**payload.model_dump())
+    session.add(obj)
+    await session.commit()
+    await session.refresh(obj)
+    return ApplicabilityNodeFlatOut.model_validate(obj)
+
+
+@router.post(
+    '/autoparts/{autopart_id}/applicability-nodes/',
+    tags=['nomenclature'],
+    summary='Назначить узлы применимости для запчасти',
+    response_model=list[ApplicabilityNodeFlatOut],
+)
+async def assign_applicability_nodes(
+    autopart_id: int,
+    node_ids: List[int] = Body(
+        ...,
+        description='Список ID узлов применимости'
+    ),
+    session: AsyncSession = Depends(get_session),
+):
+    # Load ap with the applicability_nodes relationship already populated
+    ap_result = await session.execute(
+        select(AutoPart)
+        .where(AutoPart.id == autopart_id)
+        .options(selectinload(AutoPart.applicability_nodes))
+    )
+    ap = ap_result.scalar_one_or_none()
+    if not ap:
+        raise HTTPException(status_code=404, detail='Запчасть не найдена')
+    nodes = list((await session.execute(
+        select(ApplicabilityNode).where(ApplicabilityNode.id.in_(node_ids))
+    )).scalars().all())
+    ap.applicability_nodes = nodes
+    await session.commit()
+    # Return nodes we already have — avoids post-commit lazy-load
+    return [ApplicabilityNodeFlatOut.model_validate(n) for n in nodes]

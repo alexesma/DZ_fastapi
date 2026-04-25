@@ -210,6 +210,60 @@ class AutopartOffersResponse(BaseModel):
     nomenclature_name: Optional[str] = None
 
 
+# ─── HonestSignCategory ─────────────────────────────────────────────────────
+
+class HonestSignCategoryCreate(BaseModel):
+    name: str
+    code: Optional[str] = None
+    description: Optional[str] = None
+
+
+class HonestSignCategoryOut(BaseModel):
+    id: int
+    name: str
+    code: Optional[str] = None
+    description: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ─── ApplicabilityNode ───────────────────────────────────────────────────────
+
+class ApplicabilityNodeCreate(BaseModel):
+    name: str
+    node_type: str = 'other'  # vehicle | part | other
+    parent_id: Optional[int] = None
+    description: Optional[str] = None
+
+
+class ApplicabilityNodeFlatOut(BaseModel):
+    """Плоский (без детей) вариант — для flat-list и ответов assign."""
+    id: int
+    name: str
+    node_type: str
+    parent_id: Optional[int] = None
+    description: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ApplicabilityNodeOut(ApplicabilityNodeFlatOut):
+    """С рекурсивными детьми — используется
+    только когда явно загружены selectinload."""
+    children: List['ApplicabilityNodeOut'] = Field(default_factory=list)
+
+    @field_validator('children', mode='before')
+    def set_children(cls, v):
+        if v is None:
+            return []
+        # If ORM returned an unloaded InstrumentedList — treat as empty
+        try:
+            return list(v)
+        except Exception:
+            return []
+
+
+ApplicabilityNodeOut.model_rebuild()
+
+
 # ─── Cross-numbers ──────────────────────────────────────────────────────────
 
 class CrossCreate(BaseModel):
@@ -248,6 +302,7 @@ class AutoPartCatalogItem(BaseModel):
     applicability: Optional[str] = None
     categories: List[str] = Field(default_factory=list)
     storage_locations: List[str] = Field(default_factory=list)
+    stock_quantity: int = 0
     model_config = ConfigDict(from_attributes=True)
 
     @field_validator('categories', mode='before')
@@ -275,6 +330,12 @@ class AutoPartCatalogResponse(BaseModel):
 class AutoPartDetailResponse(AutoPartResponse):
     brand_name: Optional[str] = None
     crosses: List[CrossOut] = Field(default_factory=list)
+    honest_sign_categories: List[HonestSignCategoryOut] = Field(
+        default_factory=list
+    )
+    applicability_nodes: List[ApplicabilityNodeFlatOut] = Field(
+        default_factory=list
+    )
 
     @field_validator('brand_name', mode='before')
     def get_brand_name(cls, v):

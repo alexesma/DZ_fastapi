@@ -81,6 +81,12 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             storage_location_name = autopart_data.pop(
                 'storage_location_name', None
             )
+            # These are M2M IDs, not AutoPart columns — must be popped
+            category_ids = autopart_data.pop('category_ids', None)
+            storage_location_ids = autopart_data.pop(
+                'storage_location_ids',
+                None
+            )
             autopart_data['name'] = await change_string(autopart_data['name'])
             autopart = AutoPart(**autopart_data)
             autopart.brand = brand
@@ -113,6 +119,23 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                         ),
                     )
                 autopart.storage_locations.append(storage_location)
+            # Handle IDs-based M2M (catalog API)
+            if category_ids:
+                cats_result = await session.execute(
+                    select(Category).where(Category.id.in_(category_ids))
+                )
+                for cat in cats_result.scalars().all():
+                    if cat not in autopart.categories:
+                        autopart.categories.append(cat)
+            if storage_location_ids:
+                locs_result = await session.execute(
+                    select(StorageLocation).where(
+                        StorageLocation.id.in_(storage_location_ids)
+                    )
+                )
+                for loc in locs_result.scalars().all():
+                    if loc not in autopart.storage_locations:
+                        autopart.storage_locations.append(loc)
             session.add(autopart)
             if commit:
                 await session.commit()
@@ -378,13 +401,39 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         self,
         session: AsyncSession,
         *,
-        q: Optional[str] = None,
-        brand_id: Optional[int] = None,
+        q_oem: Optional[str] = None,
+        q_name: Optional[str] = None,
+        q_brand: Optional[str] = None,
         offset: int = 0,
         limit: int = 50,
     ) -> tuple[list[AutoPart], int]:
-        """Paginated catalog list with optional OEM / name / brand filters."""
-        base_stmt = (
+        """Paginated catalog list with optional OEM / name / brand filters.
+
+        Note: count query is kept separate (no ORM options) to avoid the
+        SQLAlchemy limitation that prevents using selectinload inside subquery.
+        """
+        # Build WHERE clauses (shared between count and items)
+        where_clauses = []
+        if q_oem and len(q_oem) >= 3:
+            q_oem_norm = q_oem.upper().replace('-', '').replace(' ', '')
+            where_clauses.append(AutoPart.oem_number.ilike(f'%{q_oem_norm}%'))
+        if q_name and len(q_name) >= 3:
+            where_clauses.append(AutoPart.name.ilike(f'%{q_name}%'))
+        if q_brand and len(q_brand) >= 3:
+            where_clauses.append(Brand.name.ilike(f'%{q_brand}%'))
+
+        # COUNT (plain SQL, no ORM loading options)
+        count_stmt = (
+            select(func.count(AutoPart.id))
+            .select_from(AutoPart)
+            .join(Brand, Brand.id == AutoPart.brand_id)
+        )
+        for wc in where_clauses:
+            count_stmt = count_stmt.where(wc)
+        total = (await session.execute(count_stmt)).scalar_one()
+
+        # ITEMS (with ORM loading options)
+        items_stmt = (
             select(AutoPart)
             .join(Brand, Brand.id == AutoPart.brand_id)
             .options(
@@ -393,26 +442,17 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                 selectinload(AutoPart.brand),
             )
         )
-        if q:
-            q_upper = q.upper().replace('-', '').replace(' ', '')
-            base_stmt = base_stmt.where(
-                AutoPart.oem_number.ilike(f'%{q_upper}%')
-                | AutoPart.name.ilike(f'%{q}%')
-                | Brand.name.ilike(f'%{q}%')
-            )
-        if brand_id:
-            base_stmt = base_stmt.where(AutoPart.brand_id == brand_id)
-
-        count_stmt = select(func.count()).select_from(base_stmt.subquery())
-        total_result = await session.execute(count_stmt)
-        total = total_result.scalar_one()
-
-        items_stmt = base_stmt.order_by(
-            Brand.name.asc(),
-            AutoPart.oem_number.asc()
-        ).offset(offset).limit(limit)
-        items_result = await session.execute(items_stmt)
-        items = list(items_result.scalars().unique().all())
+        for wc in where_clauses:
+            items_stmt = items_stmt.where(wc)
+        items_stmt = (
+            items_stmt
+            .order_by(Brand.name.asc(), AutoPart.oem_number.asc())
+            .offset(offset)
+            .limit(limit)
+        )
+        items = list(
+            (await session.execute(items_stmt)
+             ).scalars().unique().all())
         return items, total
 
     async def update_full(
@@ -468,6 +508,8 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                 selectinload(AutoPart.categories),
                 selectinload(AutoPart.storage_locations),
                 selectinload(AutoPart.brand),
+                selectinload(AutoPart.honest_sign_categories),
+                selectinload(AutoPart.applicability_nodes),
             )
         )
         result = await session.execute(stmt)

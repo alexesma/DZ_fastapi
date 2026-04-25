@@ -156,6 +156,20 @@ class AutoPart(Base):
         back_populates='autoparts',
         lazy='selectin',
     )
+    # Честный знак (M2M)
+    honest_sign_categories = relationship(
+        'HonestSignCategory',
+        secondary='autopart_honest_sign_association',
+        back_populates='autoparts',
+        lazy='selectin',
+    )
+    # Применимость (M2M, дерево узлов)
+    applicability_nodes = relationship(
+        'ApplicabilityNode',
+        secondary='autopart_applicability_association',
+        back_populates='autoparts',
+        lazy='selectin',
+    )
     price_list_associations = relationship(
         'PriceListAutoPartAssociation',
         back_populates='autopart',
