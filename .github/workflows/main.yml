@@ -250,17 +250,27 @@ jobs:
           sudo docker system prune -a -f
           # Выполняет pull образов с Docker Hub
           sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml pull
-          # Перезапускает все контейнеры в Docker Compose
-          # sudo docker compose -f docker-compose.dev.yaml build --no-cache
-          # sudo docker compose -f docker-compose.dev.yaml up -d --no-deps --build web
-          # sudo docker compose -f docker-compose.dev.yaml down
-          # Запускаем с новыми образами          
-          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --force-recreate --pull always
-          # Ждем запуска и выполняем миграции
+          # Сначала запускаем только БД. Приложение может падать на старой схеме
+          # до миграций, поэтому не делаем exec в постоянно рестартящий web.
+          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --force-recreate --pull always db
           echo "Ждем запуска базы данных..."
-          sleep 30
-          # Выполняет миграции и сбор статики
-          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml exec -T web poetry run alembic upgrade heads
+          for i in $(seq 1 60); do
+            db_health=$(sudo docker inspect -f '{{.State.Health.Status}}' dz_db_dev 2>/dev/null || true)
+            if [ "$db_health" = "healthy" ]; then
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "База данных не запустилась вовремя"
+              sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml ps
+              sudo docker logs dz_db_dev --tail 200
+              exit 1
+            fi
+            sleep 5
+          done
+          # Выполняем миграции одноразовым контейнером из нового web-образа.
+          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml run --rm --no-deps web poetry run alembic upgrade heads
+          # После миграций запускаем постоянные контейнеры приложения и фронта.
+          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --force-recreate --pull always web frontend
 
   send_success_message:
     runs-on: ubuntu-latest
