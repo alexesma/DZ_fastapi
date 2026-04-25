@@ -431,7 +431,7 @@ async def search_autoparts_by_oem(
 
 
 @router.get(
-    '/autoparts/{autopart_id}/',
+    '/autoparts/{autopart_id:int}/',
     tags=['autopart'],
     summary='Получение автозапчасти по ID',
     response_model=AutoPartResponse,
@@ -713,7 +713,7 @@ async def bulk_update_autoparts(
 
 
 @router.patch(
-    '/autoparts/{autopart_id}/',
+    '/autoparts/{autopart_id:int}/',
     tags=['autopart'],
     summary='Обновление автозапчасти',
     response_model=AutoPartResponse,
@@ -1394,7 +1394,7 @@ async def get_autoparts_catalog(
 
 
 @router.get(
-    '/autoparts/{autopart_id}/detail/',
+    '/autoparts/{autopart_id:int}/detail/',
     tags=['autopart', 'catalog'],
     summary='Полная карточка запчасти с кросс-номерами',
     response_model=AutoPartDetailResponse,
@@ -1469,7 +1469,7 @@ async def get_autopart_detail(
 
 
 @router.patch(
-    '/autoparts/{autopart_id}/update/',
+    '/autoparts/{autopart_id:int}/update/',
     tags=['autopart', 'catalog'],
     summary='Обновление карточки запчасти',
     response_model=AutoPartDetailResponse,
@@ -1513,7 +1513,7 @@ async def create_autopart_catalog(
 # ─── Cross-numbers endpoints ────────────────────────────────────────────────
 
 @router.get(
-    '/autoparts/{autopart_id}/crosses/',
+    '/autoparts/{autopart_id:int}/crosses/',
     tags=['autopart', 'catalog'],
     summary='Список кросс-номеров запчасти',
     response_model=list[CrossOut],
@@ -1545,7 +1545,7 @@ async def list_autopart_crosses(
 
 
 @router.post(
-    '/autoparts/{autopart_id}/crosses/',
+    '/autoparts/{autopart_id:int}/crosses/',
     tags=['autopart', 'catalog'],
     summary='Добавить кросс-номер',
     response_model=CrossOut,
@@ -1599,7 +1599,7 @@ async def add_autopart_cross(
 
 
 @router.delete(
-    '/autoparts/crosses/{cross_id}',
+    '/autoparts/crosses/{cross_id:int}',
     tags=['autopart', 'catalog'],
     summary='Удалить кросс-номер',
     status_code=status.HTTP_204_NO_CONTENT,
@@ -1683,7 +1683,7 @@ async def create_honest_sign_category(
 
 
 @router.post(
-    '/autoparts/{autopart_id}/honest-sign-categories/',
+    '/autoparts/{autopart_id:int}/honest-sign-categories/',
     tags=['nomenclature'],
     summary='Назначить категории ЧЗ для запчасти',
     response_model=list[HonestSignCategoryOut],
@@ -1794,7 +1794,7 @@ async def create_applicability_node(
 
 
 @router.post(
-    '/autoparts/{autopart_id}/applicability-nodes/',
+    '/autoparts/{autopart_id:int}/applicability-nodes/',
     tags=['nomenclature'],
     summary='Назначить узлы применимости для запчасти',
     response_model=list[ApplicabilityNodeFlatOut],

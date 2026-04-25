@@ -415,12 +415,12 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         # Build WHERE clauses (shared between count and items)
         where_clauses = []
         if q_oem and len(q_oem) >= 3:
-            q_oem_norm = q_oem.upper().replace('-', '').replace(' ', '')
+            q_oem_norm = preprocess_oem_number(q_oem)
             where_clauses.append(AutoPart.oem_number.ilike(f'%{q_oem_norm}%'))
         if q_name and len(q_name) >= 3:
-            where_clauses.append(AutoPart.name.ilike(f'%{q_name}%'))
+            where_clauses.append(AutoPart.name.ilike(f'%{q_name.strip()}%'))
         if q_brand and len(q_brand) >= 3:
-            where_clauses.append(Brand.name.ilike(f'%{q_brand}%'))
+            where_clauses.append(Brand.name.ilike(f'%{q_brand.strip()}%'))
 
         # COUNT (plain SQL, no ORM loading options)
         count_stmt = (
