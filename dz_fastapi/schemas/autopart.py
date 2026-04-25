@@ -32,6 +32,8 @@ class AutoPartBase(BaseModel):
     min_balance_user: Optional[bool] = None
     comment: Optional[str] = None
     barcode: Optional[str] = None
+    honest_sign_category: Optional[str] = None
+    applicability: Optional[str] = None
 
 
 class AutoPartResponse(BaseModel):
@@ -53,6 +55,8 @@ class AutoPartResponse(BaseModel):
     min_balance_user: Optional[bool] = None
     comment: Optional[str] = None
     barcode: Optional[str] = None
+    honest_sign_category: Optional[str] = None
+    applicability: Optional[str] = None
     categories: List[str] = Field(default_factory=list)
     storage_locations: List[str] = Field(default_factory=list)
 
@@ -99,8 +103,13 @@ class AutoPartCreate(BaseModel):
     min_balance_user: Optional[bool] = None
     comment: Optional[str] = None
     barcode: Optional[str] = None
+    honest_sign_category: Optional[str] = None
+    applicability: Optional[str] = None
     category_name: Optional[str] = None
     storage_location_name: Optional[str] = None
+    # IDs-based M2M (используется в catalog API)
+    category_ids: Optional[List[int]] = None
+    storage_location_ids: Optional[List[int]] = None
 
 
 class AutoPartCreatePriceList(BaseModel):
@@ -137,8 +146,13 @@ class AutoPartUpdate(BaseModel):
     min_balance_user: Optional[bool] = None
     comment: Optional[str] = None
     barcode: Optional[str] = None
+    honest_sign_category: Optional[str] = None
+    applicability: Optional[str] = None
     category_name: Optional[str] = None
     storage_location_name: Optional[str] = None
+    # IDs-based M2M (используется в catalog API — заменяют весь список)
+    category_ids: Optional[List[int]] = None
+    storage_location_ids: Optional[List[int]] = None
 
 
 class AutoPartUpdateInDB(AutoPartBase):
@@ -189,6 +203,94 @@ class AutopartOffersResponse(BaseModel):
     oem_number: str
     offers: List[AutopartOfferRow] = Field(default_factory=list)
     historical_offers: List[AutopartOfferRow] = Field(default_factory=list)
+    # Есть ли позиция в нашей номенклатуре
+    in_nomenclature: bool = False
+    nomenclature_autopart_id: Optional[int] = None
+    nomenclature_brand_name: Optional[str] = None
+    nomenclature_name: Optional[str] = None
+
+
+# ─── Cross-numbers ────────────────────────────────────────────────────────────
+
+class CrossCreate(BaseModel):
+    cross_brand_id: int
+    cross_oem_number: str
+    priority: int = 100
+    comment: Optional[str] = None
+
+
+class CrossOut(BaseModel):
+    id: int
+    cross_brand_id: int
+    cross_brand_name: Optional[str] = None
+    cross_oem_number: str
+    cross_autopart_id: Optional[int] = None
+    priority: int = 100
+    comment: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ─── Catalog list item (lighter than full response) ──────────────────────────
+
+class AutoPartCatalogItem(BaseModel):
+    id: int
+    brand_id: int
+    brand_name: Optional[str] = None
+    oem_number: str
+    name: str
+    purchase_price: Optional[float] = None
+    retail_price: Optional[float] = None
+    wholesale_price: Optional[float] = None
+    minimum_balance: Optional[int] = None
+    min_balance_auto: Optional[bool] = None
+    barcode: Optional[str] = None
+    honest_sign_category: Optional[str] = None
+    applicability: Optional[str] = None
+    categories: List[str] = Field(default_factory=list)
+    storage_locations: List[str] = Field(default_factory=list)
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_validator('categories', mode='before')
+    def get_category_names(cls, v):
+        if v:
+            return [c.name for c in v]
+        return []
+
+    @field_validator('storage_locations', mode='before')
+    def get_storage_location_names(cls, v):
+        if v:
+            return [s.name for s in v]
+        return []
+
+
+class AutoPartCatalogResponse(BaseModel):
+    items: List[AutoPartCatalogItem]
+    total: int
+    offset: int
+    limit: int
+
+
+# ─── Full detail (with crosses) ───────────────────────────────────────────────
+
+class AutoPartDetailResponse(AutoPartResponse):
+    brand_name: Optional[str] = None
+    crosses: List[CrossOut] = Field(default_factory=list)
+
+    @field_validator('brand_name', mode='before')
+    def get_brand_name(cls, v):
+        if v is None:
+            return None
+        if hasattr(v, 'name'):
+            return v.name
+        return str(v)
+
+
+# ─── Storage location list item ───────────────────────────────────────────────
+
+class StorageLocationOut(BaseModel):
+    id: int
+    name: str
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Base schema with shared fields

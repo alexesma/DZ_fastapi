@@ -32,14 +32,19 @@ from dz_fastapi.models.autopart import (AutoPart, Category, StorageLocation,
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import (PriceList, PriceListAutoPartAssociation,
                                        Provider, ProviderPriceListConfig)
-from dz_fastapi.schemas.autopart import (AutoPartCreate, AutoPartLookupItem,
-                                         AutopartOfferRow,
+from dz_fastapi.models.cross import AutoPartCross
+from dz_fastapi.schemas.autopart import (AutoPartCatalogItem,
+                                         AutoPartCatalogResponse, AutoPartCreate,
+                                         AutoPartDetailResponse,
+                                         AutoPartLookupItem, AutopartOfferRow,
                                          AutopartOffersResponse,
                                          AutopartOrderRequest,
                                          AutoPartResponse, AutoPartUpdate,
                                          BulkUpdateResponse, CategoryCreate,
                                          CategoryResponse, CategoryUpdate,
+                                         CrossCreate, CrossOut,
                                          StorageLocationCreate,
+                                         StorageLocationOut,
                                          StorageLocationResponse,
                                          StorageLocationUpdate)
 from dz_fastapi.services.process import (assign_brand,
@@ -310,10 +315,34 @@ async def get_autopart_offers(
             )
         )
 
+    # ── Check nomenclature ──────────────────────────────────────────────────
+    in_nomenclature = False
+    nomenclature_autopart_id = None
+    nomenclature_brand_name = None
+    nomenclature_name = None
+
+    if not partial:
+        nom_stmt = (
+            select(AutoPart, Brand.name.label('brand_name'))
+            .join(Brand, Brand.id == AutoPart.brand_id)
+            .where(AutoPart.oem_number == normalized_oem)
+            .limit(1)
+        )
+        nom_result = (await session.execute(nom_stmt)).mappings().first()
+        if nom_result:
+            in_nomenclature = True
+            nomenclature_autopart_id = nom_result['AutoPart'].id
+            nomenclature_brand_name = nom_result['brand_name']
+            nomenclature_name = nom_result['AutoPart'].name
+
     return AutopartOffersResponse(
         oem_number=normalized_oem,
         offers=offers,
         historical_offers=historical_offers,
+        in_nomenclature=in_nomenclature,
+        nomenclature_autopart_id=nomenclature_autopart_id,
+        nomenclature_brand_name=nomenclature_brand_name,
+        nomenclature_name=nomenclature_name,
     )
 
 
@@ -1260,3 +1289,263 @@ async def restock_autoparts(
         'message': 'Отчет формируется и '
                    'будет отправлен на указанные контакты.',
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# NOMENCLATURE CATALOG
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.get(
+    '/autoparts/catalog/',
+    tags=['autopart', 'catalog'],
+    summary='Каталог номенклатуры (постраничный)',
+    response_model=AutoPartCatalogResponse,
+)
+async def get_autoparts_catalog(
+    q: Optional[str] = Query(None, description='Поиск по OEM / наименованию / бренду'),
+    brand_id: Optional[int] = Query(None),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    session: AsyncSession = Depends(get_session),
+):
+    items, total = await crud_autopart.list_for_catalog(
+        session, q=q, brand_id=brand_id, offset=offset, limit=limit
+    )
+    catalog_items = []
+    for ap in items:
+        catalog_items.append(
+            AutoPartCatalogItem(
+                id=ap.id,
+                brand_id=ap.brand_id,
+                brand_name=ap.brand.name if ap.brand else None,
+                oem_number=ap.oem_number,
+                name=ap.name,
+                purchase_price=float(ap.purchase_price) if ap.purchase_price else None,
+                retail_price=float(ap.retail_price) if ap.retail_price else None,
+                wholesale_price=float(ap.wholesale_price) if ap.wholesale_price else None,
+                minimum_balance=ap.minimum_balance,
+                min_balance_auto=ap.min_balance_auto,
+                barcode=ap.barcode,
+                honest_sign_category=ap.honest_sign_category,
+                applicability=ap.applicability,
+                categories=ap.categories,
+                storage_locations=ap.storage_locations,
+            )
+        )
+    return AutoPartCatalogResponse(items=catalog_items, total=total, offset=offset, limit=limit)
+
+
+@router.get(
+    '/autoparts/{autopart_id}/detail/',
+    tags=['autopart', 'catalog'],
+    summary='Полная карточка запчасти с кросс-номерами',
+    response_model=AutoPartDetailResponse,
+)
+async def get_autopart_detail(
+    autopart_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    ap = await crud_autopart.get_detail_with_crosses(session, autopart_id)
+    if not ap:
+        raise HTTPException(status_code=404, detail='Запчасть не найдена')
+
+    crosses_stmt = (
+        select(AutoPartCross)
+        .where(AutoPartCross.source_autopart_id == autopart_id)
+        .options(selectinload(AutoPartCross.cross_brand))
+        .order_by(AutoPartCross.priority.asc())
+    )
+    crosses_result = await session.execute(crosses_stmt)
+    crosses_raw = crosses_result.scalars().all()
+    crosses = [
+        CrossOut(
+            id=c.id,
+            cross_brand_id=c.cross_brand_id,
+            cross_brand_name=c.cross_brand.name if c.cross_brand else None,
+            cross_oem_number=c.cross_oem_number,
+            cross_autopart_id=c.cross_autopart_id,
+            priority=c.priority,
+            comment=c.comment,
+        )
+        for c in crosses_raw
+    ]
+
+    return AutoPartDetailResponse(
+        id=ap.id,
+        brand_id=ap.brand_id,
+        brand_name=ap.brand.name if ap.brand else None,
+        oem_number=ap.oem_number,
+        name=ap.name,
+        description=ap.description,
+        width=ap.width,
+        height=ap.height,
+        length=ap.length,
+        weight=ap.weight,
+        purchase_price=float(ap.purchase_price) if ap.purchase_price else None,
+        retail_price=float(ap.retail_price) if ap.retail_price else None,
+        wholesale_price=float(ap.wholesale_price) if ap.wholesale_price else None,
+        multiplicity=ap.multiplicity,
+        minimum_balance=ap.minimum_balance,
+        min_balance_auto=ap.min_balance_auto,
+        min_balance_user=ap.min_balance_user,
+        comment=ap.comment,
+        barcode=ap.barcode,
+        honest_sign_category=ap.honest_sign_category,
+        applicability=ap.applicability,
+        categories=ap.categories,
+        storage_locations=ap.storage_locations,
+        crosses=crosses,
+    )
+
+
+@router.patch(
+    '/autoparts/{autopart_id}/update/',
+    tags=['autopart', 'catalog'],
+    summary='Обновление карточки запчасти',
+    response_model=AutoPartDetailResponse,
+)
+async def update_autopart_catalog(
+    autopart_id: int,
+    payload: AutoPartUpdate,
+    session: AsyncSession = Depends(get_session),
+):
+    ap = await crud_autopart.get_autopart_by_id(session=session, autopart_id=autopart_id)
+    if not ap:
+        raise HTTPException(status_code=404, detail='Запчасть не найдена')
+    data = payload.model_dump(exclude_unset=True)
+    ap = await crud_autopart.update_full(session, ap, data)
+    # Re-fetch full detail
+    return await get_autopart_detail(autopart_id=ap.id, session=session)
+
+
+@router.post(
+    '/autoparts/',
+    tags=['autopart', 'catalog'],
+    summary='Создание запчасти через каталог',
+    response_model=AutoPartDetailResponse,
+    status_code=status.HTTP_201_CREATED,
+    include_in_schema=False,  # already exists as create_autopart_endpoint above
+)
+async def create_autopart_catalog(
+    payload: AutoPartCreate,
+    session: AsyncSession = Depends(get_session),
+):
+    """Duplicate of POST /autoparts/ that returns detail + crosses."""
+    brand_db = await brand_exists(payload.brand_id, session)
+    ap = await crud_autopart.create_autopart(payload, brand_db, session)
+    return await get_autopart_detail(autopart_id=ap.id, session=session)
+
+
+# ─── Cross-numbers endpoints ──────────────────────────────────────────────────
+
+@router.get(
+    '/autoparts/{autopart_id}/crosses/',
+    tags=['autopart', 'catalog'],
+    summary='Список кросс-номеров запчасти',
+    response_model=list[CrossOut],
+)
+async def list_autopart_crosses(
+    autopart_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    stmt = (
+        select(AutoPartCross)
+        .where(AutoPartCross.source_autopart_id == autopart_id)
+        .options(selectinload(AutoPartCross.cross_brand))
+        .order_by(AutoPartCross.priority.asc())
+    )
+    result = await session.execute(stmt)
+    crosses = result.scalars().all()
+    return [
+        CrossOut(
+            id=c.id,
+            cross_brand_id=c.cross_brand_id,
+            cross_brand_name=c.cross_brand.name if c.cross_brand else None,
+            cross_oem_number=c.cross_oem_number,
+            cross_autopart_id=c.cross_autopart_id,
+            priority=c.priority,
+            comment=c.comment,
+        )
+        for c in crosses
+    ]
+
+
+@router.post(
+    '/autoparts/{autopart_id}/crosses/',
+    tags=['autopart', 'catalog'],
+    summary='Добавить кросс-номер',
+    response_model=CrossOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_autopart_cross(
+    autopart_id: int,
+    payload: CrossCreate,
+    session: AsyncSession = Depends(get_session),
+):
+    # Check autopart exists
+    ap = await session.get(AutoPart, autopart_id)
+    if not ap:
+        raise HTTPException(status_code=404, detail='Запчасть не найдена')
+    cross_oem = preprocess_oem_number(payload.cross_oem_number)
+    cross = AutoPartCross(
+        source_autopart_id=autopart_id,
+        cross_brand_id=payload.cross_brand_id,
+        cross_oem_number=cross_oem,
+        priority=payload.priority,
+        comment=payload.comment,
+    )
+    # Try to find matching autopart for cross_autopart_id
+    match_stmt = select(AutoPart).where(
+        AutoPart.brand_id == payload.cross_brand_id,
+        AutoPart.oem_number == cross_oem,
+    )
+    match = (await session.execute(match_stmt)).scalar_one_or_none()
+    if match:
+        cross.cross_autopart_id = match.id
+    session.add(cross)
+    try:
+        await session.commit()
+        await session.refresh(cross)
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail='Такой кросс-номер уже существует')
+    brand_result = await session.get(Brand, cross.cross_brand_id)
+    return CrossOut(
+        id=cross.id,
+        cross_brand_id=cross.cross_brand_id,
+        cross_brand_name=brand_result.name if brand_result else None,
+        cross_oem_number=cross.cross_oem_number,
+        cross_autopart_id=cross.cross_autopart_id,
+        priority=cross.priority,
+        comment=cross.comment,
+    )
+
+
+@router.delete(
+    '/autoparts/crosses/{cross_id}',
+    tags=['autopart', 'catalog'],
+    summary='Удалить кросс-номер',
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_autopart_cross(
+    cross_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    cross = await session.get(AutoPartCross, cross_id)
+    if not cross:
+        raise HTTPException(status_code=404, detail='Кросс-номер не найден')
+    await session.delete(cross)
+    await session.commit()
+
+
+@router.get(
+    '/autoparts/storage-locations/',
+    tags=['autopart', 'catalog'],
+    summary='Список мест хранения',
+    response_model=list[StorageLocationOut],
+)
+async def list_storage_locations(
+    session: AsyncSession = Depends(get_session),
+):
+    result = await session.execute(select(StorageLocation).order_by(StorageLocation.name))
+    return [StorageLocationOut(id=s.id, name=s.name) for s in result.scalars().all()]

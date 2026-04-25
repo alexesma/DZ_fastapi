@@ -470,6 +470,38 @@ async def create_supplier_receipt(
             else int(item.quantity or 0)
         )
         pending_quantity = max(expected_quantity - current_received, 0)
+        requested_quantity = int(payload.get('received_quantity') or 0)
+
+        # Explicit zero in receipts UI means a manual refusal of the remaining
+        # pending quantity for this supplier order item.
+        if requested_quantity == 0 and pending_quantity > 0:
+            if (
+                item.confirmed_quantity is None
+                or int(item.confirmed_quantity) > current_received
+            ):
+                item.confirmed_quantity = current_received
+
+            receipt_item = SupplierReceiptItem(
+                receipt_id=receipt.id,
+                supplier_order_id=item.supplier_order_id,
+                supplier_order_item_id=item.id,
+                customer_order_item_id=item.customer_order_item_id,
+                autopart_id=item.autopart_id,
+                oem_number=item.oem_number,
+                brand_name=item.brand_name,
+                autopart_name=item.autopart_name,
+                ordered_quantity=item.quantity,
+                confirmed_quantity=item.confirmed_quantity,
+                received_quantity=0,
+                price=item.response_price or item.price,
+                comment=(
+                    payload.get('comment')
+                    or 'Явный отказ остатка по строке'
+                ),
+            )
+            session.add(receipt_item)
+            continue
+
         received_quantity = min(received_quantity, pending_quantity)
         if received_quantity <= 0:
             continue

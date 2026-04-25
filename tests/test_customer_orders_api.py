@@ -481,6 +481,99 @@ async def test_supplier_receipt_candidates_and_create_receipt(
 
 
 @pytest.mark.asyncio
+async def test_supplier_receipt_zero_quantity_marks_explicit_refusal(
+    async_client,
+    test_session,
+    created_autopart,
+    created_customers,
+    created_providers,
+):
+    await _create_user(
+        test_session, "receiver-refusal@example.com", UserRole.MANAGER
+    )
+    await _login(async_client, "receiver-refusal@example.com")
+
+    customer_order = CustomerOrder(
+        customer_id=created_customers[0].id,
+        order_number="CO-REF-1",
+        status="PROCESSED",
+        received_at=now_moscow(),
+    )
+    test_session.add(customer_order)
+    await test_session.flush()
+
+    customer_order_item = CustomerOrderItem(
+        order_id=customer_order.id,
+        oem=created_autopart.oem_number,
+        brand="TEST BRAND",
+        name=created_autopart.name,
+        requested_qty=5,
+        requested_price=Decimal("140.00"),
+        ship_qty=5,
+        status="SUPPLIER",
+        autopart_id=created_autopart.id,
+    )
+    test_session.add(customer_order_item)
+    await test_session.flush()
+
+    supplier_order = SupplierOrder(
+        provider_id=created_providers[0].id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+        created_at=now_moscow(),
+        sent_at=now_moscow(),
+    )
+    test_session.add(supplier_order)
+    await test_session.flush()
+
+    supplier_item = SupplierOrderItem(
+        supplier_order_id=supplier_order.id,
+        customer_order_item_id=customer_order_item.id,
+        autopart_id=created_autopart.id,
+        oem_number=created_autopart.oem_number,
+        brand_name="TEST BRAND",
+        autopart_name=created_autopart.name,
+        quantity=5,
+        price=Decimal("100.00"),
+    )
+    test_session.add(supplier_item)
+    await test_session.commit()
+
+    response = await async_client.post(
+        "/customer-orders/supplier-receipts",
+        json={
+            "provider_id": created_providers[0].id,
+            "document_number": "RC-REF-1",
+            "items": [
+                {
+                    "supplier_order_item_id": supplier_item.id,
+                    "received_quantity": 0,
+                    "comment": "Явный отказ",
+                }
+            ],
+        },
+    )
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["items"][0]["received_quantity"] == 0
+    assert payload["items"][0]["comment"] == "Явный отказ"
+
+    await test_session.refresh(supplier_item)
+    assert supplier_item.confirmed_quantity == 0
+
+    response = await async_client.get(
+        "/customer-orders/supplier/list",
+        params={"provider_id": created_providers[0].id},
+    )
+    assert response.status_code == 200, response.text
+    rows = response.json()
+    row = next((item for item in rows if item["id"] == supplier_order.id))
+    assert row is not None
+    assert row["supplier_sum"] == pytest.approx(500.0)
+    assert row["rejected_sum"] == pytest.approx(500.0)
+    assert row["rejected_pct"] == pytest.approx(100.0)
+
+
+@pytest.mark.asyncio
 async def test_process_supplier_responses_endpoint(
     async_client,
     test_session,

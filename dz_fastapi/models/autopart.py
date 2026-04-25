@@ -124,6 +124,10 @@ class AutoPart(Base):
     min_balance_user = Column(Boolean, default=False)
     comment = Column(Text, nullable=True, default='')
     barcode = Column(String(MAX_LIGHT_BARCODE), nullable=False, unique=True)
+    # Категория «Честный знак» (маркировка РФ)
+    honest_sign_category = Column(String(100), nullable=True)
+    # Применение: на какие автомобили подходит запчасть
+    applicability = Column(Text, nullable=True)
     __table_args__ = (
         UniqueConstraint('brand_id', 'oem_number', name='uq_brand_oem_number'),
         CheckConstraint('width > 0', name='check_width_positive'),

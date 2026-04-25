@@ -374,6 +374,97 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             ]
         return order_dict
 
+    async def list_for_catalog(
+        self,
+        session: AsyncSession,
+        *,
+        q: Optional[str] = None,
+        brand_id: Optional[int] = None,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> tuple[list[AutoPart], int]:
+        """Paginated catalog list with optional OEM / name / brand filters."""
+        base_stmt = (
+            select(AutoPart)
+            .join(Brand, Brand.id == AutoPart.brand_id)
+            .options(
+                selectinload(AutoPart.categories),
+                selectinload(AutoPart.storage_locations),
+                selectinload(AutoPart.brand),
+            )
+        )
+        if q:
+            q_upper = q.upper().replace('-', '').replace(' ', '')
+            base_stmt = base_stmt.where(
+                AutoPart.oem_number.ilike(f'%{q_upper}%')
+                | AutoPart.name.ilike(f'%{q}%')
+                | Brand.name.ilike(f'%{q}%')
+            )
+        if brand_id:
+            base_stmt = base_stmt.where(AutoPart.brand_id == brand_id)
+
+        count_stmt = select(func.count()).select_from(base_stmt.subquery())
+        total_result = await session.execute(count_stmt)
+        total = total_result.scalar_one()
+
+        items_stmt = base_stmt.order_by(Brand.name.asc(), AutoPart.oem_number.asc()).offset(offset).limit(limit)
+        items_result = await session.execute(items_stmt)
+        items = list(items_result.scalars().unique().all())
+        return items, total
+
+    async def update_full(
+        self,
+        session: AsyncSession,
+        autopart: AutoPart,
+        data: dict,
+    ) -> AutoPart:
+        """Update autopart scalar fields + optional M2M replacement."""
+        category_ids: Optional[list[int]] = data.pop('category_ids', None)
+        storage_location_ids: Optional[list[int]] = data.pop('storage_location_ids', None)
+        # Remove legacy single-name fields (handled elsewhere)
+        data.pop('category_name', None)
+        data.pop('storage_location_name', None)
+
+        for key, value in data.items():
+            if hasattr(autopart, key) and value is not None:
+                setattr(autopart, key, value)
+
+        if category_ids is not None:
+            cats_result = await session.execute(
+                select(Category).where(Category.id.in_(category_ids))
+            )
+            autopart.categories = list(cats_result.scalars().all())
+
+        if storage_location_ids is not None:
+            locs_result = await session.execute(
+                select(StorageLocation).where(StorageLocation.id.in_(storage_location_ids))
+            )
+            autopart.storage_locations = list(locs_result.scalars().all())
+
+        session.add(autopart)
+        await session.commit()
+        await session.refresh(autopart)
+        return autopart
+
+    async def get_detail_with_crosses(
+        self,
+        session: AsyncSession,
+        autopart_id: int,
+    ) -> Optional[AutoPart]:
+        """Fetch autopart with all relations including crosses."""
+        from dz_fastapi.models.cross import AutoPartCross
+        stmt = (
+            select(AutoPart)
+            .where(AutoPart.id == autopart_id)
+            .options(
+                selectinload(AutoPart.categories),
+                selectinload(AutoPart.storage_locations),
+                selectinload(AutoPart.brand),
+            )
+        )
+        result = await session.execute(stmt)
+        return result.scalars().unique().one_or_none()
+
 
 crud_autopart = CRUDAutopart(AutoPart)
 
