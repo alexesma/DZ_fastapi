@@ -1,7 +1,7 @@
 """add honest_sign_category and applicability to autopart
 
 Revision ID: f1a2b3c4d5e6
-Revises: e9f0a1b2c3e5
+Revises: f4e5d6c7b8a9
 Create Date: 2026-04-25 12:00:00.000000
 """
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "f1a2b3c4d5e6"
-down_revision: Union[str, Sequence[str], None] = "e9f0a1b2c3e5"
+down_revision: Union[str, Sequence[str], None] = "f4e5d6c7b8a9"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -1,6 +1,6 @@
 """add honest_sign and applicability relational tables
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: a2b3c4d5e6f8
 Revises: f1a2b3c4d5e6
 Create Date: 2026-04-25 10:00:00.000000
 
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = 'a1b2c3d4e5f6'
+revision = 'a2b3c4d5e6f8'
 down_revision = 'f1a2b3c4d5e6'
 branch_labels = None
 depends_on = None
