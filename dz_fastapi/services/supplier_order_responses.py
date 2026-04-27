@@ -5212,6 +5212,57 @@ async def process_supplier_response_messages(
                         )
                     if matched_count:
                         parsed_text_rows = True
+                        # Per-OEM parsing matched some items but may have
+                        # skipped others (e.g. when the quoted original-order
+                        # table is present in the email body and an OEM is
+                        # mis-tokenised or absent).  If the supplier also
+                        # wrote a global confirm keyword (e.g. "в резерве"),
+                        # apply it as a fallback to every unmatched item so
+                        # nothing is silently dropped from the receipt.
+                        if order is not None:
+                            (
+                                _fallback_decision,
+                                _fallback_token,
+                            ) = _detect_global_text_decision(
+                                response_text_with_subject,
+                                confirm_keywords=confirm_keywords,
+                                reject_keywords=reject_keywords,
+                            )
+                            if _fallback_decision == "confirm":
+                                _touched_ids = {
+                                    int(r.supplier_order_item_id)
+                                    for r in applied_rows
+                                }
+                                (
+                                    _fallback_updated,
+                                    _fallback_rows,
+                                ) = _apply_global_text_decision_to_order(
+                                    order,
+                                    decision="confirm",
+                                    status_label=(
+                                        _fallback_token
+                                        or raw_status
+                                        or None
+                                    ),
+                                )
+                                _new_fallback_rows = [
+                                    r for r in _fallback_rows
+                                    if int(r.supplier_order_item_id)
+                                    not in _touched_ids
+                                    and (r.received_quantity or 0) > 0
+                                ]
+                                if _new_fallback_rows:
+                                    receipt_applied_rows_by_order.setdefault(
+                                        int(order.id),
+                                        [],
+                                    ).extend(_new_fallback_rows)
+                                    stats.recognized_positions += len(
+                                        _new_fallback_rows
+                                    )
+                                    if _fallback_updated > 0:
+                                        stats.updated_items += (
+                                            _fallback_updated
+                                        )
                 if not parsed_text_rows and not parsed_response_file:
                     (
                         global_decision,
