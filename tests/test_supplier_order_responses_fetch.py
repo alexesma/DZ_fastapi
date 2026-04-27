@@ -1,9 +1,27 @@
+import asyncio
 from datetime import date, datetime
 from types import SimpleNamespace
 
 import pytest
 
 from dz_fastapi.services import supplier_order_responses as response_service
+
+
+def test_build_sender_filters_preserves_config_order():
+    configs = [
+        SimpleNamespace(sender_emails=["otvet@aruda.ru"]),
+        SimpleNamespace(sender_emails=["honda315@rambler.ru"]),
+        SimpleNamespace(sender_emails=["zakaz@cosmopart.ru"]),
+        SimpleNamespace(sender_emails=["avtek3915@yandex.ru"]),
+        SimpleNamespace(sender_emails=["otvet@aruda.ru"]),
+    ]
+
+    assert response_service._build_sender_filters_from_configs(configs) == [
+        "otvet@aruda.ru",
+        "honda315@rambler.ru",
+        "zakaz@cosmopart.ru",
+        "avtek3915@yandex.ru",
+    ]
 
 
 @pytest.mark.asyncio
@@ -195,4 +213,84 @@ async def test_fetch_supplier_responses_ignores_internal_senders(
     assert len(result) == 1
     fetched_message, fetched_account = result[0]
     assert fetched_message.external_id == "supplier-message"
+    assert fetched_account.id == account.id
+
+
+@pytest.mark.asyncio
+async def test_fetch_supplier_responses_continues_after_sender_timeout(
+    monkeypatch,
+):
+    account = SimpleNamespace(
+        id=103,
+        email="masterzapzakaz@gmail.com",
+        imap_host="imap.gmail.com",
+        transport="smtp",
+        imap_folder="INBOX",
+        imap_additional_folders=[],
+        oauth_provider=None,
+        password="secret",
+        imap_port=993,
+    )
+    supplier_message = SimpleNamespace(
+        uid="7002",
+        external_id="fast-message",
+        received_at=datetime(2026, 4, 27, 10, 5, 0),
+        date=None,
+        from_="fast@example.com",
+        subject="Re: Заказ",
+    )
+    called_filters = []
+
+    async def fake_get_active_by_purpose(_session, _purpose):
+        return [account]
+
+    async def fake_fetch_order_messages(
+        host,
+        email,
+        password,
+        folder,
+        date_from,
+        mark_seen,
+        *,
+        port,
+        ssl,
+        from_email=None,
+    ):
+        del (
+            host,
+            email,
+            password,
+            folder,
+            date_from,
+            mark_seen,
+            port,
+            ssl,
+        )
+        called_filters.append(from_email)
+        if from_email == "slow@example.com":
+            raise asyncio.TimeoutError()
+        return [supplier_message]
+
+    monkeypatch.setattr(
+        response_service.crud_email_account,
+        "get_active_by_purpose",
+        fake_get_active_by_purpose,
+    )
+    monkeypatch.setattr(
+        response_service,
+        "_fetch_order_messages",
+        fake_fetch_order_messages,
+    )
+
+    result = await response_service._fetch_supplier_response_messages(
+        None,
+        date_from=date(2026, 4, 27),
+        include_default_orders_out=True,
+        from_email_filters=["slow@example.com", "fast@example.com"],
+    )
+
+    assert called_filters == ["slow@example.com", "fast@example.com"]
+    assert len(result) == 1
+    fetched_message, fetched_account = result[0]
+    assert fetched_message.external_id == "fast-message"
     assert fetched_account.id == account.id

@@ -659,19 +659,19 @@ async def _fetch_supplier_response_messages(
             try:
                 account_messages = []
                 for folder in folders:
-                    try:
-                        for from_filter in fetch_from_filters:
-                            logger.info(
-                                (
-                                    "Supplier response IMAP fetch: "
-                                    "account_id=%s email=%s folder=%s "
-                                    "from_filter=%s"
-                                ),
-                                account.id,
-                                account.email,
-                                folder,
-                                from_filter,
-                            )
+                    for from_filter in fetch_from_filters:
+                        logger.info(
+                            (
+                                "Supplier response IMAP fetch: "
+                                "account_id=%s email=%s folder=%s "
+                                "from_filter=%s"
+                            ),
+                            account.id,
+                            account.email,
+                            folder,
+                            from_filter,
+                        )
+                        try:
                             account_messages.extend(
                                 await asyncio.wait_for(
                                     _fetch_order_messages(
@@ -690,28 +690,31 @@ async def _fetch_supplier_response_messages(
                                     ),
                                 )
                             )
-                    except MailboxFolderSelectError as folder_exc:
-                        logger.warning(
-                            (
-                                'Supplier response IMAP folder "%s" not found '
-                                "for %s, skipping folder. Error: %s"
-                            ),
-                            folder,
-                            account.email,
-                            folder_exc,
-                        )
-                    except asyncio.TimeoutError:
-                        logger.warning(
-                            (
-                                "Supplier response IMAP fetch timeout: "
-                                "account_id=%s email=%s folder=%s "
-                                "timeout=%.0fs"
-                            ),
-                            account.id,
-                            account.email,
-                            folder,
-                            _SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
-                        )
+                        except MailboxFolderSelectError as folder_exc:
+                            logger.warning(
+                                (
+                                    'Supplier response IMAP folder "%s" '
+                                    "not found for %s, skipping folder. "
+                                    "Error: %s"
+                                ),
+                                folder,
+                                account.email,
+                                folder_exc,
+                            )
+                            break
+                        except asyncio.TimeoutError:
+                            logger.warning(
+                                (
+                                    "Supplier response IMAP fetch timeout: "
+                                    "account_id=%s email=%s folder=%s "
+                                    "from_filter=%s timeout=%.0fs"
+                                ),
+                                account.id,
+                                account.email,
+                                folder,
+                                from_filter,
+                                _SUPPLIER_RESPONSE_FETCH_TIMEOUT_SEC,
+                            )
                 logger.info(
                     (
                         "Supplier response inbox account done: "
@@ -4131,6 +4134,22 @@ def _group_response_configs_by_provider(
     return grouped
 
 
+def _build_sender_filters_from_configs(
+    configs: Iterable[SupplierResponseConfig],
+) -> list[str]:
+    sender_filters: list[str] = []
+    seen_sender_filters: set[str] = set()
+    for config in configs:
+        for sender_filter in sorted(
+            _normalize_sender_emails(config.sender_emails)
+        ):
+            if sender_filter in seen_sender_filters:
+                continue
+            seen_sender_filters.add(sender_filter)
+            sender_filters.append(sender_filter)
+    return sender_filters
+
+
 async def process_supplier_response_messages(
     session: AsyncSession,
     *,
@@ -4222,11 +4241,7 @@ async def process_supplier_response_messages(
         and selected_config.inbox_email_account_id is not None
     ):
         include_default_orders_out = False
-    sender_filters: set[str] = set()
-    for config in response_configs:
-        sender_filters.update(
-            _normalize_sender_emails(config.sender_emails)
-        )
+    sender_filters = _build_sender_filters_from_configs(response_configs)
     from_email_filters: list[str] = []
     if sender_filters:
         should_apply_sender_filters = (
@@ -4235,7 +4250,7 @@ async def process_supplier_response_messages(
             or len(sender_filters) <= _SUPPLIER_RESPONSE_FETCH_MAX_FROM_FILTERS
         )
         if should_apply_sender_filters:
-            from_email_filters = sorted(sender_filters)
+            from_email_filters = sender_filters
 
     fetch_kwargs: dict[str, object] = {
         "date_from": date_from,
