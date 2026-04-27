@@ -5,8 +5,11 @@ Revises: b2c3d4e5f6a7
 Create Date: 2026-04-26 10:00:00.000000
 
 """
-from alembic import op
+
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = 'e5f6a7b8c9d0'
 down_revision = 'b2c3d4e5f6a7'
@@ -15,22 +18,46 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # ── Enum types ────────────────────────────────────────────────────────────
+    # ── Enum types ──────────────────────────────────────────────────────────
     op.execute(
-        "CREATE TYPE inventorystatus AS ENUM "
-        "('active', 'completed', 'cancelled')"
+        """
+        DO $$
+        BEGIN
+            CREATE TYPE inventorystatus AS ENUM (
+                'active', 'completed', 'cancelled'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN NULL;
+        END $$;
+        """
     )
     op.execute(
-        "CREATE TYPE inventoryscopetype AS ENUM "
-        "('full', 'shelf', 'location')"
+        """
+        DO $$
+        BEGIN
+            CREATE TYPE inventoryscopetype AS ENUM (
+                'full', 'shelf', 'location'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN NULL;
+        END $$;
+        """
     )
     op.execute(
-        "CREATE TYPE movementtype AS ENUM "
-        "('receipt', 'shipment', 'transfer_in', 'transfer_out', "
-        "'inventory', 'manual')"
+        """
+        DO $$
+        BEGIN
+            CREATE TYPE movementtype AS ENUM (
+                'receipt', 'shipment', 'transfer_in', 'transfer_out',
+                'inventory', 'manual'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN NULL;
+        END $$;
+        """
     )
 
-    # ── InventorySession ──────────────────────────────────────────────────────
+    # ── InventorySession ────────────────────────────────────────────────────
     op.create_table(
         'inventorysession',
         sa.Column('id', sa.Integer(), nullable=False, autoincrement=True),
@@ -44,7 +71,7 @@ def upgrade() -> None:
         sa.Column('finished_at', sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             'status',
-            sa.Enum(
+            postgresql.ENUM(
                 'active', 'completed', 'cancelled',
                 name='inventorystatus', create_type=False,
             ),
@@ -53,7 +80,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             'scope_type',
-            sa.Enum(
+            postgresql.ENUM(
                 'full', 'shelf', 'location',
                 name='inventoryscopetype', create_type=False,
             ),
@@ -65,14 +92,19 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id'),
     )
 
-    # ── InventoryItem ─────────────────────────────────────────────────────────
+    # ── InventoryItem ───────────────────────────────────────────────────────
     op.create_table(
         'inventoryitem',
         sa.Column('id', sa.Integer(), nullable=False, autoincrement=True),
         sa.Column('session_id', sa.Integer(), nullable=False),
         sa.Column('autopart_id', sa.Integer(), nullable=False),
         sa.Column('storage_location_id', sa.Integer(), nullable=False),
-        sa.Column('expected_qty', sa.Integer(), nullable=False, server_default='0'),
+        sa.Column(
+            'expected_qty',
+            sa.Integer(),
+            nullable=False,
+            server_default='0',
+        ),
         sa.Column('actual_qty', sa.Integer(), nullable=True),
         sa.Column('discrepancy', sa.Integer(), nullable=True),
         sa.Column('counted_at', sa.DateTime(timezone=True), nullable=True),
@@ -87,15 +119,19 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint('id'),
     )
-    op.create_index('ix_inventoryitem_session_id', 'inventoryitem', ['session_id'])
-    op.create_index('ix_inventoryitem_autopart_id', 'inventoryitem', ['autopart_id'])
+    op.create_index(
+        'ix_inventoryitem_session_id', 'inventoryitem', ['session_id']
+    )
+    op.create_index(
+        'ix_inventoryitem_autopart_id', 'inventoryitem', ['autopart_id']
+    )
     op.create_index(
         'ix_inventoryitem_storage_location_id',
         'inventoryitem',
         ['storage_location_id'],
     )
 
-    # ── StockMovement ─────────────────────────────────────────────────────────
+    # ── StockMovement ───────────────────────────────────────────────────────
     op.create_table(
         'stockmovement',
         sa.Column('id', sa.Integer(), nullable=False, autoincrement=True),
@@ -103,7 +139,7 @@ def upgrade() -> None:
         sa.Column('storage_location_id', sa.Integer(), nullable=True),
         sa.Column(
             'movement_type',
-            sa.Enum(
+            postgresql.ENUM(
                 'receipt', 'shipment', 'transfer_in', 'transfer_out',
                 'inventory', 'manual',
                 name='movementtype', create_type=False,
