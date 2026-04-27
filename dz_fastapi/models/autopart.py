@@ -306,12 +306,26 @@ def preprocess_category(mapper, connection, target):
     target.name = re.sub(r'[^\w\s\-\*\(\)""]', '', target.name)
 
 
+@unique
+class LocationType(StrEnum):
+    SHELF = 'shelf'      # стеллаж
+    PALLET = 'pallet'    # паллет
+    BIN = 'bin'          # ящик/корзина
+    FLOOR = 'floor'      # пол (напольное хранение)
+    OTHER = 'other'      # прочее
+
+
 class StorageLocation(Base):
     '''
     Модель Складское месторасположение запчасти.
     '''
 
     name = Column(String(MAX_LIGHT_NAME_LOCATION), nullable=False, unique=True)
+    location_type = Column(
+        SAEnum(LocationType, name='locationtype'),
+        nullable=True,
+    )
+    capacity = Column(Integer, nullable=True)   # max SKUs (None = unlimited)
     autoparts = relationship(
         'AutoPart',
         secondary='autopart_storage_association',

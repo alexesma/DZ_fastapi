@@ -1013,6 +1013,90 @@ async def create_storages_bulk(
     ]
 
 
+@router.delete(
+    '/storage/{storage_id}/',
+    summary='Удалить место хранения (только если нет запчастей)',
+    tags=['storage'],
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_storage_location(
+    storage_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    result = await session.execute(
+        select(StorageLocation)
+        .where(StorageLocation.id == storage_id)
+        .options(selectinload(StorageLocation.autoparts))
+    )
+    storage = result.scalar_one_or_none()
+    if not storage:
+        raise HTTPException(
+            status_code=404,
+            detail='Место хранения не найдено'
+        )
+    if storage.autoparts:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f'Нельзя удалить: в месте хранения «{storage.name}» '
+                f'находится {len(storage.autoparts)} запчасть(-ей). '
+                'Сначала переместите товары в другое место.'
+            ),
+        )
+    await session.delete(storage)
+    await session.commit()
+
+
+@router.get(
+    '/storage/{storage_id}/autoparts/',
+    summary='Список запчастей в месте хранения (с количеством по ячейке)',
+    tags=['storage'],
+    status_code=status.HTTP_200_OK,
+)
+async def get_storage_autoparts(
+    storage_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    """Return StockByLocation records for the given storage location."""
+    from dz_fastapi.models.inventory import StockByLocation
+
+    # avoid circular import
+
+    storage = await session.get(StorageLocation, storage_id)
+    if not storage:
+        raise HTTPException(
+            status_code=404,
+            detail='Место хранения не найдено'
+        )
+
+    rows = (await session.execute(
+        select(StockByLocation)
+        .where(StockByLocation.storage_location_id == storage_id)
+        .options(
+            selectinload(StockByLocation.autopart).selectinload(
+                AutoPart.brand
+            ),
+            selectinload(StockByLocation.storage_location),
+        )
+        .order_by(StockByLocation.autopart_id)
+    )).scalars().all()
+
+    return [
+        {
+            'sbl_id': r.id,
+            'autopart_id': r.autopart_id,
+            'oem_number': r.autopart.oem_number if r.autopart else None,
+            'name': r.autopart.name if r.autopart else None,
+            'brand_name': r.autopart.brand.name if (
+                    r.autopart and r.autopart.brand
+            ) else '',
+            'stock_quantity': r.quantity,
+            'updated_at': r.updated_at.isoformat() if r.updated_at else None,
+        }
+        for r in rows
+    ]
+
+
 @router.get(
     '/autoparts/{oem_number}/price-history/plot/',
     summary='Анализ изменения цены/временя по поставщикам',

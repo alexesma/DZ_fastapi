@@ -1,0 +1,42 @@
+"""add location_type and capacity to storagelocation
+
+Revision ID: c3d4e5f6a7b8
+Revises: b2c3d4e5f6a7
+Create Date: 2026-04-26 12:00:00.000000
+
+"""
+from alembic import op
+import sqlalchemy as sa
+
+revision = 'c3d4e5f6a7b8'
+down_revision = 'b2c3d4e5f6a7'
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    op.execute(
+        "CREATE TYPE locationtype AS ENUM "
+        "('shelf', 'pallet', 'bin', 'floor', 'other')"
+    )
+    op.add_column(
+        'storagelocation',
+        sa.Column(
+            'location_type',
+            sa.Enum(
+                'shelf', 'pallet', 'bin', 'floor', 'other',
+                name='locationtype', create_type=False,
+            ),
+            nullable=True,
+        ),
+    )
+    op.add_column(
+        'storagelocation',
+        sa.Column('capacity', sa.Integer(), nullable=True),
+    )
+
+
+def downgrade() -> None:
+    op.drop_column('storagelocation', 'capacity')
+    op.drop_column('storagelocation', 'location_type')
+    op.execute('DROP TYPE IF EXISTS locationtype')

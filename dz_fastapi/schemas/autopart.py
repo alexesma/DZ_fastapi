@@ -406,6 +406,8 @@ class StorageLocationBase(BaseModel):
             pattern='^[A-Z0-9 /]+$', max_length=MAX_LIGHT_NAME_LOCATION
         ),
     ]
+    location_type: Optional[str] = None  # shelf / pallet / bin / floor / other
+    capacity: Optional[int] = None       # max SKUs (None = unlimited)
 
 
 class StorageLocationCreate(StorageLocationBase):
@@ -419,11 +421,15 @@ class StorageLocationUpdate(BaseModel):
             pattern='^[A-Z0-9 /]+$', max_length=MAX_LIGHT_NAME_LOCATION
         ),
     ] = None
+    location_type: Optional[str] = None
+    capacity: Optional[int] = None
 
 
 class StorageLocationResponse(StorageLocationBase):
     id: int
     name: str
+    location_type: Optional[str] = None
+    capacity: Optional[int] = None
     autoparts: List[AutoPartResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
