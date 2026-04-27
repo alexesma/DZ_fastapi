@@ -239,6 +239,7 @@ jobs:
         username: ${{ secrets.USER }}
         key: ${{ secrets.SSH_KEY }}
         passphrase: ${{ secrets.SSH_PASSPHRASE }}
+        command_timeout: 30m
         # Параметр script передаёт в action appleboy/ssh-action команды,
         # которые нужно выполнить на сервере,
         # с которым установлено соединение
@@ -246,13 +247,11 @@ jobs:
           cd /root/DZ_fastapi/infra/dev/
           # Останавливаем старые контейнеры
           sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml down
-          # Чистим всё «лишнее»
-          sudo docker system prune -a -f
-          # Выполняет pull образов с Docker Hub
+          # Скачиваем свежие образы, не удаляя локальный Docker-кэш.
           sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml pull
           # Сначала запускаем только БД. Приложение может падать на старой схеме
           # до миграций, поэтому не делаем exec в постоянно рестартящий web.
-          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --force-recreate --pull always db
+          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --force-recreate db
           echo "Ждем запуска базы данных..."
           for i in $(seq 1 60); do
             db_health=$(sudo docker inspect -f '{{.State.Health.Status}}' dz_db_dev 2>/dev/null || true)
@@ -270,7 +269,7 @@ jobs:
           # Выполняем миграции одноразовым контейнером из нового web-образа.
           sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml run --rm --no-deps web poetry run alembic upgrade heads
           # После миграций запускаем постоянные контейнеры приложения и фронта.
-          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --force-recreate --pull always web frontend
+          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --force-recreate web frontend
 
   send_success_message:
     runs-on: ubuntu-latest
