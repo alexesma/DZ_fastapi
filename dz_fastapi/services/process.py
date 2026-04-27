@@ -185,6 +185,17 @@ def _build_customer_pricelist_attachment_bytes(
         )
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
+    # Regex that matches characters illegal in Excel worksheets
+    # (control characters except tab \x09, newline \x0A, carriage return \x0D)
+    _illegal_chars_re = re.compile(
+        r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]'
+    )
+
+    def _sanitize_cell(value: Any) -> Any:
+        if isinstance(value, str):
+            return _illegal_chars_re.sub('', value)
+        return value
+
     # Write data rows starting from the third row
     logger.debug('Write data rows starting from the third row')
     for row_num, row_data in enumerate(
@@ -192,7 +203,7 @@ def _build_customer_pricelist_attachment_bytes(
     ):
         for col_num, cell_value in enumerate(row_data, start=1):
             cell = ws.cell(row=row_num, column=col_num)
-            cell.value = cell_value
+            cell.value = _sanitize_cell(cell_value)
             cell.font = Font(name="Arial", size=10)
 
     wb.save(output)

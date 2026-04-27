@@ -164,6 +164,78 @@ async def test_process_customer_order_returns_missing_config_status(
 
 
 @pytest.mark.asyncio
+async def test_process_price_list_uses_current_processor_signature(
+    monkeypatch,
+    tmp_path,
+):
+    provider = SimpleNamespace(id=1, name='Provider One')
+    config = SimpleNamespace(id=10)
+    fetched_msg = SimpleNamespace()
+    inbox_email = SimpleNamespace(from_email='price@example.com')
+    price_file = tmp_path / 'price.xlsx'
+    price_file.write_bytes(b'xlsx-payload')
+    calls = []
+
+    async def fake_get_by_email_incoming_price(*, session, email):
+        assert email == inbox_email.from_email
+        return provider
+
+    async def fake_get_configs(*, provider_id, session, only_active):
+        assert provider_id == provider.id
+        assert only_active is True
+        return [config]
+
+    async def fake_download_new_price_provider(**kwargs):
+        assert kwargs['msg'] is fetched_msg
+        assert kwargs['provider'] is provider
+        assert kwargs['provider_conf'] is config
+        return str(price_file)
+
+    async def fake_process_provider_pricelist(**kwargs):
+        calls.append(kwargs)
+
+    monkeypatch.setattr(
+        'dz_fastapi.crud.partner.crud_provider.'
+        'get_by_email_incoming_price',
+        fake_get_by_email_incoming_price,
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.crud.partner.crud_provider_pricelist_config.'
+        'get_configs',
+        fake_get_configs,
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.email._message_matches_provider_config',
+        lambda msg, cfg: msg is fetched_msg and cfg is config,
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.email.download_new_price_provider',
+        fake_download_new_price_provider,
+    )
+    monkeypatch.setattr(
+        'dz_fastapi.services.process.process_provider_pricelist',
+        fake_process_provider_pricelist,
+    )
+
+    result, error = await inbox_email_service._process_price_list(
+        session=SimpleNamespace(),
+        inbox_email=inbox_email,
+        fetched_msg=fetched_msg,
+    )
+
+    assert error is None
+    assert result['configs_processed'] == [config.id]
+    assert len(calls) == 1
+    assert calls[0]['provider'] is provider
+    assert calls[0]['file_content'] == b'xlsx-payload'
+    assert calls[0]['file_extension'] == 'xlsx'
+    assert calls[0]['provider_list_conf'] is config
+    assert calls[0]['use_stored_params'] is True
+    assert 'provider_conf' not in calls[0]
+    assert 'filepath' not in calls[0]
+
+
+@pytest.mark.asyncio
 async def test_process_customer_order_returns_queued_with_matched_config_ids(
     monkeypatch,
 ):

@@ -1,10 +1,12 @@
 import base64
-from datetime import datetime
+from datetime import date, datetime
 from types import SimpleNamespace
 
 import pytest
 
 from dz_fastapi.services.email import (GMAIL_API_SEND_URL,
+                                       _price_email_since_date,
+                                       _scheduled_price_email_since_date,
                                        build_email_delivery_kwargs,
                                        download_price_provider, get_emails,
                                        send_email_message,
@@ -43,6 +45,18 @@ def test_build_email_delivery_kwargs_resend_api():
         'resend_api_key': 're_test',
         'resend_timeout': 30,
     }
+
+
+def test_price_email_since_date_uses_configured_depth(monkeypatch):
+    monkeypatch.setattr('dz_fastapi.services.email.DEPTH_DAY_EMAIL', 3)
+
+    assert (_price_email_since_date() - date.today()).days == -3
+
+
+def test_scheduled_price_email_since_date_uses_today(monkeypatch):
+    monkeypatch.setattr('dz_fastapi.services.email.DEPTH_DAY_EMAIL', 3)
+
+    assert _scheduled_price_email_since_date() == date.today()
 
 
 def test_send_email_with_attachment_gmail_api(monkeypatch):

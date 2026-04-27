@@ -1909,10 +1909,23 @@ async def _process_price_list(
         )
         if filepath:
             try:
+                file_extension = os.path.splitext(filepath)[1].lstrip('.')
+                file_extension = file_extension.lower()
+                async with aiofiles.open(filepath, 'rb') as f:
+                    file_content = await f.read()
                 await process_provider_pricelist(
                     provider=provider,
-                    provider_conf=config,
-                    filepath=filepath,
+                    file_content=file_content,
+                    file_extension=file_extension,
+                    provider_list_conf=config,
+                    use_stored_params=True,
+                    start_row=None,
+                    oem_col=None,
+                    brand_col=None,
+                    name_col=None,
+                    multiplicity_col=None,
+                    qty_col=None,
+                    price_col=None,
                     session=session,
                 )
                 processed_configs.append(config.id)

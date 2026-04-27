@@ -70,6 +70,14 @@ GMAIL_API_SEND_URL = (
 )
 
 
+def _price_email_since_date() -> date:
+    return date.today() - timedelta(days=DEPTH_DAY_EMAIL)
+
+
+def _scheduled_price_email_since_date() -> date:
+    return date.today()
+
+
 async def _get_last_uid_compat(
     provider_id: int,
     session: AsyncSession,
@@ -892,7 +900,7 @@ async def download_price_provider(
                 default=mailbox_folder,
             )
 
-        since_date = date.today() - timedelta(days=DEPTH_DAY_EMAIL)
+        since_date = _price_email_since_date()
         filename_pattern = (
             getattr(provider_conf, 'filename_pattern', None)
             or provider_conf.name_price
@@ -1456,7 +1464,7 @@ def _fetch_mailbox_messages(
         mailbox.folder.set(main_box)
         messages = list(
             mailbox.fetch(
-                AND(date_gte=date.today(), all=True),
+                AND(date_gte=_scheduled_price_email_since_date(), all=True),
                 charset='utf-8',
                 mark_seen=False,
             )
@@ -1485,7 +1493,7 @@ async def _fetch_resend_price_messages(
     emails = await fetch_received_emails_for_address(
         api_key=account.resend_api_key,
         email=account.email,
-        date_from=date.today(),
+        date_from=_scheduled_price_email_since_date(),
         received_after=getattr(account, 'resend_last_received_at', None),
         timeout=getattr(account, 'resend_timeout', None),
     )
