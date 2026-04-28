@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import zipfile
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from email.header import decode_header
@@ -1758,6 +1759,34 @@ def _get_message_text_content(msg: object) -> str:
     return ""
 
 
+_SHARED_STRINGS_EMPTY = (
+    b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    b'<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+    b' count="0" uniqueCount="0"></sst>'
+)
+
+
+def _ensure_xlsx_shared_strings(payload: bytes) -> bytes:
+    """Некоторые XLSX-файлы (генерируемые 1С и аналогами) не содержат
+    xl/sharedStrings.xml — openpyxl выбрасывает KeyError при попытке
+    прочитать такой файл.  Если файл является валидным ZIP, но в нём
+    отсутствует sharedStrings.xml, добавляем пустой — это позволяет
+    openpyxl/pandas без ошибок прочитать числовые данные."""
+    try:
+        with zipfile.ZipFile(BytesIO(payload), 'r') as zin:
+            names = zin.namelist()
+            if 'xl/sharedStrings.xml' in names:
+                return payload  # файл уже корректный
+            buf = BytesIO()
+            with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zout:
+                for name in names:
+                    zout.writestr(name, zin.read(name))
+                zout.writestr('xl/sharedStrings.xml', _SHARED_STRINGS_EMPTY)
+            return buf.getvalue()
+    except zipfile.BadZipFile:
+        return payload  # не zip — вернём как есть, ошибка поднимется позже
+
+
 def _parse_supplier_response_attachment(
     payload: bytes,
     filename: str,
@@ -1795,8 +1824,11 @@ def _parse_supplier_response_attachment(
             BytesIO(payload), header=None if has_column_layout else "infer"
         )
     elif ext in {"xlsx", "xls"}:
+        xlsx_payload = (
+            _ensure_xlsx_shared_strings(payload) if ext == "xlsx" else payload
+        )
         df = pd.read_excel(
-            BytesIO(payload),
+            BytesIO(xlsx_payload),
             header=None if has_column_layout else 0,
         )
     else:
