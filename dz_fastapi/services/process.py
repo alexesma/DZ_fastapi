@@ -1400,33 +1400,41 @@ async def send_pricelist(
     # Send the email asynchronously
     logger.debug('Send the email asynchronously')
     loop = asyncio.get_running_loop()
-    account = await _get_preferred_pricelist_out_account(session)
-    if account:
-        logger.info(
-            'Using preferred outgoing email account for pricelist send: '
-            'config=%s account_id=%s email=%s',
-            config.id,
-            account.id,
-            account.email,
-        )
+    account = None
     if config.outgoing_email_account_id:
-        if account is None:
-            selected = await crud_email_account.get(
-                session, config.outgoing_email_account_id
+        selected = await crud_email_account.get(
+            session, config.outgoing_email_account_id
+        )
+        if not selected:
+            logger.warning(
+                'Configured outgoing mailbox not found: id=%s',
+                config.outgoing_email_account_id,
             )
-            if not selected:
-                logger.warning(
-                    'Configured outgoing mailbox not found: id=%s',
-                    config.outgoing_email_account_id,
-                )
-            elif _is_pricelist_out_account_eligible(selected):
-                account = selected
-            else:
-                logger.warning(
-                    'Configured outgoing mailbox is inactive or '
-                    'missing prices_out/orders_out/orders_in purpose: id=%s',
-                    config.outgoing_email_account_id,
-                )
+        elif _is_pricelist_out_account_eligible(selected):
+            account = selected
+            logger.info(
+                'Using config outgoing email account for pricelist send: '
+                'config=%s account_id=%s email=%s',
+                config.id,
+                account.id,
+                account.email,
+            )
+        else:
+            logger.warning(
+                'Configured outgoing mailbox is inactive or '
+                'missing prices_out/orders_out/orders_in purpose: id=%s',
+                config.outgoing_email_account_id,
+            )
+    if account is None:
+        account = await _get_preferred_pricelist_out_account(session)
+        if account:
+            logger.info(
+                'Using preferred outgoing email account for pricelist send: '
+                'config=%s account_id=%s email=%s',
+                config.id,
+                account.id,
+                account.email,
+            )
     if account is None:
         accounts = await crud_email_account.get_active_by_purpose(
             session=session,
@@ -1613,7 +1621,9 @@ async def process_customer_pricelist(
         )
 
     customer_pricelist = CustomerPriceList(
-        customer=customer, date=request.date or date.today(), is_active=True
+        customer_id=customer.id,
+        date=request.date or date.today(),
+        is_active=True
     )
     session.add(customer_pricelist)
     await session.flush()
