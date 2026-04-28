@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.core.db import get_async_session
+from dz_fastapi.core.db import get_session
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.cross import AutoPartSubstitution
@@ -37,7 +37,7 @@ class SubstitutionResponse(BaseModel):
 @router.post("/", response_model=SubstitutionResponse)
 async def create_substitution(
     data: SubstitutionCreate,
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session),
 ):
     """Создать подмену для прайс-листа"""
 
@@ -53,7 +53,7 @@ async def create_substitution(
 async def upload_substitutions_from_1c(
     file: UploadFile = File(...),
     customer_config_id: int | None = None,
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session),
 ):
     """
     Загрузка подмен из Excel файла 1С.
@@ -142,7 +142,7 @@ async def upload_substitutions_from_1c(
 @router.get("/{autopart_id}", response_model=list[SubstitutionResponse])
 async def get_substitutions(
     autopart_id: int,
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session),
 ):
     """Получить все подмены для детали"""
 

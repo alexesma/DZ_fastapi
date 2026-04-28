@@ -29,7 +29,7 @@ from dz_fastapi.api.settings import router as settings_router
 from dz_fastapi.api.watchlist import router as watchlist_router
 from dz_fastapi.api.webchat import router as webchat_router
 from dz_fastapi.core.config import settings
-from dz_fastapi.core.db import get_async_session
+from dz_fastapi.core.db import dispose_engines, get_async_session
 from dz_fastapi.services.auth import ensure_admin_user
 from dz_fastapi.services.scheduler import start_scheduler
 from dz_fastapi.services.telegram_bot import start_telegram_bot
@@ -99,9 +99,7 @@ async def lifespan(app: FastAPI):
         if bot_task:
             bot_task.cancel()
         try:
-            engine = getattr(app.state.session_factory, 'bind', None)
-            if engine:
-                await engine.dispose()
+            await dispose_engines()
         except Exception as e:
             logger.exception(f'Engine dispose error: {e}')
 

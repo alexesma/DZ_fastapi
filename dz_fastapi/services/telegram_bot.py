@@ -35,14 +35,14 @@ async def reply_command(
     session_id = match.group(1)
     reply_text = match.group(2).strip()
 
-    # Сохраняем ответ в БД
-    async for db_session in get_async_session():
+    # Сохраняем ответ в БД через общую фабрику сессий.
+    session_factory = get_async_session()
+    async with session_factory() as db_session:
         await save_operator_message(
             session=db_session,
             session_id=session_id,
             message=reply_text,
         )
-        break
 
     await update.message.reply_text(
         f'✅ Ответ отправлен клиенту!\n'

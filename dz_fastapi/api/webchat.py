@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.core.db import get_async_session
+from dz_fastapi.core.db import get_session
 from dz_fastapi.schemas.webchat import (ChatHistoryResponse,
                                         ChatMessageResponse, SiteChatMessageIn,
                                         SiteChatMessageOut)
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/site-chat", tags=['site-chat'])
 @router.post('/message', response_model=SiteChatMessageOut)
 async def send_site_chat_message(
     payload: SiteChatMessageIn,
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session),
     x_widget_secret: str | None = Header(
         default=None, alias='X-Widget-Secret'
     ),
@@ -70,7 +70,7 @@ async def send_site_chat_message(
 @router.get('/history/{session_id}', response_model=ChatHistoryResponse)
 async def get_chat_history_endpoint(
     session_id: str,
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_session),
     x_widget_secret: str | None = Header(
         default=None, alias='X-Widget-Secret'
     ),
