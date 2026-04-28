@@ -103,6 +103,7 @@ _ARTICLE_TOKEN_RE = re.compile(
     r")"
 )
 _TEXT_TOKEN_RE = re.compile(r"[A-Za-zА-Яа-яЁё0-9][A-Za-zА-Яа-яЁё0-9._/-]*")
+_INVALID_PARSED_OEM_KEYS = {"NAN", "NONE", "NULL", "NAT"}
 # Detects the start of a quoted/forwarded reply block in email text.
 # Matches a line of 5+ dashes (common separator) or a standalone
 # "From:"/"Кому:" header line that indicates a forwarded message.
@@ -1973,8 +1974,11 @@ def _parse_supplier_response_attachment(
 
     parsed_rows: list[ParsedSupplierResponseRow] = []
     for _, row in df.iterrows():
-        oem_value = _normalize_oem_key(row.get(oem_column))
-        if not oem_value:
+        raw_oem_value = row.get(oem_column)
+        if raw_oem_value is None or pd.isna(raw_oem_value):
+            continue
+        oem_value = _normalize_oem_key(raw_oem_value)
+        if not oem_value or oem_value in _INVALID_PARSED_OEM_KEYS:
             continue
         brand_value = None
         if brand_column is not None:
@@ -3052,6 +3056,9 @@ def _extract_shipping_document_number(
         if not clean:
             continue
         base_name = clean.rsplit(".", 1)[0].strip()
+        extracted_number = _parse_document_number_from_text(base_name)
+        if extracted_number:
+            return extracted_number[:120]
         if base_name:
             return base_name[:120]
         return clean[:120]

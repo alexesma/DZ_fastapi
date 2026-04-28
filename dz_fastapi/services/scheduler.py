@@ -238,6 +238,8 @@ def start_scheduler(app: FastAPI):
         name='Send scheduled customer pricelists',
         minute='*',
         replace_existing=True,
+        max_instances=1,
+        coalesce=True,
     )
 
     scheduler.add_job(
@@ -1004,21 +1006,28 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
     """
     Проверяет расписания customer pricelist configs и отправляет,
     если текущий день/время совпадают.
+
+    Каждый конфиг обрабатывается в отдельной сессии, чтобы не держать
+    соединение к БД открытым на весь цикл (что блокировало пул при
+    параллельных HTTP-запросах).
     """
     async_session_factory = app.state.session_factory
     now = now_moscow()
     day_key = _day_key(now)
     time_key = now.strftime('%H:%M')
 
-    async with async_session_factory() as session:
-        try:
+    # --- 1. Загружаем конфиги одной короткой сессией и сразу закрываем её ---
+    try:
+        async with async_session_factory() as session:
             stmt = (
                 select(CustomerPriceListConfig)
                 .options(selectinload(CustomerPriceListConfig.customer))
                 .where(CustomerPriceListConfig.is_active.is_(True))
             )
             configs = (await session.execute(stmt)).scalars().all()
-
+            # Переводим в список простых данных, чтобы не тянуть lazy-load
+            # после закрытия сессии.
+            pending = []
             for config in configs:
                 if not config.schedule_days or not config.schedule_times:
                     continue
@@ -1031,50 +1040,64 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
                     now_key = now.strftime('%Y-%m-%d %H:%M')
                     if last_key == now_key:
                         continue
-
-                customer = config.customer
-                if not customer:
+                if not config.customer:
                     continue
-
-                request = CustomerPriceListCreate(
-                    customer_id=customer.id,
-                    config_id=config.id,
-                    items=[],
-                )
-                try:
-                    await process_customer_pricelist(
-                        customer=customer, request=request, session=session
-                    )
-                except Exception as exc:
-                    logger.error(
-                        'Error in send_scheduled_customer_pricelists_task '
-                        'for config %s: %s',
-                        config.id,
-                        exc,
-                        exc_info=True,
-                    )
-                    await _notify_scheduler_issue(
-                        session,
-                        subject='Ошибка регламента отправки прайсов клиентам',
-                        text=(
-                            'Ошибка при автоматической отправке прайса '
-                            f'клиенту для config_id={config.id}.\n'
-                            f'Текст ошибки: {exc}'
-                        ),
-                    )
-        except Exception as e:
-            logger.error(
-                f'Error in send_scheduled_customer_pricelists_task: {e}',
-                exc_info=True,
-            )
+                pending.append((config.id, config.customer))
+    except Exception as e:
+        logger.error(
+            'Error loading configs in '
+            'send_scheduled_customer_pricelists_task: %s',
+            e,
+            exc_info=True,
+        )
+        async with async_session_factory() as err_session:
             await _notify_scheduler_issue(
-                session,
+                err_session,
                 subject='Ошибка регламента отправки прайсов клиентам',
                 text=(
-                    'Ошибка при автоматической отправке прайсов клиентам.\n'
+                    'Ошибка при загрузке конфигов авторассылки прайсов.\n'
                     f'Текст ошибки: {e}'
                 ),
             )
+        return
+
+    # --- 2. Каждый конфиг — своя сессия, соединение освобождается сразу ---
+    for config_id, customer in pending:
+        request = CustomerPriceListCreate(
+            customer_id=customer.id,
+            config_id=config_id,
+            items=[],
+        )
+        try:
+            async with async_session_factory() as session:
+                await process_customer_pricelist(
+                    customer=customer, request=request, session=session
+                )
+        except Exception as exc:
+            logger.error(
+                'Error in send_scheduled_customer_pricelists_task '
+                'for config %s: %s',
+                config_id,
+                exc,
+                exc_info=True,
+            )
+            try:
+                async with async_session_factory() as err_session:
+                    await _notify_scheduler_issue(
+                        err_session,
+                        subject='Ошибка регламента отправки прайсов клиентам',
+                        text=(
+                            'Ошибка при автоматической отправке прайса '
+                            f'клиенту для config_id={config_id}.\n'
+                            f'Текст ошибки: {exc}'
+                        ),
+                    )
+            except Exception as notify_exc:
+                logger.error(
+                    'Failed to send error notification for config %s: %s',
+                    config_id,
+                    notify_exc,
+                )
 
 
 async def price_control_run_task(app: FastAPI):

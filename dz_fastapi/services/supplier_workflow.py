@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Iterable, Optional
@@ -10,11 +11,11 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.customer_order import crud_supplier_order
-from dz_fastapi.models.partner import (STOCK_ORDER_STATUS, CustomerOrder,
-                                       CustomerOrderItem, StockOrder,
-                                       StockOrderItem, SupplierOrder,
-                                       SupplierOrderItem, SupplierReceipt,
-                                       SupplierReceiptItem)
+from dz_fastapi.models.partner import (STOCK_ORDER_STATUS, TYPE_PRICES,
+                                       CustomerOrder, CustomerOrderItem,
+                                       StockOrder, StockOrderItem,
+                                       SupplierOrder, SupplierOrderItem,
+                                       SupplierReceipt, SupplierReceiptItem)
 from dz_fastapi.models.user import User
 from dz_fastapi.services.customer_orders import \
     try_finalize_customer_order_response
@@ -24,6 +25,42 @@ from dz_fastapi.services.customer_orders import \
 class StockPickResult:
     item: StockOrderItem
     stock_order_status: STOCK_ORDER_STATUS
+
+
+def _provider_is_vat_payer(provider) -> bool:
+    if provider is None:
+        return False
+    raw_type = getattr(provider, 'type_prices', None)
+    raw_value = getattr(raw_type, 'value', raw_type)
+    if raw_value is not None:
+        normalized = str(raw_value).strip().lower()
+        if normalized in {
+            TYPE_PRICES.WHOLESALE.value.lower(),
+            TYPE_PRICES.WHOLESALE.name.lower(),
+        }:
+            return True
+        if normalized in {
+            TYPE_PRICES.RETAIL.value.lower(),
+            TYPE_PRICES.RETAIL.name.lower(),
+            TYPE_PRICES.CASH.value.lower(),
+            TYPE_PRICES.CASH.name.lower(),
+        }:
+            return False
+    return bool(getattr(provider, 'is_vat_payer', False))
+
+
+def _normalize_receipt_document_number(value: object) -> Optional[str]:
+    text = str(value or '').strip()
+    if not text:
+        return None
+    match = re.search(
+        r'(?:№|N)\s*([A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9._/-]*)',
+        text,
+        flags=re.I,
+    )
+    if match is not None:
+        return match.group(1)[:120]
+    return text[:120]
 
 
 def get_default_supplier_activity_window(
@@ -808,14 +845,12 @@ def serialize_supplier_receipt(receipt: SupplierReceipt) -> dict:
         'id': receipt.id,
         'provider_id': receipt.provider_id,
         'provider_name': receipt.provider.name if receipt.provider else None,
-        'provider_is_vat_payer': (
-            receipt.provider.is_vat_payer
-            if receipt.provider is not None
-            else False
-        ),
+        'provider_is_vat_payer': _provider_is_vat_payer(receipt.provider),
         'supplier_order_id': receipt.supplier_order_id,
         'source_message_id': receipt.source_message_id,
-        'document_number': receipt.document_number,
+        'document_number': _normalize_receipt_document_number(
+            receipt.document_number
+        ),
         'document_date': receipt.document_date,
         'created_by_user_id': receipt.created_by_user_id,
         'created_by_email': (

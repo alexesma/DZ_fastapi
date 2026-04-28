@@ -96,6 +96,41 @@ def test_apply_response_updates_csv_leaves_ship_price_blank_for_reject():
     assert result.iat[1, 3] == ""
 
 
+def test_parse_supplier_response_attachment_skips_nan_oem_rows():
+    frame = pd.DataFrame(
+        [
+            ["E6R201B", 2, 8343.68],
+            [float("nan"), 2, 8343.68],
+        ]
+    )
+    buffer = BytesIO()
+    frame.to_excel(buffer, index=False, header=False)
+
+    rows = response_service._parse_supplier_response_attachment(
+        buffer.getvalue(),
+        "uniqom-doc.xlsx",
+        file_payload_type="document",
+        start_row=1,
+        oem_col=1,
+        qty_col=2,
+        total_price_with_vat_col=3,
+    )
+
+    assert len(rows) == 1
+    assert rows[0].oem_number == "E6R201B"
+    assert rows[0].confirmed_quantity == 2
+    assert rows[0].total_price_with_vat == pytest.approx(8343.68)
+
+
+def test_extract_shipping_document_number_prefers_number_from_filename():
+    assert (
+        response_service._extract_shipping_document_number(
+            ["Универсальный передаточный документ Юником №28416 .xls"]
+        )
+        == "28416"
+    )
+
+
 def test_customer_order_auto_reply_enabled_with_default_stub(monkeypatch):
     monkeypatch.delenv("CUSTOMER_ORDER_AUTO_REPLY_ENABLED", raising=False)
     monkeypatch.delenv("CUSTOMER_ORDER_REPLY_OVERRIDE_EMAIL", raising=False)

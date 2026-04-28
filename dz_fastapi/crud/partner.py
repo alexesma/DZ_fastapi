@@ -58,6 +58,29 @@ def money(x) -> Decimal:
     return Decimal(str(x)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 
+def _derive_provider_is_vat_payer(
+    type_prices: object,
+    current_value: bool = False,
+) -> bool:
+    raw_value = getattr(type_prices, 'value', type_prices)
+    if raw_value is None:
+        return bool(current_value)
+    normalized = str(raw_value).strip().lower()
+    if normalized in {
+        TYPE_PRICES.WHOLESALE.value.lower(),
+        TYPE_PRICES.WHOLESALE.name.lower(),
+    }:
+        return True
+    if normalized in {
+        TYPE_PRICES.RETAIL.value.lower(),
+        TYPE_PRICES.RETAIL.name.lower(),
+        TYPE_PRICES.CASH.value.lower(),
+        TYPE_PRICES.CASH.name.lower(),
+    }:
+        return False
+    return bool(current_value)
+
+
 def _build_provider_last_email_uid(
     provider: Provider,
 ) -> Optional[Dict[str, Any]]:
@@ -332,6 +355,16 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         )
         if provider is None:
             raise HTTPException(status_code=404, detail='Provider not found')
+        update_data = obj_in.model_dump(exclude_unset=True)
+        if 'type_prices' in update_data:
+            update_data['is_vat_payer'] = _derive_provider_is_vat_payer(
+                update_data.get('type_prices'),
+                update_data.get(
+                    'is_vat_payer',
+                    bool(getattr(provider, 'is_vat_payer', False)),
+                ),
+            )
+            obj_in = ProviderUpdate(**update_data)
         updated_provider = await self.update(
             db_obj=provider, obj_in=obj_in, session=session, commit=True
         )
@@ -348,7 +381,12 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
     async def create(
         self, obj_in: ProviderCreate, session: AsyncSession, **kwargs
     ) -> Provider:
-        provider = Provider(**obj_in.model_dump())
+        payload = obj_in.model_dump()
+        payload['is_vat_payer'] = _derive_provider_is_vat_payer(
+            payload.get('type_prices'),
+            payload.get('is_vat_payer', False),
+        )
+        provider = Provider(**payload)
         session.add(provider)
         await session.commit()
         result = await session.execute(

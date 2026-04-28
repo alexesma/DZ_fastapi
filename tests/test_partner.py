@@ -47,7 +47,28 @@ async def test_create_provider(
     assert data['comment'] == 'Test comment'
     assert data['email_incoming_price'] == 'test3@example.com'
     assert data['type_prices'] == 'Retail'
+    assert data['is_vat_payer'] is False
     assert 'id' in data
+
+
+@pytest.mark.asyncio
+async def test_create_provider_sets_vat_by_price_type(
+    test_session: AsyncSession, async_client: AsyncClient
+):
+    payload = {
+        **TEST_PROVIDER,
+        'name': 'Wholesale test provider',
+        'type_prices': 'Wholesale',
+        'email_contact': 'wholesale-test@example.com',
+        'email_incoming_price': 'wholesale-prices@example.com',
+    }
+
+    response = await async_client.post('/providers/', json=payload)
+
+    assert response.status_code == 201, response.text
+    data = response.json()
+    assert data['type_prices'] == 'Wholesale'
+    assert data['is_vat_payer'] is True
 
 
 @pytest.mark.asyncio
@@ -191,6 +212,24 @@ async def test_update_provider_success(
     assert updated_provider.name == update_data['name']
     assert updated_provider.email_contact == update_data['email_contact']
     assert updated_provider.description == update_data['description']
+
+
+@pytest.mark.asyncio
+async def test_update_provider_type_price_sets_vat_flag(
+    test_session: AsyncSession,
+    async_client: AsyncClient,
+    created_providers: list[Provider],
+):
+    provider_to_update = created_providers[1]
+    response = await async_client.patch(
+        f'/providers/{provider_to_update.id}/',
+        json={'type_prices': 'Wholesale'},
+    )
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data['type_prices'] == 'Wholesale'
+    assert data['is_vat_payer'] is True
 
 
 @pytest.mark.asyncio
