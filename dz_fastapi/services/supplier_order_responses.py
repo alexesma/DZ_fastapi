@@ -1759,29 +1759,88 @@ def _get_message_text_content(msg: object) -> str:
     return ""
 
 
-_SHARED_STRINGS_EMPTY = (
-    b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-    b'<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
-    b' count="0" uniqueCount="0"></sst>'
-)
-
-
 def _ensure_xlsx_shared_strings(payload: bytes) -> bytes:
-    """Некоторые XLSX-файлы (генерируемые 1С и аналогами) не содержат
-    xl/sharedStrings.xml — openpyxl выбрасывает KeyError при попытке
-    прочитать такой файл.  Если файл является валидным ZIP, но в нём
-    отсутствует sharedStrings.xml, добавляем пустой — это позволяет
-    openpyxl/pandas без ошибок прочитать числовые данные."""
+    """Исправляет два типа проблем с xl/sharedStrings.xml в XLSX-файлах,
+    генерируемых 1С и аналогичными системами:
+
+    1. Файл называется «xl/SharedStrings.xml» (с заглавной буквой S).
+       openpyxl на Linux (case-sensitive FS) ищет строчный вариант —
+       получает KeyError.  Решение: пересобираем ZIP, переименовывая
+       файл в «xl/sharedStrings.xml».
+
+    2. Файл отсутствует совсем, хотя ячейки ссылаются на него (t="s").
+       Решение: сканируем листы, находим максимальный индекс и создаём
+       sharedStrings с достаточным числом пустых записей-заглушек.
+       Строковые значения ячеек будут пустыми, числовые — читаются корректно.
+    """
+    import re as _re
+    _CANONICAL = 'xl/sharedStrings.xml'
+
     try:
         with zipfile.ZipFile(BytesIO(payload), 'r') as zin:
             names = zin.namelist()
-            if 'xl/sharedStrings.xml' in names:
+
+            if _CANONICAL in names:
                 return payload  # файл уже корректный
+
+            # Ищем файл с другим регистром (например xl/SharedStrings.xml)
+            wrong_case = next(
+                (n for n in names if n.lower() == _CANONICAL.lower()),
+                None,
+            )
+
             buf = BytesIO()
             with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zout:
                 for name in names:
-                    zout.writestr(name, zin.read(name))
-                zout.writestr('xl/sharedStrings.xml', _SHARED_STRINGS_EMPTY)
+                    data = zin.read(name)
+                    if name == wrong_case:
+                        # Записываем под правильным именем вместо исходного
+                        zout.writestr(_CANONICAL, data)
+                        logger.debug(
+                            'xlsx: renamed %s → %s (case fix)',
+                            wrong_case, _CANONICAL,
+                        )
+                    else:
+                        zout.writestr(name, data)
+
+                if wrong_case is None:
+                    # Файл вообще отсутствует — создаём заглушки
+                    max_idx = -1
+                    ws_re = _re.compile(rb't="s"[^>]*><v>(\d+)</v>', _re.S)
+                    for name in names:
+                        if (
+                            name.startswith('xl/worksheets/')
+                            and name.endswith('.xml')
+                        ):
+                            try:
+                                ws_data = zin.read(name)
+                                for m in ws_re.finditer(ws_data):
+                                    idx = int(m.group(1))
+                                    if idx > max_idx:
+                                        max_idx = idx
+                            except Exception:
+                                pass
+
+                    count = max(max_idx + 1, 1)
+                    entries = b'<si><t/></si>' * count
+                    shared_strings = (
+                        b'<?xml version="1.0" encoding="UTF-8"'
+                        b' standalone="yes"?>'
+                        b'<sst xmlns="http://schemas.openxmlformats.org/'
+                        b'spreadsheetml/2006/main"'
+                        b' count="' + str(count).encode() + b'"'
+                        b' uniqueCount="' + str(count).encode() + b'">'
+                        + entries
+                        + b'</sst>'
+                    )
+                    zout.writestr(_CANONICAL, shared_strings)
+                    logger.warning(
+                        'xlsx missing sharedStrings.xml entirely; '
+                        'created %d placeholder entries — string cell '
+                        'values will be empty',
+                        count,
+                    )
+
             return buf.getvalue()
     except zipfile.BadZipFile:
         return payload  # не zip — вернём как есть, ошибка поднимется позже
@@ -5033,6 +5092,7 @@ async def process_supplier_response_messages(
                             ),
                             attachment.filename,
                             exc,
+                            exc_info=True,
                         )
                 if parsed_rows:
                     if file_payload_is_document:
