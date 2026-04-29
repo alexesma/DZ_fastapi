@@ -294,3 +294,86 @@ async def test_fetch_supplier_responses_continues_after_sender_timeout(
     fetched_message, fetched_account = result[0]
     assert fetched_message.external_id == "fast-message"
     assert fetched_account.id == account.id
+
+
+@pytest.mark.asyncio
+async def test_fetch_supplier_responses_can_filter_sender_client_side(
+    monkeypatch,
+):
+    account = SimpleNamespace(
+        id=104,
+        email="info@dragonzap.ru",
+        imap_host="imap.yandex.ru",
+        transport="smtp",
+        imap_folder="INBOX",
+        imap_additional_folders=[],
+        oauth_provider=None,
+        password="secret",
+        imap_port=993,
+    )
+    wanted_message = SimpleNamespace(
+        uid="8001",
+        external_id="wanted-message",
+        received_at=datetime(2026, 4, 29, 5, 9, 19),
+        date=None,
+        from_="m.syrov@avtoformula.ru",
+        subject='ТехноАвто -> ООО "АВТОПАРТС" УПД №т-60429-000005',
+    )
+    other_message = SimpleNamespace(
+        uid="8002",
+        external_id="other-message",
+        received_at=datetime(2026, 4, 29, 5, 9, 20),
+        date=None,
+        from_="docs@example.com",
+        subject="Другой документ",
+    )
+    called_filters = []
+
+    async def fake_get_active_by_purpose(_session, _purpose):
+        return [account]
+
+    async def fake_fetch_order_messages(
+        host,
+        email,
+        password,
+        folder,
+        date_from,
+        mark_seen,
+        *,
+        port,
+        ssl,
+        from_email=None,
+    ):
+        del host, email, password, folder, date_from, mark_seen, port, ssl
+        called_filters.append(from_email)
+        return [wanted_message, other_message]
+
+    monkeypatch.setattr(
+        response_service.crud_email_account,
+        "get_active_by_purpose",
+        fake_get_active_by_purpose,
+    )
+    monkeypatch.setattr(
+        response_service,
+        "_fetch_order_messages",
+        fake_fetch_order_messages,
+    )
+    monkeypatch.setattr(
+        response_service,
+        "_SUPPLIER_RESPONSE_IGNORE_INTERNAL_SENDERS",
+        False,
+    )
+
+    result = await response_service._fetch_supplier_response_messages(
+        None,
+        date_from=date(2026, 4, 29),
+        include_default_orders_out=True,
+        from_email_filters=["m.syrov@avtoformula.ru"],
+        use_server_side_from_filters=False,
+    )
+
+    assert called_filters == [None]
+    assert len(result) == 1
+    fetched_message, fetched_account = result[0]
+    assert fetched_message.external_id == "wanted-message"
+    assert fetched_account.id == account.id

@@ -61,7 +61,13 @@ from dz_fastapi.schemas.partner import (AutoPartInPricelist,
                                         PriceListProcessStats,
                                         PriceListResponse, PriceListSummary,
                                         ProviderAbbreviationOut,
-                                        ProviderCreate, ProviderPageResponse,
+                                        ProviderCreate,
+                                        ProviderExternalReferenceCreate,
+                                        ProviderExternalReferenceOut,
+                                        ProviderExternalReferenceUpdate,
+                                        ProviderMergeRequest,
+                                        ProviderMergeResponse,
+                                        ProviderPageResponse,
                                         ProviderPricelistAnalysisResponse,
                                         ProviderPriceListConfigCreate,
                                         ProviderPriceListConfigOption,
@@ -257,6 +263,166 @@ async def get_provider(
     if not provider:
         raise HTTPException(status_code=404, detail='Provider not found')
     return ProviderResponse.model_validate(provider)
+
+
+@router.get(
+    '/providers/{provider_id}/external-references',
+    tags=['providers'],
+    status_code=status.HTTP_200_OK,
+    summary='Внешние связки поставщика',
+    response_model=List[ProviderExternalReferenceOut],
+)
+async def list_provider_external_references(
+    provider_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    provider = await crud_provider.get_by_id(
+        provider_id=provider_id, session=session
+    )
+    if not provider:
+        raise HTTPException(status_code=404, detail='Provider not found')
+    refs = await crud_provider.list_external_references(
+        provider_id=provider_id,
+        session=session,
+    )
+    return [
+        ProviderExternalReferenceOut.model_validate(reference)
+        for reference in refs
+    ]
+
+
+@router.post(
+    '/providers/{provider_id}/external-references',
+    tags=['providers'],
+    status_code=status.HTTP_201_CREATED,
+    summary='Создать или обновить внешнюю связку поставщика',
+    response_model=ProviderExternalReferenceOut,
+)
+async def upsert_provider_external_reference(
+    provider_id: int,
+    payload: ProviderExternalReferenceCreate,
+    session: AsyncSession = Depends(get_session),
+):
+    provider = await crud_provider.get_by_id(
+        provider_id=provider_id, session=session
+    )
+    if not provider:
+        raise HTTPException(status_code=404, detail='Provider not found')
+    try:
+        reference = await crud_provider.upsert_external_reference(
+            provider_id=provider_id,
+            obj_in=payload,
+            session=session,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except IntegrityError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                'Такая внешняя связка уже занята другим поставщиком. '
+                'Проверьте supplier_id/supplier_name.'
+            ),
+        ) from exc
+    return ProviderExternalReferenceOut.model_validate(reference)
+
+
+@router.patch(
+    '/providers/{provider_id}/external-references/{reference_id}',
+    tags=['providers'],
+    status_code=status.HTTP_200_OK,
+    summary='Обновить внешнюю связку поставщика',
+    response_model=ProviderExternalReferenceOut,
+)
+async def update_provider_external_reference(
+    provider_id: int,
+    reference_id: int,
+    payload: ProviderExternalReferenceUpdate,
+    session: AsyncSession = Depends(get_session),
+):
+    provider = await crud_provider.get_by_id(
+        provider_id=provider_id, session=session
+    )
+    if not provider:
+        raise HTTPException(status_code=404, detail='Provider not found')
+    try:
+        reference = await crud_provider.update_external_reference(
+            provider_id=provider_id,
+            external_reference_id=reference_id,
+            obj_in=payload,
+            session=session,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except IntegrityError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                'Такая внешняя связка уже занята другим поставщиком. '
+                'Проверьте supplier_id/supplier_name.'
+            ),
+        ) from exc
+    if reference is None:
+        raise HTTPException(status_code=404, detail='Reference not found')
+    return ProviderExternalReferenceOut.model_validate(reference)
+
+
+@router.delete(
+    '/providers/{provider_id}/external-references/{reference_id}',
+    tags=['providers'],
+    status_code=status.HTTP_200_OK,
+    summary='Удалить внешнюю связку поставщика',
+)
+async def delete_provider_external_reference(
+    provider_id: int,
+    reference_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    deleted = await crud_provider.delete_external_reference(
+        provider_id=provider_id,
+        external_reference_id=reference_id,
+        session=session,
+    )
+    if not deleted:
+        raise HTTPException(status_code=404, detail='Reference not found')
+    return {'deleted': True}
+
+
+@router.post(
+    '/providers/{provider_id}/merge',
+    tags=['providers'],
+    status_code=status.HTTP_200_OK,
+    summary='Объединить дубль поставщика с текущим',
+    response_model=ProviderMergeResponse,
+)
+async def merge_provider_into_target(
+    provider_id: int,
+    payload: ProviderMergeRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    target = await crud_provider.get_by_id(
+        provider_id=provider_id, session=session
+    )
+    if not target:
+        raise HTTPException(status_code=404, detail='Target provider not found')
+    source = await crud_provider.get_by_id(
+        provider_id=payload.source_provider_id, session=session
+    )
+    if not source:
+        raise HTTPException(status_code=404, detail='Source provider not found')
+    try:
+        merged = await crud_provider.merge_providers(
+            source_provider_id=payload.source_provider_id,
+            target_provider_id=provider_id,
+            session=session,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return ProviderMergeResponse(
+        merged=bool(merged),
+        source_provider_id=payload.source_provider_id,
+        target_provider_id=provider_id,
+    )
 
 
 @router.get(

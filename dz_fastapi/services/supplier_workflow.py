@@ -11,14 +11,17 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.customer_order import crud_supplier_order
-from dz_fastapi.models.partner import (STOCK_ORDER_STATUS, TYPE_PRICES,
-                                       CustomerOrder, CustomerOrderItem,
+from dz_fastapi.models.partner import (ORDER_TRACKING_SOURCE,
+                                       STOCK_ORDER_STATUS,
+                                       TYPE_ORDER_ITEM_STATUS, TYPE_PRICES,
+                                       TYPE_STATUS_ORDER, CustomerOrder,
+                                       CustomerOrderItem, Order, OrderItem,
                                        StockOrder, StockOrderItem,
                                        SupplierOrder, SupplierOrderItem,
                                        SupplierReceipt, SupplierReceiptItem)
 from dz_fastapi.models.user import User
-from dz_fastapi.services.customer_orders import \
-    try_finalize_customer_order_response
+from dz_fastapi.services.customer_orders import (
+    _load_brand_alias_map, _normalize_key, try_finalize_customer_order_response)
 
 
 @dataclass(slots=True)
@@ -61,6 +64,286 @@ def _normalize_receipt_document_number(value: object) -> Optional[str]:
     if match is not None:
         return match.group(1)[:120]
     return text[:120]
+
+
+def _safe_int(value: object) -> Optional[int]:
+    if value in (None, ''):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return None
+
+
+def _site_order_item_pending_quantity(item: OrderItem) -> int:
+    ordered_quantity = max(int(item.quantity or 0), 0)
+    received_quantity = max(int(item.received_quantity or 0), 0)
+    return max(ordered_quantity - received_quantity, 0)
+
+
+def _normalize_site_receipt_status(
+    *,
+    current_status: TYPE_ORDER_ITEM_STATUS | None,
+    total_received: int,
+    ordered_quantity: int,
+) -> TYPE_ORDER_ITEM_STATUS:
+    if ordered_quantity > 0 and total_received >= ordered_quantity:
+        return TYPE_ORDER_ITEM_STATUS.DELIVERED
+    if total_received > 0:
+        return TYPE_ORDER_ITEM_STATUS.IN_PROGRESS
+    if current_status in {
+        TYPE_ORDER_ITEM_STATUS.DELIVERED,
+        TYPE_ORDER_ITEM_STATUS.IN_PROGRESS,
+    }:
+        return TYPE_ORDER_ITEM_STATUS.SENT
+    return current_status or TYPE_ORDER_ITEM_STATUS.NEW
+
+
+async def _match_site_order_item_for_receipt(
+    session: AsyncSession,
+    *,
+    provider_id: int,
+    oem_number: Optional[str],
+    brand_name: Optional[str],
+    received_quantity: Optional[int] = None,
+    exclude_order_item_ids: set[int] | None = None,
+) -> Optional[OrderItem]:
+    brand_aliases = await _load_brand_alias_map(session)
+    normalized_key = _normalize_key(
+        oem_number,
+        brand_name,
+        brand_aliases,
+    )
+    if not normalized_key[0]:
+        return None
+
+    exclude_order_item_ids = {
+        int(item_id)
+        for item_id in (exclude_order_item_ids or set())
+        if item_id
+    }
+    desired_quantity = max(int(received_quantity or 0), 0)
+
+    stmt = (
+        select(OrderItem)
+        .options(joinedload(OrderItem.order))
+        .join(Order, Order.id == OrderItem.order_id)
+        .where(
+            Order.provider_id == provider_id,
+            Order.source_type == ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
+        )
+        .order_by(
+            Order.created_at.asc(),
+            OrderItem.created_at.asc(),
+            OrderItem.id.asc(),
+        )
+    )
+    candidates = (await session.execute(stmt)).scalars().all()
+    matched: list[tuple[tuple[int, int, datetime, datetime, int], OrderItem]] = []
+    for candidate in candidates:
+        if int(candidate.id) in exclude_order_item_ids:
+            continue
+        if _normalize_key(
+            candidate.oem_number,
+            candidate.brand_name,
+            brand_aliases,
+        ) != normalized_key:
+            continue
+        pending_quantity = _site_order_item_pending_quantity(candidate)
+        if pending_quantity <= 0:
+            continue
+        if candidate.status in {
+            TYPE_ORDER_ITEM_STATUS.CANCELLED,
+            TYPE_ORDER_ITEM_STATUS.FAILED,
+            TYPE_ORDER_ITEM_STATUS.ERROR,
+        }:
+            continue
+        sort_key = (
+            0 if desired_quantity and pending_quantity == desired_quantity else 1,
+            0 if pending_quantity >= desired_quantity else 1,
+            abs(pending_quantity - desired_quantity),
+            candidate.order.created_at or now_moscow(),
+            candidate.created_at or now_moscow(),
+            int(candidate.id),
+        )
+        matched.append((sort_key, candidate))
+
+    if not matched:
+        return None
+    matched.sort(key=lambda item: item[0])
+    return matched[0][1]
+
+
+async def _recalculate_site_order_items_received(
+    session: AsyncSession,
+    *,
+    order_item_ids: set[int],
+) -> set[int]:
+    if not order_item_ids:
+        return set()
+    item_ids = {int(item_id) for item_id in order_item_ids if item_id}
+    if not item_ids:
+        return set()
+
+    order_items = (
+        await session.execute(
+            select(OrderItem).where(OrderItem.id.in_(item_ids))
+        )
+    ).scalars().all()
+    if not order_items:
+        return set()
+
+    totals_rows = (
+        await session.execute(
+            select(
+                SupplierReceiptItem.order_item_id,
+                func.coalesce(
+                    func.sum(SupplierReceiptItem.received_quantity),
+                    0,
+                ),
+            )
+            .where(SupplierReceiptItem.order_item_id.in_(item_ids))
+            .group_by(SupplierReceiptItem.order_item_id)
+        )
+    ).all()
+    totals_by_item_id = {
+        int(item_id): int(total_qty or 0)
+        for item_id, total_qty in totals_rows
+        if item_id is not None
+    }
+    touched_order_ids: set[int] = set()
+    for item in order_items:
+        ordered_quantity = max(int(item.quantity or 0), 0)
+        total_received = min(
+            max(totals_by_item_id.get(int(item.id), 0), 0),
+            ordered_quantity,
+        )
+        item.received_quantity = total_received
+        item.received_at = now_moscow() if total_received > 0 else None
+        item.status = _normalize_site_receipt_status(
+            current_status=item.status,
+            total_received=total_received,
+            ordered_quantity=ordered_quantity,
+        )
+        if item.order_id is not None:
+            touched_order_ids.add(int(item.order_id))
+    return touched_order_ids
+
+
+async def _recalculate_site_orders_status(
+    session: AsyncSession,
+    *,
+    order_ids: set[int],
+) -> None:
+    if not order_ids:
+        return
+    orders = (
+        await session.execute(
+            select(Order)
+            .options(selectinload(Order.order_items))
+            .where(Order.id.in_({int(order_id) for order_id in order_ids}))
+        )
+    ).scalars().all()
+    for order in orders:
+        items = list(order.order_items or [])
+        if not items:
+            continue
+        ordered_quantities = [max(int(item.quantity or 0), 0) for item in items]
+        received_quantities = [
+            min(max(int(item.received_quantity or 0), 0), ordered_quantities[idx])
+            for idx, item in enumerate(items)
+        ]
+        if all(
+            ordered_quantities[idx] > 0
+            and received_quantities[idx] >= ordered_quantities[idx]
+            for idx in range(len(items))
+        ):
+            order.status = TYPE_STATUS_ORDER.ARRIVED
+        elif any(quantity > 0 for quantity in received_quantities):
+            order.status = TYPE_STATUS_ORDER.PROCESSING
+        elif order.status in {
+            TYPE_STATUS_ORDER.ARRIVED,
+            TYPE_STATUS_ORDER.PROCESSING,
+        }:
+            order.status = TYPE_STATUS_ORDER.ORDERED
+
+
+async def _refresh_receipt_links(
+    session: AsyncSession,
+    *,
+    supplier_order_item_ids: set[int] | None = None,
+    order_item_ids: set[int] | None = None,
+) -> None:
+    if supplier_order_item_ids:
+        await _recalculate_supplier_order_items_received(
+            session,
+            order_item_ids=supplier_order_item_ids,
+        )
+    touched_site_order_ids = await _recalculate_site_order_items_received(
+        session,
+        order_item_ids=order_item_ids or set(),
+    )
+    await _recalculate_site_orders_status(
+        session,
+        order_ids=touched_site_order_ids,
+    )
+
+
+async def _enrich_receipt_payload_with_site_order_link(
+    session: AsyncSession,
+    *,
+    provider_id: int,
+    payload: dict,
+    linked_order_item_ids: set[int],
+) -> tuple[dict, Optional[OrderItem]]:
+    received_quantity = _safe_int(payload.get('received_quantity'))
+    if payload.get('order_item_id') is not None:
+        order_item = (
+            await session.execute(
+                select(OrderItem)
+                .options(joinedload(OrderItem.order))
+                .join(Order, Order.id == OrderItem.order_id)
+                .where(
+                    OrderItem.id == int(payload['order_item_id']),
+                    Order.provider_id == provider_id,
+                    Order.source_type
+                    == ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
+                )
+            )
+        ).scalar_one_or_none()
+        if order_item is None:
+            raise ValueError('Строка site-заказа для прихода не найдена')
+        payload['order_item_id'] = int(order_item.id)
+        linked_order_item_ids.add(int(order_item.id))
+        return payload, order_item
+
+    if (received_quantity or 0) <= 0:
+        return payload, None
+
+    if payload.get('supplier_order_item_id'):
+        return payload, None
+
+    matched = await _match_site_order_item_for_receipt(
+        session,
+        provider_id=provider_id,
+        oem_number=payload.get('oem_number'),
+        brand_name=payload.get('brand_name'),
+        received_quantity=received_quantity,
+        exclude_order_item_ids=linked_order_item_ids,
+    )
+    if matched is None:
+        return payload, None
+
+    payload['order_item_id'] = int(matched.id)
+    payload.setdefault('autopart_id', matched.autopart_id)
+    payload.setdefault('oem_number', matched.oem_number)
+    payload.setdefault('brand_name', matched.brand_name)
+    payload.setdefault('autopart_name', matched.autopart_name)
+    linked_order_item_ids.add(int(matched.id))
+    return payload, matched
 
 
 def get_default_supplier_activity_window(
@@ -795,11 +1078,17 @@ async def delete_supplier_receipt(
         for item in (receipt.items or [])
         if item.supplier_order_item_id is not None
     }
+    affected_site_order_item_ids = {
+        int(item.order_item_id)
+        for item in (receipt.items or [])
+        if item.order_item_id is not None
+    }
     await session.delete(receipt)
     await session.flush()
-    await _recalculate_supplier_order_items_received(
+    await _refresh_receipt_links(
         session,
-        order_item_ids=affected_order_item_ids,
+        supplier_order_item_ids=affected_order_item_ids,
+        order_item_ids=affected_site_order_item_ids,
     )
     await session.commit()
 
@@ -822,6 +1111,7 @@ def _serialize_receipt_item(item: SupplierReceiptItem) -> dict:
         'supplier_order_id': item.supplier_order_id,
         'supplier_order_item_id': item.supplier_order_item_id,
         'customer_order_item_id': item.customer_order_item_id,
+        'order_item_id': item.order_item_id,
         'autopart_id': item.autopart_id,
         'oem_number': item.oem_number,
         'brand_name': item.brand_name,
@@ -880,6 +1170,9 @@ async def get_supplier_receipt_detail(
             ).joinedload(
                 CustomerOrderItem.order
             ).joinedload(CustomerOrder.customer),
+            selectinload(SupplierReceipt.items).joinedload(
+                SupplierReceiptItem.order_item
+            ),
         )
         .where(SupplierReceipt.id == receipt_id)
     )
@@ -944,9 +1237,21 @@ async def update_supplier_receipt_item(
         'received_quantity', 'price', 'total_price_with_vat',
         'gtd_code', 'country_code', 'country_name', 'comment',
     }
+    affected_supplier_order_item_ids = set()
+    affected_order_item_ids = set()
+    if item.supplier_order_item_id is not None:
+        affected_supplier_order_item_ids.add(int(item.supplier_order_item_id))
+    if item.order_item_id is not None:
+        affected_order_item_ids.add(int(item.order_item_id))
     for key, value in fields.items():
         if key in allowed and value is not None:
             setattr(item, key, value)
+    await session.commit()
+    await _refresh_receipt_links(
+        session,
+        supplier_order_item_ids=affected_supplier_order_item_ids,
+        order_item_ids=affected_order_item_ids,
+    )
     await session.commit()
     return await _reload_receipt_detail(session, item.receipt_id)
 
@@ -964,10 +1269,26 @@ async def add_supplier_receipt_items(
     if receipt.posted_at is not None:
         raise ValueError('Нельзя добавлять строки в проведённый документ')
 
+    linked_supplier_order_item_ids: set[int] = set()
+    linked_order_item_ids: set[int] = set()
     for payload in items_payload:
+        payload = dict(payload)
+        payload, matched_site_order_item = (
+            await _enrich_receipt_payload_with_site_order_link(
+                session,
+                provider_id=receipt.provider_id,
+                payload=payload,
+                linked_order_item_ids=linked_order_item_ids,
+            )
+        )
         supplier_order_item_id = payload.get('supplier_order_item_id')
         customer_order_item_id = None
         supplier_order_id = None
+        order_item_id = (
+            int(payload['order_item_id'])
+            if payload.get('order_item_id') is not None
+            else None
+        )
         oem_number = payload.get('oem_number')
         brand_name = payload.get('brand_name')
         autopart_name = payload.get('autopart_name')
@@ -985,19 +1306,21 @@ async def add_supplier_receipt_items(
             )
             soi = (await session.execute(soi_stmt)).scalar_one_or_none()
             if soi:
+                linked_supplier_order_item_ids.add(int(soi.id))
                 supplier_order_id = soi.supplier_order_id
                 customer_order_item_id = soi.customer_order_item_id
-                oem_number = oem_number or soi.oem
-                brand_name = brand_name or soi.brand
-                autopart_name = autopart_name or soi.name
-                ordered_quantity = soi.ship_qty or soi.requested_qty
-                confirmed_quantity = soi.ship_qty
+                oem_number = oem_number or soi.oem_number
+                brand_name = brand_name or soi.brand_name
+                autopart_name = autopart_name or soi.autopart_name
+                ordered_quantity = soi.quantity
+                confirmed_quantity = soi.confirmed_quantity
 
         new_item = SupplierReceiptItem(
             receipt_id=receipt_id,
             supplier_order_id=supplier_order_id,
             supplier_order_item_id=supplier_order_item_id,
             customer_order_item_id=customer_order_item_id,
+            order_item_id=order_item_id,
             autopart_id=payload.get('autopart_id'),
             oem_number=oem_number,
             brand_name=brand_name,
@@ -1012,8 +1335,19 @@ async def add_supplier_receipt_items(
             country_name=payload.get('country_name'),
             comment=payload.get('comment'),
         )
+        if (
+            matched_site_order_item is not None
+            and new_item.autopart_id is None
+        ):
+            new_item.autopart_id = matched_site_order_item.autopart_id
         session.add(new_item)
 
+    await session.commit()
+    await _refresh_receipt_links(
+        session,
+        supplier_order_item_ids=linked_supplier_order_item_ids,
+        order_item_ids=linked_order_item_ids,
+    )
     await session.commit()
     return await _reload_receipt_detail(session, receipt_id)
 
@@ -1034,7 +1368,19 @@ async def delete_supplier_receipt_item(
     if receipt is None or receipt.posted_at is not None:
         raise ValueError('Нельзя удалять строки проведённого документа')
     receipt_id = item.receipt_id
+    affected_supplier_order_item_ids = set()
+    affected_order_item_ids = set()
+    if item.supplier_order_item_id is not None:
+        affected_supplier_order_item_ids.add(int(item.supplier_order_item_id))
+    if item.order_item_id is not None:
+        affected_order_item_ids.add(int(item.order_item_id))
     await session.delete(item)
+    await session.commit()
+    await _refresh_receipt_links(
+        session,
+        supplier_order_item_ids=affected_supplier_order_item_ids,
+        order_item_ids=affected_order_item_ids,
+    )
     await session.commit()
     return await _reload_receipt_detail(session, receipt_id)
 
@@ -1062,13 +1408,58 @@ async def create_manual_supplier_receipt(
     session.add(receipt)
     await session.flush()
 
+    linked_supplier_order_item_ids: set[int] = set()
+    linked_order_item_ids: set[int] = set()
     for payload in items_payload:
+        payload = dict(payload)
+        payload, matched_site_order_item = (
+            await _enrich_receipt_payload_with_site_order_link(
+                session,
+                provider_id=provider_id,
+                payload=payload,
+                linked_order_item_ids=linked_order_item_ids,
+            )
+        )
+        supplier_order_item_id = payload.get('supplier_order_item_id')
+        customer_order_item_id = None
+        supplier_order_id = None
+        order_item_id = (
+            int(payload['order_item_id'])
+            if payload.get('order_item_id') is not None
+            else None
+        )
+        ordered_quantity = None
+        confirmed_quantity = None
+        if supplier_order_item_id:
+            soi = (
+                await session.execute(
+                    select(SupplierOrderItem).where(
+                        SupplierOrderItem.id == supplier_order_item_id
+                    )
+                )
+            ).scalar_one_or_none()
+            if soi is not None:
+                linked_supplier_order_item_ids.add(int(soi.id))
+                supplier_order_id = soi.supplier_order_id
+                customer_order_item_id = soi.customer_order_item_id
+                payload.setdefault('autopart_id', soi.autopart_id)
+                payload.setdefault('oem_number', soi.oem_number)
+                payload.setdefault('brand_name', soi.brand_name)
+                payload.setdefault('autopart_name', soi.autopart_name)
+                ordered_quantity = soi.quantity
+                confirmed_quantity = soi.confirmed_quantity
         new_item = SupplierReceiptItem(
             receipt_id=receipt.id,
+            supplier_order_id=supplier_order_id,
+            supplier_order_item_id=supplier_order_item_id,
+            customer_order_item_id=customer_order_item_id,
+            order_item_id=order_item_id,
             autopart_id=payload.get('autopart_id'),
             oem_number=payload.get('oem_number'),
             brand_name=payload.get('brand_name'),
             autopart_name=payload.get('autopart_name'),
+            ordered_quantity=ordered_quantity,
+            confirmed_quantity=confirmed_quantity,
             received_quantity=int(payload.get('received_quantity', 0)),
             price=payload.get('price'),
             total_price_with_vat=payload.get('total_price_with_vat'),
@@ -1077,8 +1468,19 @@ async def create_manual_supplier_receipt(
             country_name=payload.get('country_name'),
             comment=payload.get('comment'),
         )
+        if (
+            matched_site_order_item is not None
+            and new_item.autopart_id is None
+        ):
+            new_item.autopart_id = matched_site_order_item.autopart_id
         session.add(new_item)
 
+    await session.commit()
+    await _refresh_receipt_links(
+        session,
+        supplier_order_item_ids=linked_supplier_order_item_ids,
+        order_item_ids=linked_order_item_ids,
+    )
     await session.commit()
     return await _reload_receipt_detail(session, receipt.id)
 

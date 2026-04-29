@@ -9,7 +9,8 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.crud.partner import crud_customer_pricelist, crud_pricelist
+from dz_fastapi.crud.partner import (crud_customer_pricelist, crud_pricelist,
+                                     crud_provider)
 from dz_fastapi.main import app
 from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
 from dz_fastapi.models.brand import Brand
@@ -19,6 +20,7 @@ from dz_fastapi.models.partner import (Customer, CustomerPriceList,
                                        CustomerPriceListConfig,
                                        CustomerPriceListSource, PriceList,
                                        PriceListAutoPartAssociation, Provider,
+                                       ProviderExternalReference,
                                        ProviderPriceListConfig)
 from dz_fastapi.schemas.autopart import AutoPartPricelist
 from dz_fastapi.schemas.partner import (CustomerResponse,
@@ -267,6 +269,53 @@ async def test_update_provider_not_found(
     assert response.status_code == 404, response.text
     data = response.json()
     assert data['detail'] == 'Provider not found'
+
+
+@pytest.mark.asyncio
+async def test_merge_providers_keeps_distinct_null_external_ids(
+    test_session: AsyncSession,
+    created_providers: list[Provider],
+):
+    source_provider = created_providers[0]
+    target_provider = created_providers[1]
+    test_session.add_all(
+        [
+            ProviderExternalReference(
+                provider_id=source_provider.id,
+                source_system='DRAGONZAP',
+                external_supplier_id=None,
+                external_supplier_name='Beta quality line',
+            ),
+            ProviderExternalReference(
+                provider_id=target_provider.id,
+                source_system='DRAGONZAP',
+                external_supplier_id=None,
+                external_supplier_name='Alpha quality line',
+            ),
+        ]
+    )
+    await test_session.commit()
+
+    merged = await crud_provider.merge_providers(
+        source_provider.id,
+        target_provider.id,
+        test_session,
+    )
+    assert merged is True
+
+    refs = (
+        await test_session.execute(
+            select(ProviderExternalReference)
+            .where(
+                ProviderExternalReference.provider_id == target_provider.id
+            )
+            .order_by(ProviderExternalReference.external_supplier_name.asc())
+        )
+    ).scalars().all()
+    assert [ref.external_supplier_name for ref in refs] == [
+        'Alpha quality line',
+        'Beta quality line',
+    ]
 
 
 @pytest.mark.asyncio

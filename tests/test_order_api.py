@@ -3,7 +3,8 @@ from sqlalchemy import select
 
 from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.main import app
-from dz_fastapi.models.partner import Order, OrderItem, Provider
+from dz_fastapi.models.partner import (Order, OrderItem, Provider,
+                                       ProviderExternalReference)
 from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.services.auth import get_password_hash
 
@@ -182,6 +183,12 @@ async def test_send_api_resolves_supplier_by_name_when_id_external(
         )
     ).scalar_one()
     assert order.customer_id == created_customers[0].id
+    reference = (
+        await test_session.execute(select(ProviderExternalReference))
+    ).scalar_one()
+    assert reference.provider_id == provider.id
+    assert reference.source_system == 'DRAGONZAP'
+    assert reference.external_supplier_id == 9731061118
 
 
 @pytest.mark.asyncio
@@ -249,6 +256,8 @@ async def test_send_api_normalizes_long_tracking_uuid(
     ).scalar_one()
     assert len(order_item.tracking_uuid) <= 36
     assert order_item.tracking_uuid == payload['results'][0]['tracking_uuid']
+    assert order_item.external_supplier_id == 9731061118
+    assert order_item.external_supplier_name == 'Ivers (http://ivers.ru/)'
 
 
 @pytest.mark.asyncio

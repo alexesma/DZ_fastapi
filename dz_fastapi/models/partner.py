@@ -214,6 +214,12 @@ class Provider(Client):
     provider_last_uid = relationship(
         'ProviderLastEmailUID', back_populates='provider', uselist=False
     )
+    external_references = relationship(
+        'ProviderExternalReference',
+        back_populates='provider',
+        cascade='all, delete-orphan',
+        lazy='selectin',
+    )
     is_virtual = Column(Boolean, default=False)
     is_own_price = Column(Boolean, default=False)
     is_vat_payer = Column(Boolean, default=False, nullable=False)
@@ -944,6 +950,12 @@ class SupplierReceiptItem(Base):
         nullable=True,
         index=True,
     )
+    order_item_id = Column(
+        Integer,
+        ForeignKey('orderitem.id'),
+        nullable=True,
+        index=True,
+    )
     autopart_id = Column(Integer, ForeignKey('autopart.id'), nullable=True)
     oem_number = Column(String(120), nullable=True, index=True)
     brand_name = Column(String(120), nullable=True)
@@ -965,6 +977,7 @@ class SupplierReceiptItem(Base):
         back_populates='receipt_items',
     )
     customer_order_item = relationship('CustomerOrderItem')
+    order_item = relationship('OrderItem', back_populates='receipt_items')
     autopart = relationship('AutoPart')
 
 
@@ -1087,6 +1100,35 @@ class ProviderConfigLastEmailUID(Base):
     )
 
 
+class ProviderExternalReference(Base):
+    provider_id = Column(
+        Integer,
+        ForeignKey('provider.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    source_system = Column(String(32), nullable=False, index=True)
+    external_supplier_id = Column(Integer, nullable=True, index=True)
+    external_supplier_name = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        onupdate=now_moscow,
+    )
+
+    provider = relationship('Provider', back_populates='external_references')
+
+    __table_args__ = (
+        UniqueConstraint(
+            'source_system',
+            'external_supplier_id',
+            name='uq_provider_external_reference_source_supplier',
+        ),
+    )
+
+
 class ProviderAbbreviation(Base):
     abbreviation = Column(String(20), unique=True, nullable=False)
     provider_id = Column(Integer, ForeignKey('provider.id'), nullable=False)
@@ -1154,6 +1196,10 @@ class OrderItem(Base):
         default=TYPE_ORDER_ITEM_STATUS.NEW,
     )
     comments = Column(Text, nullable=True)
+    external_supplier_id = Column(Integer, nullable=True, index=True)
+    external_supplier_name = Column(String(255), nullable=True)
+    external_price_name = Column(String(255), nullable=True)
+    external_sup_logo = Column(String(255), nullable=True)
     order = relationship('Order', back_populates='order_items')
     hash_key = Column(String(255), nullable=True, index=True)
     system_hash = Column(String(255), nullable=True, index=True)
@@ -1178,4 +1224,8 @@ class OrderItem(Base):
     )
     external_status_mapping = relationship(
         'ExternalStatusMapping', back_populates='order_items'
+    )
+    receipt_items = relationship(
+        'SupplierReceiptItem',
+        back_populates='order_item',
     )

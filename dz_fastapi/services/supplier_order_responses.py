@@ -54,6 +54,8 @@ from dz_fastapi.services.order_status_mapping import (
     apply_supplier_response_action_to_order, get_active_status_mappings,
     normalize_external_status_text, record_unmapped_external_status,
     select_best_mapping)
+from dz_fastapi.services.supplier_workflow import (
+    _match_site_order_item_for_receipt, _refresh_receipt_links)
 
 try:
     from imap_tools.errors import MailboxFolderSelectError
@@ -431,6 +433,7 @@ async def _fetch_supplier_response_messages(
     account_ids: Optional[set[int]] = None,
     include_default_orders_out: bool = True,
     from_email_filters: Optional[Iterable[str]] = None,
+    use_server_side_from_filters: bool = True,
 ) -> list[tuple[object, Optional[EmailAccount]]]:
     accounts: list[EmailAccount] = []
     account_map: dict[int, EmailAccount] = {}
@@ -438,13 +441,14 @@ async def _fetch_supplier_response_messages(
         (
             "Supplier response inbox fetch init: date_from=%s date_to=%s "
             "include_default_orders_out=%s explicit_account_ids=%s "
-            "from_filters=%s"
+            "from_filters=%s use_server_side_from_filters=%s"
         ),
         date_from,
         date_to,
         include_default_orders_out,
         sorted(account_ids or []),
         list(from_email_filters or []),
+        use_server_side_from_filters,
     )
     if include_default_orders_out:
         default_accounts = await crud_email_account.get_active_by_purpose(
@@ -532,7 +536,9 @@ async def _fetch_supplier_response_messages(
         return filtered_messages
 
     fetch_from_filters: list[Optional[str]] = (
-        normalized_from_filters if normalized_from_filters else [None]
+        normalized_from_filters
+        if use_server_side_from_filters and normalized_from_filters
+        else [None]
     )
     if accounts:
         for account in accounts:
@@ -3430,6 +3436,8 @@ async def _append_document_receipt_items(
         brand_aliases,
     )
     added = 0
+    linked_supplier_order_item_ids: set[int] = set()
+    linked_site_order_item_ids: set[int] = set()
     for payload in items_payload:
         supplier_order_item_id_raw = payload.get("supplier_order_item_id")
         quantity = int(payload.get("received_quantity") or 0)
@@ -3445,13 +3453,41 @@ async def _append_document_receipt_items(
                 priority_brand_keys=priority_brand_keys,
                 brand_aliases=brand_aliases,
             )
+            matched_site_order_item = await _match_site_order_item_for_receipt(
+                session,
+                provider_id=receipt.provider_id,
+                oem_number=(
+                    resolved.get("oem_number")
+                    or payload.get("oem_number")
+                    or None
+                ),
+                brand_name=(
+                    resolved.get("brand_name")
+                    or payload.get("brand_name")
+                    or None
+                ),
+                received_quantity=quantity,
+                exclude_order_item_ids=linked_site_order_item_ids,
+            )
+            order_item_id = None
+            if matched_site_order_item is not None:
+                order_item_id = int(matched_site_order_item.id)
+                linked_site_order_item_ids.add(order_item_id)
             session.add(
                 SupplierReceiptItem(
                     receipt_id=receipt.id,
                     supplier_order_id=None,
                     supplier_order_item_id=None,
                     customer_order_item_id=None,
-                    autopart_id=resolved.get("autopart_id"),
+                    order_item_id=order_item_id,
+                    autopart_id=(
+                        resolved.get("autopart_id")
+                        or (
+                            matched_site_order_item.autopart_id
+                            if matched_site_order_item is not None
+                            else None
+                        )
+                    ),
                     oem_number=(
                         str(
                             resolved.get("oem_number")
@@ -3516,6 +3552,7 @@ async def _append_document_receipt_items(
                     continue
                 order_item.received_quantity = current_received + quantity
                 order_item.received_at = now_moscow()
+                linked_supplier_order_item_ids.add(int(order_item.id))
             session.add(
                 SupplierReceiptItem(
                     receipt_id=receipt.id,
@@ -3568,6 +3605,11 @@ async def _append_document_receipt_items(
             added += 1
 
     if added:
+        await _refresh_receipt_links(
+            session,
+            supplier_order_item_ids=linked_supplier_order_item_ids,
+            order_item_ids=linked_site_order_item_ids,
+        )
         receipt.posted_at = now_moscow()
     return added
 
@@ -4349,10 +4391,12 @@ async def process_supplier_response_messages(
         )
         if should_apply_sender_filters:
             from_email_filters = sender_filters
+    use_server_side_from_filters = file_payload_mode == "responses"
 
     fetch_kwargs: dict[str, object] = {
         "date_from": date_from,
         "date_to": date_to,
+        "use_server_side_from_filters": use_server_side_from_filters,
     }
     if explicit_account_ids:
         fetch_kwargs["account_ids"] = explicit_account_ids

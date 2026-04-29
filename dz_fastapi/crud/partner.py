@@ -23,14 +23,19 @@ from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import (TYPE_PRICES, Customer,
                                        CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
+                                       CustomerOrderItem,
                                        CustomerPriceListConfig,
                                        CustomerPriceListSource, PriceList,
+                                       Order,
                                        PriceListAutoPartAssociation,
                                        PriceListMissingBrand, Provider,
                                        ProviderAbbreviation,
                                        ProviderConfigLastEmailUID,
+                                       ProviderExternalReference,
                                        ProviderLastEmailUID,
                                        ProviderPriceListConfig,
+                                       SupplierOrder, SupplierOrderMessage,
+                                       SupplierReceipt,
                                        SupplierResponseConfig)
 from dz_fastapi.schemas.autopart import AutoPartPricelist
 from dz_fastapi.schemas.partner import (
@@ -42,6 +47,8 @@ from dz_fastapi.schemas.partner import (
     PriceListShort, PriceListUpdate, ProviderAbbreviationCreate,
     ProviderAbbreviationOut, ProviderAbbreviationUpdate, ProviderCoreOut,
     ProviderCreate, ProviderCustomerPriceListSourceUsageOut,
+    ProviderExternalReferenceCreate, ProviderExternalReferenceOut,
+    ProviderExternalReferenceUpdate,
     ProviderPageResponse, ProviderPriceListConfigCreate,
     ProviderPriceListConfigOut, ProviderPriceListConfigUpdate, ProviderUpdate,
     SupplierResponseConfigCreate, SupplierResponseConfigOut,
@@ -166,6 +173,163 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             )
             raise
 
+    async def get_external_reference_by_source_supplier(
+        self,
+        *,
+        source_system: str,
+        external_supplier_id: int,
+        session: AsyncSession,
+    ) -> Optional[ProviderExternalReference]:
+        result = await session.execute(
+            select(ProviderExternalReference).where(
+                ProviderExternalReference.source_system == source_system,
+                ProviderExternalReference.external_supplier_id
+                == external_supplier_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_external_references(
+        self,
+        *,
+        provider_id: int,
+        session: AsyncSession,
+    ) -> list[ProviderExternalReference]:
+        rows = await session.execute(
+            select(ProviderExternalReference)
+            .where(ProviderExternalReference.provider_id == provider_id)
+            .order_by(
+                ProviderExternalReference.source_system.asc(),
+                ProviderExternalReference.external_supplier_name.asc(),
+                ProviderExternalReference.id.asc(),
+            )
+        )
+        return list(rows.scalars().all())
+
+    async def upsert_external_reference(
+        self,
+        *,
+        provider_id: int,
+        obj_in: ProviderExternalReferenceCreate,
+        session: AsyncSession,
+    ) -> ProviderExternalReference:
+        source_system = str(obj_in.source_system or '').strip().upper()
+        if not source_system:
+            raise ValueError('source_system is required')
+        if obj_in.external_supplier_id is None and not (
+            obj_in.external_supplier_name or ''
+        ).strip():
+            raise ValueError(
+                'external_supplier_id or external_supplier_name is required'
+            )
+
+        existing = None
+        if obj_in.external_supplier_id is not None:
+            existing = await self.get_external_reference_by_source_supplier(
+                source_system=source_system,
+                external_supplier_id=int(obj_in.external_supplier_id),
+                session=session,
+            )
+
+        if existing is None:
+            existing = (
+                await session.execute(
+                    select(ProviderExternalReference).where(
+                        ProviderExternalReference.provider_id == provider_id,
+                        ProviderExternalReference.source_system
+                        == source_system,
+                        ProviderExternalReference.external_supplier_name
+                        == (
+                            str(obj_in.external_supplier_name or '').strip()
+                            or None
+                        ),
+                    )
+                )
+            ).scalar_one_or_none()
+
+        if existing is None:
+            existing = ProviderExternalReference(
+                provider_id=provider_id,
+                source_system=source_system,
+            )
+            session.add(existing)
+
+        existing.provider_id = provider_id
+        existing.source_system = source_system
+        existing.external_supplier_id = obj_in.external_supplier_id
+        existing.external_supplier_name = (
+            str(obj_in.external_supplier_name or '').strip() or None
+        )
+        existing.is_active = bool(obj_in.is_active)
+        await session.commit()
+        await session.refresh(existing)
+        return existing
+
+    async def update_external_reference(
+        self,
+        *,
+        provider_id: int,
+        external_reference_id: int,
+        obj_in: ProviderExternalReferenceUpdate,
+        session: AsyncSession,
+    ) -> Optional[ProviderExternalReference]:
+        ref = (
+            await session.execute(
+                select(ProviderExternalReference).where(
+                    ProviderExternalReference.id == external_reference_id,
+                    ProviderExternalReference.provider_id == provider_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if ref is None:
+            return None
+
+        if obj_in.source_system is not None:
+            source_system = str(obj_in.source_system or '').strip().upper()
+            if not source_system:
+                raise ValueError('source_system is required')
+            ref.source_system = source_system
+        if obj_in.external_supplier_id is not None:
+            ref.external_supplier_id = int(obj_in.external_supplier_id)
+        if obj_in.external_supplier_name is not None:
+            ref.external_supplier_name = (
+                str(obj_in.external_supplier_name or '').strip() or None
+            )
+        if obj_in.is_active is not None:
+            ref.is_active = bool(obj_in.is_active)
+
+        if ref.external_supplier_id is None and not (
+            str(ref.external_supplier_name or '').strip()
+        ):
+            raise ValueError(
+                'external_supplier_id or external_supplier_name is required'
+            )
+
+        await session.commit()
+        await session.refresh(ref)
+        return ref
+
+    async def delete_external_reference(
+        self,
+        *,
+        provider_id: int,
+        external_reference_id: int,
+        session: AsyncSession,
+    ) -> bool:
+        ref = (
+            await session.execute(
+                select(ProviderExternalReference).where(
+                    ProviderExternalReference.id == external_reference_id,
+                    ProviderExternalReference.provider_id == provider_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if ref is None:
+            return False
+        await session.delete(ref)
+        await session.commit()
+        return True
+
     async def get_full_by_id(
         self, provider_id: int, session: AsyncSession
     ) -> Optional[ProviderPageResponse]:
@@ -192,6 +356,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                     .selectinload(SupplierResponseConfig.inbox_email_account),
                     selectinload(Provider.price_lists),
                     selectinload(Provider.abbreviations),
+                    selectinload(Provider.external_references),
                 )
             )
             result = await session.execute(stmt)
@@ -254,6 +419,10 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             abbreviations = [
                 ProviderAbbreviationOut.model_validate(abbreviation)
                 for abbreviation in (provider.abbreviations or [])
+            ]
+            external_references = [
+                ProviderExternalReferenceOut.model_validate(reference)
+                for reference in (provider.external_references or [])
             ]
 
             pricelist_configs = []
@@ -332,6 +501,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             return ProviderPageResponse(
                 provider=provider_core,
                 abbreviations=abbreviations,
+                external_references=external_references,
                 pricelist_configs=pricelist_configs,
                 supplier_response_configs=supplier_response_configs,
                 customer_pricelist_sources_usage=(
@@ -657,6 +827,12 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         if provider.supplier_response_configs:
             return False
 
+        if provider.external_references:
+            return False
+
+        if provider.orders:
+            return False
+
         return True
 
     async def merge_providers(
@@ -719,6 +895,69 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                 .where(PriceList.provider_id == source_provider_id)
                 .values(provider_id=target_provider_id)
             )
+            await session.execute(
+                update(CustomerOrderItem)
+                .where(CustomerOrderItem.supplier_id == source_provider_id)
+                .values(supplier_id=target_provider_id)
+            )
+            await session.execute(
+                update(SupplierOrder)
+                .where(SupplierOrder.provider_id == source_provider_id)
+                .values(provider_id=target_provider_id)
+            )
+            await session.execute(
+                update(SupplierOrderMessage)
+                .where(
+                    SupplierOrderMessage.provider_id == source_provider_id
+                )
+                .values(provider_id=target_provider_id)
+            )
+            await session.execute(
+                update(SupplierReceipt)
+                .where(SupplierReceipt.provider_id == source_provider_id)
+                .values(provider_id=target_provider_id)
+            )
+            await session.execute(
+                update(Order)
+                .where(Order.provider_id == source_provider_id)
+                .values(provider_id=target_provider_id)
+            )
+
+            source_refs = (
+                await session.execute(
+                    select(ProviderExternalReference).where(
+                        ProviderExternalReference.provider_id
+                        == source_provider_id
+                    )
+                )
+            ).scalars().all()
+            for reference in source_refs:
+                duplicate_stmt = select(ProviderExternalReference).where(
+                    ProviderExternalReference.provider_id
+                    == target_provider_id,
+                    ProviderExternalReference.source_system
+                    == reference.source_system,
+                )
+                if reference.external_supplier_id is not None:
+                    duplicate_stmt = duplicate_stmt.where(
+                        ProviderExternalReference.external_supplier_id
+                        == reference.external_supplier_id
+                    )
+                else:
+                    duplicate_stmt = duplicate_stmt.where(
+                        ProviderExternalReference.external_supplier_id.is_(
+                            None
+                        ),
+                        ProviderExternalReference.external_supplier_name
+                        == reference.external_supplier_name,
+                    )
+                duplicate = (
+                    await session.execute(duplicate_stmt)
+                ).scalar_one_or_none()
+                if duplicate is not None:
+                    await session.delete(reference)
+                else:
+                    reference.provider_id = target_provider_id
             # Удалить исходного поставщика
             await session.delete(source_provider)
             await session.commit()

@@ -76,6 +76,12 @@ class OrderPositionOut(BaseModel):
     supplier_name: Optional[str] = Field(
         None, description='Имя поставщика'
     )
+    price_name: Optional[str] = Field(
+        None, description='Название витрины/прайса поставщика на сайте'
+    )
+    sup_logo: Optional[str] = Field(
+        None, description='Маркер/логотип поставщика на сайте'
+    )
     quantity: int = Field(..., description='Количество к заказу')
     confirmed_price: float = Field(..., description='Цена за штуку')
     min_delivery_day: Optional[int] = Field(
@@ -203,6 +209,10 @@ class OrderItemOut(BaseModel):
     tracking_uuid: str
     status: TYPE_ORDER_ITEM_STATUS
     comments: Optional[str] = None
+    external_supplier_id: Optional[int] = None
+    external_supplier_name: Optional[str] = None
+    external_price_name: Optional[str] = None
+    external_sup_logo: Optional[str] = None
     hash_key: Optional[str] = None
     system_hash: Optional[str] = None
     created_at: datetime

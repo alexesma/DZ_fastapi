@@ -14,7 +14,11 @@ from dz_fastapi.models.order_status_mapping import (ExternalStatusMapping,
                                                     ExternalStatusUnmapped,
                                                     SupplierResponseAction)
 from dz_fastapi.models.partner import (CUSTOMER_ORDER_SHIP_MODE,
-                                       SUPPLIER_ORDER_STATUS, SupplierOrder,
+                                       ORDER_TRACKING_SOURCE,
+                                       SUPPLIER_ORDER_STATUS,
+                                       TYPE_ORDER_ITEM_STATUS,
+                                       TYPE_STATUS_ORDER, Order, OrderItem,
+                                       SupplierOrder,
                                        SupplierOrderAttachment,
                                        SupplierOrderItem, SupplierOrderMessage,
                                        SupplierReceipt, SupplierReceiptItem,
@@ -3212,3 +3216,74 @@ async def test_subject_pattern_filters_supplier_response_messages(
     assert result["processed_messages"] == 0
     assert result["skipped_messages"] == 1
     assert message_rows == []
+
+
+@pytest.mark.asyncio
+async def test_document_receipt_unmatched_row_links_site_order_item(
+    test_session,
+    created_autopart,
+    created_customers,
+    created_providers,
+):
+    order = Order(
+        provider_id=created_providers[0].id,
+        customer_id=created_customers[0].id,
+        source_type=ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
+        status=TYPE_STATUS_ORDER.ORDERED,
+    )
+    test_session.add(order)
+    await test_session.flush()
+
+    order_item = OrderItem(
+        order_id=order.id,
+        autopart_id=created_autopart.id,
+        oem_number=created_autopart.oem_number,
+        brand_name=created_autopart.brand.name,
+        autopart_name=created_autopart.name,
+        quantity=4,
+        price=111,
+        tracking_uuid="doc-link-site-order",
+        status=TYPE_ORDER_ITEM_STATUS.SENT,
+    )
+    test_session.add(order_item)
+
+    receipt = SupplierReceipt(
+        provider_id=created_providers[0].id,
+        created_at=now_moscow(),
+    )
+    test_session.add(receipt)
+    await test_session.flush()
+
+    added = await response_service._append_document_receipt_items(
+        test_session,
+        receipt=receipt,
+        items_payload=[
+            {
+                "supplier_order_item_id": None,
+                "received_quantity": 4,
+                "response_price": 111,
+                "oem_number": created_autopart.oem_number,
+                "brand_name": created_autopart.brand.name,
+                "autopart_name": created_autopart.name,
+            }
+        ],
+        all_order_items_by_id={},
+        response_config=None,
+    )
+    assert added == 1
+
+    await test_session.commit()
+    await test_session.refresh(order_item)
+    await test_session.refresh(order)
+
+    receipt_item = (
+        await test_session.execute(
+            select(SupplierReceiptItem).where(
+                SupplierReceiptItem.receipt_id == receipt.id
+            )
+        )
+    ).scalar_one()
+    assert receipt_item.order_item_id == order_item.id
+    assert order_item.received_quantity == 4
+    assert order_item.status == TYPE_ORDER_ITEM_STATUS.DELIVERED
+    assert order.status == TYPE_STATUS_ORDER.ARRIVED

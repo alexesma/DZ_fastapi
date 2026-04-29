@@ -296,6 +296,33 @@ class ProviderResponse(ProviderBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ProviderExternalReferenceBase(BaseModel):
+    source_system: str
+    external_supplier_id: Optional[int] = None
+    external_supplier_name: Optional[str] = None
+    is_active: bool = True
+
+
+class ProviderExternalReferenceCreate(ProviderExternalReferenceBase):
+    pass
+
+
+class ProviderExternalReferenceUpdate(BaseModel):
+    source_system: Optional[str] = None
+    external_supplier_id: Optional[int] = None
+    external_supplier_name: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class ProviderExternalReferenceOut(ProviderExternalReferenceBase):
+    id: int
+    provider_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class CustomerResponse(CustomerBase):
     id: int
     customer_price_lists: List[CustomerPriceListResponse] = []
@@ -309,6 +336,16 @@ class CustomerResponse(CustomerBase):
         if v is None:
             return []
         return v
+
+
+class ProviderMergeRequest(BaseModel):
+    source_provider_id: int
+
+
+class ProviderMergeResponse(BaseModel):
+    merged: bool
+    source_provider_id: int
+    target_provider_id: int
 
 
 class CustomerPriceListResponseShort(BaseModel):
@@ -1303,6 +1340,9 @@ PriceListResponse.model_rebuild()
 class ProviderPageResponse(BaseModel):
     provider: ProviderCoreOut
     abbreviations: List[ProviderAbbreviationOut] = Field(default_factory=list)
+    external_references: List[ProviderExternalReferenceOut] = Field(
+        default_factory=list
+    )
     pricelist_configs: List[ProviderPriceListConfigOut] = Field(
         default_factory=list
     )

@@ -33,6 +33,7 @@ from dz_fastapi.schemas.order import (ConfirmedOfferOut,
                                       SupplierOffersResponse, SupplierOrderOut,
                                       UpdatePositionStatusRequest,
                                       UpdatePositionStatusResponse)
+from dz_fastapi.schemas.partner import ProviderExternalReferenceCreate
 from dz_fastapi.services.notifications import create_notification
 from dz_fastapi.services.placed_orders import (list_tracking_history,
                                                sync_site_tracking_statuses,
@@ -42,7 +43,7 @@ KEY = os.getenv('KEY_FOR_WEBSITE')
 
 logger = logging.getLogger('dz_fastapi')
 
-MAX_LOCAL_PROVIDER_ID = 2_147_483_647
+DRAGONZAP_EXTERNAL_SOURCE = 'DRAGONZAP'
 
 
 router = APIRouter(prefix='/order')
@@ -54,9 +55,37 @@ async def _resolve_site_provider_id(
     provider_cache: dict[str, int],
 ) -> int:
     supplier_name = (item.supplier_name or '').strip()
-    cache_key = supplier_name.casefold() if supplier_name else None
-    if cache_key:
-        cached_provider_id = provider_cache.get(cache_key)
+    supplier_id = item.supplier_id
+    id_cache_key = (
+        f'{DRAGONZAP_EXTERNAL_SOURCE}:id:{int(supplier_id)}'
+        if supplier_id is not None
+        else None
+    )
+    if id_cache_key:
+        cached_provider_id = provider_cache.get(id_cache_key)
+        if cached_provider_id is not None:
+            return cached_provider_id
+
+        reference = await crud_provider.get_external_reference_by_source_supplier(
+            source_system=DRAGONZAP_EXTERNAL_SOURCE,
+            external_supplier_id=int(supplier_id),
+            session=session,
+        )
+        if reference is not None and reference.is_active:
+            provider_cache[id_cache_key] = reference.provider_id
+            if supplier_name:
+                provider_cache[
+                    f'{DRAGONZAP_EXTERNAL_SOURCE}:name:{supplier_name.casefold()}'
+                ] = reference.provider_id
+            return reference.provider_id
+
+    name_cache_key = (
+        f'{DRAGONZAP_EXTERNAL_SOURCE}:name:{supplier_name.casefold()}'
+        if supplier_name
+        else None
+    )
+    if name_cache_key:
+        cached_provider_id = provider_cache.get(name_cache_key)
         if cached_provider_id is not None:
             return cached_provider_id
 
@@ -64,36 +93,22 @@ async def _resolve_site_provider_id(
             supplier_name, session
         )
         if provider is not None:
-            provider_cache[cache_key] = provider.id
+            if supplier_id is not None:
+                await crud_provider.upsert_external_reference(
+                    provider_id=provider.id,
+                    obj_in=ProviderExternalReferenceCreate(
+                        source_system=DRAGONZAP_EXTERNAL_SOURCE,
+                        external_supplier_id=int(supplier_id),
+                        external_supplier_name=supplier_name or None,
+                        is_active=True,
+                    ),
+                    session=session,
+                )
+                provider_cache[id_cache_key] = provider.id
+            provider_cache[name_cache_key] = provider.id
             return provider.id
 
-    if (
-        item.supplier_id is not None
-        and 0 < item.supplier_id <= MAX_LOCAL_PROVIDER_ID
-    ):
-        provider_by_id = await crud_provider.get_by_id(
-            item.supplier_id, session
-        )
-        if provider_by_id is not None:
-            if cache_key:
-                provider_cache[cache_key] = provider_by_id.id
-            return provider_by_id.id
-
-        logger.warning(
-            'Dragonzap supplier_id=%s is not a local provider id; '
-            'fallback to supplier_name=%r',
-            item.supplier_id,
-            supplier_name,
-        )
-    elif item.supplier_id is not None:
-        logger.warning(
-            'Dragonzap supplier_id=%s is outside local provider id range; '
-            'fallback to supplier_name=%r',
-            item.supplier_id,
-            supplier_name,
-        )
-
-    if not supplier_name:
+    if not supplier_name and supplier_id is None:
         raise HTTPException(
             status_code=400,
             detail=(
@@ -103,7 +118,7 @@ async def _resolve_site_provider_id(
         )
 
     provider = Provider(
-        name=supplier_name,
+        name=supplier_name or f'Dragonzap supplier #{supplier_id}',
         is_virtual=True,
         type_prices=TYPE_PRICES.WHOLESALE,
         description='Created automatically from Dragonzap site order',
@@ -111,7 +126,25 @@ async def _resolve_site_provider_id(
     )
     session.add(provider)
     await session.flush()
-    provider_cache[cache_key] = provider.id
+
+    if supplier_id is not None or supplier_name:
+        await crud_provider.upsert_external_reference(
+            provider_id=provider.id,
+            obj_in=ProviderExternalReferenceCreate(
+                source_system=DRAGONZAP_EXTERNAL_SOURCE,
+                external_supplier_id=(
+                    int(supplier_id) if supplier_id is not None else None
+                ),
+                external_supplier_name=supplier_name or None,
+                is_active=True,
+            ),
+            session=session,
+        )
+
+    if id_cache_key:
+        provider_cache[id_cache_key] = provider.id
+    if name_cache_key:
+        provider_cache[name_cache_key] = provider.id
     return provider.id
 
 
