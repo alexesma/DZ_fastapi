@@ -6,10 +6,11 @@ from typing import Optional
 from uuid import uuid4
 
 from email_validator import EmailNotValidError, validate_email
-from sqlalchemy import DECIMAL, JSON, Boolean, Column, Date, DateTime
+from sqlalchemy import (DECIMAL, JSON, BigInteger, Boolean, Column, Date,
+                        DateTime)
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import (BigInteger, Float, ForeignKey, Index, Integer, String,
-                        Text, UniqueConstraint, event)
+from sqlalchemy import (Float, ForeignKey, Index, Integer, String, Text,
+                        UniqueConstraint, event)
 from sqlalchemy.orm import relationship, validates
 
 from dz_fastapi.core.db import Base
