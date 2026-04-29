@@ -21,21 +21,18 @@ from dz_fastapi.crud.brand import brand_crud
 from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import (TYPE_PRICES, Customer,
-                                       CustomerPriceList,
+                                       CustomerOrderItem, CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
-                                       CustomerOrderItem,
                                        CustomerPriceListConfig,
-                                       CustomerPriceListSource, PriceList,
-                                       Order,
-                                       PriceListAutoPartAssociation,
+                                       CustomerPriceListSource, Order,
+                                       PriceList, PriceListAutoPartAssociation,
                                        PriceListMissingBrand, Provider,
                                        ProviderAbbreviation,
                                        ProviderConfigLastEmailUID,
                                        ProviderExternalReference,
                                        ProviderLastEmailUID,
-                                       ProviderPriceListConfig,
-                                       SupplierOrder, SupplierOrderMessage,
-                                       SupplierReceipt,
+                                       ProviderPriceListConfig, SupplierOrder,
+                                       SupplierOrderMessage, SupplierReceipt,
                                        SupplierResponseConfig)
 from dz_fastapi.schemas.autopart import AutoPartPricelist
 from dz_fastapi.schemas.partner import (
@@ -48,9 +45,9 @@ from dz_fastapi.schemas.partner import (
     ProviderAbbreviationOut, ProviderAbbreviationUpdate, ProviderCoreOut,
     ProviderCreate, ProviderCustomerPriceListSourceUsageOut,
     ProviderExternalReferenceCreate, ProviderExternalReferenceOut,
-    ProviderExternalReferenceUpdate,
-    ProviderPageResponse, ProviderPriceListConfigCreate,
-    ProviderPriceListConfigOut, ProviderPriceListConfigUpdate, ProviderUpdate,
+    ProviderExternalReferenceUpdate, ProviderPageResponse,
+    ProviderPriceListConfigCreate, ProviderPriceListConfigOut,
+    ProviderPriceListConfigUpdate, ProviderUpdate,
     SupplierResponseConfigCreate, SupplierResponseConfigOut,
     SupplierResponseConfigUpdate)
 from dz_fastapi.services.utils import (brand_filters, individual_markups,

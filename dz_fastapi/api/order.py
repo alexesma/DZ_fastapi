@@ -66,16 +66,19 @@ async def _resolve_site_provider_id(
         if cached_provider_id is not None:
             return cached_provider_id
 
-        reference = await crud_provider.get_external_reference_by_source_supplier(
-            source_system=DRAGONZAP_EXTERNAL_SOURCE,
-            external_supplier_id=int(supplier_id),
-            session=session,
+        reference = await (
+            crud_provider.get_external_reference_by_source_supplier(
+                source_system=DRAGONZAP_EXTERNAL_SOURCE,
+                external_supplier_id=int(supplier_id),
+                session=session,
+            )
         )
         if reference is not None and reference.is_active:
             provider_cache[id_cache_key] = reference.provider_id
             if supplier_name:
                 provider_cache[
-                    f'{DRAGONZAP_EXTERNAL_SOURCE}:name:{supplier_name.casefold()}'
+                    (f'{DRAGONZAP_EXTERNAL_SOURCE}'
+                     f':name:{supplier_name.casefold()}')
                 ] = reference.provider_id
             return reference.provider_id
 

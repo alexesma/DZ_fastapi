@@ -21,7 +21,8 @@ from dz_fastapi.models.partner import (ORDER_TRACKING_SOURCE,
                                        SupplierReceipt, SupplierReceiptItem)
 from dz_fastapi.models.user import User
 from dz_fastapi.services.customer_orders import (
-    _load_brand_alias_map, _normalize_key, try_finalize_customer_order_response)
+    _load_brand_alias_map, _normalize_key,
+    try_finalize_customer_order_response)
 
 
 @dataclass(slots=True)
@@ -142,7 +143,9 @@ async def _match_site_order_item_for_receipt(
         )
     )
     candidates = (await session.execute(stmt)).scalars().all()
-    matched: list[tuple[tuple[int, int, datetime, datetime, int], OrderItem]] = []
+    matched: list[
+        tuple[tuple[int, int, datetime, datetime, int], OrderItem]
+    ] = []
     for candidate in candidates:
         if int(candidate.id) in exclude_order_item_ids:
             continue
@@ -162,7 +165,9 @@ async def _match_site_order_item_for_receipt(
         }:
             continue
         sort_key = (
-            0 if desired_quantity and pending_quantity == desired_quantity else 1,
+            0 if desired_quantity and (
+                    pending_quantity == desired_quantity
+            ) else 1,
             0 if pending_quantity >= desired_quantity else 1,
             abs(pending_quantity - desired_quantity),
             candidate.order.created_at or now_moscow(),
@@ -251,9 +256,16 @@ async def _recalculate_site_orders_status(
         items = list(order.order_items or [])
         if not items:
             continue
-        ordered_quantities = [max(int(item.quantity or 0), 0) for item in items]
+        ordered_quantities = [
+            max(int(item.quantity or 0), 0) for item in items
+        ]
         received_quantities = [
-            min(max(int(item.received_quantity or 0), 0), ordered_quantities[idx])
+            min(
+                max(
+                    int(item.received_quantity or 0),
+                    0
+                ), ordered_quantities[idx]
+            )
             for idx, item in enumerate(items)
         ]
         if all(

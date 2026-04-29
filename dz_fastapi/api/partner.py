@@ -404,12 +404,18 @@ async def merge_provider_into_target(
         provider_id=provider_id, session=session
     )
     if not target:
-        raise HTTPException(status_code=404, detail='Target provider not found')
+        raise HTTPException(
+            status_code=404,
+            detail='Target provider not found'
+        )
     source = await crud_provider.get_by_id(
         provider_id=payload.source_provider_id, session=session
     )
     if not source:
-        raise HTTPException(status_code=404, detail='Source provider not found')
+        raise HTTPException(
+            status_code=404,
+            detail='Source provider not found'
+        )
     try:
         merged = await crud_provider.merge_providers(
             source_provider_id=payload.source_provider_id,
