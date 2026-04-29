@@ -18,9 +18,11 @@ from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.autopart import crud_autopart
 from dz_fastapi.crud.base import CRUDBase
 from dz_fastapi.crud.brand import brand_crud
-from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
+from dz_fastapi.models.autopart import (AutoPart, AutoPartPriceHistory,
+                                        AutoPartRestockDecisionSupplier)
 from dz_fastapi.models.brand import Brand
-from dz_fastapi.models.order_status_mapping import ExternalStatusMapping
+from dz_fastapi.models.order_status_mapping import (ExternalStatusMapping,
+                                                    ExternalStatusUnmapped)
 from dz_fastapi.models.partner import (TYPE_PRICES, Customer,
                                        CustomerOrderItem, CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
@@ -35,6 +37,7 @@ from dz_fastapi.models.partner import (TYPE_PRICES, Customer,
                                        ProviderPriceListConfig, SupplierOrder,
                                        SupplierOrderMessage, SupplierReceipt,
                                        SupplierResponseConfig)
+from dz_fastapi.models.settings import PriceListStaleAlert
 from dz_fastapi.schemas.autopart import AutoPartPricelist
 from dz_fastapi.schemas.partner import (
     CustomerCreate, CustomerPriceListConfigCreate,
@@ -960,6 +963,35 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                 update(ExternalStatusMapping)
                 .where(
                     ExternalStatusMapping.provider_id == source_provider_id
+                )
+                .values(provider_id=target_provider_id)
+            )
+            await session.execute(
+                update(ExternalStatusUnmapped)
+                .where(
+                    ExternalStatusUnmapped.provider_id == source_provider_id
+                )
+                .values(provider_id=target_provider_id)
+            )
+            await session.execute(
+                update(AutoPartPriceHistory)
+                .where(
+                    AutoPartPriceHistory.provider_id == source_provider_id
+                )
+                .values(provider_id=target_provider_id)
+            )
+            await session.execute(
+                update(AutoPartRestockDecisionSupplier)
+                .where(
+                    AutoPartRestockDecisionSupplier.supplier_id
+                    == source_provider_id
+                )
+                .values(supplier_id=target_provider_id)
+            )
+            await session.execute(
+                update(PriceListStaleAlert)
+                .where(
+                    PriceListStaleAlert.provider_id == source_provider_id
                 )
                 .values(provider_id=target_provider_id)
             )
