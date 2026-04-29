@@ -497,7 +497,9 @@ async def test_process_supplier_response_messages_updates_confirmed_quantities(
     response_frame.to_excel(buffer, index=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(session, *, date_from, date_to=None):
+    async def fake_fetch_messages(
+            session, *, date_from, date_to=None, **kwargs
+    ):
         return [
             (
                 SimpleNamespace(
@@ -587,7 +589,9 @@ async def test_process_supplier_response_creates_draft_receipt(
     response_frame.to_excel(buffer, index=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(session, *, date_from, date_to=None):
+    async def fake_fetch_messages(
+            session, *, date_from, date_to=None, **kwargs
+    ):
         return [
             (
                 SimpleNamespace(
@@ -692,7 +696,9 @@ async def test_process_supplier_response_without_order_id_matches_positions(
     response_frame.to_excel(buffer, index=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(session, *, date_from, date_to=None):
+    async def fake_fetch_messages(
+            session, *, date_from, date_to=None, **kwargs
+    ):
         return [
             (
                 SimpleNamespace(
@@ -795,7 +801,9 @@ async def test_process_supplier_response_appends_existing_draft_receipt(
     response_frame.to_excel(buffer, index=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(session, *, date_from, date_to=None):
+    async def fake_fetch_messages(
+            session, *, date_from, date_to=None, **kwargs
+    ):
         return [
             (
                 SimpleNamespace(
@@ -1681,7 +1689,9 @@ async def test_shipping_doc_creates_posted_receipt(
     test_session.add(item)
     await test_session.commit()
 
-    async def fake_fetch_messages(session, *, date_from, date_to=None):
+    async def fake_fetch_messages(
+            session, *, date_from, date_to=None, **kwargs
+    ):
         return [
             (
                 SimpleNamespace(
@@ -1761,7 +1771,9 @@ async def test_process_supplier_response_messages_records_unmapped_status(
 
     raw_status = f"zz_unmapped_status_{order.id}_ci"
 
-    async def fake_fetch_messages(session, *, date_from, date_to=None):
+    async def fake_fetch_messages(
+            session, *, date_from, date_to=None, **kwargs
+    ):
         return [
             (
                 SimpleNamespace(
@@ -1864,7 +1876,9 @@ async def test_responses_mode_skips_messages_for_document_configs(
     )
     await test_session.commit()
 
-    async def fake_fetch_messages(session, *, date_from, date_to=None):
+    async def fake_fetch_messages(
+            session, *, date_from, date_to=None, **kwargs
+    ):
         return [
             (
                 SimpleNamespace(
@@ -1930,7 +1944,9 @@ async def test_documents_mode_skips_messages_for_response_configs(
     )
     await test_session.commit()
 
-    async def fake_fetch_messages(session, *, date_from, date_to=None):
+    async def fake_fetch_messages(
+            session, *, date_from, date_to=None, **kwargs
+    ):
         return [
             (
                 SimpleNamespace(
@@ -1993,7 +2009,9 @@ async def test_supplier_response_skip_text_status_when_disabled(
     test_session.add(order)
     await test_session.commit()
 
-    async def fake_fetch_messages(session, *, date_from, date_to=None):
+    async def fake_fetch_messages(
+            session, *, date_from, date_to=None, **kwargs
+    ):
         return [
             (
                 SimpleNamespace(
@@ -2097,7 +2115,9 @@ async def test_skip_response_files_when_disabled(
     response_frame.to_excel(buffer, index=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(session, *, date_from, date_to=None):
+    async def fake_fetch_messages(
+            session, *, date_from, date_to=None, **kwargs
+    ):
         return [
             (
                 SimpleNamespace(
@@ -2155,7 +2175,9 @@ async def test_skip_shipping_docs_when_disabled(
     provider.supplier_response_allow_text_status = False
     await test_session.commit()
 
-    async def fake_fetch_messages(session, *, date_from, date_to=None):
+    async def fake_fetch_messages(
+            session, *, date_from, date_to=None, **kwargs
+    ):
         return [
             (
                 SimpleNamespace(
@@ -2265,7 +2287,9 @@ async def test_apply_provider_column_layout_for_response_file(
     response_frame.to_excel(buffer, index=False, header=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(session, *, date_from, date_to=None):
+    async def fake_fetch_messages(
+            session, *, date_from, date_to=None, **kwargs
+    ):
         return [
             (
                 SimpleNamespace(
@@ -2355,7 +2379,9 @@ async def test_use_response_filename_pattern_for_spreadsheets(
     response_frame.to_excel(buffer, index=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(session, *, date_from, date_to=None):
+    async def fake_fetch_messages(
+            session, *, date_from, date_to=None, **kwargs
+    ):
         return [
             (
                 SimpleNamespace(
@@ -2442,7 +2468,9 @@ async def test_use_response_filename_pattern_for_mime_encoded_filename(
     response_frame.to_excel(buffer, index=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(session, *, date_from, date_to=None):
+    async def fake_fetch_messages(
+            session, *, date_from, date_to=None, **kwargs
+    ):
         return [
             (
                 SimpleNamespace(
@@ -2499,7 +2527,12 @@ async def test_use_shipping_doc_filename_pattern(
     provider.supplier_shipping_doc_filename_pattern = r"^doc_\d+\.pdf$"
     await test_session.commit()
 
-    async def fake_fetch_messages(session, *, date_from, date_to=None):
+    async def fake_fetch_messages(
+            session, *,
+            date_from,
+            date_to=None,
+            **kwargs
+    ):
         return [
             (
                 SimpleNamespace(
