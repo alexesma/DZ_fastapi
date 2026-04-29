@@ -8,8 +8,8 @@ from uuid import uuid4
 from email_validator import EmailNotValidError, validate_email
 from sqlalchemy import DECIMAL, JSON, Boolean, Column, Date, DateTime
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import (Float, ForeignKey, Index, Integer, String, Text,
-                        UniqueConstraint, event)
+from sqlalchemy import (BigInteger, Float, ForeignKey, Index, Integer, String,
+                        Text, UniqueConstraint, event)
 from sqlalchemy.orm import relationship, validates
 
 from dz_fastapi.core.db import Base
@@ -1108,7 +1108,7 @@ class ProviderExternalReference(Base):
         index=True,
     )
     source_system = Column(String(32), nullable=False, index=True)
-    external_supplier_id = Column(Integer, nullable=True, index=True)
+    external_supplier_id = Column(BigInteger, nullable=True, index=True)
     external_supplier_name = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=now_moscow)
@@ -1196,7 +1196,7 @@ class OrderItem(Base):
         default=TYPE_ORDER_ITEM_STATUS.NEW,
     )
     comments = Column(Text, nullable=True)
-    external_supplier_id = Column(Integer, nullable=True, index=True)
+    external_supplier_id = Column(BigInteger, nullable=True, index=True)
     external_supplier_name = Column(String(255), nullable=True)
     external_price_name = Column(String(255), nullable=True)
     external_sup_logo = Column(String(255), nullable=True)
