@@ -15,6 +15,7 @@ from dz_fastapi.main import app
 from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.email_account import EmailAccount
+from dz_fastapi.models.inventory import Warehouse
 from dz_fastapi.models.partner import (Customer, CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
                                        CustomerPriceListConfig,
@@ -50,7 +51,13 @@ async def test_create_provider(
     assert data['email_incoming_price'] == 'test3@example.com'
     assert data['type_prices'] == 'Retail'
     assert data['is_vat_payer'] is False
+    assert data['default_warehouse_name'] == 'Основной склад'
+    assert data['default_warehouse_id'] is not None
     assert 'id' in data
+
+    warehouse = await test_session.get(Warehouse, data['default_warehouse_id'])
+    assert warehouse is not None
+    assert warehouse.name == 'Основной склад'
 
 
 @pytest.mark.asyncio

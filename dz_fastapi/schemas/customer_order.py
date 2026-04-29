@@ -548,6 +548,7 @@ class SupplierReceiptCreateItem(BaseModel):
 
 class SupplierReceiptCreate(BaseModel):
     provider_id: int
+    warehouse_id: Optional[int] = None
     post_now: bool = Field(default=False)
     document_number: Optional[str] = Field(default=None, max_length=120)
     document_date: Optional[date] = None
@@ -556,6 +557,7 @@ class SupplierReceiptCreate(BaseModel):
 
 
 class SupplierReceiptUpdate(BaseModel):
+    warehouse_id: Optional[int] = None
     document_number: Optional[str] = Field(default=None, max_length=120)
     document_date: Optional[date] = None
     comment: Optional[str] = None
@@ -579,6 +581,7 @@ class SupplierReceiptManualItem(BaseModel):
 
 class SupplierReceiptManualCreate(BaseModel):
     provider_id: int
+    warehouse_id: Optional[int] = None
     post_now: bool = Field(default=False)
     document_number: Optional[str] = Field(default=None, max_length=120)
     document_date: Optional[date] = None
@@ -631,6 +634,8 @@ class SupplierReceiptResponse(BaseModel):
     provider_id: int
     provider_name: Optional[str] = None
     provider_is_vat_payer: bool = False
+    warehouse_id: Optional[int] = None
+    warehouse_name: Optional[str] = None
     supplier_order_id: Optional[int] = None
     source_message_id: Optional[int] = None
     document_number: Optional[str] = None

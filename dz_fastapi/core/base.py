@@ -12,7 +12,7 @@ from dz_fastapi.models.inbox_email import (EmailRulePattern, InboxEmail,
                                            InboxForceProcessAudit)
 from dz_fastapi.models.inventory import InventoryItem  # noqa
 from dz_fastapi.models.inventory import (InventorySession, StockByLocation,
-                                         StockMovement)
+                                         StockMovement, Warehouse)
 from dz_fastapi.models.nomenclature import ApplicabilityNode  # noqa
 from dz_fastapi.models.nomenclature import (HonestSignCategory,
                                             autopart_applicability_association,
@@ -117,6 +117,7 @@ __all__ = [
     'PriceWatchItem',
     'InventorySession',
     'InventoryItem',
+    'Warehouse',
     'StockByLocation',
     'StockMovement',
     'HonestSignCategory',

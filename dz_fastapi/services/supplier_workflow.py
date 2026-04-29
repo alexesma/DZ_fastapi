@@ -23,6 +23,8 @@ from dz_fastapi.models.user import User
 from dz_fastapi.services.customer_orders import (
     _load_brand_alias_map, _normalize_key,
     try_finalize_customer_order_response)
+from dz_fastapi.services.inventory_stock import (
+    apply_receipt_to_stock_by_id, resolve_warehouse_for_provider)
 
 
 @dataclass(slots=True)
@@ -672,6 +674,7 @@ async def list_supplier_receipts(
         select(SupplierReceipt)
         .options(
             joinedload(SupplierReceipt.provider),
+            joinedload(SupplierReceipt.warehouse),
             joinedload(SupplierReceipt.created_by_user),
             selectinload(SupplierReceipt.items),
         )
@@ -702,6 +705,7 @@ async def create_supplier_receipt(
     user: User,
     provider_id: int,
     items_payload: Iterable[dict],
+    warehouse_id: Optional[int] = None,
     post_now: bool = False,
     document_number: Optional[str] = None,
     document_date: Optional[date] = None,
@@ -725,12 +729,18 @@ async def create_supplier_receipt(
     items_by_id = {item.id: item for item in db_items}
     if len(items_by_id) != len(set(item_ids)):
         raise LookupError('Не все строки заказов поставщикам найдены')
+    warehouse = await resolve_warehouse_for_provider(
+        session,
+        provider_id=provider_id,
+        explicit_warehouse_id=warehouse_id,
+    )
 
     supplier_order_ids: set[int] = set()
     affected_customer_order_ids: set[int] = set()
     if post_now:
         receipt = SupplierReceipt(
             provider_id=provider_id,
+            warehouse_id=warehouse.id,
             supplier_order_id=None,
             document_number=document_number or None,
             document_date=document_date or now_moscow().date(),
@@ -757,6 +767,7 @@ async def create_supplier_receipt(
         if receipt is None:
             receipt = SupplierReceipt(
                 provider_id=provider_id,
+                warehouse_id=warehouse.id,
                 supplier_order_id=None,
                 document_number=document_number or None,
                 document_date=document_date or now_moscow().date(),
@@ -768,6 +779,8 @@ async def create_supplier_receipt(
             session.add(receipt)
             await session.flush()
         else:
+            if warehouse_id is not None or receipt.warehouse_id is None:
+                receipt.warehouse_id = warehouse.id
             if document_number:
                 receipt.document_number = document_number
             if document_date:
@@ -861,6 +874,9 @@ async def create_supplier_receipt(
         receipt.supplier_order_id = next(iter(supplier_order_ids))
 
     receipt_id = int(receipt.id)
+    await session.flush()
+    if post_now:
+        await apply_receipt_to_stock_by_id(session, receipt_id=receipt_id)
     await session.commit()
 
     for customer_order_id in sorted(affected_customer_order_ids):
@@ -876,6 +892,7 @@ async def create_supplier_receipt(
         select(SupplierReceipt)
         .options(
             joinedload(SupplierReceipt.provider),
+            joinedload(SupplierReceipt.warehouse),
             joinedload(SupplierReceipt.created_by_user),
             selectinload(SupplierReceipt.items),
         )
@@ -894,6 +911,7 @@ async def post_supplier_receipt(
         select(SupplierReceipt)
         .options(
             joinedload(SupplierReceipt.provider),
+            joinedload(SupplierReceipt.warehouse),
             joinedload(SupplierReceipt.created_by_user),
             selectinload(SupplierReceipt.items).joinedload(
                 SupplierReceiptItem.supplier_order_item
@@ -963,12 +981,15 @@ async def post_supplier_receipt(
         receipt.posted_at = current_dt
         if receipt.created_by_user_id is None:
             receipt.created_by_user_id = user.id
+        await session.flush()
+        await apply_receipt_to_stock_by_id(session, receipt_id=receipt.id)
         await session.commit()
 
     refresh_stmt = (
         select(SupplierReceipt)
         .options(
             joinedload(SupplierReceipt.provider),
+            joinedload(SupplierReceipt.warehouse),
             joinedload(SupplierReceipt.created_by_user),
             selectinload(SupplierReceipt.items),
         )
@@ -1040,6 +1061,7 @@ async def unpost_supplier_receipt(
         select(SupplierReceipt)
         .options(
             joinedload(SupplierReceipt.provider),
+            joinedload(SupplierReceipt.warehouse),
             joinedload(SupplierReceipt.created_by_user),
             selectinload(SupplierReceipt.items),
         )
@@ -1050,6 +1072,11 @@ async def unpost_supplier_receipt(
         raise LookupError('Документ поступления не найден')
 
     if receipt.posted_at is not None:
+        await apply_receipt_to_stock_by_id(
+            session,
+            receipt_id=receipt.id,
+            reverse=True,
+        )
         receipt.posted_at = None
         if receipt.created_by_user_id is None:
             receipt.created_by_user_id = user.id
@@ -1059,6 +1086,7 @@ async def unpost_supplier_receipt(
         select(SupplierReceipt)
         .options(
             joinedload(SupplierReceipt.provider),
+            joinedload(SupplierReceipt.warehouse),
             joinedload(SupplierReceipt.created_by_user),
             selectinload(SupplierReceipt.items),
         )
@@ -1148,6 +1176,8 @@ def serialize_supplier_receipt(receipt: SupplierReceipt) -> dict:
         'provider_id': receipt.provider_id,
         'provider_name': receipt.provider.name if receipt.provider else None,
         'provider_is_vat_payer': _provider_is_vat_payer(receipt.provider),
+        'warehouse_id': receipt.warehouse_id,
+        'warehouse_name': receipt.warehouse_name,
         'supplier_order_id': receipt.supplier_order_id,
         'source_message_id': receipt.source_message_id,
         'document_number': _normalize_receipt_document_number(
@@ -1176,6 +1206,7 @@ async def get_supplier_receipt_detail(
         select(SupplierReceipt)
         .options(
             joinedload(SupplierReceipt.provider),
+            joinedload(SupplierReceipt.warehouse),
             joinedload(SupplierReceipt.created_by_user),
             selectinload(SupplierReceipt.items).joinedload(
                 SupplierReceiptItem.customer_order_item
@@ -1204,6 +1235,7 @@ async def update_supplier_receipt(
     session: AsyncSession,
     *,
     receipt_id: int,
+    warehouse_id: Optional[int] = None,
     document_number: Optional[str] = None,
     document_date: Optional[date] = None,
     comment: Optional[str] = None,
@@ -1214,6 +1246,13 @@ async def update_supplier_receipt(
         raise LookupError('Документ поступления не найден')
     if receipt.posted_at is not None:
         raise ValueError('Нельзя редактировать проведённый документ')
+    if warehouse_id is not None:
+        warehouse = await resolve_warehouse_for_provider(
+            session,
+            provider_id=receipt.provider_id,
+            explicit_warehouse_id=warehouse_id,
+        )
+        receipt.warehouse_id = warehouse.id
     if document_number is not None:
         receipt.document_number = document_number or None
     if document_date is not None:
@@ -1403,13 +1442,20 @@ async def create_manual_supplier_receipt(
     user: User,
     provider_id: int,
     items_payload: list[dict],
+    warehouse_id: Optional[int] = None,
     post_now: bool = False,
     document_number: Optional[str] = None,
     document_date: Optional[date] = None,
     comment: Optional[str] = None,
 ) -> SupplierReceipt:
+    warehouse = await resolve_warehouse_for_provider(
+        session,
+        provider_id=provider_id,
+        explicit_warehouse_id=warehouse_id,
+    )
     receipt = SupplierReceipt(
         provider_id=provider_id,
+        warehouse_id=warehouse.id,
         document_number=document_number or None,
         document_date=document_date or now_moscow().date(),
         created_by_user_id=user.id,
@@ -1487,6 +1533,9 @@ async def create_manual_supplier_receipt(
             new_item.autopart_id = matched_site_order_item.autopart_id
         session.add(new_item)
 
+    await session.flush()
+    if post_now:
+        await apply_receipt_to_stock_by_id(session, receipt_id=receipt.id)
     await session.commit()
     await _refresh_receipt_links(
         session,

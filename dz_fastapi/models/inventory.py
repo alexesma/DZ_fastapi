@@ -8,7 +8,7 @@ Inventory models:
 """
 from enum import StrEnum, unique
 
-from sqlalchemy import Column, DateTime
+from sqlalchemy import Boolean, Column, DateTime
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
@@ -39,6 +39,32 @@ class MovementType(StrEnum):
     TRANSFER_OUT = 'transfer_out'  # перемещение — уход
     INVENTORY = 'inventory'   # корректировка по итогам инвентаризации
     MANUAL = 'manual'         # ручная правка
+
+
+class Warehouse(Base):
+    """Физический склад / площадка хранения."""
+
+    __tablename__ = 'warehouse'
+
+    name = Column(String(120), nullable=False, unique=True, index=True)
+    comment = Column(Text, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+
+    locations = relationship(
+        'StorageLocation',
+        back_populates='warehouse',
+        lazy='selectin',
+    )
+    providers = relationship(
+        'Provider',
+        back_populates='default_warehouse',
+        lazy='selectin',
+    )
+    receipts = relationship(
+        'SupplierReceipt',
+        back_populates='warehouse',
+        lazy='selectin',
+    )
 
 
 class StockByLocation(Base):

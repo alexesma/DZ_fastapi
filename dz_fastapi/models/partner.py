@@ -195,6 +195,12 @@ class Provider(Client):
     id = Column(
         Integer, ForeignKey('client.id'), primary_key=True, unique=True
     )
+    default_warehouse_id = Column(
+        Integer,
+        ForeignKey('warehouse.id'),
+        nullable=True,
+        index=True,
+    )
     email_incoming_price = Column(
         String(255), index=True, nullable=True, unique=True
     )
@@ -220,6 +226,12 @@ class Provider(Client):
         back_populates='provider',
         cascade='all, delete-orphan',
         lazy='selectin',
+    )
+    default_warehouse = relationship(
+        'Warehouse',
+        back_populates='providers',
+        lazy='joined',
+        foreign_keys=[default_warehouse_id],
     )
     is_virtual = Column(Boolean, default=False)
     is_own_price = Column(Boolean, default=False)
@@ -268,6 +280,11 @@ class Provider(Client):
         if email and not self.is_valid_email(email):
             raise ValueError('Invalid email address for incoming price')
         return email
+
+    @property
+    def default_warehouse_name(self) -> str | None:
+        warehouse = getattr(self, 'default_warehouse', None)
+        return warehouse.name if warehouse is not None else None
 
 
 class Customer(Client):
@@ -897,6 +914,12 @@ class SupplierOrderAttachment(Base):
 
 class SupplierReceipt(Base):
     provider_id = Column(Integer, ForeignKey('provider.id'), nullable=False)
+    warehouse_id = Column(
+        Integer,
+        ForeignKey('warehouse.id'),
+        nullable=True,
+        index=True,
+    )
     supplier_order_id = Column(
         Integer, ForeignKey('supplierorder.id'), nullable=True, index=True
     )
@@ -916,6 +939,7 @@ class SupplierReceipt(Base):
     comment = Column(Text, nullable=True)
 
     provider = relationship('Provider')
+    warehouse = relationship('Warehouse', back_populates='receipts')
     supplier_order = relationship('SupplierOrder', back_populates='receipts')
     source_message = relationship(
         'SupplierOrderMessage',
@@ -927,6 +951,11 @@ class SupplierReceipt(Base):
         back_populates='receipt',
         cascade='all, delete-orphan',
     )
+
+    @property
+    def warehouse_name(self) -> str | None:
+        warehouse = getattr(self, 'warehouse', None)
+        return warehouse.name if warehouse is not None else None
 
 
 class SupplierReceiptItem(Base):

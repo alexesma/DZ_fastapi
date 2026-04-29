@@ -408,6 +408,7 @@ class StorageLocationBase(BaseModel):
     ]
     location_type: Optional[str] = None  # shelf / pallet / bin / floor / other
     capacity: Optional[int] = None       # max SKUs (None = unlimited)
+    warehouse_id: Optional[int] = None
 
 
 class StorageLocationCreate(StorageLocationBase):
@@ -423,6 +424,7 @@ class StorageLocationUpdate(BaseModel):
     ] = None
     location_type: Optional[str] = None
     capacity: Optional[int] = None
+    warehouse_id: Optional[int] = None
 
 
 class StorageLocationResponse(StorageLocationBase):
@@ -430,6 +432,10 @@ class StorageLocationResponse(StorageLocationBase):
     name: str
     location_type: Optional[str] = None
     capacity: Optional[int] = None
+    warehouse_id: Optional[int] = None
+    warehouse_name: Optional[str] = None
+    system_code: Optional[str] = None
+    is_system: bool = False
     autoparts: List[AutoPartResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)

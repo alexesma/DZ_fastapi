@@ -34,6 +34,7 @@ from dz_fastapi.schemas.order import (ConfirmedOfferOut,
                                       UpdatePositionStatusRequest,
                                       UpdatePositionStatusResponse)
 from dz_fastapi.schemas.partner import ProviderExternalReferenceCreate
+from dz_fastapi.services.inventory_stock import ensure_default_warehouse
 from dz_fastapi.services.notifications import create_notification
 from dz_fastapi.services.placed_orders import (list_tracking_history,
                                                sync_site_tracking_statuses,
@@ -126,6 +127,7 @@ async def _resolve_site_provider_id(
         type_prices=TYPE_PRICES.WHOLESALE,
         description='Created automatically from Dragonzap site order',
         comment='Automatically created provider from site basket send',
+        default_warehouse_id=(await ensure_default_warehouse(session)).id,
     )
     session.add(provider)
     await session.flush()

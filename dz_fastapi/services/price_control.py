@@ -30,6 +30,7 @@ from dz_fastapi.models.partner import CustomerPriceListConfig, Provider
 from dz_fastapi.models.price_control import (PriceControlConfig,
                                              PriceControlRun,
                                              PriceControlStateProfile)
+from dz_fastapi.services.inventory_stock import ensure_default_warehouse
 from dz_fastapi.services.process import (_apply_source_filters,
                                          _apply_source_markups, assign_brand)
 from dz_fastapi.services.utils import normalize_markup
@@ -147,6 +148,7 @@ async def _get_site_history_provider(session: AsyncSession) -> Provider:
     provider = Provider(
         name=SITE_HISTORY_PROVIDER_NAME,
         is_virtual=True,
+        default_warehouse_id=(await ensure_default_warehouse(session)).id,
     )
     session.add(provider)
     await session.flush()

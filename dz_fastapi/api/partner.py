@@ -17,6 +17,7 @@ from dz_fastapi.analytics.price_history import (analyze_autopart_popularity,
                                                 get_pricelist_change_summary)
 from dz_fastapi.api.validators import change_brand_name, change_customer_name
 from dz_fastapi.core.db import get_session
+from dz_fastapi.crud.autopart import crud_warehouse
 from dz_fastapi.crud.email_account import crud_email_account
 from dz_fastapi.crud.partner import (crud_customer, crud_customer_pricelist,
                                      crud_customer_pricelist_config,
@@ -78,6 +79,7 @@ from dz_fastapi.schemas.partner import (AutoPartInPricelist,
                                         SupplierResponseConfigOut,
                                         SupplierResponseConfigUpdate)
 from dz_fastapi.services.email import download_price_provider
+from dz_fastapi.services.inventory_stock import ensure_default_warehouse
 from dz_fastapi.services.order_timing import get_today_order_windows_status
 from dz_fastapi.services.process import (check_start_and_finish_date,
                                          parse_exclude_positions_file,
@@ -181,6 +183,19 @@ async def create_provider(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f'Provider with name {provider_in.name} already exists.',
         )
+    if provider_in.default_warehouse_id is None:
+        default_warehouse = await ensure_default_warehouse(session)
+        provider_in.default_warehouse_id = default_warehouse.id
+    else:
+        warehouse = await crud_warehouse.get_by_id(
+            provider_in.default_warehouse_id,
+            session,
+        )
+        if warehouse is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Default warehouse not found',
+            )
 
     provider = await crud_provider.create(obj_in=provider_in, session=session)
     return ProviderResponse.model_validate(provider)
@@ -508,6 +523,16 @@ async def update_provider(
     provider_in: ProviderUpdate = Body(...),
     session: AsyncSession = Depends(get_session),
 ):
+    if provider_in.default_warehouse_id is not None:
+        warehouse = await crud_warehouse.get_by_id(
+            provider_in.default_warehouse_id,
+            session,
+        )
+        if warehouse is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Default warehouse not found',
+            )
     updated_provider = await crud_provider.update_provider(
         provider_id=provider_id, obj_in=provider_in, session=session
     )

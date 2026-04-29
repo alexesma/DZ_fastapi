@@ -65,6 +65,7 @@ class ClientBase(BaseModel):
 
 
 class ProviderBase(ClientBase):
+    default_warehouse_id: Optional[int] = None
     email_incoming_price: Optional[EmailStr] = None
     is_own_price: Optional[bool] = False
     is_vat_payer: Optional[bool] = False
@@ -114,6 +115,7 @@ class ProviderCreate(ProviderBase):
 class ProviderUpdate(BaseModel):
     name: Optional[str] = None
     type_prices: Optional[TypePrices] = None
+    default_warehouse_id: Optional[int] = None
     email_contact: Optional[EmailStr] = None
     description: Optional[str] = None
     comment: Optional[str] = None
@@ -292,6 +294,7 @@ class CustomerPriceListResponse(CustomerPriceListBase):
 
 class ProviderResponse(ProviderBase):
     id: int
+    default_warehouse_name: Optional[str] = None
     price_lists: List[PriceListResponse] = []
     model_config = ConfigDict(from_attributes=True)
 
@@ -1218,6 +1221,7 @@ class ProviderCoreOut(ProviderBase):
     id: int
     is_virtual: Optional[bool] = False
     is_vat_payer: Optional[bool] = False
+    default_warehouse_name: Optional[str] = None
     last_email_uid: Optional[ProviderLastUIDOut] = None
     model_config = ConfigDict(from_attributes=True)
 

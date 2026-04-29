@@ -48,6 +48,8 @@ from dz_fastapi.services.customer_orders import (
     _load_brand_alias_map, _message_sort_key, _normalize_key,
     _normalize_oem_key, _repair_cp1251_mojibake, _safe_float, _safe_int,
     _strip_html, try_finalize_customer_order_response)
+from dz_fastapi.services.inventory_stock import (
+    apply_receipt_to_stock_by_id, resolve_warehouse_for_provider)
 from dz_fastapi.services.notifications import create_admin_notifications
 from dz_fastapi.services.order_status_mapping import (
     EXTERNAL_STATUS_SOURCE_SUPPLIER_EMAIL,
@@ -2692,8 +2694,13 @@ async def _auto_confirm_orders_without_response_timeout(
                 )
                 created_receipt = False
                 if receipt is None:
+                    warehouse = await resolve_warehouse_for_provider(
+                        session,
+                        provider_id=provider_key,
+                    )
                     receipt = SupplierReceipt(
                         provider_id=provider_key,
+                        warehouse_id=warehouse.id,
                         supplier_order_id=int(order.id),
                         source_message_id=None,
                         document_number=None,
@@ -3633,8 +3640,13 @@ async def _create_single_document_receipt(
     """
     if not items_payload:
         return None, 0
+    warehouse = await resolve_warehouse_for_provider(
+        session,
+        provider_id=provider_id,
+    )
     receipt = SupplierReceipt(
         provider_id=provider_id,
+        warehouse_id=warehouse.id,
         supplier_order_id=None,
         source_message_id=message_row.id,
         document_number=document_number or None,
@@ -3657,6 +3669,9 @@ async def _create_single_document_receipt(
         await session.delete(receipt)
         await session.flush()
         return None, 0
+    await session.flush()
+    if receipt.posted_at is not None:
+        await apply_receipt_to_stock_by_id(session, receipt_id=receipt.id)
     return receipt, added
 
 
@@ -4178,11 +4193,16 @@ async def _create_or_update_supplier_receipt_from_message(
 ) -> tuple[Optional[SupplierReceipt], int, bool]:
     if not items_payload:
         return None, 0, False
+    warehouse = await resolve_warehouse_for_provider(
+        session,
+        provider_id=provider_id,
+    )
     created = False
     receipt: Optional[SupplierReceipt]
     if post_now:
         receipt = SupplierReceipt(
             provider_id=provider_id,
+            warehouse_id=warehouse.id,
             supplier_order_id=None,
             source_message_id=message_row.id,
             document_number=document_number or None,
@@ -4203,6 +4223,7 @@ async def _create_or_update_supplier_receipt_from_message(
         if receipt is None:
             receipt = SupplierReceipt(
                 provider_id=provider_id,
+                warehouse_id=warehouse.id,
                 supplier_order_id=None,
                 source_message_id=message_row.id,
                 document_number=None,
@@ -4215,6 +4236,8 @@ async def _create_or_update_supplier_receipt_from_message(
             session.add(receipt)
             await session.flush()
             created = True
+        elif receipt.warehouse_id is None:
+            receipt.warehouse_id = warehouse.id
 
     added_items = await _append_supplier_receipt_items(
         session,
@@ -4229,6 +4252,9 @@ async def _create_or_update_supplier_receipt_from_message(
             await session.delete(receipt)
             await session.flush()
         return None, 0, False
+    await session.flush()
+    if receipt.posted_at is not None:
+        await apply_receipt_to_stock_by_id(session, receipt_id=receipt.id)
     return receipt, added_items, created
 
 

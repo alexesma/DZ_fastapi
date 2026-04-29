@@ -321,11 +321,18 @@ class StorageLocation(Base):
     '''
 
     name = Column(String(MAX_LIGHT_NAME_LOCATION), nullable=False, unique=True)
+    warehouse_id = Column(
+        Integer,
+        ForeignKey('warehouse.id', ondelete='RESTRICT'),
+        nullable=True,
+        index=True,
+    )
     location_type = Column(
         SAEnum(LocationType, name='locationtype'),
         nullable=True,
     )
     capacity = Column(Integer, nullable=True)   # max SKUs (None = unlimited)
+    system_code = Column(String(50), nullable=True)
     autoparts = relationship(
         'AutoPart',
         secondary='autopart_storage_association',
@@ -333,11 +340,30 @@ class StorageLocation(Base):
         lazy='selectin',
         cascade='all, delete',
     )
+    warehouse = relationship(
+        'Warehouse',
+        back_populates='locations',
+        lazy='joined',
+    )
     __table_args__ = (
         CheckConstraint(
             "name ~ '^[A-Z0-9 /]+$'", name='latin_characters_only'
         ),
+        UniqueConstraint(
+            'warehouse_id',
+            'system_code',
+            name='uq_storagelocation_warehouse_system_code',
+        ),
     )
+
+    @property
+    def warehouse_name(self) -> str | None:
+        warehouse = getattr(self, 'warehouse', None)
+        return warehouse.name if warehouse is not None else None
+
+    @property
+    def is_system(self) -> bool:
+        return bool(self.system_code)
 
 
 class Photo(Base):

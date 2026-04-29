@@ -2,8 +2,11 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import select
 
 from dz_fastapi.core.time import now_moscow
+from dz_fastapi.models.inventory import (StockByLocation, StockMovement,
+                                         Warehouse)
 from dz_fastapi.models.partner import (ORDER_TRACKING_SOURCE,
                                        SUPPLIER_ORDER_STATUS,
                                        TYPE_ORDER_ITEM_STATUS,
@@ -661,6 +664,71 @@ async def test_manual_supplier_receipt_auto_links_site_tracking_item(
     assert order_item.received_quantity == 5
     assert order_item.status == TYPE_ORDER_ITEM_STATUS.DELIVERED
     assert order.status == TYPE_STATUS_ORDER.ARRIVED
+
+
+@pytest.mark.asyncio
+async def test_manual_supplier_receipt_post_creates_stock_in_default_warehouse(
+    async_client,
+    test_session,
+    created_autopart,
+    created_providers,
+):
+    await _create_user(
+        test_session, "receiver-stock@example.com", UserRole.MANAGER
+    )
+    await _login(async_client, "receiver-stock@example.com")
+
+    response = await async_client.post(
+        "/customer-orders/supplier-receipts/manual",
+        json={
+            "provider_id": created_providers[0].id,
+            "document_number": "WH-MAN-1",
+            "post_now": True,
+            "items": [
+                {
+                    "autopart_id": created_autopart.id,
+                    "oem_number": created_autopart.oem_number,
+                    "brand_name": "TEST BRAND",
+                    "autopart_name": created_autopart.name,
+                    "received_quantity": 4,
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["posted_at"] is not None
+    assert payload["warehouse_id"] is not None
+    assert payload["warehouse_name"] == "Основной склад"
+
+    warehouse = await test_session.get(Warehouse, payload["warehouse_id"])
+    assert warehouse is not None
+    assert warehouse.name == "Основной склад"
+
+    stock_row = (
+        await test_session.execute(
+            select(StockByLocation).where(
+                StockByLocation.autopart_id == created_autopart.id
+            )
+        )
+    ).scalar_one_or_none()
+    assert stock_row is not None
+    assert stock_row.quantity == 4
+
+    movement = (
+        await test_session.execute(
+            select(StockMovement)
+            .where(
+                StockMovement.autopart_id == created_autopart.id,
+                StockMovement.reference_type == "supplier_receipt",
+                StockMovement.reference_id == payload["id"],
+            )
+            .order_by(StockMovement.id.desc())
+        )
+    ).scalars().first()
+    assert movement is not None
+    assert movement.quantity == 4
 
 
 @pytest.mark.asyncio

@@ -26,6 +26,7 @@ from dz_fastapi.models.autopart import (TYPE_RESTOCK_DECISION_STATUS,
                                         Category, StorageLocation,
                                         preprocess_oem_number)
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.inventory import Warehouse
 from dz_fastapi.models.partner import (PriceList, PriceListAutoPartAssociation,
                                        Provider)
 from dz_fastapi.schemas.autopart import (AutoPartCreate,
@@ -33,6 +34,7 @@ from dz_fastapi.schemas.autopart import (AutoPartCreate,
                                          AutoPartUpdate, CategoryCreate,
                                          CategoryUpdate, StorageLocationCreate,
                                          StorageLocationUpdate)
+from dz_fastapi.schemas.inventory import WarehouseCreate, WarehouseUpdate
 from dz_fastapi.schemas.order import OrderPositionOut, SupplierOrderOut
 
 logger = logging.getLogger('dz_fastapi')
@@ -865,24 +867,65 @@ class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
             ) from error
 
 
+class CRUDWarehouse(CRUDBase[Warehouse, WarehouseCreate, WarehouseUpdate]):
+    async def get_multi(
+        self,
+        session: AsyncSession,
+        *,
+        include_inactive: bool = False,
+    ) -> List[Warehouse]:
+        stmt = (
+            select(Warehouse)
+            .options(selectinload(Warehouse.locations))
+            .order_by(Warehouse.name.asc(), Warehouse.id.asc())
+        )
+        if not include_inactive:
+            stmt = stmt.where(Warehouse.is_active.is_(True))
+        result = await session.execute(stmt)
+        return result.scalars().unique().all()
+
+    async def get_by_id(
+        self,
+        warehouse_id: int,
+        session: AsyncSession,
+    ) -> Optional[Warehouse]:
+        result = await session.execute(
+            select(Warehouse)
+            .where(Warehouse.id == warehouse_id)
+            .options(selectinload(Warehouse.locations))
+        )
+        return result.scalars().unique().one_or_none()
+
+
 class CRUDStorageLocation(
     CRUDBase[StorageLocation, StorageLocationCreate, StorageLocationUpdate]
 ):
     async def get_multi(
-        self, session: AsyncSession, *, skip: int = 0, limit: int = 100
+        self,
+        session: AsyncSession,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+        warehouse_id: Optional[int] = None,
+        include_system: bool = False,
     ) -> List[StorageLocation]:
         try:
             stmt = (
                 select(StorageLocation)
                 .options(
+                    selectinload(StorageLocation.warehouse),
                     selectinload(StorageLocation.autoparts).options(
                         selectinload(AutoPart.categories),
                         selectinload(AutoPart.storage_locations),
                     )
                 )
-                .offset(skip)
-                .limit(limit)
+                .order_by(StorageLocation.name.asc(), StorageLocation.id.asc())
             )
+            if warehouse_id is not None:
+                stmt = stmt.where(StorageLocation.warehouse_id == warehouse_id)
+            if not include_system:
+                stmt = stmt.where(StorageLocation.system_code.is_(None))
+            stmt = stmt.offset(skip).limit(limit)
             result = await session.execute(stmt)
             storage_locations = result.scalars().unique().all()
             return storage_locations
@@ -896,7 +939,10 @@ class CRUDStorageLocation(
             stmt = (
                 select(StorageLocation)
                 .where(StorageLocation.id == storage_location_id)
-                .options(selectinload(StorageLocation.autoparts))
+                .options(
+                    selectinload(StorageLocation.autoparts),
+                    selectinload(StorageLocation.warehouse),
+                )
             )
             result = await session.execute(stmt)
             return result.scalars().unique().one_or_none()
@@ -922,7 +968,7 @@ class CRUDStorageLocation(
     ):
         try:
             location_objs = [
-                StorageLocation(**loc.dict(exclude_unset=True))
+                StorageLocation(**loc.model_dump(exclude_unset=True))
                 for loc in locations_data
             ]
             session.add_all(location_objs)
@@ -955,5 +1001,6 @@ class CRUDStorageLocation(
             ) from e
 
 
+crud_warehouse = CRUDWarehouse(Warehouse)
 crud_category = CRUDCategory(Category)
 crud_storage = CRUDStorageLocation(StorageLocation)

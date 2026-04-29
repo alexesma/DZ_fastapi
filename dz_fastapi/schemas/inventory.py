@@ -7,6 +7,29 @@ from pydantic import BaseModel, ConfigDict, Field
 from dz_fastapi.models.inventory import (InventoryScopeType, InventoryStatus,
                                          MovementType)
 
+
+class WarehouseBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+    comment: Optional[str] = None
+    is_active: bool = True
+
+
+class WarehouseCreate(WarehouseBase):
+    pass
+
+
+class WarehouseUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    comment: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class WarehouseOut(WarehouseBase):
+    id: int
+    locations_count: int = 0
+
+    model_config = ConfigDict(from_attributes=True)
+
 # ─── StockByLocation ────────────────────────────────────────────────────────
 
 

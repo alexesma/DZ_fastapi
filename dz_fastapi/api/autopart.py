@@ -25,12 +25,14 @@ from dz_fastapi.analytics.restock_logic import (
     get_autoparts_below_min_balance, process_restock_pipeline)
 from dz_fastapi.api.validators import change_storage_name
 from dz_fastapi.core.db import get_session
-from dz_fastapi.crud.autopart import crud_autopart, crud_category, crud_storage
+from dz_fastapi.crud.autopart import (crud_autopart, crud_category,
+                                      crud_storage, crud_warehouse)
 from dz_fastapi.crud.brand import brand_crud, brand_exists
 from dz_fastapi.models.autopart import (AutoPart, Category, StorageLocation,
                                         preprocess_oem_number)
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.cross import AutoPartCross
+from dz_fastapi.models.inventory import Warehouse
 from dz_fastapi.models.nomenclature import (ApplicabilityNode,
                                             HonestSignCategory)
 from dz_fastapi.models.partner import (PriceList, PriceListAutoPartAssociation,
@@ -55,6 +57,9 @@ from dz_fastapi.schemas.autopart import (ApplicabilityNodeCreate,
                                          StorageLocationOut,
                                          StorageLocationResponse,
                                          StorageLocationUpdate)
+from dz_fastapi.schemas.inventory import (WarehouseCreate, WarehouseOut,
+                                          WarehouseUpdate)
+from dz_fastapi.services.inventory_stock import ensure_default_warehouse
 from dz_fastapi.services.process import (assign_brand,
                                          check_start_and_finish_date,
                                          write_error_for_bulk)
@@ -63,6 +68,33 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _warehouse_to_out(warehouse: Warehouse) -> WarehouseOut:
+    locations = list(getattr(warehouse, 'locations', None) or [])
+    locations_count = sum(1 for loc in locations if loc.system_code is None)
+    return WarehouseOut(
+        id=warehouse.id,
+        name=warehouse.name,
+        comment=warehouse.comment,
+        is_active=bool(warehouse.is_active),
+        locations_count=locations_count,
+    )
+
+
+def _storage_to_response(storage: StorageLocation) -> StorageLocationResponse:
+    warehouse = getattr(storage, 'warehouse', None)
+    return StorageLocationResponse(
+        id=storage.id,
+        name=storage.name,
+        location_type=storage.location_type,
+        capacity=storage.capacity,
+        warehouse_id=storage.warehouse_id,
+        warehouse_name=warehouse.name if warehouse is not None else None,
+        system_code=storage.system_code,
+        is_system=bool(storage.system_code),
+        autoparts=list(getattr(storage, 'autoparts', None) or []),
+    )
 
 
 @router.post(
@@ -865,17 +897,145 @@ async def create_categories_bulk(
 
 
 @router.post(
+    '/warehouses/',
+    status_code=status.HTTP_201_CREATED,
+    summary='Создание склада',
+    tags=['warehouse'],
+    response_model=WarehouseOut,
+)
+async def create_warehouse(
+    warehouse_in: WarehouseCreate,
+    session: AsyncSession = Depends(get_session),
+):
+    payload = warehouse_in.model_dump(exclude_unset=True)
+    payload['name'] = str(payload.get('name') or '').strip()
+    if not payload['name']:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Название склада не может быть пустым',
+        )
+    existing = (
+        await session.execute(
+            select(Warehouse).where(Warehouse.name == payload['name'])
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f'Склад с названием {payload["name"]} уже существует.',
+        )
+    warehouse = Warehouse(**payload)
+    session.add(warehouse)
+    await session.commit()
+    await session.refresh(warehouse)
+    return _warehouse_to_out(warehouse)
+
+
+@router.get(
+    '/warehouses/',
+    summary='Получение всех складов',
+    tags=['warehouse'],
+    status_code=status.HTTP_200_OK,
+    response_model=List[WarehouseOut],
+)
+async def list_warehouses(
+    include_inactive: bool = Query(False),
+    session: AsyncSession = Depends(get_session),
+):
+    warehouses = await crud_warehouse.get_multi(
+        session,
+        include_inactive=include_inactive,
+    )
+    return [_warehouse_to_out(warehouse) for warehouse in warehouses]
+
+
+@router.get(
+    '/warehouses/{warehouse_id}/',
+    summary='Получение склада по ID',
+    tags=['warehouse'],
+    status_code=status.HTTP_200_OK,
+    response_model=WarehouseOut,
+)
+async def get_warehouse(
+    warehouse_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    warehouse = await crud_warehouse.get_by_id(warehouse_id, session)
+    if warehouse is None:
+        raise HTTPException(status_code=404, detail='Склад не найден')
+    return _warehouse_to_out(warehouse)
+
+
+@router.patch(
+    '/warehouses/{warehouse_id}/',
+    summary='Обновление склада',
+    tags=['warehouse'],
+    status_code=status.HTTP_200_OK,
+    response_model=WarehouseOut,
+)
+async def update_warehouse(
+    warehouse_id: int,
+    warehouse_in: WarehouseUpdate,
+    session: AsyncSession = Depends(get_session),
+):
+    warehouse = await crud_warehouse.get_by_id(warehouse_id, session)
+    if warehouse is None:
+        raise HTTPException(status_code=404, detail='Склад не найден')
+    if warehouse_in.name is not None:
+        new_name = str(warehouse_in.name).strip()
+        if not new_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Название склада не может быть пустым',
+            )
+        exists = (
+            await session.execute(
+                select(Warehouse).where(
+                    Warehouse.name == new_name,
+                    Warehouse.id != warehouse_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if exists is not None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f'Склад с названием {new_name} уже существует.',
+            )
+        warehouse.name = new_name
+    if warehouse_in.comment is not None:
+        warehouse.comment = warehouse_in.comment
+    if warehouse_in.is_active is not None:
+        warehouse.is_active = warehouse_in.is_active
+    await session.commit()
+    await session.refresh(warehouse)
+    return _warehouse_to_out(warehouse)
+
+
+@router.post(
     '/storage/',
     status_code=status.HTTP_201_CREATED,
     summary='Создание местохранения',
     tags=['storage'],
-    response_model=StorageLocationUpdate,
+    response_model=StorageLocationResponse,
 )
 async def create_storage_location(
     storage_in: StorageLocationCreate,
     session: AsyncSession = Depends(get_session),
 ):
     storage_in.name = await change_storage_name(storage_in.name)
+    if storage_in.warehouse_id is None:
+        default_warehouse = await ensure_default_warehouse(session)
+        storage_in.warehouse_id = default_warehouse.id
+    else:
+        warehouse = await crud_warehouse.get_by_id(
+            storage_in.warehouse_id,
+            session
+        )
+        if warehouse is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Склад для места хранения не найден',
+            )
     logger.debug(f'Processed storage name: {storage_in.name}')
     if len(storage_in.name) <= 2:
         raise HTTPException(
@@ -898,7 +1058,11 @@ async def create_storage_location(
                 ),
             )
         storage = await crud_storage.create(storage_in, session)
-        return storage
+        storage = await crud_storage.get_storage_location_by_id(
+            storage.id,
+            session,
+        )
+        return _storage_to_response(storage)
     except IntegrityError as error:
         await session.rollback()
         if 'unique constraint' in str(error):
@@ -931,9 +1095,17 @@ async def get_storage_locations(
     session: AsyncSession = Depends(get_session),
     skip: int = 0,
     limit: int = 100,
+    warehouse_id: Optional[int] = Query(default=None),
+    include_system: bool = Query(default=False),
 ):
-    storages = await crud_storage.get_multi(session, skip=skip, limit=limit)
-    return storages
+    storages = await crud_storage.get_multi(
+        session,
+        skip=skip,
+        limit=limit,
+        warehouse_id=warehouse_id,
+        include_system=include_system,
+    )
+    return [_storage_to_response(storage) for storage in storages]
 
 
 @router.get(
@@ -953,7 +1125,7 @@ async def get_storage_location(
         raise HTTPException(
             status_code=404, detail='Storage location not found'
         )
-    return storage
+    return _storage_to_response(storage)
 
 
 @router.patch(
@@ -975,8 +1147,23 @@ async def update_storage_location(
         raise HTTPException(
             status_code=404, detail='Storage location not found'
         )
+    if storage_old.system_code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Системное место хранения нельзя редактировать вручную.',
+        )
     try:
-        if len(storage_in.name) <= 2:
+        if storage_in.warehouse_id is not None:
+            warehouse = await crud_warehouse.get_by_id(
+                storage_in.warehouse_id,
+                session,
+            )
+            if warehouse is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Склад для места хранения не найден',
+                )
+        if storage_in.name is not None and len(storage_in.name) <= 2:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f'Storage\'s name ({storage_in.name}) is short',
@@ -984,13 +1171,17 @@ async def update_storage_location(
         updated_storage = await crud_storage.update(
             db_obj=storage_old, obj_in=storage_in, session=session
         )
+        updated_storage = await crud_storage.get_storage_location_by_id(
+            storage_id,
+            session,
+        )
     except IntegrityError as e:
         await session.rollback()
         raise HTTPException(
             status_code=400,
             detail=f'Storage with name {storage_in.name} already exists.',
         ) from e
-    return updated_storage
+    return _storage_to_response(updated_storage)
 
 
 @router.post(
@@ -1004,12 +1195,26 @@ async def create_storages_bulk(
     storages_data: List[StorageLocationCreate],
     session: AsyncSession = Depends(get_session),
 ):
+    if storages_data:
+        default_warehouse = await ensure_default_warehouse(session)
+        for storage in storages_data:
+            if storage.warehouse_id is None:
+                storage.warehouse_id = default_warehouse.id
     created_locations = await crud_storage.create_locations(
         locations_data=storages_data, session=session
     )
+    created_ids = [location.id for location in created_locations]
+    reloaded_locations = []
+    for location_id in created_ids:
+        location = await crud_storage.get_storage_location_by_id(
+            location_id,
+            session,
+        )
+        if location is not None:
+            reloaded_locations.append(location)
     return [
-        StorageLocationResponse.from_orm(location)
-        for location in created_locations
+        _storage_to_response(location)
+        for location in reloaded_locations
     ]
 
 
@@ -1033,6 +1238,11 @@ async def delete_storage_location(
         raise HTTPException(
             status_code=404,
             detail='Место хранения не найдено'
+        )
+    if storage.system_code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Системное место хранения нельзя удалить.',
         )
     if storage.autoparts:
         raise HTTPException(

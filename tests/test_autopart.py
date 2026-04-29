@@ -754,6 +754,9 @@ async def test_get_storages_with_pagination(
         for storage_data in storages_data:
             response = await ac.post('/storage/', json=storage_data)
             assert response.status_code == 201, response.text
+        all_response = await ac.get('/storage/')
+        assert all_response.status_code == 200, all_response.text
+        all_storages = all_response.json()
         response = await ac.get(f'/storage/?skip={skip}&limit={limit}')
 
     assert response.status_code == 200, response.text
@@ -761,8 +764,8 @@ async def test_get_storages_with_pagination(
     assert isinstance(storages, list)
     assert len(storages) == limit
 
-    expected_storages = storages_data[skip: skip + limit]
-    for expected, actual in zip(expected_storages, storages[1:]):
+    expected_storages = all_storages[skip: skip + limit]
+    for expected, actual in zip(expected_storages, storages):
         assert expected['name'] == actual['name']
 
 
@@ -845,6 +848,38 @@ async def test_update_storage_duplicate_name(
         f'Storage with name {duplicate_name} '
         f'already exists.' in error_response['detail']
     )
+
+
+@pytest.mark.asyncio
+async def test_create_warehouse_and_storage_location_binding(test_session):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+        warehouse_response = await ac.post(
+            '/warehouses/',
+            json={
+                'name': 'Warehouse B',
+                'comment': 'Secondary warehouse',
+                'is_active': True,
+            },
+        )
+        assert warehouse_response.status_code == 201, warehouse_response.text
+        warehouse = warehouse_response.json()
+
+        storage_response = await ac.post(
+            '/storage/',
+            json={
+                'name': 'AB 10',
+                'warehouse_id': warehouse['id'],
+                'location_type': 'shelf',
+            },
+        )
+
+    assert storage_response.status_code == 201, storage_response.text
+    storage = storage_response.json()
+    assert storage['warehouse_id'] == warehouse['id']
+    assert storage['warehouse_name'] == warehouse['name']
+    assert storage['system_code'] is None
+    assert storage['is_system'] is False
 
 
 @pytest.mark.asyncio

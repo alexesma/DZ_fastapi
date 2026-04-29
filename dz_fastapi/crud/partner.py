@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import joinedload, lazyload, selectinload
 from sqlalchemy.sql import and_
 
 from dz_fastapi.api.validators import change_brand_name
@@ -54,6 +54,7 @@ from dz_fastapi.schemas.partner import (
     ProviderPriceListConfigUpdate, ProviderUpdate,
     SupplierResponseConfigCreate, SupplierResponseConfigOut,
     SupplierResponseConfigUpdate)
+from dz_fastapi.services.inventory_stock import ensure_default_warehouse
 from dz_fastapi.services.utils import (brand_filters, individual_markups,
                                        normalize_markup, position_filters,
                                        price_intervals,
@@ -163,7 +164,10 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         try:
             result = await session.execute(
                 select(Provider)
-                .options(selectinload(Provider.price_lists))
+                .options(
+                    selectinload(Provider.price_lists),
+                    selectinload(Provider.default_warehouse),
+                )
                 .where(Provider.id == provider_id)
             )
             provider = result.scalar_one_or_none()
@@ -349,6 +353,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                 select(Provider)
                 .where(Provider.id == provider_id)
                 .options(
+                    selectinload(Provider.default_warehouse),
                     selectinload(Provider.provider_last_uid),
                     selectinload(Provider.pricelist_configs).selectinload(
                         ProviderPriceListConfig.last_email_uid
@@ -553,6 +558,10 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         self, obj_in: ProviderCreate, session: AsyncSession, **kwargs
     ) -> Provider:
         payload = obj_in.model_dump()
+        if payload.get('default_warehouse_id') is None:
+            payload['default_warehouse_id'] = (
+                await ensure_default_warehouse(session)
+            ).id
         payload['is_vat_payer'] = _derive_provider_is_vat_payer(
             payload.get('type_prices'),
             payload.get('is_vat_payer', False),
@@ -608,6 +617,9 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                 description='Created from site abbreviation',
                 comment='Automatically created provider from site',
                 type_prices=TYPE_PRICES.WHOLESALE,
+                default_warehouse_id=(
+                    await ensure_default_warehouse(session)
+                ).id,
             )
             session.add(new_provider)
             await session.flush()
@@ -704,6 +716,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
 
         stmt = (
             base.options(
+                selectinload(Provider.default_warehouse),
                 selectinload(Provider.pricelist_configs).selectinload(
                     ProviderPriceListConfig.last_email_uid
                 ),
@@ -754,6 +767,8 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                     'id': provider.id,
                     'name': provider.name,
                     'abbr': abbr,
+                    'default_warehouse_id': provider.default_warehouse_id,
+                    'default_warehouse_name': provider.default_warehouse_name,
                     'email_incoming_price': provider.email_incoming_price,
                     'email_contact': email_contact,
                     'pricelist_configs': [
@@ -856,12 +871,22 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             )
 
         try:
-            source_provider = await session.get(
-                Provider, source_provider_id, with_for_update=True
-            )
-            target_provider = await session.get(
-                Provider, target_provider_id, with_for_update=True
-            )
+            source_provider = (
+                await session.execute(
+                    select(Provider)
+                    .options(lazyload(Provider.default_warehouse))
+                    .where(Provider.id == source_provider_id)
+                    .with_for_update(of=Provider)
+                )
+            ).scalar_one_or_none()
+            target_provider = (
+                await session.execute(
+                    select(Provider)
+                    .options(lazyload(Provider.default_warehouse))
+                    .where(Provider.id == target_provider_id)
+                    .with_for_update(of=Provider)
+                )
+            ).scalar_one_or_none()
 
             if not source_provider or not target_provider:
                 raise ValueError('One or both providers not found')
@@ -958,7 +983,8 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                 if duplicate is not None:
                     await session.delete(reference)
                 else:
-                    reference.provider_id = target_provider_id
+                    reference.provider = target_provider
+            await session.flush()
             await session.execute(
                 update(ExternalStatusMapping)
                 .where(

@@ -15,6 +15,7 @@ from dz_fastapi.http.dz_site_client import DZSiteClient
 from dz_fastapi.models.autopart import AutoPartPriceHistory
 from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import Provider
+from dz_fastapi.services.inventory_stock import ensure_default_warehouse
 from dz_fastapi.services.notifications import create_admin_notifications
 
 logger = logging.getLogger('dz_fastapi')
@@ -119,7 +120,11 @@ async def _get_site_provider(session) -> Provider:
     )
     if provider:
         return provider
-    provider = Provider(name=SITE_PROVIDER_NAME, is_virtual=True)
+    provider = Provider(
+        name=SITE_PROVIDER_NAME,
+        is_virtual=True,
+        default_warehouse_id=(await ensure_default_warehouse(session)).id,
+    )
     session.add(provider)
     await session.flush()
     return provider
