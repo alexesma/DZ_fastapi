@@ -20,6 +20,7 @@ from dz_fastapi.crud.base import CRUDBase
 from dz_fastapi.crud.brand import brand_crud
 from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.order_status_mapping import ExternalStatusMapping
 from dz_fastapi.models.partner import (TYPE_PRICES, Customer,
                                        CustomerOrderItem, CustomerPriceList,
                                        CustomerPriceListAutoPartAssociation,
@@ -955,6 +956,13 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                     await session.delete(reference)
                 else:
                     reference.provider_id = target_provider_id
+            await session.execute(
+                update(ExternalStatusMapping)
+                .where(
+                    ExternalStatusMapping.provider_id == source_provider_id
+                )
+                .values(provider_id=target_provider_id)
+            )
             # Удалить исходного поставщика
             await session.delete(source_provider)
             await session.commit()
