@@ -265,11 +265,12 @@ async def start_inventory_session(
         await session.execute(loc_stmt)
     ).scalars().all()]
 
-    # ── Get StockByLocation rows for these locations ────────────────────────
+    # ── Get StockByLocation rows for these locations (non-zero only) ────────
     if loc_ids:
         sbl_rows = (await session.execute(
             select(StockByLocation).where(
-                StockByLocation.storage_location_id.in_(loc_ids)
+                StockByLocation.storage_location_id.in_(loc_ids),
+                StockByLocation.quantity != 0,
             )
         )).scalars().all()
     else:
@@ -288,29 +289,6 @@ async def start_inventory_session(
             storage_location_id=sbl.storage_location_id,
             expected_qty=sbl.quantity,
         ))
-
-    # Also include M2M links that don't have a StockByLocation row yet
-    if loc_ids:
-        assoc_rows = (await session.execute(
-            select(
-                autopart_storage_association.c.autopart_id,
-                autopart_storage_association.c.storage_location_id,
-            ).where(
-                autopart_storage_association.c.storage_location_id.in_(
-                    loc_ids
-                )
-            )
-        )).all()
-        for ap_id, loc_id in assoc_rows:
-            key = (ap_id, loc_id)
-            if key not in seen:
-                seen.add(key)
-                session.add(InventoryItem(
-                    session_id=inv_session.id,
-                    autopart_id=ap_id,
-                    storage_location_id=loc_id,
-                    expected_qty=0,
-                ))
 
     await session.commit()
 
