@@ -1165,6 +1165,12 @@ def _serialize_receipt_item(item: SupplierReceiptItem) -> dict:
         'country_code': item.country_code,
         'country_name': item.country_name,
         'comment': item.comment,
+        'warehouse_id': item.warehouse_id,
+        'warehouse_name': (
+            item.warehouse.name
+            if getattr(item, 'warehouse', None) is not None
+            else None
+        ),
         'customer_name': customer_name,
         'customer_order_number': customer_order_number,
     }
@@ -1215,6 +1221,9 @@ async def get_supplier_receipt_detail(
             ).joinedload(CustomerOrder.customer),
             selectinload(SupplierReceipt.items).joinedload(
                 SupplierReceiptItem.order_item
+            ),
+            selectinload(SupplierReceipt.items).joinedload(
+                SupplierReceiptItem.warehouse
             ),
         )
         .where(SupplierReceipt.id == receipt_id)
@@ -1287,6 +1296,7 @@ async def update_supplier_receipt_item(
         'autopart_id', 'oem_number', 'brand_name', 'autopart_name',
         'received_quantity', 'price', 'total_price_with_vat',
         'gtd_code', 'country_code', 'country_name', 'comment',
+        'warehouse_id',
     }
     affected_supplier_order_item_ids = set()
     affected_order_item_ids = set()
@@ -1295,7 +1305,8 @@ async def update_supplier_receipt_item(
     if item.order_item_id is not None:
         affected_order_item_ids.add(int(item.order_item_id))
     for key, value in fields.items():
-        if key in allowed and value is not None:
+        if key in allowed:
+            # warehouse_id may be explicitly set to None to clear the override
             setattr(item, key, value)
     await session.commit()
     await _refresh_receipt_links(
@@ -1385,6 +1396,7 @@ async def add_supplier_receipt_items(
             country_code=payload.get('country_code'),
             country_name=payload.get('country_name'),
             comment=payload.get('comment'),
+            warehouse_id=payload.get('warehouse_id'),
         )
         if (
             matched_site_order_item is not None

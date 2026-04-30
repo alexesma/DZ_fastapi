@@ -134,6 +134,7 @@ class SUPPLIER_ORDER_STATUS(StrEnum):
     SCHEDULED = 'SCHEDULED'
     SENT = 'SENT'
     ERROR = 'ERROR'
+    REMOVED = 'REMOVED'
 
 
 @unique
@@ -999,8 +1000,15 @@ class SupplierReceiptItem(Base):
     country_code = Column(String(16), nullable=True)
     country_name = Column(String(120), nullable=True)
     comment = Column(String(500), nullable=True)
+    warehouse_id = Column(
+        Integer,
+        ForeignKey('warehouse.id'),
+        nullable=True,
+        index=True,
+    )
 
     receipt = relationship('SupplierReceipt', back_populates='items')
+    warehouse = relationship('Warehouse', foreign_keys=[warehouse_id])
     supplier_order = relationship('SupplierOrder')
     supplier_order_item = relationship(
         'SupplierOrderItem',

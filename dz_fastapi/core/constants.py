@@ -24,6 +24,18 @@ UPLOAD_DIR = 'uploads/logos'
 DEPTH_DAY_EMAIL = 7
 IMAP_SERVER = 993
 
+# IMAP connection socket timeout (seconds). Applied to each individual socket
+# operation (connect, read). Prevents a hung/silent server from blocking the
+# thread pool indefinitely — does NOT cap total transfer time.
+IMAP_SOCKET_TIMEOUT = 60
+
+# Per-account asyncio-level fetch timeout (seconds). Hard cap on the total
+# time allowed to fetch one account (all folders). Set high enough to survive
+# large mailboxes with price-list attachments (several MB each), but low enough
+# to let the scheduler move on if a server truly hangs.
+# Scheduler interval is 30 min → 5 min per account is a safe ceiling.
+IMAP_FETCH_PER_ACCOUNT_TIMEOUT = 300
+
 ANALYSIS_EMAIL = 'info@dragonzap.ru'
 ORIGINAL_BRANDS = ['CHERY', 'HAVAL', 'CHANGAN', 'GREAT WALL', 'JAC', 'GEELY']
 PROVIDER = 'DRAGONZAP'

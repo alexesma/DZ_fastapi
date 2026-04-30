@@ -238,16 +238,27 @@ async def apply_receipt_to_stock(
     receipt: SupplierReceipt,
     reverse: bool = False,
 ) -> None:
-    warehouse = await resolve_warehouse_for_provider(
+    # Document-level warehouse (used as fallback for items without their own)
+    doc_warehouse = await resolve_warehouse_for_provider(
         session,
         provider_id=receipt.provider_id,
         explicit_warehouse_id=receipt.warehouse_id,
     )
-    receipt.warehouse_id = warehouse.id
-    receiving_location = await ensure_receiving_location(session, warehouse)
+    receipt.warehouse_id = doc_warehouse.id
+    doc_receiving_location = await ensure_receiving_location(
+        session, doc_warehouse
+    )
 
     multiplier = -1 if reverse else 1
     note_prefix = 'Распроведение поступления' if reverse else 'Поступление'
+    note_suffix = (
+        f' ({receipt.document_number})'
+        if str(receipt.document_number or '').strip()
+        else ''
+    )
+
+    # Cache per-item warehouses to avoid repeated DB lookups
+    _item_location_cache: dict[int, object] = {}
 
     for item in receipt.items or []:
         autopart_id = await resolve_receipt_item_autopart_id(session, item)
@@ -256,6 +267,25 @@ async def apply_receipt_to_stock(
         quantity = max(int(item.received_quantity or 0), 0)
         if quantity <= 0:
             continue
+
+        # Use per-item warehouse override if set,
+        # otherwise use document warehouse
+        item_warehouse_id = getattr(item, 'warehouse_id', None)
+        if item_warehouse_id and item_warehouse_id != doc_warehouse.id:
+            if item_warehouse_id not in _item_location_cache:
+                item_wh = await get_warehouse_by_id(session, item_warehouse_id)
+                if item_wh is not None:
+                    _item_location_cache[item_warehouse_id] = (
+                        await ensure_receiving_location(session, item_wh)
+                    )
+                else:
+                    _item_location_cache[item_warehouse_id] = (
+                        doc_receiving_location
+                    )
+            receiving_location = _item_location_cache[item_warehouse_id]
+        else:
+            receiving_location = doc_receiving_location
+
         await apply_stock_delta(
             session,
             autopart_id=autopart_id,
@@ -264,14 +294,7 @@ async def apply_receipt_to_stock(
             movement_type=MovementType.RECEIPT,
             reference_id=receipt.id,
             reference_type='supplier_receipt',
-            notes=(
-                f'{note_prefix} #{receipt.id}'
-                + (
-                    f' ({receipt.document_number})'
-                    if str(receipt.document_number or '').strip()
-                    else ''
-                )
-            ),
+            notes=f'{note_prefix} #{receipt.id}{note_suffix}',
         )
 
 

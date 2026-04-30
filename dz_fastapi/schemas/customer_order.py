@@ -577,6 +577,7 @@ class SupplierReceiptManualItem(BaseModel):
     country_code: Optional[str] = Field(default=None, max_length=16)
     country_name: Optional[str] = Field(default=None, max_length=120)
     comment: Optional[str] = Field(default=None, max_length=500)
+    warehouse_id: Optional[int] = None
 
 
 class SupplierReceiptManualCreate(BaseModel):
@@ -601,6 +602,7 @@ class SupplierReceiptItemUpdate(BaseModel):
     country_code: Optional[str] = Field(default=None, max_length=16)
     country_name: Optional[str] = Field(default=None, max_length=120)
     comment: Optional[str] = Field(default=None, max_length=500)
+    warehouse_id: Optional[int] = None
 
 
 class SupplierReceiptItemResponse(BaseModel):
@@ -622,6 +624,8 @@ class SupplierReceiptItemResponse(BaseModel):
     country_code: Optional[str] = None
     country_name: Optional[str] = None
     comment: Optional[str] = None
+    warehouse_id: Optional[int] = None
+    warehouse_name: Optional[str] = None
     # Customer info (populated in detail view)
     customer_name: Optional[str] = None
     customer_order_number: Optional[str] = None

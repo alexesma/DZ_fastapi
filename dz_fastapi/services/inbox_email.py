@@ -46,7 +46,8 @@ except ImportError:
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.core.constants import IMAP_SERVER
+from dz_fastapi.core.constants import (IMAP_FETCH_PER_ACCOUNT_TIMEOUT,
+                                       IMAP_SERVER)
 from dz_fastapi.core.email_folders import (DEFAULT_IMAP_FOLDER,
                                            parse_imap_additional_folders)
 from dz_fastapi.core.time import now_moscow
@@ -599,15 +600,25 @@ async def fetch_inbox_for_account(
 
     for folder in folders_to_fetch:
         try:
-            raw_messages = await asyncio.to_thread(
-                _fetch_inbox_imap_sync,
-                host,
-                account.email,
-                account.password,
-                folder,
-                account.imap_port or IMAP_SERVER,
-                since_date,
+            raw_messages = await asyncio.wait_for(
+                asyncio.to_thread(
+                    _fetch_inbox_imap_sync,
+                    host,
+                    account.email,
+                    account.password,
+                    folder,
+                    account.imap_port or IMAP_SERVER,
+                    since_date,
+                ),
+                timeout=IMAP_FETCH_PER_ACCOUNT_TIMEOUT,
             )
+        except asyncio.TimeoutError:
+            logger.error(
+                'IMAP fetch timeout for account id=%s folder=%s '
+                'after %ss — skipping',
+                account.id, folder, IMAP_FETCH_PER_ACCOUNT_TIMEOUT,
+            )
+            continue
         except MailboxFolderSelectError as e:
             logger.warning(
                 'IMAP папка "%s" не найдена для account id=%s — пропускаем. '

@@ -31,7 +31,8 @@ from jinja2 import Environment, FileSystemLoader
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.core.constants import DEPTH_DAY_EMAIL, IMAP_SERVER
+from dz_fastapi.core.constants import (DEPTH_DAY_EMAIL, IMAP_SERVER,
+                                       IMAP_SOCKET_TIMEOUT)
 from dz_fastapi.core.email_folders import (DEFAULT_IMAP_FOLDER,
                                            normalize_imap_folder,
                                            resolve_imap_folders)
@@ -475,10 +476,15 @@ def _resolve_smtp_host(host: str) -> tuple[str, str]:
     return host, 'unknown'
 
 
-def _create_mailbox(server_mail: str, port: int, ssl: bool = True):
+def _create_mailbox(
+    server_mail: str,
+    port: int,
+    ssl: bool = True,
+    timeout: int = IMAP_SOCKET_TIMEOUT,
+):
     if ssl and MailBoxSsl is not None:
-        return MailBoxSsl(server_mail, port)
-    return MailBox(server_mail, port)
+        return MailBoxSsl(server_mail, port, timeout=timeout)
+    return MailBox(server_mail, port, timeout=timeout)
 
 
 def _extract_email(value: Optional[str]) -> str:
