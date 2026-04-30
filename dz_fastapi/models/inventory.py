@@ -114,12 +114,20 @@ class InventorySession(Base):
     )
     finished_at = Column(DateTime(timezone=True), nullable=True)
     status = Column(
-        SAEnum(InventoryStatus, name='inventorystatus'),
+        SAEnum(
+            InventoryStatus,
+            name='inventorystatus',
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
         default=InventoryStatus.ACTIVE,
         nullable=False,
     )
     scope_type = Column(
-        SAEnum(InventoryScopeType, name='inventoryscopetype'),
+        SAEnum(
+            InventoryScopeType,
+            name='inventoryscopetype',
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
         default=InventoryScopeType.FULL,
         nullable=False,
     )
@@ -188,7 +196,11 @@ class StockMovement(Base):
         index=True,
     )
     movement_type = Column(
-        SAEnum(MovementType, name='movementtype'),
+        SAEnum(
+            MovementType,
+            name='movementtype',
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
         nullable=False,
     )
     quantity = Column(Integer, nullable=False)    # >0 приход, <0 уход
