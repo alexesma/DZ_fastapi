@@ -768,7 +768,18 @@ def _safe_float(value: Optional[object]) -> Optional[float]:
         value_str = str(value).strip()
         if value_str == '':
             return None
-        return float(value_str.replace(',', '.'))
+        # Remove thousands separators: regular space,
+        # non-breaking space (\xa0),
+        # narrow no-break space ( ) — common in Russian/Excel number formats
+        # e.g. "2 792,00" or "2\xa0792,00" → 2792.0
+        cleaned = (
+            value_str
+            .replace(' ', '')
+            .replace('\xa0', '')
+            .replace(' ', '')
+            .replace(',', '.')
+        )
+        return float(cleaned)
     except (TypeError, ValueError):
         return None
 
