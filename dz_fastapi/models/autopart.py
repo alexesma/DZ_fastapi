@@ -328,7 +328,11 @@ class StorageLocation(Base):
         index=True,
     )
     location_type = Column(
-        SAEnum(LocationType, name='locationtype'),
+        SAEnum(
+            LocationType,
+            name='locationtype',
+            values_callable=lambda e: [x.value for x in e],
+        ),
         nullable=True,
     )
     capacity = Column(Integer, nullable=True)   # max SKUs (None = unlimited)
