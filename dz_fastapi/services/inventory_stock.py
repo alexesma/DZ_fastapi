@@ -204,6 +204,8 @@ async def apply_stock_delta(
             quantity=qty_after,
         )
         session.add(stock_row)
+        await session.flush()  # prevent UniqueViolation when same
+        # autopart appears multiple times in one document
     elif qty_after == 0:
         await session.delete(stock_row)
     else:

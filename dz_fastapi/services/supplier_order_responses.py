@@ -2593,20 +2593,9 @@ def _auto_reject_unmentioned_order_items(
 async def _auto_confirm_orders_without_response_timeout(
     session: AsyncSession,
     *,
-    response_configs: list[SupplierResponseConfig],
+    provider_timeouts: dict[int, int],
     stats: SupplierResponseProcessingStats,
 ) -> None:
-    provider_timeouts: dict[int, int] = {}
-    for config in response_configs:
-        minutes_value = _safe_int(
-            getattr(config, "auto_confirm_after_minutes", None)
-        )
-        if minutes_value is None or minutes_value <= 0:
-            continue
-        provider_key = int(config.provider_id)
-        prev_value = provider_timeouts.get(provider_key)
-        if prev_value is None or minutes_value < prev_value:
-            provider_timeouts[provider_key] = minutes_value
     if not provider_timeouts:
         return
 
@@ -4405,6 +4394,19 @@ async def process_supplier_response_messages(
         selected_config,
     ) = await _load_runtime_configs()
 
+    # Build provider_timeouts while ORM objects are fresh (before any
+    # session.rollback() in the processing loop can expire them).
+    _provider_timeouts_for_auto_confirm: dict[int, int] = {}
+    for _cfg in response_configs:
+        _minutes = _safe_int(
+            getattr(_cfg, "auto_confirm_after_minutes", None)
+        )
+        if _minutes is not None and _minutes > 0:
+            _pk = int(_cfg.provider_id)
+            _prev = _provider_timeouts_for_auto_confirm.get(_pk)
+            if _prev is None or _minutes < _prev:
+                _provider_timeouts_for_auto_confirm[_pk] = _minutes
+
     explicit_account_ids = {
         int(config.inbox_email_account_id)
         for config in response_configs
@@ -5978,7 +5980,7 @@ async def process_supplier_response_messages(
     try:
         await _auto_confirm_orders_without_response_timeout(
             session,
-            response_configs=response_configs,
+            provider_timeouts=_provider_timeouts_for_auto_confirm,
             stats=stats,
         )
     except Exception as exc:
