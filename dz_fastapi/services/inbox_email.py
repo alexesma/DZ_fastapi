@@ -2483,12 +2483,13 @@ async def setup_email_rule(
 
                     if cfg_mode == 'existing' and provider_config.config_id:
                         pl_cfg = await (
-                            crud_provider_pricelist_config.get_config(
-                                provider_id=provider.id,
+                            crud_provider_pricelist_config.get_by_id(
                                 config_id=provider_config.config_id,
                                 session=session,
                             )
                         )
+                        if pl_cfg and pl_cfg.provider_id != provider.id:
+                            pl_cfg = None
                         if pl_cfg:
                             upd: dict = {}
                             if provider_config.subject_pattern:
