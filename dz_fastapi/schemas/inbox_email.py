@@ -209,6 +209,7 @@ class ProviderSetupConfig(BaseModel):
     # Общие поля столбцов (для price_list, order_reply, document)
     start_row: Optional[int] = None
     oem_col: Optional[int] = None
+    oem_col_regex: Optional[str] = None
     qty_col: Optional[int] = None
     price_col: Optional[int] = None
     brand_col: Optional[int] = None

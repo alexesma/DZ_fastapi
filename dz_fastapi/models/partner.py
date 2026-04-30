@@ -529,6 +529,7 @@ class SupplierResponseConfig(Base):
     shipping_doc_filename_pattern = Column(String(255), nullable=True)
     start_row = Column(Integer, default=1, nullable=False)
     oem_col = Column(Integer, nullable=True)
+    oem_col_regex = Column(String(255), nullable=True)
     brand_col = Column(Integer, nullable=True)
     name_col = Column(Integer, nullable=True)
     fixed_brand_name = Column(String(120), nullable=True)

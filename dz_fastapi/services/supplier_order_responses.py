@@ -1877,6 +1877,7 @@ def _parse_supplier_response_attachment(
     country_code_col: object = None,
     country_name_col: object = None,
     total_price_with_vat_col: object = None,
+    oem_col_regex: Optional[str] = None,
 ) -> list[ParsedSupplierResponseRow]:
     payload_type = str(
         getattr(file_payload_type, "value", file_payload_type) or "response"
@@ -2076,6 +2077,15 @@ def _parse_supplier_response_attachment(
         raw_oem_value = row.get(oem_column)
         if raw_oem_value is None or pd.isna(raw_oem_value):
             continue
+        if oem_col_regex:
+            try:
+                import re as _re
+                m = _re.search(oem_col_regex, str(raw_oem_value))
+                raw_oem_value = m.group(1) if m and m.lastindex else (
+                    m.group(0) if m else raw_oem_value
+                )
+            except Exception:
+                pass
         oem_value = _normalize_oem_key(raw_oem_value)
         if not oem_value or oem_value in _INVALID_PARSED_OEM_KEYS:
             continue
@@ -4728,6 +4738,11 @@ async def process_supplier_response_messages(
                     "brand_from_name_regex",
                     None,
                 )
+                response_oem_col_regex = getattr(
+                    active_response_config,
+                    "oem_col_regex",
+                    None,
+                )
                 response_qty_col = getattr(
                     active_response_config,
                     "qty_col",
@@ -5147,6 +5162,7 @@ async def process_supplier_response_messages(
                             total_price_with_vat_col=(
                                 response_total_price_with_vat_col
                             ),
+                            oem_col_regex=response_oem_col_regex,
                         )
                     except Exception as exc:
                         import_error_reasons.append(
