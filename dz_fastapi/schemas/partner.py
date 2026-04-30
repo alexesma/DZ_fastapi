@@ -548,6 +548,7 @@ class SupplierResponseConfigBase(BaseModel):
     shipping_doc_filename_pattern: Optional[str] = None
     start_row: int = Field(default=1, ge=1)
     oem_col: Optional[int] = Field(default=None, ge=1)
+    oem_col_regex: Optional[str] = None
     brand_col: Optional[int] = Field(default=None, ge=1)
     name_col: Optional[int] = Field(default=None, ge=1)
     fixed_brand_name: Optional[str] = None
@@ -664,6 +665,7 @@ class SupplierResponseConfigUpdate(BaseModel):
     shipping_doc_filename_pattern: Optional[str] = None
     start_row: Optional[int] = Field(default=None, ge=1)
     oem_col: Optional[int] = Field(default=None, ge=1)
+    oem_col_regex: Optional[str] = None
     brand_col: Optional[int] = Field(default=None, ge=1)
     name_col: Optional[int] = Field(default=None, ge=1)
     fixed_brand_name: Optional[str] = None
@@ -777,6 +779,7 @@ class SupplierResponseConfigOut(BaseModel):
     shipping_doc_filename_pattern: Optional[str] = None
     start_row: int = 1
     oem_col: Optional[int] = None
+    oem_col_regex: Optional[str] = None
     brand_col: Optional[int] = None
     name_col: Optional[int] = None
     fixed_brand_name: Optional[str] = None
