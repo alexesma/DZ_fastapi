@@ -4886,6 +4886,7 @@ async def process_supplier_response_messages(
                 )
                 response_name_col = None
                 response_brand_from_name_regex = None
+                response_oem_col_regex = None
                 response_qty_col = getattr(
                     provider,
                     "supplier_response_qty_col",
