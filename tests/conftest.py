@@ -4,8 +4,10 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 import pytest
+import pytest_asyncio
 from email_validator import validate_email as real_validate_email
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -20,36 +22,53 @@ from dz_fastapi.main import app
 logger = logging.getLogger('dz_fastapi')
 
 
-@pytest.fixture(scope="function")
+async def _reset_database_schema(engine) -> None:
+    """Reset test DB to a clean state.
+
+    For PostgreSQL we recreate public schema (more reliable than drop_all()).
+    For other engines we fallback to metadata drop/create.
+    """
+    async with engine.begin() as conn:
+        dialect = conn.dialect.name
+        if dialect == 'postgresql':
+            await conn.execute(text('DROP SCHEMA IF EXISTS public CASCADE'))
+            await conn.execute(text('CREATE SCHEMA public'))
+            await conn.execute(
+                text('GRANT ALL ON SCHEMA public TO CURRENT_USER')
+            )
+            await conn.execute(text('GRANT ALL ON SCHEMA public TO public'))
+            await conn.run_sync(Base.metadata.create_all)
+            return
+
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+
+
+@pytest_asyncio.fixture(scope="function")
 async def test_engine():
     engine = create_async_engine(
         settings.get_database_url(test=True), echo=True, future=True
     )
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    await _reset_database_schema(engine)
 
     yield engine
 
-    # Удаление таблиц после тестов
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+    # Финальная очистка после теста
+    await _reset_database_schema(engine)
 
     # Закрытие движка
     await engine.dispose()
 
 
-@pytest.fixture(scope="function")
-async def test_db(test_engine):
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+# @pytest_asyncio.fixture(scope="function")
+# async def test_db(test_engine):
+#     await _reset_database_schema(test_engine)
+#     yield
+#     await _reset_database_schema(test_engine)
 
 
-@pytest.fixture(scope="function")
-async def test_session(test_db, test_engine) -> AsyncSession:
+@pytest_asyncio.fixture(scope="function")
+async def test_session(test_engine) -> AsyncSession:
     async_session = sessionmaker(
         test_engine, class_=AsyncSession, expire_on_commit=False
     )
@@ -58,7 +77,7 @@ async def test_session(test_db, test_engine) -> AsyncSession:
         await session.rollback()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def created_brand(test_session: AsyncSession) -> Brand:
     brand = Brand(
         name='TEST BRAND',
@@ -72,7 +91,7 @@ async def created_brand(test_session: AsyncSession) -> Brand:
     return brand
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def created_autopart(
     test_session: AsyncSession, created_brand: Brand
 ) -> AutoPart:
@@ -88,7 +107,7 @@ async def created_autopart(
     return autopart
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def created_category(test_session: AsyncSession) -> Category:
     category = Category(name='Test Category')
     test_session.add(category)
@@ -112,7 +131,7 @@ def _patch_email_validator(monkeypatch):
     monkeypatch.setattr(partner_mod, "validate_email", patched_validate)
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def created_providers(test_session: AsyncSession) -> list[Provider]:
     providers_data = [
         {
@@ -144,7 +163,7 @@ async def created_providers(test_session: AsyncSession) -> list[Provider]:
     return providers
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def created_pricelist_config(
     created_providers: list[Provider], test_session: AsyncSession
 ) -> ProviderPriceListConfig:
@@ -166,7 +185,7 @@ async def created_pricelist_config(
     return config
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def created_customers(test_session: AsyncSession) -> list[Customer]:
     customers_data = [
         {
@@ -198,7 +217,7 @@ async def created_customers(test_session: AsyncSession) -> list[Customer]:
     return customers
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def created_storage(test_session: AsyncSession) -> StorageLocation:
     storage = StorageLocation(name='AA 8')
     test_session.add(storage)
@@ -207,7 +226,7 @@ async def created_storage(test_session: AsyncSession) -> StorageLocation:
     return storage
 
 
-@pytest.fixture(scope='function')
+@pytest_asyncio.fixture(scope='function')
 async def async_client(test_session: AsyncSession):
     transport = ASGITransport(app=app)
     async with AsyncClient(
@@ -216,7 +235,7 @@ async def async_client(test_session: AsyncSession):
         yield client
 
 
-@pytest.fixture(scope='function', autouse=True)
+@pytest_asyncio.fixture(scope='function', autouse=True)
 async def override_dependencies(test_engine):
     """
     Fixture that automatically overrides dependencies for all tests.

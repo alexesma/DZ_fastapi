@@ -1154,6 +1154,19 @@ async def download_price_provider(
     except ValueError as e:
         logger.error(f'Ошибка обработки писем: {e}')
         raise HTTPException(status_code=400, detail='Invalid email data')
+    except (TimeoutError, OSError) as e:
+        logger.warning(
+            'IMAP network timeout/error for provider_id=%s '
+            'provider_config_id=%s mailbox_login=%s mailbox_host=%s: %s',
+            provider.id if provider else None,
+            provider_conf.id if provider_conf else None,
+            mailbox_login,
+            mailbox_host,
+            e,
+        )
+        raise HTTPException(
+            status_code=504, detail='IMAP connection timed out'
+        )
     except Exception as e:
         logger.exception(
             'Unexpected error while processing emails for provider_id=%s '

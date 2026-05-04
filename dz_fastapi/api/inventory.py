@@ -18,9 +18,13 @@ from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import (AutoPart, StorageLocation,
                                         autopart_storage_association)
 from dz_fastapi.models.inventory import (InventoryItem, InventorySession,
-                                         InventoryStatus, MovementType,
-                                         StockByLocation, StockMovement)
-from dz_fastapi.schemas.inventory import (InventoryItemCountUpdate,
+                                         InventoryStatus, LotSourceType,
+                                         MovementType, StockByLocation,
+                                         StockDocument, StockDocumentItem,
+                                         StockDocumentStatus, StockLot,
+                                         StockMovement)
+from dz_fastapi.schemas.inventory import (BackfillResult,
+                                          InventoryItemCountUpdate,
                                           InventoryItemOut,
                                           InventorySessionCreate,
                                           InventorySessionListItem,
@@ -28,9 +32,26 @@ from dz_fastapi.schemas.inventory import (InventoryItemCountUpdate,
                                           InventorySessionUpdate,
                                           StockByLocationOut,
                                           StockByLocationUpsert,
+                                          StockDocumentCreate,
+                                          StockDocumentItemCreate,
+                                          StockDocumentItemOut,
+                                          StockDocumentItemUpdate,
+                                          StockDocumentListItem,
+                                          StockDocumentOut,
+                                          StockDocumentUpdate, StockLotOut,
                                           StockMovementCreate,
                                           StockMovementOut, TransferRequest,
                                           TransferResult)
+from dz_fastapi.services.inventory_stock import \
+    _apply_stock_delta as apply_stock_delta
+from dz_fastapi.services.inventory_stock import \
+    _consume_fifo as consume_stock_fifo
+from dz_fastapi.services.inventory_stock import (backfill_opening_balance_lots,
+                                                 get_lots_for_autopart,
+                                                 post_stock_document,
+                                                 reconcile_stock_absolute,
+                                                 transfer_stock_with_lot_trace,
+                                                 unpost_stock_document)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix='/inventory', tags=['inventory'])
@@ -118,7 +139,37 @@ async def _ensure_sbl(
     return sbl
 
 
-# ─── StockByLocation endpoints ──────────────────────────────────────────────
+def _movement_to_out(m: StockMovement) -> StockMovementOut:
+    lot = getattr(m, 'stock_lot', None)
+    return StockMovementOut(
+        id=m.id,
+        autopart_id=m.autopart_id,
+        storage_location_id=m.storage_location_id,
+        movement_type=m.movement_type,
+        quantity=m.quantity,
+        qty_before=m.qty_before,
+        qty_after=m.qty_after,
+        reference_id=m.reference_id,
+        reference_type=m.reference_type,
+        notes=m.notes,
+        created_at=m.created_at,
+        stock_lot_id=m.stock_lot_id,
+        # Денормализованные из лота (lot lazy='joined' — уже загружен)
+        gtd_number=lot.gtd_number if lot else None,
+        lot_source_type=lot.source_type if lot else None,
+        # Синхронизация с 1С
+        external_id=m.external_id,
+        operation_uid=m.operation_uid,
+        autopart_oem=m.autopart.oem_number if m.autopart else None,
+        autopart_name=m.autopart.name if m.autopart else None,
+        storage_location_name=(
+            m.storage_location.name if m.storage_location else None
+        ),
+    )
+
+
+# ─── StockByLocation endpoints ─────────────────────────────────────────────
+
 
 @router.get(
     '/stock/',
@@ -174,15 +225,29 @@ async def upsert_stock_by_location(
             detail='Место хранения не найдено'
         )
 
-    sbl = await _ensure_sbl(
-        session, data.autopart_id, data.storage_location_id, data.quantity
+    await reconcile_stock_absolute(
+        session,
+        autopart_id=data.autopart_id,
+        storage_location_id=data.storage_location_id,
+        target_quantity=data.quantity,
+        notes='Ручная установка остатка через PUT /inventory/stock',
     )
+    if data.quantity == 0:
+        await _ensure_sbl(
+            session,
+            data.autopart_id,
+            data.storage_location_id,
+            0,
+        )
     await session.commit()
 
     # Reload with relationships
     result = await session.execute(
         select(StockByLocation)
-        .where(StockByLocation.id == sbl.id)
+        .where(
+            StockByLocation.autopart_id == data.autopart_id,
+            StockByLocation.storage_location_id == data.storage_location_id,
+        )
         .options(
             selectinload(StockByLocation.autopart).selectinload(
                 AutoPart.brand
@@ -523,40 +588,14 @@ async def complete_inventory_session(
             item.counted_at = now_moscow()
 
         if apply_adjustments:
-            # ── Update StockByLocation ──────────────────────────────────────
-            sbl_result = await session.execute(
-                select(StockByLocation).where(
-                    StockByLocation.autopart_id == item.autopart_id,
-                    StockByLocation.storage_location_id
-                    == item.storage_location_id,
-                )
+            await reconcile_stock_absolute(
+                session,
+                autopart_id=item.autopart_id,
+                storage_location_id=item.storage_location_id,
+                target_quantity=item.actual_qty,
+                inventory_session_id=inv_session.id,
+                notes=f'Инвентаризация «{inv_session.name}»',
             )
-            sbl = sbl_result.scalar_one_or_none()
-            qty_before = sbl.quantity if sbl else 0
-
-            if sbl:
-                sbl.quantity = item.actual_qty
-                sbl.updated_at = now_moscow()
-            elif item.actual_qty > 0:
-                session.add(StockByLocation(
-                    autopart_id=item.autopart_id,
-                    storage_location_id=item.storage_location_id,
-                    quantity=item.actual_qty,
-                ))
-
-            # ── StockMovement for non-zero discrepancies ────────────────────
-            if item.discrepancy != 0:
-                session.add(StockMovement(
-                    autopart_id=item.autopart_id,
-                    storage_location_id=item.storage_location_id,
-                    movement_type=MovementType.INVENTORY,
-                    quantity=item.discrepancy,
-                    qty_before=qty_before,
-                    qty_after=item.actual_qty,
-                    reference_id=inv_session.id,
-                    reference_type='inventory',
-                    notes=f'Инвентаризация «{inv_session.name}»',
-                ))
 
     inv_session.status = InventoryStatus.COMPLETED
     inv_session.finished_at = now_moscow()
@@ -639,19 +678,7 @@ async def list_stock_movements(
 
     movements = (await session.execute(stmt)).scalars().all()
     return [
-        StockMovementOut(
-            id=m.id, autopart_id=m.autopart_id,
-            storage_location_id=m.storage_location_id,
-            movement_type=m.movement_type, quantity=m.quantity,
-            qty_before=m.qty_before, qty_after=m.qty_after,
-            reference_id=m.reference_id, reference_type=m.reference_type,
-            notes=m.notes, created_at=m.created_at,
-            autopart_oem=m.autopart.oem_number if m.autopart else None,
-            autopart_name=m.autopart.name if m.autopart else None,
-            storage_location_name=(
-                m.storage_location.name if m.storage_location else None
-            ),
-        )
+        _movement_to_out(m)
         for m in movements
     ]
 
@@ -666,43 +693,84 @@ async def create_stock_movement(
     data: StockMovementCreate,
     session: AsyncSession = Depends(get_session),
 ):
-    movement = StockMovement(
-        autopart_id=data.autopart_id,
-        storage_location_id=data.storage_location_id,
-        movement_type=data.movement_type,
-        quantity=data.quantity,
-        notes=data.notes,
-    )
-    session.add(movement)
-    await session.flush()
+    if not (await session.get(AutoPart, data.autopart_id)):
+        raise HTTPException(status_code=404, detail='Запчасть не найдена')
+    if data.storage_location_id is None:
+        raise HTTPException(
+            status_code=400,
+            detail='Для ручного движения требуется storage_location_id',
+        )
+    if not (await session.get(StorageLocation, data.storage_location_id)):
+        raise HTTPException(
+            status_code=404,
+            detail='Место хранения не найдено',
+        )
+
+    if data.quantity == 0:
+        raise HTTPException(
+            status_code=400,
+            detail='Количество движения не может быть 0',
+        )
+
+    try:
+        created_movements: list[StockMovement]
+        if data.quantity > 0:
+            lot = StockLot(
+                autopart_id=data.autopart_id,
+                storage_location_id=data.storage_location_id,
+                source_type=LotSourceType.MANUAL,
+                initial_quantity=data.quantity,
+                remaining_quantity=data.quantity,
+                received_at=now_moscow(),
+            )
+            session.add(lot)
+            await session.flush()
+            mv = await apply_stock_delta(
+                session,
+                autopart_id=data.autopart_id,
+                storage_location_id=data.storage_location_id,
+                quantity_delta=data.quantity,
+                movement_type=data.movement_type,
+                reference_type='manual_movement',
+                notes=data.notes,
+                stock_lot_id=lot.id,
+                operation_uid=data.operation_uid,
+            )
+            created_movements = [mv] if mv is not None else []
+        else:
+            created_movements = await consume_stock_fifo(
+                session,
+                autopart_id=data.autopart_id,
+                storage_location_id=data.storage_location_id,
+                quantity=abs(data.quantity),
+                movement_type=data.movement_type,
+                reference_type='manual_movement',
+                notes=data.notes,
+            )
+            if data.operation_uid and created_movements:
+                created_movements[0].operation_uid = data.operation_uid
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    if not created_movements:
+        raise HTTPException(
+            status_code=400,
+            detail='Не удалось создать движение с указанными параметрами',
+        )
+
+    movement_ids = [m.id for m in created_movements]
     result = await session.execute(
         select(StockMovement)
-        .where(StockMovement.id == movement.id)
-        .options(selectinload(
-            StockMovement.autopart),
-            selectinload(StockMovement.storage_location)
+        .where(StockMovement.id.in_(movement_ids))
+        .options(
+            selectinload(StockMovement.autopart),
+            selectinload(StockMovement.storage_location),
         )
+        .order_by(StockMovement.created_at.desc(), StockMovement.id.desc())
     )
-    movement = result.scalar_one()
+    movement = result.scalars().first()
     await session.commit()
-    return StockMovementOut(
-        id=movement.id, autopart_id=movement.autopart_id,
-        storage_location_id=movement.storage_location_id,
-        movement_type=movement.movement_type, quantity=movement.quantity,
-        qty_before=movement.qty_before, qty_after=movement.qty_after,
-        reference_id=movement.reference_id,
-        reference_type=movement.reference_type,
-        notes=movement.notes, created_at=movement.created_at,
-        autopart_oem=(
-            movement.autopart.oem_number if movement.autopart else None
-        ),
-        autopart_name=movement.autopart.name if movement.autopart else None,
-        storage_location_name=(
-            movement.storage_location.name
-            if movement.storage_location
-            else None
-        ),
-    )
+    return _movement_to_out(movement)
 
 
 # ─── Transfer ───────────────────────────────────────────────────────────────
@@ -797,91 +865,505 @@ async def transfer_autopart(
                 ),
             )
 
-    qty_before_src = src_sbl.quantity
-    qty_before_dst = dest_sbl.quantity if dest_sbl else 0
-
-    # ── Update source ───────────────────────────────────────────────────────
-    src_sbl.quantity -= data.quantity
-    src_sbl.updated_at = now_moscow()
-    qty_after_src = src_sbl.quantity
-
-    if src_sbl.quantity == 0:
-        # Remove from location entirely
-        await session.delete(src_sbl)
-        await session.execute(
-            delete(autopart_storage_association).where(
-                autopart_storage_association.c.autopart_id
-                == data.autopart_id,
-                autopart_storage_association.c.storage_location_id
-                == data.from_location_id,
-            )
-        )
-
-    # ── Update destination ──────────────────────────────────────────────────
-    if dest_sbl:
-        dest_sbl.quantity += data.quantity
-        dest_sbl.updated_at = now_moscow()
-        qty_after_dst = dest_sbl.quantity
-    else:
-        new_sbl = StockByLocation(
-            autopart_id=data.autopart_id,
-            storage_location_id=data.to_location_id,
-            quantity=data.quantity,
-        )
-        session.add(new_sbl)
-        qty_after_dst = data.quantity
-        # Ensure M2M link
-        assoc_exists = (await session.execute(
-            select(autopart_storage_association).where(
-                autopart_storage_association.c.autopart_id
-                == data.autopart_id,
-                autopart_storage_association.c.storage_location_id
-                == data.to_location_id,
-            )
-        )).first()
-        if not assoc_exists:
-            await session.execute(
-                insert(autopart_storage_association).values(
-                    autopart_id=data.autopart_id,
-                    storage_location_id=data.to_location_id,
-                )
-            )
-
-    # ── StockMovement records ───────────────────────────────────────────────
     from_name = loc_map[data.from_location_id].name
     to_name = loc_map[data.to_location_id].name
     note = data.notes or f'Перемещение {from_name} → {to_name}'
 
-    out_mv = StockMovement(
+    # Переносим лоты (ГТД) между ячейками (flush внутри функции)
+    transfer_result = await transfer_stock_with_lot_trace(
+        session,
         autopart_id=data.autopart_id,
-        storage_location_id=data.from_location_id,
-        movement_type=MovementType.TRANSFER_OUT,
-        quantity=-data.quantity,
-        qty_before=qty_before_src,
-        qty_after=qty_after_src,
-        reference_type='transfer',
-        notes=note,
-    )
-    in_mv = StockMovement(
-        autopart_id=data.autopart_id,
-        storage_location_id=data.to_location_id,
-        movement_type=MovementType.TRANSFER_IN,
+        from_location_id=data.from_location_id,
+        to_location_id=data.to_location_id,
         quantity=data.quantity,
-        qty_before=qty_before_dst,
-        qty_after=qty_after_dst,
-        reference_type='transfer',
         notes=note,
     )
-    session.add(out_mv)
-    session.add(in_mv)
-    await session.flush()
-    out_id, in_id = out_mv.id, in_mv.id
+
     await session.commit()
 
     return TransferResult(
         autopart_id=data.autopart_id,
         from_location_id=data.from_location_id,
         to_location_id=data.to_location_id,
-        movement_out_id=out_id,
-        movement_in_id=in_id,
+        movement_out_id=transfer_result['movement_out_id'],
+        movement_in_id=transfer_result['movement_in_id'],
     )
+
+
+# ─── Stock Lots (GTD / партионный учёт) ────────────────────────────────────
+
+def _lot_to_out(lot: StockLot) -> StockLotOut:
+    loc = getattr(lot, 'storage_location', None)
+    return StockLotOut(
+        id=lot.id,
+        autopart_id=lot.autopart_id,
+        storage_location_id=lot.storage_location_id,
+        storage_location_name=loc.name if loc else None,
+        source_type=lot.source_type,
+        gtd_number=lot.gtd_number,
+        country_code=lot.country_code,
+        country_name=lot.country_name,
+        initial_quantity=lot.initial_quantity,
+        remaining_quantity=lot.remaining_quantity,
+        source_receipt_id=lot.source_receipt_id,
+        source_receipt_item_id=lot.source_receipt_item_id,
+        source_document_item_id=lot.source_document_item_id,
+        external_id=lot.external_id,
+        sync_status=lot.sync_status,
+        received_at=lot.received_at,
+        created_at=lot.created_at,
+    )
+
+
+@router.get(
+    '/autoparts/{autopart_id}/lots',
+    response_model=List[StockLotOut],
+    summary='Партии (лоты) по артикулу',
+)
+async def get_autopart_lots(
+    autopart_id: int,
+    storage_location_id: Optional[int] = Query(default=None),
+    only_active: bool = Query(
+        default=False,
+        description='Только с остатком > 0'
+    ),
+    session: AsyncSession = Depends(get_session),
+):
+    lots = await get_lots_for_autopart(
+        session,
+        autopart_id=autopart_id,
+        storage_location_id=storage_location_id,
+        only_active=only_active,
+    )
+    return [_lot_to_out(lot) for lot in lots]
+
+
+@router.get(
+    '/lots',
+    response_model=List[StockLotOut],
+    summary='Список партий с фильтрацией',
+)
+async def list_stock_lots(
+    autopart_id: Optional[int] = Query(default=None),
+    storage_location_id: Optional[int] = Query(default=None),
+    gtd_number: Optional[str] = Query(default=None),
+    source_receipt_id: Optional[int] = Query(default=None),
+    only_active: bool = Query(default=False),
+    limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+    session: AsyncSession = Depends(get_session),
+):
+    from sqlalchemy import asc as _asc
+    stmt = select(StockLot)
+    if autopart_id is not None:
+        stmt = stmt.where(StockLot.autopart_id == autopart_id)
+    if storage_location_id is not None:
+        stmt = stmt.where(StockLot.storage_location_id == storage_location_id)
+    if gtd_number is not None:
+        stmt = stmt.where(StockLot.gtd_number.ilike(f'%{gtd_number}%'))
+    if source_receipt_id is not None:
+        stmt = stmt.where(StockLot.source_receipt_id == source_receipt_id)
+    if only_active:
+        stmt = stmt.where(StockLot.remaining_quantity > 0)
+    stmt = stmt.order_by(_asc(StockLot.received_at), _asc(StockLot.id))
+    stmt = stmt.offset(offset).limit(limit)
+    lots = (await session.execute(stmt)).scalars().all()
+    return [_lot_to_out(lot) for lot in lots]
+
+
+@router.get(
+    '/lots/{lot_id}',
+    response_model=StockLotOut,
+    summary='Партия по ID',
+)
+async def get_stock_lot(
+    lot_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    lot = await session.get(StockLot, lot_id)
+    if lot is None:
+        raise HTTPException(status_code=404, detail='Партия не найдена')
+    return _lot_to_out(lot)
+
+
+# ─── StockDocument (ручные документы оприходования / списания) ─────────────
+
+def _doc_item_to_out(item: StockDocumentItem) -> StockDocumentItemOut:
+    ap = getattr(item, 'autopart', None)
+    loc = getattr(item, 'storage_location', None)
+    return StockDocumentItemOut(
+        id=item.id,
+        document_id=item.document_id,
+        autopart_id=item.autopart_id,
+        storage_location_id=item.storage_location_id,
+        quantity=item.quantity,
+        gtd_number=item.gtd_number,
+        country_code=item.country_code,
+        country_name=item.country_name,
+        lot_id=item.lot_id,
+        notes=item.notes,
+        autopart_oem=ap.oem_number if ap else None,
+        autopart_name=ap.name if ap else None,
+        autopart_brand=ap.brand.name if (ap and ap.brand) else None,
+        storage_location_name=loc.name if loc else None,
+    )
+
+
+def _doc_to_out(doc: StockDocument) -> StockDocumentOut:
+    wh = getattr(doc, 'warehouse', None)
+    return StockDocumentOut(
+        id=doc.id,
+        doc_type=doc.doc_type,
+        status=doc.status,
+        document_number=doc.document_number,
+        document_date=doc.document_date,
+        warehouse_id=doc.warehouse_id,
+        warehouse_name=wh.name if wh else None,
+        reason=doc.reason,
+        notes=doc.notes,
+        external_id=doc.external_id,
+        sync_status=doc.sync_status,
+        created_at=doc.created_at,
+        posted_at=doc.posted_at,
+        items=[_doc_item_to_out(i) for i in (doc.items or [])],
+    )
+
+
+@router.get(
+    '/documents/',
+    response_model=List[StockDocumentListItem],
+    summary='Список документов ручного оприходования / списания',
+)
+async def list_stock_documents(
+    doc_type: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    warehouse_id: Optional[int] = Query(None),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_session),
+):
+    stmt = select(StockDocument).order_by(
+        StockDocument.document_date.desc(), StockDocument.id.desc()
+    ).offset(offset).limit(limit)
+    if doc_type:
+        stmt = stmt.where(StockDocument.doc_type == doc_type)
+    if status:
+        stmt = stmt.where(StockDocument.status == status)
+    if warehouse_id:
+        stmt = stmt.where(StockDocument.warehouse_id == warehouse_id)
+    docs = (await db.execute(stmt)).scalars().all()
+
+    result = []
+    for doc in docs:
+        wh = getattr(doc, 'warehouse', None)
+        item_count = len(doc.items or [])
+        result.append(StockDocumentListItem(
+            id=doc.id,
+            doc_type=doc.doc_type,
+            status=doc.status,
+            document_number=doc.document_number,
+            document_date=doc.document_date,
+            warehouse_id=doc.warehouse_id,
+            warehouse_name=wh.name if wh else None,
+            reason=doc.reason,
+            item_count=item_count,
+            created_at=doc.created_at,
+            posted_at=doc.posted_at,
+        ))
+    return result
+
+
+@router.post(
+    '/documents/',
+    response_model=StockDocumentOut,
+    status_code=status.HTTP_201_CREATED,
+    summary='Создать документ оприходования или списания (черновик)',
+)
+async def create_stock_document(
+    data: StockDocumentCreate,
+    db: AsyncSession = Depends(get_session),
+):
+    doc = StockDocument(
+        doc_type=data.doc_type,
+        status=StockDocumentStatus.DRAFT,
+        document_number=data.document_number,
+        document_date=data.document_date or now_moscow(),
+        warehouse_id=data.warehouse_id,
+        reason=data.reason,
+        notes=data.notes,
+        external_id=data.external_id,
+    )
+    db.add(doc)
+    await db.flush()
+
+    for item_data in data.items:
+        item = StockDocumentItem(
+            document_id=doc.id,
+            autopart_id=item_data.autopart_id,
+            storage_location_id=item_data.storage_location_id,
+            quantity=item_data.quantity,
+            gtd_number=item_data.gtd_number,
+            country_code=item_data.country_code,
+            country_name=item_data.country_name,
+            notes=item_data.notes,
+        )
+        db.add(item)
+
+    await db.flush()
+
+    # Reload with relationships
+    stmt = (
+        select(StockDocument)
+        .options(selectinload(StockDocument.items))
+        .where(StockDocument.id == doc.id)
+    )
+    doc = (await db.execute(stmt)).scalar_one()
+    await db.commit()
+    return _doc_to_out(doc)
+
+
+@router.get(
+    '/documents/{doc_id}',
+    response_model=StockDocumentOut,
+    summary='Документ оприходования / списания по ID',
+)
+async def get_stock_document(
+    doc_id: int,
+    db: AsyncSession = Depends(get_session),
+):
+    stmt = (
+        select(StockDocument)
+        .options(
+            selectinload(StockDocument.items)
+            .selectinload(StockDocumentItem.autopart),
+            selectinload(StockDocument.items)
+            .selectinload(StockDocumentItem.storage_location),
+        )
+        .where(StockDocument.id == doc_id)
+    )
+    doc = (await db.execute(stmt)).scalar_one_or_none()
+    if doc is None:
+        raise HTTPException(status_code=404, detail='Документ не найден')
+    return _doc_to_out(doc)
+
+
+@router.patch(
+    '/documents/{doc_id}',
+    response_model=StockDocumentOut,
+    summary='Обновить реквизиты черновика',
+)
+async def update_stock_document(
+    doc_id: int,
+    data: StockDocumentUpdate,
+    db: AsyncSession = Depends(get_session),
+):
+    stmt = (
+        select(StockDocument)
+        .options(selectinload(StockDocument.items))
+        .where(StockDocument.id == doc_id)
+    )
+    doc = (await db.execute(stmt)).scalar_one_or_none()
+    if doc is None:
+        raise HTTPException(status_code=404, detail='Документ не найден')
+    if doc.status != StockDocumentStatus.DRAFT:
+        raise HTTPException(
+            status_code=400,
+            detail='Редактировать можно только черновик',
+        )
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(doc, field, value)
+    await db.commit()
+    return _doc_to_out(doc)
+
+
+@router.post(
+    '/documents/{doc_id}/items',
+    response_model=StockDocumentItemOut,
+    status_code=status.HTTP_201_CREATED,
+    summary='Добавить строку в черновик',
+)
+async def add_document_item(
+    doc_id: int,
+    data: StockDocumentItemCreate,
+    db: AsyncSession = Depends(get_session),
+):
+    doc = await db.get(StockDocument, doc_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail='Документ не найден')
+    if doc.status != StockDocumentStatus.DRAFT:
+        raise HTTPException(
+            status_code=400,
+            detail='Документ не в статусе черновика'
+        )
+
+    item = StockDocumentItem(
+        document_id=doc_id,
+        autopart_id=data.autopart_id,
+        storage_location_id=data.storage_location_id,
+        quantity=data.quantity,
+        gtd_number=data.gtd_number,
+        country_code=data.country_code,
+        country_name=data.country_name,
+        notes=data.notes,
+    )
+    db.add(item)
+    await db.flush()
+
+    # Reload with relationships
+    stmt = (
+        select(StockDocumentItem)
+        .options(
+            selectinload(StockDocumentItem.autopart),
+            selectinload(StockDocumentItem.storage_location),
+        )
+        .where(StockDocumentItem.id == item.id)
+    )
+    item = (await db.execute(stmt)).scalar_one()
+    await db.commit()
+    return _doc_item_to_out(item)
+
+
+@router.patch(
+    '/documents/{doc_id}/items/{item_id}',
+    response_model=StockDocumentItemOut,
+    summary='Обновить строку черновика',
+)
+async def update_document_item(
+    doc_id: int,
+    item_id: int,
+    data: StockDocumentItemUpdate,
+    db: AsyncSession = Depends(get_session),
+):
+    doc = await db.get(StockDocument, doc_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail='Документ не найден')
+    if doc.status != StockDocumentStatus.DRAFT:
+        raise HTTPException(
+            status_code=400,
+            detail='Документ не в статусе черновика'
+        )
+
+    stmt = (
+        select(StockDocumentItem)
+        .options(
+            selectinload(StockDocumentItem.autopart),
+            selectinload(StockDocumentItem.storage_location),
+        )
+        .where(
+            StockDocumentItem.id == item_id,
+            StockDocumentItem.document_id == doc_id,
+        )
+    )
+    item = (await db.execute(stmt)).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(status_code=404, detail='Строка не найдена')
+
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(item, field, value)
+    await db.commit()
+    return _doc_item_to_out(item)
+
+
+@router.delete(
+    '/documents/{doc_id}/items/{item_id}',
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary='Удалить строку черновика',
+)
+async def delete_document_item(
+    doc_id: int,
+    item_id: int,
+    db: AsyncSession = Depends(get_session),
+):
+    doc = await db.get(StockDocument, doc_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail='Документ не найден')
+    if doc.status != StockDocumentStatus.DRAFT:
+        raise HTTPException(
+            status_code=400,
+            detail='Документ не в статусе черновика'
+        )
+
+    item = await db.get(StockDocumentItem, item_id)
+    if item is None or item.document_id != doc_id:
+        raise HTTPException(status_code=404, detail='Строка не найдена')
+    await db.delete(item)
+    await db.commit()
+
+
+@router.post(
+    '/documents/{doc_id}/post',
+    summary='Провести документ — обновить остатки',
+)
+async def post_document(
+    doc_id: int,
+    db: AsyncSession = Depends(get_session),
+):
+    try:
+        result = await post_stock_document(db, document_id=doc_id)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    await db.commit()
+    return result
+
+
+@router.post(
+    '/documents/{doc_id}/unpost',
+    summary='Распровести документ — отменить изменения остатков',
+)
+async def unpost_document(
+    doc_id: int,
+    db: AsyncSession = Depends(get_session),
+):
+    try:
+        result = await unpost_stock_document(db, document_id=doc_id)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    await db.commit()
+    return result
+
+
+@router.delete(
+    '/documents/{doc_id}',
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary='Удалить черновик',
+)
+async def delete_stock_document(
+    doc_id: int,
+    db: AsyncSession = Depends(get_session),
+):
+    doc = await db.get(StockDocument, doc_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail='Документ не найден')
+    if doc.status == StockDocumentStatus.POSTED:
+        raise HTTPException(
+            status_code=400,
+            detail='Нельзя удалить проведённый документ. '
+                   'Сначала распроведите.',
+        )
+    await db.delete(doc)
+    await db.commit()
+
+
+# ─── Admin / backfill ────────────────────────────────────────────────────────
+
+@router.post(
+    '/admin/backfill-lots',
+    response_model=BackfillResult,
+    summary='Backfill: создать opening_balance лоты для товара без партий',
+    description=(
+        'Одноразовая операция — создаёт лоты с source_type=opening_balance '
+        'для всех позиций StockByLocation, у которых нет активных лотов. '
+        'Безопасно запускать повторно: '
+        'позиции с уже покрытым остатком пропускаются.'
+    ),
+)
+async def run_backfill_lots(
+    db: AsyncSession = Depends(get_session),
+):
+    result = await backfill_opening_balance_lots(db)
+    await db.commit()
+    return BackfillResult(**result)

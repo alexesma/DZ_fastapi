@@ -51,6 +51,7 @@ from dz_fastapi.services.customer_orders import (
     retry_customer_order, retry_customer_order_errors_for_config,
     send_scheduled_supplier_orders, send_supplier_orders,
     update_customer_order_item_manual)
+from dz_fastapi.services.inventory_stock import dispatch_stock_order
 from dz_fastapi.services.notifications import create_notification
 from dz_fastapi.services.supplier_order_responses import \
     process_supplier_response_messages
@@ -930,6 +931,26 @@ async def update_stock_order_item_pick_endpoint(
         pick_last_scan_code=result.item.pick_last_scan_code,
         stock_order_status=result.stock_order_status,
     )
+
+
+@router.post(
+    "/stock/orders/{order_id}/dispatch",
+    status_code=status.HTTP_200_OK,
+    summary='Отгрузить складской заказ — списать товар по FIFO (ГТД)',
+)
+async def dispatch_stock_order_endpoint(
+    order_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        result = await dispatch_stock_order(session, stock_order_id=order_id)
+        await session.commit()
+        return result
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get(

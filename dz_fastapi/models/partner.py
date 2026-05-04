@@ -148,6 +148,7 @@ class ORDER_TRACKING_SOURCE(StrEnum):
 class STOCK_ORDER_STATUS(StrEnum):
     NEW = 'NEW'
     COMPLETED = 'COMPLETED'
+    DISPATCHED = 'DISPATCHED'   # Отгружено — товар физически ушёл, сток списан
     ERROR = 'ERROR'
 
 
