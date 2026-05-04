@@ -5137,35 +5137,43 @@ async def process_supplier_response_messages(
                     and response_candidate
                 ):
                     try:
-                        parsed_rows = _parse_supplier_response_attachment(
-                            attachment.payload,
-                            attachment.filename or "",
-                            file_payload_type=normalized_file_payload_type,
-                            start_row=response_start_row,
-                            oem_col=response_oem_col,
-                            brand_col=response_brand_col,
-                            name_col=response_name_col,
-                            brand_from_name_regex=(
-                                response_brand_from_name_regex
-                            ),
-                            qty_col=response_qty_col,
-                            price_col=response_price_col,
-                            comment_col=response_comment_col,
-                            status_col=response_status_col,
-                            document_number_col=response_document_number_col,
-                            document_date_col=response_document_date_col,
-                            document_number_cell=(
-                                response_document_number_cell
-                            ),
-                            document_date_cell=response_document_date_cell,
-                            document_meta_cell=response_document_meta_cell,
-                            gtd_col=response_gtd_col,
-                            country_code_col=response_country_code_col,
-                            country_name_col=response_country_name_col,
-                            total_price_with_vat_col=(
-                                response_total_price_with_vat_col
-                            ),
-                            oem_col_regex=response_oem_col_regex,
+                        # pd.read_excel/read_csv — CPU-bound, offload to
+                        # thread pool so the event loop stays responsive.
+                        import functools
+                        parsed_rows = await asyncio.to_thread(
+                            functools.partial(
+                                _parse_supplier_response_attachment,
+                                attachment.payload,
+                                attachment.filename or "",
+                                file_payload_type=normalized_file_payload_type,
+                                start_row=response_start_row,
+                                oem_col=response_oem_col,
+                                brand_col=response_brand_col,
+                                name_col=response_name_col,
+                                brand_from_name_regex=(
+                                    response_brand_from_name_regex
+                                ),
+                                qty_col=response_qty_col,
+                                price_col=response_price_col,
+                                comment_col=response_comment_col,
+                                status_col=response_status_col,
+                                document_number_col=(
+                                    response_document_number_col
+                                ),
+                                document_date_col=response_document_date_col,
+                                document_number_cell=(
+                                    response_document_number_cell
+                                ),
+                                document_date_cell=response_document_date_cell,
+                                document_meta_cell=response_document_meta_cell,
+                                gtd_col=response_gtd_col,
+                                country_code_col=response_country_code_col,
+                                country_name_col=response_country_name_col,
+                                total_price_with_vat_col=(
+                                    response_total_price_with_vat_col
+                                ),
+                                oem_col_regex=response_oem_col_regex,
+                            )
                         )
                     except Exception as exc:
                         import_error_reasons.append(

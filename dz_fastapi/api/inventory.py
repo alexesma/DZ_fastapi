@@ -1135,7 +1135,8 @@ async def get_stock_document(
         select(StockDocument)
         .options(
             selectinload(StockDocument.items)
-            .selectinload(StockDocumentItem.autopart),
+            .selectinload(StockDocumentItem.autopart)
+            .selectinload(AutoPart.brand),
             selectinload(StockDocument.items)
             .selectinload(StockDocumentItem.storage_location),
         )
@@ -1213,7 +1214,8 @@ async def add_document_item(
     stmt = (
         select(StockDocumentItem)
         .options(
-            selectinload(StockDocumentItem.autopart),
+            selectinload(StockDocumentItem.autopart)
+            .selectinload(AutoPart.brand),
             selectinload(StockDocumentItem.storage_location),
         )
         .where(StockDocumentItem.id == item.id)
@@ -1246,7 +1248,8 @@ async def update_document_item(
     stmt = (
         select(StockDocumentItem)
         .options(
-            selectinload(StockDocumentItem.autopart),
+            selectinload(StockDocumentItem.autopart)
+            .selectinload(AutoPart.brand),
             selectinload(StockDocumentItem.storage_location),
         )
         .where(

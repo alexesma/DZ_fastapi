@@ -207,51 +207,54 @@ def start_scheduler(app: FastAPI):
         job_defaults={'coalesce': True, 'max_instances': 1},
     )
 
-    # Добавляем задачи в планировщик
+    # ── Расписание задач ────────────────────────────────────────────────────
+    # Задачи намеренно разнесены по секундам (second=N), чтобы не стартовать
+    # одновременно — thundering herd вызывал пики CPU/памяти каждую минуту.
+    # Задачи с guard (_should_run_scheduled_job) всё равно открывают сессию
+    # даже на NO-OP, поэтому они перенесены на интервалы 5–10 мин вместо 1 мин.
+
+    # Каждый час: скачать прайсы поставщиков (тяжёлая, pandas)
     scheduler.add_job(
         func=download_price_provider_task,
-        trigger='cron',  # или 'interval'
+        trigger='cron',
         args=[app],
         id='download_price_provider',
         name='Download price provider',
-        minute=0,  # каждый час
-        jitter=5,
-        replace_existing=True,
-        # hour='9',
-    )
-
-    scheduler.add_job(
-        func=cleanup_old_pricelists_task,
-        trigger='cron',
-        args=[app],
-        id='cleanup_old_pricelists',
-        name='Cleanup old pricelists keep last 5',
-        minute='*',
+        minute=0,
+        second=0,
+        jitter=10,
         replace_existing=True,
     )
 
+    # Каждые 5 мин / second=5: отправить прайсы клиентам
+    # (guard: только в нужное время суток)
     scheduler.add_job(
         func=send_scheduled_customer_pricelists_task,
         trigger='cron',
         args=[app],
         id='send_customer_pricelists',
         name='Send scheduled customer pricelists',
-        minute='*',
+        minute='*/5',
+        second=5,
         replace_existing=True,
         max_instances=1,
         coalesce=True,
     )
 
+    # Каждые 5 мин / second=10: контроль цен
+    # (guard: только в нужный день/время)
     scheduler.add_job(
         func=price_control_run_task,
         trigger='cron',
         args=[app],
         id='price_control_run',
         name='Price control run',
-        minute='*',
+        minute='*/5',
+        second=10,
         replace_existing=True,
     )
 
+    # Каждые 2 мин / second=15: скачать заказы клиентов
     scheduler.add_job(
         func=download_customer_orders_task,
         trigger='cron',
@@ -259,10 +262,11 @@ def start_scheduler(app: FastAPI):
         id='download_customer_orders',
         name='Download customer orders',
         minute=f'*/{CUSTOMER_ORDERS_CHECK_MINUTES}',
-        jitter=5,
+        second=15,
         replace_existing=True,
     )
 
+    # Каждые 2 мин / second=25: обработать ответы поставщиков
     scheduler.add_job(
         func=process_supplier_responses_task,
         trigger='cron',
@@ -270,10 +274,11 @@ def start_scheduler(app: FastAPI):
         id='process_supplier_responses',
         name='Process supplier responses',
         minute=f'*/{SUPPLIER_RESPONSES_CHECK_MINUTES}',
-        jitter=5,
+        second=25,
         replace_existing=True,
     )
 
+    # Каждые 30 мин / second=35: обработать документы поставщиков
     scheduler.add_job(
         func=process_supplier_documents_task,
         trigger='cron',
@@ -281,9 +286,11 @@ def start_scheduler(app: FastAPI):
         id='process_supplier_documents',
         name='Process supplier documents (УПД/накладные)',
         minute=f'*/{SUPPLIER_DOCUMENTS_CHECK_MINUTES}',
+        second=35,
         replace_existing=True,
     )
 
+    # Каждые 2 мин / second=45: проверить таймауты заказов
     scheduler.add_job(
         func=check_order_timing_alerts_task,
         trigger='cron',
@@ -291,9 +298,11 @@ def start_scheduler(app: FastAPI):
         id='check_order_timing_alerts',
         name='Check missing orders and supplier responses',
         minute='*/2',
+        second=45,
         replace_existing=True,
     )
 
+    # Раз в час в :10 / second=0: устаревшие прайсы поставщиков
     scheduler.add_job(
         func=check_provider_pricelist_staleness_task,
         trigger='cron',
@@ -301,70 +310,102 @@ def start_scheduler(app: FastAPI):
         id='check_provider_pricelist_staleness',
         name='Check provider pricelist staleness',
         minute=10,
+        second=0,
         replace_existing=True,
     )
 
+    # Каждые 10 мин / second=20: watchlist — проверить сайт
+    # (guard: только ночью по умолчанию)
     scheduler.add_job(
         func=check_watchlist_site_task,
         trigger='cron',
         args=[app],
         id='check_watchlist_site',
         name='Check watchlist site offers',
-        minute='*',
+        minute='*/10',
+        second=20,
         replace_existing=True,
     )
 
+    # Каждые 10 мин / second=30: watchlist — уведомления
+    # (guard: только в нужное время)
     scheduler.add_job(
         func=notify_watchlist_task,
         trigger='cron',
         args=[app],
         id='notify_watchlist',
         name='Notify watchlist',
-        minute='*',
+        minute='*/10',
+        second=30,
         replace_existing=True,
     )
 
+    # Каждые 10 мин / second=40: уведомления об устаревших прайсах
+    # (guard: только в нужное время)
     scheduler.add_job(
         func=notify_pricelist_stale_task,
         trigger='cron',
         args=[app],
         id='notify_pricelist_stale',
         name='Notify stale pricelists',
-        minute='*',
+        minute='*/10',
+        second=40,
         replace_existing=True,
     )
 
+    # Каждые 10 мин / second=50: очистка устаревших алертов прайсов
+    # (guard: только ночью по умолчанию)
     scheduler.add_job(
         func=cleanup_pricelist_stale_alerts_task,
         trigger='cron',
         args=[app],
         id='cleanup_pricelist_stale_alerts',
         name='Cleanup stale pricelist alerts',
-        minute='*',
+        minute='*/10',
+        second=50,
         replace_existing=True,
     )
 
+    # Каждые 10 мин / second=0 смещение=3мин: очистка старых прайсов
+    # (guard: только ночью по умолчанию)
+    scheduler.add_job(
+        func=cleanup_old_pricelists_task,
+        trigger='cron',
+        args=[app],
+        id='cleanup_old_pricelists',
+        name='Cleanup old pricelists keep last 5',
+        minute='3-59/10',
+        second=0,
+        replace_existing=True,
+    )
+
+    # Каждые 5 мин / second=55: снимок системных метрик
+    # (guard: только в нужное время)
     scheduler.add_job(
         func=collect_system_metrics_snapshot_task,
         trigger='cron',
         args=[app],
         id='metrics_snapshot',
         name='Collect system metrics snapshot',
-        minute='*',
+        minute='*/5',
+        second=55,
         replace_existing=True,
     )
 
+    # Каждые 5 мин / second=0 смещение=2мин: отправка заказов поставщикам
+    # (guard: только по расписанию, по умолчанию disabled)
     scheduler.add_job(
         func=send_scheduled_supplier_orders_task,
         trigger='cron',
         args=[app],
         id='send_supplier_orders',
         name='Send scheduled supplier orders',
-        minute='*',
-        jitter=5,
+        minute='2-59/5',
+        second=0,
         replace_existing=True,
     )
 
+    # 03:00 — очистка старых отчётов
     scheduler.add_job(
         func=cleanup_order_reports_task,
         trigger='cron',
@@ -376,6 +417,7 @@ def start_scheduler(app: FastAPI):
         replace_existing=True,
     )
 
+    # 03:20 — очистка старых треккинг-заказов
     scheduler.add_job(
         func=cleanup_tracking_orders_task,
         trigger='cron',
@@ -387,6 +429,7 @@ def start_scheduler(app: FastAPI):
         replace_existing=True,
     )
 
+    # Каждые 15 мин / jitter=30: синхронизация статусов треккинга
     scheduler.add_job(
         func=sync_site_tracking_statuses_task,
         trigger='cron',
@@ -394,12 +437,12 @@ def start_scheduler(app: FastAPI):
         id='sync_site_tracking_statuses',
         name='Sync Dragonzap tracking statuses',
         minute='*/15',
-        jitter=10,
+        second=0,
+        jitter=30,
         replace_existing=True,
     )
 
-    # Автоматическая загрузка писем во вспомогательную InboxEmail (редко).
-    # Заказы и ответы поставщиков обрабатываются отдельными задачами.
+    # Каждые 30 мин / jitter=60: забрать письма в inbox
     scheduler.add_job(
         func=fetch_inbox_emails_task,
         trigger='cron',
@@ -407,11 +450,12 @@ def start_scheduler(app: FastAPI):
         id='fetch_inbox_emails',
         name='Fetch inbox emails (all accounts)',
         minute=f'*/{FETCH_INBOX_EMAILS_MINUTES}',
-        jitter=30,
+        second=0,
+        jitter=60,
         replace_existing=True,
     )
 
-    # Очистка старых писем из InboxEmail (старше 7 дней) — раз в сутки в 04:00
+    # 04:00 — очистка старых inbox-писем
     scheduler.add_job(
         func=cleanup_inbox_emails_task,
         trigger='cron',
@@ -423,7 +467,7 @@ def start_scheduler(app: FastAPI):
         replace_existing=True,
     )
 
-    # Авто-отказ позиций заказов поставщику — раз в сутки в 23:00
+    # 23:00 — авто-отказ неподтверждённых позиций поставщиков
     scheduler.add_job(
         func=auto_refuse_supplier_items_task,
         trigger='cron',
