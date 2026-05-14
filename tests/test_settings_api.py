@@ -20,9 +20,7 @@ async def test_price_check_schedule(async_client):
 
 @pytest.mark.asyncio
 async def test_price_check_logs_endpoint(async_client):
-    response = await async_client.get(
-        "/alerts/price-check-logs", params={"limit": 10}
-    )
+    response = await async_client.get("/alerts/price-check-logs", params={"limit": 10})
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 
@@ -37,9 +35,7 @@ async def test_scheduler_settings(async_client):
     key = data[0]["key"]
 
     payload = {"enabled": True, "days": ["mon"], "times": ["09:00"]}
-    response = await async_client.put(
-        f"/settings/scheduler/{key}", json=payload
-    )
+    response = await async_client.put(f"/settings/scheduler/{key}", json=payload)
     assert response.status_code == 200
     updated = response.json()
     assert updated["key"] == key
@@ -89,9 +85,7 @@ async def test_monitoring_endpoints(async_client):
     snapshot = response.json()
     assert "created_at" in snapshot
 
-    response = await async_client.get(
-        "/settings/monitor/snapshots", params={"limit": 5}
-    )
+    response = await async_client.get("/settings/monitor/snapshots", params={"limit": 5})
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 

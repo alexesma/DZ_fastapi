@@ -3,16 +3,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.db import get_session
 from dz_fastapi.crud.watchlist import crud_price_watch_item
-from dz_fastapi.schemas.watchlist import (PriceWatchItemCreate,
-                                          PriceWatchItemOut,
-                                          PriceWatchListPage)
+from dz_fastapi.schemas.watchlist import PriceWatchItemCreate, PriceWatchItemOut, PriceWatchListPage
 
 router = APIRouter()
 
 
 @router.get(
-    '/watchlist',
-    tags=['watchlist'],
+    "/watchlist",
+    tags=["watchlist"],
     status_code=status.HTTP_200_OK,
     response_model=PriceWatchListPage,
 )
@@ -34,8 +32,8 @@ async def list_watch_items(
 
 
 @router.post(
-    '/watchlist',
-    tags=['watchlist'],
+    "/watchlist",
+    tags=["watchlist"],
     status_code=status.HTTP_201_CREATED,
     response_model=PriceWatchItemOut,
 )
@@ -53,8 +51,8 @@ async def create_watch_item(
 
 
 @router.delete(
-    '/watchlist/{item_id}',
-    tags=['watchlist'],
+    "/watchlist/{item_id}",
+    tags=["watchlist"],
     status_code=status.HTTP_200_OK,
 )
 async def delete_watch_item(
@@ -63,5 +61,5 @@ async def delete_watch_item(
 ):
     ok = await crud_price_watch_item.delete(session=session, item_id=item_id)
     if not ok:
-        raise HTTPException(status_code=404, detail='Item not found')
-    return {'status': 'ok'}
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {"status": "ok"}

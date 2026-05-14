@@ -7,24 +7,31 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.crud.brand import brand_crud
-from dz_fastapi.models.autopart import (AutoPart, AutoPartPriceHistory,
-                                        AutoPartRestockDecision, Photo,
-                                        autopart_category_association,
-                                        autopart_storage_association)
+from dz_fastapi.models.autopart import (
+    AutoPart,
+    AutoPartPriceHistory,
+    AutoPartRestockDecision,
+    Photo,
+    autopart_category_association,
+    autopart_storage_association,
+)
 from dz_fastapi.models.cross import AutoPartCross, AutoPartSubstitution
-from dz_fastapi.models.partner import (CustomerOrderItem,
-                                       CustomerPriceListAutoPartAssociation,
-                                       OrderItem, PriceListAutoPartAssociation,
-                                       StockOrderItem, SupplierOrderItem)
-from dz_fastapi.models.price_control import (CustomerPriceListOverride,
-                                             PriceControlRecommendation)
+from dz_fastapi.models.partner import (
+    CustomerOrderItem,
+    CustomerPriceListAutoPartAssociation,
+    OrderItem,
+    PriceListAutoPartAssociation,
+    StockOrderItem,
+    SupplierOrderItem,
+)
+from dz_fastapi.models.price_control import CustomerPriceListOverride, PriceControlRecommendation
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
 
 def _as_decimal(value: Any) -> Decimal:
     if value is None:
-        return Decimal('0')
+        return Decimal("0")
     if isinstance(value, Decimal):
         return value
     return Decimal(str(value))
@@ -57,14 +64,18 @@ async def _merge_pricelist_associations(
     summary: DefaultDict[str, int],
 ) -> None:
     rows = (
-        await session.execute(
-            select(PriceListAutoPartAssociation).where(
-                PriceListAutoPartAssociation.autopart_id.in_(
-                    [source_autopart_id, target_autopart_id]
+        (
+            await session.execute(
+                select(PriceListAutoPartAssociation).where(
+                    PriceListAutoPartAssociation.autopart_id.in_(
+                        [source_autopart_id, target_autopart_id]
+                    )
                 )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     target_by_pricelist = {
         row.pricelist_id: row
@@ -77,7 +88,7 @@ async def _merge_pricelist_associations(
         target_row = target_by_pricelist.get(source_row.pricelist_id)
         if target_row is None:
             source_row.autopart_id = target_autopart_id
-            summary['pricelist_assoc_moved'] += 1
+            summary["pricelist_assoc_moved"] += 1
             continue
 
         if _prefer_source_offer(
@@ -89,9 +100,9 @@ async def _merge_pricelist_associations(
             target_row.price = source_row.price
             target_row.quantity = source_row.quantity
             target_row.multiplicity = source_row.multiplicity
-            summary['pricelist_assoc_replaced'] += 1
+            summary["pricelist_assoc_replaced"] += 1
         await session.delete(source_row)
-        summary['pricelist_assoc_deleted'] += 1
+        summary["pricelist_assoc_deleted"] += 1
 
 
 async def _merge_customer_pricelist_associations(
@@ -101,14 +112,18 @@ async def _merge_customer_pricelist_associations(
     summary: DefaultDict[str, int],
 ) -> None:
     rows = (
-        await session.execute(
-            select(CustomerPriceListAutoPartAssociation).where(
-                CustomerPriceListAutoPartAssociation.autopart_id.in_(
-                    [source_autopart_id, target_autopart_id]
+        (
+            await session.execute(
+                select(CustomerPriceListAutoPartAssociation).where(
+                    CustomerPriceListAutoPartAssociation.autopart_id.in_(
+                        [source_autopart_id, target_autopart_id]
+                    )
                 )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     target_by_pricelist = {
         row.customerpricelist_id: row
@@ -121,7 +136,7 @@ async def _merge_customer_pricelist_associations(
         target_row = target_by_pricelist.get(source_row.customerpricelist_id)
         if target_row is None:
             source_row.autopart_id = target_autopart_id
-            summary['customer_pricelist_assoc_moved'] += 1
+            summary["customer_pricelist_assoc_moved"] += 1
             continue
 
         if _prefer_source_offer(
@@ -132,9 +147,9 @@ async def _merge_customer_pricelist_associations(
         ):
             target_row.price = source_row.price
             target_row.quantity = source_row.quantity
-            summary['customer_pricelist_assoc_replaced'] += 1
+            summary["customer_pricelist_assoc_replaced"] += 1
         await session.delete(source_row)
-        summary['customer_pricelist_assoc_deleted'] += 1
+        summary["customer_pricelist_assoc_deleted"] += 1
 
 
 async def _merge_customer_pricelist_overrides(
@@ -144,14 +159,18 @@ async def _merge_customer_pricelist_overrides(
     summary: DefaultDict[str, int],
 ) -> None:
     rows = (
-        await session.execute(
-            select(CustomerPriceListOverride).where(
-                CustomerPriceListOverride.autopart_id.in_(
-                    [source_autopart_id, target_autopart_id]
+        (
+            await session.execute(
+                select(CustomerPriceListOverride).where(
+                    CustomerPriceListOverride.autopart_id.in_(
+                        [source_autopart_id, target_autopart_id]
+                    )
                 )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     target_by_config = {
         row.config_id: row
@@ -164,7 +183,7 @@ async def _merge_customer_pricelist_overrides(
         target_row = target_by_config.get(source_row.config_id)
         if target_row is None:
             source_row.autopart_id = target_autopart_id
-            summary['override_moved'] += 1
+            summary["override_moved"] += 1
             continue
 
         source_updated = source_row.updated_at or source_row.created_at
@@ -175,9 +194,9 @@ async def _merge_customer_pricelist_overrides(
             target_row.price = source_row.price
             target_row.is_active = source_row.is_active
             target_row.updated_at = source_row.updated_at
-            summary['override_replaced'] += 1
+            summary["override_replaced"] += 1
         await session.delete(source_row)
-        summary['override_deleted'] += 1
+        summary["override_deleted"] += 1
 
 
 async def _merge_link_table(
@@ -226,13 +245,17 @@ async def _merge_crosses(
     summary: DefaultDict[str, int],
 ) -> None:
     rows = (
-        await session.execute(
-            select(AutoPartCross).where(
-                (AutoPartCross.source_autopart_id == source_autopart_id)
-                | (AutoPartCross.source_autopart_id == target_autopart_id)
+        (
+            await session.execute(
+                select(AutoPartCross).where(
+                    (AutoPartCross.source_autopart_id == source_autopart_id)
+                    | (AutoPartCross.source_autopart_id == target_autopart_id)
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     target_by_key = {
         (row.cross_brand_id, row.cross_oem_number): row
@@ -248,14 +271,14 @@ async def _merge_crosses(
             source_row.cross_autopart_id = target_autopart_id
         if source_row.cross_autopart_id == target_autopart_id:
             await session.delete(source_row)
-            summary['cross_deleted'] += 1
+            summary["cross_deleted"] += 1
             continue
 
         key = (source_row.cross_brand_id, source_row.cross_oem_number)
         target_row = target_by_key.get(key)
         if target_row is None:
             source_row.source_autopart_id = target_autopart_id
-            summary['cross_moved'] += 1
+            summary["cross_moved"] += 1
             continue
 
         if target_row.cross_autopart_id is None:
@@ -267,22 +290,26 @@ async def _merge_crosses(
         if not target_row.comment and source_row.comment:
             target_row.comment = source_row.comment
         await session.delete(source_row)
-        summary['cross_deleted'] += 1
+        summary["cross_deleted"] += 1
 
     cross_ref_rows = (
-        await session.execute(
-            select(AutoPartCross).where(
-                AutoPartCross.cross_autopart_id == source_autopart_id
+        (
+            await session.execute(
+                select(AutoPartCross).where(
+                    AutoPartCross.cross_autopart_id == source_autopart_id
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for row in cross_ref_rows:
         if row.source_autopart_id == target_autopart_id:
             await session.delete(row)
-            summary['cross_deleted'] += 1
+            summary["cross_deleted"] += 1
             continue
         row.cross_autopart_id = target_autopart_id
-        summary['cross_ref_updated'] += 1
+        summary["cross_ref_updated"] += 1
 
 
 async def _merge_substitutions(
@@ -292,14 +319,18 @@ async def _merge_substitutions(
     summary: DefaultDict[str, int],
 ) -> None:
     rows = (
-        await session.execute(
-            select(AutoPartSubstitution).where(
-                AutoPartSubstitution.source_autopart_id.in_(
-                    [source_autopart_id, target_autopart_id]
+        (
+            await session.execute(
+                select(AutoPartSubstitution).where(
+                    AutoPartSubstitution.source_autopart_id.in_(
+                        [source_autopart_id, target_autopart_id]
+                    )
                 )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     target_by_key = {
         (
@@ -322,7 +353,7 @@ async def _merge_substitutions(
         target_row = target_by_key.get(key)
         if target_row is None:
             source_row.source_autopart_id = target_autopart_id
-            summary['substitution_moved'] += 1
+            summary["substitution_moved"] += 1
             continue
 
         target_row.priority = min(target_row.priority, source_row.priority)
@@ -336,7 +367,7 @@ async def _merge_substitutions(
         if not target_row.comment and source_row.comment:
             target_row.comment = source_row.comment
         await session.delete(source_row)
-        summary['substitution_deleted'] += 1
+        summary["substitution_deleted"] += 1
 
 
 async def merge_autopart_into_target(
@@ -350,7 +381,7 @@ async def merge_autopart_into_target(
     source_autopart = await session.get(AutoPart, source_autopart_id)
     target_autopart = await session.get(AutoPart, target_autopart_id)
     if source_autopart is None or target_autopart is None:
-        raise ValueError('Source or target autopart not found')
+        raise ValueError("Source or target autopart not found")
 
     summary: DefaultDict[str, int] = defaultdict(int)
 
@@ -366,20 +397,20 @@ async def merge_autopart_into_target(
     await _merge_link_table(
         session,
         autopart_storage_association,
-        'storage_location_id',
+        "storage_location_id",
         source_autopart_id,
         target_autopart_id,
         summary,
-        'storage_links_moved',
+        "storage_links_moved",
     )
     await _merge_link_table(
         session,
         autopart_category_association,
-        'category_id',
+        "category_id",
         source_autopart_id,
         target_autopart_id,
         summary,
-        'category_links_moved',
+        "category_links_moved",
     )
     await _merge_crosses(
         session, source_autopart_id, target_autopart_id, summary
@@ -403,12 +434,10 @@ async def merge_autopart_into_target(
             .where(model.autopart_id == source_autopart_id)
             .values(autopart_id=target_autopart_id)
         )
-        summary[f'{model.__tablename__}_updated'] += int(
-            result.rowcount or 0
-        )
+        summary[f"{model.__tablename__}_updated"] += int(result.rowcount or 0)
 
     await session.delete(source_autopart)
-    summary['autoparts_deleted'] += 1
+    summary["autoparts_deleted"] += 1
     await session.flush()
     return dict(summary)
 
@@ -425,18 +454,22 @@ async def canonicalize_autoparts_by_brand_synonyms(
         main_brands = [brand for brand in component if brand.main_brand]
         if len(main_brands) != 1:
             if len(component) > 1:
-                summary['skipped_components_without_single_main_brand'] += 1
+                summary["skipped_components_without_single_main_brand"] += 1
             continue
         canonical_brand = main_brands[0]
         brand_ids = [brand.id for brand in component]
 
         autoparts = (
-            await session.execute(
-                select(AutoPart)
-                .where(AutoPart.brand_id.in_(brand_ids))
-                .order_by(AutoPart.oem_number.asc(), AutoPart.id.asc())
+            (
+                await session.execute(
+                    select(AutoPart)
+                    .where(AutoPart.brand_id.in_(brand_ids))
+                    .order_by(AutoPart.oem_number.asc(), AutoPart.id.asc())
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         by_oem: DefaultDict[str, list[AutoPart]] = defaultdict(list)
         for autopart in autoparts:
@@ -466,15 +499,15 @@ async def canonicalize_autoparts_by_brand_synonyms(
                 continue
 
             logger.info(
-                'Canonicalizing OEM=%s to brand=%s '
-                'using target autopart_id=%s',
+                "Canonicalizing OEM=%s to brand=%s "
+                "using target autopart_id=%s",
                 oem_number,
                 canonical_brand.name,
                 target.id,
             )
 
             if needs_rebrand:
-                summary['autoparts_rebranded'] += 1
+                summary["autoparts_rebranded"] += 1
                 if not dry_run:
                     target.brand = canonical_brand
                     target.brand_id = canonical_brand.id
@@ -483,7 +516,7 @@ async def canonicalize_autoparts_by_brand_synonyms(
             for source in grouped_autoparts:
                 if source.id == target.id:
                     continue
-                summary['autoparts_merged'] += 1
+                summary["autoparts_merged"] += 1
                 if dry_run:
                     continue
                 merge_summary = await merge_autopart_into_target(

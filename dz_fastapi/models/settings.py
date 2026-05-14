@@ -1,5 +1,14 @@
-from sqlalchemy import (JSON, BigInteger, Boolean, Column, Date, DateTime,
-                        ForeignKey, Integer, String)
+from sqlalchemy import (
+    JSON,
+    BigInteger,
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+)
 from sqlalchemy.orm import relationship
 
 from dz_fastapi.core.db import Base
@@ -47,8 +56,48 @@ class CustomerOrderInboxSettings(Base):
     supplier_order_stub_enabled = Column(Boolean, default=True)
     supplier_order_stub_email = Column(
         String(255),
-        default='info@dragonzap.ru',
+        default="info@dragonzap.ru",
     )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        onupdate=now_moscow,
+    )
+
+
+class DiadocIntegrationSettings(Base):
+    environment = Column(String(32), nullable=False, default="staging")
+    organization_id = Column(String(64), nullable=True)
+    organization_name = Column(String(255), nullable=True)
+    organization_inn = Column(String(32), nullable=True)
+    organization_kpp = Column(String(32), nullable=True)
+    seller_legal_address = Column(String(500), nullable=True)
+    seller_postal_address = Column(String(500), nullable=True)
+    signer_full_name = Column(String(255), nullable=True)
+    signer_position = Column(String(255), nullable=True)
+    signer_basis = Column(String(255), nullable=True)
+    formalized_default_function = Column(
+        String(64),
+        nullable=False,
+        default="ДОП",
+    )
+    box_id = Column(String(255), nullable=True)
+    box_id_guid = Column(String(64), nullable=True)
+    refresh_token = Column(String(4096), nullable=True)
+    access_token = Column(String(4096), nullable=True)
+    token_type = Column(String(32), nullable=True)
+    token_scope = Column(String(512), nullable=True)
+    access_token_expires_at = Column(DateTime(timezone=True), nullable=True)
+    connected_user_id = Column(String(64), nullable=True)
+    connected_user_name = Column(String(255), nullable=True)
+    connected_at = Column(DateTime(timezone=True), nullable=True)
+    inbound_sync_enabled = Column(Boolean, default=True, nullable=False)
+    inbound_sync_count = Column(Integer, default=50, nullable=False)
+    inbound_download_content = Column(Boolean, default=True, nullable=False)
+    inbound_process_enabled = Column(Boolean, default=True, nullable=False)
+    last_sync_at = Column(DateTime(timezone=True), nullable=True)
+    last_error = Column(String(2000), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
     updated_at = Column(
         DateTime(timezone=True),
         default=now_moscow,
@@ -68,17 +117,15 @@ class SystemMetricSnapshot(Base):
 
 
 class PriceListStaleAlert(Base):
-    provider_id = Column(Integer, ForeignKey('provider.id'), nullable=False)
+    provider_id = Column(Integer, ForeignKey("provider.id"), nullable=False)
     provider_config_id = Column(
-        Integer, ForeignKey('providerpricelistconfig.id'), nullable=False
+        Integer, ForeignKey("providerpricelistconfig.id"), nullable=False
     )
     days_diff = Column(Integer, nullable=False)
     last_price_date = Column(Date, nullable=False)
-    created_at = Column(
-        DateTime(timezone=True), default=now_moscow
-    )
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
 
-    provider = relationship('Provider')
+    provider = relationship("Provider")
 
 
 class PriceCheckLog(Base):

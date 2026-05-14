@@ -1,14 +1,14 @@
 import re
 from typing import Iterable
 
-DEFAULT_IMAP_FOLDER = 'INBOX'
+DEFAULT_IMAP_FOLDER = "INBOX"
 
 
 def normalize_imap_folder(
     value: str | None,
     default: str = DEFAULT_IMAP_FOLDER,
 ) -> str:
-    text = str(value or '').strip()
+    text = str(value or "").strip()
     if not text:
         return default
     if text.upper() == DEFAULT_IMAP_FOLDER:
@@ -17,10 +17,10 @@ def normalize_imap_folder(
 
 
 def parse_imap_additional_folders(value) -> list[str]:
-    if value in (None, ''):
+    if value in (None, ""):
         return []
     if isinstance(value, str):
-        candidates: Iterable[str] = re.split(r'[\n,;]+', value)
+        candidates: Iterable[str] = re.split(r"[\n,;]+", value)
     elif isinstance(value, (list, tuple, set)):
         candidates = value
     else:
@@ -29,7 +29,7 @@ def parse_imap_additional_folders(value) -> list[str]:
     folders: list[str] = []
     seen: set[str] = set()
     for candidate in candidates:
-        folder = str(candidate or '').strip()
+        folder = str(candidate or "").strip()
         if not folder:
             continue
         folder = normalize_imap_folder(folder)

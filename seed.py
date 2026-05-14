@@ -11,14 +11,10 @@ async def seed_data():
     async with async_session() as session:
 
         for brand_data in create_brands(BRANDS):
-            existing = await brand_crud.get_brand_by_name(
-                brand_data['name'], session
-            )
+            existing = await brand_crud.get_brand_by_name(brand_data["name"], session)
             if not existing:
                 brand_obj = BrandCreate(**brand_data)
-                await brand_crud.create(
-                    obj_in=brand_obj, session=session, commit=True
-                )
+                await brand_crud.create(obj_in=brand_obj, session=session, commit=True)
 
         # Добавить синонимы, используем метод или crud,
         # который их присоединяет например:

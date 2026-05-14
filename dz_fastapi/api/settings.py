@@ -4,35 +4,38 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.db import get_session
 from dz_fastapi.core.scheduler_settings import SCHEDULER_SETTING_DEFAULTS
-from dz_fastapi.crud.settings import (crud_customer_order_inbox_settings,
-                                      crud_price_check_log,
-                                      crud_price_check_schedule,
-                                      crud_price_stale_alert,
-                                      crud_scheduler_setting,
-                                      crud_system_metric_snapshot)
+from dz_fastapi.crud.settings import (
+    crud_customer_order_inbox_settings,
+    crud_price_check_log,
+    crud_price_check_schedule,
+    crud_price_stale_alert,
+    crud_scheduler_setting,
+    crud_system_metric_snapshot,
+)
 from dz_fastapi.models.settings import SupplierHoliday
-from dz_fastapi.schemas.settings import (CustomerOrderInboxSettingsOut,
-                                         CustomerOrderInboxSettingsUpdate,
-                                         MonitorSummaryOut, PriceCheckLogOut,
-                                         PriceCheckScheduleOut,
-                                         PriceCheckScheduleUpdate,
-                                         PriceListStaleAlertOut,
-                                         SchedulerSettingOut,
-                                         SchedulerSettingUpdate,
-                                         SupplierHolidayCreate,
-                                         SupplierHolidayOut,
-                                         SystemMetricSnapshotOut)
-from dz_fastapi.services.holidays import (_auto_holidays_for_years,
-                                          get_manual_holidays)
-from dz_fastapi.services.monitoring import (build_snapshot_payload,
-                                            get_monitor_summary)
+from dz_fastapi.schemas.settings import (
+    CustomerOrderInboxSettingsOut,
+    CustomerOrderInboxSettingsUpdate,
+    MonitorSummaryOut,
+    PriceCheckLogOut,
+    PriceCheckScheduleOut,
+    PriceCheckScheduleUpdate,
+    PriceListStaleAlertOut,
+    SchedulerSettingOut,
+    SchedulerSettingUpdate,
+    SupplierHolidayCreate,
+    SupplierHolidayOut,
+    SystemMetricSnapshotOut,
+)
+from dz_fastapi.services.holidays import _auto_holidays_for_years, get_manual_holidays
+from dz_fastapi.services.monitoring import build_snapshot_payload, get_monitor_summary
 
 router = APIRouter()
 
 
 @router.get(
-    '/settings/price-check',
-    tags=['settings'],
+    "/settings/price-check",
+    tags=["settings"],
     status_code=status.HTTP_200_OK,
     response_model=PriceCheckScheduleOut,
 )
@@ -44,8 +47,8 @@ async def get_price_check_schedule(
 
 
 @router.put(
-    '/settings/price-check',
-    tags=['settings'],
+    "/settings/price-check",
+    tags=["settings"],
     status_code=status.HTTP_200_OK,
     response_model=PriceCheckScheduleOut,
 )
@@ -60,8 +63,8 @@ async def update_price_check_schedule(
 
 
 @router.get(
-    '/alerts/pricelist-stale',
-    tags=['alerts'],
+    "/alerts/pricelist-stale",
+    tags=["alerts"],
     status_code=status.HTTP_200_OK,
     response_model=list[PriceListStaleAlertOut],
 )
@@ -81,8 +84,8 @@ async def list_pricelist_stale_alerts(
 
 
 @router.get(
-    '/alerts/price-check-logs',
-    tags=['alerts'],
+    "/alerts/price-check-logs",
+    tags=["alerts"],
     status_code=status.HTTP_200_OK,
     response_model=list[PriceCheckLogOut],
 )
@@ -95,8 +98,8 @@ async def list_price_check_logs(
 
 
 @router.get(
-    '/settings/scheduler',
-    tags=['settings'],
+    "/settings/scheduler",
+    tags=["settings"],
     status_code=status.HTTP_200_OK,
     response_model=list[SchedulerSettingOut],
 )
@@ -113,8 +116,8 @@ async def list_scheduler_settings(
 
 
 @router.put(
-    '/settings/scheduler/{key}',
-    tags=['settings'],
+    "/settings/scheduler/{key}",
+    tags=["settings"],
     status_code=status.HTTP_200_OK,
     response_model=SchedulerSettingOut,
 )
@@ -124,13 +127,13 @@ async def update_scheduler_setting(
     session: AsyncSession = Depends(get_session),
 ):
     if key not in SCHEDULER_SETTING_DEFAULTS:
-        raise HTTPException(status_code=404, detail='Unknown scheduler key')
+        raise HTTPException(status_code=404, detail="Unknown scheduler key")
     update_data = payload.model_dump(exclude_unset=True)
     defaults = SCHEDULER_SETTING_DEFAULTS.get(key, {})
-    if 'days' in update_data and not update_data.get('days'):
-        update_data['days'] = defaults.get('days', [])
-    if 'times' in update_data and not update_data.get('times'):
-        update_data['times'] = defaults.get('times', [])
+    if "days" in update_data and not update_data.get("days"):
+        update_data["days"] = defaults.get("days", [])
+    if "times" in update_data and not update_data.get("times"):
+        update_data["times"] = defaults.get("times", [])
     setting = await crud_scheduler_setting.update(
         session=session,
         key=key,
@@ -141,8 +144,8 @@ async def update_scheduler_setting(
 
 
 @router.get(
-    '/settings/orders-inbox',
-    tags=['settings'],
+    "/settings/orders-inbox",
+    tags=["settings"],
     status_code=status.HTTP_200_OK,
     response_model=CustomerOrderInboxSettingsOut,
 )
@@ -156,8 +159,8 @@ async def get_customer_order_inbox_settings(
 
 
 @router.put(
-    '/settings/orders-inbox',
-    tags=['settings'],
+    "/settings/orders-inbox",
+    tags=["settings"],
     status_code=status.HTTP_200_OK,
     response_model=CustomerOrderInboxSettingsOut,
 )
@@ -166,23 +169,23 @@ async def update_customer_order_inbox_settings(
     session: AsyncSession = Depends(get_session),
 ):
     data = payload.model_dump(exclude_unset=True)
-    if 'lookback_days' in data:
-        data['lookback_days'] = max(1, int(data['lookback_days']))
-    if 'error_file_retention_days' in data:
-        data['error_file_retention_days'] = max(
-            1, int(data['error_file_retention_days'])
+    if "lookback_days" in data:
+        data["lookback_days"] = max(1, int(data["lookback_days"]))
+    if "error_file_retention_days" in data:
+        data["error_file_retention_days"] = max(
+            1, int(data["error_file_retention_days"])
         )
-    if 'supplier_response_lookback_days' in data:
-        data['supplier_response_lookback_days'] = max(
-            1, int(data['supplier_response_lookback_days'])
+    if "supplier_response_lookback_days" in data:
+        data["supplier_response_lookback_days"] = max(
+            1, int(data["supplier_response_lookback_days"])
         )
-    if 'supplier_response_stale_days' in data:
-        data['supplier_response_stale_days'] = max(
-            1, int(data['supplier_response_stale_days'])
+    if "supplier_response_stale_days" in data:
+        data["supplier_response_stale_days"] = max(
+            1, int(data["supplier_response_stale_days"])
         )
-    if 'supplier_order_stub_email' in data:
-        value = str(data.get('supplier_order_stub_email') or '').strip()
-        data['supplier_order_stub_email'] = value or 'info@dragonzap.ru'
+    if "supplier_order_stub_email" in data:
+        value = str(data.get("supplier_order_stub_email") or "").strip()
+        data["supplier_order_stub_email"] = value or "info@dragonzap.ru"
     setting = await crud_customer_order_inbox_settings.update(
         session=session, data=data
     )
@@ -190,8 +193,8 @@ async def update_customer_order_inbox_settings(
 
 
 @router.get(
-    '/settings/monitor/summary',
-    tags=['settings'],
+    "/settings/monitor/summary",
+    tags=["settings"],
     status_code=status.HTTP_200_OK,
     response_model=MonitorSummaryOut,
 )
@@ -204,8 +207,8 @@ async def get_monitor_summary_api(
 
 
 @router.post(
-    '/settings/monitor/snapshot',
-    tags=['settings'],
+    "/settings/monitor/snapshot",
+    tags=["settings"],
     status_code=status.HTTP_200_OK,
     response_model=SystemMetricSnapshotOut,
 )
@@ -222,8 +225,8 @@ async def create_monitor_snapshot(
 
 
 @router.get(
-    '/settings/monitor/snapshots',
-    tags=['settings'],
+    "/settings/monitor/snapshots",
+    tags=["settings"],
     status_code=status.HTTP_200_OK,
     response_model=list[SystemMetricSnapshotOut],
 )
@@ -242,15 +245,16 @@ async def list_monitor_snapshots(
 # Supplier holiday calendar
 # ---------------------------------------------------------------------------
 
+
 @router.get(
-    '/settings/holidays',
-    tags=['settings'],
+    "/settings/holidays",
+    tags=["settings"],
     status_code=status.HTTP_200_OK,
     response_model=list[SupplierHolidayOut],
 )
 async def list_holidays(
     year: int = Query(
-        default=None, description='Год (по умолчанию — текущий)'
+        default=None, description="Год (по умолчанию — текущий)"
     ),
     session: AsyncSession = Depends(get_session),
 ):
@@ -259,15 +263,15 @@ async def list_holidays(
     """
     import datetime as _dt
     from datetime import date
+
     if year is None:
         year = _dt.date.today().year
 
     auto_dates = _auto_holidays_for_years([year])
     manual_entries = await get_manual_holidays(session, [year])
-    manual_map: dict[
-        date,
-        SupplierHoliday
-    ] = {e.date: e for e in manual_entries}
+    manual_map: dict[date, SupplierHoliday] = {
+        e.date: e for e in manual_entries
+    }
 
     result: list[SupplierHolidayOut] = []
 
@@ -279,7 +283,7 @@ async def list_holidays(
                 date=entry.date,
                 description=entry.description,
                 is_working_day=entry.is_working_day,
-                source='manual',
+                source="manual",
                 created_at=entry.created_at,
             )
         )
@@ -293,7 +297,7 @@ async def list_holidays(
                     date=d,
                     description=None,
                     is_working_day=False,
-                    source='auto',
+                    source="auto",
                     created_at=None,
                 )
             )
@@ -303,8 +307,8 @@ async def list_holidays(
 
 
 @router.post(
-    '/settings/holidays',
-    tags=['settings'],
+    "/settings/holidays",
+    tags=["settings"],
     status_code=status.HTTP_201_CREATED,
     response_model=SupplierHolidayOut,
 )
@@ -319,7 +323,7 @@ async def create_holiday(
     if existing.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f'Запись для даты {payload.date} уже существует',
+            detail=f"Запись для даты {payload.date} уже существует",
         )
     entry = SupplierHoliday(
         date=payload.date,
@@ -334,14 +338,14 @@ async def create_holiday(
         date=entry.date,
         description=entry.description,
         is_working_day=entry.is_working_day,
-        source='manual',
+        source="manual",
         created_at=entry.created_at,
     )
 
 
 @router.delete(
-    '/settings/holidays/{holiday_id}',
-    tags=['settings'],
+    "/settings/holidays/{holiday_id}",
+    tags=["settings"],
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def delete_holiday(
@@ -351,6 +355,6 @@ async def delete_holiday(
     """Delete a manual holiday entry."""
     entry = await session.get(SupplierHoliday, holiday_id)
     if not entry:
-        raise HTTPException(status_code=404, detail='Запись не найдена')
+        raise HTTPException(status_code=404, detail="Запись не найдена")
     await session.delete(entry)
     await session.commit()

@@ -7,107 +7,104 @@ from httpx import ASGITransport, AsyncClient
 
 from dz_fastapi.crud.autopart import crud_autopart
 from dz_fastapi.main import app
-from dz_fastapi.models.autopart import (AutoPart, Category, StorageLocation,
-                                        change_string, preprocess_oem_number)
+from dz_fastapi.models.autopart import (
+    AutoPart,
+    Category,
+    StorageLocation,
+    change_string,
+    preprocess_oem_number,
+)
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation
 from tests.test_constants import TEST_AUTOPART, TEST_BRAND
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
 
 @pytest.mark.asyncio
 async def test_create_autopart(test_session, created_brand: Brand):
     payload = TEST_AUTOPART
-    payload['brand_id'] = created_brand.id
+    payload["brand_id"] = created_brand.id
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.post('/autoparts/', json=payload)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post("/autoparts/", json=payload)
 
-    assert (
-        response.status_code == 201
-    ), f'Expected status code 201, got {response.status_code}'
+    assert response.status_code == 201, f"Expected status code 201, got {response.status_code}"
     data = response.json()
-    assert data['name'] == 'TEST AUTOPART NAME тест'
-    assert data['brand_id'] == payload['brand_id']
-    assert data['oem_number'] == preprocess_oem_number(payload['oem_number'])
-    assert data['description'] == change_string(payload['description'])
-    assert data['width'] == payload['width']
-    assert data['height'] == payload['height']
-    assert data['length'] == payload['length']
-    assert data['weight'] == payload['weight']
-    assert data['purchase_price'] == payload['purchase_price']
-    assert data['retail_price'] == payload['retail_price']
-    assert data['wholesale_price'] == payload['wholesale_price']
-    assert data['multiplicity'] == payload['multiplicity']
-    assert data['minimum_balance'] == payload['minimum_balance']
-    assert data['min_balance_auto'] == payload['min_balance_auto']
-    assert data['min_balance_user'] == payload['min_balance_user']
-    assert data['comment'] == payload['comment']
+    assert data["name"] == "TEST AUTOPART NAME тест"
+    assert data["brand_id"] == payload["brand_id"]
+    assert data["oem_number"] == preprocess_oem_number(payload["oem_number"])
+    assert data["description"] == change_string(payload["description"])
+    assert data["width"] == payload["width"]
+    assert data["height"] == payload["height"]
+    assert data["length"] == payload["length"]
+    assert data["weight"] == payload["weight"]
+    assert data["purchase_price"] == payload["purchase_price"]
+    assert data["retail_price"] == payload["retail_price"]
+    assert data["wholesale_price"] == payload["wholesale_price"]
+    assert data["multiplicity"] == payload["multiplicity"]
+    assert data["minimum_balance"] == payload["minimum_balance"]
+    assert data["min_balance_auto"] == payload["min_balance_auto"]
+    assert data["min_balance_user"] == payload["min_balance_user"]
+    assert data["comment"] == payload["comment"]
     expected_barcode = f"{created_brand.name}{payload['oem_number'].upper()}"
-    assert data['barcode'] == expected_barcode
+    assert data["barcode"] == expected_barcode
 
     # Verify that the autopart was correctly inserted into the database
-    autopart_id = data['id']
+    autopart_id = data["id"]
     autopart_in_db = await test_session.get(AutoPart, autopart_id)
     assert autopart_in_db is not None
     # assert autopart_in_db.name == payload['name']
-    assert autopart_in_db.brand_id == payload['brand_id']
-    assert autopart_in_db.oem_number == payload['oem_number'].upper()
-    assert autopart_in_db.width == payload['width']
-    assert autopart_in_db.height == payload['height']
-    assert autopart_in_db.length == payload['length']
-    assert autopart_in_db.weight == payload['weight']
-    assert autopart_in_db.purchase_price == Decimal(
-        str(payload['purchase_price'])
-    )
-    assert autopart_in_db.retail_price == Decimal(str(payload['retail_price']))
-    assert autopart_in_db.wholesale_price == Decimal(
-        str(payload['wholesale_price'])
-    )
-    assert autopart_in_db.multiplicity == payload['multiplicity']
-    assert autopart_in_db.minimum_balance == payload['minimum_balance']
-    assert autopart_in_db.min_balance_auto == payload['min_balance_auto']
-    assert autopart_in_db.min_balance_user == payload['min_balance_user']
-    assert autopart_in_db.comment == payload['comment']
+    assert autopart_in_db.brand_id == payload["brand_id"]
+    assert autopart_in_db.oem_number == payload["oem_number"].upper()
+    assert autopart_in_db.width == payload["width"]
+    assert autopart_in_db.height == payload["height"]
+    assert autopart_in_db.length == payload["length"]
+    assert autopart_in_db.weight == payload["weight"]
+    assert autopart_in_db.purchase_price == Decimal(str(payload["purchase_price"]))
+    assert autopart_in_db.retail_price == Decimal(str(payload["retail_price"]))
+    assert autopart_in_db.wholesale_price == Decimal(str(payload["wholesale_price"]))
+    assert autopart_in_db.multiplicity == payload["multiplicity"]
+    assert autopart_in_db.minimum_balance == payload["minimum_balance"]
+    assert autopart_in_db.min_balance_auto == payload["min_balance_auto"]
+    assert autopart_in_db.min_balance_user == payload["min_balance_user"]
+    assert autopart_in_db.comment == payload["comment"]
     assert autopart_in_db.barcode == expected_barcode
 
 
 @pytest.mark.asyncio
-async def test_get_autopart(
-    test_session, created_brand: Brand, created_autopart: AutoPart
-):
+async def test_get_autopart(test_session, created_brand: Brand, created_autopart: AutoPart):
     transport = ASGITransport(app=app)
     autopart_id = created_autopart.id
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.get(f'/autoparts/{autopart_id}/')
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.get(f"/autoparts/{autopart_id}/")
     assert response.status_code == 200, response.text
     data = response.json()
-    assert data['id'] == autopart_id
-    assert data['name'] == created_autopart.name
-    assert data['brand_id'] == created_brand.id
-    assert data['oem_number'] == created_autopart.oem_number
-    assert data['description'] == created_autopart.description
-    assert data['width'] == created_autopart.width
-    assert data['height'] == created_autopart.height
-    assert data['length'] == created_autopart.length
-    assert data['weight'] == created_autopart.weight
-    assert data['purchase_price'] == created_autopart.purchase_price
-    assert data['retail_price'] == created_autopart.retail_price
-    assert data['wholesale_price'] == created_autopart.wholesale_price
-    assert data['multiplicity'] == created_autopart.multiplicity
-    assert data['minimum_balance'] == created_autopart.minimum_balance
-    assert data['min_balance_auto'] == created_autopart.min_balance_auto
-    assert data['min_balance_user'] == created_autopart.min_balance_user
-    assert data['comment'] == created_autopart.comment
+    assert data["id"] == autopart_id
+    assert data["name"] == created_autopart.name
+    assert data["brand_id"] == created_brand.id
+    assert data["oem_number"] == created_autopart.oem_number
+    assert data["description"] == created_autopart.description
+    assert data["width"] == created_autopart.width
+    assert data["height"] == created_autopart.height
+    assert data["length"] == created_autopart.length
+    assert data["weight"] == created_autopart.weight
+    assert data["purchase_price"] == created_autopart.purchase_price
+    assert data["retail_price"] == created_autopart.retail_price
+    assert data["wholesale_price"] == created_autopart.wholesale_price
+    assert data["multiplicity"] == created_autopart.multiplicity
+    assert data["minimum_balance"] == created_autopart.minimum_balance
+    assert data["min_balance_auto"] == created_autopart.min_balance_auto
+    assert data["min_balance_user"] == created_autopart.min_balance_user
+    assert data["comment"] == created_autopart.comment
 
     # Test retrieving a non-existent autopart (should return 404)
     invalid_id = autopart_id + 9999  # Assuming this ID does not exist
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.get(f'/autoparts/{invalid_id}/')
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.get(f"/autoparts/{invalid_id}/")
     assert response.status_code == 404, response.text
     data = response.json()
-    assert data['detail'] == 'Autopart not found'
+    assert data["detail"] == "Autopart not found"
 
 
 @pytest.mark.asyncio
@@ -133,70 +130,60 @@ async def test_get_all_autoparts(test_session, created_brand: Brand):
             "min_balance_user": i % 2 != 0,
             "comment": f"Test autopart comment {i}",
         }
-        async with AsyncClient(
-            transport=transport, base_url='http://test'
-        ) as ac:
-            response = await ac.post('/autoparts/', json=autopart_data)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            response = await ac.post("/autoparts/", json=autopart_data)
         assert response.status_code == 201
         created_autopart = response.json()
         autoparts_data.append(created_autopart)
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.get('/autoparts/')
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.get("/autoparts/")
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
     assert len(data) >= 5
-    retrieved_ids = [item['id'] for item in data]
+    retrieved_ids = [item["id"] for item in data]
     for autopart in autoparts_data:
-        assert autopart['id'] in retrieved_ids
+        assert autopart["id"] in retrieved_ids
 
     skip = 2
     limit = 2
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.get(
-            '/autoparts/', params={'skip': skip, 'limit': limit}
-        )
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.get("/autoparts/", params={"skip": skip, "limit": limit})
     assert response.status_code == 200
     data = response.json()
     assert len(data) == limit
     expected_autoparts = autoparts_data[skip: skip + limit]
     for i, autopart in enumerate(data):
-        assert autopart['id'] == expected_autoparts[i]['id']
-        assert autopart['name'] == expected_autoparts[i]['name']
+        assert autopart["id"] == expected_autoparts[i]["id"]
+        assert autopart["name"] == expected_autoparts[i]["name"]
 
 
 @pytest.mark.asyncio
-async def test_update_autopart_success(
-    test_session, created_autopart: AutoPart
-):
+async def test_update_autopart_success(test_session, created_autopart: AutoPart):
     payload = TEST_BRAND
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.post('/brand/', json=payload)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post("/brand/", json=payload)
 
     assert response.status_code == 201, response.text
     data = response.json()
     autopart_id = created_autopart.id
 
     update_data = {
-        'name': 'Updated Autopart Name',
-        'description': 'Updated description',
-        'brand_id': data['id'],
+        "name": "Updated Autopart Name",
+        "description": "Updated description",
+        "brand_id": data["id"],
     }
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.patch(
-            f'/autoparts/{autopart_id}/', json=update_data
-        )
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.patch(f"/autoparts/{autopart_id}/", json=update_data)
     assert response.status_code == 200, response.text
     updated_autopart = response.json()
-    assert updated_autopart['id'] == autopart_id
-    assert updated_autopart['name'] == update_data['name'].upper()
-    assert updated_autopart['description'] == (
-        update_data['description'].upper()
-    )
-    assert updated_autopart['brand_id'] == update_data['brand_id']
+    assert updated_autopart["id"] == autopart_id
+    assert updated_autopart["name"] == update_data["name"].upper()
+    assert updated_autopart["description"] == (update_data["description"].upper())
+    assert updated_autopart["brand_id"] == update_data["brand_id"]
 
 
 @pytest.mark.asyncio
@@ -243,25 +230,25 @@ async def test_get_autopart_offers_latest_pricelist(
     await test_session.commit()
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         response = await ac.get(
-            '/autoparts/offers/',
-            params={'oem': created_autopart.oem_number},
+            "/autoparts/offers/",
+            params={"oem": created_autopart.oem_number},
         )
     assert response.status_code == 200, response.text
     data = response.json()
-    assert data['oem_number'] == created_autopart.oem_number
-    assert len(data['offers']) == 1
-    assert data['historical_offers'] == []
-    offer = data['offers'][0]
-    assert offer['provider_id'] == provider.id
-    assert offer['provider_config_id'] == created_pricelist_config.id
-    assert offer['provider_config_name'] == created_pricelist_config.name_price
-    assert offer['price'] == 98.5
-    assert offer['quantity'] == 5
-    assert offer['min_delivery_day'] == 2
-    assert offer['max_delivery_day'] == 5
-    assert offer['is_own_price'] is True
+    assert data["oem_number"] == created_autopart.oem_number
+    assert len(data["offers"]) == 1
+    assert data["historical_offers"] == []
+    offer = data["offers"][0]
+    assert offer["provider_id"] == provider.id
+    assert offer["provider_config_id"] == created_pricelist_config.id
+    assert offer["provider_config_name"] == created_pricelist_config.name_price
+    assert offer["price"] == 98.5
+    assert offer["quantity"] == 5
+    assert offer["min_delivery_day"] == 2
+    assert offer["max_delivery_day"] == 5
+    assert offer["is_own_price"] is True
 
 
 @pytest.mark.asyncio
@@ -299,25 +286,23 @@ async def test_get_autopart_offers_separates_history_when_missing_in_latest(
     await test_session.commit()
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         response = await ac.get(
-            '/autoparts/offers/',
-            params={'oem': created_autopart.oem_number},
+            "/autoparts/offers/",
+            params={"oem": created_autopart.oem_number},
         )
     assert response.status_code == 200, response.text
     data = response.json()
-    assert data['oem_number'] == created_autopart.oem_number
-    assert data['offers'] == []
-    assert len(data['historical_offers']) == 1
-    historical_offer = data['historical_offers'][0]
-    assert historical_offer['provider_id'] == provider.id
-    assert historical_offer['provider_config_id'] == (
-        created_pricelist_config.id
-    )
-    assert historical_offer['price'] == 120.0
-    assert historical_offer['quantity'] == 1
-    assert historical_offer['pricelist_id'] == historical_pricelist.id
-    assert historical_offer['pricelist_date'] == '2024-01-10'
+    assert data["oem_number"] == created_autopart.oem_number
+    assert data["offers"] == []
+    assert len(data["historical_offers"]) == 1
+    historical_offer = data["historical_offers"][0]
+    assert historical_offer["provider_id"] == provider.id
+    assert historical_offer["provider_config_id"] == (created_pricelist_config.id)
+    assert historical_offer["price"] == 120.0
+    assert historical_offer["quantity"] == 1
+    assert historical_offer["pricelist_id"] == historical_pricelist.id
+    assert historical_offer["pricelist_date"] == "2024-01-10"
 
 
 @pytest.mark.asyncio
@@ -326,16 +311,16 @@ async def test_get_autopart_offers_empty(
     created_autopart: AutoPart,
 ):
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         response = await ac.get(
-            '/autoparts/offers/',
-            params={'oem': 'NONEXISTENT123'},
+            "/autoparts/offers/",
+            params={"oem": "NONEXISTENT123"},
         )
     assert response.status_code == 200, response.text
     data = response.json()
-    assert data['oem_number'] == 'NONEXISTENT123'
-    assert data['offers'] == []
-    assert data['historical_offers'] == []
+    assert data["oem_number"] == "NONEXISTENT123"
+    assert data["offers"] == []
+    assert data["historical_offers"] == []
 
 
 @pytest.mark.asyncio
@@ -350,10 +335,10 @@ async def test_get_autopart_offers_partial_search(
     test_session.add_all([provider, created_pricelist_config])
 
     extra_autopart = AutoPart(
-        name='TEST AUTOPART EXTRA',
+        name="TEST AUTOPART EXTRA",
         brand_id=created_brand.id,
-        oem_number='ZZE4G163611091X',
-        description='Extra autopart for partial search',
+        oem_number="ZZE4G163611091X",
+        description="Extra autopart for partial search",
     )
     test_session.add(extra_autopart)
     await test_session.commit()
@@ -387,14 +372,14 @@ async def test_get_autopart_offers_partial_search(
     await test_session.commit()
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         response = await ac.get(
-            '/autoparts/offers/',
-            params={'oem': 'E4G1636', 'partial': True},
+            "/autoparts/offers/",
+            params={"oem": "E4G1636", "partial": True},
         )
     assert response.status_code == 200, response.text
     data = response.json()
-    found_oems = [row['oem_number'] for row in data['offers']]
+    found_oems = [row["oem_number"] for row in data["offers"]]
     assert created_autopart.oem_number in found_oems
     assert extra_autopart.oem_number in found_oems
 
@@ -405,75 +390,62 @@ async def test_update_autopart_not_found(test_session, created_brand: Brand):
     invalid_autopart_id = 9999
 
     update_data = {
-        'name': 'Non-existent Autopart',
-        'description': 'This autopart does not exist',
-        'brand_id': created_brand.id,
+        "name": "Non-existent Autopart",
+        "description": "This autopart does not exist",
+        "brand_id": created_brand.id,
     }
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.patch(
-            f'/autoparts/{invalid_autopart_id}/', json=update_data
-        )
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.patch(f"/autoparts/{invalid_autopart_id}/", json=update_data)
     assert response.status_code == 404, response.text
     error_response = response.json()
-    assert error_response['detail'] == 'AutoPart not found'
+    assert error_response["detail"] == "AutoPart not found"
 
 
 @pytest.mark.asyncio
-async def test_update_autopart_invalid_brand(
-    test_session, created_autopart: Brand
-):
+async def test_update_autopart_invalid_brand(test_session, created_autopart: Brand):
     transport = ASGITransport(app=app)
     autopart_id = created_autopart.id
     invalid_brand_id = 9999
 
     update_data = {
-        'name': 'Autopart with Invalid Brand',
-        'brand_id': invalid_brand_id,
+        "name": "Autopart with Invalid Brand",
+        "brand_id": invalid_brand_id,
     }
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.patch(
-            f'/autoparts/{autopart_id}/', json=update_data
-        )
-    assert (
-        response.status_code == 400 or response.status_code == 404
-    ), response.text
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.patch(f"/autoparts/{autopart_id}/", json=update_data)
+    assert response.status_code == 400 or response.status_code == 404, response.text
     error_response = response.json()
-    assert 'Brand not found' in error_response['detail']
+    assert "Brand not found" in error_response["detail"]
 
 
 @pytest.mark.asyncio
 async def test_create_category_success(test_session):
     transport = ASGITransport(app=app)
-    category_data = {'name': 'Unique Category Name'}
+    category_data = {"name": "Unique Category Name"}
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.post('/categories/', json=category_data)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post("/categories/", json=category_data)
 
     assert response.status_code == 201, response.text
     created_category = response.json()
-    assert created_category['name'] == category_data['name']
-    assert 'id' in created_category
+    assert created_category["name"] == category_data["name"]
+    assert "id" in created_category
 
 
 @pytest.mark.asyncio
-async def test_create_category_duplicate_name(
-    test_session, created_category: Category
-):
+async def test_create_category_duplicate_name(test_session, created_category: Category):
     transport = ASGITransport(app=app)
-    category_data = {'name': created_category.name}
+    category_data = {"name": created_category.name}
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.post('/categories/', json=category_data)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post("/categories/", json=category_data)
 
     assert response.status_code == 400, response.text
     error_response = response.json()
-    assert 'detail' in error_response
-    assert (
-        f'Category with name {category_data['name']} already exists.'
-        in error_response['detail']
-    )
+    assert "detail" in error_response
+    assert f"Category with name {category_data['name']} already exists." in error_response["detail"]
 
 
 @pytest.mark.asyncio
@@ -481,29 +453,27 @@ async def test_create_category_invalid_data(test_session):
     transport = ASGITransport(app=app)
     category_data = {}
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.post('/categories/', json=category_data)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post("/categories/", json=category_data)
 
     assert response.status_code == 422, response.text
     error_response = response.json()
-    assert 'detail' in error_response
+    assert "detail" in error_response
     assert any(
-        error['loc'] == ['body', 'name'] and error['msg'] == 'Field required'
-        for error in error_response['detail']
+        error["loc"] == ["body", "name"] and error["msg"] == "Field required"
+        for error in error_response["detail"]
     )
 
 
 @pytest.mark.asyncio
-async def test_get_categories_with_data(
-    test_session, created_category: Category
-):
+async def test_get_categories_with_data(test_session, created_category: Category):
     transport = ASGITransport(app=app)
-    category_data = {'name': 'Test Category 2'}
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        await ac.post('/categories/', json=category_data)
+    category_data = {"name": "Test Category 2"}
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        await ac.post("/categories/", json=category_data)
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.get('/categories/')
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.get("/categories/")
 
     assert response.status_code == 200, response.text
     categories = response.json()
@@ -511,30 +481,27 @@ async def test_get_categories_with_data(
     assert len(categories) == 2
 
     created_names = {
-        category['name']
-        for category in [{'name': created_category.name}, category_data]
+        category["name"] for category in [{"name": created_category.name}, category_data]
     }
-    response_names = {category['name'] for category in categories}
+    response_names = {category["name"] for category in categories}
     assert created_names == response_names
 
 
 @pytest.mark.asyncio
-async def test_get_categories_with_pagination(
-    test_session, created_category: Category
-):
+async def test_get_categories_with_pagination(test_session, created_category: Category):
     limit = 2
     skip = 1
     transport = ASGITransport(app=app)
     categories_data = [
-        {'name': 'Category 1'},
-        {'name': 'Category 2'},
-        {'name': 'Category 3'},
+        {"name": "Category 1"},
+        {"name": "Category 2"},
+        {"name": "Category 3"},
     ]
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         for category_data in categories_data:
-            response = await ac.post('/categories/', json=category_data)
+            response = await ac.post("/categories/", json=category_data)
             assert response.status_code == 201, response.text
-        response = await ac.get(f'/categories/?skip={skip}&limit={limit}')
+        response = await ac.get(f"/categories/?skip={skip}&limit={limit}")
 
     assert response.status_code == 200, response.text
     categories = response.json()
@@ -543,156 +510,134 @@ async def test_get_categories_with_pagination(
 
     expected_categories = categories_data[skip: skip + limit]
     for expected, actual in zip(expected_categories, categories[1:]):
-        assert expected['name'] == actual['name']
+        assert expected["name"] == actual["name"]
 
 
 @pytest.mark.asyncio
 async def test_get_categories_invalid_pagination(test_session):
     transport = ASGITransport(app=app)
     categories_data = [
-        {'name': 'Category 1'},
-        {'name': 'Category 2'},
-        {'name': 'Category 3'},
+        {"name": "Category 1"},
+        {"name": "Category 2"},
+        {"name": "Category 3"},
     ]
     invalid_params = [
-        {'skip': -1, 'limit': 10},
-        {'skip': 0, 'limit': -5},
-        {'skip': 'abc', 'limit': 10},
-        {'skip': 0, 'limit': 'xyz'},
+        {"skip": -1, "limit": 10},
+        {"skip": 0, "limit": -5},
+        {"skip": "abc", "limit": 10},
+        {"skip": 0, "limit": "xyz"},
     ]
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         for category_data in categories_data:
-            response = await ac.post('/categories/', json=category_data)
+            response = await ac.post("/categories/", json=category_data)
             assert response.status_code == 201, response.text
         for params in invalid_params:
-            skip = params['skip']
-            limit = params['limit']
-            response = await ac.get(f'/categories/?skip={skip}&limit={limit}')
-            assert response.status_code == 422, (
-                f'Failed with params ' f'skip={skip}, limit={limit}'
-            )
+            skip = params["skip"]
+            limit = params["limit"]
+            response = await ac.get(f"/categories/?skip={skip}&limit={limit}")
+            assert response.status_code == 422, f"Failed with params " f"skip={skip}, limit={limit}"
             error_response = response.json()
-            assert 'detail' in error_response
+            assert "detail" in error_response
 
 
 @pytest.mark.asyncio
-async def test_update_category_success(
-    test_session, created_category: Category
-):
+async def test_update_category_success(test_session, created_category: Category):
     transport = ASGITransport(app=app)
     category_id = created_category.id
-    update_data = {'name': 'Updated Category Name'}
+    update_data = {"name": "Updated Category Name"}
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.patch(
-            f'/categories/{category_id}/', json=update_data
-        )
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.patch(f"/categories/{category_id}/", json=update_data)
 
     assert response.status_code == 200, response.text
     updated_category = response.json()
-    assert updated_category['id'] == category_id
-    assert updated_category['name'] == update_data['name']
-    assert updated_category['parent_id'] is None
-    assert isinstance(updated_category['children'], list)
+    assert updated_category["id"] == category_id
+    assert updated_category["name"] == update_data["name"]
+    assert updated_category["parent_id"] is None
+    assert isinstance(updated_category["children"], list)
 
 
 @pytest.mark.asyncio
 async def test_update_category_not_found(test_session):
     transport = ASGITransport(app=app)
     invalid_category_id = 9999
-    update_data = {'name': 'Should Not Exist'}
+    update_data = {"name": "Should Not Exist"}
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.patch(
-            f'/categories/{invalid_category_id}/', json=update_data
-        )
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.patch(f"/categories/{invalid_category_id}/", json=update_data)
 
     assert response.status_code == 404, response.text
     error_response = response.json()
-    assert error_response['detail'] == 'Category not found'
+    assert error_response["detail"] == "Category not found"
 
 
 @pytest.mark.asyncio
-async def test_update_category_invalid_data(
-    test_session, created_category: Category
-):
+async def test_update_category_invalid_data(test_session, created_category: Category):
     transport = ASGITransport(app=app)
     category_id = created_category.id
-    update_data = {'name': ''}
+    update_data = {"name": ""}
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.patch(
-            f'/categories/{category_id}/', json=update_data
-        )
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.patch(f"/categories/{category_id}/", json=update_data)
 
     assert response.status_code == 422, response.text
     error_response = response.json()
-    assert 'detail' in error_response
+    assert "detail" in error_response
     assert any(
-        error['loc'] == ['body', 'name']
-        and 'String should have at least 1 character' in error['msg']
-        for error in error_response['detail']
+        error["loc"] == ["body", "name"]
+        and "String should have at least 1 character" in error["msg"]
+        for error in error_response["detail"]
     )
 
 
 @pytest.mark.asyncio
-async def test_update_category_duplicate_name(
-    test_session, created_category: Category
-):
+async def test_update_category_duplicate_name(test_session, created_category: Category):
     transport = ASGITransport(app=app)
-    category_data = {'name': 'Another Category'}
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.post('/categories/', json=category_data)
+    category_data = {"name": "Another Category"}
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post("/categories/", json=category_data)
     assert response.status_code == 201, response.text
     another_category = response.json()
 
     category_id = created_category.id
-    duplicate_name = another_category['name']
-    update_data = {'name': duplicate_name}
+    duplicate_name = another_category["name"]
+    update_data = {"name": duplicate_name}
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.patch(
-            f'/categories/{category_id}/', json=update_data
-        )
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.patch(f"/categories/{category_id}/", json=update_data)
 
     assert response.status_code == 400, response.text
     error_response = response.json()
-    assert 'detail' in error_response
-    assert (
-        f'Category with name {duplicate_name} '
-        f'already exists.' in error_response['detail']
-    )
+    assert "detail" in error_response
+    assert f"Category with name {duplicate_name} " f"already exists." in error_response["detail"]
 
 
 @pytest.mark.asyncio
 async def test_create_storage_locations_success(test_session):
     transport = ASGITransport(app=app)
-    storage_data = {'name': 'AA 9'}
+    storage_data = {"name": "AA 9"}
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.post('/storage/', json=storage_data)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post("/storage/", json=storage_data)
 
     assert response.status_code == 201, response.text
     created_storage = response.json()
-    assert created_storage['name'] == storage_data['name']
+    assert created_storage["name"] == storage_data["name"]
 
 
 @pytest.mark.asyncio
-async def test_create_storage_duplicate_name(
-    test_session, created_storage: StorageLocation
-):
+async def test_create_storage_duplicate_name(test_session, created_storage: StorageLocation):
     transport = ASGITransport(app=app)
-    storage_data = {'name': created_storage.name}
+    storage_data = {"name": created_storage.name}
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.post('/storage/', json=storage_data)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post("/storage/", json=storage_data)
 
     assert response.status_code == 400, response.text
     error_response = response.json()
-    assert 'detail' in error_response
+    assert "detail" in error_response
     assert (
-        f'Storage with name {created_storage.name} '
-        f'already exists.' in error_response['detail']
+        f"Storage with name {created_storage.name} " f"already exists." in error_response["detail"]
     )
 
 
@@ -701,63 +646,56 @@ async def test_create_storage_invalid_data(test_session):
     transport = ASGITransport(app=app)
     storage_data = {}
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.post('/storage/', json=storage_data)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post("/storage/", json=storage_data)
 
     assert response.status_code == 422, response.text
     error_response = response.json()
-    assert 'detail' in error_response
+    assert "detail" in error_response
     assert any(
-        error['loc'] == ['body', 'name'] and error['msg'] == 'Field required'
-        for error in error_response['detail']
+        error["loc"] == ["body", "name"] and error["msg"] == "Field required"
+        for error in error_response["detail"]
     )
 
 
 @pytest.mark.asyncio
-async def test_get_storage_with_data(
-    test_session, created_storage: StorageLocation
-):
+async def test_get_storage_with_data(test_session, created_storage: StorageLocation):
     transport = ASGITransport(app=app)
-    storage_data = {'name': 'AA 2'}
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        await ac.post('/storage/', json=storage_data)
+    storage_data = {"name": "AA 2"}
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        await ac.post("/storage/", json=storage_data)
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.get('/storage/')
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.get("/storage/")
 
     assert response.status_code == 200, response.text
     storages = response.json()
     assert isinstance(storages, list)
     assert len(storages) == 2
 
-    created_names = {
-        storage['name']
-        for storage in [{'name': created_storage.name}, storage_data]
-    }
-    response_names = {storages['name'] for storages in storages}
+    created_names = {storage["name"] for storage in [{"name": created_storage.name}, storage_data]}
+    response_names = {storages["name"] for storages in storages}
     assert created_names == response_names
 
 
 @pytest.mark.asyncio
-async def test_get_storages_with_pagination(
-    test_session, created_storage: StorageLocation
-):
+async def test_get_storages_with_pagination(test_session, created_storage: StorageLocation):
     limit = 2
     skip = 1
     transport = ASGITransport(app=app)
     storages_data = [
-        {'name': 'AA 1'},
-        {'name': 'AA 2'},
-        {'name': 'AA 3'},
+        {"name": "AA 1"},
+        {"name": "AA 2"},
+        {"name": "AA 3"},
     ]
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         for storage_data in storages_data:
-            response = await ac.post('/storage/', json=storage_data)
+            response = await ac.post("/storage/", json=storage_data)
             assert response.status_code == 201, response.text
-        all_response = await ac.get('/storage/')
+        all_response = await ac.get("/storage/")
         assert all_response.status_code == 200, all_response.text
         all_storages = all_response.json()
-        response = await ac.get(f'/storage/?skip={skip}&limit={limit}')
+        response = await ac.get(f"/storage/?skip={skip}&limit={limit}")
 
     assert response.status_code == 200, response.text
     storages = response.json()
@@ -766,126 +704,112 @@ async def test_get_storages_with_pagination(
 
     expected_storages = all_storages[skip: skip + limit]
     for expected, actual in zip(expected_storages, storages):
-        assert expected['name'] == actual['name']
+        assert expected["name"] == actual["name"]
 
 
 @pytest.mark.asyncio
-async def test_update_storage_success(
-    test_session, created_storage: StorageLocation
-):
+async def test_update_storage_success(test_session, created_storage: StorageLocation):
     transport = ASGITransport(app=app)
     storage_id = created_storage.id
-    update_data = {'name': 'BB 1'}
+    update_data = {"name": "BB 1"}
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.patch(f'/storage/{storage_id}/', json=update_data)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.patch(f"/storage/{storage_id}/", json=update_data)
 
     assert response.status_code == 200, response.text
     updated_storage = response.json()
-    assert updated_storage['id'] == storage_id
-    assert updated_storage['name'] == update_data['name']
+    assert updated_storage["id"] == storage_id
+    assert updated_storage["name"] == update_data["name"]
 
 
 @pytest.mark.asyncio
 async def test_update_storage_not_found(test_session):
     transport = ASGITransport(app=app)
     invalid_storage_id = 9999
-    update_data = {'name': 'BB 2'}
+    update_data = {"name": "BB 2"}
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.patch(
-            f'/storage/{invalid_storage_id}/', json=update_data
-        )
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.patch(f"/storage/{invalid_storage_id}/", json=update_data)
 
     assert response.status_code == 404, response.text
     error_response = response.json()
-    assert error_response['detail'] == 'Storage location not found'
+    assert error_response["detail"] == "Storage location not found"
 
 
 @pytest.mark.asyncio
-async def test_update_storage_invalid_data(
-    test_session, created_storage: StorageLocation
-):
+async def test_update_storage_invalid_data(test_session, created_storage: StorageLocation):
     transport = ASGITransport(app=app)
     storage_id = created_storage.id
-    update_data = {'name': ''}
+    update_data = {"name": ""}
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.patch(f'/storage/{storage_id}/', json=update_data)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.patch(f"/storage/{storage_id}/", json=update_data)
 
     assert response.status_code == 422, response.text
     error_response = response.json()
-    assert 'detail' in error_response
+    assert "detail" in error_response
     assert any(
-        error['loc'] == ['body', 'name']
-        and 'String should match pattern' in error['msg']
-        for error in error_response['detail']
+        error["loc"] == ["body", "name"] and "String should match pattern" in error["msg"]
+        for error in error_response["detail"]
     )
 
 
 @pytest.mark.asyncio
-async def test_update_storage_duplicate_name(
-    test_session, created_storage: StorageLocation
-):
+async def test_update_storage_duplicate_name(test_session, created_storage: StorageLocation):
     transport = ASGITransport(app=app)
-    storage_data = {'name': 'BB 2'}
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.post('/storage/', json=storage_data)
+    storage_data = {"name": "BB 2"}
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post("/storage/", json=storage_data)
     assert response.status_code == 201, response.text
     another_storage = response.json()
 
     storage_id = created_storage.id
-    duplicate_name = another_storage['name']
-    update_data = {'name': duplicate_name}
+    duplicate_name = another_storage["name"]
+    update_data = {"name": duplicate_name}
 
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
-        response = await ac.patch(f'/storage/{storage_id}/', json=update_data)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.patch(f"/storage/{storage_id}/", json=update_data)
 
     assert response.status_code == 400, response.text
     error_response = response.json()
-    assert 'detail' in error_response
-    assert (
-        f'Storage with name {duplicate_name} '
-        f'already exists.' in error_response['detail']
-    )
+    assert "detail" in error_response
+    assert f"Storage with name {duplicate_name} " f"already exists." in error_response["detail"]
 
 
 @pytest.mark.asyncio
 async def test_create_warehouse_and_storage_location_binding(test_session):
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url='http://test') as ac:
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         warehouse_response = await ac.post(
-            '/warehouses/',
+            "/warehouses/",
             json={
-                'name': 'Warehouse B',
-                'comment': 'Secondary warehouse',
-                'is_active': True,
+                "name": "Warehouse B",
+                "comment": "Secondary warehouse",
+                "is_active": True,
             },
         )
         assert warehouse_response.status_code == 201, warehouse_response.text
         warehouse = warehouse_response.json()
 
         storage_response = await ac.post(
-            '/storage/',
+            "/storage/",
             json={
-                'name': 'AB 10',
-                'warehouse_id': warehouse['id'],
-                'location_type': 'shelf',
+                "name": "AB 10",
+                "warehouse_id": warehouse["id"],
+                "location_type": "shelf",
             },
         )
 
     assert storage_response.status_code == 201, storage_response.text
     storage = storage_response.json()
-    assert storage['warehouse_id'] == warehouse['id']
-    assert storage['warehouse_name'] == warehouse['name']
-    assert storage['system_code'] is None
-    assert storage['is_system'] is False
+    assert storage["warehouse_id"] == warehouse["id"]
+    assert storage["warehouse_name"] == warehouse["name"]
+    assert storage["system_code"] is None
+    assert storage["is_system"] is False
 
 
 @pytest.mark.asyncio
-async def test_get_autoparts_by_ids_success(
-    test_session, created_autopart: AutoPart
-):
+async def test_get_autoparts_by_ids_success(test_session, created_autopart: AutoPart):
     autoparts = await crud_autopart.get_autopart_by_ids(
         session=test_session, autopart_ids=[created_autopart.id]
     )

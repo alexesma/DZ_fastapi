@@ -11,29 +11,31 @@ from dz_fastapi.core.db import get_session
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.email_account import crud_email_account
 from dz_fastapi.models.email_account import EmailAccount
-from dz_fastapi.schemas.email_account import (EmailAccountCreate,
-                                              EmailAccountGoogleTokenRequest,
-                                              EmailAccountResponse,
-                                              EmailAccountTestRequest,
-                                              EmailAccountTestResponse,
-                                              EmailAccountUpdate)
-from dz_fastapi.services.email import (build_email_delivery_kwargs,
-                                       send_test_outbound_email)
-from dz_fastapi.services.email_account_checks import (test_imap_connection,
-                                                      test_smtp_connection)
-from dz_fastapi.services.google_oauth import (build_google_auth_url,
-                                              exchange_code_for_tokens,
-                                              parse_oauth_state,
-                                              test_google_gmail_access)
+from dz_fastapi.schemas.email_account import (
+    EmailAccountCreate,
+    EmailAccountGoogleTokenRequest,
+    EmailAccountResponse,
+    EmailAccountTestRequest,
+    EmailAccountTestResponse,
+    EmailAccountUpdate,
+)
+from dz_fastapi.services.email import build_email_delivery_kwargs, send_test_outbound_email
+from dz_fastapi.services.email_account_checks import test_imap_connection, test_smtp_connection
+from dz_fastapi.services.google_oauth import (
+    build_google_auth_url,
+    exchange_code_for_tokens,
+    parse_oauth_state,
+    test_google_gmail_access,
+)
 from dz_fastapi.services.resend_api import test_resend_api_access
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
-router = APIRouter(prefix='/email-accounts', tags=['email-accounts'])
+router = APIRouter(prefix="/email-accounts", tags=["email-accounts"])
 
 
 @router.get(
-    '/',
+    "/",
     response_model=List[EmailAccountResponse],
     status_code=status.HTTP_200_OK,
 )
@@ -46,7 +48,7 @@ async def list_email_accounts(
 
 
 @router.post(
-    '/',
+    "/",
     response_model=EmailAccountResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -60,7 +62,7 @@ async def create_email_account(
 
 
 @router.patch(
-    '/{account_id}',
+    "/{account_id}",
     response_model=EmailAccountResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -72,7 +74,7 @@ async def update_email_account(
 ):
     account = await crud_email_account.get(session, account_id)
     if not account:
-        raise HTTPException(status_code=404, detail='Account not found')
+        raise HTTPException(status_code=404, detail="Account not found")
     account = await crud_email_account.update(
         db_obj=account, obj_in=payload, session=session, commit=True
     )
@@ -80,7 +82,7 @@ async def update_email_account(
 
 
 @router.delete(
-    '/{account_id}',
+    "/{account_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def delete_email_account(
@@ -90,13 +92,13 @@ async def delete_email_account(
 ):
     account = await crud_email_account.get(session, account_id)
     if not account:
-        raise HTTPException(status_code=404, detail='Account not found')
+        raise HTTPException(status_code=404, detail="Account not found")
     await crud_email_account.remove(account, session)
     return None
 
 
 @router.post(
-    '/{account_id}/test',
+    "/{account_id}/test",
     response_model=EmailAccountTestResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -108,13 +110,13 @@ async def test_email_account(
 ):
     account = await crud_email_account.get(session, account_id)
     if not account:
-        raise HTTPException(status_code=404, detail='Account not found')
+        raise HTTPException(status_code=404, detail="Account not found")
 
     response = EmailAccountTestResponse()
-    response.outbound_transport = account.transport or 'smtp'
+    response.outbound_transport = account.transport or "smtp"
     if payload.imap:
-        transport = (account.transport or 'smtp').strip().lower()
-        if transport == 'resend_api':
+        transport = (account.transport or "smtp").strip().lower()
+        if transport == "resend_api":
             try:
                 domain = await test_resend_api_access(
                     api_key=account.resend_api_key,
@@ -124,15 +126,14 @@ async def test_email_account(
                 )
                 response.imap_ok = True
                 response.inbound_note = (
-                    'Resend receiving включен для домена '
+                    "Resend receiving включен для домена "
                     f'{domain.get("name")}'
                 )
             except Exception as exc:
                 response.imap_ok = False
                 response.imap_error = str(exc)
         elif (
-            account.oauth_provider == 'google'
-            and account.oauth_refresh_token
+            account.oauth_provider == "google" and account.oauth_refresh_token
         ):
             try:
                 await test_google_gmail_access(account.oauth_refresh_token)
@@ -142,14 +143,10 @@ async def test_email_account(
                 response.imap_error = str(exc)
         elif not account.imap_host:
             response.imap_ok = False
-            response.imap_error = 'IMAP host не указан'
+            response.imap_error = "IMAP host не указан"
         else:
             try:
-                folder = (
-                    payload.folder
-                    or account.imap_folder
-                    or 'INBOX'
-                )
+                folder = payload.folder or account.imap_folder or "INBOX"
                 await asyncio.to_thread(
                     test_imap_connection,
                     account.imap_host,
@@ -165,27 +162,23 @@ async def test_email_account(
                 response.imap_error = str(exc)
 
     if payload.smtp:
-        transport = (account.transport or 'smtp').strip().lower()
-        if transport == 'gmail_api':
+        transport = (account.transport or "smtp").strip().lower()
+        if transport == "gmail_api":
             if (
-                account.oauth_provider != 'google'
+                account.oauth_provider != "google"
                 or not account.oauth_refresh_token
             ):
                 response.smtp_ok = False
-                response.smtp_error = (
-                    'Для Gmail API подключите Google OAuth'
-                )
+                response.smtp_error = "Для Gmail API подключите Google OAuth"
             else:
                 try:
-                    await test_google_gmail_access(
-                        account.oauth_refresh_token
-                    )
+                    await test_google_gmail_access(account.oauth_refresh_token)
                     response.smtp_ok = True
-                    response.outbound_note = 'Gmail API OAuth подключён'
+                    response.outbound_note = "Gmail API OAuth подключён"
                 except Exception as exc:
                     response.smtp_ok = False
                     response.smtp_error = str(exc)
-        elif transport == 'resend_api':
+        elif transport == "resend_api":
             try:
                 domain = await test_resend_api_access(
                     api_key=account.resend_api_key,
@@ -195,7 +188,7 @@ async def test_email_account(
                 )
                 response.smtp_ok = True
                 response.outbound_note = (
-                    'Resend API подключен, домен '
+                    "Resend API подключен, домен "
                     f'{domain.get("name")} подтвержден'
                 )
             except Exception as exc:
@@ -203,13 +196,10 @@ async def test_email_account(
                 response.smtp_error = str(exc)
         elif not account.smtp_host:
             response.smtp_ok = False
-            response.smtp_error = 'SMTP host не указан'
+            response.smtp_error = "SMTP host не указан"
         else:
             use_ssl = bool(account.smtp_use_ssl)
-            port = (
-                account.smtp_port
-                or (465 if use_ssl else 587)
-            )
+            port = account.smtp_port or (465 if use_ssl else 587)
             try:
                 await asyncio.to_thread(
                     test_smtp_connection,
@@ -220,7 +210,7 @@ async def test_email_account(
                     use_ssl,
                 )
                 response.smtp_ok = True
-                response.outbound_note = 'SMTP авторизация успешна'
+                response.outbound_note = "SMTP авторизация успешна"
             except Exception as exc:
                 response.smtp_ok = False
                 response.smtp_error = str(exc)
@@ -228,7 +218,7 @@ async def test_email_account(
         if payload.real_send:
             if not payload.to_email:
                 response.smtp_ok = False
-                response.smtp_error = 'Укажите email получателя для теста'
+                response.smtp_error = "Укажите email получателя для теста"
             elif response.smtp_ok is False:
                 pass
             else:
@@ -242,13 +232,13 @@ async def test_email_account(
                     if sent:
                         response.smtp_ok = True
                         response.outbound_note = (
-                            f'Тестовое письмо отправлено на {payload.to_email}'
+                            f"Тестовое письмо отправлено на {payload.to_email}"
                         )
                     else:
                         response.smtp_ok = False
                         response.smtp_error = (
-                            'Тестовая отправка не удалась. '
-                            'Смотрите backend-логи.'
+                            "Тестовая отправка не удалась. "
+                            "Смотрите backend-логи."
                         )
                 except Exception as exc:
                     response.smtp_ok = False
@@ -258,7 +248,7 @@ async def test_email_account(
 
 
 @router.post(
-    '/{account_id}/google-oauth/init',
+    "/{account_id}/google-oauth/init",
     status_code=status.HTTP_200_OK,
 )
 async def init_google_oauth(
@@ -268,13 +258,13 @@ async def init_google_oauth(
 ):
     account = await crud_email_account.get(session, account_id)
     if not account:
-        raise HTTPException(status_code=404, detail='Account not found')
+        raise HTTPException(status_code=404, detail="Account not found")
     auth_url = build_google_auth_url(account_id)
-    return {'auth_url': auth_url}
+    return {"auth_url": auth_url}
 
 
 @router.post(
-    '/{account_id}/google-oauth/disconnect',
+    "/{account_id}/google-oauth/disconnect",
     response_model=EmailAccountResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -285,7 +275,7 @@ async def disconnect_google_oauth(
 ):
     account = await crud_email_account.get(session, account_id)
     if not account:
-        raise HTTPException(status_code=404, detail='Account not found')
+        raise HTTPException(status_code=404, detail="Account not found")
     account.oauth_provider = None
     account.oauth_refresh_token = None
     account.oauth_connected_at = None
@@ -296,7 +286,7 @@ async def disconnect_google_oauth(
 
 
 @router.post(
-    '/{account_id}/google-oauth/token',
+    "/{account_id}/google-oauth/token",
     response_model=EmailAccountResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -308,20 +298,20 @@ async def save_google_oauth_token(
 ):
     account = await crud_email_account.get(session, account_id)
     if not account:
-        raise HTTPException(status_code=404, detail='Account not found')
-    refresh_token = str(payload.refresh_token or '').strip()
+        raise HTTPException(status_code=404, detail="Account not found")
+    refresh_token = str(payload.refresh_token or "").strip()
     if not refresh_token:
         raise HTTPException(
-            status_code=400, detail='Refresh token is required'
+            status_code=400, detail="Refresh token is required"
         )
     try:
         await test_google_gmail_access(refresh_token)
     except Exception as exc:
         raise HTTPException(
             status_code=400,
-            detail=f'Google refresh token invalid: {exc}',
+            detail=f"Google refresh token invalid: {exc}",
         ) from exc
-    account.oauth_provider = 'google'
+    account.oauth_provider = "google"
     account.oauth_refresh_token = refresh_token
     account.oauth_connected_at = now_moscow()
     session.add(account)
@@ -331,7 +321,7 @@ async def save_google_oauth_token(
 
 
 @router.get(
-    '/google-oauth/callback',
+    "/google-oauth/callback",
     include_in_schema=False,
 )
 async def google_oauth_callback(
@@ -342,48 +332,47 @@ async def google_oauth_callback(
 ):
     if error:
         return HTMLResponse(
-            f'<h3>OAuth error</h3><p>{error}</p>', status_code=400
+            f"<h3>OAuth error</h3><p>{error}</p>", status_code=400
         )
     if not code or not state:
         return HTMLResponse(
-            '<h3>OAuth error</h3><p>Missing code or state.</p>',
+            "<h3>OAuth error</h3><p>Missing code or state.</p>",
             status_code=400,
         )
     account_id = parse_oauth_state(state)
     if not account_id:
         return HTMLResponse(
-            '<h3>OAuth error</h3><p>Invalid state.</p>',
+            "<h3>OAuth error</h3><p>Invalid state.</p>",
             status_code=400,
         )
     account = await crud_email_account.get(session, account_id)
     if not account:
         return HTMLResponse(
-            '<h3>OAuth error</h3><p>Account not found.</p>',
+            "<h3>OAuth error</h3><p>Account not found.</p>",
             status_code=404,
         )
     try:
         tokens = await exchange_code_for_tokens(code)
     except Exception as exc:
-        logger.error('Google OAuth exchange failed: %s', exc)
+        logger.error("Google OAuth exchange failed: %s", exc)
         return HTMLResponse(
-            '<h3>OAuth error</h3><p>Token exchange failed.</p>',
+            "<h3>OAuth error</h3><p>Token exchange failed.</p>",
             status_code=400,
         )
-    refresh_token = tokens.get('refresh_token')
+    refresh_token = tokens.get("refresh_token")
     if not refresh_token and not account.oauth_refresh_token:
         return HTMLResponse(
-            '<h3>OAuth error</h3>'
-            '<p>Refresh token not returned. '
-            'Try reconnecting with prompt=consent.</p>',
+            "<h3>OAuth error</h3>"
+            "<p>Refresh token not returned. "
+            "Try reconnecting with prompt=consent.</p>",
             status_code=400,
         )
     if refresh_token:
         account.oauth_refresh_token = refresh_token
-    account.oauth_provider = 'google'
+    account.oauth_provider = "google"
     account.oauth_connected_at = now_moscow()
     session.add(account)
     await session.commit()
     return HTMLResponse(
-        '<h3>Google OAuth подключен</h3>'
-        '<p>Можно закрыть это окно.</p>'
+        "<h3>Google OAuth подключен</h3>" "<p>Можно закрыть это окно.</p>"
     )

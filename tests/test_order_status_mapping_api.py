@@ -3,14 +3,21 @@ import pytest
 from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.main import app
 from dz_fastapi.models.order_status_mapping import ExternalStatusUnmapped
-from dz_fastapi.models.partner import (ORDER_TRACKING_SOURCE,
-                                       TYPE_ORDER_ITEM_STATUS,
-                                       TYPE_STATUS_ORDER, Customer, Order,
-                                       OrderItem, Provider)
+from dz_fastapi.models.partner import (
+    ORDER_TRACKING_SOURCE,
+    TYPE_ORDER_ITEM_STATUS,
+    TYPE_STATUS_ORDER,
+    Customer,
+    Order,
+    OrderItem,
+    Provider,
+)
 from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.services.auth import get_password_hash
 from dz_fastapi.services.order_status_mapping import (
-    EXTERNAL_STATUS_SOURCE_DRAGONZAP, EXTERNAL_STATUS_SOURCE_SUPPLIER_EMAIL)
+    EXTERNAL_STATUS_SOURCE_DRAGONZAP,
+    EXTERNAL_STATUS_SOURCE_SUPPLIER_EMAIL,
+)
 
 
 async def _create_admin(test_session):

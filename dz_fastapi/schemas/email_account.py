@@ -3,16 +3,18 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from dz_fastapi.core.email_folders import (DEFAULT_IMAP_FOLDER,
-                                           normalize_imap_folder,
-                                           parse_imap_additional_folders)
+from dz_fastapi.core.email_folders import (
+    DEFAULT_IMAP_FOLDER,
+    normalize_imap_folder,
+    parse_imap_additional_folders,
+)
 
 
 class EmailAccountBase(BaseModel):
     name: str
     email: EmailStr
-    password: str = ''
-    transport: Literal['smtp', 'gmail_api', 'resend_api'] = 'smtp'
+    password: str = ""
+    transport: Literal["smtp", "gmail_api", "resend_api"] = "smtp"
     resend_api_key: Optional[str] = None
     resend_timeout: int = 20
     imap_host: Optional[str] = None
@@ -25,30 +27,30 @@ class EmailAccountBase(BaseModel):
     purposes: List[str] = Field(default_factory=list)
     is_active: bool = True
 
-    @field_validator('name', mode='before')
+    @field_validator("name", mode="before")
     def name_not_empty(cls, v):
         if not str(v).strip():
-            raise ValueError('Name must not be empty')
+            raise ValueError("Name must not be empty")
         return v
 
-    @field_validator('password', mode='before')
+    @field_validator("password", mode="before")
     def password_to_empty_string(cls, v):
         if v is None:
-            return ''
+            return ""
         return str(v)
 
-    @field_validator('imap_host', 'smtp_host', mode='before')
+    @field_validator("imap_host", "smtp_host", mode="before")
     def strip_optional_mail_fields(cls, v):
         if v is None:
             return None
         value = str(v).strip()
         return value or None
 
-    @field_validator('imap_folder', mode='before')
+    @field_validator("imap_folder", mode="before")
     def normalize_imap_folder_value(cls, v):
         return normalize_imap_folder(v)
 
-    @field_validator('imap_additional_folders', mode='before')
+    @field_validator("imap_additional_folders", mode="before")
     def normalize_imap_additional_folders(cls, v):
         return parse_imap_additional_folders(v)
 
@@ -63,7 +65,7 @@ class EmailAccountUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     password: Optional[str] = None
-    transport: Optional[Literal['smtp', 'gmail_api', 'resend_api']] = None
+    transport: Optional[Literal["smtp", "gmail_api", "resend_api"]] = None
     resend_api_key: Optional[str] = None
     resend_timeout: Optional[int] = None
     imap_host: Optional[str] = None
@@ -77,24 +79,24 @@ class EmailAccountUpdate(BaseModel):
     is_active: Optional[bool] = None
 
     @field_validator(
-        'name',
-        'password',
-        'imap_host',
-        'smtp_host',
-        mode='before',
+        "name",
+        "password",
+        "imap_host",
+        "smtp_host",
+        mode="before",
     )
     def strip_update_mail_fields(cls, v):
         if v is None:
             return None
         return str(v).strip()
 
-    @field_validator('imap_folder', mode='before')
+    @field_validator("imap_folder", mode="before")
     def normalize_update_imap_folder(cls, v):
         if v is None:
             return None
         return normalize_imap_folder(v)
 
-    @field_validator('imap_additional_folders', mode='before')
+    @field_validator("imap_additional_folders", mode="before")
     def normalize_update_imap_additional_folders(cls, v):
         if v is None:
             return None
@@ -105,7 +107,7 @@ class EmailAccountUpdate(BaseModel):
 
 class EmailAccountResponse(EmailAccountBase):
     id: int
-    transport: Literal['smtp', 'gmail_api', 'resend_api'] = 'smtp'
+    transport: Literal["smtp", "gmail_api", "resend_api"] = "smtp"
     oauth_provider: Optional[str] = None
     oauth_connected_at: Optional[datetime] = None
     resend_last_received_at: Optional[datetime] = None

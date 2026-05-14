@@ -35,7 +35,7 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(
-        subject: str, expires_delta: timedelta | None = None
+    subject: str, expires_delta: timedelta | None = None
 ) -> str:
     expire = now_moscow() + (
         expires_delta
@@ -44,9 +44,7 @@ def create_access_token(
     )
     to_encode: dict[str, Any] = {"sub": subject, "exp": expire}
     return jwt.encode(
-        to_encode,
-        settings.jwt_secret,
-        algorithm=settings.jwt_algorithm
+        to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm
     )
 
 
@@ -62,7 +60,7 @@ def decode_access_token(token: str) -> dict[str, Any] | None:
 async def ensure_admin_user(session: AsyncSession) -> None:
     if not settings.admin_email or not settings.admin_password:
         logger.warning(
-            'ADMIN_EMAIL or ADMIN_PASSWORD not set; admin not created'
+            "ADMIN_EMAIL or ADMIN_PASSWORD not set; admin not created"
         )
         return
     result = await session.execute(
@@ -70,7 +68,7 @@ async def ensure_admin_user(session: AsyncSession) -> None:
     )
     existing = result.scalars().first()
     if existing:
-        logger.info('Admin already exists; bootstrap skipped')
+        logger.info("Admin already exists; bootstrap skipped")
         return
     admin = User(
         email=settings.admin_email.lower().strip(),

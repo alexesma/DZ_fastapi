@@ -11,15 +11,21 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from dz_fastapi.core.base import (AutoPart, Brand, Category, Customer,
-                                  Provider, ProviderPriceListConfig,
-                                  StorageLocation)
+from dz_fastapi.core.base import (
+    AutoPart,
+    Brand,
+    Category,
+    Customer,
+    Provider,
+    ProviderPriceListConfig,
+    StorageLocation,
+)
 from dz_fastapi.core.config import settings
 from dz_fastapi.core.constants import get_max_file_size, get_upload_dir
 from dz_fastapi.core.db import Base, get_async_session, get_session
 from dz_fastapi.main import app
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
 
 async def _reset_database_schema(engine) -> None:
@@ -30,13 +36,11 @@ async def _reset_database_schema(engine) -> None:
     """
     async with engine.begin() as conn:
         dialect = conn.dialect.name
-        if dialect == 'postgresql':
-            await conn.execute(text('DROP SCHEMA IF EXISTS public CASCADE'))
-            await conn.execute(text('CREATE SCHEMA public'))
-            await conn.execute(
-                text('GRANT ALL ON SCHEMA public TO CURRENT_USER')
-            )
-            await conn.execute(text('GRANT ALL ON SCHEMA public TO public'))
+        if dialect == "postgresql":
+            await conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
+            await conn.execute(text("CREATE SCHEMA public"))
+            await conn.execute(text("GRANT ALL ON SCHEMA public TO CURRENT_USER"))
+            await conn.execute(text("GRANT ALL ON SCHEMA public TO public"))
             await conn.run_sync(Base.metadata.create_all)
             return
 
@@ -46,9 +50,7 @@ async def _reset_database_schema(engine) -> None:
 
 @pytest_asyncio.fixture(scope="function")
 async def test_engine():
-    engine = create_async_engine(
-        settings.get_database_url(test=True), echo=True, future=True
-    )
+    engine = create_async_engine(settings.get_database_url(test=True), echo=True, future=True)
     await _reset_database_schema(engine)
 
     yield engine
@@ -69,9 +71,7 @@ async def test_engine():
 
 @pytest_asyncio.fixture(scope="function")
 async def test_session(test_engine) -> AsyncSession:
-    async_session = sessionmaker(
-        test_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session = sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session() as session:
         yield session
         await session.rollback()
@@ -80,10 +80,10 @@ async def test_session(test_engine) -> AsyncSession:
 @pytest_asyncio.fixture
 async def created_brand(test_session: AsyncSession) -> Brand:
     brand = Brand(
-        name='TEST BRAND',
-        country_of_origin='USA',
-        website='https://example.com',
-        description='A test brand',
+        name="TEST BRAND",
+        country_of_origin="USA",
+        website="https://example.com",
+        description="A test brand",
     )
     test_session.add(brand)
     await test_session.commit()
@@ -92,14 +92,12 @@ async def created_brand(test_session: AsyncSession) -> Brand:
 
 
 @pytest_asyncio.fixture
-async def created_autopart(
-    test_session: AsyncSession, created_brand: Brand
-) -> AutoPart:
+async def created_autopart(test_session: AsyncSession, created_brand: Brand) -> AutoPart:
     autopart = AutoPart(
-        name='TEST AUTOPART',
+        name="TEST AUTOPART",
         brand_id=created_brand.id,
-        oem_number='E4G163611091',
-        description='A test autopart',
+        oem_number="E4G163611091",
+        description="A test autopart",
     )
     test_session.add(autopart)
     await test_session.commit()
@@ -109,7 +107,7 @@ async def created_autopart(
 
 @pytest_asyncio.fixture
 async def created_category(test_session: AsyncSession) -> Category:
-    category = Category(name='Test Category')
+    category = Category(name="Test Category")
     test_session.add(category)
     await test_session.commit()
     await test_session.refresh(category)
@@ -135,20 +133,20 @@ def _patch_email_validator(monkeypatch):
 async def created_providers(test_session: AsyncSession) -> list[Provider]:
     providers_data = [
         {
-            'name': 'Test Provider 1',
-            'email_contact': 'test1@example.com',
-            'email_incoming_price': 'prices1@example.com',
-            'description': 'First test provider',
-            'comment': 'No comment',
-            'type_prices': 'Wholesale',
+            "name": "Test Provider 1",
+            "email_contact": "test1@example.com",
+            "email_incoming_price": "prices1@example.com",
+            "description": "First test provider",
+            "comment": "No comment",
+            "type_prices": "Wholesale",
         },
         {
-            'name': 'Test Provider 2',
-            'email_contact': 'test2@axample.com',
-            'email_incoming_price': 'prices2@example.com',
-            'description': 'Second test provider',
-            'comment': 'No comment',
-            'type_prices': 'Retail',
+            "name": "Test Provider 2",
+            "email_contact": "test2@axample.com",
+            "email_incoming_price": "prices2@example.com",
+            "description": "Second test provider",
+            "comment": "No comment",
+            "type_prices": "Retail",
         },
     ]
 
@@ -168,15 +166,15 @@ async def created_pricelist_config(
     created_providers: list[Provider], test_session: AsyncSession
 ) -> ProviderPriceListConfig:
     provider_pricelist_config_data = {
-        'provider_id': created_providers[0].id,
-        'start_row': 1,
-        'oem_col': 0,
-        'name_col': 2,
-        'brand_col': 1,
-        'qty_col': 3,
-        'price_col': 4,
-        'name_price': 'PRICE_CONFIG',
-        'name_mail': 'MAIL_CONFIG',
+        "provider_id": created_providers[0].id,
+        "start_row": 1,
+        "oem_col": 0,
+        "name_col": 2,
+        "brand_col": 1,
+        "qty_col": 3,
+        "price_col": 4,
+        "name_price": "PRICE_CONFIG",
+        "name_mail": "MAIL_CONFIG",
     }
     config = ProviderPriceListConfig(**provider_pricelist_config_data)
     test_session.add(config)
@@ -189,20 +187,20 @@ async def created_pricelist_config(
 async def created_customers(test_session: AsyncSession) -> list[Customer]:
     customers_data = [
         {
-            'name': 'Test Customer 1',
-            'email_contact': 'test1@customer.com',
-            'email_outgoing_price': 'prices1@costomer.com',
-            'description': 'First test customer',
-            'comment': 'No comment',
-            'type_prices': 'Wholesale',
+            "name": "Test Customer 1",
+            "email_contact": "test1@customer.com",
+            "email_outgoing_price": "prices1@costomer.com",
+            "description": "First test customer",
+            "comment": "No comment",
+            "type_prices": "Wholesale",
         },
         {
-            'name': 'Test Customer 2',
-            'email_contact': 'test2@customer.com',
-            'email_outgoing_price': 'prices2@customer.com',
-            'description': 'Second test customer',
-            'comment': 'No comment',
-            'type_prices': 'Retail',
+            "name": "Test Customer 2",
+            "email_contact": "test2@customer.com",
+            "email_outgoing_price": "prices2@customer.com",
+            "description": "Second test customer",
+            "comment": "No comment",
+            "type_prices": "Retail",
         },
     ]
 
@@ -219,23 +217,21 @@ async def created_customers(test_session: AsyncSession) -> list[Customer]:
 
 @pytest_asyncio.fixture
 async def created_storage(test_session: AsyncSession) -> StorageLocation:
-    storage = StorageLocation(name='AA 8')
+    storage = StorageLocation(name="AA 8")
     test_session.add(storage)
     await test_session.commit()
     await test_session.refresh(storage)
     return storage
 
 
-@pytest_asyncio.fixture(scope='function')
+@pytest_asyncio.fixture(scope="function")
 async def async_client(test_session: AsyncSession):
     transport = ASGITransport(app=app)
-    async with AsyncClient(
-        transport=transport, base_url='http://test'
-    ) as client:
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
 
 
-@pytest_asyncio.fixture(scope='function', autouse=True)
+@pytest_asyncio.fixture(scope="function", autouse=True)
 async def override_dependencies(test_engine):
     """
     Fixture that automatically overrides dependencies for all tests.
@@ -245,19 +241,15 @@ async def override_dependencies(test_engine):
     logger = logging.getLogger("dz_fastapi")
     if not logger.handlers:
         logger.setLevel(logging.DEBUG)
-        handler = RotatingFileHandler(
-            "test_dz_fastapi.log", maxBytes=2000, backupCount=100
-        )
+        handler = RotatingFileHandler("test_dz_fastapi.log", maxBytes=2000, backupCount=100)
         handler.setLevel(logging.DEBUG)
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
     # Use a temporary directory
     temp_upload_dir = tempfile.TemporaryDirectory()
-    logger.debug(f'Temporary upload directory: {temp_upload_dir.name}')
+    logger.debug(f"Temporary upload directory: {temp_upload_dir.name}")
 
     # Override UPLOAD_DIR
     async def override_get_upload_dir():
@@ -268,9 +260,7 @@ async def override_dependencies(test_engine):
         return 1 * 50 * 1024  # 1 MB
 
     # Create sessionmaker using test_engine
-    async_sessionmaker = sessionmaker(
-        test_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_sessionmaker = sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
 
     # Override get_session
     async def override_get_session():

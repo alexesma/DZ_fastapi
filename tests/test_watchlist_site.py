@@ -5,9 +5,7 @@ from dz_fastapi.services.watchlist_site import check_watchlist_site
 
 
 @pytest.mark.asyncio
-async def test_watchlist_site_creates_admin_notification(
-        async_client, test_session, monkeypatch
-):
+async def test_watchlist_site_creates_admin_notification(async_client, test_session, monkeypatch):
     monkeypatch.setenv("WATCHLIST_NOTIFY_MODE", "immediate")
     monkeypatch.setenv("KEY_FOR_WEBSITE", "test")
     payload = {

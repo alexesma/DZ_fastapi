@@ -5,29 +5,38 @@ import pytest
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand
-from dz_fastapi.models.order_status_mapping import (ExternalStatusMapping,
-                                                    ExternalStatusMatchMode,
-                                                    ExternalStatusUnmapped)
-from dz_fastapi.models.partner import (ORDER_TRACKING_SOURCE,
-                                       SUPPLIER_ORDER_STATUS,
-                                       TYPE_ORDER_ITEM_STATUS,
-                                       TYPE_STATUS_ORDER, Customer, Order,
-                                       OrderItem, Provider, SupplierOrder,
-                                       SupplierOrderItem)
+from dz_fastapi.models.order_status_mapping import (
+    ExternalStatusMapping,
+    ExternalStatusMatchMode,
+    ExternalStatusUnmapped,
+)
+from dz_fastapi.models.partner import (
+    ORDER_TRACKING_SOURCE,
+    SUPPLIER_ORDER_STATUS,
+    TYPE_ORDER_ITEM_STATUS,
+    TYPE_STATUS_ORDER,
+    Customer,
+    Order,
+    OrderItem,
+    Provider,
+    SupplierOrder,
+    SupplierOrderItem,
+)
 from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.services.auth import get_password_hash
-from dz_fastapi.services.order_status_mapping import \
-    EXTERNAL_STATUS_SOURCE_DRAGONZAP
-from dz_fastapi.services.placed_orders import (cleanup_old_tracking_history,
-                                               list_tracking_history,
-                                               sync_site_tracking_statuses,
-                                               update_tracking_item)
+from dz_fastapi.services.order_status_mapping import EXTERNAL_STATUS_SOURCE_DRAGONZAP
+from dz_fastapi.services.placed_orders import (
+    cleanup_old_tracking_history,
+    list_tracking_history,
+    sync_site_tracking_statuses,
+    update_tracking_item,
+)
 
 
-async def _create_user(test_session, email='manager@example.com'):
+async def _create_user(test_session, email="manager@example.com"):
     user = User(
         email=email,
-        password_hash=get_password_hash('secret123'),
+        password_hash=get_password_hash("secret123"),
         role=UserRole.MANAGER,
         status=UserStatus.ACTIVE,
     )
@@ -68,25 +77,25 @@ async def test_list_tracking_history_returns_site_and_supplier_rows(
 ):
     user = await _create_user(test_session)
     provider = Provider(
-        name='Provider One',
-        email_contact='provider@example.com',
-        email_incoming_price='prices@example.com',
-        type_prices='Wholesale',
+        name="Provider One",
+        email_contact="provider@example.com",
+        email_incoming_price="prices@example.com",
+        type_prices="Wholesale",
     )
     customer = Customer(
-        name='Customer One',
-        email_contact='customer@example.com',
-        email_outgoing_price='out@example.com',
-        type_prices='Wholesale',
+        name="Customer One",
+        email_contact="customer@example.com",
+        email_outgoing_price="out@example.com",
+        type_prices="Wholesale",
     )
-    brand = Brand(name='TEST')
+    brand = Brand(name="TEST")
     test_session.add_all([provider, customer, brand])
     await test_session.flush()
 
     autopart = AutoPart(
-        name='Widget',
+        name="Widget",
         brand_id=brand.id,
-        oem_number='OEM123',
+        oem_number="OEM123",
     )
     test_session.add(autopart)
     await test_session.flush()
@@ -112,9 +121,9 @@ async def test_list_tracking_history_returns_site_and_supplier_rows(
             OrderItem(
                 order_id=site_order.id,
                 autopart_id=autopart.id,
-                oem_number='OEM123',
-                brand_name='TEST',
-                autopart_name='Widget',
+                oem_number="OEM123",
+                brand_name="TEST",
+                autopart_name="Widget",
                 quantity=2,
                 price=100,
                 min_delivery_day=2,
@@ -124,9 +133,9 @@ async def test_list_tracking_history_returns_site_and_supplier_rows(
             SupplierOrderItem(
                 supplier_order_id=supplier_order.id,
                 autopart_id=autopart.id,
-                oem_number='OEM123',
-                brand_name='TEST',
-                autopart_name='Widget',
+                oem_number="OEM123",
+                brand_name="TEST",
+                autopart_name="Widget",
                 quantity=1,
                 price=90,
             ),
@@ -136,12 +145,12 @@ async def test_list_tracking_history_returns_site_and_supplier_rows(
 
     rows = await list_tracking_history(
         test_session,
-        oem_number='OEM123',
+        oem_number="OEM123",
     )
 
     assert len(rows) == 2
-    assert {row['source_type'] for row in rows} == {'site', 'supplier'}
-    assert all(row['ordered_by_email'] == user.email for row in rows)
+    assert {row["source_type"] for row in rows} == {"site", "supplier"}
+    assert all(row["ordered_by_email"] == user.email for row in rows)
 
 
 @pytest.mark.asyncio
@@ -149,16 +158,16 @@ async def test_update_tracking_item_updates_site_status_and_received_qty(
     test_session,
 ):
     provider = Provider(
-        name='Provider Two',
-        email_contact='provider2@example.com',
-        email_incoming_price='prices2@example.com',
-        type_prices='Wholesale',
+        name="Provider Two",
+        email_contact="provider2@example.com",
+        email_incoming_price="prices2@example.com",
+        type_prices="Wholesale",
     )
     customer = Customer(
-        name='Customer Two',
-        email_contact='customer2@example.com',
-        email_outgoing_price='out2@example.com',
-        type_prices='Wholesale',
+        name="Customer Two",
+        email_contact="customer2@example.com",
+        email_outgoing_price="out2@example.com",
+        type_prices="Wholesale",
     )
     test_session.add_all([provider, customer])
     await test_session.flush()
@@ -174,9 +183,9 @@ async def test_update_tracking_item_updates_site_status_and_received_qty(
 
     item = OrderItem(
         order_id=order.id,
-        oem_number='OEM555',
-        brand_name='TEST',
-        autopart_name='Part',
+        oem_number="OEM555",
+        brand_name="TEST",
+        autopart_name="Part",
         quantity=2,
         price=50,
         status=TYPE_ORDER_ITEM_STATUS.SENT,
@@ -188,15 +197,15 @@ async def test_update_tracking_item_updates_site_status_and_received_qty(
 
     result = await update_tracking_item(
         test_session,
-        source_type='site',
+        source_type="site",
         item_id=item.id,
-        status='SHIPPED',
+        status="SHIPPED",
         received_quantity=2,
     )
 
     await test_session.refresh(order)
     await test_session.refresh(item)
-    assert result['status'] == 'SHIPPED'
+    assert result["status"] == "SHIPPED"
     assert order.status == TYPE_STATUS_ORDER.SHIPPED
     assert item.status == TYPE_ORDER_ITEM_STATUS.DELIVERED
     assert item.received_quantity == 2
@@ -208,16 +217,16 @@ async def test_cleanup_old_tracking_history_keeps_recent_and_customer_flow(
     test_session,
 ):
     provider = Provider(
-        name='Provider Three',
-        email_contact='provider3@example.com',
-        email_incoming_price='prices3@example.com',
-        type_prices='Wholesale',
+        name="Provider Three",
+        email_contact="provider3@example.com",
+        email_incoming_price="prices3@example.com",
+        type_prices="Wholesale",
     )
     customer = Customer(
-        name='Customer Three',
-        email_contact='customer3@example.com',
-        email_outgoing_price='out3@example.com',
-        type_prices='Wholesale',
+        name="Customer Three",
+        email_contact="customer3@example.com",
+        email_outgoing_price="out3@example.com",
+        type_prices="Wholesale",
     )
     test_session.add_all([provider, customer])
     await test_session.flush()
@@ -243,34 +252,32 @@ async def test_cleanup_old_tracking_history_keeps_recent_and_customer_flow(
         created_at=old_time,
         status=SUPPLIER_ORDER_STATUS.SENT,
     )
-    test_session.add_all(
-        [old_site_order, old_supplier_order, keep_supplier_order]
-    )
+    test_session.add_all([old_site_order, old_supplier_order, keep_supplier_order])
     await test_session.flush()
     test_session.add_all(
         [
             OrderItem(
                 order_id=old_site_order.id,
-                oem_number='OLD1',
-                brand_name='TEST',
-                autopart_name='Old site',
+                oem_number="OLD1",
+                brand_name="TEST",
+                autopart_name="Old site",
                 quantity=1,
                 price=10,
                 status=TYPE_ORDER_ITEM_STATUS.SENT,
             ),
             SupplierOrderItem(
                 supplier_order_id=old_supplier_order.id,
-                oem_number='OLD2',
-                brand_name='TEST',
-                autopart_name='Old supplier',
+                oem_number="OLD2",
+                brand_name="TEST",
+                autopart_name="Old supplier",
                 quantity=1,
                 price=10,
             ),
             SupplierOrderItem(
                 supplier_order_id=keep_supplier_order.id,
-                oem_number='KEEP',
-                brand_name='TEST',
-                autopart_name='Keep supplier',
+                oem_number="KEEP",
+                brand_name="TEST",
+                autopart_name="Keep supplier",
                 quantity=1,
                 price=10,
             ),
@@ -280,8 +287,8 @@ async def test_cleanup_old_tracking_history_keeps_recent_and_customer_flow(
 
     summary = await cleanup_old_tracking_history(test_session)
 
-    assert summary['orders_deleted'] == 1
-    assert summary['supplier_orders_deleted'] == 1
+    assert summary["orders_deleted"] == 1
+    assert summary["supplier_orders_deleted"] == 1
 
     remaining_rows = await list_tracking_history(test_session, limit=50)
     assert remaining_rows == []
@@ -293,16 +300,16 @@ async def test_sync_site_tracking_statuses_updates_order_from_site(
     monkeypatch,
 ):
     provider = Provider(
-        name='Provider Four',
-        email_contact='provider4@example.com',
-        email_incoming_price='prices4@example.com',
-        type_prices='Wholesale',
+        name="Provider Four",
+        email_contact="provider4@example.com",
+        email_incoming_price="prices4@example.com",
+        type_prices="Wholesale",
     )
     customer = Customer(
-        name='Customer Four',
-        email_contact='customer4@example.com',
-        email_outgoing_price='out4@example.com',
-        type_prices='Wholesale',
+        name="Customer Four",
+        email_contact="customer4@example.com",
+        email_outgoing_price="out4@example.com",
+        type_prices="Wholesale",
     )
     test_session.add_all([provider, customer])
     await test_session.flush()
@@ -318,21 +325,21 @@ async def test_sync_site_tracking_statuses_updates_order_from_site(
 
     item = OrderItem(
         order_id=order.id,
-        oem_number='OEMSYNC',
-        brand_name='TEST',
-        autopart_name='Part sync',
+        oem_number="OEMSYNC",
+        brand_name="TEST",
+        autopart_name="Part sync",
         quantity=2,
         price=55,
-        tracking_uuid='site-sync-uuid',
+        tracking_uuid="site-sync-uuid",
         status=TYPE_ORDER_ITEM_STATUS.SENT,
     )
     test_session.add(item)
     await test_session.commit()
     await _create_status_mapping(
         test_session,
-        raw_status='arrived',
-        order_status='ARRIVED',
-        item_status='IN_PROGRESS',
+        raw_status="arrived",
+        order_status="ARRIVED",
+        item_status="IN_PROGRESS",
     )
 
     class FakeDZSiteClient:
@@ -346,39 +353,39 @@ async def test_sync_site_tracking_statuses_updates_order_from_site(
             return None
 
         async def get_order_items(self, **kwargs):
-            assert kwargs['search_comment_eq'] == 'site-sync-uuid'
+            assert kwargs["search_comment_eq"] == "site-sync-uuid"
             return {
-                'data': [
+                "data": [
                     {
-                        'comment': 'site-sync-uuid',
-                        'status_code': 'arrived',
+                        "comment": "site-sync-uuid",
+                        "status_code": "arrived",
                     }
                 ]
             }
 
     monkeypatch.setattr(
-        'dz_fastapi.services.placed_orders.SITE_API_KEY',
-        'test-key',
+        "dz_fastapi.services.placed_orders.SITE_API_KEY",
+        "test-key",
     )
     monkeypatch.setattr(
-        'dz_fastapi.services.placed_orders.DZSiteClient',
+        "dz_fastapi.services.placed_orders.DZSiteClient",
         FakeDZSiteClient,
     )
 
     summary = await sync_site_tracking_statuses(
         test_session,
-        oem_number='OEMSYNC',
+        oem_number="OEMSYNC",
     )
 
     await test_session.refresh(order)
     await test_session.refresh(item)
-    assert summary['checked'] == 1
-    assert summary['updated'] == 1
+    assert summary["checked"] == 1
+    assert summary["updated"] == 1
     assert order.status == TYPE_STATUS_ORDER.ARRIVED
     assert item.status == TYPE_ORDER_ITEM_STATUS.IN_PROGRESS
     assert item.received_quantity == 2
     assert item.received_at is not None
-    assert item.external_status_raw == 'arrived'
+    assert item.external_status_raw == "arrived"
     assert item.external_status_mapping_id is not None
 
 
@@ -388,16 +395,16 @@ async def test_sync_site_tracking_statuses_collects_unmapped_statuses(
     monkeypatch,
 ):
     provider = Provider(
-        name='Provider Unknown',
-        email_contact='provider-unknown@example.com',
-        email_incoming_price='prices-unknown@example.com',
-        type_prices='Wholesale',
+        name="Provider Unknown",
+        email_contact="provider-unknown@example.com",
+        email_incoming_price="prices-unknown@example.com",
+        type_prices="Wholesale",
     )
     customer = Customer(
-        name='Customer Unknown',
-        email_contact='customer-unknown@example.com',
-        email_outgoing_price='out-unknown@example.com',
-        type_prices='Wholesale',
+        name="Customer Unknown",
+        email_contact="customer-unknown@example.com",
+        email_outgoing_price="out-unknown@example.com",
+        type_prices="Wholesale",
     )
     test_session.add_all([provider, customer])
     await test_session.flush()
@@ -413,12 +420,12 @@ async def test_sync_site_tracking_statuses_collects_unmapped_statuses(
 
     item = OrderItem(
         order_id=order.id,
-        oem_number='OEM-UNKNOWN',
-        brand_name='TEST',
-        autopart_name='Part unknown',
+        oem_number="OEM-UNKNOWN",
+        brand_name="TEST",
+        autopart_name="Part unknown",
         quantity=1,
         price=10,
-        tracking_uuid='unknown-sync-uuid',
+        tracking_uuid="unknown-sync-uuid",
         status=TYPE_ORDER_ITEM_STATUS.SENT,
     )
     test_session.add(item)
@@ -436,21 +443,21 @@ async def test_sync_site_tracking_statuses_collects_unmapped_statuses(
 
         async def get_order_items(self, **kwargs):
             return {
-                'data': [
+                "data": [
                     {
-                        'comment': 'unknown-sync-uuid',
-                        'status_code': 'manual review stage',
-                        'status_name': 'Manual Review',
+                        "comment": "unknown-sync-uuid",
+                        "status_code": "manual review stage",
+                        "status_name": "Manual Review",
                     }
                 ]
             }
 
     monkeypatch.setattr(
-        'dz_fastapi.services.placed_orders.SITE_API_KEY',
-        'test-key',
+        "dz_fastapi.services.placed_orders.SITE_API_KEY",
+        "test-key",
     )
     monkeypatch.setattr(
-        'dz_fastapi.services.placed_orders.DZSiteClient',
+        "dz_fastapi.services.placed_orders.DZSiteClient",
         FakeDZSiteClient,
     )
 
@@ -458,15 +465,13 @@ async def test_sync_site_tracking_statuses_collects_unmapped_statuses(
 
     await test_session.refresh(order)
     await test_session.refresh(item)
-    unresolved = (
-        await test_session.get(ExternalStatusUnmapped, 1)
-    )
+    unresolved = await test_session.get(ExternalStatusUnmapped, 1)
 
-    assert summary['checked'] == 1
-    assert summary['updated'] == 1
+    assert summary["checked"] == 1
+    assert summary["updated"] == 1
     assert order.status == TYPE_STATUS_ORDER.ORDERED
     assert item.status == TYPE_ORDER_ITEM_STATUS.SENT
-    assert item.external_status_raw == 'manual review stage | Manual Review'
+    assert item.external_status_raw == "manual review stage | Manual Review"
     assert item.external_status_mapping_id is None
     assert unresolved is not None
     assert unresolved.source_key == EXTERNAL_STATUS_SOURCE_DRAGONZAP

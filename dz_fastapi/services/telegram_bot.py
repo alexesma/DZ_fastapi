@@ -7,7 +7,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 from dz_fastapi.core.db import get_async_session
 from dz_fastapi.services.webchat import save_operator_message
 
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_TOKEN_MESSAGE')
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_TOKEN_MESSAGE")
 
 
 async def reply_command(
@@ -20,15 +20,14 @@ async def reply_command(
 
     # Парсим: /reply SESSION_ID текст ответа
     match = re.match(
-        r'/reply\s+(\S+)\s+(.+)',
+        r"/reply\s+(\S+)\s+(.+)",
         update.message.text,
         re.DOTALL,
     )
 
     if not match:
         await update.message.reply_text(
-            '❌ Неверный формат!\n'
-            'Используйте: /reply SESSION_ID ваш текст'
+            "❌ Неверный формат!\n" "Используйте: /reply SESSION_ID ваш текст"
         )
         return
 
@@ -45,8 +44,7 @@ async def reply_command(
         )
 
     await update.message.reply_text(
-        f'✅ Ответ отправлен клиенту!\n'
-        f'Сессия: {session_id}'
+        f"✅ Ответ отправлен клиенту!\n" f"Сессия: {session_id}"
     )
 
 
@@ -56,7 +54,7 @@ def start_telegram_bot():
         return None
 
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-    application.add_handler(CommandHandler('reply', reply_command))
+    application.add_handler(CommandHandler("reply", reply_command))
 
     # Запускаем polling в фоне
     application.run_polling(allowed_updates=Update.ALL_TYPES)

@@ -1,12 +1,14 @@
-from dz_fastapi.schemas.customer_order import (CustomerOrderConfigCreate,
-                                               CustomerOrderConfigResponse,
-                                               CustomerOrderConfigUpdate)
+from dz_fastapi.schemas.customer_order import (
+    CustomerOrderConfigCreate,
+    CustomerOrderConfigResponse,
+    CustomerOrderConfigUpdate,
+)
 
 
 def test_customer_order_config_create_converts_columns_to_zero_based():
     payload = CustomerOrderConfigCreate(
         customer_id=1,
-        order_emails=['info@example.com'],
+        order_emails=["info@example.com"],
         oem_col=3,
         brand_col=2,
         qty_col=8,
@@ -37,7 +39,7 @@ def test_customer_order_config_response_serializes_columns_to_one_based():
     response = CustomerOrderConfigResponse(
         id=7,
         customer_id=1,
-        order_emails=['info@example.com'],
+        order_emails=["info@example.com"],
         oem_col=2,
         brand_col=1,
         qty_col=7,
@@ -48,18 +50,18 @@ def test_customer_order_config_response_serializes_columns_to_one_based():
 
     data = response.model_dump()
 
-    assert data['oem_col'] == 3
-    assert data['brand_col'] == 2
-    assert data['qty_col'] == 8
-    assert data['price_col'] == 6
-    assert data['ship_price_col'] == 7
+    assert data["oem_col"] == 3
+    assert data["brand_col"] == 2
+    assert data["qty_col"] == 8
+    assert data["price_col"] == 6
+    assert data["ship_price_col"] == 7
 
 
 def test_customer_order_config_create_normalizes_email_account_ids():
     payload = CustomerOrderConfigCreate(
         customer_id=1,
-        order_emails=['info@example.com'],
-        email_account_ids=[3, '5', 3],
+        order_emails=["info@example.com"],
+        email_account_ids=[3, "5", 3],
         oem_col=3,
         brand_col=2,
         qty_col=8,

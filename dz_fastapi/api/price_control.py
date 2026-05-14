@@ -6,28 +6,39 @@ from sqlalchemy.orm import selectinload
 from dz_fastapi.api.deps import require_admin
 from dz_fastapi.core.db import get_session
 from dz_fastapi.core.time import now_moscow
-from dz_fastapi.crud.price_control import (crud_price_control_config,
-                                           crud_price_control_manual,
-                                           crud_price_control_reco,
-                                           crud_price_control_run,
-                                           crud_price_control_source,
-                                           crud_price_control_source_reco,
-                                           crud_price_control_state_profile)
+from dz_fastapi.crud.price_control import (
+    crud_price_control_config,
+    crud_price_control_manual,
+    crud_price_control_reco,
+    crud_price_control_run,
+    crud_price_control_source,
+    crud_price_control_source_reco,
+    crud_price_control_state_profile,
+)
 from dz_fastapi.models.partner import ProviderPriceListConfig
 from dz_fastapi.models.price_control import PriceControlRun
 from dz_fastapi.schemas.price_control import (
-    PriceControlApplyRecommendations, PriceControlApplySourceRecommendations,
-    PriceControlConfigCreate, PriceControlConfigResponse,
-    PriceControlConfigUpdate, PriceControlManualItemResponse,
-    PriceControlRecommendationResponse, PriceControlRunDiagnosticsResponse,
-    PriceControlRunResponse, PriceControlSiteApiKeyOption,
+    PriceControlApplyRecommendations,
+    PriceControlApplySourceRecommendations,
+    PriceControlConfigCreate,
+    PriceControlConfigResponse,
+    PriceControlConfigUpdate,
+    PriceControlManualItemResponse,
+    PriceControlRecommendationResponse,
+    PriceControlRunDiagnosticsResponse,
+    PriceControlRunResponse,
+    PriceControlSiteApiKeyOption,
     PriceControlSourceDiagnosticResponse,
-    PriceControlSourceRecommendationResponse, PriceControlSourceResponse,
-    PriceControlStateProfileResponse)
-from dz_fastapi.services.price_control import (apply_recommendations,
-                                               apply_source_recommendations,
-                                               list_site_api_key_env_names,
-                                               run_price_control)
+    PriceControlSourceRecommendationResponse,
+    PriceControlSourceResponse,
+    PriceControlStateProfileResponse,
+)
+from dz_fastapi.services.price_control import (
+    apply_recommendations,
+    apply_source_recommendations,
+    list_site_api_key_env_names,
+    run_price_control,
+)
 
 router = APIRouter()
 
@@ -53,9 +64,9 @@ def _build_source_response(
     return PriceControlSourceResponse(
         id=source.id,
         provider_config_id=source.provider_config_id,
-        provider_id=getattr(provider, 'id', None),
-        provider_name=getattr(provider, 'name', None),
-        provider_config_name=getattr(provider_config, 'name_price', None),
+        provider_id=getattr(provider, "id", None),
+        provider_name=getattr(provider, "name", None),
+        provider_config_name=getattr(provider_config, "name_price", None),
         weight_pct=source.weight_pct or 0.0,
         min_markup_pct=source.min_markup_pct or 0.0,
         locked=bool(source.locked),
@@ -78,7 +89,7 @@ def _recent_pct_from_coef(values: object) -> list[float]:
 
 
 def _normalize_profile_part(value: str | None) -> str:
-    return str(value or '').strip()
+    return str(value or "").strip()
 
 
 def _build_state_profile_response(profile) -> PriceControlStateProfileResponse:
@@ -88,9 +99,7 @@ def _build_state_profile_response(profile) -> PriceControlStateProfileResponse:
         our_offer_field=profile.our_offer_field or None,
         our_offer_match=profile.our_offer_match or None,
         client_markup_coef=float(profile.client_markup_coef or 1.0),
-        client_markup_sample_size=int(
-            profile.client_markup_sample_size or 0
-        ),
+        client_markup_sample_size=int(profile.client_markup_sample_size or 0),
         client_markup_recent_pct=_recent_pct_from_coef(
             profile.client_markup_recent_coef
         ),
@@ -136,7 +145,7 @@ def _build_config_response(
         client_markup_coef=float(source.client_markup_coef or 1.0),
         client_markup_sample_size=int(source.client_markup_sample_size or 0),
         client_markup_recent_pct=recent_pct,
-        active_state_profile_id=getattr(active_profile, 'id', None),
+        active_state_profile_id=getattr(active_profile, "id", None),
         state_profiles=state_profiles,
         schedule_days=config.schedule_days or [],
         schedule_times=config.schedule_times or [],
@@ -145,18 +154,16 @@ def _build_config_response(
         delta_pct=config.delta_pct or 0,
         target_cheapest_pct=config.target_cheapest_pct or 0,
         site_api_key_env=config.site_api_key_env,
-        exclude_dragonzap_non_dz=bool(
-            config.exclude_dragonzap_non_dz
-        ),
+        exclude_dragonzap_non_dz=bool(config.exclude_dragonzap_non_dz),
         record_site_history_for_dz=bool(
-            getattr(config, 'record_site_history_for_dz', False)
+            getattr(config, "record_site_history_for_dz", False)
         ),
-        cooldown_hours=int(getattr(source, 'cooldown_hours', 0) or 0),
+        cooldown_hours=int(getattr(source, "cooldown_hours", 0) or 0),
         our_offer_field=config.our_offer_field,
         our_offer_match=config.our_offer_match,
         own_cost_markup_default=config.own_cost_markup_default or 0,
         own_cost_markup_by_brand=config.own_cost_markup_by_brand or {},
-        cooldown_reset_at=getattr(source, 'cooldown_reset_at', None),
+        cooldown_reset_at=getattr(source, "cooldown_reset_at", None),
         last_run_at=config.last_run_at,
         created_at=config.created_at,
         updated_at=config.updated_at,
@@ -170,7 +177,7 @@ async def _load_config_response(
 ) -> PriceControlConfigResponse:
     config = await crud_price_control_config.get(session, config_id)
     if not config:
-        raise HTTPException(status_code=404, detail='Config not found')
+        raise HTTPException(status_code=404, detail="Config not found")
     sources = await crud_price_control_source.list_by_config(
         session=session, config_id=config.id
     )
@@ -211,9 +218,7 @@ def _allocate_expected_counts(
 ) -> dict[int, int]:
     remaining = max(total - manual_count, 0)
     if remaining <= 0 or not sources:
-        return {
-            int(source.provider_config_id): 0 for source in sources
-        }
+        return {int(source.provider_config_id): 0 for source in sources}
 
     fixed = [source for source in sources if bool(source.locked)]
     open_sources = [source for source in sources if not bool(source.locked)]
@@ -221,9 +226,7 @@ def _allocate_expected_counts(
     fixed_pct = max(min(fixed_pct, 100.0), 0.0)
     remaining_pct = max(100.0 - fixed_pct, 0.0)
 
-    open_weight = (
-        remaining_pct / len(open_sources) if open_sources else 0.0
-    )
+    open_weight = remaining_pct / len(open_sources) if open_sources else 0.0
     allocations: dict[int, int] = {}
     for source in sources:
         weight_pct = (
@@ -256,7 +259,7 @@ async def _build_run_diagnostics_response(
 ) -> PriceControlRunDiagnosticsResponse:
     run = await session.get(PriceControlRun, run_id)
     if not run:
-        raise HTTPException(status_code=404, detail='Run not found')
+        raise HTTPException(status_code=404, detail="Run not found")
 
     sources = await crud_price_control_source.list_by_config(
         session=session, config_id=run.config_id
@@ -274,10 +277,7 @@ async def _build_run_diagnostics_response(
         int(reco.provider_config_id): reco for reco in source_recos
     }
 
-    manual_count = sum(
-        1 for reco in recos
-        if reco.provider_config_id is None
-    )
+    manual_count = sum(1 for reco in recos if reco.provider_config_id is None)
     expected_map = _allocate_expected_counts(
         total=int(run.total_items or 0),
         manual_count=manual_count,
@@ -288,16 +288,16 @@ async def _build_run_diagnostics_response(
     for source in sources:
         provider_config_id = int(source.provider_config_id)
         stats[provider_config_id] = {
-            'checked_count': 0,
-            'with_competitor_count': 0,
-            'missing_competitor_count': 0,
-            'missing_in_pricelist_count': 0,
-            'below_min_markup_count': 0,
-            'below_cost_count': 0,
-            'cheapest_count': 0,
-            'lower_count': 0,
-            'raise_count': 0,
-            'keep_count': 0,
+            "checked_count": 0,
+            "with_competitor_count": 0,
+            "missing_competitor_count": 0,
+            "missing_in_pricelist_count": 0,
+            "below_min_markup_count": 0,
+            "below_cost_count": 0,
+            "cheapest_count": 0,
+            "lower_count": 0,
+            "raise_count": 0,
+            "keep_count": 0,
         }
 
     for reco in recos:
@@ -308,37 +308,37 @@ async def _build_run_diagnostics_response(
         row = stats.setdefault(
             provider_config_id,
             {
-                'checked_count': 0,
-                'with_competitor_count': 0,
-                'missing_competitor_count': 0,
-                'missing_in_pricelist_count': 0,
-                'below_min_markup_count': 0,
-                'below_cost_count': 0,
-                'cheapest_count': 0,
-                'lower_count': 0,
-                'raise_count': 0,
-                'keep_count': 0,
+                "checked_count": 0,
+                "with_competitor_count": 0,
+                "missing_competitor_count": 0,
+                "missing_in_pricelist_count": 0,
+                "below_min_markup_count": 0,
+                "below_cost_count": 0,
+                "cheapest_count": 0,
+                "lower_count": 0,
+                "raise_count": 0,
+                "keep_count": 0,
             },
         )
-        row['checked_count'] += 1
+        row["checked_count"] += 1
         if reco.missing_in_pricelist:
-            row['missing_in_pricelist_count'] += 1
+            row["missing_in_pricelist_count"] += 1
         if reco.missing_competitor:
-            row['missing_competitor_count'] += 1
+            row["missing_competitor_count"] += 1
         else:
-            row['with_competitor_count'] += 1
+            row["with_competitor_count"] += 1
         if reco.below_min_markup:
-            row['below_min_markup_count'] += 1
+            row["below_min_markup_count"] += 1
         if reco.below_cost:
-            row['below_cost_count'] += 1
+            row["below_cost_count"] += 1
         if reco.is_cheapest:
-            row['cheapest_count'] += 1
-        if reco.suggested_action == 'lower':
-            row['lower_count'] += 1
-        elif reco.suggested_action == 'raise':
-            row['raise_count'] += 1
+            row["cheapest_count"] += 1
+        if reco.suggested_action == "lower":
+            row["lower_count"] += 1
+        elif reco.suggested_action == "raise":
+            row["raise_count"] += 1
         else:
-            row['keep_count'] += 1
+            row["keep_count"] += 1
 
     diagnostics: list[PriceControlSourceDiagnosticResponse] = []
     for source in sources:
@@ -346,10 +346,8 @@ async def _build_run_diagnostics_response(
         provider_config = provider_map.get(provider_config_id)
         provider = provider_config.provider if provider_config else None
         row = stats.get(provider_config_id, {})
-        checked_count = int(row.get('checked_count', 0))
-        with_competitor_count = int(
-            row.get('with_competitor_count', 0)
-        )
+        checked_count = int(row.get("checked_count", 0))
+        with_competitor_count = int(row.get("with_competitor_count", 0))
         coverage_pct = (
             round((with_competitor_count / checked_count) * 100, 2)
             if checked_count > 0
@@ -359,37 +357,37 @@ async def _build_run_diagnostics_response(
         diagnostics.append(
             PriceControlSourceDiagnosticResponse(
                 provider_config_id=provider_config_id,
-                provider_name=getattr(provider, 'name', None),
+                provider_name=getattr(provider, "name", None),
                 provider_config_name=getattr(
-                    provider_config, 'name_price', None
+                    provider_config, "name_price", None
                 ),
                 expected_count=int(expected_map.get(provider_config_id, 0)),
                 checked_count=checked_count,
                 with_competitor_count=with_competitor_count,
                 missing_competitor_count=int(
-                    row.get('missing_competitor_count', 0)
+                    row.get("missing_competitor_count", 0)
                 ),
                 missing_in_pricelist_count=int(
-                    row.get('missing_in_pricelist_count', 0)
+                    row.get("missing_in_pricelist_count", 0)
                 ),
                 below_min_markup_count=int(
-                    row.get('below_min_markup_count', 0)
+                    row.get("below_min_markup_count", 0)
                 ),
-                below_cost_count=int(row.get('below_cost_count', 0)),
-                cheapest_count=int(row.get('cheapest_count', 0)),
-                lower_count=int(row.get('lower_count', 0)),
-                raise_count=int(row.get('raise_count', 0)),
-                keep_count=int(row.get('keep_count', 0)),
+                below_cost_count=int(row.get("below_cost_count", 0)),
+                cheapest_count=int(row.get("cheapest_count", 0)),
+                lower_count=int(row.get("lower_count", 0)),
+                raise_count=int(row.get("raise_count", 0)),
+                keep_count=int(row.get("keep_count", 0)),
                 coverage_pct=coverage_pct,
-                note=getattr(source_reco, 'note', None),
+                note=getattr(source_reco, "note", None),
             )
         )
 
     diagnostics.sort(
         key=lambda item: (
             -(item.checked_count or 0),
-            item.provider_name or '',
-            item.provider_config_name or '',
+            item.provider_name or "",
+            item.provider_config_name or "",
         )
     )
     return PriceControlRunDiagnosticsResponse(
@@ -402,9 +400,7 @@ async def _build_run_diagnostics_response(
     )
 
 
-async def _sync_active_state_profile(
-    session: AsyncSession, config
-):
+async def _sync_active_state_profile(session: AsyncSession, config):
     profile = await crud_price_control_state_profile.get_or_create_active(
         session=session, config=config
     )
@@ -422,9 +418,8 @@ async def _sync_active_state_profile(
             config.client_markup_sample_size
         )
     if (
-        (profile.client_markup_coef is None or profile.client_markup_coef <= 0)
-        and config.client_markup_coef
-    ):
+        profile.client_markup_coef is None or profile.client_markup_coef <= 0
+    ) and config.client_markup_coef:
         profile.client_markup_coef = float(config.client_markup_coef)
     session.add(profile)
     await session.commit()
@@ -432,8 +427,8 @@ async def _sync_active_state_profile(
 
 
 @router.get(
-    '/price-control/site-api-keys',
-    tags=['price-control'],
+    "/price-control/site-api-keys",
+    tags=["price-control"],
     status_code=status.HTTP_200_OK,
     response_model=list[PriceControlSiteApiKeyOption],
     dependencies=[Depends(require_admin)],
@@ -441,7 +436,7 @@ async def _sync_active_state_profile(
 async def list_price_control_site_api_keys():
     options = []
     for env_name in list_site_api_key_env_names():
-        suffix = env_name.replace('API_CONTROL_KEY_FOR_', '')
+        suffix = env_name.replace("API_CONTROL_KEY_FOR_", "")
         label = suffix if suffix else env_name
         options.append(
             PriceControlSiteApiKeyOption(env_name=env_name, label=label)
@@ -450,8 +445,8 @@ async def list_price_control_site_api_keys():
 
 
 @router.get(
-    '/price-control/configs',
-    tags=['price-control'],
+    "/price-control/configs",
+    tags=["price-control"],
     status_code=status.HTTP_200_OK,
     response_model=list[PriceControlConfigResponse],
     dependencies=[Depends(require_admin)],
@@ -479,8 +474,8 @@ async def list_price_control_configs(
 
 
 @router.get(
-    '/price-control/configs/{config_id}',
-    tags=['price-control'],
+    "/price-control/configs/{config_id}",
+    tags=["price-control"],
     status_code=status.HTTP_200_OK,
     response_model=PriceControlConfigResponse,
     dependencies=[Depends(require_admin)],
@@ -493,8 +488,8 @@ async def get_price_control_config(
 
 
 @router.post(
-    '/price-control/configs',
-    tags=['price-control'],
+    "/price-control/configs",
+    tags=["price-control"],
     status_code=status.HTTP_201_CREATED,
     response_model=PriceControlConfigResponse,
     dependencies=[Depends(require_admin)],
@@ -511,11 +506,11 @@ async def create_price_control_config(
     if existing:
         raise HTTPException(
             status_code=409,
-            detail='Config already exists for this pricelist',
+            detail="Config already exists for this pricelist",
         )
-    data = payload.model_dump(exclude={'sources', 'manual_items'})
-    if not data.get('schedule_times'):
-        data['schedule_times'] = ['09:00']
+    data = payload.model_dump(exclude={"sources", "manual_items"})
+    if not data.get("schedule_times"):
+        data["schedule_times"] = ["09:00"]
     config = await crud_price_control_config.create(session, data)
     if payload.sources:
         await crud_price_control_source.replace_for_config(
@@ -534,8 +529,8 @@ async def create_price_control_config(
 
 
 @router.patch(
-    '/price-control/configs/{config_id}',
-    tags=['price-control'],
+    "/price-control/configs/{config_id}",
+    tags=["price-control"],
     status_code=status.HTTP_200_OK,
     response_model=PriceControlConfigResponse,
     dependencies=[Depends(require_admin)],
@@ -547,9 +542,9 @@ async def update_price_control_config(
 ):
     config = await crud_price_control_config.get(session, config_id)
     if not config:
-        raise HTTPException(status_code=404, detail='Config not found')
+        raise HTTPException(status_code=404, detail="Config not found")
     data = payload.model_dump(
-        exclude_unset=True, exclude={'sources', 'manual_items'}
+        exclude_unset=True, exclude={"sources", "manual_items"}
     )
     if data:
         config = await crud_price_control_config.update(
@@ -572,8 +567,8 @@ async def update_price_control_config(
 
 
 @router.get(
-    '/price-control/configs/{config_id}/runs',
-    tags=['price-control'],
+    "/price-control/configs/{config_id}/runs",
+    tags=["price-control"],
     status_code=status.HTTP_200_OK,
     response_model=list[PriceControlRunResponse],
     dependencies=[Depends(require_admin)],
@@ -590,8 +585,8 @@ async def list_price_control_runs(
 
 
 @router.post(
-    '/price-control/configs/{config_id}/run',
-    tags=['price-control'],
+    "/price-control/configs/{config_id}/run",
+    tags=["price-control"],
     status_code=status.HTTP_201_CREATED,
     response_model=PriceControlRunResponse,
     dependencies=[Depends(require_admin)],
@@ -602,19 +597,19 @@ async def run_price_control_now(
 ):
     config = await crud_price_control_config.get(session, config_id)
     if not config:
-        raise HTTPException(status_code=404, detail='Config not found')
+        raise HTTPException(status_code=404, detail="Config not found")
     run_id = await run_price_control(session, config)
     run = await session.get(PriceControlRun, run_id)
     if not run:
         raise HTTPException(
-            status_code=500, detail='Failed to load run result'
+            status_code=500, detail="Failed to load run result"
         )
     return PriceControlRunResponse.model_validate(run)
 
 
 @router.post(
-    '/price-control/configs/{config_id}/reset-history',
-    tags=['price-control'],
+    "/price-control/configs/{config_id}/reset-history",
+    tags=["price-control"],
     status_code=status.HTTP_200_OK,
     response_model=PriceControlConfigResponse,
     dependencies=[Depends(require_admin)],
@@ -625,7 +620,7 @@ async def reset_price_control_history(
 ):
     config = await crud_price_control_config.get(session, config_id)
     if not config:
-        raise HTTPException(status_code=404, detail='Config not found')
+        raise HTTPException(status_code=404, detail="Config not found")
     profile = await crud_price_control_state_profile.get_or_create_active(
         session=session, config=config
     )
@@ -644,8 +639,8 @@ async def reset_price_control_history(
 
 
 @router.get(
-    '/price-control/runs/{run_id}/recommendations',
-    tags=['price-control'],
+    "/price-control/runs/{run_id}/recommendations",
+    tags=["price-control"],
     status_code=status.HTTP_200_OK,
     response_model=list[PriceControlRecommendationResponse],
     dependencies=[Depends(require_admin)],
@@ -663,8 +658,8 @@ async def list_price_control_recommendations(
 
 
 @router.get(
-    '/price-control/runs/{run_id}/source-recommendations',
-    tags=['price-control'],
+    "/price-control/runs/{run_id}/source-recommendations",
+    tags=["price-control"],
     status_code=status.HTTP_200_OK,
     response_model=list[PriceControlSourceRecommendationResponse],
     dependencies=[Depends(require_admin)],
@@ -688,9 +683,9 @@ async def list_price_control_source_recommendations(
                 id=reco.id,
                 run_id=reco.run_id,
                 provider_config_id=reco.provider_config_id,
-                provider_name=getattr(provider, 'name', None),
+                provider_name=getattr(provider, "name", None),
                 provider_config_name=getattr(
-                    provider_config, 'name_price', None
+                    provider_config, "name_price", None
                 ),
                 current_markup_pct=reco.current_markup_pct,
                 suggested_markup_pct=reco.suggested_markup_pct,
@@ -703,8 +698,8 @@ async def list_price_control_source_recommendations(
 
 
 @router.get(
-    '/price-control/runs/{run_id}/source-diagnostics',
-    tags=['price-control'],
+    "/price-control/runs/{run_id}/source-diagnostics",
+    tags=["price-control"],
     status_code=status.HTTP_200_OK,
     response_model=PriceControlRunDiagnosticsResponse,
     dependencies=[Depends(require_admin)],
@@ -719,8 +714,8 @@ async def get_price_control_source_diagnostics(
 
 
 @router.post(
-    '/price-control/runs/{run_id}/apply',
-    tags=['price-control'],
+    "/price-control/runs/{run_id}/apply",
+    tags=["price-control"],
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(require_admin)],
 )
@@ -734,12 +729,12 @@ async def apply_price_control_recommendations(
         run_id=run_id,
         recommendation_ids=payload.recommendation_ids,
     )
-    return {'applied': count}
+    return {"applied": count}
 
 
 @router.post(
-    '/price-control/runs/{run_id}/apply-sources',
-    tags=['price-control'],
+    "/price-control/runs/{run_id}/apply-sources",
+    tags=["price-control"],
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(require_admin)],
 )
@@ -753,4 +748,4 @@ async def apply_price_control_source_recommendations(
         run_id=run_id,
         source_recommendation_ids=payload.source_recommendation_ids,
     )
-    return {'applied': count}
+    return {"applied": count}

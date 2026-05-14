@@ -10,60 +10,77 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.core.db import get_session
 from dz_fastapi.core.time import now_moscow
-from dz_fastapi.crud.customer_order import (crud_customer_order,
-                                            crud_customer_order_config,
-                                            crud_stock_order,
-                                            crud_supplier_order)
+from dz_fastapi.crud.customer_order import (
+    crud_customer_order,
+    crud_customer_order_config,
+    crud_stock_order,
+    crud_supplier_order,
+)
 from dz_fastapi.crud.partner import crud_customer_pricelist_config
 from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import CUSTOMER_ORDER_ITEM_STATUS
 from dz_fastapi.models.user import User, UserRole
-from dz_fastapi.schemas.customer_order import (CustomerOrderConfigCreate,
-                                               CustomerOrderConfigResponse,
-                                               CustomerOrderConfigUpdate,
-                                               CustomerOrderItemResponse,
-                                               CustomerOrderItemStatsResponse,
-                                               CustomerOrderItemUpdate,
-                                               CustomerOrderManualCreate,
-                                               CustomerOrderResponse,
-                                               CustomerOrderStatsMonthlyBucket,
-                                               CustomerOrderStatsRecentRow,
-                                               CustomerOrderStatsSummary,
-                                               CustomerOrderSummaryResponse,
-                                               StockOrderItemPickResponse,
-                                               StockOrderItemPickUpdate,
-                                               StockOrderResponse,
-                                               SupplierOrderDetailResponse,
-                                               SupplierOrderManualCreate,
-                                               SupplierOrderSummaryResponse,
-                                               SupplierReceiptCandidateRow,
-                                               SupplierReceiptCreate,
-                                               SupplierReceiptItemUpdate,
-                                               SupplierReceiptManualCreate,
-                                               SupplierReceiptManualItem,
-                                               SupplierReceiptProviderOption,
-                                               SupplierReceiptResponse,
-                                               SupplierReceiptUpdate,
-                                               SupplierResponseProcessResult)
+from dz_fastapi.schemas.customer_order import (
+    CustomerOrderConfigCreate,
+    CustomerOrderConfigResponse,
+    CustomerOrderConfigUpdate,
+    CustomerOrderItemResponse,
+    CustomerOrderItemStatsResponse,
+    CustomerOrderItemUpdate,
+    CustomerOrderManualCreate,
+    CustomerOrderResponse,
+    CustomerOrderStatsMonthlyBucket,
+    CustomerOrderStatsRecentRow,
+    CustomerOrderStatsSummary,
+    CustomerOrderSummaryResponse,
+    StockOrderItemPickResponse,
+    StockOrderItemPickUpdate,
+    StockOrderResponse,
+    SupplierOrderDetailResponse,
+    SupplierOrderManualCreate,
+    SupplierOrderSummaryResponse,
+    SupplierReceiptCandidateRow,
+    SupplierReceiptCreate,
+    SupplierReceiptItemUpdate,
+    SupplierReceiptManualCreate,
+    SupplierReceiptManualItem,
+    SupplierReceiptProviderOption,
+    SupplierReceiptResponse,
+    SupplierReceiptUpdate,
+    SupplierResponseProcessResult,
+)
 from dz_fastapi.services.customer_orders import (
-    create_manual_customer_order, create_manual_supplier_order,
-    process_customer_orders, process_manual_customer_order,
-    retry_customer_order, retry_customer_order_errors_for_config,
-    send_scheduled_supplier_orders, send_supplier_orders,
-    update_customer_order_item_manual)
+    create_manual_customer_order,
+    create_manual_supplier_order,
+    process_customer_orders,
+    process_manual_customer_order,
+    retry_customer_order,
+    retry_customer_order_errors_for_config,
+    send_scheduled_supplier_orders,
+    send_supplier_orders,
+    update_customer_order_item_manual,
+)
 from dz_fastapi.services.inventory_stock import dispatch_stock_order
 from dz_fastapi.services.notifications import create_notification
-from dz_fastapi.services.supplier_order_responses import \
-    process_supplier_response_messages
+from dz_fastapi.services.supplier_order_responses import process_supplier_response_messages
 from dz_fastapi.services.supplier_workflow import (
-    add_supplier_receipt_items, create_manual_supplier_receipt,
-    create_supplier_receipt, delete_supplier_receipt,
-    delete_supplier_receipt_item, get_supplier_receipt_detail,
-    list_supplier_receipt_candidates, list_supplier_receipt_provider_options,
-    list_supplier_receipts, post_supplier_receipt, serialize_stock_order,
-    serialize_supplier_receipt, unpost_supplier_receipt,
-    update_stock_order_item_pick, update_supplier_receipt,
-    update_supplier_receipt_item)
+    add_supplier_receipt_items,
+    create_manual_supplier_receipt,
+    create_supplier_receipt,
+    delete_supplier_receipt,
+    delete_supplier_receipt_item,
+    get_supplier_receipt_detail,
+    list_supplier_receipt_candidates,
+    list_supplier_receipt_provider_options,
+    list_supplier_receipts,
+    post_supplier_receipt,
+    serialize_stock_order,
+    serialize_supplier_receipt,
+    unpost_supplier_receipt,
+    update_stock_order_item_pick,
+    update_supplier_receipt,
+    update_supplier_receipt_item,
+)
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -531,8 +548,8 @@ async def list_customer_order_summary(
             # Для частичных отказов reject_qty может быть заполнен при
             # статусах OWN_STOCK/SUPPLIER, и его нужно включать в итог.
             if (
-                    reject_qty == 0
-                    and item.status == CUSTOMER_ORDER_ITEM_STATUS.REJECTED
+                reject_qty == 0
+                and item.status == CUSTOMER_ORDER_ITEM_STATUS.REJECTED
             ):
                 reject_qty = requested_qty
             if reject_qty > 0:
@@ -936,7 +953,7 @@ async def update_stock_order_item_pick_endpoint(
 @router.post(
     "/stock/orders/{order_id}/dispatch",
     status_code=status.HTTP_200_OK,
-    summary='Отгрузить складской заказ — списать товар по FIFO (ГТД)',
+    summary="Отгрузить складской заказ — списать товар по FIFO (ГТД)",
 )
 async def dispatch_stock_order_endpoint(
     order_id: int,
@@ -1073,9 +1090,7 @@ async def list_supplier_orders(
 
         total_sum = supplier_sum
         rejected_pct = (
-            float((rejected_sum / total_sum) * 100)
-            if total_sum > 0
-            else 0.0
+            float((rejected_sum / total_sum) * 100) if total_sum > 0 else 0.0
         )
 
         customer_order = None
@@ -1342,9 +1357,7 @@ async def post_supplier_receipt_endpoint(
         session,
         current_user,
         title="Поступление проведено",
-        message=(
-            f"Документ поступления #{receipt_id} проведен."
-        ),
+        message=(f"Документ поступления #{receipt_id} проведен."),
         level=AppNotificationLevel.SUCCESS,
         link="/customer-orders/receipts",
     )

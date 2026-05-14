@@ -12,30 +12,35 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.brand import brand_crud
-from dz_fastapi.crud.partner import (crud_customer_pricelist,
-                                     crud_customer_pricelist_config,
-                                     crud_customer_pricelist_source,
-                                     crud_pricelist, crud_provider)
-from dz_fastapi.crud.price_control import (crud_customer_pricelist_override,
-                                           crud_price_control_manual,
-                                           crud_price_control_reco,
-                                           crud_price_control_run,
-                                           crud_price_control_source,
-                                           crud_price_control_source_reco,
-                                           crud_price_control_state_profile)
+from dz_fastapi.crud.partner import (
+    crud_customer_pricelist,
+    crud_customer_pricelist_config,
+    crud_customer_pricelist_source,
+    crud_pricelist,
+    crud_provider,
+)
+from dz_fastapi.crud.price_control import (
+    crud_customer_pricelist_override,
+    crud_price_control_manual,
+    crud_price_control_reco,
+    crud_price_control_run,
+    crud_price_control_source,
+    crud_price_control_source_reco,
+    crud_price_control_state_profile,
+)
 from dz_fastapi.http.dz_site_client import DZSiteClient
-from dz_fastapi.models.autopart import (AutoPartPriceHistory,
-                                        preprocess_oem_number)
+from dz_fastapi.models.autopart import AutoPartPriceHistory, preprocess_oem_number
 from dz_fastapi.models.partner import CustomerPriceListConfig, Provider
-from dz_fastapi.models.price_control import (PriceControlConfig,
-                                             PriceControlRun,
-                                             PriceControlStateProfile)
+from dz_fastapi.models.price_control import (
+    PriceControlConfig,
+    PriceControlRun,
+    PriceControlStateProfile,
+)
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
-from dz_fastapi.services.process import (_apply_source_filters,
-                                         _apply_source_markups, assign_brand)
+from dz_fastapi.services.process import _apply_source_filters, _apply_source_markups, assign_brand
 from dz_fastapi.services.utils import normalize_markup
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
 CLIENT_COEF_DEFAULT = 1.0
 CLIENT_COEF_MIN = 0.3
@@ -44,15 +49,15 @@ CLIENT_COEF_MIN_SAMPLES = 3
 CLIENT_COEF_TRIM_FRAC = 0.1
 CLIENT_COEF_MAX_STEP_PCT = 0.1
 CLIENT_COEF_HISTORY_SIZE = 10
-DEFAULT_SITE_API_KEY_ENV = 'API_CONTROL_KEY_FOR_WEBSITE'
-SITE_API_KEY_PREFIX = 'API_CONTROL_KEY_FOR_'
+DEFAULT_SITE_API_KEY_ENV = "API_CONTROL_KEY_FOR_WEBSITE"
+SITE_API_KEY_PREFIX = "API_CONTROL_KEY_FOR_"
 BRAND_ALIASES = {
-    'HAVAL': ['GREAT WALL'],
-    'GREAT WALL': ['HAVAL'],
+    "HAVAL": ["GREAT WALL"],
+    "GREAT WALL": ["HAVAL"],
 }
-SITE_HISTORY_PROVIDER_NAME = 'Сайт Dragonzap'
+SITE_HISTORY_PROVIDER_NAME = "Сайт Dragonzap"
 SITE_HISTORY_PRICELIST_ID = 0
-SITE_HISTORY_PRICE_STEP = Decimal('0.01')
+SITE_HISTORY_PRICE_STEP = Decimal("0.01")
 
 
 @dataclass
@@ -97,7 +102,7 @@ def list_site_api_key_env_names() -> list[str]:
 
 
 def resolve_site_api_key(
-        env_name: str | None
+    env_name: str | None,
 ) -> tuple[str | None, str | None]:
     candidates: list[str] = []
     if env_name:
@@ -105,7 +110,7 @@ def resolve_site_api_key(
         if raw:
             candidates.append(raw)
             if not raw.startswith(SITE_API_KEY_PREFIX):
-                candidates.append(f'{SITE_API_KEY_PREFIX}{raw.upper()}')
+                candidates.append(f"{SITE_API_KEY_PREFIX}{raw.upper()}")
     candidates.extend(
         [DEFAULT_SITE_API_KEY_ENV, *list_site_api_key_env_names()]
     )
@@ -121,14 +126,14 @@ def resolve_site_api_key(
 
 
 def _skip_dragonzap_without_dz(oem: str, brand: str) -> bool:
-    brand_raw = str(brand or '').strip().upper()
-    brand_compact = re.sub(r'[\s\-_]+', '', brand_raw)
-    if brand_compact == 'HOTPARTS':
+    brand_raw = str(brand or "").strip().upper()
+    brand_compact = re.sub(r"[\s\-_]+", "", brand_raw)
+    if brand_compact == "HOTPARTS":
         return True
-    if brand_raw != 'DRAGONZAP':
+    if brand_raw != "DRAGONZAP":
         return False
-    normalized_oem = preprocess_oem_number(str(oem or ''))
-    return bool(normalized_oem) and not normalized_oem.startswith('DZ')
+    normalized_oem = preprocess_oem_number(str(oem or ""))
+    return bool(normalized_oem) and not normalized_oem.startswith("DZ")
 
 
 def _normalize_site_history_price(value: float | Decimal) -> Decimal:
@@ -210,7 +215,7 @@ def _normalize_offer(offer: dict) -> dict | None:
     def _pick(keys):
         for key in keys:
             value = offer.get(key)
-            if value not in (None, ''):
+            if value not in (None, ""):
                 return value
         return None
 
@@ -232,43 +237,43 @@ def _normalize_offer(offer: dict) -> dict | None:
 
     price_raw = _pick(
         (
-            'price',
-            'price_rub',
-            'price_total',
-            'price_total_rub',
-            'price_with_markup',
-            'cost',
+            "price",
+            "price_rub",
+            "price_total",
+            "price_total_rub",
+            "price_with_markup",
+            "cost",
         )
     )
-    qty_raw = _pick(('qnt', 'quantity', 'qty', 'balance', 'stock'))
+    qty_raw = _pick(("qnt", "quantity", "qty", "balance", "stock"))
     price = _to_float(price_raw)
     qty = _to_int(qty_raw)
     if price is None or qty is None:
         return None
     supplier_name = _pick(
         (
-            'supplier_name',
-            'supplier',
-            'supplier_title',
-            'supplier_company',
-            'provider',
-            'seller_name',
-            'price_name',
-            'sup_logo',
+            "supplier_name",
+            "supplier",
+            "supplier_title",
+            "supplier_company",
+            "provider",
+            "seller_name",
+            "price_name",
+            "sup_logo",
         )
     )
     min_delivery = _to_int(
-        _pick(('min_delivery_day', 'min_delivery', 'min_delivery_days'))
+        _pick(("min_delivery_day", "min_delivery", "min_delivery_days"))
     )
     max_delivery = _to_int(
-        _pick(('max_delivery_day', 'max_delivery', 'max_delivery_days'))
+        _pick(("max_delivery_day", "max_delivery", "max_delivery_days"))
     )
     return {
-        'price': price,
-        'qty': qty,
-        'supplier_name': supplier_name,
-        'min_delivery_day': min_delivery,
-        'max_delivery_day': max_delivery,
+        "price": price,
+        "qty": qty,
+        "supplier_name": supplier_name,
+        "min_delivery_day": min_delivery,
+        "max_delivery_day": max_delivery,
     }
 
 
@@ -323,13 +328,13 @@ def _expand_brand_candidates(brands: list[str]) -> list[str]:
     expanded: list[str] = []
     seen = set()
     for brand in brands:
-        candidate = str(brand or '').strip().upper()
+        candidate = str(brand or "").strip().upper()
         if not candidate or candidate in seen:
             continue
         expanded.append(candidate)
         seen.add(candidate)
         for alias in BRAND_ALIASES.get(candidate, []):
-            alias_norm = str(alias or '').strip().upper()
+            alias_norm = str(alias or "").strip().upper()
             if alias_norm and alias_norm not in seen:
                 expanded.append(alias_norm)
                 seen.add(alias_norm)
@@ -364,20 +369,20 @@ async def _expand_brands_with_synonyms(
                     related_names = [
                         str(item.name).strip().upper()
                         for item in related
-                        if str(getattr(item, 'name', '')).strip()
+                        if str(getattr(item, "name", "")).strip()
                     ]
                     synonyms = _expand_brand_candidates(
                         [cache_key, *related_names]
                     )
             except Exception as exc:
                 logger.warning(
-                    'Price control brand synonyms load failed for %s: %s',
+                    "Price control brand synonyms load failed for %s: %s",
                     cache_key,
                     exc,
                 )
             cache[cache_key] = synonyms
         for name in synonyms:
-            norm_name = str(name or '').strip().upper()
+            norm_name = str(name or "").strip().upper()
             if not norm_name or norm_name in seen:
                 continue
             seen.add(norm_name)
@@ -388,10 +393,10 @@ async def _expand_brands_with_synonyms(
 def _resolve_site_search_key(
     oem: str, brand: str
 ) -> tuple[str, list[str], bool]:
-    query_oem = preprocess_oem_number(str(oem or ''))
-    query_brand = str(brand or '').strip().upper()
+    query_oem = preprocess_oem_number(str(oem or ""))
+    query_brand = str(brand or "").strip().upper()
 
-    if query_brand != 'DRAGONZAP' or not query_oem.startswith('DZ'):
+    if query_brand != "DRAGONZAP" or not query_oem.startswith("DZ"):
         return query_oem, [query_brand], False
 
     stripped = preprocess_oem_number(query_oem[2:])
@@ -406,14 +411,14 @@ def _resolve_site_search_key(
     )
     brand_candidates = _expand_brand_candidates(assigned_brands)
     if not brand_candidates:
-        brand_candidates = ['HAVAL', 'GREAT WALL']
+        brand_candidates = ["HAVAL", "GREAT WALL"]
 
     logger.info(
-        'Price control DZ search remap: %s/%s -> %s/%s',
+        "Price control DZ search remap: %s/%s -> %s/%s",
         oem,
         brand,
         stripped,
-        ', '.join(brand_candidates),
+        ", ".join(brand_candidates),
     )
     return stripped, brand_candidates, True
 
@@ -424,17 +429,17 @@ def _merge_offers(offers_by_brand: list[list[dict]]) -> list[dict]:
     for offers in offers_by_brand:
         for raw in offers or []:
             key = (
-                raw.get('system_hash')
-                or raw.get('hash_key')
+                raw.get("system_hash")
+                or raw.get("hash_key")
                 or (
-                    raw.get('oem'),
-                    raw.get('make_name'),
-                    raw.get('cost'),
-                    raw.get('qnt'),
-                    raw.get('price_name'),
-                    raw.get('sup_logo'),
-                    raw.get('min_delivery_day'),
-                    raw.get('max_delivery_day'),
+                    raw.get("oem"),
+                    raw.get("make_name"),
+                    raw.get("cost"),
+                    raw.get("qnt"),
+                    raw.get("price_name"),
+                    raw.get("sup_logo"),
+                    raw.get("min_delivery_day"),
+                    raw.get("max_delivery_day"),
                 )
             )
             if key in seen:
@@ -467,7 +472,7 @@ def _pick_own_offer(
         normalized = _normalize_offer(raw)
         if not normalized:
             continue
-        if best is None or normalized['price'] < best['price']:
+        if best is None or normalized["price"] < best["price"]:
             best = normalized
     return best
 
@@ -553,8 +558,8 @@ def _extract_brand_values(raw: object) -> list[str]:
     if raw is None:
         return []
     payload = raw
-    if isinstance(raw, dict) and isinstance(raw.get('data'), list):
-        payload = raw.get('data') or []
+    if isinstance(raw, dict) and isinstance(raw.get("data"), list):
+        payload = raw.get("data") or []
     if isinstance(payload, dict):
         payload = [payload]
     if not isinstance(payload, list):
@@ -569,7 +574,7 @@ def _extract_brand_values(raw: object) -> list[str]:
             continue
         if not isinstance(item, dict):
             continue
-        for key in ('make_name', 'brand', 'name', 'value', 'label'):
+        for key in ("make_name", "brand", "name", "value", "label"):
             value = item.get(key)
             if value:
                 candidate = str(value).strip().upper()
@@ -588,8 +593,8 @@ def _is_related_brand(candidate: str, requested: str) -> bool:
         return True
     if req in cand or cand in req:
         return True
-    cand_parts = set(filter(None, re.split(r'[^A-Z0-9]+', cand)))
-    req_parts = set(filter(None, re.split(r'[^A-Z0-9]+', req)))
+    cand_parts = set(filter(None, re.split(r"[^A-Z0-9]+", cand)))
+    req_parts = set(filter(None, re.split(r"[^A-Z0-9]+", req)))
     return bool(cand_parts & req_parts)
 
 
@@ -610,18 +615,18 @@ async def _fetch_site_offers_with_brand_fallback(
 
     if related_brands:
         logger.info(
-            'Price control brand fallback for %s: requested=%s, related=%s',
+            "Price control brand fallback for %s: requested=%s, related=%s",
             oem,
             brand,
-            ', '.join(related_brands[:5]),
+            ", ".join(related_brands[:5]),
         )
     else:
         logger.info(
-            'Price control no related site '
-            'brands for %s: requested=%s, available=%s',
+            "Price control no related site "
+            "brands for %s: requested=%s, available=%s",
             oem,
             brand,
-            ', '.join(site_brands[:5]) if site_brands else '-',
+            ", ".join(site_brands[:5]) if site_brands else "-",
         )
 
     for candidate_brand in related_brands:
@@ -650,23 +655,24 @@ async def _fetch_site_offers_with_brand_fallback(
 
 def _offer_row_from_series(row: pd.Series) -> OfferRow:
     return OfferRow(
-        autopart_id=int(row.get('autopart_id')),
-        provider_config_id=int(row.get('provider_config_id')),
+        autopart_id=int(row.get("autopart_id")),
+        provider_config_id=int(row.get("provider_config_id")),
         provider_id=(
-            int(row.get('provider_id'))
-            if row.get('provider_id') is not None
+            int(row.get("provider_id"))
+            if row.get("provider_id") is not None
             else None
         ),
-        price=float(row.get('price') or 0),
+        price=float(row.get("price") or 0),
         base_price=float(
-            row.get('base_price') if row.get('base_price') is not None
-            else row.get('price') or 0
+            row.get("base_price")
+            if row.get("base_price") is not None
+            else row.get("price") or 0
         ),
-        quantity=int(row.get('quantity') or 0),
-        is_own_price=bool(row.get('is_own_price')),
-        brand=str(row.get('brand') or ''),
-        oem=str(row.get('oem_number') or ''),
-        name=str(row.get('name') or ''),
+        quantity=int(row.get("quantity") or 0),
+        is_own_price=bool(row.get("is_own_price")),
+        brand=str(row.get("brand") or ""),
+        oem=str(row.get("oem_number") or ""),
+        name=str(row.get("name") or ""),
     )
 
 
@@ -684,8 +690,8 @@ async def _build_current_offers(
     for source in sources:
         if not source.enabled:
             logger.debug(
-                'Price control source skipped (disabled): '
-                'config=%s provider_config=%s',
+                "Price control source skipped (disabled): "
+                "config=%s provider_config=%s",
                 config.id,
                 source.provider_config_id,
             )
@@ -695,8 +701,8 @@ async def _build_current_offers(
         )
         if not latest_pl:
             logger.debug(
-                'Price control source skipped (no latest pricelist): '
-                'config=%s provider_config=%s',
+                "Price control source skipped (no latest pricelist): "
+                "config=%s provider_config=%s",
                 config.id,
                 source.provider_config_id,
             )
@@ -706,8 +712,8 @@ async def _build_current_offers(
         )
         if not associations:
             logger.debug(
-                'Price control source skipped (empty pricelist rows): '
-                'config=%s provider_config=%s pricelist_id=%s',
+                "Price control source skipped (empty pricelist rows): "
+                "config=%s provider_config=%s pricelist_id=%s",
                 config.id,
                 source.provider_config_id,
                 latest_pl.id,
@@ -720,32 +726,31 @@ async def _build_current_offers(
         df = _apply_source_filters(df, source)
         if df.empty:
             logger.debug(
-                'Price control source skipped (filtered to empty): '
-                'config=%s provider_config=%s rows_before=%s',
+                "Price control source skipped (filtered to empty): "
+                "config=%s provider_config=%s rows_before=%s",
                 config.id,
                 source.provider_config_id,
                 source_rows_before_filters,
             )
             continue
-        df['base_price'] = pd.to_numeric(df['price'], errors='coerce')
+        df["base_price"] = pd.to_numeric(df["price"], errors="coerce")
         df = crud_customer_pricelist.apply_coefficient(
             df, config, apply_general_markup=False
         )
         df = _apply_source_markups(df, config, source)
-        source_df = (
-            df.sort_values(by=['oem_number', 'brand', 'price'])
-            .drop_duplicates(subset=['oem_number', 'brand'], keep='first')
-        )
+        source_df = df.sort_values(
+            by=["oem_number", "brand", "price"]
+        ).drop_duplicates(subset=["oem_number", "brand"], keep="first")
         source_unique = 0
         for _, row in source_df.iterrows():
-            key = _normalize_key(row.get('oem_number'), row.get('brand'))
-            source_offers[
-                (source.provider_config_id, key)
-            ] = _offer_row_from_series(row)
+            key = _normalize_key(row.get("oem_number"), row.get("brand"))
+            source_offers[(source.provider_config_id, key)] = (
+                _offer_row_from_series(row)
+            )
             source_unique += 1
         logger.info(
-            'Price control source prepared: config=%s provider_config=%s '
-            'rows_before=%s rows_after=%s unique_keys=%s',
+            "Price control source prepared: config=%s provider_config=%s "
+            "rows_before=%s rows_after=%s unique_keys=%s",
             config.id,
             source.provider_config_id,
             source_rows_before_filters,
@@ -758,24 +763,24 @@ async def _build_current_offers(
         return {}, {}
 
     final_df = pd.concat(combined, ignore_index=True)
-    if 'is_own_price' in final_df.columns:
-        final_df['__own_rank'] = final_df['is_own_price'].astype(int)
+    if "is_own_price" in final_df.columns:
+        final_df["__own_rank"] = final_df["is_own_price"].astype(int)
         final_df = (
             final_df.sort_values(
-                by=['oem_number', 'brand', '__own_rank', 'price'],
+                by=["oem_number", "brand", "__own_rank", "price"],
                 ascending=[True, True, False, True],
             )
-            .drop_duplicates(subset=['oem_number', 'brand'], keep='first')
-            .drop(columns=['__own_rank'])
+            .drop_duplicates(subset=["oem_number", "brand"], keep="first")
+            .drop(columns=["__own_rank"])
         )
     else:
         final_df = final_df.sort_values(
-            by=['oem_number', 'brand', 'price']
-        ).drop_duplicates(subset=['oem_number', 'brand'], keep='first')
+            by=["oem_number", "brand", "price"]
+        ).drop_duplicates(subset=["oem_number", "brand"], keep="first")
 
     offers: dict[tuple[str, str], OfferRow] = {}
     for _, row in final_df.iterrows():
-        key = _normalize_key(row.get('oem_number'), row.get('brand'))
+        key = _normalize_key(row.get("oem_number"), row.get("brand"))
         offers[key] = _offer_row_from_series(row)
     overrides = await crud_customer_pricelist_override.get_for_config(
         session=session, config_id=config.id
@@ -795,23 +800,23 @@ def _allocate_counts(
 ) -> dict[int, int]:
     remaining = max(total - manual_count, 0)
     if remaining <= 0 or not sources:
-        return {s['provider_config_id']: 0 for s in sources}
+        return {s["provider_config_id"]: 0 for s in sources}
 
-    fixed = [s for s in sources if s.get('locked')]
-    open_sources = [s for s in sources if not s.get('locked')]
-    fixed_pct = sum(float(s.get('weight_pct') or 0) for s in fixed)
+    fixed = [s for s in sources if s.get("locked")]
+    open_sources = [s for s in sources if not s.get("locked")]
+    fixed_pct = sum(float(s.get("weight_pct") or 0) for s in fixed)
     fixed_pct = max(min(fixed_pct, 100.0), 0.0)
     remaining_pct = max(100.0 - fixed_pct, 0.0)
 
     for s in open_sources:
-        s['weight_pct'] = remaining_pct / max(len(open_sources), 1)
+        s["weight_pct"] = remaining_pct / max(len(open_sources), 1)
 
     allocations: dict[int, int] = {}
     for source in sources:
         count = int(
-            round(remaining * float(source.get('weight_pct') or 0) / 100)
+            round(remaining * float(source.get("weight_pct") or 0) / 100)
         )
-        allocations[source['provider_config_id']] = count
+        allocations[source["provider_config_id"]] = count
 
     # корректировка до точного remaining
     diff = remaining - sum(allocations.values())
@@ -843,11 +848,11 @@ async def _resolve_recently_checked_keys(
     state_profile: PriceControlStateProfile | None = None,
 ) -> set[tuple[str, str]]:
     source = state_profile or config
-    cooldown_hours = int(getattr(source, 'cooldown_hours', 0) or 0)
+    cooldown_hours = int(getattr(source, "cooldown_hours", 0) or 0)
     if cooldown_hours <= 0:
         return set()
     since_dt = now_moscow() - timedelta(hours=cooldown_hours)
-    reset_at = getattr(source, 'cooldown_reset_at', None)
+    reset_at = getattr(source, "cooldown_reset_at", None)
     if reset_at and reset_at > since_dt:
         since_dt = reset_at
     rows = await crud_price_control_reco.list_recent_keys_by_config(
@@ -867,18 +872,18 @@ def _pick_items_for_source(
         return []
     if exclude is None:
         exclude = set()
-    if 'quantity' in df.columns:
+    if "quantity" in df.columns:
         df = df.copy()
-        df['__qty'] = pd.to_numeric(df['quantity'], errors='coerce').fillna(0)
+        df["__qty"] = pd.to_numeric(df["quantity"], errors="coerce").fillna(0)
         df = df.sort_values(
-            by=['__qty', 'oem_number', 'brand'],
+            by=["__qty", "oem_number", "brand"],
             ascending=[False, True, True],
         )
     else:
-        df = df.sort_values(by=['oem_number', 'brand'])
+        df = df.sort_values(by=["oem_number", "brand"])
     selected = []
     for _, row in df.iterrows():
-        key = _normalize_key(row['oem_number'], row['brand'])
+        key = _normalize_key(row["oem_number"], row["brand"])
         if key in exclude:
             continue
         selected.append(key)
@@ -897,23 +902,21 @@ def _pick_items_any_source(
         return []
     if exclude is None:
         exclude = set()
-    if 'quantity' in df.columns:
+    if "quantity" in df.columns:
         df = df.copy()
-        df['__qty'] = pd.to_numeric(df['quantity'], errors='coerce').fillna(0)
+        df["__qty"] = pd.to_numeric(df["quantity"], errors="coerce").fillna(0)
         df = df.sort_values(
-            by=['__qty', 'provider_config_id', 'oem_number', 'brand'],
+            by=["__qty", "provider_config_id", "oem_number", "brand"],
             ascending=[False, True, True, True],
         )
     else:
-        df = df.sort_values(by=['provider_config_id', 'oem_number', 'brand'])
+        df = df.sort_values(by=["provider_config_id", "oem_number", "brand"])
     selected: list[tuple[str, str, int]] = []
     for _, row in df.iterrows():
-        key = _normalize_key(row['oem_number'], row['brand'])
+        key = _normalize_key(row["oem_number"], row["brand"])
         if key in exclude:
             continue
-        selected.append(
-            (key[0], key[1], int(row['provider_config_id']))
-        )
+        selected.append((key[0], key[1], int(row["provider_config_id"])))
         exclude.add(key)
         if len(selected) >= count:
             break
@@ -954,7 +957,7 @@ async def run_price_control(
         config_id=config.pricelist_config_id,
     )
     if not pricelist_config:
-        raise ValueError('Pricelist config not found')
+        raise ValueError("Pricelist config not found")
 
     sources = await crud_price_control_source.list_by_config(
         session=session, config_id=config.id
@@ -968,16 +971,18 @@ async def run_price_control(
     }
     source_configs = [
         {
-            'provider_config_id': s.provider_config_id,
-            'weight_pct': s.weight_pct,
-            'locked': s.locked,
+            "provider_config_id": s.provider_config_id,
+            "weight_pct": s.weight_pct,
+            "locked": s.locked,
         }
         for s in sources
     ]
-    state_profile = await (
-        crud_price_control_state_profile.get_or_create_active(
-            session=session,
-            config=config,
+    state_profile = (
+        await (
+            crud_price_control_state_profile.get_or_create_active(
+                session=session,
+                config=config,
+            )
         )
     )
 
@@ -1015,15 +1020,17 @@ async def run_price_control(
             value = markups.get(str(provider_id))
         return normalize_markup(value)
 
-    offer_df = pd.DataFrame([
-        {
-            'oem_number': key[1][0],
-            'brand': key[1][1],
-            'provider_config_id': key[0],
-            'quantity': offer.quantity,
-        }
-        for key, offer in source_offers.items()
-    ])
+    offer_df = pd.DataFrame(
+        [
+            {
+                "oem_number": key[1][0],
+                "brand": key[1][1],
+                "provider_config_id": key[0],
+                "quantity": offer.quantity,
+            }
+            for key, offer in source_offers.items()
+        ]
+    )
 
     selected_items: list[tuple[str, str, int | None]] = []
     selected_items.extend((oem, brand, None) for oem, brand in manual_items)
@@ -1035,15 +1042,13 @@ async def run_price_control(
     for provider_config_id, count in allocations.items():
         if count <= 0:
             continue
-        df = offer_df[offer_df['provider_config_id'] == provider_config_id]
+        df = offer_df[offer_df["provider_config_id"] == provider_config_id]
         picked = _pick_items_for_source(df, count, exclude=auto_exclude)
         selected_items.extend(
             (oem, brand, provider_config_id) for oem, brand in picked
         )
         auto_exclude.update(picked)
-        source_pick_stats.append(
-            (provider_config_id, int(count), len(picked))
-        )
+        source_pick_stats.append((provider_config_id, int(count), len(picked)))
 
     auto_target = max(
         int(config.total_daily_count or 0) - len(manual_items), 0
@@ -1069,7 +1074,7 @@ async def run_price_control(
         unique_items.append((key[0], key[1], provider_config_id))
     selected_items = unique_items
 
-    if bool(getattr(config, 'exclude_dragonzap_non_dz', False)):
+    if bool(getattr(config, "exclude_dragonzap_non_dz", False)):
         before = len(selected_items)
         selected_items = [
             item
@@ -1079,29 +1084,29 @@ async def run_price_control(
         skipped = before - len(selected_items)
         if skipped:
             logger.info(
-                'Price control skip by brand rules '
-                '(DRAGONZAP without DZ, HOT-PARTS): '
-                'config=%s skipped=%s',
+                "Price control skip by brand rules "
+                "(DRAGONZAP without DZ, HOT-PARTS): "
+                "config=%s skipped=%s",
                 config.id,
                 skipped,
             )
 
     if paused_auto_keys:
         logger.info(
-            'Price control cooldown: config=%s '
-            'pause_hours=%s paused_auto=%s selected=%s manual=%s',
+            "Price control cooldown: config=%s "
+            "pause_hours=%s paused_auto=%s selected=%s manual=%s",
             config.id,
-            int(getattr(state_profile, 'cooldown_hours', 0) or 0),
+            int(getattr(state_profile, "cooldown_hours", 0) or 0),
             len(paused_auto_keys),
             len(selected_items),
             len(manual_items),
         )
     if source_pick_stats:
         logger.info(
-            'Price control source picks: config=%s %s',
+            "Price control source picks: config=%s %s",
             config.id,
-            '; '.join(
-                'provider_config=%s allocated=%s picked=%s'
+            "; ".join(
+                "provider_config=%s allocated=%s picked=%s"
                 % (provider_id, allocated, picked)
                 for provider_id, allocated, picked in source_pick_stats
             ),
@@ -1112,18 +1117,18 @@ async def run_price_control(
     )
 
     api_key_env, key = resolve_site_api_key(
-        getattr(config, 'site_api_key_env', None)
+        getattr(config, "site_api_key_env", None)
     )
     if not key:
         logger.warning(
-            'Site API key not set for '
-            'config=%s selected=%s; skip price control',
+            "Site API key not set for "
+            "config=%s selected=%s; skip price control",
             config.id,
-            getattr(config, 'site_api_key_env', None),
+            getattr(config, "site_api_key_env", None),
         )
         return run.id
     logger.info(
-        'Price control using site API key env: config=%s env=%s',
+        "Price control using site API key env: config=%s env=%s",
         config.id,
         api_key_env,
     )
@@ -1133,16 +1138,16 @@ async def run_price_control(
     client_coef_observations: list[float] = []
     brand_synonyms_cache: dict[str, list[str]] = {}
     record_site_history_for_dz = bool(
-        getattr(config, 'record_site_history_for_dz', False)
+        getattr(config, "record_site_history_for_dz", False)
     )
     site_history_provider: Provider | None = None
     site_history_saved = 0
     run_created_at = now_moscow()
     recent_coef_history = _normalize_recent_coef(
-        getattr(state_profile, 'client_markup_recent_coef', [])
+        getattr(state_profile, "client_markup_recent_coef", [])
     )
     client_markup_coef = _coerce_client_coef(
-        getattr(state_profile, 'client_markup_coef', None)
+        getattr(state_profile, "client_markup_coef", None)
     )
     running_client_coef = client_markup_coef
     if recent_coef_history:
@@ -1150,7 +1155,7 @@ async def run_price_control(
         if history_median is not None:
             running_client_coef = _coerce_client_coef(history_median)
     async with DZSiteClient(
-        base_url=os.getenv('API_CONTROL_BASE_URL') or None,
+        base_url=os.getenv("API_CONTROL_BASE_URL") or None,
         api_key=key,
         verify_ssl=False,
     ) as client:
@@ -1166,10 +1171,10 @@ async def run_price_control(
             if not offer:
                 recommendations.append(
                     {
-                        'oem': oem,
-                        'brand': brand,
-                        'missing_in_pricelist': True,
-                        'missing_competitor': True,
+                        "oem": oem,
+                        "brand": brand,
+                        "missing_in_pricelist": True,
+                        "missing_competitor": True,
                     }
                 )
                 continue
@@ -1193,7 +1198,7 @@ async def run_price_control(
                     client=client, oem=query_oem, brands=query_brands
                 )
             except Exception as exc:
-                logger.warning('Site offers failed for %s: %s', oem, exc)
+                logger.warning("Site offers failed for %s: %s", oem, exc)
                 raw_offers = []
                 is_dz_remap = False
 
@@ -1208,16 +1213,16 @@ async def run_price_control(
                 ):
                     if (
                         own_site_offer is None
-                        or normalized['price'] < own_site_offer['price']
+                        or normalized["price"] < own_site_offer["price"]
                     ):
                         own_site_offer = normalized
                     continue
                 if config.min_stock is not None and (
-                    normalized['qty'] < int(config.min_stock)
+                    normalized["qty"] < int(config.min_stock)
                 ):
                     continue
                 if config.max_delivery_days is not None:
-                    max_delivery = normalized.get('max_delivery_day')
+                    max_delivery = normalized.get("max_delivery_day")
                     if max_delivery is not None and (
                         max_delivery > int(config.max_delivery_days)
                     ):
@@ -1227,14 +1232,14 @@ async def run_price_control(
             if is_dz_remap:
                 try:
                     dz_direct_offers = await client.get_offers(
-                        oem=preprocess_oem_number(str(oem or '')),
-                        brand=str(brand or '').strip().upper(),
+                        oem=preprocess_oem_number(str(oem or "")),
+                        brand=str(brand or "").strip().upper(),
                         without_cross=True,
                     )
                     if not dz_direct_offers:
                         dz_direct_offers = await client.get_offers(
-                            oem=preprocess_oem_number(str(oem or '')),
-                            brand=str(brand or '').strip().upper(),
+                            oem=preprocess_oem_number(str(oem or "")),
+                            brand=str(brand or "").strip().upper(),
                             without_cross=False,
                         )
                     own_site_offer_direct = _pick_own_offer(
@@ -1246,22 +1251,22 @@ async def run_price_control(
                         own_site_offer = own_site_offer_direct
                 except Exception as exc:
                     logger.warning(
-                        'Site offers failed for DZ direct coef %s: %s',
+                        "Site offers failed for DZ direct coef %s: %s",
                         oem,
                         exc,
                     )
 
-            competitor_offers.sort(key=lambda x: x['price'])
+            competitor_offers.sort(key=lambda x: x["price"])
             best = competitor_offers[0] if competitor_offers else None
             own_site_price = (
-                own_site_offer['price'] if own_site_offer else None
+                own_site_offer["price"] if own_site_offer else None
             )
             if (
                 record_site_history_for_dz
                 and is_dz_remap
                 and offer.autopart_id
                 and best
-                and best.get('price') is not None
+                and best.get("price") is not None
             ):
                 try:
                     if site_history_provider is None:
@@ -1272,16 +1277,16 @@ async def run_price_control(
                         session=session,
                         provider=site_history_provider,
                         autopart_id=int(offer.autopart_id),
-                        price=float(best['price']),
-                        quantity=int(best.get('qty') or 0),
+                        price=float(best["price"]),
+                        quantity=int(best.get("qty") or 0),
                         created_at=run_created_at,
                     )
                     if saved:
                         site_history_saved += 1
                 except Exception as exc:
                     logger.warning(
-                        'Price control site history save failed '
-                        'for %s/%s: %s',
+                        "Price control site history save failed "
+                        "for %s/%s: %s",
                         oem,
                         brand,
                         exc,
@@ -1298,10 +1303,9 @@ async def run_price_control(
                     row_client_coef = raw_coef
                     client_coef_observations.append(raw_coef)
                     observed_running = _median(
-                        (
-                            recent_coef_history
-                            + client_coef_observations
-                        )[-CLIENT_COEF_HISTORY_SIZE:]
+                        (recent_coef_history + client_coef_observations)[
+                            -CLIENT_COEF_HISTORY_SIZE:
+                        ]
                     )
                     if observed_running is not None:
                         running_client_coef = _coerce_client_coef(
@@ -1310,14 +1314,12 @@ async def run_price_control(
 
             source_cfg = source_map.get(offer.provider_config_id)
             min_markup = (
-                float(source_cfg.min_markup_pct or 0.0)
-                if source_cfg
-                else 0.0
+                float(source_cfg.min_markup_pct or 0.0) if source_cfg else 0.0
             )
             cost_price = _calc_cost_price(offer, config)
             min_allowed = _min_allowed_price(cost_price, min_markup)
 
-            competitor_price = best['price'] if best else None
+            competitor_price = best["price"] if best else None
             target_price = None
             effective_coef = None
             if competitor_price is not None:
@@ -1331,13 +1333,13 @@ async def run_price_control(
                 )
                 target_price = target_site_price * effective_coef
                 logger.debug(
-                    'Price control calc: oem=%s brand=%s query_oem=%s '
-                    'query_brands=%s competitor=%s own_site=%s row_coef=%s '
-                    'running_coef=%s target=%s',
+                    "Price control calc: oem=%s brand=%s query_oem=%s "
+                    "query_brands=%s competitor=%s own_site=%s row_coef=%s "
+                    "running_coef=%s target=%s",
                     oem,
                     brand,
                     query_oem,
-                    ','.join(query_brands),
+                    ",".join(query_brands),
                     competitor_price,
                     own_site_price,
                     row_client_coef,
@@ -1349,56 +1351,54 @@ async def run_price_control(
                 competitor_price is not None
                 and offer.price <= competitor_price
             )
-            below_cost = (
-                target_price is not None and target_price < cost_price
-            )
+            below_cost = target_price is not None and target_price < cost_price
             below_min_markup = (
                 target_price is not None and target_price < min_allowed
             )
             missing_competitor = competitor_price is None
-            suggested_action = 'keep'
+            suggested_action = "keep"
             if (
                 target_price is not None
                 and not below_cost
                 and not below_min_markup
             ):
                 if offer.price > target_price:
-                    suggested_action = 'lower'
+                    suggested_action = "lower"
                 elif offer.price < target_price:
-                    suggested_action = 'raise'
+                    suggested_action = "raise"
 
             recommendations.append(
                 {
-                    'provider_config_id': offer.provider_config_id,
-                    'autopart_id': offer.autopart_id,
-                    'oem': oem,
-                    'brand': brand,
-                    'name': offer.name,
-                    'our_price': offer.price,
-                    'competitor_price': competitor_price,
-                    'competitor_qty': best['qty'] if best else None,
-                    'competitor_supplier': (
-                        best['supplier_name'] if best else None
+                    "provider_config_id": offer.provider_config_id,
+                    "autopart_id": offer.autopart_id,
+                    "oem": oem,
+                    "brand": brand,
+                    "name": offer.name,
+                    "our_price": offer.price,
+                    "competitor_price": competitor_price,
+                    "competitor_qty": best["qty"] if best else None,
+                    "competitor_supplier": (
+                        best["supplier_name"] if best else None
                     ),
-                    'competitor_min_delivery': (
-                        best['min_delivery_day'] if best else None
+                    "competitor_min_delivery": (
+                        best["min_delivery_day"] if best else None
                     ),
-                    'competitor_max_delivery': (
-                        best['max_delivery_day'] if best else None
+                    "competitor_max_delivery": (
+                        best["max_delivery_day"] if best else None
                     ),
-                    'target_price': target_price,
-                    'effective_client_coef': effective_coef,
-                    'effective_client_pct': _percent_from_multiplier(
+                    "target_price": target_price,
+                    "effective_client_coef": effective_coef,
+                    "effective_client_pct": _percent_from_multiplier(
                         effective_coef
                     ),
-                    'cost_price': cost_price,
-                    'min_allowed_price': min_allowed,
-                    'is_cheapest': is_cheapest,
-                    'below_cost': below_cost,
-                    'below_min_markup': below_min_markup,
-                    'missing_competitor': missing_competitor,
-                    'missing_in_pricelist': False,
-                    'suggested_action': suggested_action,
+                    "cost_price": cost_price,
+                    "min_allowed_price": min_allowed,
+                    "is_cheapest": is_cheapest,
+                    "below_cost": below_cost,
+                    "below_min_markup": below_min_markup,
+                    "missing_competitor": missing_competitor,
+                    "missing_in_pricelist": False,
+                    "suggested_action": suggested_action,
                 }
             )
             if competitor_price is not None:
@@ -1427,9 +1427,9 @@ async def run_price_control(
                         required_markup = None
                 source_reco_stats[offer.provider_config_id].append(
                     {
-                        'our_price': offer.price,
-                        'competitor_price': competitor_price,
-                        'required_markup': required_markup,
+                        "our_price": offer.price,
+                        "competitor_price": competitor_price,
+                        "required_markup": required_markup,
                     }
                 )
 
@@ -1447,13 +1447,13 @@ async def run_price_control(
         cheaper_count = sum(
             1
             for item in pairs
-            if item['our_price'] <= item['competitor_price']
+            if item["our_price"] <= item["competitor_price"]
         )
         coverage = cheaper_count / max(len(pairs), 1) * 100
         required_markups = [
-            item['required_markup']
+            item["required_markup"]
             for item in pairs
-            if item.get('required_markup')
+            if item.get("required_markup")
         ]
         target_pct = float(config.target_cheapest_pct or 0.0)
         raw_suggested_multiplier = _pick_percentile(
@@ -1467,32 +1467,31 @@ async def run_price_control(
         note = None
 
         if not pairs:
-            note = 'Нет данных конкурентов'
+            note = "Нет данных конкурентов"
             suggested_multiplier = current_multiplier
         elif raw_suggested_multiplier is None:
-            note = 'Недостаточно данных'
+            note = "Недостаточно данных"
             suggested_multiplier = current_multiplier
         elif suggested_multiplier < min_multiplier:
             suggested_multiplier = min_multiplier
             if raw_suggested_multiplier < 1:
                 raw_pct = round((raw_suggested_multiplier - 1) * 100, 2)
                 note = (
-                    f'Цель недостижима при мин. наценке '
-                    f'(нужно {raw_pct}%)'
+                    f"Цель недостижима при мин. наценке " f"(нужно {raw_pct}%)"
                 )
             else:
-                note = 'Минимальная наценка'
+                note = "Минимальная наценка"
 
         source_recos.append(
             {
-                'provider_config_id': provider_config_id,
-                'coverage_pct': round(coverage, 2),
-                'sample_size': len(pairs),
-                'current_markup_pct': _percent_from_markup(current_markup),
-                'suggested_markup_pct': _percent_from_multiplier(
+                "provider_config_id": provider_config_id,
+                "coverage_pct": round(coverage, 2),
+                "sample_size": len(pairs),
+                "current_markup_pct": _percent_from_markup(current_markup),
+                "suggested_markup_pct": _percent_from_multiplier(
                     suggested_multiplier
                 ),
-                'note': note,
+                "note": note,
             }
         )
 
@@ -1512,8 +1511,8 @@ async def run_price_control(
     state_profile.client_markup_sample_size = sample_size
     if updated_coef != client_markup_coef:
         logger.info(
-            'Price control client coef updated: '
-            'config=%s profile=%s old=%.4f observed=%s new=%.4f samples=%s',
+            "Price control client coef updated: "
+            "config=%s profile=%s old=%.4f observed=%s new=%.4f samples=%s",
             config.id,
             state_profile.id,
             client_markup_coef,
@@ -1523,8 +1522,8 @@ async def run_price_control(
         )
     else:
         logger.info(
-            'Price control client coef unchanged: '
-            'config=%s profile=%s current=%.4f observed=%s samples=%s',
+            "Price control client coef unchanged: "
+            "config=%s profile=%s current=%.4f observed=%s samples=%s",
             config.id,
             state_profile.id,
             client_markup_coef,
@@ -1543,7 +1542,7 @@ async def run_price_control(
     session.add(config)
     if record_site_history_for_dz:
         logger.info(
-            'Price control site history saved: config=%s rows=%s',
+            "Price control site history saved: config=%s rows=%s",
             config.id,
             site_history_saved,
         )

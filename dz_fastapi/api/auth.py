@@ -9,8 +9,13 @@ from dz_fastapi.core.config import settings
 from dz_fastapi.core.db import get_session
 from dz_fastapi.crud.user import crud_user
 from dz_fastapi.models.user import User, UserStatus
-from dz_fastapi.schemas.auth import (UserAdminUpdate, UserLogin, UserRegister,
-                                     UserResponse, UserRoleUpdate)
+from dz_fastapi.schemas.auth import (
+    UserAdminUpdate,
+    UserLogin,
+    UserRegister,
+    UserResponse,
+    UserRoleUpdate,
+)
 from dz_fastapi.services.auth import create_access_token, verify_password
 
 router = APIRouter(tags=["auth"])

@@ -4,44 +4,43 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import (BaseModel, ConfigDict, EmailStr, Field, field_validator,
-                      model_validator)
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from dz_fastapi.schemas.autopart import AutoPartPricelist, AutoPartResponse
 
 
 class TypePrices(str, Enum):
-    WHOLESALE = 'Wholesale'
-    RETAIL = 'Retail'
-    CASH = 'Cash'
+    WHOLESALE = "Wholesale"
+    RETAIL = "Retail"
+    CASH = "Cash"
 
 
 class ProviderDeliveryMethod(str, Enum):
-    DELIVERED = 'Delivered'
-    SELF_PICKUP = 'Self pickup'
-    COURIER_FOOT = 'Courier foot'
-    COURIER_CAR = 'Courier car'
+    DELIVERED = "Delivered"
+    SELF_PICKUP = "Self pickup"
+    COURIER_FOOT = "Courier foot"
+    COURIER_CAR = "Courier car"
 
 
 class SupplierResponseType(str, Enum):
-    FILE = 'file'
-    TEXT = 'text'
+    FILE = "file"
+    TEXT = "text"
 
 
 class SupplierResponseFileFormat(str, Enum):
-    EXCEL = 'excel'
-    CSV = 'csv'
+    EXCEL = "excel"
+    CSV = "csv"
 
 
 class SupplierResponseFilePayloadType(str, Enum):
-    RESPONSE = 'response'
-    DOCUMENT = 'document'
+    RESPONSE = "response"
+    DOCUMENT = "document"
 
 
 class SupplierResponseValueAfterArticleType(str, Enum):
-    NUMBER = 'number'
-    TEXT = 'text'
-    BOTH = 'both'
+    NUMBER = "number"
+    TEXT = "text"
+    BOTH = "both"
 
 
 class ClientBase(BaseModel):
@@ -51,15 +50,15 @@ class ClientBase(BaseModel):
     description: Optional[str] = None
     comment: Optional[str] = None
 
-    @field_validator('name', mode='before')
+    @field_validator("name", mode="before")
     def name_must_not_be_empty(cls, v):
         if not v.strip():
-            raise ValueError('Name must not be empty')
+            raise ValueError("Name must not be empty")
         return v
 
-    @field_validator('email_contact', mode='before')
+    @field_validator("email_contact", mode="before")
     def validate_email_contact(cls, v):
-        if v == '':
+        if v == "":
             return None
         return v
 
@@ -84,20 +83,20 @@ class ProviderBase(ClientBase):
     supplier_response_price_col: Optional[int] = Field(default=None, ge=1)
     supplier_response_comment_col: Optional[int] = Field(default=None, ge=1)
     supplier_response_status_col: Optional[int] = Field(default=None, ge=1)
-    default_delivery_method: Optional[
-        ProviderDeliveryMethod
-    ] = ProviderDeliveryMethod.DELIVERED
+    default_delivery_method: Optional[ProviderDeliveryMethod] = (
+        ProviderDeliveryMethod.DELIVERED
+    )
 
-    @field_validator('email_incoming_price', mode='before')
+    @field_validator("email_incoming_price", mode="before")
     def validate_email_incoming_price(cls, v):
-        if v == '':
+        if v == "":
             return None
         return v
 
     @field_validator(
-        'supplier_response_filename_pattern',
-        'supplier_shipping_doc_filename_pattern',
-        mode='before',
+        "supplier_response_filename_pattern",
+        "supplier_shipping_doc_filename_pattern",
+        mode="before",
     )
     def normalize_supplier_response_patterns(cls, v):
         if v is None:
@@ -140,16 +139,16 @@ class ProviderUpdate(BaseModel):
     supplier_response_status_col: Optional[int] = Field(default=None, ge=1)
     default_delivery_method: Optional[ProviderDeliveryMethod] = None
 
-    @field_validator('email_contact', 'email_incoming_price', mode='before')
+    @field_validator("email_contact", "email_incoming_price", mode="before")
     def empty_to_none(cls, v):
-        if v == '':
+        if v == "":
             return None
         return v
 
     @field_validator(
-        'supplier_response_filename_pattern',
-        'supplier_shipping_doc_filename_pattern',
-        mode='before',
+        "supplier_response_filename_pattern",
+        "supplier_shipping_doc_filename_pattern",
+        mode="before",
     )
     def normalize_update_supplier_response_patterns(cls, v):
         if v is None:
@@ -160,12 +159,30 @@ class ProviderUpdate(BaseModel):
 
 class CustomerBase(ClientBase):
     email_outgoing_price: Optional[EmailStr] = None
+    inn: Optional[str] = Field(default=None, max_length=32)
+    kpp: Optional[str] = Field(default=None, max_length=32)
+    legal_address: Optional[str] = None
+    postal_address: Optional[str] = None
 
-    @field_validator('email_outgoing_price', mode='before')
+    @field_validator("email_outgoing_price", mode="before")
     def validate_email_outgoing_price(cls, v):
-        if v == '':
+        if v == "":
             return None
         return v
+
+    @field_validator("inn", "kpp", mode="before")
+    def normalize_customer_tax_fields(cls, v):
+        if v is None:
+            return None
+        value = str(v).strip()
+        return value or None
+
+    @field_validator("legal_address", "postal_address", mode="before")
+    def normalize_customer_address_fields(cls, v):
+        if v is None:
+            return None
+        value = str(v).strip()
+        return value or None
 
     model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
@@ -237,7 +254,7 @@ class PriceListResponse(BaseModel):
     autoparts: List[PriceListAutoPartAssociationResponse] = Field(
         default_factory=list
     )
-    stats: Optional['PriceListProcessStats'] = None
+    stats: Optional["PriceListProcessStats"] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -288,7 +305,7 @@ class CustomerPriceListResponse(CustomerPriceListBase):
     id: int
     date: date
     customer_id: int
-    autoparts: List['AutoPartInPricelist']
+    autoparts: List["AutoPartInPricelist"]
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -326,15 +343,42 @@ class ProviderExternalReferenceOut(ProviderExternalReferenceBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CustomerExternalReferenceBase(BaseModel):
+    source_system: str
+    external_customer_id: Optional[int] = None
+    external_customer_name: Optional[str] = None
+    is_active: bool = True
+
+
+class CustomerExternalReferenceCreate(CustomerExternalReferenceBase):
+    pass
+
+
+class CustomerExternalReferenceUpdate(BaseModel):
+    source_system: Optional[str] = None
+    external_customer_id: Optional[int] = None
+    external_customer_name: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class CustomerExternalReferenceOut(CustomerExternalReferenceBase):
+    id: int
+    customer_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class CustomerResponse(CustomerBase):
     id: int
     customer_price_lists: List[CustomerPriceListResponse] = []
-    pricelist_configs: List['CustomerPriceListConfigSummary'] = Field(
+    pricelist_configs: List["CustomerPriceListConfigSummary"] = Field(
         default_factory=list
     )
     model_config = ConfigDict(from_attributes=True)
 
-    @field_validator('pricelist_configs', mode='before')
+    @field_validator("pricelist_configs", mode="before")
     def normalize_pricelist_configs(cls, v):
         if v is None:
             return []
@@ -362,27 +406,34 @@ class CustomerResponseShort(BaseModel):
     id: int
     name: str
     email_outgoing_price: Optional[EmailStr] = None
+    inn: Optional[str] = None
+    kpp: Optional[str] = None
+    legal_address: Optional[str] = None
+    postal_address: Optional[str] = None
     type_prices: TypePrices = TypePrices.WHOLESALE
     email_contact: Optional[EmailStr] = None
     description: Optional[str] = None
     comment: Optional[str] = None
+    external_references: List[CustomerExternalReferenceOut] = Field(
+        default_factory=list
+    )
     customer_price_lists: List[CustomerPriceListResponseShort] = []
 
-    @field_validator('name', mode='before')
+    @field_validator("name", mode="before")
     def name_must_not_be_empty(cls, v):
         if not v.strip():
-            raise ValueError('Name must not be empty')
+            raise ValueError("Name must not be empty")
         return v
 
-    @field_validator('email_contact', mode='before')
+    @field_validator("email_contact", mode="before")
     def validate_email_contact(cls, v):
-        if v == '':
+        if v == "":
             return None
         return v
 
-    @field_validator('email_outgoing_price', mode='before')
+    @field_validator("email_outgoing_price", mode="before")
     def validate_email_outgoing_price(cls, v):
-        if v == '':
+        if v == "":
             return None
         return v
 
@@ -393,6 +444,8 @@ class CustomerListSummary(BaseModel):
     id: int
     name: str
     email_outgoing_price: Optional[EmailStr] = None
+    inn: Optional[str] = None
+    kpp: Optional[str] = None
     type_prices: TypePrices = TypePrices.WHOLESALE
     email_contact: Optional[EmailStr] = None
     price_lists_count: int = 0
@@ -480,7 +533,7 @@ def _normalize_email_list(value: Any) -> list[str]:
     result: list[str] = []
     seen: set[str] = set()
     for raw in raw_values:
-        for item in str(raw or '').split(','):
+        for item in str(raw or "").split(","):
             cleaned = item.strip().lower()
             if not cleaned or cleaned in seen:
                 continue
@@ -501,7 +554,7 @@ def _normalize_string_list(value: Any) -> list[str]:
     result: list[str] = []
     seen: set[str] = set()
     for raw in raw_values:
-        for item in str(raw or '').split(','):
+        for item in str(raw or "").split(","):
             cleaned = item.strip()
             if not cleaned:
                 continue
@@ -513,7 +566,7 @@ def _normalize_string_list(value: Any) -> list[str]:
     return result
 
 
-_CELL_REF_RE = re.compile(r'^\s*([A-Za-z]+)\s*([0-9]+)\s*$')
+_CELL_REF_RE = re.compile(r"^\s*([A-Za-z]+)\s*([0-9]+)\s*$")
 
 
 def _normalize_cell_reference(value: Any) -> Optional[str]:
@@ -525,9 +578,9 @@ def _normalize_cell_reference(value: Any) -> Optional[str]:
     match = _CELL_REF_RE.fullmatch(text)
     if match is None:
         raise ValueError(
-            'Cell reference must be in A1 format (for example: A1, B3, AA12)'
+            "Cell reference must be in A1 format (for example: A1, B3, AA12)"
         )
-    return f'{match.group(1)}{int(match.group(2))}'
+    return f"{match.group(1)}{int(match.group(2))}"
 
 
 class SupplierResponseConfigBase(BaseModel):
@@ -569,20 +622,20 @@ class SupplierResponseConfigBase(BaseModel):
     total_price_with_vat_col: Optional[int] = Field(default=None, ge=1)
     confirm_keywords: List[str] = Field(
         default_factory=lambda: [
-            'в наличии',
-            'есть',
-            'отгружаем',
-            'собрали',
-            'да',
+            "в наличии",
+            "есть",
+            "отгружаем",
+            "собрали",
+            "да",
         ]
     )
     reject_keywords: List[str] = Field(
         default_factory=lambda: [
-            'нет',
-            '0',
-            'отсутствует',
-            'не можем',
-            'снято с производства',
+            "нет",
+            "0",
+            "отсутствует",
+            "не можем",
+            "снято с производства",
         ]
     )
     value_after_article_type: SupplierResponseValueAfterArticleType = (
@@ -590,11 +643,11 @@ class SupplierResponseConfigBase(BaseModel):
     )
 
     @field_validator(
-        'subject_pattern',
-        'filename_pattern',
-        'shipping_doc_filename_pattern',
-        'brand_from_name_regex',
-        mode='before',
+        "subject_pattern",
+        "filename_pattern",
+        "shipping_doc_filename_pattern",
+        "brand_from_name_regex",
+        mode="before",
     )
     def normalize_patterns(cls, v):
         if v is None:
@@ -602,23 +655,23 @@ class SupplierResponseConfigBase(BaseModel):
         value = str(v).strip()
         return value or None
 
-    @field_validator('name', mode='before')
+    @field_validator("name", mode="before")
     def normalize_name(cls, v):
-        return str(v or '').strip()
+        return str(v or "").strip()
 
-    @field_validator('sender_emails', mode='before')
+    @field_validator("sender_emails", mode="before")
     def normalize_sender_emails(cls, v):
         return _normalize_email_list(v)
 
-    @field_validator('confirm_keywords', 'reject_keywords', mode='before')
+    @field_validator("confirm_keywords", "reject_keywords", mode="before")
     def normalize_keyword_lists(cls, v):
         return _normalize_string_list(v)
 
-    @field_validator('brand_priority_list', mode='before')
+    @field_validator("brand_priority_list", mode="before")
     def normalize_brand_priority_list(cls, v):
         return _normalize_string_list(v)
 
-    @field_validator('fixed_brand_name', mode='before')
+    @field_validator("fixed_brand_name", mode="before")
     def normalize_fixed_brand_name(cls, v):
         if v is None:
             return None
@@ -626,22 +679,22 @@ class SupplierResponseConfigBase(BaseModel):
         return value or None
 
     @field_validator(
-        'document_number_cell',
-        'document_date_cell',
-        'document_meta_cell',
-        mode='before',
+        "document_number_cell",
+        "document_date_cell",
+        "document_meta_cell",
+        mode="before",
     )
     def normalize_document_cell_refs(cls, v):
         return _normalize_cell_reference(v)
 
-    @field_validator('brand_from_name_regex')
+    @field_validator("brand_from_name_regex")
     def validate_brand_from_name_regex(cls, v):
         if v is None:
             return None
         try:
             re.compile(v)
         except re.error as exc:
-            raise ValueError(f'Invalid brand_from_name_regex: {exc}') from exc
+            raise ValueError(f"Invalid brand_from_name_regex: {exc}") from exc
         return v
 
 
@@ -688,11 +741,9 @@ class SupplierResponseConfigUpdate(BaseModel):
     reject_keywords: Optional[List[str]] = None
     value_after_article_type: Optional[
         SupplierResponseValueAfterArticleType
-    ] = (
-        None
-    )
+    ] = None
 
-    @field_validator('name', mode='before')
+    @field_validator("name", mode="before")
     def normalize_update_name(cls, v):
         if v is None:
             return None
@@ -700,11 +751,11 @@ class SupplierResponseConfigUpdate(BaseModel):
         return value or None
 
     @field_validator(
-        'subject_pattern',
-        'filename_pattern',
-        'shipping_doc_filename_pattern',
-        'brand_from_name_regex',
-        mode='before',
+        "subject_pattern",
+        "filename_pattern",
+        "shipping_doc_filename_pattern",
+        "brand_from_name_regex",
+        mode="before",
     )
     def normalize_update_patterns(cls, v):
         if v is None:
@@ -712,25 +763,25 @@ class SupplierResponseConfigUpdate(BaseModel):
         value = str(v).strip()
         return value or None
 
-    @field_validator('sender_emails', mode='before')
+    @field_validator("sender_emails", mode="before")
     def normalize_update_sender_emails(cls, v):
         if v is None:
             return None
         return _normalize_email_list(v)
 
-    @field_validator('confirm_keywords', 'reject_keywords', mode='before')
+    @field_validator("confirm_keywords", "reject_keywords", mode="before")
     def normalize_update_keyword_lists(cls, v):
         if v is None:
             return None
         return _normalize_string_list(v)
 
-    @field_validator('brand_priority_list', mode='before')
+    @field_validator("brand_priority_list", mode="before")
     def normalize_update_brand_priority_list(cls, v):
         if v is None:
             return None
         return _normalize_string_list(v)
 
-    @field_validator('fixed_brand_name', mode='before')
+    @field_validator("fixed_brand_name", mode="before")
     def normalize_update_fixed_brand_name(cls, v):
         if v is None:
             return None
@@ -738,22 +789,22 @@ class SupplierResponseConfigUpdate(BaseModel):
         return value or None
 
     @field_validator(
-        'document_number_cell',
-        'document_date_cell',
-        'document_meta_cell',
-        mode='before',
+        "document_number_cell",
+        "document_date_cell",
+        "document_meta_cell",
+        mode="before",
     )
     def normalize_update_document_cell_refs(cls, v):
         return _normalize_cell_reference(v)
 
-    @field_validator('brand_from_name_regex')
+    @field_validator("brand_from_name_regex")
     def validate_update_brand_from_name_regex(cls, v):
         if v is None:
             return None
         try:
             re.compile(v)
         except re.error as exc:
-            raise ValueError(f'Invalid brand_from_name_regex: {exc}') from exc
+            raise ValueError(f"Invalid brand_from_name_regex: {exc}") from exc
         return v
 
 
@@ -806,11 +857,11 @@ class SupplierResponseConfigOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     @field_validator(
-        'sender_emails',
-        'brand_priority_list',
-        'confirm_keywords',
-        'reject_keywords',
-        mode='before',
+        "sender_emails",
+        "brand_priority_list",
+        "confirm_keywords",
+        "reject_keywords",
+        mode="before",
     )
     def normalize_out_lists(cls, v):
         if v is None:
@@ -829,18 +880,18 @@ class CustomerPriceListCreate(BaseModel):
     config_id: int
     items: List[int] = Field(default_factory=list)
     excluded_own_positions: Optional[List[int]] = Field(default_factory=list)
-    excluded_supplier_positions: Optional[
-        Dict[int, List[int]] | List[int]
-    ] = Field(default_factory=dict)
+    excluded_supplier_positions: Optional[Dict[int, List[int]] | List[int]] = (
+        Field(default_factory=dict)
+    )
     date: Optional[date]
 
     @model_validator(mode="before")
     def set_default_date(cls, values):
-        if 'date' not in values or values['date'] is None:
-            values['date'] = date.today()
+        if "date" not in values or values["date"] is None:
+            values["date"] = date.today()
         return values
 
-    @field_validator('excluded_supplier_positions', mode='before')
+    @field_validator("excluded_supplier_positions", mode="before")
     def normalize_excluded_supplier_positions(cls, v):
         if v is None:
             return {}
@@ -863,69 +914,69 @@ class SupplierQuantityFilter(BaseModel):
 
 class CustomerPriceListConfigBase(BaseModel):
     name: str = Field(
-        ..., description='Name or identifier for the configuration'
+        ..., description="Name or identifier for the configuration"
     )
-    general_markup: float = Field(0.0, description='General markup percentage')
+    general_markup: float = Field(0.0, description="General markup percentage")
     own_price_list_markup: float = Field(
-        0.0, description='Markup percentage for own price lists'
+        0.0, description="Markup percentage for own price lists"
     )
     third_party_markup: float = Field(
-        0.0, description='Markup percentage for third-party price lists'
+        0.0, description="Markup percentage for third-party price lists"
     )
     individual_markups: Optional[Dict[int, float]] = Field(
         default_factory=dict,
-        description='Individual markups per supplier (provider_id: markup)',
+        description="Individual markups per supplier (provider_id: markup)",
     )
     brand_filters: Optional[List[int]] = Field(
         default_factory=list,
-        description='List of brand IDs to include/exclude',
+        description="List of brand IDs to include/exclude",
     )
     category_filter: Optional[List[int]] = Field(
         default_factory=list,
-        description='List of category IDs to include/exclude',
+        description="List of category IDs to include/exclude",
     )
     price_intervals: Optional[List[PriceIntervalMarkup]] = Field(
         default_factory=list,
-        description='List of price intervals with associated coefficients',
+        description="List of price intervals with associated coefficients",
     )
     position_filters: Optional[List[int]] = Field(
         default_factory=list,
-        description='List of position IDs (autopart IDs) to include/exclude',
+        description="List of position IDs (autopart IDs) to include/exclude",
     )
     supplier_quantity_filters: Optional[List[SupplierQuantityFilter]] = Field(
-        default_factory=list, description='Supplier-specific quantity filters'
+        default_factory=list, description="Supplier-specific quantity filters"
     )
     additional_filters: Optional[Dict[str, Any]] = Field(
-        default_factory=dict, description='Other custom filters'
+        default_factory=dict, description="Other custom filters"
     )
     default_filters: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
-        description='Default filters (fallback for all suppliers)',
+        description="Default filters (fallback for all suppliers)",
     )
     own_filters: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
-        description='Filters for own price list',
+        description="Filters for own price list",
     )
     other_filters: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
-        description='Filters for all other suppliers',
+        description="Filters for all other suppliers",
     )
     supplier_filters: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
-        description='Per-supplier filters (provider_id -> filters)',
+        description="Per-supplier filters (provider_id -> filters)",
     )
     export_file_name: Optional[str] = Field(
-        default=None, description='Base file name for exported pricelist'
+        default=None, description="Base file name for exported pricelist"
     )
     export_file_format: str = Field(
-        default='xlsx', description='Export format for sent pricelist file'
+        default="xlsx", description="Export format for sent pricelist file"
     )
     export_file_extension: Optional[str] = Field(
-        default=None, description='File extension for exported pricelist'
+        default=None, description="File extension for exported pricelist"
     )
     collapse_duplicates_by_min_price: bool = Field(
         default=True,
-        description='Collapse duplicate OEM+brand rows by minimum price',
+        description="Collapse duplicate OEM+brand rows by minimum price",
     )
     schedule_days: Optional[List[str]] = Field(default_factory=list)
     schedule_times: Optional[List[str]] = Field(default_factory=list)
@@ -933,43 +984,43 @@ class CustomerPriceListConfigBase(BaseModel):
     outgoing_email_account_id: Optional[int] = Field(default=None, ge=1)
     is_active: Optional[bool] = True
 
-    @field_validator('export_file_name', mode='before')
+    @field_validator("export_file_name", mode="before")
     def normalize_export_file_name(cls, value):
-        if value in (None, ''):
+        if value in (None, ""):
             return None
         return str(value).strip() or None
 
-    @field_validator('export_file_format', mode='before')
+    @field_validator("export_file_format", mode="before")
     def normalize_export_file_format(cls, value):
-        normalized = str(value or 'xlsx').strip().lower()
-        if normalized not in {'xlsx', 'csv'}:
-            raise ValueError('export_file_format must be xlsx or csv')
+        normalized = str(value or "xlsx").strip().lower()
+        if normalized not in {"xlsx", "csv"}:
+            raise ValueError("export_file_format must be xlsx or csv")
         return normalized
 
-    @field_validator('export_file_extension', mode='before')
+    @field_validator("export_file_extension", mode="before")
     def normalize_export_file_extension(cls, value):
-        if value in (None, ''):
+        if value in (None, ""):
             return None
-        normalized = str(value).strip().lstrip('.').lower()
+        normalized = str(value).strip().lstrip(".").lower()
         if not normalized:
             return None
-        if not normalized.replace('_', '').isalnum():
+        if not normalized.replace("_", "").isalnum():
             raise ValueError(
-                'export_file_extension must contain only letters, '
-                'digits or underscore'
+                "export_file_extension must contain only letters, "
+                "digits or underscore"
             )
         return normalized
 
 
 class CustomerPriceListConfigCreate(CustomerPriceListConfigBase):
     general_markup: float = Field(
-        default=1.0, description='Коэффициент по умолчанию равен 1'
+        default=1.0, description="Коэффициент по умолчанию равен 1"
     )
     own_price_list_markup: float = Field(
-        default=1.0, description='Коэффициент по умолчанию равен 1'
+        default=1.0, description="Коэффициент по умолчанию равен 1"
     )
     third_party_markup: float = Field(
-        default=1.0, description='Коэффициент по умолчанию равен 1'
+        default=1.0, description="Коэффициент по умолчанию равен 1"
     )
 
 
@@ -999,32 +1050,32 @@ class CustomerPriceListConfigUpdate(BaseModel):
     outgoing_email_account_id: Optional[int] = Field(default=None, ge=1)
     is_active: Optional[bool] = None
 
-    @field_validator('export_file_name', mode='before')
+    @field_validator("export_file_name", mode="before")
     def normalize_export_file_name(cls, value):
-        if value in (None, ''):
+        if value in (None, ""):
             return None
         return str(value).strip() or None
 
-    @field_validator('export_file_format', mode='before')
+    @field_validator("export_file_format", mode="before")
     def normalize_export_file_format(cls, value):
-        if value in (None, ''):
+        if value in (None, ""):
             return None
         normalized = str(value).strip().lower()
-        if normalized not in {'xlsx', 'csv'}:
-            raise ValueError('export_file_format must be xlsx or csv')
+        if normalized not in {"xlsx", "csv"}:
+            raise ValueError("export_file_format must be xlsx or csv")
         return normalized
 
-    @field_validator('export_file_extension', mode='before')
+    @field_validator("export_file_extension", mode="before")
     def normalize_export_file_extension(cls, value):
-        if value in (None, ''):
+        if value in (None, ""):
             return None
-        normalized = str(value).strip().lstrip('.').lower()
+        normalized = str(value).strip().lstrip(".").lower()
         if not normalized:
             return None
-        if not normalized.replace('_', '').isalnum():
+        if not normalized.replace("_", "").isalnum():
             raise ValueError(
-                'export_file_extension must contain only letters, '
-                'digits or underscore'
+                "export_file_extension must contain only letters, "
+                "digits or underscore"
             )
         return normalized
 
@@ -1042,9 +1093,9 @@ class CustomerPriceListSourceBase(BaseModel):
     max_quantity: Optional[int] = None
     additional_filters: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
-    @field_validator('min_price', 'max_price', mode='before')
+    @field_validator("min_price", "max_price", mode="before")
     def normalize_optional_positive_decimal(cls, value):
-        if value in (None, ''):
+        if value in (None, ""):
             return None
         try:
             numeric = Decimal(str(value))
@@ -1054,9 +1105,9 @@ class CustomerPriceListSourceBase(BaseModel):
             return None
         return numeric
 
-    @field_validator('min_quantity', 'max_quantity', mode='before')
+    @field_validator("min_quantity", "max_quantity", mode="before")
     def normalize_optional_positive_int(cls, value):
-        if value in (None, ''):
+        if value in (None, ""):
             return None
         try:
             numeric = int(value)
@@ -1066,15 +1117,15 @@ class CustomerPriceListSourceBase(BaseModel):
             return None
         return numeric
 
-    @field_validator('brand_markups', mode='before')
+    @field_validator("brand_markups", mode="before")
     def normalize_brand_markups(cls, value):
-        if value in (None, ''):
+        if value in (None, ""):
             return {}
         if not isinstance(value, dict):
             return {}
         normalized: Dict[str, float] = {}
         for raw_brand, raw_markup in value.items():
-            brand_name = str(raw_brand or '').strip()
+            brand_name = str(raw_brand or "").strip()
             if not brand_name:
                 continue
             try:
@@ -1104,9 +1155,9 @@ class CustomerPriceListSourceUpdate(BaseModel):
     max_quantity: Optional[int] = None
     additional_filters: Optional[Dict[str, Any]] = None
 
-    @field_validator('min_price', 'max_price', mode='before')
+    @field_validator("min_price", "max_price", mode="before")
     def normalize_optional_positive_decimal(cls, value):
-        if value in (None, ''):
+        if value in (None, ""):
             return None
         try:
             numeric = Decimal(str(value))
@@ -1116,9 +1167,9 @@ class CustomerPriceListSourceUpdate(BaseModel):
             return None
         return numeric
 
-    @field_validator('min_quantity', 'max_quantity', mode='before')
+    @field_validator("min_quantity", "max_quantity", mode="before")
     def normalize_optional_positive_int(cls, value):
-        if value in (None, ''):
+        if value in (None, ""):
             return None
         try:
             numeric = int(value)
@@ -1128,15 +1179,15 @@ class CustomerPriceListSourceUpdate(BaseModel):
             return None
         return numeric
 
-    @field_validator('brand_markups', mode='before')
+    @field_validator("brand_markups", mode="before")
     def normalize_brand_markups(cls, value):
-        if value in (None, ''):
+        if value in (None, ""):
             return {}
         if not isinstance(value, dict):
             return {}
         normalized: Dict[str, float] = {}
         for raw_brand, raw_markup in value.items():
-            brand_name = str(raw_brand or '').strip()
+            brand_name = str(raw_brand or "").strip()
             if not brand_name:
                 continue
             try:
@@ -1181,7 +1232,7 @@ class AutoPartInPricelist(BaseModel):
     quantity: int
     price: float
     autopart: Optional[AutoPartResponse]
-    model_config = {'from_attributes': True}
+    model_config = {"from_attributes": True}
 
 
 class CustomerAllPriceListResponse(BaseModel):

@@ -12,20 +12,22 @@ from dz_fastapi.http.dz_site_client import DZSiteClient
 from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import Client, Provider, ProviderPriceListConfig
 from dz_fastapi.services.notifications import create_admin_notifications
-from dz_fastapi.services.watchlist_site import (TOP_SITE_OFFERS_LIMIT,
-                                                _collect_top_offers,
-                                                format_top_offer_lines)
+from dz_fastapi.services.watchlist_site import (
+    TOP_SITE_OFFERS_LIMIT,
+    _collect_top_offers,
+    format_top_offer_lines,
+)
 
-logger = logging.getLogger('dz_fastapi')
-SITE_ITEM_SEPARATOR = '--------------------'
+logger = logging.getLogger("dz_fastapi")
+SITE_ITEM_SEPARATOR = "--------------------"
 
 
 def _notify_immediately() -> bool:
-    return os.getenv('WATCHLIST_NOTIFY_MODE', 'immediate').lower() != 'daily'
+    return os.getenv("WATCHLIST_NOTIFY_MODE", "immediate").lower() != "daily"
 
 
 def _norm(value: str) -> str:
-    return str(value or '').strip().upper()
+    return str(value or "").strip().upper()
 
 
 async def handle_provider_pricelist_watch(
@@ -46,15 +48,15 @@ async def handle_provider_pricelist_watch(
     }
     now = now_moscow()
     for row in items:
-        brand = _norm(row.get('brand'))
-        oem = _norm(row.get('oem_number'))
+        brand = _norm(row.get("brand"))
+        oem = _norm(row.get("oem_number"))
         key = (brand, oem)
         item = watch_map.get(key)
         if not item:
             continue
         try:
-            price = float(row.get('price', 0))
-            quantity = int(row.get('quantity', 0))
+            price = float(row.get("price", 0))
+            quantity = int(row.get("quantity", 0))
         except Exception:
             continue
         if quantity <= 0:
@@ -74,24 +76,24 @@ async def handle_provider_pricelist_watch(
             )
             if should_notify:
                 message = (
-                    f'Позиция найдена в прайсе: '
-                    f'{brand} {oem} | '
-                    f'Цена {price} | '
-                    f'Поставщик {provider.name}'
+                    f"Позиция найдена в прайсе: "
+                    f"{brand} {oem} | "
+                    f"Цена {price} | "
+                    f"Поставщик {provider.name}"
                 )
                 try:
                     await create_admin_notifications(
                         session=session,
-                        title='Watchlist: позиция найдена в прайсе',
+                        title="Watchlist: позиция найдена в прайсе",
                         message=message,
                         level=AppNotificationLevel.INFO,
-                        link='/watchlist',
+                        link="/watchlist",
                         commit=False,
                     )
                     item.last_notified_provider_at = now
                 except Exception as e:
                     logger.error(
-                        'Failed to create watchlist app notification: %s',
+                        "Failed to create watchlist app notification: %s",
                         e,
                     )
         session.add(item)
@@ -146,7 +148,7 @@ async def send_watchlist_daily_notifications(session: AsyncSession):
     site_by_id = {item.id: item for item in site_items}
     if site_items:
         site_offer_map: dict[int, list[dict]] = {}
-        key = os.getenv('KEY_FOR_WEBSITE')
+        key = os.getenv("KEY_FOR_WEBSITE")
         if key:
             async with DZSiteClient(
                 base_url=URL_DZ_SEARCH, api_key=key, verify_ssl=False
@@ -157,9 +159,7 @@ async def send_watchlist_daily_notifications(session: AsyncSession):
                             oem=item.oem, brand=item.brand, without_cross=True
                         )
                     except Exception as e:
-                        logger.error(
-                            f'DZ search failed for {item.oem}: {e}'
-                        )
+                        logger.error(f"DZ search failed for {item.oem}: {e}")
                         continue
                     if not offers:
                         continue
@@ -176,53 +176,51 @@ async def send_watchlist_daily_notifications(session: AsyncSession):
         for item in watch_items
         if item.id in provider_by_id or item.id in site_by_id
     ]
-    lines: list[str] = ['Отслеживаемые позиции:']
+    lines: list[str] = ["Отслеживаемые позиции:"]
     for idx, item in enumerate(notify_items):
         if idx > 0:
-            lines.append('')
+            lines.append("")
             lines.append(SITE_ITEM_SEPARATOR)
-            lines.append('')
-        lines.append(
-            f'{_norm(item.brand)} {_norm(item.oem)}'
-        )
+            lines.append("")
+        lines.append(f"{_norm(item.brand)} {_norm(item.oem)}")
 
         provider_item = provider_by_id.get(item.id)
         if provider_item:
             provider_label = provider_map.get(
-                provider_item.last_seen_provider_id, ''
+                provider_item.last_seen_provider_id, ""
             ) or str(provider_item.last_seen_provider_id)
             lines.append(
-                f'  Прайс: цена '
-                f'{provider_item.last_seen_provider_price} | '
-                f'Поставщик {provider_label}'
+                f"  Прайс: цена "
+                f"{provider_item.last_seen_provider_price} | "
+                f"Поставщик {provider_label}"
             )
 
         site_item = site_by_id.get(item.id)
         if site_item:
-            lines.append('  Сайт:')
+            lines.append("  Сайт:")
             top_offers = site_offer_map.get(item.id)
             if top_offers:
                 for line in format_top_offer_lines(top_offers):
-                    lines.append(f'    {line}')
+                    lines.append(f"    {line}")
             else:
                 qty = site_item.last_seen_site_qty
-                qty_part = f' | Кол-во {qty}' if qty is not None else ''
+                qty_part = f" | Кол-во {qty}" if qty is not None else ""
                 lines.append(
-                    f'    Цена {site_item.last_seen_site_price}{qty_part}'
+                    f"    Цена {site_item.last_seen_site_price}{qty_part}"
                 )
 
-    message_text = '\n'.join(lines)
+    message_text = "\n".join(lines)
     try:
         await create_admin_notifications(
             session=session,
-            title='Watchlist: сводка по найденным позициям',
+            title="Watchlist: сводка по найденным позициям",
             message=message_text,
             level=AppNotificationLevel.INFO,
-            link='/watchlist',
+            link="/watchlist",
             commit=False,
         )
     except Exception as e:
-        logger.error('Failed to create watchlist app notification: %s', e)
+        logger.error("Failed to create watchlist app notification: %s", e)
         return
 
     for item in provider_items:

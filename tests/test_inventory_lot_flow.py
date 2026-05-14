@@ -7,16 +7,22 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.models.autopart import AutoPart, StorageLocation
-from dz_fastapi.models.inventory import (LotSourceType, StockByLocation,
-                                         StockDocument, StockDocumentItem,
-                                         StockDocumentStatus,
-                                         StockDocumentType, StockLot)
-from dz_fastapi.models.partner import (Provider, SupplierReceipt,
-                                       SupplierReceiptItem)
-from dz_fastapi.services.inventory_stock import (post_stock_document,
-                                                 receive_stock,
-                                                 reconcile_stock_absolute,
-                                                 transfer_stock_with_lot_trace)
+from dz_fastapi.models.inventory import (
+    LotSourceType,
+    StockByLocation,
+    StockDocument,
+    StockDocumentItem,
+    StockDocumentStatus,
+    StockDocumentType,
+    StockLot,
+)
+from dz_fastapi.models.partner import Provider, SupplierReceipt, SupplierReceiptItem
+from dz_fastapi.services.inventory_stock import (
+    post_stock_document,
+    receive_stock,
+    reconcile_stock_absolute,
+    transfer_stock_with_lot_trace,
+)
 
 
 async def _lot_sum(
@@ -25,9 +31,7 @@ async def _lot_sum(
     autopart_id: int,
     storage_location_id: int,
 ) -> int:
-    stmt = select(
-        func.coalesce(func.sum(StockLot.remaining_quantity), 0)
-    ).where(
+    stmt = select(func.coalesce(func.sum(StockLot.remaining_quantity), 0)).where(
         StockLot.autopart_id == autopart_id,
         StockLot.storage_location_id == storage_location_id,
     )
@@ -56,16 +60,16 @@ async def test_receive_stock_with_gtd_creates_receipt_lot(
 ):
     receipt = SupplierReceipt(
         provider_id=created_providers[0].id,
-        document_number='R-1',
+        document_number="R-1",
         document_date=date.today(),
     )
     receipt.items = [
         SupplierReceiptItem(
             autopart_id=created_autopart.id,
             received_quantity=5,
-            gtd_code='GTD-001',
-            country_code='CN',
-            country_name='China',
+            gtd_code="GTD-001",
+            country_code="CN",
+            country_name="China",
         )
     ]
     test_session.add(receipt)
@@ -74,12 +78,18 @@ async def test_receive_stock_with_gtd_creates_receipt_lot(
     await receive_stock(test_session, receipt=receipt, reverse=False)
     await test_session.commit()
 
-    lots = (await test_session.execute(
-        select(StockLot).where(StockLot.source_receipt_id == receipt.id)
-    )).scalars().all()
+    lots = (
+        (
+            await test_session.execute(
+                select(StockLot).where(StockLot.source_receipt_id == receipt.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
     assert len(lots) == 1
     assert lots[0].source_type == LotSourceType.RECEIPT
-    assert lots[0].gtd_number == 'GTD-001'
+    assert lots[0].gtd_number == "GTD-001"
     assert lots[0].remaining_quantity == 5
 
 
@@ -92,31 +102,39 @@ async def test_manual_receipt_document_creates_manual_lot(
     doc = StockDocument(
         doc_type=StockDocumentType.MANUAL_RECEIPT,
         status=StockDocumentStatus.DRAFT,
-        reason='manual in',
+        reason="manual in",
     )
     test_session.add(doc)
     await test_session.flush()
-    test_session.add(StockDocumentItem(
-        document_id=doc.id,
-        autopart_id=created_autopart.id,
-        storage_location_id=created_storage.id,
-        quantity=4,
-        gtd_number='GTD-MANUAL',
-    ))
+    test_session.add(
+        StockDocumentItem(
+            document_id=doc.id,
+            autopart_id=created_autopart.id,
+            storage_location_id=created_storage.id,
+            quantity=4,
+            gtd_number="GTD-MANUAL",
+        )
+    )
     await test_session.flush()
 
     await post_stock_document(test_session, document_id=doc.id)
     await test_session.commit()
 
-    manual_lots = (await test_session.execute(
-        select(StockLot).where(
-            StockLot.autopart_id == created_autopart.id,
-            StockLot.storage_location_id == created_storage.id,
-            StockLot.source_type == LotSourceType.MANUAL,
+    manual_lots = (
+        (
+            await test_session.execute(
+                select(StockLot).where(
+                    StockLot.autopart_id == created_autopart.id,
+                    StockLot.storage_location_id == created_storage.id,
+                    StockLot.source_type == LotSourceType.MANUAL,
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(manual_lots) == 1
-    assert manual_lots[0].gtd_number == 'GTD-MANUAL'
+    assert manual_lots[0].gtd_number == "GTD-MANUAL"
     assert manual_lots[0].remaining_quantity == 4
 
 
@@ -137,22 +155,24 @@ async def test_manual_writeoff_consumes_fifo_lots(
     )
     test_session.add_all([in_doc_1, in_doc_2])
     await test_session.flush()
-    test_session.add_all([
-        StockDocumentItem(
-            document_id=in_doc_1.id,
-            autopart_id=created_autopart.id,
-            storage_location_id=created_storage.id,
-            quantity=3,
-            gtd_number='GTD-OLD',
-        ),
-        StockDocumentItem(
-            document_id=in_doc_2.id,
-            autopart_id=created_autopart.id,
-            storage_location_id=created_storage.id,
-            quantity=3,
-            gtd_number='GTD-NEW',
-        ),
-    ])
+    test_session.add_all(
+        [
+            StockDocumentItem(
+                document_id=in_doc_1.id,
+                autopart_id=created_autopart.id,
+                storage_location_id=created_storage.id,
+                quantity=3,
+                gtd_number="GTD-OLD",
+            ),
+            StockDocumentItem(
+                document_id=in_doc_2.id,
+                autopart_id=created_autopart.id,
+                storage_location_id=created_storage.id,
+                quantity=3,
+                gtd_number="GTD-NEW",
+            ),
+        ]
+    )
     await test_session.flush()
     await post_stock_document(test_session, document_id=in_doc_1.id)
     await post_stock_document(test_session, document_id=in_doc_2.id)
@@ -163,28 +183,36 @@ async def test_manual_writeoff_consumes_fifo_lots(
     )
     test_session.add(out_doc)
     await test_session.flush()
-    test_session.add(StockDocumentItem(
-        document_id=out_doc.id,
-        autopart_id=created_autopart.id,
-        storage_location_id=created_storage.id,
-        quantity=4,
-    ))
+    test_session.add(
+        StockDocumentItem(
+            document_id=out_doc.id,
+            autopart_id=created_autopart.id,
+            storage_location_id=created_storage.id,
+            quantity=4,
+        )
+    )
     await test_session.flush()
     await post_stock_document(test_session, document_id=out_doc.id)
     await test_session.commit()
 
-    lots = (await test_session.execute(
-        select(StockLot)
-        .where(
-            StockLot.autopart_id == created_autopart.id,
-            StockLot.storage_location_id == created_storage.id,
-            StockLot.gtd_number.in_(['GTD-OLD', 'GTD-NEW']),
+    lots = (
+        (
+            await test_session.execute(
+                select(StockLot)
+                .where(
+                    StockLot.autopart_id == created_autopart.id,
+                    StockLot.storage_location_id == created_storage.id,
+                    StockLot.gtd_number.in_(["GTD-OLD", "GTD-NEW"]),
+                )
+                .order_by(StockLot.received_at, StockLot.id)
+            )
         )
-        .order_by(StockLot.received_at, StockLot.id)
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
     by_gtd = {lot.gtd_number: lot for lot in lots}
-    assert by_gtd['GTD-OLD'].remaining_quantity == 0
-    assert by_gtd['GTD-NEW'].remaining_quantity == 2
+    assert by_gtd["GTD-OLD"].remaining_quantity == 0
+    assert by_gtd["GTD-NEW"].remaining_quantity == 2
 
 
 @pytest.mark.asyncio
@@ -193,20 +221,22 @@ async def test_inventory_shortage_uses_fifo(
     created_autopart: AutoPart,
     created_storage: StorageLocation,
 ):
-    for qty, gtd in ((3, 'INV-A'), (2, 'INV-B')):
+    for qty, gtd in ((3, "INV-A"), (2, "INV-B")):
         doc = StockDocument(
             doc_type=StockDocumentType.MANUAL_RECEIPT,
             status=StockDocumentStatus.DRAFT,
         )
         test_session.add(doc)
         await test_session.flush()
-        test_session.add(StockDocumentItem(
-            document_id=doc.id,
-            autopart_id=created_autopart.id,
-            storage_location_id=created_storage.id,
-            quantity=qty,
-            gtd_number=gtd,
-        ))
+        test_session.add(
+            StockDocumentItem(
+                document_id=doc.id,
+                autopart_id=created_autopart.id,
+                storage_location_id=created_storage.id,
+                quantity=qty,
+                gtd_number=gtd,
+            )
+        )
         await test_session.flush()
         await post_stock_document(test_session, document_id=doc.id)
 
@@ -220,16 +250,21 @@ async def test_inventory_shortage_uses_fifo(
     )
     await test_session.commit()
 
-    lots = (await test_session.execute(
-        select(StockLot)
-        .where(
-            StockLot.autopart_id == created_autopart.id,
-            StockLot.storage_location_id == created_storage.id,
+    lots = (
+        (
+            await test_session.execute(
+                select(StockLot).where(
+                    StockLot.autopart_id == created_autopart.id,
+                    StockLot.storage_location_id == created_storage.id,
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
     by_gtd = {lot.gtd_number: lot.remaining_quantity for lot in lots}
-    assert by_gtd['INV-A'] == 0
-    assert by_gtd['INV-B'] == 1
+    assert by_gtd["INV-A"] == 0
+    assert by_gtd["INV-B"] == 1
 
 
 @pytest.mark.asyncio
@@ -247,13 +282,15 @@ async def test_inventory_surplus_creates_inventory_correction_lot(
     )
     await test_session.commit()
 
-    correction_lot = (await test_session.execute(
-        select(StockLot).where(
-            StockLot.autopart_id == created_autopart.id,
-            StockLot.storage_location_id == created_storage.id,
-            StockLot.source_type == LotSourceType.INVENTORY_CORRECTION,
+    correction_lot = (
+        await test_session.execute(
+            select(StockLot).where(
+                StockLot.autopart_id == created_autopart.id,
+                StockLot.storage_location_id == created_storage.id,
+                StockLot.source_type == LotSourceType.INVENTORY_CORRECTION,
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
     assert correction_lot is not None
     assert correction_lot.remaining_quantity == 7
 
@@ -263,8 +300,8 @@ async def test_transfer_keeps_lot_trace_data(
     test_session: AsyncSession,
     created_autopart: AutoPart,
 ):
-    src = StorageLocation(name='TRSRC')
-    dst = StorageLocation(name='TRDST')
+    src = StorageLocation(name="TRSRC")
+    dst = StorageLocation(name="TRDST")
     test_session.add_all([src, dst])
     await test_session.flush()
 
@@ -274,13 +311,15 @@ async def test_transfer_keeps_lot_trace_data(
     )
     test_session.add(doc)
     await test_session.flush()
-    test_session.add(StockDocumentItem(
-        document_id=doc.id,
-        autopart_id=created_autopart.id,
-        storage_location_id=src.id,
-        quantity=6,
-        gtd_number='TR-GTD',
-    ))
+    test_session.add(
+        StockDocumentItem(
+            document_id=doc.id,
+            autopart_id=created_autopart.id,
+            storage_location_id=src.id,
+            quantity=6,
+            gtd_number="TR-GTD",
+        )
+    )
     await test_session.flush()
     await post_stock_document(test_session, document_id=doc.id)
 
@@ -290,18 +329,24 @@ async def test_transfer_keeps_lot_trace_data(
         from_location_id=src.id,
         to_location_id=dst.id,
         quantity=4,
-        notes='move',
+        notes="move",
     )
     await test_session.commit()
 
-    dst_lots = (await test_session.execute(
-        select(StockLot).where(
-            StockLot.autopart_id == created_autopart.id,
-            StockLot.storage_location_id == dst.id,
+    dst_lots = (
+        (
+            await test_session.execute(
+                select(StockLot).where(
+                    StockLot.autopart_id == created_autopart.id,
+                    StockLot.storage_location_id == dst.id,
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(dst_lots) == 1
-    assert dst_lots[0].gtd_number == 'TR-GTD'
+    assert dst_lots[0].gtd_number == "TR-GTD"
     assert dst_lots[0].remaining_quantity == 4
 
 
@@ -313,23 +358,23 @@ async def test_unpost_receipt_with_partial_consumption_keeps_audit_trace(
 ):
     receipt = SupplierReceipt(
         provider_id=created_providers[0].id,
-        document_number='R-PARTIAL',
+        document_number="R-PARTIAL",
         document_date=date.today(),
     )
     receipt.items = [
         SupplierReceiptItem(
             autopart_id=created_autopart.id,
             received_quantity=5,
-            gtd_code='GTD-PARTIAL',
+            gtd_code="GTD-PARTIAL",
         )
     ]
     test_session.add(receipt)
     await test_session.flush()
     await receive_stock(test_session, receipt=receipt, reverse=False)
 
-    lot = (await test_session.execute(
-        select(StockLot).where(StockLot.source_receipt_id == receipt.id)
-    )).scalar_one()
+    lot = (
+        await test_session.execute(select(StockLot).where(StockLot.source_receipt_id == receipt.id))
+    ).scalar_one()
 
     await reconcile_stock_absolute(
         test_session,
@@ -351,8 +396,8 @@ async def test_lot_sum_equals_stock_by_location_after_operation_chain(
     test_session: AsyncSession,
     created_autopart: AutoPart,
 ):
-    loc_a = StorageLocation(name='LOCA')
-    loc_b = StorageLocation(name='LOCB')
+    loc_a = StorageLocation(name="LOCA")
+    loc_b = StorageLocation(name="LOCB")
     test_session.add_all([loc_a, loc_b])
     await test_session.flush()
 
@@ -363,13 +408,15 @@ async def test_lot_sum_equals_stock_by_location_after_operation_chain(
     )
     test_session.add(doc)
     await test_session.flush()
-    test_session.add(StockDocumentItem(
-        document_id=doc.id,
-        autopart_id=created_autopart.id,
-        storage_location_id=loc_a.id,
-        quantity=10,
-        gtd_number='CHAIN-1',
-    ))
+    test_session.add(
+        StockDocumentItem(
+            document_id=doc.id,
+            autopart_id=created_autopart.id,
+            storage_location_id=loc_a.id,
+            quantity=10,
+            gtd_number="CHAIN-1",
+        )
+    )
     await test_session.flush()
     await post_stock_document(test_session, document_id=doc.id)
 
@@ -380,12 +427,14 @@ async def test_lot_sum_equals_stock_by_location_after_operation_chain(
     )
     test_session.add(out_doc)
     await test_session.flush()
-    test_session.add(StockDocumentItem(
-        document_id=out_doc.id,
-        autopart_id=created_autopart.id,
-        storage_location_id=loc_a.id,
-        quantity=3,
-    ))
+    test_session.add(
+        StockDocumentItem(
+            document_id=out_doc.id,
+            autopart_id=created_autopart.id,
+            storage_location_id=loc_a.id,
+            quantity=3,
+        )
+    )
     await test_session.flush()
     await post_stock_document(test_session, document_id=out_doc.id)
 

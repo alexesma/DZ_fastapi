@@ -15,9 +15,7 @@ async def test_watchlist_crud(async_client):
     assert item["oem"] == "ABC123"
     assert item["max_price"] == 100.5
 
-    response = await async_client.get(
-        "/watchlist", params={"page": 1, "page_size": 10}
-    )
+    response = await async_client.get("/watchlist", params={"page": 1, "page_size": 10})
     assert response.status_code == 200
     data = response.json()
     assert data["total"] >= 1
@@ -32,9 +30,7 @@ async def test_watchlist_crud(async_client):
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
 
-    response = await async_client.get(
-        "/watchlist", params={"search": "ABC123"}
-    )
+    response = await async_client.get("/watchlist", params={"search": "ABC123"})
     assert response.status_code == 200
     data = response.json()
     assert all(row["id"] != item["id"] for row in data["items"])

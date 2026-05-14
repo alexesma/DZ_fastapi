@@ -1,5 +1,4 @@
-from sqlalchemy import (JSON, Boolean, Column, DateTime, ForeignKey, Integer,
-                        String, Text)
+from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, String, Text
 
 from dz_fastapi.core.db import Base
 from dz_fastapi.core.time import now_moscow
@@ -10,7 +9,7 @@ class InboxEmail(Base):
 
     email_account_id = Column(
         Integer,
-        ForeignKey('emailaccount.id', ondelete='CASCADE'),
+        ForeignKey("emailaccount.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -20,8 +19,8 @@ class InboxEmail(Base):
 
     from_email = Column(String(255), nullable=False, index=True)
     from_name = Column(String(255), nullable=True)
-    subject = Column(String(1000), nullable=True, default='')
-    body_preview = Column(String(500), nullable=True)   # первые ~300 символов
+    subject = Column(String(1000), nullable=True, default="")
+    body_preview = Column(String(500), nullable=True)  # первые ~300 символов
     body_full = Column(Text, nullable=True)
 
     has_attachments = Column(Boolean, default=False)
@@ -36,7 +35,7 @@ class InboxEmail(Base):
     rule_type = Column(String(64), nullable=True, index=True)
     rule_set_at = Column(DateTime(timezone=True), nullable=True)
     rule_set_by_id = Column(
-        Integer, ForeignKey('app_user.id', ondelete='SET NULL'), nullable=True
+        Integer, ForeignKey("app_user.id", ondelete="SET NULL"), nullable=True
     )
     # True — правило назначено системой автоматически
     rule_auto_detected = Column(Boolean, default=False)
@@ -56,15 +55,13 @@ class EmailRulePattern(Base):
     # null = применяется ко всем почтовым ящикам
     email_account_id = Column(
         Integer,
-        ForeignKey('emailaccount.id', ondelete='CASCADE'),
+        ForeignKey("emailaccount.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
 
     # Критерии совпадения
-    from_email_pattern = Column(
-        String(255), nullable=True
-    )   # точный email
+    from_email_pattern = Column(String(255), nullable=True)  # точный email
     from_domain_pattern = Column(
         String(255), nullable=True
     )  # домен отправителя
@@ -83,7 +80,7 @@ class EmailRulePattern(Base):
     times_confirmed = Column(Integer, default=0)  # вручную подтверждено
 
     created_by_id = Column(
-        Integer, ForeignKey('app_user.id', ondelete='SET NULL'), nullable=True
+        Integer, ForeignKey("app_user.id", ondelete="SET NULL"), nullable=True
     )
     created_at = Column(DateTime(timezone=True), default=now_moscow)
     updated_at = Column(
@@ -93,17 +90,17 @@ class EmailRulePattern(Base):
 
 
 class InboxForceProcessAudit(Base):
-    __tablename__ = 'inbox_force_process_audit'
+    __tablename__ = "inbox_force_process_audit"
 
     inbox_email_id = Column(
         Integer,
-        ForeignKey('inboxemail.id', ondelete='SET NULL'),
+        ForeignKey("inboxemail.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
     requested_by_user_id = Column(
         Integer,
-        ForeignKey('app_user.id', ondelete='SET NULL'),
+        ForeignKey("app_user.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )

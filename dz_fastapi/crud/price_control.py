@@ -1,14 +1,16 @@
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.models.price_control import (CustomerPriceListOverride,
-                                             PriceControlConfig,
-                                             PriceControlManualItem,
-                                             PriceControlRecommendation,
-                                             PriceControlRun,
-                                             PriceControlSource,
-                                             PriceControlSourceRecommendation,
-                                             PriceControlStateProfile)
+from dz_fastapi.models.price_control import (
+    CustomerPriceListOverride,
+    PriceControlConfig,
+    PriceControlManualItem,
+    PriceControlRecommendation,
+    PriceControlRun,
+    PriceControlSource,
+    PriceControlSourceRecommendation,
+    PriceControlStateProfile,
+)
 
 
 class CRUDPriceControlConfig:
@@ -38,10 +40,7 @@ class CRUDPriceControlConfig:
         return config
 
     async def update(
-            self,
-            session: AsyncSession,
-            config: PriceControlConfig,
-            data: dict
+        self, session: AsyncSession, config: PriceControlConfig, data: dict
     ):
         for key, value in data.items():
             setattr(config, key, value)
@@ -52,7 +51,7 @@ class CRUDPriceControlConfig:
 
 
 def _normalize_profile_value(value) -> str:
-    return str(value or '').strip()
+    return str(value or "").strip()
 
 
 class CRUDPriceControlStateProfile:
@@ -91,34 +90,34 @@ class CRUDPriceControlStateProfile:
         profile = await self.get_by_identity(
             session=session,
             config_id=config.id,
-            site_api_key_env=getattr(config, 'site_api_key_env', None),
-            our_offer_field=getattr(config, 'our_offer_field', None),
-            our_offer_match=getattr(config, 'our_offer_match', None),
+            site_api_key_env=getattr(config, "site_api_key_env", None),
+            our_offer_field=getattr(config, "our_offer_field", None),
+            our_offer_match=getattr(config, "our_offer_match", None),
         )
         if profile:
             return profile
         profile = PriceControlStateProfile(
             config_id=config.id,
             site_api_key_env=_normalize_profile_value(
-                getattr(config, 'site_api_key_env', None)
+                getattr(config, "site_api_key_env", None)
             ),
             our_offer_field=_normalize_profile_value(
-                getattr(config, 'our_offer_field', None)
+                getattr(config, "our_offer_field", None)
             ),
             our_offer_match=_normalize_profile_value(
-                getattr(config, 'our_offer_match', None)
+                getattr(config, "our_offer_match", None)
             ),
             client_markup_coef=float(
-                getattr(config, 'client_markup_coef', None) or 1.0
+                getattr(config, "client_markup_coef", None) or 1.0
             ),
             client_markup_sample_size=int(
-                getattr(config, 'client_markup_sample_size', None) or 0
+                getattr(config, "client_markup_sample_size", None) or 0
             ),
             client_markup_recent_coef=(
-                getattr(config, 'client_markup_recent_coef', None) or []
+                getattr(config, "client_markup_recent_coef", None) or []
             ),
-            cooldown_hours=int(getattr(config, 'cooldown_hours', None) or 0),
-            cooldown_reset_at=getattr(config, 'cooldown_reset_at', None),
+            cooldown_hours=int(getattr(config, "cooldown_hours", None) or 0),
+            cooldown_reset_at=getattr(config, "cooldown_reset_at", None),
         )
         session.add(profile)
         await session.flush()
@@ -167,10 +166,7 @@ class CRUDPriceControlManualItem:
 
 class CRUDPriceControlRun:
     async def create(
-            self,
-            session: AsyncSession,
-            config_id: int,
-            total_items: int
+        self, session: AsyncSession, config_id: int, total_items: int
     ):
         run = PriceControlRun(config_id=config_id, total_items=total_items)
         session.add(run)
@@ -191,9 +187,7 @@ class CRUDPriceControlRun:
 
 
 class CRUDPriceControlRecommendation:
-    async def list_by_run(
-        self, session: AsyncSession, run_id: int
-    ):
+    async def list_by_run(self, session: AsyncSession, run_id: int):
         stmt = select(PriceControlRecommendation).where(
             PriceControlRecommendation.run_id == run_id
         )
@@ -234,7 +228,7 @@ class CRUDPriceControlRecommendation:
             .distinct()
         )
         rows = (await session.execute(stmt)).all()
-        return [(str(oem or ''), str(brand or '')) for oem, brand in rows]
+        return [(str(oem or ""), str(brand or "")) for oem, brand in rows]
 
 
 class CRUDPriceControlSourceRecommendation:
@@ -260,11 +254,11 @@ class CRUDPriceControlSourceRecommendation:
 
 class CRUDCustomerPriceListOverride:
     async def upsert(
-            self,
-            session: AsyncSession,
-            config_id: int,
-            autopart_id: int,
-            price: float
+        self,
+        session: AsyncSession,
+        config_id: int,
+        autopart_id: int,
+        price: float,
     ):
         stmt = select(CustomerPriceListOverride).where(
             CustomerPriceListOverride.config_id == config_id,

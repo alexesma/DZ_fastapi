@@ -6,10 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.crud.base import CRUDBase
 from dz_fastapi.models.email_account import EmailAccount
-from dz_fastapi.schemas.email_account import (EmailAccountCreate,
-                                              EmailAccountUpdate)
+from dz_fastapi.schemas.email_account import EmailAccountCreate, EmailAccountUpdate
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
 
 class CRUDEmailAccount(

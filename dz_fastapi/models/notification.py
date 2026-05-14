@@ -6,17 +6,17 @@ from dz_fastapi.core.time import now_moscow
 
 
 class AppNotificationLevel:
-    INFO = 'info'
-    SUCCESS = 'success'
-    WARNING = 'warning'
-    ERROR = 'error'
+    INFO = "info"
+    SUCCESS = "success"
+    WARNING = "warning"
+    ERROR = "error"
 
 
 class AppNotification(Base):
-    __tablename__ = 'app_notification'
+    __tablename__ = "app_notification"
 
     user_id = Column(
-        ForeignKey('app_user.id', ondelete='CASCADE'),
+        ForeignKey("app_user.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -31,4 +31,4 @@ class AppNotification(Base):
     created_at = Column(DateTime(timezone=True), default=now_moscow)
     read_at = Column(DateTime(timezone=True), nullable=True)
 
-    user = relationship('User')
+    user = relationship("User")

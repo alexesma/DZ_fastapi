@@ -11,23 +11,30 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from dz_fastapi.api.validators import change_brand_name, change_string
-from dz_fastapi.core.constants import (UPLOAD_DIR, get_max_file_size,
-                                       get_upload_dir)
+from dz_fastapi.core.constants import UPLOAD_DIR, get_max_file_size, get_upload_dir
 from dz_fastapi.core.db import get_session
-from dz_fastapi.crud.brand import (brand_crud, brand_exists,
-                                   duplicate_brand_name)
+from dz_fastapi.crud.brand import brand_crud, brand_exists, duplicate_brand_name
 from dz_fastapi.models.brand import Brand, brand_synonyms
-from dz_fastapi.models.partner import (PriceList, PriceListMissingBrand,
-                                       Provider, ProviderPriceListConfig)
-from dz_fastapi.schemas.brand import (BrandCreate, BrandCreateInDB,
-                                      BrandLookupItem, BrandResponse,
-                                      BrandUpdate, MissingBrandByPricelist,
-                                      MissingBrandResolveRequest,
-                                      SynonymCreate)
+from dz_fastapi.models.partner import (
+    PriceList,
+    PriceListMissingBrand,
+    Provider,
+    ProviderPriceListConfig,
+)
+from dz_fastapi.schemas.brand import (
+    BrandCreate,
+    BrandCreateInDB,
+    BrandLookupItem,
+    BrandResponse,
+    BrandUpdate,
+    MissingBrandByPricelist,
+    MissingBrandResolveRequest,
+    SynonymCreate,
+)
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
-router = APIRouter(prefix='/brand')
+router = APIRouter(prefix="/brand")
 UPLOAD_DIR = Path(UPLOAD_DIR)
 
 
@@ -46,7 +53,7 @@ async def _serialize_brand_for_response(
         country_of_origin=brand.country_of_origin,
         logo=brand.logo,
         synonyms=[
-            {'id': syn.id, 'name': syn.name}
+            {"id": syn.id, "name": syn.name}
             for syn in all_synonyms
             if syn.id != brand.id
         ],
@@ -54,10 +61,10 @@ async def _serialize_brand_for_response(
 
 
 @router.get(
-    '/',
+    "/",
     response_model=list[BrandCreateInDB],
-    tags=['brand'],
-    summary='Список брендов',
+    tags=["brand"],
+    summary="Список брендов",
     response_model_exclude_none=True,
 )
 async def get_brands(session: AsyncSession = Depends(get_session)):
@@ -70,31 +77,29 @@ async def get_brands(session: AsyncSession = Depends(get_session)):
 
 
 @router.get(
-    '/lookup/',
+    "/lookup/",
     response_model=list[BrandLookupItem],
-    tags=['brand'],
-    summary='Поиск брендов по имени',
+    tags=["brand"],
+    summary="Поиск брендов по имени",
 )
 async def lookup_brands(
-    q: str = '',
+    q: str = "",
     limit: int = 50,
     ids: str | None = None,
     session: AsyncSession = Depends(get_session),
 ):
-    normalized = await change_brand_name(q) if q else ''
+    normalized = await change_brand_name(q) if q else ""
     stmt = select(Brand.id, Brand.name).order_by(Brand.name.asc())
     brand_ids: list[int] = []
     if ids:
         brand_ids = [
-            int(part)
-            for part in ids.split(',')
-            if part.strip().isdigit()
+            int(part) for part in ids.split(",") if part.strip().isdigit()
         ]
     if brand_ids:
         stmt = stmt.where(Brand.id.in_(brand_ids))
         stmt = stmt.limit(max(1, len(brand_ids)))
     elif normalized:
-        stmt = stmt.where(Brand.name.ilike(f'%{normalized}%'))
+        stmt = stmt.where(Brand.name.ilike(f"%{normalized}%"))
         stmt = stmt.limit(max(1, min(limit, 200)))
     else:
         stmt = stmt.limit(max(1, min(limit, 200)))
@@ -103,10 +108,10 @@ async def lookup_brands(
 
 
 @router.get(
-    '/missing-from-pricelists',
+    "/missing-from-pricelists",
     response_model=list[MissingBrandByPricelist],
-    tags=['brand'],
-    summary='Отсутствующие бренды из последних прайсов поставщиков',
+    tags=["brand"],
+    summary="Отсутствующие бренды из последних прайсов поставщиков",
     response_model_exclude_none=True,
 )
 async def get_missing_brands_from_pricelists(
@@ -114,35 +119,29 @@ async def get_missing_brands_from_pricelists(
 ):
     latest_pricelist_subquery = (
         select(
-            PriceList.provider_config_id.label('provider_config_id'),
-            PriceList.id.label('pricelist_id'),
-            PriceList.date.label('pricelist_date'),
+            PriceList.provider_config_id.label("provider_config_id"),
+            PriceList.id.label("pricelist_id"),
+            PriceList.date.label("pricelist_date"),
             func.row_number()
             .over(
                 partition_by=PriceList.provider_config_id,
                 order_by=(PriceList.date.desc(), PriceList.id.desc()),
             )
-            .label('row_number'),
+            .label("row_number"),
         )
         .where(PriceList.provider_config_id.is_not(None))
         .subquery()
     )
     stmt = (
         select(
-            Provider.id.label('provider_id'),
-            Provider.name.label('provider_name'),
-            ProviderPriceListConfig.id.label('provider_config_id'),
-            ProviderPriceListConfig.name_price.label(
-                'provider_config_name'
-            ),
-            PriceListMissingBrand.pricelist_id.label('pricelist_id'),
-            latest_pricelist_subquery.c.pricelist_date.label(
-                'pricelist_date'
-            ),
-            PriceListMissingBrand.brand_name.label('brand_name'),
-            PriceListMissingBrand.positions_count.label(
-                'positions_count'
-            ),
+            Provider.id.label("provider_id"),
+            Provider.name.label("provider_name"),
+            ProviderPriceListConfig.id.label("provider_config_id"),
+            ProviderPriceListConfig.name_price.label("provider_config_name"),
+            PriceListMissingBrand.pricelist_id.label("pricelist_id"),
+            latest_pricelist_subquery.c.pricelist_date.label("pricelist_date"),
+            PriceListMissingBrand.brand_name.label("brand_name"),
+            PriceListMissingBrand.positions_count.label("positions_count"),
         )
         .join(
             latest_pricelist_subquery,
@@ -176,9 +175,9 @@ async def get_missing_brands_from_pricelists(
 
 
 @router.post(
-    '/missing-from-pricelists/resolve',
-    tags=['brand'],
-    summary='Разрешить отсутствующий бренд',
+    "/missing-from-pricelists/resolve",
+    tags=["brand"],
+    summary="Разрешить отсутствующий бренд",
     response_model=BrandCreateInDB,
     response_model_exclude_none=True,
 )
@@ -189,14 +188,14 @@ async def resolve_missing_brand(
     missing_brand_name = await change_brand_name(payload.missing_brand_name)
     if not missing_brand_name:
         raise HTTPException(
-            status_code=400, detail='Пустое имя отсутствующего бренда'
+            status_code=400, detail="Пустое имя отсутствующего бренда"
         )
 
     existing_missing_brand = await brand_crud.get_brand_by_name_or_none(
         brand_name=missing_brand_name, session=session
     )
 
-    if payload.action == 'create_brand':
+    if payload.action == "create_brand":
         if existing_missing_brand:
             return await _serialize_brand_for_response(
                 existing_missing_brand, session
@@ -215,7 +214,7 @@ async def resolve_missing_brand(
     if payload.target_brand_id is None:
         raise HTTPException(
             status_code=400,
-            detail='Не передан target_brand_id для действия set_synonym',
+            detail="Не передан target_brand_id для действия set_synonym",
         )
 
     target_brand = await brand_exists(payload.target_brand_id, session)
@@ -244,10 +243,10 @@ async def resolve_missing_brand(
 
 
 @router.get(
-    '/{brand_id}',
+    "/{brand_id}",
     response_model=BrandCreateInDB,
-    tags=['brand'],
-    summary='Получение данных по бренду',
+    tags=["brand"],
+    summary="Получение данных по бренду",
     status_code=status.HTTP_200_OK,
     response_model_exclude_none=True,
 )
@@ -259,7 +258,7 @@ async def get_brand(
     )
 
     if not brand:
-        raise HTTPException(status_code=404, detail='Brand not found')
+        raise HTTPException(status_code=404, detail="Brand not found")
 
     brand.synonyms = await brand_crud.get_all_synonyms_bi_directional(
         brand=brand, session=session
@@ -268,9 +267,9 @@ async def get_brand(
 
 
 @router.patch(
-    '/{brand_id}/upload-logo',
-    tags=['brand'],
-    summary='Загрузка логотипа бренда',
+    "/{brand_id}/upload-logo",
+    tags=["brand"],
+    summary="Загрузка логотипа бренда",
     response_model_exclude_none=True,
     response_model=BrandCreateInDB,
 )
@@ -282,34 +281,34 @@ async def upload_logo(
     upload_dir: str = Depends(get_upload_dir),
 ):
     try:
-        logger.info(f'Try to change brand id: {brand_id}')
+        logger.info(f"Try to change brand id: {brand_id}")
         brand_db = await brand_exists(brand_id, session)
-        if file.content_type not in ['image/jpeg', 'image/png']:
-            logger.debug(f'File for brand id {brand_id} is not jpeg or png')
+        if file.content_type not in ["image/jpeg", "image/png"]:
+            logger.debug(f"File for brand id {brand_id} is not jpeg or png")
             raise HTTPException(
                 status_code=400,
-                detail='Invalid file type. Only JPEG and PNG are allowed.',
+                detail="Invalid file type. Only JPEG and PNG are allowed.",
             )
         contents = await file.read()
         if len(contents) > max_file_size:
             logger.debug(
-                f'File size exceeds limit: {len(contents)} '
-                f'> {max_file_size} for brand id {brand_id}'
+                f"File size exceeds limit: {len(contents)} "
+                f"> {max_file_size} for brand id {brand_id}"
             )
             raise HTTPException(
                 status_code=400,
-                detail='File size exceeds the maximum allowed size.',
+                detail="File size exceeds the maximum allowed size.",
             )
 
         logger.info(
-            f'File size = {len(contents)} and max size = {max_file_size}'
+            f"File size = {len(contents)} and max size = {max_file_size}"
         )
         file_ext = Path(file.filename).suffix
         logo_filename = f"brand_{brand_id}_logo{file_ext}"
         file_path = Path(upload_dir) / logo_filename
-        logger.debug(f'Path = {file_path}')
+        logger.debug(f"Path = {file_path}")
 
-        async with aiofiles.open(file_path, 'wb') as buffer:
+        async with aiofiles.open(file_path, "wb") as buffer:
             await buffer.write(contents)
 
         try:
@@ -317,9 +316,9 @@ async def upload_logo(
                 img.verify()
         except (IOError, SyntaxError) as e:
             file_path.unlink(missing_ok=True)
-            logger.debug(f'FIle for brand id {brand_id} is invalid')
+            logger.debug(f"FIle for brand id {brand_id} is invalid")
             raise HTTPException(
-                status_code=400, detail=f'Invalid image file. Error: {str(e)}'
+                status_code=400, detail=f"Invalid image file. Error: {str(e)}"
             )
         brand_db.logo = str(file_path)
 
@@ -327,14 +326,14 @@ async def upload_logo(
             brand_db, session
         )
         brand_data = {
-            'id': brand_db.id,
-            'name': brand_db.name,
-            'country_of_origin': brand_db.country_of_origin,
-            'website': brand_db.website,
-            'description': brand_db.description,
-            'logo': brand_db.logo,
-            'synonyms': [
-                {'id': syn.id, 'name': syn.name}
+            "id": brand_db.id,
+            "name": brand_db.name,
+            "country_of_origin": brand_db.country_of_origin,
+            "website": brand_db.website,
+            "description": brand_db.description,
+            "logo": brand_db.logo,
+            "synonyms": [
+                {"id": syn.id, "name": syn.name}
                 for syn in all_synonyms
                 if syn.id != brand_db.id
             ],
@@ -345,29 +344,29 @@ async def upload_logo(
 
     except SQLAlchemyError as e:
         await session.rollback()
-        logger.exception('Database error occurred while uploading logo')
+        logger.exception("Database error occurred while uploading logo")
         raise HTTPException(
             status_code=500,
-            detail=f'Database error occurred while uploading logo. Error: {e}',
+            detail=f"Database error occurred while uploading logo. Error: {e}",
         )
     except HTTPException:
         raise
     except Exception as e:
         await session.rollback()
-        logger.exception('Unexpected error occurred while uploading logo')
+        logger.exception("Unexpected error occurred while uploading logo")
         raise HTTPException(
             status_code=500,
             detail=(
-                f'Unexpected error occurred while uploading logo. Error: {e}'
+                f"Unexpected error occurred while uploading logo. Error: {e}"
             ),
         )
 
 
 @router.post(
-    '/',
+    "/",
     response_model=BrandCreateInDB,
-    tags=['brand'],
-    summary='Создание бренда',
+    tags=["brand"],
+    summary="Создание бренда",
     response_model_exclude_none=True,
     status_code=status.HTTP_201_CREATED,
 )
@@ -378,9 +377,9 @@ async def create_brand(
 
 
 @router.delete(
-    '/{brand_id}',
-    tags=['brand'],
-    summary='Удаление бренда',
+    "/{brand_id}",
+    tags=["brand"],
+    summary="Удаление бренда",
     status_code=status.HTTP_200_OK,
     response_model=BrandCreateInDB,
 )
@@ -399,9 +398,9 @@ async def remove_brand(
 
 
 @router.patch(
-    '/{brand_id}',
-    tags=['brand'],
-    summary='Обновление бренда',
+    "/{brand_id}",
+    tags=["brand"],
+    summary="Обновление бренда",
     response_model_exclude_none=True,
     response_model=BrandCreateInDB,
 )
@@ -416,7 +415,7 @@ async def update_brand(
             logger.debug(f"Existing brand: {brand_db}")
             if brand.name:
                 brand.name = await change_string(brand.name)
-                logger.debug(f'Updated brand name: {brand.name}')
+                logger.debug(f"Updated brand name: {brand.name}")
                 if brand_db.name != brand.name:
                     await duplicate_brand_name(
                         brand_name=brand.name, session=session
@@ -426,25 +425,25 @@ async def update_brand(
             )
             if not updated_brand:
                 raise HTTPException(
-                    status_code=500, detail='Failed to update brand'
+                    status_code=500, detail="Failed to update brand"
                 )
-            logger.debug(f'Updated brand: {updated_brand}')
+            logger.debug(f"Updated brand: {updated_brand}")
 
             return await _serialize_brand_for_response(updated_brand, session)
 
     except Exception as e:
-        logger.error(f'Error updating brand: {str(e)}')
+        logger.error(f"Error updating brand: {str(e)}")
         await session.rollback()
         raise HTTPException(
-            status_code=500, detail=f'An error occurred: {str(e)}'
+            status_code=500, detail=f"An error occurred: {str(e)}"
         )
 
 
 @router.post(
-    '/{brand_id}/synonyms/',
+    "/{brand_id}/synonyms/",
     response_model=BrandResponse,
-    tags=['brand'],
-    summary='Добавление синонимов к бренду',
+    tags=["brand"],
+    summary="Добавление синонимов к бренду",
     status_code=status.HTTP_200_OK,
     response_model_exclude_none=True,
 )
@@ -465,13 +464,13 @@ async def add_synonyms(
             )
             updated_brand = await session.get(Brand, brand_id)
             await session.refresh(
-                updated_brand, attribute_names=['id', 'name', 'synonyms']
+                updated_brand, attribute_names=["id", "name", "synonyms"]
             )
             response_data = {
-                'id': updated_brand.id,
-                'name': updated_brand.name,
-                'synonyms': [
-                    {'id': s.id, 'name': s.name}
+                "id": updated_brand.id,
+                "name": updated_brand.name,
+                "synonyms": [
+                    {"id": s.id, "name": s.name}
                     for s in updated_brand.synonyms
                 ],
             }
@@ -481,17 +480,17 @@ async def add_synonyms(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         await session.rollback()
-        logger.error(f'Ошибка добавление синонимов: {str(e)}')
+        logger.error(f"Ошибка добавление синонимов: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f'An error occurred: {str(e)}'
+            status_code=500, detail=f"An error occurred: {str(e)}"
         )
 
 
 @router.delete(
-    '/{brand_id}/synonyms',
+    "/{brand_id}/synonyms",
     response_model=BrandResponse,
-    tags=['brand'],
-    summary='Удаление синонимов к бренду',
+    tags=["brand"],
+    summary="Удаление синонимов к бренду",
     status_code=status.HTTP_200_OK,
     response_model_exclude_none=True,
 )
@@ -511,10 +510,10 @@ async def delete_synonyms(
                 synonym_names=change_synonyms,
             )
             response_data = {
-                'id': updated_brand.id,
-                'name': updated_brand.name,
-                'synonyms': [
-                    {'id': s.id, 'name': s.name}
+                "id": updated_brand.id,
+                "name": updated_brand.name,
+                "synonyms": [
+                    {"id": s.id, "name": s.name}
                     for s in updated_brand.synonyms
                 ],
             }
@@ -523,7 +522,7 @@ async def delete_synonyms(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         await session.rollback()
-        logger.error(f'Ошибка удаления синонимов: {str(e)}')
+        logger.error(f"Ошибка удаления синонимов: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f'An error occurred: {str(e)}'
+            status_code=500, detail=f"An error occurred: {str(e)}"
         )

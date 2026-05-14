@@ -1,26 +1,36 @@
-from sqlalchemy import (Boolean, CheckConstraint, Column, ForeignKey, Integer,
-                        String, Table, Text, UniqueConstraint, text)
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Column,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.orm import relationship
 
 from dz_fastapi.core.base import Base
 from dz_fastapi.core.constants import MAX_LEN_WEBSITE, MAX_NAME_BRAND
 
 brand_synonyms = Table(
-    'brand_synonyms',
+    "brand_synonyms",
     Base.metadata,
     Column(
-        'brand_id',
+        "brand_id",
         Integer,
-        ForeignKey('brand.id', ondelete='CASCADE'),
+        ForeignKey("brand.id", ondelete="CASCADE"),
         primary_key=True,
     ),
     Column(
-        'synonym_id',
+        "synonym_id",
         Integer,
-        ForeignKey('brand.id', ondelete='CASCADE'),
+        ForeignKey("brand.id", ondelete="CASCADE"),
         primary_key=True,
     ),
-    UniqueConstraint('brand_id', 'synonym_id', name='unique_brand_synonyms'),
+    UniqueConstraint("brand_id", "synonym_id", name="unique_brand_synonyms"),
 )
 
 
@@ -32,15 +42,15 @@ class Brand(Base):
     logo = Column(String(MAX_LEN_WEBSITE), nullable=True)
     main_brand = Column(Boolean, default=False)
     autoparts = relationship(
-        'AutoPart', back_populates='brand', cascade='all, delete-orphan'
+        "AutoPart", back_populates="brand", cascade="all, delete-orphan"
     )
     synonyms = relationship(
-        'Brand',
-        secondary='brand_synonyms',
-        primaryjoin='Brand.id == brand_synonyms.c.brand_id',
-        secondaryjoin='Brand.id == brand_synonyms.c.synonym_id',
-        cascade='save-update, merge',
-        backref='brand_synonyms',
+        "Brand",
+        secondary="brand_synonyms",
+        primaryjoin="Brand.id == brand_synonyms.c.brand_id",
+        secondaryjoin="Brand.id == brand_synonyms.c.synonym_id",
+        cascade="save-update, merge",
+        backref="brand_synonyms",
         # lazy='subquery',
         # back_populates='synonyms',
         # viewonly=False
@@ -50,6 +60,6 @@ class Brand(Base):
             text(
                 "name ~ '^[A-Za-zА-Яа-яЁё0-9]+(?:[ -]?[A-Za-zА-Яа-яЁё0-9]+)*$'"
             ),
-            name='check_name_brand',
+            name="check_name_brand",
         ),
     )

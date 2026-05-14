@@ -8,72 +8,88 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.api.deps import get_current_user, require_admin
 from dz_fastapi.core.db import get_session
-from dz_fastapi.crud.inbox_email import (create_rule_pattern,
-                                         delete_rule_pattern, get_inbox_email,
-                                         get_rule_pattern, list_inbox_emails,
-                                         list_rule_patterns,
-                                         update_rule_pattern)
+from dz_fastapi.crud.inbox_email import (
+    create_rule_pattern,
+    delete_rule_pattern,
+    get_inbox_email,
+    get_rule_pattern,
+    list_inbox_emails,
+    list_rule_patterns,
+    update_rule_pattern,
+)
 from dz_fastapi.models.inbox_email import InboxEmail
 from dz_fastapi.models.user import User
-from dz_fastapi.schemas.inbox_email import (AssignRuleRequest,
-                                            AssignRuleResponse,
-                                            ConfigSetupInfo,
-                                            EmailRulePatternCreate,
-                                            EmailRulePatternOut,
-                                            EmailRulePatternUpdate,
-                                            FetchInboxRequest,
-                                            FetchInboxResponse,
-                                            ForceProcessRequest,
-                                            ForceProcessResponse,
-                                            InboxEmailBrief, InboxEmailDetail,
-                                            InboxEmailListResponse,
-                                            InboxSetupOptions,
-                                            InboxSetupRequest,
-                                            InboxSetupResponse, SetupOption)
+from dz_fastapi.schemas.inbox_email import (
+    AssignRuleRequest,
+    AssignRuleResponse,
+    ConfigSetupInfo,
+    EmailRulePatternCreate,
+    EmailRulePatternOut,
+    EmailRulePatternUpdate,
+    FetchInboxRequest,
+    FetchInboxResponse,
+    ForceProcessRequest,
+    ForceProcessResponse,
+    InboxEmailBrief,
+    InboxEmailDetail,
+    InboxEmailListResponse,
+    InboxSetupOptions,
+    InboxSetupRequest,
+    InboxSetupResponse,
+    SetupOption,
+)
 from dz_fastapi.services.inbox_email import (
-    assign_rule, fetch_and_store_emails, force_process_email,
-    inbox_attachment_exists, read_attachment_preview,
+    assign_rule,
+    fetch_and_store_emails,
+    force_process_email,
+    inbox_attachment_exists,
+    read_attachment_preview,
     resolve_inbox_attachment_fs_path,
-    restore_inbox_email_attachments_from_source, setup_email_rule)
+    restore_inbox_email_attachments_from_source,
+    setup_email_rule,
+)
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
-router = APIRouter(prefix='/inbox', tags=['inbox'])
+router = APIRouter(prefix="/inbox", tags=["inbox"])
 
 
 # ---------------------------------------------------------------------------
 # Письма
 # ---------------------------------------------------------------------------
 
+
 @router.get(
-    '/emails',
+    "/emails",
     response_model=InboxEmailListResponse,
-    summary='Список входящих писем',
+    summary="Список входящих писем",
 )
 async def list_emails(
     email_account_id: Optional[int] = Query(
-        default=None, description='ID почтового ящика (None = все)'
+        default=None, description="ID почтового ящика (None = все)"
     ),
     days: int = Query(
-        default=3, ge=1, le=7,
-        description='Глубина выборки в днях (1..7, по умолчанию 3)',
+        default=3,
+        ge=1,
+        le=7,
+        description="Глубина выборки в днях (1..7, по умолчанию 3)",
     ),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
     only_unprocessed: bool = Query(
-        default=False, description='Только письма без правила'
+        default=False, description="Только письма без правила"
     ),
     subject_contains: Optional[str] = Query(
-        default=None, description='Поиск по теме письма (содержит)'
+        default=None, description="Поиск по теме письма (содержит)"
     ),
     sender_contains: Optional[str] = Query(
-        default=None, description='Поиск по адресу отправителя (содержит)'
+        default=None, description="Поиск по адресу отправителя (содержит)"
     ),
     customer_id: Optional[int] = Query(
-        default=None, ge=1, description='Фильтр по клиенту'
+        default=None, ge=1, description="Фильтр по клиенту"
     ),
     provider_id: Optional[int] = Query(
-        default=None, ge=1, description='Фильтр по поставщику'
+        default=None, ge=1, description="Фильтр по поставщику"
     ),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
@@ -99,9 +115,9 @@ async def list_emails(
 
 
 @router.get(
-    '/emails/{email_id}',
+    "/emails/{email_id}",
     response_model=InboxEmailDetail,
-    summary='Детали письма (с полным телом)',
+    summary="Детали письма (с полным телом)",
 )
 async def get_email_detail(
     email_id: int,
@@ -110,13 +126,13 @@ async def get_email_detail(
 ):
     email = await get_inbox_email(session, email_id)
     if email is None:
-        raise HTTPException(status_code=404, detail='Письмо не найдено')
+        raise HTTPException(status_code=404, detail="Письмо не найдено")
     return InboxEmailDetail.model_validate(email)
 
 
 @router.get(
-    '/emails/{email_id}/attachment-preview',
-    summary='Предпросмотр вложения письма (XLS/XLSX/CSV)',
+    "/emails/{email_id}/attachment-preview",
+    summary="Предпросмотр вложения письма (XLS/XLSX/CSV)",
 )
 async def get_attachment_preview(
     email_id: int,
@@ -133,40 +149,46 @@ async def get_attachment_preview(
 
     email = await get_inbox_email(session, email_id)
     if email is None:
-        raise HTTPException(status_code=404, detail='Письмо не найдено')
+        raise HTTPException(status_code=404, detail="Письмо не найдено")
 
     att_info = email.attachment_info or []
     if attachment_index >= len(att_info):
         raise HTTPException(
             status_code=404,
-            detail=f'Вложение с индексом {attachment_index} не найдено',
+            detail=f"Вложение с индексом {attachment_index} не найдено",
         )
 
     att = att_info[attachment_index]
-    file_path = att.get('path')
+    file_path = att.get("path")
 
     if file_path and not inbox_attachment_exists(file_path) and email.uid:
         # Файл у текущей записи может отсутствовать после переносов/пересборок.
         # Пытаемся найти запись того же UID с живым файлом и восстановить путь.
         siblings = (
-            await session.execute(
-                select(InboxEmail)
-                .where(
-                    InboxEmail.email_account_id == email.email_account_id,
-                    InboxEmail.uid == email.uid,
-                    InboxEmail.id != email.id,
+            (
+                await session.execute(
+                    select(InboxEmail)
+                    .where(
+                        InboxEmail.email_account_id == email.email_account_id,
+                        InboxEmail.uid == email.uid,
+                        InboxEmail.id != email.id,
+                    )
+                    .order_by(
+                        InboxEmail.fetched_at.desc(), InboxEmail.id.desc()
+                    )
+                    .limit(20)
                 )
-                .order_by(InboxEmail.fetched_at.desc(), InboxEmail.id.desc())
-                .limit(20)
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         recovered_path: Optional[str] = None
-        current_name = str(att.get('name') or '').strip()
+        current_name = str(att.get("name") or "").strip()
         for sibling in siblings:
             sibling_info = sibling.attachment_info or []
             # 1) пробуем тот же индекс
             if attachment_index < len(sibling_info):
-                candidate = (sibling_info[attachment_index] or {}).get('path')
+                candidate = (sibling_info[attachment_index] or {}).get("path")
                 if candidate and inbox_attachment_exists(candidate):
                     recovered_path = candidate
                     break
@@ -174,10 +196,10 @@ async def get_attachment_preview(
             if current_name:
                 for sibling_att in sibling_info:
                     if (
-                        str(sibling_att.get('name') or '').strip()
+                        str(sibling_att.get("name") or "").strip()
                         == current_name
                     ):
-                        candidate = sibling_att.get('path')
+                        candidate = sibling_att.get("path")
                         if candidate and inbox_attachment_exists(candidate):
                             recovered_path = candidate
                             break
@@ -187,15 +209,15 @@ async def get_attachment_preview(
         if recovered_path:
             att_info = list(att_info)
             repaired_att = dict(att_info[attachment_index] or {})
-            repaired_att['path'] = recovered_path
+            repaired_att["path"] = recovered_path
             att_info[attachment_index] = repaired_att
             email.attachment_info = att_info
             session.add(email)
             await session.commit()
             file_path = recovered_path
             logger.info(
-                'Recovered missing inbox attachment '
-                'path: email_id=%s uid=%s path=%s',
+                "Recovered missing inbox attachment "
+                "path: email_id=%s uid=%s path=%s",
                 email.id,
                 email.uid,
                 recovered_path,
@@ -212,16 +234,16 @@ async def get_attachment_preview(
             att_info = email.attachment_info or []
             if attachment_index < len(att_info):
                 att = att_info[attachment_index]
-                file_path = att.get('path')
+                file_path = att.get("path")
 
     if not file_path:
         raise HTTPException(
             status_code=404,
             detail=(
-                'Файл не сохранён на диске. '
-                'Письма, полученные до введения функции предпросмотра, '
-                'не имеют сохранённых вложений. '
-                'Загрузите письмо повторно для сохранения вложений.'
+                "Файл не сохранён на диске. "
+                "Письма, полученные до введения функции предпросмотра, "
+                "не имеют сохранённых вложений. "
+                "Загрузите письмо повторно для сохранения вложений."
             ),
         )
 
@@ -229,9 +251,9 @@ async def get_attachment_preview(
         raise HTTPException(
             status_code=404,
             detail=(
-                f'Файл вложения не найден на диске: {file_path}. '
-                'Попробуйте повторно загрузить письма — система восстановит '
-                'сохранённые вложения для уже известных UID.'
+                f"Файл вложения не найден на диске: {file_path}. "
+                "Попробуйте повторно загрузить письма — система восстановит "
+                "сохранённые вложения для уже известных UID."
             ),
         )
 
@@ -239,36 +261,36 @@ async def get_attachment_preview(
     try:
         preview = await read_attachment_preview(fs_path, max_rows=25)
     except Exception as e:
-        logger.exception('Ошибка чтения вложения %s: %s', fs_path, e)
+        logger.exception("Ошибка чтения вложения %s: %s", fs_path, e)
         raise HTTPException(
             status_code=500,
-            detail=f'Не удалось прочитать файл: {e}',
+            detail=f"Не удалось прочитать файл: {e}",
         )
 
     logger.info(
-        'Attachment preview prepared: email_id=%s '
-        'attachment_index=%s rows=%s total_rows=%s columns=%s elapsed_ms=%.1f',
+        "Attachment preview prepared: email_id=%s "
+        "attachment_index=%s rows=%s total_rows=%s columns=%s elapsed_ms=%.1f",
         email_id,
         attachment_index,
-        len(preview.get('rows', []) or []),
-        preview.get('total_rows', 0),
-        preview.get('columns', 0),
+        len(preview.get("rows", []) or []),
+        preview.get("total_rows", 0),
+        preview.get("columns", 0),
         (time.perf_counter() - started) * 1000,
     )
 
     return {
-        'filename': att.get('name', ''),
-        'rows': preview['rows'],
-        'total_rows': preview['total_rows'],
-        'columns': preview['columns'],
+        "filename": att.get("name", ""),
+        "rows": preview["rows"],
+        "total_rows": preview["total_rows"],
+        "columns": preview["columns"],
     }
 
 
 @router.post(
-    '/emails/fetch',
+    "/emails/fetch",
     response_model=FetchInboxResponse,
     status_code=status.HTTP_200_OK,
-    summary='Загрузить новые письма с почтового сервера',
+    summary="Загрузить новые письма с почтового сервера",
 )
 async def fetch_emails(
     payload: FetchInboxRequest,
@@ -289,15 +311,15 @@ async def fetch_emails(
             days=days,
         )
     except Exception as e:
-        logger.exception('Ошибка при загрузке писем: %s', e)
-        raise HTTPException(status_code=500, detail=f'Ошибка загрузки: {e}')
+        logger.exception("Ошибка при загрузке писем: %s", e)
+        raise HTTPException(status_code=500, detail=f"Ошибка загрузки: {e}")
     return result
 
 
 @router.post(
-    '/emails/{email_id}/rule',
+    "/emails/{email_id}/rule",
     response_model=AssignRuleResponse,
-    summary='Назначить правило письму',
+    summary="Назначить правило письму",
 )
 async def assign_rule_to_email(
     email_id: int,
@@ -322,8 +344,8 @@ async def assign_rule_to_email(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.exception('Ошибка назначения правила: %s', e)
-        raise HTTPException(status_code=500, detail=f'Ошибка обработки: {e}')
+        logger.exception("Ошибка назначения правила: %s", e)
+        raise HTTPException(status_code=500, detail=f"Ошибка обработки: {e}")
 
     return AssignRuleResponse(
         id=updated.id,
@@ -335,9 +357,9 @@ async def assign_rule_to_email(
 
 
 @router.post(
-    '/emails/{email_id}/force-process',
+    "/emails/{email_id}/force-process",
     response_model=ForceProcessResponse,
-    summary='Принудительно обработать письмо по назначенному правилу',
+    summary="Принудительно обработать письмо по назначенному правилу",
 )
 async def force_process_email_route(
     email_id: int,
@@ -365,10 +387,10 @@ async def force_process_email_route(
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.exception('Ошибка принудительной обработки письма: %s', e)
+        logger.exception("Ошибка принудительной обработки письма: %s", e)
         raise HTTPException(
             status_code=500,
-            detail=f'Ошибка принудительной обработки: {e}',
+            detail=f"Ошибка принудительной обработки: {e}",
         )
 
     return ForceProcessResponse(**result)
@@ -378,10 +400,11 @@ async def force_process_email_route(
 # Мастер настройки
 # ---------------------------------------------------------------------------
 
+
 @router.get(
-    '/setup-options',
+    "/setup-options",
     response_model=InboxSetupOptions,
-    summary='Списки поставщиков и клиентов для мастера настройки',
+    summary="Списки поставщиков и клиентов для мастера настройки",
 )
 async def get_setup_options(
     session: AsyncSession = Depends(get_session),
@@ -422,8 +445,8 @@ async def get_setup_options(
     ]
 
     logger.info(
-        'Inbox setup options prepared: '
-        'providers=%s customers=%s elapsed_ms=%.1f',
+        "Inbox setup options prepared: "
+        "providers=%s customers=%s elapsed_ms=%.1f",
         len(providers),
         len(customers),
         (time.perf_counter() - started) * 1000,
@@ -433,14 +456,13 @@ async def get_setup_options(
 
 
 @router.get(
-    '/provider/{provider_id}/configs',
-    summary='Конфигурации поставщика для мастера настройки',
+    "/provider/{provider_id}/configs",
+    summary="Конфигурации поставщика для мастера настройки",
 )
 async def get_provider_configs_for_wizard(
     provider_id: int,
     rule_type: str = Query(
-        ...,
-        description='price_list | order_reply | document'
+        ..., description="price_list | order_reply | document"
     ),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
@@ -450,82 +472,80 @@ async def get_provider_configs_for_wizard(
     типа правила: ProviderPriceListConfig (price_list) или
     SupplierResponseConfig (order_reply / document).
     """
-    from dz_fastapi.crud.partner import (crud_provider_pricelist_config,
-                                         crud_supplier_response_config)
+    from dz_fastapi.crud.partner import (
+        crud_provider_pricelist_config,
+        crud_supplier_response_config,
+    )
 
-    if rule_type == 'price_list':
+    if rule_type == "price_list":
         configs = await crud_provider_pricelist_config.get_configs(
             provider_id=provider_id, session=session
         )
         return [
             {
-                'id': c.id,
-                'label': (
-                    f'#{c.id} • {c.name_price}'
-                    if c.name_price else f'Конфигурация #{c.id}'
+                "id": c.id,
+                "label": (
+                    f"#{c.id} • {c.name_price}"
+                    if c.name_price
+                    else f"Конфигурация #{c.id}"
                 ),
-                'filename_pattern': getattr(c, 'filename_pattern', None),
-                'name_price': c.name_price,
-                'name_mail': c.name_mail,
-                'start_row': c.start_row,
-                'oem_col': c.oem_col,
-                'qty_col': c.qty_col,
-                'price_col': c.price_col,
-                'brand_col': c.brand_col,
-                'multiplicity_col': c.multiplicity_col,
-                'name_col': c.name_col,
+                "filename_pattern": getattr(c, "filename_pattern", None),
+                "name_price": c.name_price,
+                "name_mail": c.name_mail,
+                "start_row": c.start_row,
+                "oem_col": c.oem_col,
+                "qty_col": c.qty_col,
+                "price_col": c.price_col,
+                "brand_col": c.brand_col,
+                "multiplicity_col": c.multiplicity_col,
+                "name_col": c.name_col,
             }
             for c in (configs or [])
         ]
 
-    if rule_type in ('order_reply', 'document'):
-        payload_type = (
-            'response' if rule_type == 'order_reply' else 'document'
-        )
+    if rule_type in ("order_reply", "document"):
+        payload_type = "response" if rule_type == "order_reply" else "document"
         all_cfgs = await crud_supplier_response_config.get_configs(
             provider_id=provider_id, session=session
         )
         filtered = [
-            c for c in (all_cfgs or [])
-            if getattr(c, 'file_payload_type', 'response') == payload_type
+            c
+            for c in (all_cfgs or [])
+            if getattr(c, "file_payload_type", "response") == payload_type
         ]
         return [
             {
-                'id': c.id,
-                'label': f'#{c.id} • {c.name}' if c.name else f'#{c.id}',
-                'name': c.name,
-                'response_type': getattr(c, 'response_type', 'file'),
-                'file_payload_type': getattr(c, 'file_payload_type', None),
-                'filename_pattern': getattr(c, 'filename_pattern', None),
-                'start_row': getattr(c, 'start_row', 1),
-                'oem_col': getattr(c, 'oem_col', None),
-                'qty_col': getattr(c, 'qty_col', None),
-                'price_col': getattr(c, 'price_col', None),
-                'brand_col': getattr(c, 'brand_col', None),
-                'name_col': getattr(c, 'name_col', None),
-                'fixed_brand_name': getattr(c, 'fixed_brand_name', None),
-                'brand_priority_list': getattr(c, 'brand_priority_list', None),
-                'brand_from_name_regex': getattr(
-                    c, 'brand_from_name_regex', None
+                "id": c.id,
+                "label": f"#{c.id} • {c.name}" if c.name else f"#{c.id}",
+                "name": c.name,
+                "response_type": getattr(c, "response_type", "file"),
+                "file_payload_type": getattr(c, "file_payload_type", None),
+                "filename_pattern": getattr(c, "filename_pattern", None),
+                "start_row": getattr(c, "start_row", 1),
+                "oem_col": getattr(c, "oem_col", None),
+                "qty_col": getattr(c, "qty_col", None),
+                "price_col": getattr(c, "price_col", None),
+                "brand_col": getattr(c, "brand_col", None),
+                "name_col": getattr(c, "name_col", None),
+                "fixed_brand_name": getattr(c, "fixed_brand_name", None),
+                "brand_priority_list": getattr(c, "brand_priority_list", None),
+                "brand_from_name_regex": getattr(
+                    c, "brand_from_name_regex", None
                 ),
-                'status_col': getattr(c, 'status_col', None),
-                'comment_col': getattr(c, 'comment_col', None),
-                'confirm_keywords': getattr(c, 'confirm_keywords', None),
-                'reject_keywords': getattr(c, 'reject_keywords', None),
-                'value_after_article_type': getattr(
-                    c, 'value_after_article_type', None
+                "status_col": getattr(c, "status_col", None),
+                "comment_col": getattr(c, "comment_col", None),
+                "confirm_keywords": getattr(c, "confirm_keywords", None),
+                "reject_keywords": getattr(c, "reject_keywords", None),
+                "value_after_article_type": getattr(
+                    c, "value_after_article_type", None
                 ),
-                'document_number_col': getattr(
-                    c, 'document_number_col', None
+                "document_number_col": getattr(c, "document_number_col", None),
+                "document_date_col": getattr(c, "document_date_col", None),
+                "document_number_cell": getattr(
+                    c, "document_number_cell", None
                 ),
-                'document_date_col': getattr(c, 'document_date_col', None),
-                'document_number_cell': getattr(
-                    c, 'document_number_cell', None
-                ),
-                'document_date_cell': getattr(
-                    c, 'document_date_cell', None
-                ),
-                'document_meta_cell': getattr(c, 'document_meta_cell', None),
+                "document_date_cell": getattr(c, "document_date_cell", None),
+                "document_meta_cell": getattr(c, "document_meta_cell", None),
             }
             for c in filtered
         ]
@@ -534,11 +554,11 @@ async def get_provider_configs_for_wizard(
 
 
 @router.post(
-    '/emails/{email_id}/setup',
+    "/emails/{email_id}/setup",
     response_model=InboxSetupResponse,
     summary=(
-        'Мастер настройки: назначить правило + '
-        'создать/обновить конфигурацию в системе'
+        "Мастер настройки: назначить правило + "
+        "создать/обновить конфигурацию в системе"
     ),
 )
 async def setup_email(
@@ -572,22 +592,20 @@ async def setup_email(
         )
     except ValueError as e:
         detail = str(e)
-        status_code = (
-            404 if 'не найден' in detail.lower() else 400
-        )
+        status_code = 404 if "не найден" in detail.lower() else 400
         raise HTTPException(status_code=status_code, detail=detail)
     except Exception as e:
-        logger.exception('Ошибка мастера настройки: %s', e)
-        raise HTTPException(status_code=500, detail=f'Ошибка настройки: {e}')
+        logger.exception("Ошибка мастера настройки: %s", e)
+        raise HTTPException(status_code=500, detail=f"Ошибка настройки: {e}")
 
     return InboxSetupResponse(
-        email_id=result['email_id'],
-        rule_type=result['rule_type'],
-        processed=result['processed'],
-        processing_result=result.get('processing_result'),
-        processing_error=result.get('processing_error'),
+        email_id=result["email_id"],
+        rule_type=result["rule_type"],
+        processed=result["processed"],
+        processing_result=result.get("processing_result"),
+        processing_error=result.get("processing_error"),
         configs_set=[
-            ConfigSetupInfo(**c) for c in result.get('configs_set', [])
+            ConfigSetupInfo(**c) for c in result.get("configs_set", [])
         ],
     )
 
@@ -596,10 +614,11 @@ async def setup_email(
 # Паттерны правил
 # ---------------------------------------------------------------------------
 
+
 @router.get(
-    '/rule-patterns',
+    "/rule-patterns",
     response_model=list[EmailRulePatternOut],
-    summary='Список паттернов авто-разметки',
+    summary="Список паттернов авто-разметки",
 )
 async def list_patterns(
     email_account_id: Optional[int] = Query(default=None),
@@ -618,10 +637,10 @@ async def list_patterns(
 
 
 @router.post(
-    '/rule-patterns',
+    "/rule-patterns",
     response_model=EmailRulePatternOut,
     status_code=status.HTTP_201_CREATED,
-    summary='Создать паттерн правила вручную',
+    summary="Создать паттерн правила вручную",
 )
 async def create_pattern(
     payload: EmailRulePatternCreate,
@@ -645,9 +664,9 @@ async def create_pattern(
 
 
 @router.patch(
-    '/rule-patterns/{pattern_id}',
+    "/rule-patterns/{pattern_id}",
     response_model=EmailRulePatternOut,
-    summary='Обновить паттерн правила',
+    summary="Обновить паттерн правила",
 )
 async def update_pattern(
     pattern_id: int,
@@ -657,7 +676,7 @@ async def update_pattern(
 ):
     pattern = await get_rule_pattern(session, pattern_id)
     if pattern is None:
-        raise HTTPException(status_code=404, detail='Паттерн не найден')
+        raise HTTPException(status_code=404, detail="Паттерн не найден")
     updated = await update_rule_pattern(
         session,
         pattern=pattern,
@@ -669,9 +688,9 @@ async def update_pattern(
 
 
 @router.delete(
-    '/rule-patterns/{pattern_id}',
+    "/rule-patterns/{pattern_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary='Удалить паттерн правила',
+    summary="Удалить паттерн правила",
 )
 async def remove_pattern(
     pattern_id: int,
@@ -680,4 +699,4 @@ async def remove_pattern(
 ):
     ok = await delete_rule_pattern(session, pattern_id)
     if not ok:
-        raise HTTPException(status_code=404, detail='Паттерн не найден')
+        raise HTTPException(status_code=404, detail="Паттерн не найден")

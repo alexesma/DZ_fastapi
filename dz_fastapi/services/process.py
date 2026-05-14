@@ -17,88 +17,114 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.analytics.price_history import analyze_new_pricelist
-from dz_fastapi.core.constants import (BRILLIANCE_OEM, CUMMINS_OEM, FAW_OEM,
-                                       GEELY_NOT_OEM, INDICATOR_BYD,
-                                       INDICATOR_BYD_FIRST_FIVE,
-                                       INDICATOR_BYD_FIRST_THREE,
-                                       INDICATOR_CHANGAN_END_THREE,
-                                       INDICATOR_CHANGAN_FIRST_FOUR,
-                                       INDICATOR_CHANGAN_FIRST_SEVEN,
-                                       INDICATOR_CHANGAN_FIRST_THREE,
-                                       INDICATOR_CHANGAN_FIRST_TWO,
-                                       INDICATOR_CHERY_10_11_POSITION,
-                                       INDICATOR_CHERY_FIRST_THREE,
-                                       INDICATOR_CHERY_FIRST_THREE_LEN_10,
-                                       INDICATOR_CHERY_FULL,
-                                       INDICATOR_CHERY_GW_FIRST_THREE,
-                                       INDICATOR_CHERY_GW_FIRST_TWO,
-                                       INDICATOR_CHERY_GW_FULL,
-                                       INDICATOR_DONGFENG_FULL,
-                                       INDICATOR_END_IS_NOT_LIFAN,
-                                       INDICATOR_FAW_OTHER_PATTERNS,
-                                       INDICATOR_FAW_PREFIXES, INDICATOR_FOTON,
-                                       INDICATOR_GEELY_FIRST_THREE,
-                                       INDICATOR_GEELY_FIRST_TWO,
-                                       INDICATOR_HAIMA_FULL, INDICATOR_HAVAL,
-                                       INDICATOR_JAC, INDICATOR_LIFAN_END_FIVE,
-                                       INDICATOR_LIFAN_END_FOUR,
-                                       INDICATOR_LIFAN_END_THREE,
-                                       INDICATOR_LIFAN_END_TWO,
-                                       INDICATOR_LIFAN_FIRST_THREE,
-                                       INDICATOR_LIFAN_FIRST_THREE_2,
-                                       INDICATOR_LIFAN_LEN_NINE,
-                                       INDICATOR_LIFAN_LEN_SEVEN,
-                                       INDICATOR_LIFAN_LEN_TEN,
-                                       INDICATOR_LIFAN_WHISOUT,
-                                       INDICATOR_LIFAN_WHISOUT_FIRST,
-                                       MAX_PRICE_LISTS, ORIGINAL_BRANDS)
+from dz_fastapi.core.constants import (
+    BRILLIANCE_OEM,
+    CUMMINS_OEM,
+    FAW_OEM,
+    GEELY_NOT_OEM,
+    INDICATOR_BYD,
+    INDICATOR_BYD_FIRST_FIVE,
+    INDICATOR_BYD_FIRST_THREE,
+    INDICATOR_CHANGAN_END_THREE,
+    INDICATOR_CHANGAN_FIRST_FOUR,
+    INDICATOR_CHANGAN_FIRST_SEVEN,
+    INDICATOR_CHANGAN_FIRST_THREE,
+    INDICATOR_CHANGAN_FIRST_TWO,
+    INDICATOR_CHERY_10_11_POSITION,
+    INDICATOR_CHERY_FIRST_THREE,
+    INDICATOR_CHERY_FIRST_THREE_LEN_10,
+    INDICATOR_CHERY_FULL,
+    INDICATOR_CHERY_GW_FIRST_THREE,
+    INDICATOR_CHERY_GW_FIRST_TWO,
+    INDICATOR_CHERY_GW_FULL,
+    INDICATOR_DONGFENG_FULL,
+    INDICATOR_END_IS_NOT_LIFAN,
+    INDICATOR_FAW_OTHER_PATTERNS,
+    INDICATOR_FAW_PREFIXES,
+    INDICATOR_FOTON,
+    INDICATOR_GEELY_FIRST_THREE,
+    INDICATOR_GEELY_FIRST_TWO,
+    INDICATOR_HAIMA_FULL,
+    INDICATOR_HAVAL,
+    INDICATOR_JAC,
+    INDICATOR_LIFAN_END_FIVE,
+    INDICATOR_LIFAN_END_FOUR,
+    INDICATOR_LIFAN_END_THREE,
+    INDICATOR_LIFAN_END_TWO,
+    INDICATOR_LIFAN_FIRST_THREE,
+    INDICATOR_LIFAN_FIRST_THREE_2,
+    INDICATOR_LIFAN_LEN_NINE,
+    INDICATOR_LIFAN_LEN_SEVEN,
+    INDICATOR_LIFAN_LEN_TEN,
+    INDICATOR_LIFAN_WHISOUT,
+    INDICATOR_LIFAN_WHISOUT_FIRST,
+    MAX_PRICE_LISTS,
+    ORIGINAL_BRANDS,
+)
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.email_account import crud_email_account
-from dz_fastapi.crud.partner import (crud_customer_pricelist,
-                                     crud_customer_pricelist_config,
-                                     crud_customer_pricelist_source,
-                                     crud_pricelist, crud_provider)
+from dz_fastapi.crud.partner import (
+    crud_customer_pricelist,
+    crud_customer_pricelist_config,
+    crud_customer_pricelist_source,
+    crud_pricelist,
+    crud_provider,
+)
 from dz_fastapi.crud.price_control import crud_customer_pricelist_override
 from dz_fastapi.models.autopart import preprocess_oem_number
-from dz_fastapi.models.partner import (Customer, CustomerPriceList,
-                                       CustomerPriceListConfig, Provider,
-                                       ProviderPriceListConfig)
-from dz_fastapi.schemas.autopart import (AutoPartCreatePriceList,
-                                         AutoPartResponse)
-from dz_fastapi.schemas.partner import (AutoPartInPricelist,
-                                        CustomerPriceListCreate,
-                                        CustomerPriceListResponse,
-                                        PriceListAutoPartAssociationCreate,
-                                        PriceListCreate)
-from dz_fastapi.services.email import (EMAIL_NAME, EMAIL_TRANSPORT, SMTP_PORT,
-                                       SMTP_SERVER,
-                                       build_email_delivery_kwargs,
-                                       describe_email_delivery,
-                                       send_email_with_attachment)
-from dz_fastapi.services.utils import (brand_filters, normalize_markup,
-                                       normalize_mixed_cyrillic,
-                                       position_exclude, position_filters,
-                                       prepare_excel_data)
+from dz_fastapi.models.partner import (
+    Customer,
+    CustomerPriceList,
+    CustomerPriceListConfig,
+    Provider,
+    ProviderPriceListConfig,
+)
+from dz_fastapi.schemas.autopart import AutoPartCreatePriceList, AutoPartResponse
+from dz_fastapi.schemas.partner import (
+    AutoPartInPricelist,
+    CustomerPriceListCreate,
+    CustomerPriceListResponse,
+    PriceListAutoPartAssociationCreate,
+    PriceListCreate,
+)
+from dz_fastapi.services.email import (
+    EMAIL_NAME,
+    EMAIL_TRANSPORT,
+    SMTP_PORT,
+    SMTP_SERVER,
+    build_email_delivery_kwargs,
+    describe_email_delivery,
+    send_email_with_attachment,
+)
+from dz_fastapi.services.utils import (
+    brand_filters,
+    normalize_markup,
+    normalize_mixed_cyrillic,
+    position_exclude,
+    position_filters,
+    prepare_excel_data,
+)
 from dz_fastapi.services.watchlist import handle_provider_pricelist_watch
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
-DEFAULT_CUSTOMER_PRICELIST_FILE_NAME = 'zzap_kross'
-DEFAULT_CUSTOMER_PRICELIST_OUTBOX_EMAIL = os.getenv(
-    'CUSTOMER_PRICELIST_OUTBOX_EMAIL',
-    'price@dragonzap.online',
-).strip().lower()
+DEFAULT_CUSTOMER_PRICELIST_FILE_NAME = "zzap_kross"
+DEFAULT_CUSTOMER_PRICELIST_OUTBOX_EMAIL = (
+    os.getenv(
+        "CUSTOMER_PRICELIST_OUTBOX_EMAIL",
+        "price@dragonzap.online",
+    )
+    .strip()
+    .lower()
+)
 
 
 def _is_pricelist_out_account_eligible(account) -> bool:
     purposes = [str(p).lower() for p in (account.purposes or [])]
-    return (
-        account.is_active
-        and (
-            'prices_out' in purposes
-            or 'orders_out' in purposes
-            or 'orders_in' in purposes
-        )
+    return account.is_active and (
+        "prices_out" in purposes
+        or "orders_out" in purposes
+        or "orders_in" in purposes
     )
 
 
@@ -115,8 +141,8 @@ async def _get_preferred_pricelist_out_account(
         return None
     if not _is_pricelist_out_account_eligible(account):
         logger.warning(
-            'Preferred customer pricelist outbox is inactive '
-            'or missing required purpose: email=%s',
+            "Preferred customer pricelist outbox is inactive "
+            "or missing required purpose: email=%s",
             DEFAULT_CUSTOMER_PRICELIST_OUTBOX_EMAIL,
         )
         return None
@@ -126,11 +152,13 @@ async def _get_preferred_pricelist_out_account(
 def _resolve_customer_pricelist_export_format(
     config: CustomerPriceListConfig,
 ) -> str:
-    export_format = str(
-        getattr(config, 'export_file_format', None) or 'xlsx'
-    ).strip().lower()
-    if export_format not in {'xlsx', 'csv'}:
-        return 'xlsx'
+    export_format = (
+        str(getattr(config, "export_file_format", None) or "xlsx")
+        .strip()
+        .lower()
+    )
+    if export_format not in {"xlsx", "csv"}:
+        return "xlsx"
     return export_format
 
 
@@ -138,21 +166,24 @@ def _build_customer_pricelist_attachment_filename(
     config: CustomerPriceListConfig,
 ) -> str:
     base_name = str(
-        getattr(config, 'export_file_name', None)
+        getattr(config, "export_file_name", None)
         or DEFAULT_CUSTOMER_PRICELIST_FILE_NAME
     ).strip()
     if not base_name:
         base_name = DEFAULT_CUSTOMER_PRICELIST_FILE_NAME
-    base_name = re.sub(r'[\\/:*?"<>|]+', '_', base_name).strip(' .')
+    base_name = re.sub(r'[\\/:*?"<>|]+', "_", base_name).strip(" .")
     if not base_name:
         base_name = DEFAULT_CUSTOMER_PRICELIST_FILE_NAME
 
     export_format = _resolve_customer_pricelist_export_format(config)
-    extension = str(
-        getattr(config, 'export_file_extension', None) or export_format
-    ).strip().lstrip('.').lower()
-    extension = re.sub(r'[^a-z0-9_]+', '', extension) or export_format
-    return f'{base_name}.{extension}'
+    extension = (
+        str(getattr(config, "export_file_extension", None) or export_format)
+        .strip()
+        .lstrip(".")
+        .lower()
+    )
+    extension = re.sub(r"[^a-z0-9_]+", "", extension) or export_format
+    return f"{base_name}.{extension}"
 
 
 def _build_customer_pricelist_attachment_bytes(
@@ -160,8 +191,8 @@ def _build_customer_pricelist_attachment_bytes(
     config: CustomerPriceListConfig,
 ) -> bytes:
     export_format = _resolve_customer_pricelist_export_format(config)
-    if export_format == 'csv':
-        return df_excel.to_csv(index=False).encode('utf-8-sig')
+    if export_format == "csv":
+        return df_excel.to_csv(index=False).encode("utf-8-sig")
 
     output = BytesIO()
     wb = Workbook()
@@ -175,7 +206,7 @@ def _build_customer_pricelist_attachment_bytes(
     )
 
     # Write headers on the second row
-    logger.debug('Write headers on the second row')
+    logger.debug("Write headers on the second row")
     for col_num, column_title in enumerate(df_excel.columns, start=1):
         cell = ws.cell(row=2, column=col_num)
         cell.value = column_title
@@ -187,17 +218,15 @@ def _build_customer_pricelist_attachment_bytes(
 
     # Regex that matches characters illegal in Excel worksheets
     # (control characters except tab \x09, newline \x0A, carriage return \x0D)
-    _illegal_chars_re = re.compile(
-        r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]'
-    )
+    _illegal_chars_re = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]")
 
     def _sanitize_cell(value: Any) -> Any:
         if isinstance(value, str):
-            return _illegal_chars_re.sub('', value)
+            return _illegal_chars_re.sub("", value)
         return value
 
     # Write data rows starting from the third row
-    logger.debug('Write data rows starting from the third row')
+    logger.debug("Write data rows starting from the third row")
     for row_num, row_data in enumerate(
         df_excel.itertuples(index=False), start=3
     ):
@@ -209,7 +238,7 @@ def _build_customer_pricelist_attachment_bytes(
     wb.save(output)
     attachment_bytes = output.getvalue()
     logger.debug(
-        'Workbook saved successfully. Size: %s bytes',
+        "Workbook saved successfully. Size: %s bytes",
         len(attachment_bytes),
     )
     return attachment_bytes
@@ -221,18 +250,18 @@ def deduplicate_autoparts_data(
     unique_map = {}
     for row in autoparts_data:
         key = (
-            row.get('brand', '').strip().lower(),
-            row['oem_number'].strip().lower(),
+            row.get("brand", "").strip().lower(),
+            row["oem_number"].strip().lower(),
         )
         if key not in unique_map:
             unique_map[key] = copy.deepcopy(row)
         else:
-            if unique_map[key]['price'] < row['price']:
+            if unique_map[key]["price"] < row["price"]:
                 continue
-            unique_map[key]['quantity'] = row['quantity']
-            unique_map[key]['price'] = row['price']
-            if 'multiplicity' in row:
-                unique_map[key]['multiplicity'] = row.get('multiplicity')
+            unique_map[key]["quantity"] = row["quantity"]
+            unique_map[key]["price"] = row["price"]
+            if "multiplicity" in row:
+                unique_map[key]["multiplicity"] = row.get("multiplicity")
     return list(unique_map.values())
 
 
@@ -244,7 +273,7 @@ def extract_first_file_from_archive(file_content: bytes) -> (str, bytes):
             for entry in entries:
                 if entry.isfile:
                     extracted_content = b"".join(list(entry.get_blocks()))
-                    extracted_extension = entry.pathname.split('.')[-1].lower()
+                    extracted_extension = entry.pathname.split(".")[-1].lower()
                     break
     except Exception as e:
         raise Exception(f"Error reading archive: {e}")
@@ -254,22 +283,22 @@ def extract_first_file_from_archive(file_content: bytes) -> (str, bytes):
 
 
 def _sanitize_positive_price_quantity(
-    df: pd.DataFrame, context: str = ''
+    df: pd.DataFrame, context: str = ""
 ) -> pd.DataFrame:
     if df.empty:
         return df
     df = df.copy()
     original_len = len(df)
-    df['price'] = pd.to_numeric(df['price'], errors='coerce')
-    df['quantity'] = pd.to_numeric(df['quantity'], errors='coerce')
-    df = df[df['price'].notna() & df['quantity'].notna()]
-    df = df[(df['price'] > 0) & (df['quantity'] > 0)]
+    df["price"] = pd.to_numeric(df["price"], errors="coerce")
+    df["quantity"] = pd.to_numeric(df["quantity"], errors="coerce")
+    df = df[df["price"].notna() & df["quantity"].notna()]
+    df = df[(df["price"] > 0) & (df["quantity"] > 0)]
     dropped = original_len - len(df)
     if dropped > 0:
         logger.debug(
-            'Dropped %s rows with non-positive price/quantity%s',
+            "Dropped %s rows with non-positive price/quantity%s",
             dropped,
-            f' ({context})' if context else '',
+            f" ({context})" if context else "",
         )
     return df
 
@@ -280,7 +309,7 @@ def _apply_source_filters(
     *,
     ignore_price_quantity_filters: bool = False,
 ) -> pd.DataFrame:
-    df = _sanitize_positive_price_quantity(df, context='source_filters')
+    df = _sanitize_positive_price_quantity(df, context="source_filters")
 
     def _to_int_list(values):
         cleaned = []
@@ -293,38 +322,38 @@ def _apply_source_filters(
 
     if source.brand_filters:
         normalized = dict(source.brand_filters)
-        if 'brands' in normalized:
-            normalized['brands'] = _to_int_list(normalized.get('brands'))
+        if "brands" in normalized:
+            normalized["brands"] = _to_int_list(normalized.get("brands"))
         df = brand_filters(brand_filters=normalized, df=df)
     if source.position_filters:
         normalized = dict(source.position_filters)
-        if 'autoparts' in normalized:
-            normalized['autoparts'] = _to_int_list(normalized.get('autoparts'))
+        if "autoparts" in normalized:
+            normalized["autoparts"] = _to_int_list(normalized.get("autoparts"))
         df = position_filters(position_filters=normalized, df=df)
 
     if not ignore_price_quantity_filters:
         if source.min_price is not None:
-            df = df[df['price'] >= float(source.min_price)]
+            df = df[df["price"] >= float(source.min_price)]
         if source.max_price is not None:
-            df = df[df['price'] <= float(source.max_price)]
+            df = df[df["price"] <= float(source.max_price)]
         if source.min_quantity is not None:
-            df = df[df['quantity'] >= int(source.min_quantity)]
+            df = df[df["quantity"] >= int(source.min_quantity)]
         if source.max_quantity is not None:
-            df = df[df['quantity'] <= int(source.max_quantity)]
+            df = df[df["quantity"] <= int(source.max_quantity)]
 
     return _sanitize_positive_price_quantity(
-        df, context='source_filters_after_limits'
+        df, context="source_filters_after_limits"
     )
 
 
 def _normalize_source_brand_markup_key(value: object) -> str:
-    normalized = normalize_mixed_cyrillic(str(value or '')).strip()
-    normalized = re.sub(r'\s+', ' ', normalized)
+    normalized = normalize_mixed_cyrillic(str(value or "")).strip()
+    normalized = re.sub(r"\s+", " ", normalized)
     return normalized.upper()
 
 
 def _resolve_source_brand_markup_multipliers(source) -> dict[str, float]:
-    raw_map = getattr(source, 'brand_markups', None) or {}
+    raw_map = getattr(source, "brand_markups", None) or {}
     if not isinstance(raw_map, dict):
         return {}
     result: dict[str, float] = {}
@@ -344,41 +373,39 @@ def _apply_source_markups(
     df = df.copy()
     general_multiplier = normalize_markup(config.general_markup)
     default_source_multiplier = normalize_markup(source.markup)
-    brand_markup_multipliers = _resolve_source_brand_markup_multipliers(
-        source
-    )
+    brand_markup_multipliers = _resolve_source_brand_markup_multipliers(source)
 
     own_multiplier = normalize_markup(config.own_price_list_markup)
     third_multiplier = normalize_markup(config.third_party_markup)
 
-    df['price'] = pd.to_numeric(df['price'], errors='coerce')
-    df['is_own_price'] = df.get('is_own_price', False)
-    df['__brand_markup_key'] = (
-        df.get('brand', '')
-        .fillna('')
+    df["price"] = pd.to_numeric(df["price"], errors="coerce")
+    df["is_own_price"] = df.get("is_own_price", False)
+    df["__brand_markup_key"] = (
+        df.get("brand", "")
+        .fillna("")
         .astype(str)
         .map(_normalize_source_brand_markup_key)
     )
-    df['__source_multiplier'] = df['__brand_markup_key'].map(
-        brand_markup_multipliers
-    ).fillna(default_source_multiplier)
+    df["__source_multiplier"] = (
+        df["__brand_markup_key"]
+        .map(brand_markup_multipliers)
+        .fillna(default_source_multiplier)
+    )
 
     def _row_multiplier(is_own: bool) -> float:
         return own_multiplier if is_own else third_multiplier
 
-    df['price'] = df.apply(
+    df["price"] = df.apply(
         lambda row: (
-            row['price']
+            row["price"]
             * general_multiplier
-            * float(row.get('__source_multiplier') or 1.0)
-            * _row_multiplier(
-                bool(row.get('is_own_price'))
-            )
+            * float(row.get("__source_multiplier") or 1.0)
+            * _row_multiplier(bool(row.get("is_own_price")))
         ),
         axis=1,
     )
-    df = df.drop(columns=['__brand_markup_key', '__source_multiplier'])
-    return _sanitize_positive_price_quantity(df, context='source_markups')
+    df = df.drop(columns=["__brand_markup_key", "__source_multiplier"])
+    return _sanitize_positive_price_quantity(df, context="source_markups")
 
 
 def apply_price_overrides(
@@ -387,18 +414,18 @@ def apply_price_overrides(
     if df.empty or not overrides:
         return df
     df = df.copy()
-    df['price'] = df['autopart_id'].map(overrides).fillna(df['price'])
-    return _sanitize_positive_price_quantity(df, context='price_overrides')
+    df["price"] = df["autopart_id"].map(overrides).fillna(df["price"])
+    return _sanitize_positive_price_quantity(df, context="price_overrides")
 
 
 def _normalize_dedup_oem_key(value: object) -> str:
-    normalized = preprocess_oem_number(str(value or '')).strip()
+    normalized = preprocess_oem_number(str(value or "")).strip()
     return normalized.upper()
 
 
 def _normalize_dedup_brand_key(value: object) -> str:
-    normalized = normalize_mixed_cyrillic(str(value or '')).strip()
-    normalized = re.sub(r'\s+', ' ', normalized)
+    normalized = normalize_mixed_cyrillic(str(value or "")).strip()
+    normalized = re.sub(r"\s+", " ", normalized)
     return normalized.upper()
 
 
@@ -411,120 +438,120 @@ def _collapse_duplicate_rows(
         return df
 
     collapsed = df.copy()
-    collapsed['price'] = pd.to_numeric(collapsed['price'], errors='coerce')
+    collapsed["price"] = pd.to_numeric(collapsed["price"], errors="coerce")
     oem_series = (
-        collapsed['oem_number']
-        if 'oem_number' in collapsed.columns
-        else pd.Series('', index=collapsed.index)
+        collapsed["oem_number"]
+        if "oem_number" in collapsed.columns
+        else pd.Series("", index=collapsed.index)
     )
     brand_series = (
-        collapsed['brand']
-        if 'brand' in collapsed.columns
-        else pd.Series('', index=collapsed.index)
+        collapsed["brand"]
+        if "brand" in collapsed.columns
+        else pd.Series("", index=collapsed.index)
     )
-    collapsed['__dedup_oem'] = oem_series.map(_normalize_dedup_oem_key)
-    collapsed['__dedup_brand'] = brand_series.map(_normalize_dedup_brand_key)
+    collapsed["__dedup_oem"] = oem_series.map(_normalize_dedup_oem_key)
+    collapsed["__dedup_brand"] = brand_series.map(_normalize_dedup_brand_key)
 
     if prefer_min_price:
         collapsed = collapsed.sort_values(
-            by=['__dedup_oem', '__dedup_brand', 'price'],
+            by=["__dedup_oem", "__dedup_brand", "price"],
             ascending=[True, True, True],
         )
-    elif 'is_own_price' in collapsed.columns:
-        collapsed['__own_rank'] = (
-            collapsed['is_own_price'].astype(bool).astype(int)
+    elif "is_own_price" in collapsed.columns:
+        collapsed["__own_rank"] = (
+            collapsed["is_own_price"].astype(bool).astype(int)
         )
         collapsed = collapsed.sort_values(
-            by=['__dedup_oem', '__dedup_brand', '__own_rank', 'price'],
+            by=["__dedup_oem", "__dedup_brand", "__own_rank", "price"],
             ascending=[True, True, False, True],
         )
     else:
         collapsed = collapsed.sort_values(
-            by=['__dedup_oem', '__dedup_brand', 'price'],
+            by=["__dedup_oem", "__dedup_brand", "price"],
             ascending=[True, True, True],
         )
 
     collapsed = collapsed.drop_duplicates(
-        subset=['__dedup_oem', '__dedup_brand'],
-        keep='first',
+        subset=["__dedup_oem", "__dedup_brand"],
+        keep="first",
     )
     return collapsed.drop(
-        columns=['__dedup_oem', '__dedup_brand', '__own_rank'],
-        errors='ignore',
+        columns=["__dedup_oem", "__dedup_brand", "__own_rank"],
+        errors="ignore",
     )
 
 
 def _collapse_duplicate_excel_rows(df_excel: pd.DataFrame) -> pd.DataFrame:
     if df_excel.empty:
         return df_excel
-    if not {'Производитель', 'Артикул'}.issubset(df_excel.columns):
+    if not {"Производитель", "Артикул"}.issubset(df_excel.columns):
         return df_excel
 
     collapsed = df_excel.copy()
-    collapsed['__dedup_oem'] = collapsed['Артикул'].map(
+    collapsed["__dedup_oem"] = collapsed["Артикул"].map(
         _normalize_dedup_oem_key
     )
-    collapsed['__dedup_brand'] = collapsed['Производитель'].map(
+    collapsed["__dedup_brand"] = collapsed["Производитель"].map(
         _normalize_dedup_brand_key
     )
 
-    if 'Цена' in collapsed.columns:
-        collapsed['__dedup_price'] = pd.to_numeric(
-            collapsed['Цена'], errors='coerce'
-        ).fillna(float('inf'))
+    if "Цена" in collapsed.columns:
+        collapsed["__dedup_price"] = pd.to_numeric(
+            collapsed["Цена"], errors="coerce"
+        ).fillna(float("inf"))
         collapsed = collapsed.sort_values(
-            by=['__dedup_oem', '__dedup_brand', '__dedup_price'],
+            by=["__dedup_oem", "__dedup_brand", "__dedup_price"],
             ascending=[True, True, True],
-            kind='stable',
+            kind="stable",
         )
     else:
         collapsed = collapsed.sort_values(
-            by=['__dedup_oem', '__dedup_brand'],
+            by=["__dedup_oem", "__dedup_brand"],
             ascending=[True, True],
-            kind='stable',
+            kind="stable",
         )
 
     collapsed = collapsed.drop_duplicates(
-        subset=['__dedup_oem', '__dedup_brand'],
-        keep='first',
+        subset=["__dedup_oem", "__dedup_brand"],
+        keep="first",
     )
     return collapsed.drop(
-        columns=['__dedup_oem', '__dedup_brand', '__dedup_price'],
-        errors='ignore',
+        columns=["__dedup_oem", "__dedup_brand", "__dedup_price"],
+        errors="ignore",
     )
 
 
 def open_csv(file: bytes) -> pd.DataFrame:
     encodings = [
-        'utf-8-sig',
-        'utf-8',
-        'cp1251',
-        'windows-1251',
-        'koi8-r',
-        'cp866',
-        'latin1',
+        "utf-8-sig",
+        "utf-8",
+        "cp1251",
+        "windows-1251",
+        "koi8-r",
+        "cp866",
+        "latin1",
     ]
-    separators = [',', ';', '\t', '|']
+    separators = [",", ";", "\t", "|"]
     for encoding in encodings:
         for sep in separators:
             try:
                 df = pd.read_csv(
                     BytesIO(file),
                     sep=sep,
-                    engine='python',
+                    engine="python",
                     header=None,
                     encoding=encoding,
                 )
                 if df.shape[1] > 1:
                     logger.debug(
-                        'CSV detected with encoding=%s, separator=%s',
+                        "CSV detected with encoding=%s, separator=%s",
                         encoding,
                         sep,
                     )
                     return df
             except (UnicodeDecodeError, pd.errors.ParserError):
                 continue
-    raise HTTPException(status_code=400, detail='Invalid CSV file.')
+    raise HTTPException(status_code=400, detail="Invalid CSV file.")
 
 
 def process_download_pricelist(
@@ -536,44 +563,44 @@ def process_download_pricelist(
     """
     try:
         # Разархивируем ZIP
-        if file_extension in ['zip', 'rar']:
+        if file_extension in ["zip", "rar"]:
             logger.debug(
-                f'File is an archive ({file_extension}), '
-                f'attempting extraction...'
+                f"File is an archive ({file_extension}), "
+                f"attempting extraction..."
             )
             file_extension, file_content = extract_first_file_from_archive(
                 file_content
             )
-            logger.debug(f'Extracted file extension: {file_extension}')
+            logger.debug(f"Extracted file extension: {file_extension}")
 
-        if file_extension in ['xls', 'xlsx']:
+        if file_extension in ["xls", "xlsx"]:
             try:
                 df = pd.read_excel(
                     BytesIO(file_content),
                     header=None,
-                    engine='xlrd' if file_extension == 'xls' else 'openpyxl',
+                    engine="xlrd" if file_extension == "xls" else "openpyxl",
                 )
             except Exception as e:
-                logger.error(f'Error reading Excel file: {e}')
+                logger.error(f"Error reading Excel file: {e}")
                 raise HTTPException(
-                    status_code=400, detail='Invalid Excel file.'
+                    status_code=400, detail="Invalid Excel file."
                 )
-        elif file_extension == 'csv':
+        elif file_extension == "csv":
             try:
                 df = open_csv(file_content)
             except Exception as e:
-                logger.error(f'Error reading CSV file: {e}')
+                logger.error(f"Error reading CSV file: {e}")
                 raise HTTPException(
-                    status_code=400, detail='Invalid CSV file.'
+                    status_code=400, detail="Invalid CSV file."
                 )
         else:
             raise HTTPException(
                 status_code=400,
-                detail=f'Unsupported file type: {file_extension}',
+                detail=f"Unsupported file type: {file_extension}",
             )
         return df
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f'Invalid format file:{e}')
+        raise HTTPException(status_code=400, detail=f"Invalid format file:{e}")
 
 
 def _prepare_pricelist_data(
@@ -592,12 +619,12 @@ def _prepare_pricelist_data(
     )
     data_df = df.iloc[start_row:]
     required_columns = {
-        'oem_number': oem_col,
-        'brand': brand_col,
-        'name': name_col,
-        'multiplicity': multiplicity_col,
-        'quantity': qty_col,
-        'price': price_col,
+        "oem_number": oem_col,
+        "brand": brand_col,
+        "name": name_col,
+        "multiplicity": multiplicity_col,
+        "quantity": qty_col,
+        "price": price_col,
     }
     required_columns = {
         k: v for k, v in required_columns.items() if v is not None
@@ -607,73 +634,73 @@ def _prepare_pricelist_data(
     data_df.columns = list(required_columns.keys())
 
     total_rows = len(data_df)
-    data_df.dropna(subset=['oem_number', 'quantity', 'price'], inplace=True)
-    data_df['oem_number'] = (
-        data_df['oem_number']
+    data_df.dropna(subset=["oem_number", "quantity", "price"], inplace=True)
+    data_df["oem_number"] = (
+        data_df["oem_number"]
         .astype(str)
         .str.strip()
         .apply(preprocess_oem_number)
     )
-    if 'name' in data_df.columns:
-        data_df['name'] = (
-            data_df['name']
+    if "name" in data_df.columns:
+        data_df["name"] = (
+            data_df["name"]
             .astype(str)
             .str.strip()
             .apply(normalize_mixed_cyrillic)
         )
-    if 'brand' in data_df.columns:
-        data_df['brand'] = data_df['brand'].astype(str).str.strip()
-    data_df['quantity'] = (
-        data_df['quantity']
+    if "brand" in data_df.columns:
+        data_df["brand"] = data_df["brand"].astype(str).str.strip()
+    data_df["quantity"] = (
+        data_df["quantity"]
         .astype(str)
-        .str.replace(',', '.', regex=False)
-        .str.replace(r'[^\d\.]', '', regex=True)
+        .str.replace(",", ".", regex=False)
+        .str.replace(r"[^\d\.]", "", regex=True)
     )
-    if 'multiplicity' in data_df.columns:
-        data_df['multiplicity'] = (
-            data_df['multiplicity']
+    if "multiplicity" in data_df.columns:
+        data_df["multiplicity"] = (
+            data_df["multiplicity"]
             .astype(str)
-            .str.replace(',', '.', regex=False)
-            .str.replace(r'[^\d\.]', '', regex=True)
+            .str.replace(",", ".", regex=False)
+            .str.replace(r"[^\d\.]", "", regex=True)
         )
     else:
         # Если колонка кратности не задана в конфигурации, используем 1.
-        data_df['multiplicity'] = 1
-    data_df['price'] = (
-        data_df['price']
+        data_df["multiplicity"] = 1
+    data_df["price"] = (
+        data_df["price"]
         .astype(str)
-        .str.replace(',', '.', regex=False)
-        .str.replace(r'[^\d\.]', '', regex=True)
+        .str.replace(",", ".", regex=False)
+        .str.replace(r"[^\d\.]", "", regex=True)
     )
-    data_df['quantity'] = pd.to_numeric(data_df['quantity'], errors='coerce')
-    data_df['multiplicity'] = pd.to_numeric(
-        data_df['multiplicity'], errors='coerce'
+    data_df["quantity"] = pd.to_numeric(data_df["quantity"], errors="coerce")
+    data_df["multiplicity"] = pd.to_numeric(
+        data_df["multiplicity"], errors="coerce"
     )
-    data_df.loc[data_df['multiplicity'] <= 0, 'multiplicity'] = None
-    data_df['multiplicity'] = data_df['multiplicity'].fillna(1).apply(int)
-    data_df['price'] = pd.to_numeric(data_df['price'], errors='coerce')
-    data_df.dropna(subset=['quantity', 'price'], inplace=True)
+    data_df.loc[data_df["multiplicity"] <= 0, "multiplicity"] = None
+    data_df["multiplicity"] = data_df["multiplicity"].fillna(1).apply(int)
+    data_df["price"] = pd.to_numeric(data_df["price"], errors="coerce")
+    data_df.dropna(subset=["quantity", "price"], inplace=True)
     MAX_PRICE = 99999999.99
     before_count = len(data_df)
-    data_df = data_df[data_df['price'] <= MAX_PRICE]
+    data_df = data_df[data_df["price"] <= MAX_PRICE]
     after_count = len(data_df)
     logger.debug(
-        f'Removed {before_count - after_count} '
-        f'rows due to exceeding price {MAX_PRICE}'
+        f"Removed {before_count - after_count} "
+        f"rows due to exceeding price {MAX_PRICE}"
     )
-    data_df = data_df[data_df['price'] >= 0]
+    data_df = data_df[data_df["price"] >= 0]
     clean_rows = len(data_df)
 
-    autoparts_data = data_df.to_dict(orient='records')
+    autoparts_data = data_df.to_dict(orient="records")
     deduplicated_data = deduplicate_autoparts_data(autoparts_data)
     dedup_rows = len(deduplicated_data)
 
     stats = {
-        'rows_total': int(total_rows),
-        'rows_clean': int(clean_rows),
-        'rows_deduplicated': int(dedup_rows),
-        'rows_removed': int(max(total_rows - clean_rows, 0)),
-        'rows_dedup_removed': int(max(clean_rows - dedup_rows, 0)),
+        "rows_total": int(total_rows),
+        "rows_clean": int(clean_rows),
+        "rows_deduplicated": int(dedup_rows),
+        "rows_removed": int(max(total_rows - clean_rows, 0)),
+        "rows_dedup_removed": int(max(clean_rows - dedup_rows, 0)),
     }
     return deduplicated_data, stats
 
@@ -685,8 +712,8 @@ def _normalize_exclude_positions(exclude_positions):
     for item in exclude_positions:
         if not isinstance(item, dict):
             continue
-        brand = str(item.get('brand', '')).strip().upper()
-        oem = str(item.get('oem', '')).strip().upper()
+        brand = str(item.get("brand", "")).strip().upper()
+        oem = str(item.get("oem", "")).strip().upper()
         if brand and oem:
             normalized.add((brand, oem))
     return normalized
@@ -706,10 +733,10 @@ def _apply_provider_filters(items, provider_list_conf):
     filtered = []
     removed = 0
     for item in items:
-        price = float(item.get('price', 0))
-        quantity = int(item.get('quantity', 0))
-        brand = str(item.get('brand', '')).strip().upper()
-        oem = str(item.get('oem_number', '')).strip().upper()
+        price = float(item.get("price", 0))
+        quantity = int(item.get("quantity", 0))
+        brand = str(item.get("brand", "")).strip().upper()
+        oem = str(item.get("oem_number", "")).strip().upper()
 
         if min_price is not None and price < min_price:
             removed += 1
@@ -730,28 +757,28 @@ def _apply_provider_filters(items, provider_list_conf):
         filtered.append(item)
 
     if removed:
-        logger.debug(f'Removed {removed} items by provider filters')
+        logger.debug(f"Removed {removed} items by provider filters")
     return filtered
 
 
 def parse_exclude_positions_file(file_extension, file_content):
     buffer = BytesIO(file_content)
     ext = file_extension.lower()
-    if ext in ('xlsx', 'xls'):
+    if ext in ("xlsx", "xls"):
         df = pd.read_excel(buffer, header=None, dtype=str)
-    elif ext in ('csv', 'txt'):
+    elif ext in ("csv", "txt"):
         df = pd.read_csv(buffer, header=None, dtype=str)
     else:
-        raise ValueError('Unsupported file extension')
+        raise ValueError("Unsupported file extension")
 
-    df = df.dropna(how='all')
+    df = df.dropna(how="all")
     items = []
     for _, row in df.iterrows():
-        brand = str(row.iloc[0]).strip() if len(row) > 0 else ''
-        oem = str(row.iloc[1]).strip() if len(row) > 1 else ''
+        brand = str(row.iloc[0]).strip() if len(row) > 0 else ""
+        oem = str(row.iloc[1]).strip() if len(row) > 1 else ""
         if not brand or not oem:
             continue
-        items.append({'brand': brand, 'oem': oem})
+        items.append({"brand": brand, "oem": oem})
     return items
 
 
@@ -772,14 +799,14 @@ async def process_provider_pricelist(
     return_stats: bool = False,
 ):
     logger.debug(
-        f'Зашли в process_provider_pricelist '
-        f'provider name = {provider.name} '
-        f'file_extension = {file_extension} '
-        f'use_stored_params = {use_stored_params}'
+        f"Зашли в process_provider_pricelist "
+        f"provider name = {provider.name} "
+        f"file_extension = {file_extension} "
+        f"use_stored_params = {use_stored_params}"
     )
     if not provider_list_conf:
         raise HTTPException(
-            status_code=404, detail='Configuration not transferred'
+            status_code=404, detail="Configuration not transferred"
         )
 
     if use_stored_params:
@@ -793,7 +820,7 @@ async def process_provider_pricelist(
     else:
         if None in (start_row, oem_col, qty_col, price_col):
             raise HTTPException(
-                status_code=400, detail='Missing required parameters.'
+                status_code=400, detail="Missing required parameters."
             )
 
     try:
@@ -811,12 +838,12 @@ async def process_provider_pricelist(
         )
     except KeyError as e:
         raise HTTPException(
-            status_code=422, detail=f'Invalid column indices provided: {e}'
+            status_code=422, detail=f"Invalid column indices provided: {e}"
         )
     except Exception as e:
         logger.error(f"Error during data cleaning: {e}")
         raise HTTPException(
-            status_code=400, detail='Error during data cleaning.'
+            status_code=400, detail="Error during data cleaning."
         )
 
     deduplicated_data = _apply_provider_filters(
@@ -830,26 +857,26 @@ async def process_provider_pricelist(
     )
 
     for item in deduplicated_data:
-        logger.debug(f'Processing item: {item}')
+        logger.debug(f"Processing item: {item}")
 
         try:
             autopart_data = AutoPartCreatePriceList(
-                oem_number=item['oem_number'],
-                brand=item.get('brand'),
-                name=item.get('name'),
+                oem_number=item["oem_number"],
+                brand=item.get("brand"),
+                name=item.get("name"),
             )
-            logger.debug(f'Created AutoPartCreatePriceList: {autopart_data}')
+            logger.debug(f"Created AutoPartCreatePriceList: {autopart_data}")
         except KeyError as ke:
-            logger.error(f'Missing key in item: {ke}')
+            logger.error(f"Missing key in item: {ke}")
             raise HTTPException(
-                status_code=400, detail=f'Missing key in item: {ke}'
+                status_code=400, detail=f"Missing key in item: {ke}"
             )
 
         autopart_assoc = PriceListAutoPartAssociationCreate(
             autopart=autopart_data,
-            quantity=int(item['quantity']),
-            price=float(item['price']),
-            multiplicity=int(item.get('multiplicity') or 1),
+            quantity=int(item["quantity"]),
+            price=float(item["price"]),
+            multiplicity=int(item.get("multiplicity") or 1),
         )
         pricelist_in.autoparts.append(autopart_assoc)
 
@@ -878,11 +905,11 @@ async def process_provider_pricelist(
         raise e
     except Exception as e:
         logger.exception(
-            f'Unexpected error occurred while creating PriceList: {e}'
+            f"Unexpected error occurred while creating PriceList: {e}"
         )
         raise HTTPException(
             status_code=500,
-            detail='Unexpected error during PriceList creation',
+            detail="Unexpected error during PriceList creation",
         )
 
 
@@ -1076,62 +1103,62 @@ def is_cummins(oem_original):
 def assign_brand(oem_original):
     # 1. CHERY & HAVAL GW
     if is_chery_haval_gw(oem_original):
-        return ['CHERY', 'HAVAL']
+        return ["CHERY", "HAVAL"]
 
     # 2. FAW
     if is_faw(oem_original):
-        return ['FAW']
+        return ["FAW"]
 
     # 3. DONGFENG
     if is_dongfeng(oem_original):
-        return ['DONGFENG']
+        return ["DONGFENG"]
 
     # 4. HAIMA
     if is_haima(oem_original):
-        return ['HAIMA']
+        return ["HAIMA"]
 
     # 5. Часть логики LIFAN (простое правило)
     if is_lifan_simple(oem_original):
-        return ['LIFAN']
+        return ["LIFAN"]
 
     # 6. CHANGAN
     if is_changan(oem_original):
-        return ['CHANGAN']
+        return ["CHANGAN"]
 
     # 7. CHERY
     if is_chery(oem_original):
-        return ['CHERY']
+        return ["CHERY"]
 
     # 8. LIFAN
     if is_lifan(oem_original):
-        return ['LIFAN']
+        return ["LIFAN"]
 
     # 9. BYD
     if is_byd(oem_original):
-        return ['BYD']
+        return ["BYD"]
 
     # 10. GEELY
     if is_geely(oem_original):
-        return ['GEELY']
+        return ["GEELY"]
 
     # 11. JAC
     if is_jac(oem_original):
-        return ['JAC']
+        return ["JAC"]
 
     # 12. FOTON
     if is_foton(oem_original):
-        return ['FOTON']
+        return ["FOTON"]
 
     # 13. BRILLIANCE
     if is_brilliance(oem_original):
-        return ['BRILLIANCE']
+        return ["BRILLIANCE"]
 
     # 14. CUMMINS
     if is_cummins(oem_original):
-        return ['CUMMINS']
+        return ["CUMMINS"]
 
     # 15. Если ни одно условие не выполнилось - HAVAL
-    return ['HAVAL']
+    return ["HAVAL"]
 
 
 # def assign_brand(oem_original):
@@ -1265,33 +1292,33 @@ async def add_origin_brand_from_dz(
     price_zzap = price_zzap.copy()
 
     # Добавляем префикс 'Оригинал ' к названию для оригинальных брендов
-    mask_original = price_zzap['Производитель'].isin(ORIGINAL_BRANDS)
-    price_zzap.loc[mask_original, 'Наименование'] = (
-        '>>Оригинал<< ' + price_zzap.loc[mask_original, 'Наименование']
+    mask_original = price_zzap["Производитель"].isin(ORIGINAL_BRANDS)
+    price_zzap.loc[mask_original, "Наименование"] = (
+        ">>Оригинал<< " + price_zzap.loc[mask_original, "Наименование"]
     )
 
     # Обработка записей с брендом 'DRAGONZAP'
     dz_items = price_zzap.loc[
-        price_zzap['Производитель'] == 'DRAGONZAP'
+        price_zzap["Производитель"] == "DRAGONZAP"
     ].copy()
 
     # Добавляем префикс 'Неоригинал ' к названию для новых брендов
-    dz_items['Наименование'] = '>>Неоригинал<< ' + dz_items['Наименование']
-    dz_items['Артикул'] = dz_items['Артикул'].apply(
-        lambda x: x[2:] if 'DZ' in x else x
+    dz_items["Наименование"] = ">>Неоригинал<< " + dz_items["Наименование"]
+    dz_items["Артикул"] = dz_items["Артикул"].apply(
+        lambda x: x[2:] if "DZ" in x else x
     )
 
     # Применяем функцию assign_brand для получения новых брендов
-    dz_items['assigned_brands'] = dz_items['Артикул'].apply(assign_brand)
+    dz_items["assigned_brands"] = dz_items["Артикул"].apply(assign_brand)
 
     # Разворачиваем список брендов в отдельные строки
-    dz_items = dz_items.explode('assigned_brands')
+    dz_items = dz_items.explode("assigned_brands")
 
     # Обновляем поле 'brand' с новым брендом
-    dz_items['Производитель'] = dz_items['assigned_brands']
+    dz_items["Производитель"] = dz_items["assigned_brands"]
 
     # Удаляем временное поле 'assigned_brands'
-    dz_items = dz_items.drop(columns=['assigned_brands'])
+    dz_items = dz_items.drop(columns=["assigned_brands"])
 
     # Получаем уникальные названия новых брендов
     # new_brands = dz_items['Brand'].unique().tolist()
@@ -1344,22 +1371,24 @@ def expand_dz_brands(df: pd.DataFrame) -> pd.DataFrame:
     """
     df = df.copy()
 
-    mask_dz = df['Производитель'].str.upper() == 'DRAGONZAP'
+    mask_dz = df["Производитель"].str.upper() == "DRAGONZAP"
     dz_items = df.loc[mask_dz].copy()
 
     if not dz_items.empty:
         # Strip 'DZ' prefix from OEM number
-        dz_items['Артикул'] = dz_items['Артикул'].apply(
-            lambda x: x[2:] if isinstance(
-                x, str
-            ) and x.upper().startswith('DZ') else x
+        dz_items["Артикул"] = dz_items["Артикул"].apply(
+            lambda x: (
+                x[2:]
+                if isinstance(x, str) and x.upper().startswith("DZ")
+                else x
+            )
         )
         # Determine brand(s) per OEM
-        dz_items['assigned_brands'] = dz_items['Артикул'].apply(assign_brand)
+        dz_items["assigned_brands"] = dz_items["Артикул"].apply(assign_brand)
         # One row per assigned brand
-        dz_items = dz_items.explode('assigned_brands')
-        dz_items['Производитель'] = dz_items['assigned_brands']
-        dz_items = dz_items.drop(columns=['assigned_brands'])
+        dz_items = dz_items.explode("assigned_brands")
+        dz_items["Производитель"] = dz_items["assigned_brands"]
+        dz_items = dz_items.drop(columns=["assigned_brands"])
 
     # Replace DRAGONZAP rows with expanded brand rows
     df_result = pd.concat([df[~mask_dz], dz_items], ignore_index=True)
@@ -1376,14 +1405,14 @@ async def send_pricelist(
     body: str,
     attachment_filename: str | None = None,
 ):
-    logger.debug('Build customer pricelist attachment')
+    logger.debug("Build customer pricelist attachment")
     to_email = None
     if to_emails:
-        to_email = ','.join([email for email in to_emails if email])
+        to_email = ",".join([email for email in to_emails if email])
     if not to_email:
         to_email = customer.email_outgoing_price
     if not to_email:
-        logger.error('No recipient email configured for customer pricelist.')
+        logger.error("No recipient email configured for customer pricelist.")
         return
     subject = subject
     body = body
@@ -1398,7 +1427,7 @@ async def send_pricelist(
     )
 
     # Send the email asynchronously
-    logger.debug('Send the email asynchronously')
+    logger.debug("Send the email asynchronously")
     loop = asyncio.get_running_loop()
     account = None
     if config.outgoing_email_account_id:
@@ -1407,30 +1436,30 @@ async def send_pricelist(
         )
         if not selected:
             logger.warning(
-                'Configured outgoing mailbox not found: id=%s',
+                "Configured outgoing mailbox not found: id=%s",
                 config.outgoing_email_account_id,
             )
         elif _is_pricelist_out_account_eligible(selected):
             account = selected
             logger.info(
-                'Using config outgoing email account for pricelist send: '
-                'config=%s account_id=%s email=%s',
+                "Using config outgoing email account for pricelist send: "
+                "config=%s account_id=%s email=%s",
                 config.id,
                 account.id,
                 account.email,
             )
         else:
             logger.warning(
-                'Configured outgoing mailbox is inactive or '
-                'missing prices_out/orders_out/orders_in purpose: id=%s',
+                "Configured outgoing mailbox is inactive or "
+                "missing prices_out/orders_out/orders_in purpose: id=%s",
                 config.outgoing_email_account_id,
             )
     if account is None:
         account = await _get_preferred_pricelist_out_account(session)
         if account:
             logger.info(
-                'Using preferred outgoing email account for pricelist send: '
-                'config=%s account_id=%s email=%s',
+                "Using preferred outgoing email account for pricelist send: "
+                "config=%s account_id=%s email=%s",
                 config.id,
                 account.id,
                 account.email,
@@ -1438,17 +1467,17 @@ async def send_pricelist(
     if account is None:
         accounts = await crud_email_account.get_active_by_purpose(
             session=session,
-            purpose='prices_out',
+            purpose="prices_out",
         )
         if not accounts:
             accounts = await crud_email_account.get_active_by_purpose(
                 session=session,
-                purpose='orders_out',
+                purpose="orders_out",
             )
         if not accounts:
             accounts = await crud_email_account.get_active_by_purpose(
                 session=session,
-                purpose='orders_in',
+                purpose="orders_in",
             )
         if accounts:
             account = accounts[0]
@@ -1456,8 +1485,8 @@ async def send_pricelist(
     kwargs = {}
     if account:
         logger.info(
-            'Using configured outgoing email account for pricelist send: '
-            'config=%s account_id=%s email=%s %s',
+            "Using configured outgoing email account for pricelist send: "
+            "config=%s account_id=%s email=%s %s",
             config.id,
             account.id,
             account.email,
@@ -1466,8 +1495,8 @@ async def send_pricelist(
         kwargs = build_email_delivery_kwargs(account)
     else:
         logger.info(
-            'Using ENV email settings for pricelist send: config=%s '
-            'transport=%s host=%s port=%s user=%s',
+            "Using ENV email settings for pricelist send: config=%s "
+            "transport=%s host=%s port=%s user=%s",
             config.id,
             EMAIL_TRANSPORT,
             SMTP_SERVER,
@@ -1487,7 +1516,7 @@ async def send_pricelist(
             **kwargs,
         ),
     )
-    logger.debug('Final send email')
+    logger.debug("Final send email")
 
 
 async def process_customer_pricelist(
@@ -1500,7 +1529,7 @@ async def process_customer_pricelist(
     if not config:
         raise HTTPException(
             status_code=400,
-            detail='No pricelist configuration found for the customer',
+            detail="No pricelist configuration found for the customer",
         )
     # Получаю все прайс листы клиента
     all_prices = await crud_customer_pricelist.get_all_pricelist(
@@ -1527,7 +1556,7 @@ async def process_customer_pricelist(
             df = await crud_pricelist.transform_to_dataframe(
                 associations=associations, session=session
             )
-            logger.debug(f'Transform file to dataframe {df}')
+            logger.debug(f"Transform file to dataframe {df}")
 
             df = crud_customer_pricelist.apply_coefficient(
                 df, config, apply_general_markup=True
@@ -1540,11 +1569,10 @@ async def process_customer_pricelist(
         if not sources:
             raise HTTPException(
                 status_code=400,
-                detail='No autoparts to include in the pricelist',
+                detail="No autoparts to include in the pricelist",
             )
         dz_expand_enabled = any(
-            s.enabled
-            and (s.additional_filters or {}).get('DZ_EXPAND_BRANDS')
+            s.enabled and (s.additional_filters or {}).get("DZ_EXPAND_BRANDS")
             for s in sources
         )
         for source in sources:
@@ -1566,7 +1594,7 @@ async def process_customer_pricelist(
             df = await crud_pricelist.transform_to_dataframe(
                 associations=associations, session=session
             )
-            logger.debug(f'Transform file to dataframe {df}')
+            logger.debug(f"Transform file to dataframe {df}")
 
             df = _apply_source_filters(df, source)
             if df.empty:
@@ -1583,7 +1611,7 @@ async def process_customer_pricelist(
     else:
         final_df = pd.DataFrame()
 
-    logger.debug(f'Final DataFrame before creating associations:\n{final_df}')
+    logger.debug(f"Final DataFrame before creating associations:\n{final_df}")
     if not final_df.empty:
         overrides = await crud_customer_pricelist_override.get_for_config(
             session=session, config_id=config.id
@@ -1611,19 +1639,19 @@ async def process_customer_pricelist(
         final_df = _collapse_duplicate_rows(
             final_df,
             prefer_min_price=bool(
-                getattr(config, 'collapse_duplicates_by_min_price', True)
+                getattr(config, "collapse_duplicates_by_min_price", True)
             ),
         )
-        customer_autoparts_data = final_df.to_dict('records')
+        customer_autoparts_data = final_df.to_dict("records")
     else:
         raise HTTPException(
-            status_code=400, detail='No autoparts to include in the pricelist'
+            status_code=400, detail="No autoparts to include in the pricelist"
         )
 
     customer_pricelist = CustomerPriceList(
         customer_id=customer.id,
         date=request.date or date.today(),
-        is_active=True
+        is_active=True,
     )
     session.add(customer_pricelist)
     await session.flush()
@@ -1643,27 +1671,27 @@ async def process_customer_pricelist(
     # dz_expand_enabled is set when iterating sources above.
     if dz_expand_enabled:
         logger.debug(
-            'DZ_EXPAND_BRANDS: expanding DRAGONZAP positions in Excel DF'
+            "DZ_EXPAND_BRANDS: expanding DRAGONZAP positions in Excel DF"
         )
         df_excel = expand_dz_brands(df_excel)
 
-    if config.additional_filters.get('ZZAP'):
-        logger.debug('Зашел в get additional_filters')
+    if config.additional_filters.get("ZZAP"):
+        logger.debug("Зашел в get additional_filters")
         provider_diller = await crud_provider.get_provider_or_none(
-            provider='AVTODIN KAMA', session=session
+            provider="AVTODIN KAMA", session=session
         )
         if not provider_diller:
-            logger.error('Provider AVTODIN KAMA not found.')
-            raise ValueError('Provider AVTODIN KAMA not found.')
+            logger.error("Provider AVTODIN KAMA not found.")
+            raise ValueError("Provider AVTODIN KAMA not found.")
         pricelist_ids = await crud_pricelist.get_pricelist_ids_by_provider(
             provider_id=provider_diller.id, session=session
         )
         if not pricelist_ids:
             logger.error(
-                f'No pricelists found for provider {provider_diller.name}.'
+                f"No pricelists found for provider {provider_diller.name}."
             )
             raise ValueError(
-                f'No pricelists found for provider {provider_diller.name}.'
+                f"No pricelists found for provider {provider_diller.name}."
             )
         associations = await crud_pricelist.fetch_pricelist_data(
             pricelist_ids[-1], session
@@ -1671,14 +1699,14 @@ async def process_customer_pricelist(
         df_diller = await crud_pricelist.transform_to_dataframe(
             associations=associations, session=session
         )
-        logger.debug(f'Transform file to dataframe {df_diller}')
+        logger.debug(f"Transform file to dataframe {df_diller}")
         df_diller_rename = df_diller.rename(
             columns={
-                'brand': 'Производитель',
-                'name': 'Наименование',
-                'oem_number': 'Артикул',
-                'quantity': 'Количество',
-                'price': 'Цена',
+                "brand": "Производитель",
+                "name": "Наименование",
+                "oem_number": "Артикул",
+                "quantity": "Количество",
+                "price": "Цена",
             }
         )
         # 1. Предположим, что и df_excel, и
@@ -1690,9 +1718,9 @@ async def process_customer_pricelist(
         df_merged = pd.merge(
             df_excel,
             df_diller_rename,
-            on=['Производитель', 'Артикул'],
-            how='left',
-            suffixes=('', '_diller'),  # Чтобы колонки не конфликтовали
+            on=["Производитель", "Артикул"],
+            how="left",
+            suffixes=("", "_diller"),  # Чтобы колонки не конфликтовали
         )
 
         # Теперь в df_merged есть колонки:
@@ -1701,12 +1729,12 @@ async def process_customer_pricelist(
         # и brand_id совпадает, тогда повышаем цену.
 
         # 3. Формируем маску (true, где нужно повысить)
-        mask = (df_merged['Цена_diller'].notna()) & (
-            df_merged['Цена'] < df_merged['Цена_diller'] * 1.2
+        mask = (df_merged["Цена_diller"].notna()) & (
+            df_merged["Цена"] < df_merged["Цена_diller"] * 1.2
         )
         # 4. Применяем
-        df_merged.loc[mask, 'Цена'] = (
-            np.ceil(df_merged.loc[mask, 'Цена_diller'] * 1.2 / 10) * 10
+        df_merged.loc[mask, "Цена"] = (
+            np.ceil(df_merged.loc[mask, "Цена_diller"] * 1.2 / 10) * 10
         )
 
         # 5. Возвращаем df_merged к исходному набору колонок df_excel,
@@ -1720,21 +1748,21 @@ async def process_customer_pricelist(
         df_excel = await add_origin_brand_from_dz(
             price_zzap=df_excel, session=session
         )
-        logger.debug(f'Измененный файл для ZZAP: {df_excel}')
+        logger.debug(f"Измененный файл для ZZAP: {df_excel}")
 
-    if bool(getattr(config, 'collapse_duplicates_by_min_price', True)):
+    if bool(getattr(config, "collapse_duplicates_by_min_price", True)):
         df_excel = _collapse_duplicate_excel_rows(df_excel)
 
-    if {'Производитель', 'Наименование'}.issubset(df_excel.columns):
+    if {"Производитель", "Наименование"}.issubset(df_excel.columns):
         df_excel = df_excel.sort_values(
-            by=['Производитель', 'Наименование'], kind='stable'
+            by=["Производитель", "Наименование"], kind="stable"
         ).reset_index(drop=True)
     await session.commit()
-    logger.debug('Calling send_pricelist')
+    logger.debug("Calling send_pricelist")
     recipients = config.emails or (
-        [
-            customer.email_outgoing_price
-        ] if customer.email_outgoing_price else []
+        [customer.email_outgoing_price]
+        if customer.email_outgoing_price
+        else []
     )
     await send_pricelist(
         session=session,
@@ -1742,15 +1770,15 @@ async def process_customer_pricelist(
         config=config,
         to_emails=recipients,
         df_excel=df_excel,
-        subject=f'Прайс лист {customer_pricelist.date}',
-        body='Добрый день, высылаем Вам наш прайс-лист',
+        subject=f"Прайс лист {customer_pricelist.date}",
+        body="Добрый день, высылаем Вам наш прайс-лист",
     )
     if recipients:
         config.last_sent_at = now_moscow()
         session.add(config)
         await session.commit()
-    logger.debug('Finished send_pricelist')
-    logger.debug('Finished send_pricelist')
+    logger.debug("Finished send_pricelist")
+    logger.debug("Finished send_pricelist")
 
     autoparts_response = []
     for assoc in associations:
@@ -1782,16 +1810,18 @@ def write_error_for_bulk(
 ) -> None:
     record_str = {
         k: (
-            v.decode('utf-8', errors='replace')
+            v.decode("utf-8", errors="replace")
             if isinstance(v, bytes)
             else str(v)
         )
         for k, v in problem_items.items()
     }
-    not_found.append({
-        'record': record_str,
-        'error': f"{error_message}: {error or 'Unknown error'}"
-    })
+    not_found.append(
+        {
+            "record": record_str,
+            "error": f"{error_message}: {error or 'Unknown error'}",
+        }
+    )
 
 
 def check_start_and_finish_date(
@@ -1812,5 +1842,5 @@ def check_start_and_finish_date(
     except ValueError:
         raise HTTPException(
             status_code=400,
-            detail='Invalid date format. Use YYYY-MM-DD or ISO format.',
+            detail="Invalid date format. Use YYYY-MM-DD or ISO format.",
         )

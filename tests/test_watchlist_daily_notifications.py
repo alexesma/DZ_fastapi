@@ -3,8 +3,7 @@ import pytest
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.watchlist import crud_price_watch_item
 from dz_fastapi.models.notification import AppNotificationLevel
-from dz_fastapi.services.watchlist import (SITE_ITEM_SEPARATOR,
-                                           send_watchlist_daily_notifications)
+from dz_fastapi.services.watchlist import SITE_ITEM_SEPARATOR, send_watchlist_daily_notifications
 
 
 @pytest.mark.asyncio

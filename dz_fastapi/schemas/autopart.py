@@ -2,16 +2,18 @@ import os
 from datetime import date
 from typing import Annotated, Dict, List, Optional, Tuple
 
-from pydantic import (BaseModel, ConfigDict, EmailStr, Field,
-                      StringConstraints, field_validator)
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, field_validator
 
-from dz_fastapi.core.constants import (DEPTH_MONTHS_HISTORY_PRICE_FOR_ORDER,
-                                       LIMIT_ORDER, MAX_LIGHT_NAME_LOCATION,
-                                       MAX_NAME_CATEGORY,
-                                       PERCENT_MIN_BALANS_FOR_ORDER)
+from dz_fastapi.core.constants import (
+    DEPTH_MONTHS_HISTORY_PRICE_FOR_ORDER,
+    LIMIT_ORDER,
+    MAX_LIGHT_NAME_LOCATION,
+    MAX_NAME_CATEGORY,
+    PERCENT_MIN_BALANS_FOR_ORDER,
+)
 
-EMAIL_NAME_ORDER = os.getenv('EMAIL_NAME_ANALYTIC')
-TELEGRAM_TO = os.getenv('TELEGRAM_TO')
+EMAIL_NAME_ORDER = os.getenv("EMAIL_NAME_ANALYTIC")
+TELEGRAM_TO = os.getenv("TELEGRAM_TO")
 
 
 class AutoPartBase(BaseModel):
@@ -62,13 +64,13 @@ class AutoPartResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    @field_validator('categories', mode='before')
+    @field_validator("categories", mode="before")
     def get_category_names(cls, v):
         if v:
             return [category.name for category in v]
         return []
 
-    @field_validator('storage_locations', mode='before')
+    @field_validator("storage_locations", mode="before")
     def get_storage_location_names(cls, v):
         if v:
             return [storage_location.name for storage_location in v]
@@ -212,6 +214,7 @@ class AutopartOffersResponse(BaseModel):
 
 # ─── HonestSignCategory ─────────────────────────────────────────────────────
 
+
 class HonestSignCategoryCreate(BaseModel):
     name: str
     code: Optional[str] = None
@@ -228,15 +231,17 @@ class HonestSignCategoryOut(BaseModel):
 
 # ─── ApplicabilityNode ───────────────────────────────────────────────────────
 
+
 class ApplicabilityNodeCreate(BaseModel):
     name: str
-    node_type: str = 'other'  # vehicle | part | other
+    node_type: str = "other"  # vehicle | part | other
     parent_id: Optional[int] = None
     description: Optional[str] = None
 
 
 class ApplicabilityNodeFlatOut(BaseModel):
     """Плоский (без детей) вариант — для flat-list и ответов assign."""
+
     id: int
     name: str
     node_type: str
@@ -248,9 +253,10 @@ class ApplicabilityNodeFlatOut(BaseModel):
 class ApplicabilityNodeOut(ApplicabilityNodeFlatOut):
     """С рекурсивными детьми — используется
     только когда явно загружены selectinload."""
-    children: List['ApplicabilityNodeOut'] = Field(default_factory=list)
 
-    @field_validator('children', mode='before')
+    children: List["ApplicabilityNodeOut"] = Field(default_factory=list)
+
+    @field_validator("children", mode="before")
     def set_children(cls, v):
         if v is None:
             return []
@@ -265,6 +271,7 @@ ApplicabilityNodeOut.model_rebuild()
 
 
 # ─── Cross-numbers ──────────────────────────────────────────────────────────
+
 
 class CrossCreate(BaseModel):
     cross_brand_id: int
@@ -286,6 +293,7 @@ class CrossOut(BaseModel):
 
 # ─── Catalog list item (lighter than full response) ──────────────────────────
 
+
 class AutoPartCatalogItem(BaseModel):
     id: int
     brand_id: int
@@ -305,13 +313,13 @@ class AutoPartCatalogItem(BaseModel):
     stock_quantity: int = 0
     model_config = ConfigDict(from_attributes=True)
 
-    @field_validator('categories', mode='before')
+    @field_validator("categories", mode="before")
     def get_category_names(cls, v):
         if v:
             return [c.name for c in v]
         return []
 
-    @field_validator('storage_locations', mode='before')
+    @field_validator("storage_locations", mode="before")
     def get_storage_location_names(cls, v):
         if v:
             return [s.name for s in v]
@@ -327,6 +335,7 @@ class AutoPartCatalogResponse(BaseModel):
 
 # ─── Full detail (with crosses) ─────────────────────────────────────────────
 
+
 class AutoPartDetailResponse(AutoPartResponse):
     brand_name: Optional[str] = None
     crosses: List[CrossOut] = Field(default_factory=list)
@@ -337,16 +346,17 @@ class AutoPartDetailResponse(AutoPartResponse):
         default_factory=list
     )
 
-    @field_validator('brand_name', mode='before')
+    @field_validator("brand_name", mode="before")
     def get_brand_name(cls, v):
         if v is None:
             return None
-        if hasattr(v, 'name'):
+        if hasattr(v, "name"):
             return v.name
         return str(v)
 
 
 # ─── Storage location list item ─────────────────────────────────────────────
+
 
 class StorageLocationOut(BaseModel):
     id: int
@@ -379,12 +389,12 @@ class CategoryResponse(CategoryBase):
     id: int
     name: str
     parent_id: Optional[int] = None
-    children: Optional[List['CategoryResponse']] = Field(default_factory=list)
+    children: Optional[List["CategoryResponse"]] = Field(default_factory=list)
     # autoparts: List['AutoPartResponse'] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 
-    @field_validator('children', mode='before')
+    @field_validator("children", mode="before")
     def set_children(cls, v):
         if v is None:
             return []
@@ -403,11 +413,11 @@ class StorageLocationBase(BaseModel):
     name: Annotated[
         str,
         StringConstraints(
-            pattern='^[A-Z0-9 /]+$', max_length=MAX_LIGHT_NAME_LOCATION
+            pattern="^[A-Z0-9 /]+$", max_length=MAX_LIGHT_NAME_LOCATION
         ),
     ]
     location_type: Optional[str] = None  # shelf / pallet / bin / floor / other
-    capacity: Optional[int] = None       # max SKUs (None = unlimited)
+    capacity: Optional[int] = None  # max SKUs (None = unlimited)
     warehouse_id: Optional[int] = None
 
 
@@ -419,7 +429,7 @@ class StorageLocationUpdate(BaseModel):
     name: Annotated[
         Optional[str],
         StringConstraints(
-            pattern='^[A-Z0-9 /]+$', max_length=MAX_LIGHT_NAME_LOCATION
+            pattern="^[A-Z0-9 /]+$", max_length=MAX_LIGHT_NAME_LOCATION
         ),
     ] = None
     location_type: Optional[str] = None
@@ -447,39 +457,39 @@ AutoPartResponse.model_rebuild()
 
 class AutopartOrderRequest(BaseModel):
     budget_limit: int = Field(
-        default=LIMIT_ORDER, gt=0, description='Максимальный бюджет для заказа'
+        default=LIMIT_ORDER, gt=0, description="Максимальный бюджет для заказа"
     )
     months_back: int = Field(
         default=DEPTH_MONTHS_HISTORY_PRICE_FOR_ORDER,
         ge=1,
-        description='Глубина поиска минимальной цены (в месяцах)',
+        description="Глубина поиска минимальной цены (в месяцах)",
     )
     email_to: EmailStr = Field(
-        default=EMAIL_NAME_ORDER, description='Email получателя отчета'
+        default=EMAIL_NAME_ORDER, description="Email получателя отчета"
     )
     telegram_chat_id: str = Field(
-        default=TELEGRAM_TO, description='Telegram чат для отправки отчета'
+        default=TELEGRAM_TO, description="Telegram чат для отправки отчета"
     )
     autoparts: Optional[Dict[int, Tuple[float, float]]] = Field(
         None,
-        description='Автозапчасти с минимальным '
-        'балансом и количеством для заказа',
+        description="Автозапчасти с минимальным "
+        "балансом и количеством для заказа",
     )
     threshold_percent: float = Field(
         default=PERCENT_MIN_BALANS_FOR_ORDER,
         gt=0,
         lt=1,
-        description='Пороговый процент остатка для формирования заказа',
+        description="Пороговый процент остатка для формирования заказа",
     )
 
 
 class ConfirmedOffer(BaseModel):
-    autoparts_id: int = Field(..., description='ID автозапчасти')
-    supplier_id: int = Field(..., description='ID поставщика')
-    supplier_name: str = Field(..., description='Название постащика')
-    quantity: int = Field(..., gt=0, description='Заказываемое количество')
-    price: float = Field(..., gt=0, description='Цена за единицу товара')
-    total_cost: float = Field(..., gt=0, description='Общая стоимость позиции')
+    autoparts_id: int = Field(..., description="ID автозапчасти")
+    supplier_id: int = Field(..., description="ID поставщика")
+    supplier_name: str = Field(..., description="Название постащика")
+    quantity: int = Field(..., gt=0, description="Заказываемое количество")
+    price: float = Field(..., gt=0, description="Цена за единицу товара")
+    total_cost: float = Field(..., gt=0, description="Общая стоимость позиции")
     historical_min_price: int = Field(
-        ..., gt=0, description='Исторически минимальная цена'
+        ..., gt=0, description="Исторически минимальная цена"
     )

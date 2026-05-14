@@ -7,7 +7,7 @@ from dz_fastapi.services.watchlist import handle_provider_pricelist_watch
 
 @pytest.mark.asyncio
 async def test_watchlist_provider_creates_admin_notification(
-        async_client, test_session, monkeypatch
+    async_client, test_session, monkeypatch
 ):
     monkeypatch.setenv("WATCHLIST_NOTIFY_MODE", "immediate")
     payload = {
@@ -47,13 +47,7 @@ async def test_watchlist_provider_creates_admin_notification(
         fake_create_admin_notifications,
     )
 
-    items = [
-        {
-            "brand": "TESTBRAND",
-            "oem_number": "OEM123",
-            "price": 99.0, "quantity": 1
-        }
-    ]
+    items = [{"brand": "TESTBRAND", "oem_number": "OEM123", "price": 99.0, "quantity": 1}]
     await handle_provider_pricelist_watch(
         session=test_session,
         provider=provider,

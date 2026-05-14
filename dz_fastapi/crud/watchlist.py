@@ -6,10 +6,11 @@ from dz_fastapi.models.watchlist import PriceWatchItem
 
 class CRUDPriceWatchItem:
     async def create(
-        self, session: AsyncSession,
-            brand: str,
-            oem: str,
-            max_price: float | None
+        self,
+        session: AsyncSession,
+        brand: str,
+        oem: str,
+        max_price: float | None,
     ) -> PriceWatchItem:
         item = PriceWatchItem(
             brand=brand.strip(),

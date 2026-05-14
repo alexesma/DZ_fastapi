@@ -3,16 +3,20 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.models.settings import (CustomerOrderInboxSettings,
-                                        PriceCheckLog, PriceCheckSchedule,
-                                        PriceListStaleAlert, SchedulerSetting,
-                                        SystemMetricSnapshot)
+from dz_fastapi.core.config import settings
+from dz_fastapi.models.settings import (
+    CustomerOrderInboxSettings,
+    DiadocIntegrationSettings,
+    PriceCheckLog,
+    PriceCheckSchedule,
+    PriceListStaleAlert,
+    SchedulerSetting,
+    SystemMetricSnapshot,
+)
 
 
 class CRUDPriceCheckSchedule:
-    async def get_or_create(
-        self, session: AsyncSession
-    ) -> PriceCheckSchedule:
+    async def get_or_create(self, session: AsyncSession) -> PriceCheckSchedule:
         result = await session.execute(select(PriceCheckSchedule).limit(1))
         schedule = result.scalar_one_or_none()
         if schedule:
@@ -86,9 +90,11 @@ class CRUDPriceCheckLog:
         return log
 
     async def list(self, session: AsyncSession, limit: int = 100):
-        stmt = select(PriceCheckLog).order_by(
-            PriceCheckLog.checked_at.desc()
-        ).limit(limit)
+        stmt = (
+            select(PriceCheckLog)
+            .order_by(PriceCheckLog.checked_at.desc())
+            .limit(limit)
+        )
         result = await session.execute(stmt)
         return result.scalars().all()
 
@@ -155,7 +161,7 @@ class CRUDCustomerOrderInboxSettings:
             supplier_response_auto_close_stale_enabled=True,
             supplier_response_stale_days=7,
             supplier_order_stub_enabled=True,
-            supplier_order_stub_email='info@dragonzap.ru',
+            supplier_order_stub_email="info@dragonzap.ru",
         )
         session.add(setting)
         await session.commit()
@@ -172,6 +178,66 @@ class CRUDCustomerOrderInboxSettings:
         await session.commit()
         await session.refresh(setting)
         return setting
+
+
+class CRUDDiadocIntegrationSettings:
+    async def get_or_create(
+        self, session: AsyncSession
+    ) -> DiadocIntegrationSettings:
+        result = await session.execute(
+            select(DiadocIntegrationSettings).limit(1)
+        )
+        item = result.scalar_one_or_none()
+        if item:
+            return item
+        default_environment = (
+            str(settings.diadoc_default_environment or "staging")
+            .strip()
+            .lower()
+        )
+        if default_environment not in {"staging", "prod"}:
+            default_environment = "staging"
+        item = DiadocIntegrationSettings(environment=default_environment)
+        session.add(item)
+        await session.commit()
+        await session.refresh(item)
+        return item
+
+    async def update(
+        self, session: AsyncSession, data: dict
+    ) -> DiadocIntegrationSettings:
+        item = await self.get_or_create(session)
+        for key, value in data.items():
+            setattr(item, key, value)
+        session.add(item)
+        await session.commit()
+        await session.refresh(item)
+        return item
+
+    async def clear_connection(
+        self, session: AsyncSession
+    ) -> DiadocIntegrationSettings:
+        item = await self.get_or_create(session)
+        item.organization_id = None
+        item.organization_name = None
+        item.organization_inn = None
+        item.organization_kpp = None
+        item.box_id = None
+        item.box_id_guid = None
+        item.refresh_token = None
+        item.access_token = None
+        item.token_type = None
+        item.token_scope = None
+        item.access_token_expires_at = None
+        item.connected_user_id = None
+        item.connected_user_name = None
+        item.connected_at = None
+        item.last_sync_at = None
+        item.last_error = None
+        session.add(item)
+        await session.commit()
+        await session.refresh(item)
+        return item
 
 
 class CRUDSystemMetricSnapshot:
@@ -207,4 +273,5 @@ crud_price_stale_alert = CRUDPriceListStaleAlert()
 crud_price_check_log = CRUDPriceCheckLog()
 crud_scheduler_setting = CRUDSchedulerSetting()
 crud_customer_order_inbox_settings = CRUDCustomerOrderInboxSettings()
+crud_diadoc_integration_settings = CRUDDiadocIntegrationSettings()
 crud_system_metric_snapshot = CRUDSystemMetricSnapshot()

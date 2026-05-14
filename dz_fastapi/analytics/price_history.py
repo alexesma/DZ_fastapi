@@ -14,7 +14,7 @@ from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import PriceList, Provider
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
 
 def _get_previous_pricelist(
@@ -78,15 +78,15 @@ async def get_time_series_for_autopart_df(
     df = pd.DataFrame(
         rows,
         columns=[
-            'created_at',
-            'price',
-            'quantity',
-            'provider_id',
-            'provider_name',
+            "created_at",
+            "price",
+            "quantity",
+            "provider_id",
+            "provider_name",
         ],
     )
     # Убедимся, что колонка дат в формате datetime
-    df['created_at'] = pd.to_datetime(df['created_at'])
+    df["created_at"] = pd.to_datetime(df["created_at"])
 
     return df
 
@@ -107,7 +107,7 @@ def create_excel_report(changes: list[dict]) -> BytesIO:
     df = pd.DataFrame(changes)
 
     output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
         df.to_excel(writer, sheet_name="Changes", index=False)
     output.seek(0)
 
@@ -117,8 +117,8 @@ def create_excel_report(changes: list[dict]) -> BytesIO:
 def _build_pricelist_map(pricelist: PriceList) -> dict[int, dict[str, Any]]:
     return {
         assoc.autopart_id: {
-            'price': float(assoc.price),
-            'quantity': int(assoc.quantity),
+            "price": float(assoc.price),
+            "quantity": int(assoc.quantity),
         }
         for assoc in pricelist.autopart_associations
     }
@@ -135,7 +135,7 @@ async def _get_autopart_details(
             AutoPart.id,
             AutoPart.oem_number,
             AutoPart.name,
-            Brand.name.label('brand_name'),
+            Brand.name.label("brand_name"),
         )
         .join(Brand, Brand.id == AutoPart.brand_id)
         .where(AutoPart.id.in_(autopart_ids))
@@ -143,9 +143,9 @@ async def _get_autopart_details(
     rows = (await session.execute(stmt)).all()
     return {
         row.id: {
-            'oem_number': row.oem_number,
-            'name': row.name,
-            'brand': row.brand_name,
+            "oem_number": row.oem_number,
+            "name": row.name,
+            "brand": row.brand_name,
         }
         for row in rows
     }
@@ -159,8 +159,8 @@ async def build_pricelist_change_summary(
 ) -> dict[str, Any]:
     old_map = _build_pricelist_map(old_pl)
     new_map = _build_pricelist_map(new_pl)
-    logger.debug('Старый прайс кол-во позиций: %s', len(old_map))
-    logger.debug('Новый прайс кол-во позиций: %s', len(new_map))
+    logger.debug("Старый прайс кол-во позиций: %s", len(old_map))
+    logger.debug("Новый прайс кол-во позиций: %s", len(new_map))
 
     new_positions = set(new_map.keys()) - set(old_map.keys())
     removed_positions = set(old_map.keys()) - set(new_map.keys())
@@ -175,10 +175,10 @@ async def build_pricelist_change_summary(
         old_item = old_map[autopart_id]
         new_item = new_map[autopart_id]
 
-        old_price = old_item['price']
-        new_price = new_item['price']
-        old_qty = old_item['quantity']
-        new_qty = new_item['quantity']
+        old_price = old_item["price"]
+        new_price = new_item["price"]
+        old_qty = old_item["quantity"]
+        new_qty = new_item["quantity"]
 
         price_diff = new_price - old_price
         if old_price:
@@ -192,13 +192,13 @@ async def build_pricelist_change_summary(
             changed_price_count += 1
             price_change_candidates.append(
                 {
-                    'autopart_id': autopart_id,
-                    'old_price': old_price,
-                    'new_price': new_price,
-                    'price_diff': price_diff,
-                    'price_diff_pct': price_diff_pct,
-                    'old_quantity': old_qty,
-                    'new_quantity': new_qty,
+                    "autopart_id": autopart_id,
+                    "old_price": old_price,
+                    "new_price": new_price,
+                    "price_diff": price_diff,
+                    "price_diff_pct": price_diff_pct,
+                    "old_quantity": old_qty,
+                    "new_quantity": new_qty,
                 }
             )
 
@@ -207,28 +207,28 @@ async def build_pricelist_change_summary(
             if qty_diff < 0:
                 turnover_candidates.append(
                     {
-                        'autopart_id': autopart_id,
-                        'old_quantity': old_qty,
-                        'new_quantity': new_qty,
-                        'quantity_drop': abs(qty_diff),
-                        'old_price': old_price,
-                        'new_price': new_price,
+                        "autopart_id": autopart_id,
+                        "old_quantity": old_qty,
+                        "new_quantity": new_qty,
+                        "quantity_drop": abs(qty_diff),
+                        "old_price": old_price,
+                        "new_price": new_price,
                     }
                 )
 
     turnover_candidates.sort(
         key=lambda item: (
-            item['quantity_drop'],
-            item['old_quantity'],
-            item['autopart_id'],
+            item["quantity_drop"],
+            item["old_quantity"],
+            item["autopart_id"],
         ),
         reverse=True,
     )
     price_change_candidates.sort(
         key=lambda item: (
-            abs(item['price_diff_pct']),
-            abs(item['price_diff']),
-            item['autopart_id'],
+            abs(item["price_diff_pct"]),
+            abs(item["price_diff"]),
+            item["autopart_id"],
         ),
         reverse=True,
     )
@@ -237,10 +237,7 @@ async def build_pricelist_change_summary(
     top_price_changes = price_change_candidates[:top_n]
     autopart_details = await _get_autopart_details(
         session,
-        {
-            item['autopart_id']
-            for item in [*top_turnover, *top_price_changes]
-        },
+        {item["autopart_id"] for item in [*top_turnover, *top_price_changes]},
     )
 
     def enrich(
@@ -249,12 +246,12 @@ async def build_pricelist_change_summary(
     ) -> list[dict[str, Any]]:
         enriched_items = []
         for item in items:
-            details = autopart_details.get(item['autopart_id'], {})
+            details = autopart_details.get(item["autopart_id"], {})
             payload = {
-                'autopart_id': item['autopart_id'],
-                'oem_number': details.get('oem_number'),
-                'brand': details.get('brand'),
-                'name': details.get('name'),
+                "autopart_id": item["autopart_id"],
+                "oem_number": details.get("oem_number"),
+                "brand": details.get("brand"),
+                "name": details.get("name"),
             }
             for field in extra_fields:
                 payload[field] = item.get(field)
@@ -262,35 +259,35 @@ async def build_pricelist_change_summary(
         return enriched_items
 
     return {
-        'latest_pricelist_id': new_pl.id,
-        'latest_pricelist_date': new_pl.date,
-        'previous_pricelist_id': old_pl.id,
-        'previous_pricelist_date': old_pl.date,
-        'latest_positions_count': len(new_map),
-        'previous_positions_count': len(old_map),
-        'new_positions_count': len(new_positions),
-        'removed_positions_count': len(removed_positions),
-        'changed_price_count': changed_price_count,
-        'changed_quantity_count': changed_quantity_count,
-        'top_turnover_positions': enrich(
+        "latest_pricelist_id": new_pl.id,
+        "latest_pricelist_date": new_pl.date,
+        "previous_pricelist_id": old_pl.id,
+        "previous_pricelist_date": old_pl.date,
+        "latest_positions_count": len(new_map),
+        "previous_positions_count": len(old_map),
+        "new_positions_count": len(new_positions),
+        "removed_positions_count": len(removed_positions),
+        "changed_price_count": changed_price_count,
+        "changed_quantity_count": changed_quantity_count,
+        "top_turnover_positions": enrich(
             top_turnover,
             (
-                'old_quantity',
-                'new_quantity',
-                'quantity_drop',
-                'old_price',
-                'new_price',
+                "old_quantity",
+                "new_quantity",
+                "quantity_drop",
+                "old_price",
+                "new_price",
             ),
         ),
-        'sharpest_price_changes': enrich(
+        "sharpest_price_changes": enrich(
             top_price_changes,
             (
-                'old_price',
-                'new_price',
-                'price_diff',
-                'price_diff_pct',
-                'old_quantity',
-                'new_quantity',
+                "old_price",
+                "new_price",
+                "price_diff",
+                "price_diff_pct",
+                "old_quantity",
+                "new_quantity",
             ),
         ),
     }
@@ -307,43 +304,43 @@ async def get_pricelist_change_summary(
         provider_config_id=provider_config_id,
         session=session,
     )
-    logger.debug('Прайс-листов поставщика %s', len(recent_pricelists))
+    logger.debug("Прайс-листов поставщика %s", len(recent_pricelists))
     if not recent_pricelists:
         return {
-            'ready': False,
-            'latest_pricelist_id': None,
-            'latest_pricelist_date': None,
-            'previous_pricelist_id': None,
-            'previous_pricelist_date': None,
-            'latest_positions_count': 0,
-            'previous_positions_count': 0,
-            'new_positions_count': 0,
-            'removed_positions_count': 0,
-            'changed_price_count': 0,
-            'changed_quantity_count': 0,
-            'top_turnover_positions': [],
-            'sharpest_price_changes': [],
-            'note': 'Для этой конфигурации еще не загружено ни одного прайса.',
+            "ready": False,
+            "latest_pricelist_id": None,
+            "latest_pricelist_date": None,
+            "previous_pricelist_id": None,
+            "previous_pricelist_date": None,
+            "latest_positions_count": 0,
+            "previous_positions_count": 0,
+            "new_positions_count": 0,
+            "removed_positions_count": 0,
+            "changed_price_count": 0,
+            "changed_quantity_count": 0,
+            "top_turnover_positions": [],
+            "sharpest_price_changes": [],
+            "note": "Для этой конфигурации еще не загружено ни одного прайса.",
         }
 
     new_pl = recent_pricelists[0]
     old_pl = _get_previous_pricelist(new_pl, recent_pricelists)
     if old_pl is None:
         return {
-            'ready': False,
-            'latest_pricelist_id': new_pl.id,
-            'latest_pricelist_date': new_pl.date,
-            'previous_pricelist_id': None,
-            'previous_pricelist_date': None,
-            'latest_positions_count': len(_build_pricelist_map(new_pl)),
-            'previous_positions_count': 0,
-            'new_positions_count': 0,
-            'removed_positions_count': 0,
-            'changed_price_count': 0,
-            'changed_quantity_count': 0,
-            'top_turnover_positions': [],
-            'sharpest_price_changes': [],
-            'note': 'Нужны минимум два прайса для сравнения.',
+            "ready": False,
+            "latest_pricelist_id": new_pl.id,
+            "latest_pricelist_date": new_pl.date,
+            "previous_pricelist_id": None,
+            "previous_pricelist_date": None,
+            "latest_positions_count": len(_build_pricelist_map(new_pl)),
+            "previous_positions_count": 0,
+            "new_positions_count": 0,
+            "removed_positions_count": 0,
+            "changed_price_count": 0,
+            "changed_quantity_count": 0,
+            "top_turnover_positions": [],
+            "sharpest_price_changes": [],
+            "note": "Нужны минимум два прайса для сравнения.",
         }
 
     summary = await build_pricelist_change_summary(
@@ -352,8 +349,8 @@ async def get_pricelist_change_summary(
         session=session,
         top_n=top_n,
     )
-    summary['ready'] = True
-    summary['note'] = None
+    summary["ready"] = True
+    summary["note"] = None
     return summary
 
 
@@ -365,7 +362,7 @@ async def analyze_new_pricelist(new_pl: PriceList, session: AsyncSession):
       - изменение цены (в %)
       - изменение количества (в %)
     """
-    logger.debug('Зашли в функцию analyze_new_pricelist')
+    logger.debug("Зашли в функцию analyze_new_pricelist")
     provider_id = new_pl.provider_id
 
     summary = await get_pricelist_change_summary(
@@ -373,25 +370,25 @@ async def analyze_new_pricelist(new_pl: PriceList, session: AsyncSession):
         provider_id=provider_id,
         provider_config_id=new_pl.provider_config_id,
     )
-    if not summary['ready']:
+    if not summary["ready"]:
         logger.info(
-            'Недостаточно данных для анализа '
-            'provider_id=%s provider_config_id=%s: %s',
+            "Недостаточно данных для анализа "
+            "provider_id=%s provider_config_id=%s: %s",
             new_pl.provider_id,
             new_pl.provider_config_id,
-            summary['note'],
+            summary["note"],
         )
         return summary
 
     logger.info(
-        'Сводный анализ прайса provider_id=%s provider_config_id=%s: '
-        'новых=%s удаленных=%s изменено цен=%s изменено остатков=%s',
+        "Сводный анализ прайса provider_id=%s provider_config_id=%s: "
+        "новых=%s удаленных=%s изменено цен=%s изменено остатков=%s",
         new_pl.provider_id,
         new_pl.provider_config_id,
-        summary['new_positions_count'],
-        summary['removed_positions_count'],
-        summary['changed_price_count'],
-        summary['changed_quantity_count'],
+        summary["new_positions_count"],
+        summary["removed_positions_count"],
+        summary["changed_price_count"],
+        summary["changed_quantity_count"],
     )
     return summary
 
@@ -433,35 +430,35 @@ async def analyze_autopart_popularity(
     df = pd.DataFrame(
         result,
         columns=[
-            'autopart_id',
-            'quantity',
-            'created_at',
-            'oem_number',
-            'name',
+            "autopart_id",
+            "quantity",
+            "created_at",
+            "oem_number",
+            "name",
         ],
     )
 
     # 2. Группируем по запчасти и считаем "продажи" как уменьшение количества
     def count_quantity_drops(group):
-        group = group.sort_values('created_at')
-        group['qty_diff'] = group['quantity'].diff()
-        drops = group[group['qty_diff'] < 0]
+        group = group.sort_values("created_at")
+        group["qty_diff"] = group["quantity"].diff()
+        drops = group[group["qty_diff"] < 0]
         return pd.Series(
             {
-                'total_qty_sold': -drops['qty_diff'].sum(),
-                'times_qty_dropped': drops.shape[0],
-                'last_seen': group['created_at'].max(),
-                'last_quantity': group['quantity'].iloc[-1],
-                'name': group['name'].iloc[-1],
-                'oem_number': group['oem_number'].iloc[-1],
+                "total_qty_sold": -drops["qty_diff"].sum(),
+                "times_qty_dropped": drops.shape[0],
+                "last_seen": group["created_at"].max(),
+                "last_quantity": group["quantity"].iloc[-1],
+                "name": group["name"].iloc[-1],
+                "oem_number": group["oem_number"].iloc[-1],
             }
         )
 
     result_df = (
-        df.groupby('autopart_id').apply(count_quantity_drops).reset_index()
+        df.groupby("autopart_id").apply(count_quantity_drops).reset_index()
     )
 
-    result_df.sort_values(by='total_qty_sold', ascending=False, inplace=True)
+    result_df.sort_values(by="total_qty_sold", ascending=False, inplace=True)
 
     return result_df
 
@@ -469,35 +466,35 @@ async def analyze_autopart_popularity(
 def create_autopart_analysis_excel(df: pd.DataFrame) -> BytesIO:
     report_df = df[
         [
-            'oem_number',
-            'name',
-            'total_qty_sold',
-            'times_qty_dropped',
-            'last_quantity',
-            'last_seen',
+            "oem_number",
+            "name",
+            "total_qty_sold",
+            "times_qty_dropped",
+            "last_quantity",
+            "last_seen",
         ]
     ].rename(
         columns={
-            'oem_number': 'OEM номер',
-            'name': 'Название',
-            'total_qty_sold': 'Продано всего (шт)',
-            'times_qty_dropped': 'Сколько раз покупали',
-            'last_quantity': 'Остаток последний',
-            'last_seen': 'Последний раз в прайсе',
+            "oem_number": "OEM номер",
+            "name": "Название",
+            "total_qty_sold": "Продано всего (шт)",
+            "times_qty_dropped": "Сколько раз покупали",
+            "last_quantity": "Остаток последний",
+            "last_seen": "Последний раз в прайсе",
         }
     )
 
     output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
         report_df.to_excel(
-            writer, sheet_name='Популярные позиции', index=False
+            writer, sheet_name="Популярные позиции", index=False
         )
 
         # Форматирование столбцов
-        worksheet = writer.sheets['Популярные позиции']
+        worksheet = writer.sheets["Популярные позиции"]
         for column_cells in worksheet.columns:
             max_length = max(
-                len(str(cell.value or '')) for cell in column_cells
+                len(str(cell.value or "")) for cell in column_cells
             )
             worksheet.column_dimensions[
                 column_cells[0].column_letter
@@ -517,7 +514,7 @@ async def analyze_autopart_allprices(
     if not autoparts:
         raise HTTPException(
             status_code=404,
-            detail='Запчасти по этому артикулу не найдены',
+            detail="Запчасти по этому артикулу не найдены",
         )
 
     autopart_ids = [ap.id for ap in autoparts]
@@ -528,7 +525,7 @@ async def analyze_autopart_allprices(
             AutoPartPriceHistory.created_at,
             AutoPartPriceHistory.price,
             AutoPartPriceHistory.quantity,
-            Provider.name.label('provider'),
+            Provider.name.label("provider"),
         )
         .join(Provider, Provider.id == AutoPartPriceHistory.provider_id)
         .where(
@@ -546,16 +543,16 @@ async def analyze_autopart_allprices(
     if not rows:
         raise HTTPException(
             status_code=404,
-            detail='Нет данных по этому артикулу в указанный период',
+            detail="Нет данных по этому артикулу в указанный период",
         )
 
     df = pd.DataFrame(
         rows,
-        columns=['created_at', 'price', 'quantity', 'provider'],
+        columns=["created_at", "price", "quantity", "provider"],
     )
-    df['created_at'] = pd.to_datetime(df['created_at'])
-    df['price'] = pd.to_numeric(df['price'], errors='coerce')
-    df['quantity'] = pd.to_numeric(df['quantity'], errors='coerce')
+    df["created_at"] = pd.to_datetime(df["created_at"])
+    df["price"] = pd.to_numeric(df["price"], errors="coerce")
+    df["quantity"] = pd.to_numeric(df["quantity"], errors="coerce")
 
     return df
 
@@ -570,7 +567,7 @@ def _align_timestamp_to_history_timezone(
         return timestamp
 
     sample = sample_series.iloc[0]
-    sample_tz = getattr(sample, 'tzinfo', None)
+    sample_tz = getattr(sample, "tzinfo", None)
     if sample_tz is None:
         if timestamp.tzinfo is not None:
             return timestamp.tz_localize(None)
@@ -586,42 +583,42 @@ def prepare_price_history_plot_data(
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     if df.empty:
         empty = df.copy()
-        empty['is_projection'] = pd.Series(dtype=bool)
+        empty["is_projection"] = pd.Series(dtype=bool)
         return empty.copy(), empty.copy(), empty.copy()
 
     actual_df = df.copy()
-    actual_df['created_at'] = pd.to_datetime(actual_df['created_at'])
-    actual_df['price'] = pd.to_numeric(actual_df['price'], errors='coerce')
-    actual_df['quantity'] = pd.to_numeric(
-        actual_df['quantity'], errors='coerce'
+    actual_df["created_at"] = pd.to_datetime(actual_df["created_at"])
+    actual_df["price"] = pd.to_numeric(actual_df["price"], errors="coerce")
+    actual_df["quantity"] = pd.to_numeric(
+        actual_df["quantity"], errors="coerce"
     ).fillna(0)
-    actual_df = actual_df.sort_values(
-        ['provider', 'created_at']
-    ).reset_index(drop=True)
-    actual_df['is_projection'] = False
+    actual_df = actual_df.sort_values(["provider", "created_at"]).reset_index(
+        drop=True
+    )
+    actual_df["is_projection"] = False
 
     finish_ts = _align_timestamp_to_history_timezone(
-        range_finish, actual_df['created_at']
+        range_finish, actual_df["created_at"]
     )
 
     projection_rows: list[dict[str, Any]] = []
-    for _, provider_df in actual_df.groupby('provider', sort=False):
+    for _, provider_df in actual_df.groupby("provider", sort=False):
         last_row = provider_df.iloc[-1]
-        if finish_ts <= last_row['created_at']:
+        if finish_ts <= last_row["created_at"]:
             continue
         projection_row = last_row.to_dict()
-        projection_row['created_at'] = finish_ts
-        projection_row['is_projection'] = True
+        projection_row["created_at"] = finish_ts
+        projection_row["is_projection"] = True
         projection_rows.append(projection_row)
 
     if projection_rows:
         projection_df = pd.DataFrame(projection_rows)
         step_df = pd.concat(
             [actual_df, projection_df], ignore_index=True
-        ).sort_values(['provider', 'created_at', 'is_projection'])
+        ).sort_values(["provider", "created_at", "is_projection"])
         step_df = step_df.reset_index(drop=True)
     else:
         step_df = actual_df.copy()
 
-    stockout_df = actual_df[actual_df['quantity'] <= 0].copy()
+    stockout_df = actual_df[actual_df["quantity"] <= 0].copy()
     return actual_df, step_df, stockout_df

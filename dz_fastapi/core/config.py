@@ -3,30 +3,40 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_title: str = 'Приложения для работы DragonZap'
-    app_description: str = 'Проект DragonZap на FastAPI'
-    database_url: str = Field(..., validation_alias='DATABASE_URL')
-    test_database_url: str = Field(
-        ..., validation_alias='TEST_DATABASE_URL'
-    )
-    asyncpg_dsn: str = Field(..., validation_alias='ASYNCPG_DSN')
+    app_title: str = "Приложения для работы DragonZap"
+    app_description: str = "Проект DragonZap на FastAPI"
+    database_url: str = Field(..., validation_alias="DATABASE_URL")
+    test_database_url: str = Field(..., validation_alias="TEST_DATABASE_URL")
+    asyncpg_dsn: str = Field(..., validation_alias="ASYNCPG_DSN")
     use_test_db: bool = False
     database_echo: bool = False
-    jwt_secret: str = Field(
-        'change-me', validation_alias='JWT_SECRET'
-    )
-    jwt_algorithm: str = 'HS256'
+    jwt_secret: str = Field("change-me", validation_alias="JWT_SECRET")
+    jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 60 * 24
-    auth_cookie_name: str = 'access_token'
+    auth_cookie_name: str = "access_token"
     auth_cookie_secure: bool = False
-    api_docs_enabled: bool = Field(
-        False, validation_alias='API_DOCS_ENABLED'
+    api_docs_enabled: bool = Field(False, validation_alias="API_DOCS_ENABLED")
+    admin_email: str | None = Field(None, validation_alias="ADMIN_EMAIL")
+    admin_password: str | None = Field(None, validation_alias="ADMIN_PASSWORD")
+    diadoc_client_id: str | None = Field(
+        None, validation_alias="DIADOC_CLIENT_ID"
     )
-    admin_email: str | None = Field(
-        None, validation_alias='ADMIN_EMAIL'
+    diadoc_client_secret: str | None = Field(
+        None, validation_alias="DIADOC_CLIENT_SECRET"
     )
-    admin_password: str | None = Field(
-        None, validation_alias='ADMIN_PASSWORD'
+    diadoc_oauth_redirect_uri: str | None = Field(
+        None, validation_alias="DIADOC_OAUTH_REDIRECT_URI"
+    )
+    diadoc_api_base_url: str = Field(
+        "https://diadoc-api.kontur.ru",
+        validation_alias="DIADOC_API_BASE_URL",
+    )
+    diadoc_oidc_base_url: str = Field(
+        "https://identity.kontur.ru",
+        validation_alias="DIADOC_OIDC_BASE_URL",
+    )
+    diadoc_default_environment: str = Field(
+        "staging", validation_alias="DIADOC_DEFAULT_ENVIRONMENT"
     )
 
     model_config = SettingsConfigDict(

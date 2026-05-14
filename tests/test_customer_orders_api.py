@@ -5,15 +5,21 @@ import pytest
 from sqlalchemy import select
 
 from dz_fastapi.core.time import now_moscow
-from dz_fastapi.models.inventory import (StockByLocation, StockMovement,
-                                         Warehouse)
-from dz_fastapi.models.partner import (ORDER_TRACKING_SOURCE,
-                                       SUPPLIER_ORDER_STATUS,
-                                       TYPE_ORDER_ITEM_STATUS,
-                                       TYPE_STATUS_ORDER, CustomerOrder,
-                                       CustomerOrderItem, Order, OrderItem,
-                                       StockOrder, StockOrderItem,
-                                       SupplierOrder, SupplierOrderItem)
+from dz_fastapi.models.inventory import StockByLocation, StockMovement, Warehouse
+from dz_fastapi.models.partner import (
+    ORDER_TRACKING_SOURCE,
+    SUPPLIER_ORDER_STATUS,
+    TYPE_ORDER_ITEM_STATUS,
+    TYPE_STATUS_ORDER,
+    CustomerOrder,
+    CustomerOrderItem,
+    Order,
+    OrderItem,
+    StockOrder,
+    StockOrderItem,
+    SupplierOrder,
+    SupplierOrderItem,
+)
 from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.services.auth import get_password_hash
 
@@ -40,9 +46,7 @@ async def _login(async_client, email: str):
 
 
 @pytest.mark.asyncio
-async def test_customer_order_config_crud(
-    async_client, test_session, created_customers
-):
+async def test_customer_order_config_crud(async_client, test_session, created_customers):
     await _create_user(test_session, "manager@example.com", UserRole.MANAGER)
     await _login(async_client, "manager@example.com")
 
@@ -171,23 +175,13 @@ async def test_customer_order_item_stats_monthly_breakdown(
     assert payload["all_customers_summary"]["total_requested_qty"] == 7
     assert len(payload["current_customer_monthly"]) == 3
     assert len(payload["all_customers_monthly"]) == 3
-    assert (
-        payload["current_customer_recent"][0]["requested_price"]
-        == "2325.00"
-    )
+    assert payload["current_customer_recent"][0]["requested_price"] == "2325.00"
     assert payload["all_customers_recent"][0]["customer_id"] == customer.id
 
-    monthly_all = {
-        row["month"]: row for row in payload["all_customers_monthly"]
-    }
+    monthly_all = {row["month"]: row for row in payload["all_customers_monthly"]}
+    assert monthly_all[date(now.year, now.month, 1).isoformat()]["orders_count"] == 1
     assert (
-        monthly_all[date(now.year, now.month, 1).isoformat()]["orders_count"]
-        == 1
-    )
-    assert (
-        monthly_all[
-            date(previous_month.year, previous_month.month, 1).isoformat()
-        ]["orders_count"]
+        monthly_all[date(previous_month.year, previous_month.month, 1).isoformat()]["orders_count"]
         == 2
     )
 
@@ -243,9 +237,7 @@ async def test_supplier_order_list_rejected_pct_uses_order_value_base(
     created_customers,
     created_providers,
 ):
-    await _create_user(
-        test_session, "supplier-list@example.com", UserRole.MANAGER
-    )
+    await _create_user(test_session, "supplier-list@example.com", UserRole.MANAGER)
     await _login(async_client, "supplier-list@example.com")
 
     customer_order = CustomerOrder(
@@ -494,9 +486,7 @@ async def test_supplier_receipt_zero_quantity_marks_explicit_refusal(
     created_customers,
     created_providers,
 ):
-    await _create_user(
-        test_session, "receiver-refusal@example.com", UserRole.MANAGER
-    )
+    await _create_user(test_session, "receiver-refusal@example.com", UserRole.MANAGER)
     await _login(async_client, "receiver-refusal@example.com")
 
     customer_order = CustomerOrder(
@@ -587,9 +577,7 @@ async def test_manual_supplier_receipt_auto_links_site_tracking_item(
     created_customers,
     created_providers,
 ):
-    await _create_user(
-        test_session, "receiver-site@example.com", UserRole.MANAGER
-    )
+    await _create_user(test_session, "receiver-site@example.com", UserRole.MANAGER)
     await _login(async_client, "receiver-site@example.com")
 
     order = Order(
@@ -673,9 +661,7 @@ async def test_manual_supplier_receipt_post_creates_stock_in_default_warehouse(
     created_autopart,
     created_providers,
 ):
-    await _create_user(
-        test_session, "receiver-stock@example.com", UserRole.MANAGER
-    )
+    await _create_user(test_session, "receiver-stock@example.com", UserRole.MANAGER)
     await _login(async_client, "receiver-stock@example.com")
 
     response = await async_client.post(
@@ -708,25 +694,27 @@ async def test_manual_supplier_receipt_post_creates_stock_in_default_warehouse(
 
     stock_row = (
         await test_session.execute(
-            select(StockByLocation).where(
-                StockByLocation.autopart_id == created_autopart.id
-            )
+            select(StockByLocation).where(StockByLocation.autopart_id == created_autopart.id)
         )
     ).scalar_one_or_none()
     assert stock_row is not None
     assert stock_row.quantity == 4
 
     movement = (
-        await test_session.execute(
-            select(StockMovement)
-            .where(
-                StockMovement.autopart_id == created_autopart.id,
-                StockMovement.reference_type == "supplier_receipt",
-                StockMovement.reference_id == payload["id"],
+        (
+            await test_session.execute(
+                select(StockMovement)
+                .where(
+                    StockMovement.autopart_id == created_autopart.id,
+                    StockMovement.reference_type == "supplier_receipt",
+                    StockMovement.reference_id == payload["id"],
+                )
+                .order_by(StockMovement.id.desc())
             )
-            .order_by(StockMovement.id.desc())
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     assert movement is not None
     assert movement.quantity == 4
 
@@ -770,9 +758,7 @@ async def test_process_supplier_responses_endpoint(
     from dz_fastapi.api import customer_order as customer_order_api
 
     original = customer_order_api.process_supplier_response_messages
-    customer_order_api.process_supplier_response_messages = (
-        fake_process_supplier_response_messages
-    )
+    customer_order_api.process_supplier_response_messages = fake_process_supplier_response_messages
     try:
         response = await async_client.post(
             "/customer-orders/supplier/process-responses",

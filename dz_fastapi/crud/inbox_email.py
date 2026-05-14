@@ -7,15 +7,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.inbox_email import EmailRulePattern, InboxEmail
-from dz_fastapi.models.partner import (CustomerOrderConfig, Provider,
-                                       SupplierResponseConfig)
+from dz_fastapi.models.partner import CustomerOrderConfig, Provider, SupplierResponseConfig
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
 
 # ---------------------------------------------------------------------------
 # InboxEmail CRUD
 # ---------------------------------------------------------------------------
+
 
 async def get_inbox_email(
     session: AsyncSession, email_id: int
@@ -47,14 +47,14 @@ async def list_inbox_emails(
         filters.append(InboxEmail.email_account_id == email_account_id)
     if only_unprocessed:
         filters.append(InboxEmail.rule_type.is_(None))
-    normalized_subject = (subject_contains or '').strip()
+    normalized_subject = (subject_contains or "").strip()
     if normalized_subject:
-        filters.append(InboxEmail.subject.ilike(f'%{normalized_subject}%'))
+        filters.append(InboxEmail.subject.ilike(f"%{normalized_subject}%"))
 
-    normalized_sender = (sender_contains or '').strip().lower()
+    normalized_sender = (sender_contains or "").strip().lower()
     if normalized_sender:
         filters.append(
-            func.lower(InboxEmail.from_email).like(f'%{normalized_sender}%')
+            func.lower(InboxEmail.from_email).like(f"%{normalized_sender}%")
         )
 
     has_partner_filter = customer_id is not None or provider_id is not None
@@ -93,9 +93,9 @@ def _normalize_email_set(value: object) -> Set[str]:
     if value is None:
         return set()
     if isinstance(value, str):
-        chunks = value.split(',')
+        chunks = value.split(",")
     elif isinstance(value, (list, tuple, set)):
-        chunks = [str(item or '') for item in value]
+        chunks = [str(item or "") for item in value]
     else:
         chunks = [str(value)]
 
@@ -173,9 +173,7 @@ async def exists_inbox_email(
     if folder is not None:
         filters.append(InboxEmail.folder == folder)
     result = await session.execute(
-        select(func.count())
-        .select_from(InboxEmail)
-        .where(and_(*filters))
+        select(func.count()).select_from(InboxEmail).where(and_(*filters))
     )
     return result.scalar_one() > 0
 
@@ -263,6 +261,7 @@ async def cleanup_old_inbox_emails(
 # ---------------------------------------------------------------------------
 # EmailRulePattern CRUD
 # ---------------------------------------------------------------------------
+
 
 async def list_rule_patterns(
     session: AsyncSession,
@@ -357,9 +356,7 @@ async def increment_pattern_confirmed(
     await session.flush()
 
 
-async def delete_rule_pattern(
-    session: AsyncSession, pattern_id: int
-) -> bool:
+async def delete_rule_pattern(session: AsyncSession, pattern_id: int) -> bool:
     pattern = await get_rule_pattern(session, pattern_id)
     if not pattern:
         return False
@@ -388,9 +385,9 @@ async def find_matching_pattern(
     )
 
     from_domain = (
-        from_email.split('@')[-1].lower() if '@' in from_email else ''
+        from_email.split("@")[-1].lower() if "@" in from_email else ""
     )
-    subject_lower = subject.lower() if subject else ''
+    subject_lower = subject.lower() if subject else ""
 
     for pattern in patterns:
         # Проверка from_email

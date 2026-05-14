@@ -1,14 +1,17 @@
 import os
 
 import aiohttp
+from aiohttp import ClientTimeout
 
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_TOKEN')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_TO')
+TELEGRAM_REQUEST_TIMEOUT = ClientTimeout(total=30)
+
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_TO")
 TELEGRAM_DOC_URL = (
-    f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendDocument'
+    f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendDocument"
 )
 TELEGRAM_MSG_URL = (
-    f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
+    f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
 )
 
 
@@ -24,25 +27,27 @@ async def send_file_to_telegram(
     :param caption: сообщение к файлу
     """
     if not TELEGRAM_BOT_TOKEN:
-        raise Exception('TELEGRAM_TOKEN is not configured')
+        raise Exception("TELEGRAM_TOKEN is not configured")
     data = aiohttp.FormData()
-    data.add_field('chat_id', chat_id)
-    data.add_field('caption', caption)
+    data.add_field("chat_id", chat_id)
+    data.add_field("caption", caption)
     data.add_field(
-        'document',
+        "document",
         file_bytes,
         filename=file_name,
         content_type=(
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         ),
     )
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(
+        timeout=TELEGRAM_REQUEST_TIMEOUT
+    ) as session:
         async with session.post(TELEGRAM_DOC_URL, data=data) as response:
             if response.status != 200:
                 error_text = await response.text()
                 raise Exception(
-                    f'Ошибка отправки в Telegram: '
-                    f'{response.status} — {error_text}'
+                    f"Ошибка отправки в Telegram: "
+                    f"{response.status} — {error_text}"
                 )
 
 
@@ -52,21 +57,23 @@ async def send_message_to_telegram(
     parse_mode: str | None = None,
 ):
     if not TELEGRAM_BOT_TOKEN:
-        raise Exception('TELEGRAM_TOKEN is not configured')
+        raise Exception("TELEGRAM_TOKEN is not configured")
     chat_id = chat_id or TELEGRAM_CHAT_ID
     if not chat_id:
-        raise Exception('TELEGRAM_TO is not configured')
+        raise Exception("TELEGRAM_TO is not configured")
     payload = {
-        'chat_id': chat_id,
-        'text': text,
+        "chat_id": chat_id,
+        "text": text,
     }
     if parse_mode:
-        payload['parse_mode'] = parse_mode
-    async with aiohttp.ClientSession() as session:
+        payload["parse_mode"] = parse_mode
+    async with aiohttp.ClientSession(
+        timeout=TELEGRAM_REQUEST_TIMEOUT
+    ) as session:
         async with session.post(TELEGRAM_MSG_URL, data=payload) as response:
             if response.status != 200:
                 error_text = await response.text()
                 raise Exception(
-                    f'Ошибка отправки в Telegram: '
-                    f'{response.status} — {error_text}'
+                    f"Ошибка отправки в Telegram: "
+                    f"{response.status} — {error_text}"
                 )

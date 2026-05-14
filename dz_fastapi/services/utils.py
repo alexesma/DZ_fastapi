@@ -7,35 +7,35 @@ import pandas as pd
 
 from dz_fastapi.models.partner import CustomerPriceListAutoPartAssociation
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
-_CYR_RE = re.compile(r'[А-Яа-яЁё]')
-_LAT_RE = re.compile(r'[A-Za-z]')
+_CYR_RE = re.compile(r"[А-Яа-яЁё]")
+_LAT_RE = re.compile(r"[A-Za-z]")
 _LAT_TO_CYR = str.maketrans(
     {
-        'A': 'А',
-        'a': 'а',
-        'B': 'В',
-        'E': 'Е',
-        'e': 'е',
-        'K': 'К',
-        'k': 'к',
-        'M': 'М',
-        'm': 'м',
-        'H': 'Н',
-        'h': 'н',
-        'O': 'О',
-        'o': 'о',
-        'P': 'Р',
-        'p': 'р',
-        'C': 'С',
-        'c': 'с',
-        'T': 'Т',
-        't': 'т',
-        'X': 'Х',
-        'x': 'х',
-        'Y': 'У',
-        'y': 'у',
+        "A": "А",
+        "a": "а",
+        "B": "В",
+        "E": "Е",
+        "e": "е",
+        "K": "К",
+        "k": "к",
+        "M": "М",
+        "m": "м",
+        "H": "Н",
+        "h": "н",
+        "O": "О",
+        "o": "о",
+        "P": "Р",
+        "p": "р",
+        "C": "С",
+        "c": "с",
+        "T": "Т",
+        "t": "т",
+        "X": "Х",
+        "x": "х",
+        "Y": "У",
+        "y": "у",
     }
 )
 
@@ -59,39 +59,39 @@ def individual_markups(
 ) -> pd.DataFrame:
     for provider_id, markup in individual_markups.items():
         multiplier = normalize_markup(markup)
-        df.loc[df['provider_id'] == int(provider_id), 'price'] *= multiplier
+        df.loc[df["provider_id"] == int(provider_id), "price"] *= multiplier
     return df
 
 
 def price_intervals(price_intervals: dict, df: pd.DataFrame) -> pd.DataFrame:
     for interval in price_intervals or []:
         if isinstance(interval, dict):
-            min_price = float(interval.get('min_price', 0))
-            max_price = float(interval.get('max_price', 0))
-            coefficient = normalize_markup(interval.get('coefficient'))
+            min_price = float(interval.get("min_price", 0))
+            max_price = float(interval.get("max_price", 0))
+            coefficient = normalize_markup(interval.get("coefficient"))
         else:
             min_price = float(interval.min_price)
             max_price = float(interval.max_price)
             coefficient = normalize_markup(interval.coefficient)
         df.loc[
-            (df['price'] >= min_price) & (df['price'] <= max_price), 'price'
+            (df["price"] >= min_price) & (df["price"] <= max_price), "price"
         ] *= coefficient
     return df
 
 
 def brand_filters(brand_filters: dict, df: pd.DataFrame) -> pd.DataFrame:
-    if brand_filters.get('type') == 'exclude':
-        df = df[~df['brand_id'].isin(brand_filters.get('brands', []))]
-    elif brand_filters.get('type') == 'include':
-        df = df[df['brand_id'].isin(brand_filters.get('brands', []))]
+    if brand_filters.get("type") == "exclude":
+        df = df[~df["brand_id"].isin(brand_filters.get("brands", []))]
+    elif brand_filters.get("type") == "include":
+        df = df[df["brand_id"].isin(brand_filters.get("brands", []))]
     return df
 
 
 def position_filters(position_filters: dict, df: pd.DataFrame) -> pd.DataFrame:
-    if position_filters.get('type') == 'exclude':
-        df = df[~df['autopart_id'].isin(position_filters.get('autoparts', []))]
-    elif position_filters.get('type') == 'include':
-        df = df[df['autopart_id'].isin(position_filters.get('autoparts', []))]
+    if position_filters.get("type") == "exclude":
+        df = df[~df["autopart_id"].isin(position_filters.get("autoparts", []))]
+    elif position_filters.get("type") == "include":
+        df = df[df["autopart_id"].isin(position_filters.get("autoparts", []))]
     return df
 
 
@@ -103,9 +103,9 @@ def supplier_quantity_filters(
     combined_mask = pd.Series(False, index=df.index)
     for supplier_filter in supplier_quantity_filters or []:
         if isinstance(supplier_filter, dict):
-            provider_id = supplier_filter.get('provider_id')
-            min_qty = supplier_filter.get('min_quantity')
-            max_qty = supplier_filter.get('max_quantity')
+            provider_id = supplier_filter.get("provider_id")
+            min_qty = supplier_filter.get("min_quantity")
+            max_qty = supplier_filter.get("max_quantity")
         else:
             provider_id = supplier_filter.provider_id
             min_qty = supplier_filter.min_quantity
@@ -113,9 +113,9 @@ def supplier_quantity_filters(
         if provider_id is None or min_qty is None or max_qty is None:
             continue
         mask = (
-            (df['provider_id'] == provider_id)
-            & (df['quantity'] >= min_qty)
-            & (df['quantity'] <= max_qty)
+            (df["provider_id"] == provider_id)
+            & (df["quantity"] >= min_qty)
+            & (df["quantity"] <= max_qty)
         )
         combined_mask |= mask
     return df[combined_mask]
@@ -134,8 +134,8 @@ def position_exclude(
     :return: Отфильтрованный DataFrame.
     """
     mask = ~(
-        (df['provider_id'] == provider_id)
-        & (df['autopart_id'].isin(excluded_autoparts))
+        (df["provider_id"] == provider_id)
+        & (df["autopart_id"].isin(excluded_autoparts))
     )
     return df[mask]
 
@@ -156,13 +156,13 @@ def prepare_excel_data(
         autopart = assoc.autopart
         excel_data.append(
             {
-                'Производитель': (
+                "Производитель": (
                     autopart.brand.name if autopart.brand else None
                 ),
-                'Наименование': autopart.name,
-                'Артикул': autopart.oem_number,
-                'Количество': assoc.quantity,
-                'Цена': assoc.price,
+                "Наименование": autopart.name,
+                "Артикул": autopart.oem_number,
+                "Количество": assoc.quantity,
+                "Цена": assoc.price,
             }
         )
     return pd.DataFrame(excel_data)
@@ -221,17 +221,17 @@ async def compare_pricelists(old_pl, new_pl, qty_diff_threshold: int = 3):
             # Логируем, если что-то существенно изменилось
             if price_diff_pct != 0 or qty_diff_pct != 0:
                 logger.info(
-                    f'[PriceListCompare] OEM={key[0]}, Brand={key[1]}. '
-                    f'OldPrice={old_price}, NewPrice={new_price}, '
-                    f'ΔPrice={price_diff_pct:.2f}%. '
-                    f'OldQty={old_qty}, NewQty={new_qty}, '
-                    f'ΔQty={qty_diff_pct:.2f}%.'
+                    f"[PriceListCompare] OEM={key[0]}, Brand={key[1]}. "
+                    f"OldPrice={old_price}, NewPrice={new_price}, "
+                    f"ΔPrice={price_diff_pct:.2f}%. "
+                    f"OldQty={old_qty}, NewQty={new_qty}, "
+                    f"ΔQty={qty_diff_pct:.2f}%."
                 )
         else:
             # Позиция новая, раньше её не было
             logger.info(
-                f'[PriceListCompare] New item: OEM={key[0]}, '
-                f'Brand={key[1]} - Price={new_price}, Qty={new_qty}'
+                f"[PriceListCompare] New item: OEM={key[0]}, "
+                f"Brand={key[1]} - Price={new_price}, Qty={new_qty}"
             )
 
     # Если хотите, можно проверить также позиции,
@@ -240,14 +240,14 @@ async def compare_pricelists(old_pl, new_pl, qty_diff_threshold: int = 3):
     for key, (old_price, old_qty) in old_map.items():
         if key not in new_map:
             logger.info(
-                f'[PriceListCompare] Item removed from '
-                f'new PL: OEM={key[0]}, Brand={key[1]}. '
-                f'OldPrice={old_price}, OldQty={old_qty}'
+                f"[PriceListCompare] Item removed from "
+                f"new PL: OEM={key[0]}, Brand={key[1]}. "
+                f"OldPrice={old_price}, OldQty={old_qty}"
             )
 
 
 def normalize_str(name: str) -> str:
-    return unicodedata.normalize('NFC', name)
+    return unicodedata.normalize("NFC", name)
 
 
 def normalize_mixed_cyrillic(text: str) -> str:
@@ -257,10 +257,10 @@ def normalize_mixed_cyrillic(text: str) -> str:
     if not value:
         return value
 
-    tokens = re.findall(r'[A-Za-zА-Яа-яЁё0-9]+|[^A-Za-zА-Яа-яЁё0-9]+', value)
+    tokens = re.findall(r"[A-Za-zА-Яа-яЁё0-9]+|[^A-Za-zА-Яа-яЁё0-9]+", value)
     normalized_tokens = []
     for token in tokens:
-        if not re.search(r'[A-Za-zА-Яа-яЁё]', token):
+        if not re.search(r"[A-Za-zА-Яа-яЁё]", token):
             normalized_tokens.append(token)
             continue
 
@@ -274,4 +274,4 @@ def normalize_mixed_cyrillic(text: str) -> str:
         converted = converted.lower()
         normalized_tokens.append(converted.capitalize())
 
-    return ''.join(normalized_tokens)
+    return "".join(normalized_tokens)

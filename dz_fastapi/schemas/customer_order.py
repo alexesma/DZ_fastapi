@@ -2,14 +2,15 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Literal, Optional
 
-from pydantic import (BaseModel, ConfigDict, EmailStr, Field, field_serializer,
-                      field_validator)
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_serializer, field_validator
 
-from dz_fastapi.models.partner import (CUSTOMER_ORDER_ITEM_STATUS,
-                                       CUSTOMER_ORDER_SHIP_MODE,
-                                       CUSTOMER_ORDER_STATUS,
-                                       STOCK_ORDER_STATUS,
-                                       SUPPLIER_ORDER_STATUS)
+from dz_fastapi.models.partner import (
+    CUSTOMER_ORDER_ITEM_STATUS,
+    CUSTOMER_ORDER_SHIP_MODE,
+    CUSTOMER_ORDER_STATUS,
+    STOCK_ORDER_STATUS,
+    SUPPLIER_ORDER_STATUS,
+)
 from dz_fastapi.schemas.autopart import AutoPartResponse
 
 ORDER_CONFIG_COLUMN_FIELDS = (

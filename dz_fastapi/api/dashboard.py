@@ -11,11 +11,17 @@ from sqlalchemy.orm import aliased
 from dz_fastapi.api.deps import require_admin
 from dz_fastapi.core.db import get_session
 from dz_fastapi.core.time import now_moscow
-from dz_fastapi.models.partner import (PriceList, PriceListAutoPartAssociation,
-                                       Provider, ProviderPriceListConfig)
-from dz_fastapi.schemas.dashboard import (SupplierPriceTrendPoint,
-                                          SupplierPriceTrendResponse,
-                                          SupplierPriceTrendSeries)
+from dz_fastapi.models.partner import (
+    PriceList,
+    PriceListAutoPartAssociation,
+    Provider,
+    ProviderPriceListConfig,
+)
+from dz_fastapi.schemas.dashboard import (
+    SupplierPriceTrendPoint,
+    SupplierPriceTrendResponse,
+    SupplierPriceTrendSeries,
+)
 
 router = APIRouter()
 
@@ -77,8 +83,7 @@ def _rolling_median(
             continue
         start = max(0, idx - window + 1)
         segment = [
-            item for item in values[start: idx + 1]
-            if item is not None
+            item for item in values[start:idx + 1] if item is not None
         ]
         if not segment:
             result.append(None)
@@ -88,8 +93,8 @@ def _rolling_median(
 
 
 @router.get(
-    '/dashboard/supplier-price-trends',
-    tags=['dashboard'],
+    "/dashboard/supplier-price-trends",
+    tags=["dashboard"],
     status_code=status.HTTP_200_OK,
     response_model=SupplierPriceTrendResponse,
     dependencies=[Depends(require_admin)],
@@ -103,16 +108,18 @@ async def get_supplier_price_trends(
 ):
     start_date = now_moscow().date() - timedelta(days=days - 1)
     ranked_stmt = select(
-        PriceList.id.label('pricelist_id'),
-        PriceList.provider_config_id.label('provider_config_id'),
-        PriceList.date.label('price_date'),
-        func.row_number().over(
+        PriceList.id.label("pricelist_id"),
+        PriceList.provider_config_id.label("provider_config_id"),
+        PriceList.date.label("price_date"),
+        func.row_number()
+        .over(
             partition_by=PriceList.provider_config_id,
             order_by=(
                 PriceList.date.desc().nullslast(),
                 PriceList.id.desc(),
             ),
-        ).label('rn'),
+        )
+        .label("rn"),
     ).where(
         PriceList.provider_config_id.is_not(None),
         PriceList.date >= start_date,
@@ -153,8 +160,8 @@ async def get_supplier_price_trends(
         provider_config_id = int(row.provider_config_id)
         points_by_provider[provider_config_id].append(
             {
-                'pricelist_id': pricelist_id,
-                'date': row.price_date,
+                "pricelist_id": pricelist_id,
+                "date": row.price_date,
             }
         )
         pricelist_ids.append(pricelist_id)
@@ -162,15 +169,15 @@ async def get_supplier_price_trends(
     metric_stmt = (
         select(
             PriceListAutoPartAssociation.pricelist_id,
-            func.count().filter(
-                PriceListAutoPartAssociation.quantity > 0
-            ).label('sku_count'),
-            func.sum(PriceListAutoPartAssociation.quantity).filter(
-                PriceListAutoPartAssociation.quantity > 0
-            ).label('stock_total_qty'),
-            func.avg(PriceListAutoPartAssociation.price).filter(
-                PriceListAutoPartAssociation.quantity > 0
-            ).label('avg_price'),
+            func.count()
+            .filter(PriceListAutoPartAssociation.quantity > 0)
+            .label("sku_count"),
+            func.sum(PriceListAutoPartAssociation.quantity)
+            .filter(PriceListAutoPartAssociation.quantity > 0)
+            .label("stock_total_qty"),
+            func.avg(PriceListAutoPartAssociation.price)
+            .filter(PriceListAutoPartAssociation.quantity > 0)
+            .label("avg_price"),
         )
         .where(PriceListAutoPartAssociation.pricelist_id.in_(pricelist_ids))
         .group_by(PriceListAutoPartAssociation.pricelist_id)
@@ -178,9 +185,9 @@ async def get_supplier_price_trends(
     metric_rows = (await session.execute(metric_stmt)).all()
     metric_map = {
         int(row.pricelist_id): {
-            'sku_count': int(row.sku_count or 0),
-            'stock_total_qty': int(row.stock_total_qty or 0),
-            'avg_price': _to_float(row.avg_price),
+            "sku_count": int(row.sku_count or 0),
+            "stock_total_qty": int(row.stock_total_qty or 0),
+            "avg_price": _to_float(row.avg_price),
         }
         for row in metric_rows
     }
@@ -190,8 +197,8 @@ async def get_supplier_price_trends(
         select(
             ProviderPriceListConfig.id,
             ProviderPriceListConfig.name_price,
-            Provider.id.label('provider_id'),
-            Provider.name.label('provider_name'),
+            Provider.id.label("provider_id"),
+            Provider.name.label("provider_name"),
         )
         .join(Provider, Provider.id == ProviderPriceListConfig.provider_id)
         .where(ProviderPriceListConfig.id.in_(provider_ids))
@@ -199,9 +206,9 @@ async def get_supplier_price_trends(
     provider_rows = (await session.execute(provider_stmt)).all()
     provider_map = {
         int(row.id): {
-            'provider_id': int(row.provider_id),
-            'provider_name': row.provider_name,
-            'provider_config_name': row.name_price,
+            "provider_id": int(row.provider_id),
+            "provider_name": row.provider_name,
+            "provider_config_name": row.name_price,
         }
         for row in provider_rows
     }
@@ -211,21 +218,21 @@ async def get_supplier_price_trends(
     for provider_config_id, raw_points in points_by_provider.items():
         ordered_points = sorted(
             raw_points,
-            key=lambda item: (item['date'], item['pricelist_id']),
+            key=lambda item: (item["date"], item["pricelist_id"]),
         )
         points: list[SupplierPriceTrendPoint] = []
         prev_item = None
         for item in ordered_points:
-            pricelist_id = int(item['pricelist_id'])
+            pricelist_id = int(item["pricelist_id"])
             metric = metric_map.get(pricelist_id, {})
-            sku_count = int(metric.get('sku_count', 0))
-            stock_total_qty = int(metric.get('stock_total_qty', 0))
-            avg_price = metric.get('avg_price')
+            sku_count = int(metric.get("sku_count", 0))
+            stock_total_qty = int(metric.get("stock_total_qty", 0))
+            avg_price = metric.get("avg_price")
             step_index_pct = None
             coverage_pct = None
             overlap_count = None
             if prev_item is not None:
-                prev_pricelist_id = int(prev_item['pricelist_id'])
+                prev_pricelist_id = int(prev_item["pricelist_id"])
                 cache_key = (prev_pricelist_id, pricelist_id)
                 if cache_key not in pair_cache:
                     pair_cache[cache_key] = await _load_pair_stats(
@@ -235,7 +242,7 @@ async def get_supplier_price_trends(
                     )
                 overlap_count, step_index_pct = pair_cache[cache_key]
                 prev_metric = metric_map.get(prev_pricelist_id, {})
-                prev_sku_count = int(prev_metric.get('sku_count', 0))
+                prev_sku_count = int(prev_metric.get("sku_count", 0))
                 if prev_sku_count > 0 and overlap_count is not None:
                     coverage_pct = round(
                         (overlap_count / prev_sku_count) * 100,
@@ -244,7 +251,7 @@ async def get_supplier_price_trends(
             points.append(
                 SupplierPriceTrendPoint(
                     pricelist_id=pricelist_id,
-                    date=item['date'],
+                    date=item["date"],
                     sku_count=sku_count,
                     stock_total_qty=stock_total_qty,
                     avg_price=avg_price,
@@ -265,28 +272,24 @@ async def get_supplier_price_trends(
         )
         for point, smooth_value in zip(points, smooth_values):
             point.step_index_smooth_pct = (
-                round(smooth_value, 2)
-                if smooth_value is not None
-                else None
+                round(smooth_value, 2) if smooth_value is not None else None
             )
 
         provider_info = provider_map.get(provider_config_id, {})
         series.append(
             SupplierPriceTrendSeries(
                 provider_config_id=provider_config_id,
-                provider_id=provider_info.get('provider_id'),
-                provider_name=provider_info.get('provider_name'),
-                provider_config_name=provider_info.get(
-                    'provider_config_name'
-                ),
+                provider_id=provider_info.get("provider_id"),
+                provider_name=provider_info.get("provider_name"),
+                provider_config_name=provider_info.get("provider_config_name"),
                 points=points,
             )
         )
 
     series.sort(
         key=lambda item: (
-            item.provider_name or '',
-            item.provider_config_name or '',
+            item.provider_name or "",
+            item.provider_config_name or "",
         )
     )
     return SupplierPriceTrendResponse(

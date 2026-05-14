@@ -3,8 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from dz_fastapi.models.order_status_mapping import (ExternalStatusMatchMode,
-                                                    SupplierResponseAction)
+from dz_fastapi.models.order_status_mapping import ExternalStatusMatchMode, SupplierResponseAction
 
 
 class StatusOptionOut(BaseModel):

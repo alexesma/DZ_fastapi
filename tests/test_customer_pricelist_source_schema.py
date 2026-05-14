@@ -1,6 +1,8 @@
-from dz_fastapi.schemas.partner import (CustomerPriceListSourceCreate,
-                                        CustomerPriceListSourceResponse,
-                                        CustomerPriceListSourceUpdate)
+from dz_fastapi.schemas.partner import (
+    CustomerPriceListSourceCreate,
+    CustomerPriceListSourceResponse,
+    CustomerPriceListSourceUpdate,
+)
 
 
 def test_customer_pricelist_source_create_normalizes_nonpositive_limits():
@@ -20,14 +22,14 @@ def test_customer_pricelist_source_create_normalizes_nonpositive_limits():
 
 def test_customer_pricelist_source_update_normalizes_nonpositive_limits():
     payload = CustomerPriceListSourceUpdate(
-        min_price='0',
-        max_price='10',
-        min_quantity='-2',
-        max_quantity='3',
+        min_price="0",
+        max_price="10",
+        min_quantity="-2",
+        max_quantity="3",
     )
 
     assert payload.min_price is None
-    assert str(payload.max_price) == '10'
+    assert str(payload.max_price) == "10"
     assert payload.min_quantity is None
     assert payload.max_quantity == 3
 
@@ -54,13 +56,13 @@ def test_customer_pricelist_source_brand_markups_normalized():
     payload = CustomerPriceListSourceCreate(
         provider_config_id=20,
         brand_markups={
-            ' toyota ': '10',
-            'Lexus': 0,
-            '': 15,
-            'GEELY': '40',
+            " toyota ": "10",
+            "Lexus": 0,
+            "": 15,
+            "GEELY": "40",
         },
     )
     assert payload.brand_markups == {
-        'TOYOTA': 10.0,
-        'GEELY': 40.0,
+        "TOYOTA": 10.0,
+        "GEELY": 40.0,
     }

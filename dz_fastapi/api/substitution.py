@@ -9,7 +9,7 @@ from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.cross import AutoPartSubstitution
 
-router = APIRouter(prefix="/substitutions", tags=['substitutions'])
+router = APIRouter(prefix="/substitutions", tags=["substitutions"])
 
 
 class SubstitutionCreate(BaseModel):
@@ -66,11 +66,11 @@ async def upload_substitutions_from_1c(
 
     df = pd.read_excel(file.file)
 
-    required_columns = ['source_brand', 'source_oem', 'sub_brand', 'sub_oem']
+    required_columns = ["source_brand", "source_oem", "sub_brand", "sub_oem"]
     if not all(col in df.columns for col in required_columns):
         raise HTTPException(
             status_code=400,
-            detail=f'File must contain columns: {required_columns}'
+            detail=f"File must contain columns: {required_columns}",
         )
 
     added = 0
@@ -84,8 +84,8 @@ async def upload_substitutions_from_1c(
                 select(AutoPart.id)
                 .join(Brand)
                 .where(
-                    Brand.name == row['source_brand'],
-                    AutoPart.oem_number == str(row['source_oem']).upper()
+                    Brand.name == row["source_brand"],
+                    AutoPart.oem_number == str(row["source_oem"]).upper(),
                 )
             )
             source_id = result.scalar_one_or_none()
@@ -100,7 +100,7 @@ async def upload_substitutions_from_1c(
 
             # Найти substitution brand_id
             result = await session.execute(
-                select(Brand.id).where(Brand.name == row['sub_brand'])
+                select(Brand.id).where(Brand.name == row["sub_brand"])
             )
             sub_brand_id = result.scalar_one_or_none()
 
@@ -116,10 +116,10 @@ async def upload_substitutions_from_1c(
             substitution = AutoPartSubstitution(
                 source_autopart_id=source_id,
                 substitution_brand_id=sub_brand_id,
-                substitution_oem_number=str(row['sub_oem']).upper(),
-                priority=int(row.get('priority', 1)),
-                min_source_quantity=int(row.get('min_qty', 4)),
-                quantity_reduction=int(row.get('reduction', 1)),
+                substitution_oem_number=str(row["sub_oem"]).upper(),
+                priority=int(row.get("priority", 1)),
+                min_source_quantity=int(row.get("min_qty", 4)),
+                quantity_reduction=int(row.get("reduction", 1)),
                 customer_config_id=customer_config_id,
             )
 
@@ -133,9 +133,9 @@ async def upload_substitutions_from_1c(
     await session.commit()
 
     return {
-        'added': added,
-        'skipped': skipped,
-        'errors': errors[:10]  # Первые 10 ошибок
+        "added": added,
+        "skipped": skipped,
+        "errors": errors[:10],  # Первые 10 ошибок
     }
 
 

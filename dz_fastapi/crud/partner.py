@@ -18,60 +18,94 @@ from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.autopart import crud_autopart
 from dz_fastapi.crud.base import CRUDBase
 from dz_fastapi.crud.brand import brand_crud
-from dz_fastapi.models.autopart import (AutoPart, AutoPartPriceHistory,
-                                        AutoPartRestockDecisionSupplier)
+from dz_fastapi.models.autopart import (
+    AutoPart,
+    AutoPartPriceHistory,
+    AutoPartRestockDecisionSupplier,
+)
 from dz_fastapi.models.brand import Brand
-from dz_fastapi.models.order_status_mapping import (ExternalStatusMapping,
-                                                    ExternalStatusUnmapped)
-from dz_fastapi.models.partner import (TYPE_PRICES, Customer,
-                                       CustomerOrderItem, CustomerPriceList,
-                                       CustomerPriceListAutoPartAssociation,
-                                       CustomerPriceListConfig,
-                                       CustomerPriceListSource, Order,
-                                       PriceList, PriceListAutoPartAssociation,
-                                       PriceListMissingBrand, Provider,
-                                       ProviderAbbreviation,
-                                       ProviderConfigLastEmailUID,
-                                       ProviderExternalReference,
-                                       ProviderLastEmailUID,
-                                       ProviderPriceListConfig, SupplierOrder,
-                                       SupplierOrderMessage, SupplierReceipt,
-                                       SupplierResponseConfig)
+from dz_fastapi.models.order_status_mapping import ExternalStatusMapping, ExternalStatusUnmapped
+from dz_fastapi.models.partner import (
+    TYPE_PRICES,
+    Customer,
+    CustomerExternalReference,
+    CustomerOrderItem,
+    CustomerPriceList,
+    CustomerPriceListAutoPartAssociation,
+    CustomerPriceListConfig,
+    CustomerPriceListSource,
+    Order,
+    PriceList,
+    PriceListAutoPartAssociation,
+    PriceListMissingBrand,
+    Provider,
+    ProviderAbbreviation,
+    ProviderConfigLastEmailUID,
+    ProviderExternalReference,
+    ProviderLastEmailUID,
+    ProviderPriceListConfig,
+    SupplierOrder,
+    SupplierOrderMessage,
+    SupplierReceipt,
+    SupplierResponseConfig,
+)
 from dz_fastapi.models.settings import PriceListStaleAlert
 from dz_fastapi.schemas.autopart import AutoPartPricelist
 from dz_fastapi.schemas.partner import (
-    CustomerCreate, CustomerPriceListConfigCreate,
-    CustomerPriceListConfigUpdate, CustomerPriceListCreate,
-    CustomerPriceListSourceCreate, CustomerPriceListSourceUpdate,
-    CustomerPriceListUpdate, CustomerUpdate,
-    PriceListAutoPartAssociationResponse, PriceListCreate, PriceListResponse,
-    PriceListShort, PriceListUpdate, ProviderAbbreviationCreate,
-    ProviderAbbreviationOut, ProviderAbbreviationUpdate, ProviderCoreOut,
-    ProviderCreate, ProviderCustomerPriceListSourceUsageOut,
-    ProviderExternalReferenceCreate, ProviderExternalReferenceOut,
-    ProviderExternalReferenceUpdate, ProviderPageResponse,
-    ProviderPriceListConfigCreate, ProviderPriceListConfigOut,
-    ProviderPriceListConfigUpdate, ProviderUpdate,
-    SupplierResponseConfigCreate, SupplierResponseConfigOut,
-    SupplierResponseConfigUpdate)
+    CustomerCreate,
+    CustomerExternalReferenceCreate,
+    CustomerPriceListConfigCreate,
+    CustomerPriceListConfigUpdate,
+    CustomerPriceListCreate,
+    CustomerPriceListSourceCreate,
+    CustomerPriceListSourceUpdate,
+    CustomerPriceListUpdate,
+    CustomerUpdate,
+    PriceListAutoPartAssociationResponse,
+    PriceListCreate,
+    PriceListResponse,
+    PriceListShort,
+    PriceListUpdate,
+    ProviderAbbreviationCreate,
+    ProviderAbbreviationOut,
+    ProviderAbbreviationUpdate,
+    ProviderCoreOut,
+    ProviderCreate,
+    ProviderCustomerPriceListSourceUsageOut,
+    ProviderExternalReferenceCreate,
+    ProviderExternalReferenceOut,
+    ProviderExternalReferenceUpdate,
+    ProviderPageResponse,
+    ProviderPriceListConfigCreate,
+    ProviderPriceListConfigOut,
+    ProviderPriceListConfigUpdate,
+    ProviderUpdate,
+    SupplierResponseConfigCreate,
+    SupplierResponseConfigOut,
+    SupplierResponseConfigUpdate,
+)
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
-from dz_fastapi.services.utils import (brand_filters, individual_markups,
-                                       normalize_markup, position_filters,
-                                       price_intervals,
-                                       supplier_quantity_filters)
+from dz_fastapi.services.utils import (
+    brand_filters,
+    individual_markups,
+    normalize_markup,
+    position_filters,
+    price_intervals,
+    supplier_quantity_filters,
+)
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
 
 def money(x) -> Decimal:
-    return Decimal(str(x)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    return Decimal(str(x)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def _derive_provider_is_vat_payer(
     type_prices: object,
     current_value: bool = False,
 ) -> bool:
-    raw_value = getattr(type_prices, 'value', type_prices)
+    raw_value = getattr(type_prices, "value", type_prices)
     if raw_value is None:
         return bool(current_value)
     normalized = str(raw_value).strip().lower()
@@ -96,18 +130,18 @@ def _build_provider_last_email_uid(
     active_configs = [
         config
         for config in (provider.pricelist_configs or [])
-        if getattr(config, 'is_active', False)
+        if getattr(config, "is_active", False)
     ]
     config_records = []
     for config in active_configs:
-        record = getattr(config, 'last_email_uid', None)
+        record = getattr(config, "last_email_uid", None)
         if record is not None:
             config_records.append(record)
 
     dated_records = [
         record
         for record in config_records
-        if getattr(record, 'updated_at', None) is not None
+        if getattr(record, "updated_at", None) is not None
     ]
     if dated_records:
         # Show the stalest active config at provider level so the list
@@ -116,17 +150,17 @@ def _build_provider_last_email_uid(
             dated_records, key=lambda record: record.updated_at
         )
         return {
-            'uid': latest_record.last_uid,
-            'updated_at': latest_record.updated_at,
+            "uid": latest_record.last_uid,
+            "updated_at": latest_record.updated_at,
         }
 
     if config_records:
         latest_record = min(
-            config_records, key=lambda record: getattr(record, 'last_uid', 0)
+            config_records, key=lambda record: getattr(record, "last_uid", 0)
         )
         return {
-            'uid': latest_record.last_uid,
-            'updated_at': getattr(latest_record, 'updated_at', None),
+            "uid": latest_record.last_uid,
+            "updated_at": getattr(latest_record, "updated_at", None),
         }
 
     if active_configs:
@@ -134,8 +168,8 @@ def _build_provider_last_email_uid(
 
     if provider.provider_last_uid is not None:
         return {
-            'uid': provider.provider_last_uid.last_uid,
-            'updated_at': provider.provider_last_uid.updated_at,
+            "uid": provider.provider_last_uid.last_uid,
+            "updated_at": provider.provider_last_uid.updated_at,
         }
 
     return None
@@ -153,7 +187,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             return provider
         except Exception as e:
             logger.error(
-                f'Ошибка в crud_provider.get_provider_or_none: {e}',
+                f"Ошибка в crud_provider.get_provider_or_none: {e}",
                 exc_info=True,
             )
             raise
@@ -174,7 +208,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             return provider
         except Exception as e:
             logger.error(
-                f'Ошибка в crud_provider.get_by_id: {e}', exc_info=True
+                f"Ошибка в crud_provider.get_by_id: {e}", exc_info=True
             )
             raise
 
@@ -218,14 +252,15 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         obj_in: ProviderExternalReferenceCreate,
         session: AsyncSession,
     ) -> ProviderExternalReference:
-        source_system = str(obj_in.source_system or '').strip().upper()
+        source_system = str(obj_in.source_system or "").strip().upper()
         if not source_system:
-            raise ValueError('source_system is required')
-        if obj_in.external_supplier_id is None and not (
-            obj_in.external_supplier_name or ''
-        ).strip():
+            raise ValueError("source_system is required")
+        if (
+            obj_in.external_supplier_id is None
+            and not (obj_in.external_supplier_name or "").strip()
+        ):
             raise ValueError(
-                'external_supplier_id or external_supplier_name is required'
+                "external_supplier_id or external_supplier_name is required"
             )
 
         existing = None
@@ -245,7 +280,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                         == source_system,
                         ProviderExternalReference.external_supplier_name
                         == (
-                            str(obj_in.external_supplier_name or '').strip()
+                            str(obj_in.external_supplier_name or "").strip()
                             or None
                         ),
                     )
@@ -263,7 +298,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         existing.source_system = source_system
         existing.external_supplier_id = obj_in.external_supplier_id
         existing.external_supplier_name = (
-            str(obj_in.external_supplier_name or '').strip() or None
+            str(obj_in.external_supplier_name or "").strip() or None
         )
         existing.is_active = bool(obj_in.is_active)
         await session.commit()
@@ -290,24 +325,24 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             return None
 
         if obj_in.source_system is not None:
-            source_system = str(obj_in.source_system or '').strip().upper()
+            source_system = str(obj_in.source_system or "").strip().upper()
             if not source_system:
-                raise ValueError('source_system is required')
+                raise ValueError("source_system is required")
             ref.source_system = source_system
         if obj_in.external_supplier_id is not None:
             ref.external_supplier_id = int(obj_in.external_supplier_id)
         if obj_in.external_supplier_name is not None:
             ref.external_supplier_name = (
-                str(obj_in.external_supplier_name or '').strip() or None
+                str(obj_in.external_supplier_name or "").strip() or None
             )
         if obj_in.is_active is not None:
             ref.is_active = bool(obj_in.is_active)
 
         if ref.external_supplier_id is None and not (
-            str(ref.external_supplier_name or '').strip()
+            str(ref.external_supplier_name or "").strip()
         ):
             raise ValueError(
-                'external_supplier_id or external_supplier_name is required'
+                "external_supplier_id or external_supplier_name is required"
             )
 
         await session.commit()
@@ -338,7 +373,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
     async def get_full_by_id(
         self, provider_id: int, session: AsyncSession
     ) -> Optional[ProviderPageResponse]:
-        '''
+        """
         Возвращает агрегированный словарь для страницы поставщика:
         :param provider_id:
         :param session:
@@ -347,7 +382,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         - все аббревиатуры
         - все конфигурации
         - по каждой конфигурации — последний PriceList
-        '''
+        """
         try:
             stmt = (
                 select(Provider)
@@ -358,8 +393,9 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                     selectinload(Provider.pricelist_configs).selectinload(
                         ProviderPriceListConfig.last_email_uid
                     ),
-                    selectinload(Provider.supplier_response_configs)
-                    .selectinload(SupplierResponseConfig.inbox_email_account),
+                    selectinload(
+                        Provider.supplier_response_configs
+                    ).selectinload(SupplierResponseConfig.inbox_email_account),
                     selectinload(Provider.price_lists),
                     selectinload(Provider.abbreviations),
                     selectinload(Provider.external_references),
@@ -377,7 +413,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                 max_date_stmt = (
                     select(
                         PriceList.provider_config_id,
-                        func.max(PriceList.date).label('max_date'),
+                        func.max(PriceList.date).label("max_date"),
                     )
                     .where(
                         PriceList.provider_id == provider_id,
@@ -438,14 +474,14 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                 pricelist_configs.append(config_out)
 
             pricelist_configs.sort(
-                key=lambda c: (c.name_price is None, c.name_price or '')
+                key=lambda c: (c.name_price is None, c.name_price or "")
             )
             supplier_response_configs = [
                 SupplierResponseConfigOut.model_validate(config)
                 for config in (provider.supplier_response_configs or [])
             ]
             supplier_response_configs.sort(
-                key=lambda c: (c.name is None, c.name or '', c.id)
+                key=lambda c: (c.name is None, c.name or "", c.id)
             )
 
             source_usage_rows = (
@@ -470,9 +506,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                         ProviderPriceListConfig.id
                         == CustomerPriceListSource.provider_config_id,
                     )
-                    .where(
-                        ProviderPriceListConfig.provider_id == provider_id
-                    )
+                    .where(ProviderPriceListConfig.provider_id == provider_id)
                     .order_by(
                         Customer.name.asc(),
                         CustomerPriceListConfig.name.asc(),
@@ -501,8 +535,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                     max_quantity=source.max_quantity,
                     additional_filters=source.additional_filters or {},
                 )
-                for source, customer_cfg, customer, provider_cfg
-                in source_usage_rows
+                for source, customer_cfg, customer, provider_cfg in source_usage_rows
             ]
             return ProviderPageResponse(
                 provider=provider_core,
@@ -516,7 +549,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             )
         except Exception as e:
             logger.error(
-                f'Ошибка в crud_provider.get_by_id: {e}', exc_info=True
+                f"Ошибка в crud_provider.get_by_id: {e}", exc_info=True
             )
             raise
 
@@ -530,14 +563,14 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             provider_id=provider_id, session=session
         )
         if provider is None:
-            raise HTTPException(status_code=404, detail='Provider not found')
+            raise HTTPException(status_code=404, detail="Provider not found")
         update_data = obj_in.model_dump(exclude_unset=True)
-        if 'type_prices' in update_data:
-            update_data['is_vat_payer'] = _derive_provider_is_vat_payer(
-                update_data.get('type_prices'),
+        if "type_prices" in update_data:
+            update_data["is_vat_payer"] = _derive_provider_is_vat_payer(
+                update_data.get("type_prices"),
                 update_data.get(
-                    'is_vat_payer',
-                    bool(getattr(provider, 'is_vat_payer', False)),
+                    "is_vat_payer",
+                    bool(getattr(provider, "is_vat_payer", False)),
                 ),
             )
             obj_in = ProviderUpdate(**update_data)
@@ -558,13 +591,13 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         self, obj_in: ProviderCreate, session: AsyncSession, **kwargs
     ) -> Provider:
         payload = obj_in.model_dump()
-        if payload.get('default_warehouse_id') is None:
-            payload['default_warehouse_id'] = (
+        if payload.get("default_warehouse_id") is None:
+            payload["default_warehouse_id"] = (
                 await ensure_default_warehouse(session)
             ).id
-        payload['is_vat_payer'] = _derive_provider_is_vat_payer(
-            payload.get('type_prices'),
-            payload.get('is_vat_payer', False),
+        payload["is_vat_payer"] = _derive_provider_is_vat_payer(
+            payload.get("type_prices"),
+            payload.get("is_vat_payer", False),
         )
         provider = Provider(**payload)
         session.add(provider)
@@ -593,11 +626,10 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         self, abbreviation: str, session: AsyncSession
     ):
         try:
-            abbr_norm = (abbreviation or '').strip().upper()
+            abbr_norm = (abbreviation or "").strip().upper()
             if not abbr_norm:
                 raise HTTPException(
-                    status_code=400,
-                    detail='Abbreviation must not be empty'
+                    status_code=400, detail="Abbreviation must not be empty"
                 )
 
             stmt = (
@@ -610,12 +642,12 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             if abbreviation_entry:
                 return abbreviation_entry.provider
             new_provider = Provider(
-                name=f'Provider {abbr_norm}',
+                name=f"Provider {abbr_norm}",
                 email_contact=None,
                 email_incoming_price=None,
                 is_virtual=True,
-                description='Created from site abbreviation',
-                comment='Automatically created provider from site',
+                description="Created from site abbreviation",
+                comment="Automatically created provider from site",
                 type_prices=TYPE_PRICES.WHOLESALE,
                 default_warehouse_id=(
                     await ensure_default_warehouse(session)
@@ -633,7 +665,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             return new_provider
         except SQLAlchemyError as e:
             await session.rollback()
-            logger.error(f'Database error: {e}')
+            logger.error(f"Database error: {e}")
             raise
 
     async def get_all(
@@ -648,7 +680,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         sort_by: Optional[str] = None,
         sort_dir: Optional[str] = None,
     ) -> Dict[str, Any]:
-        '''
+        """
         Вернёт постранично список поставщиков
         с полной агрегированной информацией.
         :param session:
@@ -656,7 +688,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         :param page_size:
         :param search:
         :return:
-        '''
+        """
         if page < 1:
             page = 1
         if page_size < 1:
@@ -664,7 +696,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
 
         filters = []
         if search:
-            filters.append(Provider.name.ilike(f'%{search}%'))
+            filters.append(Provider.name.ilike(f"%{search}%"))
         if is_virtual is not None:
             filters.append(Provider.is_virtual.is_(is_virtual))
         if has_pricelist_config is not None:
@@ -703,14 +735,14 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         total = (await session.execute(count_query)).scalar()
 
         sort_map = {
-            'name': Provider.name,
-            'id': Provider.id,
+            "name": Provider.name,
+            "id": Provider.id,
         }
         sort_column = sort_map.get(sort_by) or Provider.name
-        sort_direction = (sort_dir or 'asc').lower()
+        sort_direction = (sort_dir or "asc").lower()
         order_clause = (
             sort_column.asc()
-            if sort_direction != 'desc'
+            if sort_direction != "desc"
             else sort_column.desc()
         )
 
@@ -734,11 +766,11 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         if not providers:
             pages = ceil(total / page_size) if page_size else 1
             return {
-                'items': [],
-                'page': page,
-                'page_size': page_size,
-                'total': total,
-                'pages': pages,
+                "items": [],
+                "page": page,
+                "page_size": page_size,
+                "total": total,
+                "pages": pages,
             }
         # Получаем provider_ids для загрузки аббревиатур отдельно
         provider_ids = [p.id for p in providers]
@@ -761,37 +793,37 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             provider_abbrs = abbr_dict.get(provider.id, [])
             abbr = provider_abbrs[0] if provider_abbrs else None
 
-            email_contact = getattr(provider, 'email_contact', None)
+            email_contact = getattr(provider, "email_contact", None)
             items.append(
                 {
-                    'id': provider.id,
-                    'name': provider.name,
-                    'abbr': abbr,
-                    'default_warehouse_id': provider.default_warehouse_id,
-                    'default_warehouse_name': provider.default_warehouse_name,
-                    'email_incoming_price': provider.email_incoming_price,
-                    'email_contact': email_contact,
-                    'pricelist_configs': [
-                        {'id': config.id, 'name_price': config.name_price}
+                    "id": provider.id,
+                    "name": provider.name,
+                    "abbr": abbr,
+                    "default_warehouse_id": provider.default_warehouse_id,
+                    "default_warehouse_name": provider.default_warehouse_name,
+                    "email_incoming_price": provider.email_incoming_price,
+                    "email_contact": email_contact,
+                    "pricelist_configs": [
+                        {"id": config.id, "name_price": config.name_price}
                         for config in sorted(
                             provider.pricelist_configs,
                             key=lambda c: (
                                 c.name_price is None,
-                                c.name_price or '',
+                                c.name_price or "",
                             ),
                         )
                     ],
-                    'last_email_uid': (
+                    "last_email_uid": (
                         _build_provider_last_email_uid(provider)
                     ),
-                    'price_lists': [
+                    "price_lists": [
                         {
-                            'id': pl.id,
-                            'name_price': (
+                            "id": pl.id,
+                            "name_price": (
                                 pl.config.name_price if pl.config else None
                             ),
-                            'date': pl.date,
-                            'is_active': pl.is_active,
+                            "date": pl.date,
+                            "is_active": pl.is_active,
                         }
                         for pl in (provider.price_lists or [])
                     ],
@@ -801,11 +833,11 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         pages = ceil(total / page_size) if page_size else 1
 
         return {
-            'items': items,
-            'page': page,
-            'page_size': page_size,
-            'total': total,
-            'pages': pages,
+            "items": items,
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "pages": pages,
         }
 
     async def should_delete_empty_provider(
@@ -813,7 +845,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         provider: Provider,
         session: AsyncSession,
     ):
-        '''
+        """
         Проверяет, можно ли безопасно удалить поставщика.
         Удаляем только если:
         1. Поставщик виртуальный (автоматически созданный)
@@ -824,7 +856,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         :param provider:
         :param session:
         :return:
-        '''
+        """
         if not provider.is_virtual:
             return False
 
@@ -857,17 +889,17 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         target_provider_id: int,
         session: AsyncSession,
     ) -> bool:
-        '''
+        """
         Объединяет двух поставщиков: переносит все аббревиатуры
         и другие данные от source к target, затем удаляет source.
         :param source_provider_id:
         :param target_provider_id:
         :param session:
         :return:
-        '''
+        """
         if source_provider_id == target_provider_id:
             raise ValueError(
-                'source_provider_id и target_provider_id совпадают'
+                "source_provider_id и target_provider_id совпадают"
             )
 
         try:
@@ -889,7 +921,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             ).scalar_one_or_none()
 
             if not source_provider or not target_provider:
-                raise ValueError('One or both providers not found')
+                raise ValueError("One or both providers not found")
 
             # Перенести все аббревиатуры
             stmt = (
@@ -933,9 +965,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             )
             await session.execute(
                 update(SupplierOrderMessage)
-                .where(
-                    SupplierOrderMessage.provider_id == source_provider_id
-                )
+                .where(SupplierOrderMessage.provider_id == source_provider_id)
                 .values(provider_id=target_provider_id)
             )
             await session.execute(
@@ -950,13 +980,17 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             )
 
             source_refs = (
-                await session.execute(
-                    select(ProviderExternalReference).where(
-                        ProviderExternalReference.provider_id
-                        == source_provider_id
+                (
+                    await session.execute(
+                        select(ProviderExternalReference).where(
+                            ProviderExternalReference.provider_id
+                            == source_provider_id
+                        )
                     )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
             for reference in source_refs:
                 duplicate_stmt = select(ProviderExternalReference).where(
                     ProviderExternalReference.provider_id
@@ -987,9 +1021,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             await session.flush()
             await session.execute(
                 update(ExternalStatusMapping)
-                .where(
-                    ExternalStatusMapping.provider_id == source_provider_id
-                )
+                .where(ExternalStatusMapping.provider_id == source_provider_id)
                 .values(provider_id=target_provider_id)
             )
             await session.execute(
@@ -1001,9 +1033,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             )
             await session.execute(
                 update(AutoPartPriceHistory)
-                .where(
-                    AutoPartPriceHistory.provider_id == source_provider_id
-                )
+                .where(AutoPartPriceHistory.provider_id == source_provider_id)
                 .values(provider_id=target_provider_id)
             )
             await session.execute(
@@ -1016,9 +1046,7 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             )
             await session.execute(
                 update(PriceListStaleAlert)
-                .where(
-                    PriceListStaleAlert.provider_id == source_provider_id
-                )
+                .where(PriceListStaleAlert.provider_id == source_provider_id)
                 .values(provider_id=target_provider_id)
             )
             # Удалить исходного поставщика
@@ -1026,14 +1054,14 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
             await session.commit()
 
             logger.info(
-                f'Merged provider {source_provider_id} '
-                f'into {target_provider_id}'
+                f"Merged provider {source_provider_id} "
+                f"into {target_provider_id}"
             )
             return True
 
         except SQLAlchemyError as e:
             await session.rollback()
-            logger.error(f'Error merging providers: {e}')
+            logger.error(f"Error merging providers: {e}")
             raise
 
 
@@ -1049,7 +1077,7 @@ class CRUDProviderAbbreviation(
 ):
     @staticmethod
     def _normalize_abbr(s: str) -> str:
-        return (s or '').strip().upper()
+        return (s or "").strip().upper()
 
     async def _get_by_abbr_norm(
         self,
@@ -1081,11 +1109,11 @@ class CRUDProviderAbbreviation(
         abbreviation_norm = self._normalize_abbr(abbreviation)
         if not abbreviation:
             raise HTTPException(
-                status_code=400, detail='Abbreviation must not be empty'
+                status_code=400, detail="Abbreviation must not be empty"
             )
         if await self._get_by_abbr_norm(session, abbreviation_norm):
             raise HTTPException(
-                status_code=409, detail='Abbreviation already exists'
+                status_code=409, detail="Abbreviation already exists"
             )
         obj = ProviderAbbreviation(
             provider_id=provider_id, abbreviation=abbreviation_norm
@@ -1097,7 +1125,7 @@ class CRUDProviderAbbreviation(
             await session.rollback()
             raise HTTPException(
                 status_code=409,
-                detail='Abbreviation already exists for this provider',
+                detail="Abbreviation already exists for this provider",
             )
         await session.refresh(obj)
         return ProviderAbbreviationOut.model_validate(obj)
@@ -1111,20 +1139,20 @@ class CRUDProviderAbbreviation(
         obj = await session.get(ProviderAbbreviation, abbreviation_id)
         if not obj:
             raise HTTPException(
-                status_code=404, detail='Abbreviation not found'
+                status_code=404, detail="Abbreviation not found"
             )
 
         abbreviation_norm = self._normalize_abbr(new_abbreviation)
         if not abbreviation_norm:
             raise HTTPException(
-                status_code=400, detail='Abbreviation must not be empty'
+                status_code=400, detail="Abbreviation must not be empty"
             )
 
         if await self._get_by_abbr_norm(
             session, abbreviation_norm, exclude_id=abbreviation_id
         ):
             raise HTTPException(
-                status_code=409, detail='Abbreviation already exists'
+                status_code=409, detail="Abbreviation already exists"
             )
 
         obj.abbreviation = abbreviation_norm
@@ -1134,7 +1162,7 @@ class CRUDProviderAbbreviation(
             await session.rollback()
             raise HTTPException(
                 status_code=409,
-                detail='Abbreviation already exists for this provider',
+                detail="Abbreviation already exists for this provider",
             )
 
         await session.refresh(obj)
@@ -1158,14 +1186,14 @@ class CRUDProviderAbbreviation(
         abbreviation: str,
         target_provider_id: int,
     ):
-        '''
+        """
         Переназначает аббревиатуру другому поставщику.
         Если старый поставщик автоматический и пустой - удаляет его.
         :param session:
         :param abbreviation:
         :param target_provider_id:
         :return:
-        '''
+        """
         try:
             stmt = (
                 select(ProviderAbbreviation)
@@ -1183,22 +1211,21 @@ class CRUDProviderAbbreviation(
                 )
                 if not target_provider:
                     raise ValueError(
-                        f'Provider with id {target_provider_id} not found'
+                        f"Provider with id {target_provider_id} not found"
                     )
                 # Переназначить аббревиатуру
                 existing_abbreviation.provider_id = target_provider_id
                 # Проверить, можно ли удалить старого поставщика
                 should_delete_old = (
                     await crud_provider.should_delete_empty_provider(
-                        provider=old_provider,
-                        session=session
+                        provider=old_provider, session=session
                     )
                 )
                 if should_delete_old:
                     await session.delete(old_provider)
                     logger.info(
-                        f'Deleted empty auto-created '
-                        f'provider {old_provider.id}'
+                        f"Deleted empty auto-created "
+                        f"provider {old_provider.id}"
                     )
                 await session.commit()
             else:
@@ -1206,12 +1233,12 @@ class CRUDProviderAbbreviation(
                 await self.add_abbreviation(
                     session=session,
                     provider_id=target_provider_id,
-                    abbreviation=abbreviation
+                    abbreviation=abbreviation,
                 )
             return True
         except SQLAlchemyError as e:
             await session.rollback()
-            logger.error(f'Database error while reassigning abbreviation: {e}')
+            logger.error(f"Database error while reassigning abbreviation: {e}")
             raise
 
 
@@ -1240,10 +1267,106 @@ class CRUDCustomer(CRUDBase[Customer, CustomerCreate, CustomerUpdate]):
     ) -> Optional[Customer]:
         result = await session.execute(
             select(Customer)
-            .options(selectinload(Customer.customer_price_lists))
+            .options(
+                selectinload(Customer.customer_price_lists),
+                selectinload(Customer.external_references),
+            )
             .where(Customer.id == customer_id)
         )
         return result.scalar_one_or_none()
+
+    async def get_external_reference_by_source_customer(
+        self,
+        *,
+        source_system: str,
+        external_customer_id: int,
+        session: AsyncSession,
+    ) -> Optional[CustomerExternalReference]:
+        result = await session.execute(
+            select(CustomerExternalReference).where(
+                CustomerExternalReference.source_system == source_system,
+                CustomerExternalReference.external_customer_id
+                == external_customer_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_external_references(
+        self,
+        *,
+        customer_id: int,
+        session: AsyncSession,
+    ) -> list[CustomerExternalReference]:
+        rows = await session.execute(
+            select(CustomerExternalReference)
+            .where(CustomerExternalReference.customer_id == customer_id)
+            .order_by(
+                CustomerExternalReference.source_system.asc(),
+                CustomerExternalReference.external_customer_name.asc(),
+                CustomerExternalReference.id.asc(),
+            )
+        )
+        return list(rows.scalars().all())
+
+    async def upsert_external_reference(
+        self,
+        *,
+        customer_id: int,
+        obj_in: CustomerExternalReferenceCreate,
+        session: AsyncSession,
+    ) -> CustomerExternalReference:
+        source_system = str(obj_in.source_system or "").strip().upper()
+        if not source_system:
+            raise ValueError("source_system is required")
+        if (
+            obj_in.external_customer_id is None
+            and not (obj_in.external_customer_name or "").strip()
+        ):
+            raise ValueError(
+                "external_customer_id or external_customer_name is required"
+            )
+
+        existing = None
+        if obj_in.external_customer_id is not None:
+            existing = await self.get_external_reference_by_source_customer(
+                source_system=source_system,
+                external_customer_id=int(obj_in.external_customer_id),
+                session=session,
+            )
+
+        if existing is None:
+            existing = (
+                await session.execute(
+                    select(CustomerExternalReference).where(
+                        CustomerExternalReference.customer_id == customer_id,
+                        CustomerExternalReference.source_system
+                        == source_system,
+                        CustomerExternalReference.external_customer_name
+                        == (
+                            str(obj_in.external_customer_name or "").strip()
+                            or None
+                        ),
+                    )
+                )
+            ).scalar_one_or_none()
+
+        if existing is None:
+            existing = CustomerExternalReference(
+                customer_id=customer_id,
+                source_system=source_system,
+            )
+            session.add(existing)
+
+        existing.customer_id = customer_id
+        existing.source_system = source_system
+        existing.external_customer_id = obj_in.external_customer_id
+        existing.external_customer_name = (
+            str(obj_in.external_customer_name or "").strip() or None
+        )
+        existing.is_active = bool(obj_in.is_active)
+        await session.commit()
+        await session.refresh(existing)
+        return existing
 
     async def create(
         self, obj_in: CustomerCreate, session: AsyncSession, **kwargs
@@ -1253,7 +1376,10 @@ class CRUDCustomer(CRUDBase[Customer, CustomerCreate, CustomerUpdate]):
         await session.commit()
         result = await session.execute(
             select(Customer)
-            .options(selectinload(Customer.customer_price_lists))
+            .options(
+                selectinload(Customer.customer_price_lists),
+                selectinload(Customer.external_references),
+            )
             .where(Customer.id == customer.id)
         )
         return result.scalar_one()
@@ -1263,7 +1389,10 @@ class CRUDCustomer(CRUDBase[Customer, CustomerCreate, CustomerUpdate]):
     ) -> List[Customer]:
         result = await session.execute(
             select(Customer)
-            .options(selectinload(Customer.customer_price_lists))
+            .options(
+                selectinload(Customer.customer_price_lists),
+                selectinload(Customer.external_references),
+            )
             .offset(skip)
             .limit(limit)
         )
@@ -1276,10 +1405,10 @@ crud_customer = CRUDCustomer(Customer)
 class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
 
     async def _get_last_history_snapshot(
-            self,
-            provider_id: int,
-            session: AsyncSession,
-            provider_config_id: int | None = None,
+        self,
+        provider_id: int,
+        session: AsyncSession,
+        provider_config_id: int | None = None,
     ) -> dict[int, dict]:
         """
         Последнее известное состояние по каждой позиции данного провайдера
@@ -1303,24 +1432,23 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         )
         if provider_config_id is not None:
             stmt = stmt.where(
-                AutoPartPriceHistory.provider_config_id
-                == provider_config_id
+                AutoPartPriceHistory.provider_config_id == provider_config_id
             )
         rows = (await session.execute(stmt)).all()
 
         return {
             r.autopart_id: {
-                'price': money(r.price),
-                'quantity': int(r.quantity)
+                "price": money(r.price),
+                "quantity": int(r.quantity),
             }
             for r in rows
         }
 
     async def cleanup_old_pricelists_keep_last_n(
-            self,
-            session: AsyncSession,
-            keep_last_n: int = 5,
-            batch_size: int = 500,
+        self,
+        session: AsyncSession,
+        keep_last_n: int = 5,
+        batch_size: int = 500,
     ) -> int:
         """
         Удаляет старые PriceList и их PriceListAutoPartAssociation,
@@ -1349,11 +1477,13 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         )
 
         ids = (
-            (await session.execute(
-                select(ranked.c.id)
-                .where(ranked.c.rn > keep_last_n)
-                .limit(batch_size)
-            ))
+            (
+                await session.execute(
+                    select(ranked.c.id)
+                    .where(ranked.c.rn > keep_last_n)
+                    .limit(batch_size)
+                )
+            )
             .scalars()
             .all()
         )
@@ -1374,9 +1504,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         )
 
         # 2) сами прайсы
-        await session.execute(
-            delete(PriceList).where(PriceList.id.in_(ids))
-        )
+        await session.execute(delete(PriceList).where(PriceList.id.in_(ids)))
 
         await session.commit()
         return len(ids)
@@ -1386,7 +1514,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
     ) -> PriceListResponse:
         try:
             obj_in_data = obj_in.model_dump()
-            autoparts_data = obj_in_data.pop('autoparts', [])
+            autoparts_data = obj_in_data.pop("autoparts", [])
             db_obj = self.model(**obj_in_data)
             session.add(db_obj)
             await session.flush()
@@ -1420,14 +1548,14 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
 
             # ===== ОБРАБОТКА ВХОДЯЩИХ ДАННЫХ =====
             for autopart_assoc_data in autoparts_data:
-                autopart_data_dict = dict(autopart_assoc_data['autopart'])
-                quantity = autopart_assoc_data['quantity']
-                price = autopart_assoc_data['price']
+                autopart_data_dict = dict(autopart_assoc_data["autopart"])
+                quantity = autopart_assoc_data["quantity"]
+                price = autopart_assoc_data["price"]
 
-                logger.debug(f'Processing AutoPart data: {autopart_data_dict}')
+                logger.debug(f"Processing AutoPart data: {autopart_data_dict}")
 
                 item_default_brand = default_brand
-                raw_brand_name = autopart_data_dict.get('brand')
+                raw_brand_name = autopart_data_dict.get("brand")
                 if raw_brand_name:
                     normalized_brand_name = await change_brand_name(
                         brand_name=str(raw_brand_name)
@@ -1443,18 +1571,16 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                         brand_cache[normalized_brand_name] = db_brand
                     if db_brand is None:
                         missing_brand_counts[normalized_brand_name] = (
-                            missing_brand_counts.get(
-                                normalized_brand_name, 0
-                            )
+                            missing_brand_counts.get(normalized_brand_name, 0)
                             + 1
                         )
                         logger.debug(
-                            'Missing brand in pricelist row: %s',
+                            "Missing brand in pricelist row: %s",
                             normalized_brand_name,
                         )
                         continue
                     item_default_brand = db_brand
-                    autopart_data_dict['brand'] = None
+                    autopart_data_dict["brand"] = None
 
                 # Instantiate AutoPartPricelist
                 autopart_data = AutoPartPricelist(**autopart_data_dict)
@@ -1467,30 +1593,30 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
 
                 if not autopart:
                     logger.warning(
-                        f'Failed to create or retrieve '
-                        f'AutoPart for data: {autopart_data_dict}'
+                        f"Failed to create or retrieve "
+                        f"AutoPart for data: {autopart_data_dict}"
                     )
                     continue
                 qty = int(quantity)
                 prc = money(price)
-                mult = int(autopart_assoc_data.get('multiplicity') or 1)
+                mult = int(autopart_assoc_data.get("multiplicity") or 1)
                 existing_assoc = bulk_insert_map.get(autopart.id)
-                if existing_assoc and existing_assoc['price'] < prc:
+                if existing_assoc and existing_assoc["price"] < prc:
                     continue
 
                 assoc_row = {
-                    'pricelist_id': db_obj.id,
-                    'autopart_id': autopart.id,
-                    'quantity': qty,
-                    'price': prc,
-                    'multiplicity': mult,
+                    "pricelist_id": db_obj.id,
+                    "autopart_id": autopart.id,
+                    "quantity": qty,
+                    "price": prc,
+                    "multiplicity": mult,
                 }
                 bulk_insert_map[autopart.id] = assoc_row
 
                 # Запоминаем актуальную позицию для истории изменений.
                 current_positions[autopart.id] = {
-                    'price': prc,
-                    'quantity': qty,
+                    "price": prc,
+                    "quantity": qty,
                 }
 
             if bulk_insert_map:
@@ -1499,7 +1625,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             # Шаг 4: Выполнение массовой вставки ассоциаций, если есть данные
             if bulk_insert_data:
                 logger.debug(
-                    f'Bulk inserting {len(bulk_insert_data)} associations.'
+                    f"Bulk inserting {len(bulk_insert_data)} associations."
                 )
                 await session.execute(
                     insert(PriceListAutoPartAssociation), bulk_insert_data
@@ -1513,29 +1639,33 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                 last = last_history_map.get(autopart_id)
                 if last is None:
                     # впервые видим эту позицию у этого провайдера
-                    bulk_insert_data_history.append({
-                        'autopart_id': autopart_id,
-                        'provider_id': provider_id,
-                        'pricelist_id': db_obj.id,
-                        'provider_config_id': provider_config_id,
-                        'created_at': created_at_ts,
-                        'price': current_data['price'],
-                        'quantity': current_data['quantity'],
-                    })
-                    logger.debug(f'New position: autopart_id={autopart_id}')
+                    bulk_insert_data_history.append(
+                        {
+                            "autopart_id": autopart_id,
+                            "provider_id": provider_id,
+                            "pricelist_id": db_obj.id,
+                            "provider_config_id": provider_config_id,
+                            "created_at": created_at_ts,
+                            "price": current_data["price"],
+                            "quantity": current_data["quantity"],
+                        }
+                    )
+                    logger.debug(f"New position: autopart_id={autopart_id}")
                     continue
-                price_changed = current_data['price'] != last['price']
-                qty_changed = current_data['quantity'] != last['quantity']
+                price_changed = current_data["price"] != last["price"]
+                qty_changed = current_data["quantity"] != last["quantity"]
                 if price_changed or qty_changed:
-                    bulk_insert_data_history.append({
-                        'autopart_id': autopart_id,
-                        'provider_id': provider_id,
-                        'provider_config_id': provider_config_id,
-                        'pricelist_id': db_obj.id,
-                        'created_at': created_at_ts,
-                        'price': current_data['price'],
-                        'quantity': current_data['quantity'],
-                    })
+                    bulk_insert_data_history.append(
+                        {
+                            "autopart_id": autopart_id,
+                            "provider_id": provider_id,
+                            "provider_config_id": provider_config_id,
+                            "pricelist_id": db_obj.id,
+                            "created_at": created_at_ts,
+                            "price": current_data["price"],
+                            "quantity": current_data["quantity"],
+                        }
+                    )
 
             # 3) События исчезновения (qty=0)
             # исчезли те, что были в last_history_map, но нет в current_ids
@@ -1547,25 +1677,27 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                 if not last:
                     continue
                 # если уже было qty=0 — повторно не пишем
-                if last['quantity'] != 0:
-                    bulk_insert_data_history.append({
-                        'autopart_id': autopart_id,
-                        'provider_id': provider_id,
-                        'provider_config_id': provider_config_id,
-                        'pricelist_id': db_obj.id,
-                        'created_at': created_at_ts,
-                        'price': last['price'],
-                        'quantity': 0,
-                    })
+                if last["quantity"] != 0:
+                    bulk_insert_data_history.append(
+                        {
+                            "autopart_id": autopart_id,
+                            "provider_id": provider_id,
+                            "provider_config_id": provider_config_id,
+                            "pricelist_id": db_obj.id,
+                            "created_at": created_at_ts,
+                            "price": last["price"],
+                            "quantity": 0,
+                        }
+                    )
                     logger.debug(
-                        f'Position disappeared: autopart_id={autopart_id}, '
-                        f'recording qty=0'
+                        f"Position disappeared: autopart_id={autopart_id}, "
+                        f"recording qty=0"
                     )
             if bulk_insert_data_history:
                 logger.debug(
-                    f'Bulk inserting '
-                    f'{len(bulk_insert_data_history)} '
-                    f'records into AutoPartPriceHistory.'
+                    f"Bulk inserting "
+                    f"{len(bulk_insert_data_history)} "
+                    f"records into AutoPartPriceHistory."
                 )
                 await session.execute(
                     insert(AutoPartPriceHistory), bulk_insert_data_history
@@ -1574,14 +1706,13 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             if provider_config_id is not None and missing_brand_counts:
                 missing_rows = [
                     {
-                        'pricelist_id': db_obj.id,
-                        'provider_config_id': provider_config_id,
-                        'brand_name': brand_name,
-                        'positions_count': positions_count,
-                        'created_at': created_at_ts,
+                        "pricelist_id": db_obj.id,
+                        "provider_config_id": provider_config_id,
+                        "brand_name": brand_name,
+                        "positions_count": positions_count,
+                        "created_at": created_at_ts,
                     }
-                    for brand_name, positions_count
-                    in missing_brand_counts.items()
+                    for brand_name, positions_count in missing_brand_counts.items()
                 ]
                 await session.execute(
                     insert(PriceListMissingBrand), missing_rows
@@ -1605,21 +1736,21 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             )
             result = await session.execute(stmt)
             db_obj = result.scalar_one()
-            logger.debug(f'Retrieved PriceList: {db_obj}')
-            if hasattr(db_obj, 'autopart_associations'):
+            logger.debug(f"Retrieved PriceList: {db_obj}")
+            if hasattr(db_obj, "autopart_associations"):
                 for assoc in db_obj.autopart_associations:
                     logger.debug(
-                        f'AutoPart Association - '
-                        f'Pricelist ID: {assoc.pricelist_id}, '
-                        f'Autopart ID: {assoc.autopart_id}, '
-                        f'Quantity: {assoc.quantity}, '
-                        f'Price: {assoc.price}'
+                        f"AutoPart Association - "
+                        f"Pricelist ID: {assoc.pricelist_id}, "
+                        f"Autopart ID: {assoc.autopart_id}, "
+                        f"Quantity: {assoc.quantity}, "
+                        f"Price: {assoc.price}"
                     )
-                    if hasattr(assoc, 'autopart'):
+                    if hasattr(assoc, "autopart"):
                         logger.debug(
-                            f'AutoPart - ID: {assoc.autopart.id}, '
-                            f'OEM Number: {assoc.autopart.oem_number}, '
-                            f'Name: {assoc.autopart.name}'
+                            f"AutoPart - ID: {assoc.autopart.id}, "
+                            f"OEM Number: {assoc.autopart.oem_number}, "
+                            f"Name: {assoc.autopart.name}"
                         )
 
             try:
@@ -1641,27 +1772,27 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                 )
                 return response
             except ValidationError as e:
-                logger.error(f'Validation error: {e.json()}')
+                logger.error(f"Validation error: {e.json()}")
                 raise HTTPException(
-                    status_code=500, detail=f'Validation error: {str(e)}'
+                    status_code=500, detail=f"Validation error: {str(e)}"
                 )
         except IntegrityError as e:
-            logger.error(f'Integrity error occurred: {e}')
+            logger.error(f"Integrity error occurred: {e}")
             await session.rollback()
             raise HTTPException(
-                status_code=400, detail='Integrity error during creation'
+                status_code=400, detail="Integrity error during creation"
             )
         except SQLAlchemyError as e:
-            logger.error(f'Database error occurred: {e}')
+            logger.error(f"Database error occurred: {e}")
             await session.rollback()
             raise HTTPException(
-                status_code=500, detail='Database error during creation'
+                status_code=500, detail="Database error during creation"
             )
         except Exception as e:
-            logger.error(f'Unexpected error occurred: {e}')
+            logger.error(f"Unexpected error occurred: {e}")
             await session.rollback()
             raise HTTPException(
-                status_code=500, detail='Unexpected error during creation'
+                status_code=500, detail="Unexpected error during creation"
             )
 
     async def count_by_provider_id(
@@ -1679,9 +1810,9 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         # Подзапрос для получения ограниченного списка прайс-листов
         pricelist_subquery = (
             select(
-                PriceList.id.label('id'),
-                PriceList.date.label('date'),
-                PriceList.provider_config_id.label('provider_config_id'),
+                PriceList.id.label("id"),
+                PriceList.date.label("date"),
+                PriceList.provider_config_id.label("provider_config_id"),
             )
             .where(PriceList.provider_id == provider_id)
             .order_by(PriceList.date.desc())
@@ -1697,7 +1828,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                 pricelist_subquery.c.date,
                 pricelist_subquery.c.provider_config_id,
                 func.count(PriceListAutoPartAssociation.autopart_id).label(
-                    'num_positions'
+                    "num_positions"
                 ),
             )
             .outerjoin(
@@ -1743,7 +1874,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         db_obj = result.scalar_one_or_none()
 
         if db_obj is None:
-            raise HTTPException(status_code=404, detail='PriceList not found')
+            raise HTTPException(status_code=404, detail="PriceList not found")
 
         return db_obj
 
@@ -1773,21 +1904,21 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             brand_name = autopart.brand.name if autopart.brand else None
             data.append(
                 {
-                    'autopart_id': autopart.id,
-                    'name': autopart.name,
-                    'oem_number': autopart.oem_number,
-                    'brand_id': autopart.brand_id,
-                    'brand': brand_name,
-                    'provider_id': assoc.pricelist.provider_id,
-                    'provider_config_id': assoc.pricelist.provider_config_id,
-                    'pricelist_id': assoc.pricelist.id,
-                    'is_own_price': bool(
-                        assoc.pricelist.provider.is_own_price
-                    )
-                    if assoc.pricelist.provider
-                    else False,
-                    'quantity': assoc.quantity,
-                    'price': float(assoc.price),
+                    "autopart_id": autopart.id,
+                    "name": autopart.name,
+                    "oem_number": autopart.oem_number,
+                    "brand_id": autopart.brand_id,
+                    "brand": brand_name,
+                    "provider_id": assoc.pricelist.provider_id,
+                    "provider_config_id": assoc.pricelist.provider_config_id,
+                    "pricelist_id": assoc.pricelist.id,
+                    "is_own_price": (
+                        bool(assoc.pricelist.provider.is_own_price)
+                        if assoc.pricelist.provider
+                        else False
+                    ),
+                    "quantity": assoc.quantity,
+                    "price": float(assoc.price),
                 }
             )
         return pd.DataFrame(data)
@@ -1840,7 +1971,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         result = await session.execute(stmt)
         pricelists = result.scalars().all()
         logger.debug(
-            'Fetching pricelists for provider_id=%s provider_config_id=%s',
+            "Fetching pricelists for provider_id=%s provider_config_id=%s",
             provider_id,
             provider_config_id,
         )
@@ -1885,11 +2016,13 @@ class CRUDCustomerPriceList(
         )
 
         ids = (
-            (await session.execute(
-                select(ranked.c.id)
-                .where(ranked.c.rn > keep_last_n)
-                .limit(batch_size)
-            ))
+            (
+                await session.execute(
+                    select(ranked.c.id)
+                    .where(ranked.c.rn > keep_last_n)
+                    .limit(batch_size)
+                )
+            )
             .scalars()
             .all()
         )
@@ -1914,7 +2047,7 @@ class CRUDCustomerPriceList(
     ) -> CustomerPriceList:
         try:
             obj_in_data = obj_in.model_dump()
-            autoparts_data = obj_in_data.pop('autoparts', [])
+            autoparts_data = obj_in_data.pop("autoparts", [])
             db_obj = self.model(**obj_in_data)
             session.add(db_obj)
             await session.flush()
@@ -1947,22 +2080,22 @@ class CRUDCustomerPriceList(
             await session.refresh(db_obj)
             return db_obj
         except IntegrityError as e:
-            logger.error(f'Integrity error occurred: {e}')
+            logger.error(f"Integrity error occurred: {e}")
             await session.rollback()
             raise HTTPException(
-                status_code=400, detail='Integrity error during creation'
+                status_code=400, detail="Integrity error during creation"
             )
         except SQLAlchemyError as e:
-            logger.error(f'Database error occurred: {e}')
+            logger.error(f"Database error occurred: {e}")
             await session.rollback()
             raise HTTPException(
-                status_code=500, detail='Database error during creation'
+                status_code=500, detail="Database error during creation"
             )
         except Exception as e:
-            logger.error(f'Unexpected error occurred: {e}')
+            logger.error(f"Unexpected error occurred: {e}")
             await session.rollback()
             raise HTTPException(
-                status_code=500, detail='Unexpected error during creation'
+                status_code=500, detail="Unexpected error during creation"
             )
 
     async def update(
@@ -1982,8 +2115,8 @@ class CRUDCustomerPriceList(
             else:
                 update_data = obj_in.model_dump(exclude_unset=True)
 
-            if 'autoparts' in update_data:
-                autoparts_data = update_data['autoparts']
+            if "autoparts" in update_data:
+                autoparts_data = update_data["autoparts"]
 
                 # Delete existing associations
                 await session.execute(
@@ -2007,8 +2140,8 @@ class CRUDCustomerPriceList(
                     if not autopart:
                         raise HTTPException(
                             status_code=404,
-                            detail=f'AutoPart with '
-                            f'id {autopart_id} not found',
+                            detail=f"AutoPart with "
+                            f"id {autopart_id} not found",
                         )
 
                     # Insert into association table
@@ -2025,22 +2158,22 @@ class CRUDCustomerPriceList(
             await session.refresh(db_obj)
             return db_obj
         except IntegrityError as e:
-            logger.error(f'Integrity error occurred: {e}')
+            logger.error(f"Integrity error occurred: {e}")
             await session.rollback()
             raise HTTPException(
-                status_code=400, detail='Integrity error during update'
+                status_code=400, detail="Integrity error during update"
             )
         except SQLAlchemyError as e:
-            logger.error(f'Database error occurred: {e}')
+            logger.error(f"Database error occurred: {e}")
             await session.rollback()
             raise HTTPException(
-                status_code=500, detail='Database error during update'
+                status_code=500, detail="Database error during update"
             )
         except Exception as e:
-            logger.error(f'Unexpected error occurred: {e}')
+            logger.error(f"Unexpected error occurred: {e}")
             await session.rollback()
             raise HTTPException(
-                status_code=500, detail='Unexpected error during update'
+                status_code=500, detail="Unexpected error during update"
             )
 
     async def get(
@@ -2054,7 +2187,7 @@ class CRUDCustomerPriceList(
         db_obj = result.scalar_one_or_none()
         if not db_obj:
             raise HTTPException(
-                status_code=404, detail='CustomerPriceList not found'
+                status_code=404, detail="CustomerPriceList not found"
             )
 
         # Get associated AutoParts with extra fields
@@ -2089,7 +2222,7 @@ class CRUDCustomerPriceList(
         ignore_price_quantity_filters: bool = False,
     ) -> pd.DataFrame:
         logger.debug(
-            f'Into apply_coefficient data df:{df}, cofig: {config.__dict__}'
+            f"Into apply_coefficient data df:{df}, cofig: {config.__dict__}"
         )
         data_individual_markups = config.individual_markups
 
@@ -2097,12 +2230,12 @@ class CRUDCustomerPriceList(
             if config.default_filters:
                 return dict(config.default_filters)
             return {
-                'brand_filters': config.brand_filters,
-                'category_filter': config.category_filter,
-                'price_intervals': config.price_intervals,
-                'position_filters': config.position_filters,
-                'supplier_quantity_filters': config.supplier_quantity_filters,
-                'additional_filters': config.additional_filters,
+                "brand_filters": config.brand_filters,
+                "category_filter": config.category_filter,
+                "price_intervals": config.price_intervals,
+                "position_filters": config.position_filters,
+                "supplier_quantity_filters": config.supplier_quantity_filters,
+                "additional_filters": config.additional_filters,
             }
 
         def _merge_filters(base: dict, override: dict | None) -> dict:
@@ -2131,88 +2264,78 @@ class CRUDCustomerPriceList(
 
         def _apply_filter_block(block_df: pd.DataFrame, filters_cfg: dict):
             block_df = block_df.copy()
-            block_df['price'] = pd.to_numeric(
-                block_df['price'], errors='coerce'
+            block_df["price"] = pd.to_numeric(
+                block_df["price"], errors="coerce"
             )
-            block_df['quantity'] = pd.to_numeric(
-                block_df['quantity'], errors='coerce'
+            block_df["quantity"] = pd.to_numeric(
+                block_df["quantity"], errors="coerce"
             )
 
-            brand_cfg = filters_cfg.get('brand_filters')
+            brand_cfg = filters_cfg.get("brand_filters")
             if isinstance(brand_cfg, list):
                 brands = _normalize_list(brand_cfg)
                 brand_cfg = (
-                    {'type': 'include', 'brands': brands} if brands else None
+                    {"type": "include", "brands": brands} if brands else None
                 )
             elif isinstance(brand_cfg, dict):
-                brands = _normalize_list(brand_cfg.get('brands'))
+                brands = _normalize_list(brand_cfg.get("brands"))
                 if not brands:
                     brand_cfg = None
                 else:
-                    brand_cfg = {**brand_cfg, 'brands': brands}
+                    brand_cfg = {**brand_cfg, "brands": brands}
             if brand_cfg:
                 block_df = brand_filters(brand_filters=brand_cfg, df=block_df)
 
-            position_cfg = filters_cfg.get('position_filters')
+            position_cfg = filters_cfg.get("position_filters")
             if isinstance(position_cfg, list):
                 autoparts = _normalize_list(position_cfg)
                 position_cfg = (
-                    {'type': 'include', 'autoparts': autoparts}
+                    {"type": "include", "autoparts": autoparts}
                     if autoparts
                     else None
                 )
             elif isinstance(position_cfg, dict):
-                autoparts = _normalize_list(position_cfg.get('autoparts'))
+                autoparts = _normalize_list(position_cfg.get("autoparts"))
                 if not autoparts:
                     position_cfg = None
                 else:
-                    position_cfg = {**position_cfg, 'autoparts': autoparts}
+                    position_cfg = {**position_cfg, "autoparts": autoparts}
             if position_cfg:
                 block_df = position_filters(
                     position_filters=position_cfg, df=block_df
                 )
 
             if not ignore_price_quantity_filters:
-                intervals_cfg = filters_cfg.get('price_intervals')
+                intervals_cfg = filters_cfg.get("price_intervals")
                 if intervals_cfg:
                     block_df = price_intervals(
                         price_intervals=intervals_cfg, df=block_df
                     )
 
-                supplier_qty_cfg = filters_cfg.get(
-                    'supplier_quantity_filters'
-                )
+                supplier_qty_cfg = filters_cfg.get("supplier_quantity_filters")
                 if supplier_qty_cfg:
                     block_df = supplier_quantity_filters(
                         supplier_quantity_filters=supplier_qty_cfg,
                         df=block_df,
                     )
 
-                min_price = filters_cfg.get('min_price')
-                max_price = filters_cfg.get('max_price')
-                min_qty = filters_cfg.get('min_quantity')
-                max_qty = filters_cfg.get('max_quantity')
+                min_price = filters_cfg.get("min_price")
+                max_price = filters_cfg.get("max_price")
+                min_qty = filters_cfg.get("min_quantity")
+                max_qty = filters_cfg.get("max_quantity")
                 if min_price is not None:
-                    block_df = block_df[
-                        block_df['price'] >= float(min_price)
-                    ]
+                    block_df = block_df[block_df["price"] >= float(min_price)]
                 if max_price is not None:
-                    block_df = block_df[
-                        block_df['price'] <= float(max_price)
-                    ]
+                    block_df = block_df[block_df["price"] <= float(max_price)]
                 if min_qty is not None:
-                    block_df = block_df[
-                        block_df['quantity'] >= int(min_qty)
-                    ]
+                    block_df = block_df[block_df["quantity"] >= int(min_qty)]
                 if max_qty is not None:
-                    block_df = block_df[
-                        block_df['quantity'] <= int(max_qty)
-                    ]
+                    block_df = block_df[block_df["quantity"] <= int(max_qty)]
 
             return block_df
 
         # Ensure 'price' column is numeric
-        df['price'] = pd.to_numeric(df['price'], errors='coerce')
+        df["price"] = pd.to_numeric(df["price"], errors="coerce")
 
         # Apply individual markups per supplier
         if data_individual_markups:
@@ -2220,10 +2343,10 @@ class CRUDCustomerPriceList(
                 individual_markups=data_individual_markups, df=df
             )
 
-        if provider_id is None and 'provider_id' in df.columns:
+        if provider_id is None and "provider_id" in df.columns:
             blocks = []
             for (pid, own_flag), block in df.groupby(
-                ['provider_id', 'is_own_price'], dropna=False
+                ["provider_id", "is_own_price"], dropna=False
             ):
                 filters_cfg = _resolve_filters(
                     int(pid) if pd.notna(pid) else None, bool(own_flag)
@@ -2231,16 +2354,18 @@ class CRUDCustomerPriceList(
                 filtered = _apply_filter_block(block, filters_cfg)
                 if not filtered.empty:
                     blocks.append(filtered)
-            df = pd.concat(
-                blocks, ignore_index=True
-            ) if blocks else df.iloc[0:0]
+            df = (
+                pd.concat(blocks, ignore_index=True)
+                if blocks
+                else df.iloc[0:0]
+            )
         else:
             filters_cfg = _resolve_filters(provider_id, is_own_price)
             df = _apply_filter_block(df, filters_cfg)
 
         # Apply general markup
         if apply_general_markup:
-            df['price'] *= normalize_markup(config.general_markup)
+            df["price"] *= normalize_markup(config.general_markup)
 
         return df
 
@@ -2284,20 +2409,20 @@ class CRUDCustomerPriceList(
     ) -> list[CustomerPriceListAutoPartAssociation]:
         associations = []
         for entry in autoparts_data:
-            if 'autopart_id' in entry and entry['autopart_id']:
+            if "autopart_id" in entry and entry["autopart_id"]:
                 association = CustomerPriceListAutoPartAssociation(
                     customerpricelist_id=customer_pricelist_id,
-                    autopart_id=entry['autopart_id'],
-                    quantity=entry['quantity'],
-                    price=entry['price'],
+                    autopart_id=entry["autopart_id"],
+                    quantity=entry["quantity"],
+                    price=entry["price"],
                 )
                 associations.append(association)
                 session.add(association)
             else:
                 # Handle items without autopart_id (log)
                 logger.debug(
-                    f'Skipping association '
-                    f'for item without autopart_id: {entry}'
+                    f"Skipping association "
+                    f"for item without autopart_id: {entry}"
                 )
         await session.commit()
         result = await session.execute(
@@ -2333,26 +2458,26 @@ class CRUDCustomerPriceList(
             if not db_obj:
                 raise HTTPException(
                     status_code=404,
-                    detail=f'PriceList {pricelist_id} not '
-                    f'found for customer {customer_id}',
+                    detail=f"PriceList {pricelist_id} not "
+                    f"found for customer {customer_id}",
                 )
 
             # Удаляем сам прайс-лист
             await session.delete(db_obj)
             await session.commit()
         except SQLAlchemyError as e:
-            logger.error(f'Database error occurred: {e}')
+            logger.error(f"Database error occurred: {e}")
             await session.rollback()
             raise HTTPException(
                 status_code=500,
-                detail='Database error during pricelist delete',
+                detail="Database error during pricelist delete",
             )
         except Exception as e:
-            logger.error(f'Unexpected error occurred: {e}')
+            logger.error(f"Unexpected error occurred: {e}")
             await session.rollback()
             raise HTTPException(
                 status_code=500,
-                detail='Unexpected error during pricelist delete',
+                detail="Unexpected error during pricelist delete",
             )
 
     async def delete_older_pricelists(
@@ -2382,18 +2507,18 @@ class CRUDCustomerPriceList(
 
                 await session.commit()
         except SQLAlchemyError as e:
-            logger.error(f'Database error occurred during cleanup: {e}')
+            logger.error(f"Database error occurred during cleanup: {e}")
             await session.rollback()
             raise HTTPException(
                 status_code=500,
-                detail='Database error during pricelist cleanup',
+                detail="Database error during pricelist cleanup",
             )
         except Exception as e:
-            logger.error(f'Unexpected error occurred during cleanup: {e}')
+            logger.error(f"Unexpected error occurred during cleanup: {e}")
             await session.rollback()
             raise HTTPException(
                 status_code=500,
-                detail='Unexpected error during pricelist cleanup',
+                detail="Unexpected error during pricelist cleanup",
             )
 
 
@@ -2472,7 +2597,7 @@ class CRUDProviderPriceListConfig(
         else:
             update_data = obj_in.model_dump(exclude_unset=True)
 
-        REQUIRED = {'start_row', 'oem_col', 'qty_col', 'price_col'}
+        REQUIRED = {"start_row", "oem_col", "qty_col", "price_col"}
         for field, value in update_data.items():
             if field in REQUIRED and value is None:
                 continue
@@ -2502,10 +2627,10 @@ class CRUDSupplierResponseConfig(
         session: AsyncSession,
         only_active: bool = False,
     ) -> List[SupplierResponseConfig]:
-        stmt = select(SupplierResponseConfig).where(
-            SupplierResponseConfig.provider_id == provider_id
-        ).options(
-            selectinload(SupplierResponseConfig.inbox_email_account)
+        stmt = (
+            select(SupplierResponseConfig)
+            .where(SupplierResponseConfig.provider_id == provider_id)
+            .options(selectinload(SupplierResponseConfig.inbox_email_account))
         )
         if only_active:
             stmt = stmt.where(SupplierResponseConfig.is_active.is_(True))
@@ -2625,8 +2750,8 @@ class CRUDCustomerPriceListConfig(
         )
         if existing_config:
             raise ValueError(
-                f'A configuration with '
-                f'the name {config_in.name} already exists.'
+                f"A configuration with "
+                f"the name {config_in.name} already exists."
             )
 
         # Создаем новую конфигурацию
@@ -2657,15 +2782,15 @@ class CRUDCustomerPriceListSource(
     ) -> Dict[str, Any]:
         normalized = dict(update_data)
         for field in (
-            'min_price',
-            'max_price',
-            'min_quantity',
-            'max_quantity',
+            "min_price",
+            "max_price",
+            "min_quantity",
+            "max_quantity",
         ):
             if field not in normalized:
                 continue
             value = normalized.get(field)
-            if value is None or value == '':
+            if value is None or value == "":
                 normalized[field] = None
                 continue
             try:
@@ -2684,9 +2809,7 @@ class CRUDCustomerPriceListSource(
             .options(
                 selectinload(
                     CustomerPriceListSource.provider_config
-                ).selectinload(
-                    ProviderPriceListConfig.provider
-                )
+                ).selectinload(ProviderPriceListConfig.provider)
             )
             .where(CustomerPriceListSource.id == source_id)
         )
@@ -2700,9 +2823,7 @@ class CRUDCustomerPriceListSource(
             .options(
                 selectinload(
                     CustomerPriceListSource.provider_config
-                ).selectinload(
-                    ProviderPriceListConfig.provider
-                )
+                ).selectinload(ProviderPriceListConfig.provider)
             )
             .where(CustomerPriceListSource.customer_config_id == config_id)
             .order_by(CustomerPriceListSource.id.asc())
@@ -2784,7 +2905,7 @@ async def get_last_uid(
         record = result.scalar_one_or_none()
         if record:
             if folder:
-                folder_uids = getattr(record, 'folder_last_uids', None) or {}
+                folder_uids = getattr(record, "folder_last_uids", None) or {}
                 folder_uid = folder_uids.get(str(folder))
                 if folder_uid is not None:
                     try:
@@ -2801,7 +2922,7 @@ async def get_last_uid(
     record = result.scalar_one_or_none()
     if record:
         if folder:
-            folder_uids = getattr(record, 'folder_last_uids', None) or {}
+            folder_uids = getattr(record, "folder_last_uids", None) or {}
             folder_uid = folder_uids.get(str(folder))
             if folder_uid is not None:
                 try:
@@ -2837,7 +2958,7 @@ async def set_last_uid(
             )
             session.add(record)
         if folder:
-            folder_uids = dict(getattr(record, 'folder_last_uids', None) or {})
+            folder_uids = dict(getattr(record, "folder_last_uids", None) or {})
             folder_uids[str(folder)] = int(last_uid)
             record.folder_last_uids = folder_uids
             record.last_uid = max(int(record.last_uid or 0), int(last_uid))
@@ -2860,7 +2981,7 @@ async def set_last_uid(
         )
         session.add(record)
     if folder:
-        folder_uids = dict(getattr(record, 'folder_last_uids', None) or {})
+        folder_uids = dict(getattr(record, "folder_last_uids", None) or {})
         folder_uids[str(folder)] = int(last_uid)
         record.folder_last_uids = folder_uids
         record.last_uid = max(int(record.last_uid or 0), int(last_uid))

@@ -7,13 +7,22 @@ from sqlalchemy.orm import selectinload
 
 from dz_fastapi.core.db import AsyncSession
 from dz_fastapi.crud.base import CRUDBase
-from dz_fastapi.models.partner import (ORDER_TRACKING_SOURCE,
-                                       TYPE_ORDER_ITEM_STATUS,
-                                       TYPE_STATUS_ORDER, Order, OrderItem)
-from dz_fastapi.schemas.order import (OrderIn, OrderItemIn, OrderItemUpdate,
-                                      OrderPositionOut, OrderUpdate)
+from dz_fastapi.models.partner import (
+    ORDER_TRACKING_SOURCE,
+    TYPE_ORDER_ITEM_STATUS,
+    TYPE_STATUS_ORDER,
+    Order,
+    OrderItem,
+)
+from dz_fastapi.schemas.order import (
+    OrderIn,
+    OrderItemIn,
+    OrderItemUpdate,
+    OrderPositionOut,
+    OrderUpdate,
+)
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
 
 class CRUDOrderItem(CRUDBase[OrderItem, OrderItemIn, OrderItemUpdate]):
@@ -22,7 +31,7 @@ class CRUDOrderItem(CRUDBase[OrderItem, OrderItemIn, OrderItemUpdate]):
         tracking_uuid: str,
         session: AsyncSession,
     ) -> OrderItem:
-        '''Получение OrderItem по tracking_uuid'''
+        """Получение OrderItem по tracking_uuid"""
         result = await session.execute(
             select(OrderItem).where(OrderItem.tracking_uuid == tracking_uuid)
         )
@@ -33,7 +42,7 @@ class CRUDOrderItem(CRUDBase[OrderItem, OrderItemIn, OrderItemUpdate]):
         hash_key: str,
         session: AsyncSession,
     ) -> OrderItem:
-        '''Получение OrderItem по hash_key'''
+        """Получение OrderItem по hash_key"""
         result = await session.execute(
             select(OrderItem).where(OrderItem.hash_key == hash_key)
         )
@@ -44,14 +53,14 @@ class CRUDOrderItem(CRUDBase[OrderItem, OrderItemIn, OrderItemUpdate]):
         order_item_in: OrderItemIn,
         session: AsyncSession,
     ) -> OrderItem:
-        '''Создание нового OrderItem'''
+        """Создание нового OrderItem"""
         exist_order_tracking_uuid = await self.get_order_item_by_hash(
             hash_key=order_item_in.hash_key, session=session
         )
         if exist_order_tracking_uuid:
             raise ValueError(
-                f'The order hash_key = '
-                f'{order_item_in.hash_key} already exists.'
+                f"The order hash_key = "
+                f"{order_item_in.hash_key} already exists."
             )
         new_order_item = OrderItem(
             order_id=order_item_in.order_id,
@@ -75,7 +84,7 @@ class CRUDOrderItem(CRUDBase[OrderItem, OrderItemIn, OrderItemUpdate]):
         order_id: int,
         session: AsyncSession,
     ):
-        '''Получение всех OrderItem для конкретного заказа'''
+        """Получение всех OrderItem для конкретного заказа"""
         result = await session.execute(
             select(OrderItem).where(OrderItem.order_id == order_id)
         )
@@ -87,7 +96,7 @@ class CRUDOrderItem(CRUDBase[OrderItem, OrderItemIn, OrderItemUpdate]):
         new_status: TYPE_ORDER_ITEM_STATUS,
         session: AsyncSession,
     ) -> Optional[OrderItem]:
-        '''Обновление статуса OrderItem'''
+        """Обновление статуса OrderItem"""
         order_item = await self.get_order_item_by_uuid(
             tracking_uuid=tracking_uuid, session=session
         )
@@ -117,7 +126,7 @@ class CRUDOrder(CRUDBase[Order, OrderIn, OrderUpdate]):
             TYPE_ORDER_ITEM_STATUS.NEW
         ),
     ):
-        '''Создание заказа с позициями'''
+        """Создание заказа с позициями"""
         new_order = Order(
             provider_id=provider_id,
             customer_id=customer_id,
@@ -161,14 +170,14 @@ class CRUDOrder(CRUDBase[Order, OrderIn, OrderUpdate]):
     async def get_orders_by_provider(
         self, provider_id: int, session: AsyncSession
     ) -> List[Order]:
-        '''Получение заказов по поставщику'''
+        """Получение заказов по поставщику"""
         result = await session.execute(
             select(Order).where(Order.provider_id == provider_id)
         )
         return result.scalars().all()
 
     async def get_all_orders(self, session: AsyncSession) -> List[Order]:
-        '''Получение заказов'''
+        """Получение заказов"""
         result = await session.execute(
             select(Order).options(selectinload(Order.order_items))
         )

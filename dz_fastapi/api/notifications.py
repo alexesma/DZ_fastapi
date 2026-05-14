@@ -7,15 +7,17 @@ from dz_fastapi.core.db import get_session
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.notification import AppNotification
 from dz_fastapi.models.user import User
-from dz_fastapi.schemas.notification import (AppNotificationListResponse,
-                                             AppNotificationReadResponse,
-                                             AppNotificationResponse)
+from dz_fastapi.schemas.notification import (
+    AppNotificationListResponse,
+    AppNotificationReadResponse,
+    AppNotificationResponse,
+)
 
-router = APIRouter(prefix='/notifications', tags=['notifications'])
+router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 
 @router.get(
-    '',
+    "",
     response_model=AppNotificationListResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -46,16 +48,13 @@ async def list_notifications(
         stmt = stmt.where(AppNotification.read_at.is_(None))
     items = (await session.execute(stmt)).scalars().all()
     return AppNotificationListResponse(
-        items=[
-            AppNotificationResponse.model_validate(item)
-            for item in items
-        ],
+        items=[AppNotificationResponse.model_validate(item) for item in items],
         unread_count=unread_count,
     )
 
 
 @router.post(
-    '/{notification_id}/read',
+    "/{notification_id}/read",
     response_model=AppNotificationReadResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -66,7 +65,7 @@ async def mark_notification_read(
 ):
     notification = await session.get(AppNotification, notification_id)
     if not notification or notification.user_id != current_user.id:
-        raise HTTPException(status_code=404, detail='Notification not found')
+        raise HTTPException(status_code=404, detail="Notification not found")
     if notification.read_at is None:
         notification.read_at = now_moscow()
         session.add(notification)
@@ -79,7 +78,7 @@ async def mark_notification_read(
 
 
 @router.post(
-    '/read-all',
+    "/read-all",
     status_code=status.HTTP_200_OK,
 )
 async def mark_all_notifications_read(
@@ -98,4 +97,4 @@ async def mark_all_notifications_read(
         item.read_at = now
         session.add(item)
     await session.commit()
-    return {'updated': len(items)}
+    return {"updated": len(items)}

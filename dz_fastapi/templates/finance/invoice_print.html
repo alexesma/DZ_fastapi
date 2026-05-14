@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Счёт на оплату № {{ invoice.invoice_number }}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Arial', sans-serif;
+    font-size: 11pt;
+    color: #1a1a1a;
+    background: #fff;
+    padding: 20mm 15mm;
+    max-width: 210mm;
+    margin: 0 auto;
+  }
+
+  /* ── Шапка ─────────────────────────────────────────────────── */
+  .header-bar {
+    background: #1a3a6b;
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 4px 4px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .header-bar h1 { font-size: 14pt; font-weight: 700; letter-spacing: 0.5px; }
+  .header-bar .inv-ref { font-size: 10pt; opacity: 0.85; text-align: right; }
+
+  /* ── Реквизиты ─────────────────────────────────────────────── */
+  .parties {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 12px 0;
+    border: 1px solid #dde3ee;
+    border-radius: 0 0 4px 4px;
+    padding: 12px 14px;
+  }
+  .party-block h3 {
+    font-size: 9pt;
+    text-transform: uppercase;
+    color: #6b7280;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .party-block p { font-size: 10.5pt; line-height: 1.5; }
+  .party-block p strong { font-weight: 600; }
+
+  /* ── Сроки / суммы ─────────────────────────────────────────── */
+  .meta-row {
+    display: flex;
+    gap: 12px;
+    margin: 8px 0 14px;
+  }
+  .meta-cell {
+    flex: 1;
+    border: 1px solid #dde3ee;
+    border-radius: 4px;
+    padding: 8px 12px;
+  }
+  .meta-cell label {
+    display: block;
+    font-size: 8.5pt;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 3px;
+  }
+  .meta-cell span {
+    font-size: 11pt;
+    font-weight: 600;
+  }
+  .meta-cell.overdue span { color: #c0392b; }
+  .meta-cell.paid span    { color: #27ae60; }
+
+  /* ── Таблица позиций ────────────────────────────────────────── */
+  .items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 6px 0 12px;
+    font-size: 10pt;
+  }
+  .items-table thead tr {
+    background: #f0f4fb;
+  }
+  .items-table th {
+    padding: 7px 10px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 9.5pt;
+    color: #374151;
+    border-bottom: 2px solid #1a3a6b;
+  }
+  .items-table th.right,
+  .items-table td.right { text-align: right; }
+
+  .items-table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #e5e9f2;
+    vertical-align: top;
+  }
+  .items-table tbody tr:last-child td { border-bottom: none; }
+  .items-table tbody tr:nth-child(even) { background: #fafbfd; }
+
+  /* ── Итого ──────────────────────────────────────────────────── */
+  .totals {
+    margin-left: auto;
+    width: 260px;
+    border: 1px solid #dde3ee;
+    border-radius: 4px;
+    overflow: hidden;
+    font-size: 10.5pt;
+  }
+  .totals-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 12px;
+    border-bottom: 1px solid #e5e9f2;
+  }
+  .totals-row:last-child { border-bottom: none; }
+  .totals-row.grand {
+    background: #1a3a6b;
+    color: #fff;
+    font-weight: 700;
+    font-size: 11.5pt;
+  }
+  .totals-row.debt {
+    background: #fff3f3;
+    color: #c0392b;
+    font-weight: 600;
+  }
+
+  /* ── Примечания ─────────────────────────────────────────────── */
+  .notes-block {
+    margin-top: 14px;
+    padding: 10px 12px;
+    background: #fffbea;
+    border-left: 3px solid #f39c12;
+    border-radius: 0 4px 4px 0;
+    font-size: 10pt;
+    color: #555;
+  }
+  .notes-block strong { color: #333; }
+
+  /* ── Подвал ─────────────────────────────────────────────────── */
+  .footer {
+    margin-top: 28px;
+    padding-top: 10px;
+    border-top: 1px solid #dde3ee;
+    display: flex;
+    justify-content: space-between;
+    font-size: 9pt;
+    color: #9ca3af;
+  }
+  .status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 9pt;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .status-draft        { background: #f3f4f6; color: #6b7280; }
+  .status-sent         { background: #dbeafe; color: #1d4ed8; }
+  .status-partially_paid { background: #fef3c7; color: #b45309; }
+  .status-paid         { background: #d1fae5; color: #065f46; }
+  .status-cancelled    { background: #fee2e2; color: #b91c1c; }
+  .status-overdue      { background: #fee2e2; color: #b91c1c; }
+
+  /* ── Print adjustments ──────────────────────────────────────── */
+  @media print {
+    body { padding: 10mm 8mm; }
+    .no-print { display: none !important; }
+    .header-bar { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .totals-row.grand { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .status-badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+
+  /* ── Print button (screen only) ─────────────────────────────── */
+  .print-actions {
+    text-align: right;
+    margin-bottom: 14px;
+  }
+  .print-btn {
+    background: #1a3a6b;
+    color: #fff;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 4px;
+    font-size: 11pt;
+    cursor: pointer;
+    margin-left: 8px;
+  }
+  .print-btn:hover { background: #2a5298; }
+  .print-btn.secondary { background: #4b5563; }
+</style>
+</head>
+<body>
+
+<!-- Print / Save actions (hidden when printing) -->
+<div class="print-actions no-print">
+  <button class="print-btn secondary" onclick="window.close()">✕ Закрыть</button>
+  <button class="print-btn" onclick="window.print()">🖨 Распечатать / Сохранить PDF</button>
+</div>
+
+<!-- Header -->
+<div class="header-bar">
+  <h1>Счёт на оплату</h1>
+  <div class="inv-ref">
+    <div>№ {{ invoice.invoice_number }}</div>
+    <div>от {{ invoice.invoice_date }}</div>
+  </div>
+</div>
+
+<!-- Parties -->
+<div class="parties">
+  <div class="party-block">
+    <h3>Продавец / Поставщик</h3>
+    <p>
+      <strong>{{ seller_name }}</strong><br>
+      {% if seller_inn %}ИНН: {{ seller_inn }}{% if seller_kpp %} / КПП: {{ seller_kpp }}{% endif %}<br>{% endif %}
+      {% if seller_address %}{{ seller_address }}<br>{% endif %}
+      {% if seller_phone %}{{ seller_phone }}<br>{% endif %}
+      {% if seller_email %}{{ seller_email }}{% endif %}
+    </p>
+  </div>
+  <div class="party-block">
+    <h3>Покупатель</h3>
+    <p>
+      <strong>{{ customer.name }}</strong><br>
+      {% if customer.inn %}ИНН: {{ customer.inn }}{% if customer.kpp %} / КПП: {{ customer.kpp }}{% endif %}<br>{% endif %}
+      {% if customer.legal_address %}{{ customer.legal_address }}<br>{% endif %}
+      {% if customer.email_contact %}{{ customer.email_contact }}{% endif %}
+    </p>
+  </div>
+</div>
+
+<!-- Meta row: dates + status -->
+<div class="meta-row">
+  <div class="meta-cell">
+    <label>Дата выставления</label>
+    <span>{{ invoice.invoice_date }}</span>
+  </div>
+  {% if invoice.due_date %}
+  <div class="meta-cell {% if is_overdue %}overdue{% endif %}">
+    <label>Оплатить до</label>
+    <span>{{ invoice.due_date }}{% if is_overdue %} ⚠ просрочен{% endif %}</span>
+  </div>
+  {% endif %}
+  <div class="meta-cell">
+    <label>Статус</label>
+    <span>
+      <span class="status-badge status-{{ invoice.status }}">{{ status_label }}</span>
+    </span>
+  </div>
+  {% if invoice.shipment_id %}
+  <div class="meta-cell">
+    <label>Накладная</label>
+    <span>{{ shipment_number or invoice.shipment_id }}</span>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Items table (from linked shipment, or placeholder) -->
+<table class="items-table">
+  <thead>
+    <tr>
+      <th style="width:36px">#</th>
+      <th>Наименование / Артикул</th>
+      <th style="width:70px" class="right">Кол-во</th>
+      <th style="width:90px" class="right">Цена, ₽</th>
+      <th style="width:100px" class="right">Сумма, ₽</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% if items %}
+    {% for item in items %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td>
+        {% if item.brand %}{{ item.brand }} {% endif %}{{ item.oem }}<br>
+        {% if item.name %}<span style="color:#6b7280; font-size:9.5pt;">{{ item.name }}</span>{% endif %}
+      </td>
+      <td class="right">{{ item.quantity }}</td>
+      <td class="right">{{ "{:,.2f}".format(item.price) }}</td>
+      <td class="right"><strong>{{ "{:,.2f}".format(item.total) }}</strong></td>
+    </tr>
+    {% endfor %}
+  {% else %}
+    <tr>
+      <td>1</td>
+      <td>
+        Автозапчасти
+        {% if invoice.customer_order_id %} по заказу № {{ invoice.customer_order_id }}{% endif %}
+        {% if invoice.shipment_id %} (накладная {{ shipment_number or invoice.shipment_id }}){% endif %}
+      </td>
+      <td class="right">—</td>
+      <td class="right">—</td>
+      <td class="right"><strong>{{ "{:,.2f}".format(invoice.total_amount | float) }}</strong></td>
+    </tr>
+  {% endif %}
+  </tbody>
+</table>
+
+<!-- Totals -->
+<div style="display:flex; justify-content:flex-end; margin: 8px 0 16px;">
+  <div class="totals">
+    <div class="totals-row">
+      <span>Сумма по счёту:</span>
+      <span>{{ "{:,.2f}".format(invoice.total_amount | float) }} ₽</span>
+    </div>
+    {% if invoice.paid_amount and invoice.paid_amount | float > 0 %}
+    <div class="totals-row" style="color:#27ae60;">
+      <span>Оплачено:</span>
+      <span>{{ "{:,.2f}".format(invoice.paid_amount | float) }} ₽</span>
+    </div>
+    <div class="totals-row debt">
+      <span>Остаток к оплате:</span>
+      <span>{{ "{:,.2f}".format((invoice.total_amount | float) - (invoice.paid_amount | float)) }} ₽</span>
+    </div>
+    {% else %}
+    <div class="totals-row grand">
+      <span>К оплате:</span>
+      <span>{{ "{:,.2f}".format(invoice.total_amount | float) }} ₽</span>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if invoice.notes %}
+<div class="notes-block">
+  <strong>Примечание:</strong> {{ invoice.notes }}
+</div>
+{% endif %}
+
+<!-- Footer -->
+<div class="footer">
+  <span>Документ сформирован: {{ generated_at }}</span>
+  <span>Счёт действителен {% if invoice.due_date %}до {{ invoice.due_date }}{% else %}30 дней{% endif %}</span>
+</div>
+
+</body>
+</html>

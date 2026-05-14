@@ -16,13 +16,14 @@ from dz_fastapi.api.autopart import router as autopart_router
 from dz_fastapi.api.brand import router as brand_router
 from dz_fastapi.api.customer_order import router as customer_order_router
 from dz_fastapi.api.dashboard import router as dashboard_router
+from dz_fastapi.api.diadoc import router as diadoc_router
 from dz_fastapi.api.email_account import router as email_account_router
+from dz_fastapi.api.finance import router as finance_router
 from dz_fastapi.api.inbox_email import router as inbox_router
 from dz_fastapi.api.inventory import router as inventory_router
 from dz_fastapi.api.notifications import router as notifications_router
 from dz_fastapi.api.order import router as order_router
-from dz_fastapi.api.order_status_mapping import \
-    router as order_status_mapping_router
+from dz_fastapi.api.order_status_mapping import router as order_status_mapping_router
 from dz_fastapi.api.partner import router as partner_router
 from dz_fastapi.api.price_control import router as price_control_router
 from dz_fastapi.api.settings import router as settings_router
@@ -36,18 +37,18 @@ from dz_fastapi.services.telegram_bot import start_telegram_bot
 
 # --- Логирование ---
 # Настройка логгера
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 logger.setLevel(logging.DEBUG)
 
 # Создание обработчика для записи логов в файл
 handler = RotatingFileHandler(
-    'dz_fastapi.log', maxBytes=200000, backupCount=100
+    "dz_fastapi.log", maxBytes=200000, backupCount=100
 )
 handler.setLevel(logging.DEBUG)
 
 # Создание формата для логов
 formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 handler.setFormatter(formatter)
 # Добавление обработчика к логгеру
@@ -73,18 +74,16 @@ async def lifespan(app: FastAPI):
         async with app.state.session_factory() as session:
             await ensure_admin_user(session)
     except Exception as e:
-        logger.error(f'Failed to ensure admin user: {e}')
+        logger.error(f"Failed to ensure admin user: {e}")
     # 2) Стартуем планировщик и сохраняем его, чтобы потом корректно остановить
     scheduler = start_scheduler(app)
     app.state.scheduler = scheduler
     bot_task = None
     try:
         loop = asyncio.get_event_loop()
-        bot_task = loop.create_task(
-            asyncio.to_thread(start_telegram_bot)
-        )
+        bot_task = loop.create_task(asyncio.to_thread(start_telegram_bot))
     except Exception as e:
-        logger.error(f'Failed to start Telegram bot: {e}')
+        logger.error(f"Failed to start Telegram bot: {e}")
     try:
         yield
     finally:
@@ -94,14 +93,14 @@ async def lifespan(app: FastAPI):
             if app.state.scheduler:
                 app.state.scheduler.shutdown(wait=True)
         except Exception as e:
-            logger.exception(f'Scheduler shutdown error: {e}')
+            logger.exception(f"Scheduler shutdown error: {e}")
         # Отменяем задачу бота
         if bot_task:
             bot_task.cancel()
         try:
             await dispose_engines()
         except Exception as e:
-            logger.exception(f'Engine dispose error: {e}')
+            logger.exception(f"Engine dispose error: {e}")
 
 
 app = FastAPI(
@@ -116,31 +115,31 @@ app = FastAPI(
 
 @app.get("/health")
 async def health():
-    return {"status": 'ok'}
+    return {"status": "ok"}
 
 
 app.mount(
-    '/uploads',
-    StaticFiles(directory=os.path.join(os.getcwd(), 'uploads')),
-    name='uploads',
+    "/uploads",
+    StaticFiles(directory=os.path.join(os.getcwd(), "uploads")),
+    name="uploads",
 )
 # CORS настройка!
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        'http://localhost:5173',  # Vite dev server
-        'http://localhost:3000',  # Frontend в Docker (dev)
-        'http://127.0.0.1:5173',  # Локальный Vite
-        'http://127.0.0.1:3000',  # Локальный Docker frontend
-        'http://0.0.0.0:3000',  # Локальный Docker frontend (0.0.0.0)
-        'http://90.156.158.19',  # Ваш продакшн сервер (frontend)
-        'http://90.156.158.19:3000',  # Продакшн с портом
-        'https://dragonzap.online',  # Продакшн домен
-        'https://dragonzap.ru',  # Продакшн домен
+        "http://localhost:5173",  # Vite dev server
+        "http://localhost:3000",  # Frontend в Docker (dev)
+        "http://127.0.0.1:5173",  # Локальный Vite
+        "http://127.0.0.1:3000",  # Локальный Docker frontend
+        "http://0.0.0.0:3000",  # Локальный Docker frontend (0.0.0.0)
+        "http://90.156.158.19",  # Ваш продакшн сервер (frontend)
+        "http://90.156.158.19:3000",  # Продакшн с портом
+        "https://dragonzap.online",  # Продакшн домен
+        "https://dragonzap.ru",  # Продакшн домен
     ],
     allow_credentials=True,
-    allow_methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allow_headers=['*'],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["*"],
 )
 app.include_router(autopart_router)
 app.include_router(auth_router)
@@ -149,6 +148,7 @@ app.include_router(partner_router)
 app.include_router(order_router)
 app.include_router(order_status_mapping_router)
 app.include_router(customer_order_router)
+app.include_router(diadoc_router)
 app.include_router(email_account_router)
 app.include_router(inbox_router)
 app.include_router(notifications_router)
@@ -158,3 +158,4 @@ app.include_router(settings_router)
 app.include_router(watchlist_router)
 app.include_router(webchat_router)
 app.include_router(inventory_router)
+app.include_router(finance_router)

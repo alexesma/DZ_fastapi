@@ -6,30 +6,30 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class CountryEnum(StrEnum):
-    USA = 'USA'
-    UK = 'UK'
-    GERMANY = 'Germany'
-    CHINA = 'China'
-    FRANCE = 'France'
-    ITALY = 'Italy'
-    JAPAN = 'Japan'
-    RUSSIA = 'Russia'
-    SPAIN = 'Spain'
-    BELGIUM = 'Belgium'
-    SOUTH_KOREA = 'South Korea'
-    POLAND = 'Poland'
-    TAIWAN = 'Taiwan'
-    TURKEY = 'Turkey'
-    CZECHIA = 'Czechia'
-    SWEDEN = 'Sweden'
-    INDIA = 'India'
-    BRAZIL = 'Brazil'
-    MEXICO = 'Mexico'
-    CANADA = 'Canada'
-    THAILAND = 'Thailand'
-    AUSTRIA = 'Austria'
-    INDONESIA = 'Indonesia'
-    SWITZERLAND = 'Switzerland'
+    USA = "USA"
+    UK = "UK"
+    GERMANY = "Germany"
+    CHINA = "China"
+    FRANCE = "France"
+    ITALY = "Italy"
+    JAPAN = "Japan"
+    RUSSIA = "Russia"
+    SPAIN = "Spain"
+    BELGIUM = "Belgium"
+    SOUTH_KOREA = "South Korea"
+    POLAND = "Poland"
+    TAIWAN = "Taiwan"
+    TURKEY = "Turkey"
+    CZECHIA = "Czechia"
+    SWEDEN = "Sweden"
+    INDIA = "India"
+    BRAZIL = "Brazil"
+    MEXICO = "Mexico"
+    CANADA = "Canada"
+    THAILAND = "Thailand"
+    AUSTRIA = "Austria"
+    INDONESIA = "Indonesia"
+    SWITZERLAND = "Switzerland"
 
 
 class BrandBase(BaseModel):
@@ -76,7 +76,7 @@ class BrandCreateInDB(BaseModel):
         # Преобразуем SQLAlchemy объект в словарь
         data = {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
         # Особая обработка для поля synonyms
-        data['synonyms'] = [BrandBase.from_orm(syn) for syn in obj.synonyms]
+        data["synonyms"] = [BrandBase.from_orm(syn) for syn in obj.synonyms]
         return cls(**data)
 
 
@@ -119,7 +119,7 @@ class MissingBrandByPricelist(BaseModel):
 
 class MissingBrandResolveRequest(BaseModel):
     missing_brand_name: str
-    action: Literal['create_brand', 'set_synonym']
+    action: Literal["create_brand", "set_synonym"]
     target_brand_id: Optional[int] = None
     country_of_origin: CountryEnum = CountryEnum.CHINA
     website: Optional[str] = None

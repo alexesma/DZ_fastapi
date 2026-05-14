@@ -6,6 +6,7 @@ Nomenclature auxiliary models:
 
 Both linked to AutoPart via M2M association tables.
 """
+
 from sqlalchemy import Column, ForeignKey, Integer, String, Table, Text
 from sqlalchemy.orm import relationship
 
@@ -14,35 +15,35 @@ from dz_fastapi.core.db import Base
 # ─── Association tables ─────────────────────────────────────────────────────
 
 autopart_honest_sign_association = Table(
-    'autopart_honest_sign_association',
+    "autopart_honest_sign_association",
     Base.metadata,
     Column(
-        'autopart_id',
+        "autopart_id",
         Integer,
-        ForeignKey('autopart.id', ondelete='CASCADE'),
+        ForeignKey("autopart.id", ondelete="CASCADE"),
         primary_key=True,
     ),
     Column(
-        'honest_sign_category_id',
+        "honest_sign_category_id",
         Integer,
-        ForeignKey('honestsigncategory.id', ondelete='CASCADE'),
+        ForeignKey("honestsigncategory.id", ondelete="CASCADE"),
         primary_key=True,
     ),
 )
 
 autopart_applicability_association = Table(
-    'autopart_applicability_association',
+    "autopart_applicability_association",
     Base.metadata,
     Column(
-        'autopart_id',
+        "autopart_id",
         Integer,
-        ForeignKey('autopart.id', ondelete='CASCADE'),
+        ForeignKey("autopart.id", ondelete="CASCADE"),
         primary_key=True,
     ),
     Column(
-        'applicability_node_id',
+        "applicability_node_id",
         Integer,
-        ForeignKey('applicabilitynode.id', ondelete='CASCADE'),
+        ForeignKey("applicabilitynode.id", ondelete="CASCADE"),
         primary_key=True,
     ),
 )
@@ -50,10 +51,11 @@ autopart_applicability_association = Table(
 
 # ─── HonestSignCategory ─────────────────────────────────────────────────────
 
+
 class HonestSignCategory(Base):
     """Категория Честного знака (код маркировки РФ)."""
 
-    __tablename__ = 'honestsigncategory'
+    __tablename__ = "honestsigncategory"
 
     # id inherited from PreBase
     name = Column(String(200), nullable=False, unique=True, index=True)
@@ -62,14 +64,15 @@ class HonestSignCategory(Base):
 
     # Back-reference (optional, for admin queries)
     autoparts = relationship(
-        'AutoPart',
-        secondary='autopart_honest_sign_association',
-        back_populates='honest_sign_categories',
-        lazy='noload',
+        "AutoPart",
+        secondary="autopart_honest_sign_association",
+        back_populates="honest_sign_categories",
+        lazy="noload",
     )
 
 
 # ─── ApplicabilityNode ──────────────────────────────────────────────────────
+
 
 class ApplicabilityNode(Base):
     """Узел дерева применимости.
@@ -79,16 +82,16 @@ class ApplicabilityNode(Base):
       Деталь     → Сальник → 30x52x8
     """
 
-    __tablename__ = 'applicabilitynode'
+    __tablename__ = "applicabilitynode"
 
     # id inherited from PreBase
     name = Column(String(300), nullable=False, index=True)
     node_type = Column(
-        String(50), nullable=False, default='other'
+        String(50), nullable=False, default="other"
     )  # vehicle | part | other
     parent_id = Column(
         Integer,
-        ForeignKey('applicabilitynode.id', ondelete='SET NULL'),
+        ForeignKey("applicabilitynode.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -97,29 +100,29 @@ class ApplicabilityNode(Base):
     # Self-referential tree — always noload to avoid MissingGreenlet in async.
     # Use explicit selectinload() in queries that need children.
     parent = relationship(
-        'ApplicabilityNode',
-        back_populates='children',
-        foreign_keys='[ApplicabilityNode.parent_id]',
-        primaryjoin='ApplicabilityNode.parent_id == remote('
-                    'ApplicabilityNode.id'
-                    ')',
-        lazy='noload',
+        "ApplicabilityNode",
+        back_populates="children",
+        foreign_keys="[ApplicabilityNode.parent_id]",
+        primaryjoin="ApplicabilityNode.parent_id == remote("
+        "ApplicabilityNode.id"
+        ")",
+        lazy="noload",
     )
     children = relationship(
-        'ApplicabilityNode',
-        back_populates='parent',
-        foreign_keys='[ApplicabilityNode.parent_id]',
-        primaryjoin='ApplicabilityNode.id == remote('
-                    'ApplicabilityNode.parent_id'
-                    ')',
-        cascade='all, delete-orphan',
-        lazy='noload',
+        "ApplicabilityNode",
+        back_populates="parent",
+        foreign_keys="[ApplicabilityNode.parent_id]",
+        primaryjoin="ApplicabilityNode.id == remote("
+        "ApplicabilityNode.parent_id"
+        ")",
+        cascade="all, delete-orphan",
+        lazy="noload",
     )
 
     # Back-reference to AutoPart
     autoparts = relationship(
-        'AutoPart',
-        secondary='autopart_applicability_association',
-        back_populates='applicability_nodes',
-        lazy='noload',
+        "AutoPart",
+        secondary="autopart_applicability_association",
+        back_populates="applicability_nodes",
+        lazy="noload",
     )

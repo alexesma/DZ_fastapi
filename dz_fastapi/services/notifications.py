@@ -3,8 +3,7 @@ from collections.abc import Iterable
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.models.notification import (AppNotification,
-                                            AppNotificationLevel)
+from dz_fastapi.models.notification import AppNotification, AppNotificationLevel
 from dz_fastapi.models.user import User, UserRole, UserStatus
 
 
@@ -136,17 +135,16 @@ async def notify_admin_all(
         from dz_fastapi.services.webchat import send_telegram_message
 
         emoji = (
-            '🔴' if level == 'error'
-            else '🟡' if level == 'warning'
-            else '🔵'
+            "🔴" if level == "error" else "🟡" if level == "warning" else "🔵"
         )
-        tg_text = f'{emoji} {title}\n\n{message}'
+        tg_text = f"{emoji} {title}\n\n{message}"
         if link:
-            tg_text += f'\n\n{link}'
+            tg_text += f"\n\n{link}"
         await send_telegram_message(tg_text)
     except Exception as tg_exc:
         import logging as _logging
-        _logging.getLogger('dz_fastapi').warning(
-            'Telegram notification failed (non-fatal): %s', tg_exc
+
+        _logging.getLogger("dz_fastapi").warning(
+            "Telegram notification failed (non-fatal): %s", tg_exc
         )
     return notifications

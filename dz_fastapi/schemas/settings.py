@@ -65,7 +65,7 @@ class CustomerOrderInboxSettingsOut(BaseModel):
     supplier_response_auto_close_stale_enabled: bool = True
     supplier_response_stale_days: int = 7
     supplier_order_stub_enabled: bool = True
-    supplier_order_stub_email: Optional[str] = 'info@dragonzap.ru'
+    supplier_order_stub_email: Optional[str] = "info@dragonzap.ru"
     updated_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
@@ -103,7 +103,7 @@ class SupplierHolidayOut(BaseModel):
     date: date
     description: Optional[str] = None
     is_working_day: bool = False
-    source: str = 'manual'  # 'manual' | 'auto'
+    source: str = "manual"  # 'manual' | 'auto'
     created_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 

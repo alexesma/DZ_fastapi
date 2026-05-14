@@ -21,9 +21,7 @@ class CRUDUser(CRUDBase[User, UserRegister, UserRegister]):
     async def get_by_email(
         self, session: AsyncSession, email: str
     ) -> Optional[User]:
-        result = await session.execute(
-            select(User).where(User.email == email)
-        )
+        result = await session.execute(select(User).where(User.email == email))
         return result.scalars().first()
 
     async def create_user(

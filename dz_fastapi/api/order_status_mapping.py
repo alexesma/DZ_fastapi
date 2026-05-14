@@ -7,22 +7,35 @@ from sqlalchemy.orm import aliased
 
 from dz_fastapi.api.deps import require_admin
 from dz_fastapi.core.db import get_session
-from dz_fastapi.models.order_status_mapping import (ExternalStatusMapping,
-                                                    ExternalStatusMatchMode,
-                                                    ExternalStatusUnmapped)
+from dz_fastapi.models.order_status_mapping import (
+    ExternalStatusMapping,
+    ExternalStatusMatchMode,
+    ExternalStatusUnmapped,
+)
 from dz_fastapi.models.partner import Provider
 from dz_fastapi.models.user import User
 from dz_fastapi.schemas.order_status_mapping import (
-    ExternalStatusMappingApplyResult, ExternalStatusMappingCreate,
-    ExternalStatusMappingOptionsOut, ExternalStatusMappingOut,
-    ExternalStatusMappingUpdate, ExternalStatusUnmappedOut, StatusOptionOut)
+    ExternalStatusMappingApplyResult,
+    ExternalStatusMappingCreate,
+    ExternalStatusMappingOptionsOut,
+    ExternalStatusMappingOut,
+    ExternalStatusMappingUpdate,
+    ExternalStatusUnmappedOut,
+    StatusOptionOut,
+)
 from dz_fastapi.services.order_status_mapping import (
-    EXTERNAL_STATUS_SOURCE_LABELS, apply_mapping_to_existing_items,
-    get_external_status_match_mode_options, get_external_status_source_options,
-    get_order_item_status_options, get_order_status_options,
-    get_supplier_response_action_options, normalize_external_status_source,
-    normalize_external_status_text, resolve_internal_item_status,
-    resolve_internal_order_status)
+    EXTERNAL_STATUS_SOURCE_LABELS,
+    apply_mapping_to_existing_items,
+    get_external_status_match_mode_options,
+    get_external_status_source_options,
+    get_order_item_status_options,
+    get_order_status_options,
+    get_supplier_response_action_options,
+    normalize_external_status_source,
+    normalize_external_status_text,
+    resolve_internal_item_status,
+    resolve_internal_order_status,
+)
 
 router = APIRouter(
     prefix="/admin/order-status-mappings",

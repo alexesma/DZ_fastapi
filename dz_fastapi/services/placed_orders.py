@@ -12,20 +12,31 @@ from sqlalchemy.orm import aliased
 from dz_fastapi.core.constants import URL_DZ_SEARCH
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.http.dz_site_client import DZSiteClient
-from dz_fastapi.models.partner import (ORDER_TRACKING_SOURCE,
-                                       SUPPLIER_ORDER_STATUS,
-                                       TYPE_ORDER_ITEM_STATUS,
-                                       TYPE_STATUS_ORDER, Customer, Order,
-                                       OrderItem, Provider, SupplierOrder,
-                                       SupplierOrderItem)
+from dz_fastapi.models.partner import (
+    ORDER_TRACKING_SOURCE,
+    SUPPLIER_ORDER_STATUS,
+    TYPE_ORDER_ITEM_STATUS,
+    TYPE_STATUS_ORDER,
+    Customer,
+    Order,
+    OrderItem,
+    Provider,
+    SupplierOrder,
+    SupplierOrderItem,
+)
 from dz_fastapi.models.user import User
 from dz_fastapi.services.order_status_mapping import (
-    EXTERNAL_STATUS_SOURCE_DRAGONZAP, apply_status_mapping_to_order_item,
-    build_external_status_normalized, build_external_status_raw,
-    get_active_status_mappings, record_unmapped_external_status,
-    resolve_internal_order_status, select_best_mapping)
+    EXTERNAL_STATUS_SOURCE_DRAGONZAP,
+    apply_status_mapping_to_order_item,
+    build_external_status_normalized,
+    build_external_status_raw,
+    get_active_status_mappings,
+    record_unmapped_external_status,
+    resolve_internal_order_status,
+    select_best_mapping,
+)
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
 TRACKING_HISTORY_DAYS = 365
 SITE_TERMINAL_STATUSES = {
@@ -39,10 +50,8 @@ SITE_AUTO_RECEIVED_STATUSES = {
     TYPE_STATUS_ORDER.ARRIVED,
     TYPE_STATUS_ORDER.SHIPPED,
 }
-SITE_STATUS_SYNC_LIMIT = int(
-    os.getenv('TRACKING_SITE_SYNC_LIMIT', '200')
-)
-SITE_API_KEY = os.getenv('KEY_FOR_WEBSITE')
+SITE_STATUS_SYNC_LIMIT = int(os.getenv("TRACKING_SITE_SYNC_LIMIT", "200"))
+SITE_API_KEY = os.getenv("KEY_FOR_WEBSITE")
 
 
 def tracking_history_cutoff(days: int = TRACKING_HISTORY_DAYS) -> datetime:
@@ -50,12 +59,12 @@ def tracking_history_cutoff(days: int = TRACKING_HISTORY_DAYS) -> datetime:
 
 
 def _normalize_oem(value: Optional[str]) -> Optional[str]:
-    normalized = str(value or '').strip().upper()
+    normalized = str(value or "").strip().upper()
     return normalized or None
 
 
 def _normalize_brand(value: Optional[str]) -> Optional[str]:
-    normalized = str(value or '').strip()
+    normalized = str(value or "").strip()
     return normalized or None
 
 
@@ -83,7 +92,7 @@ def _resolve_site_row_status(
         return item_status.name
     if item_status is not None:
         return item_status.name
-    return 'UNKNOWN'
+    return "UNKNOWN"
 
 
 def _has_tracking_identity(
@@ -92,7 +101,7 @@ def _has_tracking_identity(
     autopart_name: Optional[str],
 ) -> bool:
     return any(
-        str(value or '').strip()
+        str(value or "").strip()
         for value in (oem_number, brand_name, autopart_name)
     )
 
@@ -103,16 +112,16 @@ def _extract_site_items(payload: Any) -> list[dict[str, Any]]:
     if not isinstance(payload, dict):
         return []
 
-    data = payload.get('data')
+    data = payload.get("data")
     if isinstance(data, list):
         return [item for item in data if isinstance(item, dict)]
     if isinstance(data, dict):
-        for key in ('items', 'results', 'records'):
+        for key in ("items", "results", "records"):
             value = data.get(key)
             if isinstance(value, list):
                 return [item for item in value if isinstance(item, dict)]
 
-    for key in ('items', 'results', 'records'):
+    for key in ("items", "results", "records"):
         value = payload.get(key)
         if isinstance(value, list):
             return [item for item in value if isinstance(item, dict)]
@@ -120,7 +129,7 @@ def _extract_site_items(payload: Any) -> list[dict[str, Any]]:
 
 
 def _safe_int(value: Any) -> Optional[int]:
-    if value in (None, ''):
+    if value in (None, ""):
         return None
     try:
         return int(float(value))
@@ -134,7 +143,7 @@ def _extract_received_quantity_from_site(
     ordered_quantity: int,
     mapped_status: TYPE_STATUS_ORDER,
 ) -> Optional[int]:
-    sys_info = item.get('sys_info')
+    sys_info = item.get("sys_info")
     sources = (
         item,
         sys_info if isinstance(sys_info, dict) else None,
@@ -143,16 +152,16 @@ def _extract_received_quantity_from_site(
         if not isinstance(source, dict):
             continue
         for key in (
-            'received_quantity',
-            'received_qty',
-            'delivered_quantity',
-            'delivered_qty',
-            'issued_quantity',
-            'issued_qty',
-            'shipped_quantity',
-            'shipped_qty',
-            'fact_quantity',
-            'fact_qnt',
+            "received_quantity",
+            "received_qty",
+            "delivered_quantity",
+            "delivered_qty",
+            "issued_quantity",
+            "issued_qty",
+            "shipped_quantity",
+            "shipped_qty",
+            "fact_quantity",
+            "fact_qnt",
         ):
             parsed = _safe_int(source.get(key))
             if parsed is not None:
@@ -262,13 +271,13 @@ async def sync_site_tracking_statuses(
 ) -> dict[str, int]:
     if not SITE_API_KEY:
         logger.debug(
-            'Skip tracking status sync: KEY_FOR_WEBSITE is not configured'
+            "Skip tracking status sync: KEY_FOR_WEBSITE is not configured"
         )
         return {
-            'checked': 0,
-            'updated': 0,
-            'not_found': 0,
-            'errors': 0,
+            "checked": 0,
+            "updated": 0,
+            "not_found": 0,
+            "errors": 0,
         }
 
     normalized_oem = _normalize_oem(oem_number)
@@ -277,8 +286,7 @@ async def sync_site_tracking_statuses(
         select(OrderItem, Order)
         .join(Order, Order.id == OrderItem.order_id)
         .where(
-            Order.source_type
-            == ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
+            Order.source_type == ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
             Order.created_at >= tracking_history_cutoff(),
             OrderItem.tracking_uuid.is_not(None),
         )
@@ -317,10 +325,10 @@ async def sync_site_tracking_statuses(
 
     if not candidates:
         return {
-            'checked': 0,
-            'updated': 0,
-            'not_found': 0,
-            'errors': 0,
+            "checked": 0,
+            "updated": 0,
+            "not_found": 0,
+            "errors": 0,
         }
 
     checked = 0
@@ -348,7 +356,7 @@ async def sync_site_tracking_statuses(
                     (
                         remote
                         for remote in remote_items
-                        if str(remote.get('comment') or '').strip()
+                        if str(remote.get("comment") or "").strip()
                         == item.tracking_uuid
                     ),
                     remote_items[0] if len(remote_items) == 1 else None,
@@ -375,8 +383,8 @@ async def sync_site_tracking_statuses(
             except Exception:
                 errors += 1
                 logger.exception(
-                    'Failed to sync Dragonzap tracking status '
-                    'for tracking_uuid=%s',
+                    "Failed to sync Dragonzap tracking status "
+                    "for tracking_uuid=%s",
                     item.tracking_uuid,
                 )
 
@@ -386,10 +394,10 @@ async def sync_site_tracking_statuses(
         await session.rollback()
 
     return {
-        'checked': checked,
-        'updated': updated,
-        'not_found': not_found,
-        'errors': errors,
+        "checked": checked,
+        "updated": updated,
+        "not_found": not_found,
+        "errors": errors,
     }
 
 
@@ -418,7 +426,7 @@ async def list_tracking_history(
 
     normalized_oem = _normalize_oem(oem_number)
     normalized_brand = _normalize_brand(brand_name)
-    status_filter = str(status or '').strip().upper() or None
+    status_filter = str(status or "").strip().upper() or None
     provider_alias = aliased(Provider, flat=True)
     customer_alias = aliased(Customer, flat=True)
 
@@ -435,27 +443,27 @@ async def list_tracking_history(
 
     supplier_stmt = (
         select(
-            literal('supplier').label('source_type'),
-            literal('Прайсы поставщиков').label('source_label'),
-            SupplierOrder.id.label('order_id'),
-            SupplierOrderItem.id.label('item_id'),
-            SupplierOrder.provider_id.label('provider_id'),
-            provider_alias.name.label('provider_name'),
-            literal(None).label('customer_id'),
-            literal(None).label('customer_name'),
-            SupplierOrder.created_by_user_id.label('ordered_by_user_id'),
-            User.email.label('ordered_by_email'),
-            SupplierOrderItem.oem_number.label('oem_number'),
-            SupplierOrderItem.brand_name.label('brand_name'),
-            SupplierOrderItem.autopart_name.label('autopart_name'),
-            SupplierOrderItem.quantity.label('ordered_quantity'),
-            SupplierOrderItem.received_quantity.label('received_quantity'),
-            SupplierOrderItem.price.label('price'),
-            SupplierOrderItem.min_delivery_day.label('min_delivery_day'),
-            SupplierOrderItem.max_delivery_day.label('max_delivery_day'),
-            SupplierOrder.created_at.label('created_at'),
-            SupplierOrderItem.received_at.label('received_at'),
-            SupplierOrder.status.label('order_status'),
+            literal("supplier").label("source_type"),
+            literal("Прайсы поставщиков").label("source_label"),
+            SupplierOrder.id.label("order_id"),
+            SupplierOrderItem.id.label("item_id"),
+            SupplierOrder.provider_id.label("provider_id"),
+            provider_alias.name.label("provider_name"),
+            literal(None).label("customer_id"),
+            literal(None).label("customer_name"),
+            SupplierOrder.created_by_user_id.label("ordered_by_user_id"),
+            User.email.label("ordered_by_email"),
+            SupplierOrderItem.oem_number.label("oem_number"),
+            SupplierOrderItem.brand_name.label("brand_name"),
+            SupplierOrderItem.autopart_name.label("autopart_name"),
+            SupplierOrderItem.quantity.label("ordered_quantity"),
+            SupplierOrderItem.received_quantity.label("received_quantity"),
+            SupplierOrderItem.price.label("price"),
+            SupplierOrderItem.min_delivery_day.label("min_delivery_day"),
+            SupplierOrderItem.max_delivery_day.label("max_delivery_day"),
+            SupplierOrder.created_at.label("created_at"),
+            SupplierOrderItem.received_at.label("received_at"),
+            SupplierOrder.status.label("order_status"),
         )
         .join(
             SupplierOrderItem,
@@ -485,32 +493,32 @@ async def list_tracking_history(
 
     site_stmt = (
         select(
-            literal('site').label('source_type'),
-            literal('Dragonzap').label('source_label'),
-            Order.id.label('order_id'),
-            OrderItem.id.label('item_id'),
-            Order.provider_id.label('provider_id'),
-            provider_alias.name.label('provider_name'),
-            Order.customer_id.label('customer_id'),
-            customer_alias.name.label('customer_name'),
-            Order.created_by_user_id.label('ordered_by_user_id'),
-            User.email.label('ordered_by_email'),
-            OrderItem.oem_number.label('oem_number'),
-            OrderItem.brand_name.label('brand_name'),
-            OrderItem.autopart_name.label('autopart_name'),
-            OrderItem.quantity.label('ordered_quantity'),
-            OrderItem.received_quantity.label('received_quantity'),
-            OrderItem.price.label('price'),
-            OrderItem.min_delivery_day.label('min_delivery_day'),
-            OrderItem.max_delivery_day.label('max_delivery_day'),
-            Order.created_at.label('created_at'),
-            OrderItem.received_at.label('received_at'),
-            Order.status.label('order_status'),
-            OrderItem.status.label('item_status'),
-            OrderItem.external_status_source.label('external_status_source'),
-            OrderItem.external_status_raw.label('external_status_raw'),
+            literal("site").label("source_type"),
+            literal("Dragonzap").label("source_label"),
+            Order.id.label("order_id"),
+            OrderItem.id.label("item_id"),
+            Order.provider_id.label("provider_id"),
+            provider_alias.name.label("provider_name"),
+            Order.customer_id.label("customer_id"),
+            customer_alias.name.label("customer_name"),
+            Order.created_by_user_id.label("ordered_by_user_id"),
+            User.email.label("ordered_by_email"),
+            OrderItem.oem_number.label("oem_number"),
+            OrderItem.brand_name.label("brand_name"),
+            OrderItem.autopart_name.label("autopart_name"),
+            OrderItem.quantity.label("ordered_quantity"),
+            OrderItem.received_quantity.label("received_quantity"),
+            OrderItem.price.label("price"),
+            OrderItem.min_delivery_day.label("min_delivery_day"),
+            OrderItem.max_delivery_day.label("max_delivery_day"),
+            Order.created_at.label("created_at"),
+            OrderItem.received_at.label("received_at"),
+            Order.status.label("order_status"),
+            OrderItem.status.label("item_status"),
+            OrderItem.external_status_source.label("external_status_source"),
+            OrderItem.external_status_raw.label("external_status_raw"),
             OrderItem.external_status_mapping_id.label(
-                'external_status_mapping_id'
+                "external_status_mapping_id"
             ),
         )
         .join(OrderItem, OrderItem.order_id == Order.id)
@@ -518,8 +526,7 @@ async def list_tracking_history(
         .join(customer_alias, customer_alias.id == Order.customer_id)
         .outerjoin(User, User.id == Order.created_by_user_id)
         .where(
-            Order.source_type
-            == ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
+            Order.source_type == ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
             Order.created_at >= range_start,
             Order.created_at <= range_end,
         )
@@ -547,42 +554,42 @@ async def list_tracking_history(
         ):
             continue
         current_status = (
-            row.order_status.name if row.order_status else 'UNKNOWN'
+            row.order_status.name if row.order_status else "UNKNOWN"
         )
         if status_filter and current_status != status_filter:
             continue
         results.append(
             {
-                'source_type': row.source_type,
-                'source_label': row.source_label,
-                'order_id': row.order_id,
-                'item_id': row.item_id,
-                'provider_id': row.provider_id,
-                'provider_name': row.provider_name,
-                'customer_id': row.customer_id,
-                'customer_name': row.customer_name,
-                'ordered_by_user_id': row.ordered_by_user_id,
-                'ordered_by_email': row.ordered_by_email,
-                'oem_number': row.oem_number,
-                'brand_name': row.brand_name,
-                'autopart_name': row.autopart_name,
-                'ordered_quantity': row.ordered_quantity,
-                'received_quantity': row.received_quantity,
-                'price': row.price,
-                'min_delivery_day': row.min_delivery_day,
-                'max_delivery_day': row.max_delivery_day,
-                'created_at': row.created_at,
-                'received_at': row.received_at,
-                'current_status': current_status,
-                'order_status': current_status,
-                'item_status': None,
-                'external_status_source': None,
-                'external_status_raw': None,
-                'needs_status_mapping': False,
-                'actual_lead_days': _actual_lead_days(
+                "source_type": row.source_type,
+                "source_label": row.source_label,
+                "order_id": row.order_id,
+                "item_id": row.item_id,
+                "provider_id": row.provider_id,
+                "provider_name": row.provider_name,
+                "customer_id": row.customer_id,
+                "customer_name": row.customer_name,
+                "ordered_by_user_id": row.ordered_by_user_id,
+                "ordered_by_email": row.ordered_by_email,
+                "oem_number": row.oem_number,
+                "brand_name": row.brand_name,
+                "autopart_name": row.autopart_name,
+                "ordered_quantity": row.ordered_quantity,
+                "received_quantity": row.received_quantity,
+                "price": row.price,
+                "min_delivery_day": row.min_delivery_day,
+                "max_delivery_day": row.max_delivery_day,
+                "created_at": row.created_at,
+                "received_at": row.received_at,
+                "current_status": current_status,
+                "order_status": current_status,
+                "item_status": None,
+                "external_status_source": None,
+                "external_status_raw": None,
+                "needs_status_mapping": False,
+                "actual_lead_days": _actual_lead_days(
                     row.created_at, row.received_at
                 ),
-                'link': f'/customer-orders/suppliers/{row.order_id}',
+                "link": f"/customer-orders/suppliers/{row.order_id}",
             }
         )
 
@@ -600,52 +607,52 @@ async def list_tracking_history(
             continue
         results.append(
             {
-                'source_type': row.source_type,
-                'source_label': row.source_label,
-                'order_id': row.order_id,
-                'item_id': row.item_id,
-                'provider_id': row.provider_id,
-                'provider_name': row.provider_name,
-                'customer_id': row.customer_id,
-                'customer_name': row.customer_name,
-                'ordered_by_user_id': row.ordered_by_user_id,
-                'ordered_by_email': row.ordered_by_email,
-                'oem_number': row.oem_number,
-                'brand_name': row.brand_name,
-                'autopart_name': row.autopart_name,
-                'ordered_quantity': row.ordered_quantity,
-                'received_quantity': row.received_quantity,
-                'price': row.price,
-                'min_delivery_day': row.min_delivery_day,
-                'max_delivery_day': row.max_delivery_day,
-                'created_at': row.created_at,
-                'received_at': row.received_at,
-                'current_status': current_status,
-                'order_status': (
+                "source_type": row.source_type,
+                "source_label": row.source_label,
+                "order_id": row.order_id,
+                "item_id": row.item_id,
+                "provider_id": row.provider_id,
+                "provider_name": row.provider_name,
+                "customer_id": row.customer_id,
+                "customer_name": row.customer_name,
+                "ordered_by_user_id": row.ordered_by_user_id,
+                "ordered_by_email": row.ordered_by_email,
+                "oem_number": row.oem_number,
+                "brand_name": row.brand_name,
+                "autopart_name": row.autopart_name,
+                "ordered_quantity": row.ordered_quantity,
+                "received_quantity": row.received_quantity,
+                "price": row.price,
+                "min_delivery_day": row.min_delivery_day,
+                "max_delivery_day": row.max_delivery_day,
+                "created_at": row.created_at,
+                "received_at": row.received_at,
+                "current_status": current_status,
+                "order_status": (
                     row.order_status.name if row.order_status else None
                 ),
-                'item_status': (
+                "item_status": (
                     row.item_status.name if row.item_status else None
                 ),
-                'external_status_source': row.external_status_source,
-                'external_status_raw': row.external_status_raw,
-                'needs_status_mapping': bool(
+                "external_status_source": row.external_status_source,
+                "external_status_raw": row.external_status_raw,
+                "needs_status_mapping": bool(
                     row.external_status_source
                     and row.external_status_raw
                     and row.external_status_mapping_id is None
                 ),
-                'actual_lead_days': _actual_lead_days(
+                "actual_lead_days": _actual_lead_days(
                     row.created_at, row.received_at
                 ),
-                'link': '/orders/tracking',
+                "link": "/orders/tracking",
             }
         )
 
     results.sort(
         key=lambda item: (
-            item['created_at'],
-            item['order_id'],
-            item['item_id'],
+            item["created_at"],
+            item["order_id"],
+            item["item_id"],
         ),
         reverse=True,
     )
@@ -672,10 +679,10 @@ async def update_tracking_item(
     status: Optional[str] = None,
     received_quantity: Optional[int] = None,
 ) -> dict[str, Any]:
-    source_key = str(source_type or '').strip().lower()
-    status_key = str(status or '').strip().upper() or None
+    source_key = str(source_type or "").strip().lower()
+    status_key = str(status or "").strip().upper() or None
 
-    if source_key == 'supplier':
+    if source_key == "supplier":
         stmt = (
             select(SupplierOrderItem, SupplierOrder)
             .join(
@@ -688,11 +695,12 @@ async def update_tracking_item(
                 == ORDER_TRACKING_SOURCE.SEARCH_OFFERS.value,
             )
         )
-        item, order = (
-            (await session.execute(stmt)).one_or_none() or (None, None)
+        item, order = (await session.execute(stmt)).one_or_none() or (
+            None,
+            None,
         )
         if item is None or order is None:
-            raise ValueError('Tracking item not found')
+            raise ValueError("Tracking item not found")
         if status_key:
             order.status = SUPPLIER_ORDER_STATUS[status_key]
         if received_quantity is not None:
@@ -702,15 +710,15 @@ async def update_tracking_item(
             )
         await session.commit()
         return {
-            'source_type': 'supplier',
-            'item_id': item.id,
-            'order_id': order.id,
-            'status': order.status.name,
-            'received_quantity': item.received_quantity,
-            'received_at': item.received_at,
+            "source_type": "supplier",
+            "item_id": item.id,
+            "order_id": order.id,
+            "status": order.status.name,
+            "received_quantity": item.received_quantity,
+            "received_at": item.received_at,
         }
 
-    if source_key == 'site':
+    if source_key == "site":
         stmt = (
             select(OrderItem, Order)
             .join(Order, Order.id == OrderItem.order_id)
@@ -720,16 +728,17 @@ async def update_tracking_item(
                 == ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
             )
         )
-        item, order = (
-            (await session.execute(stmt)).one_or_none() or (None, None)
+        item, order = (await session.execute(stmt)).one_or_none() or (
+            None,
+            None,
         )
         if item is None or order is None:
-            raise ValueError('Tracking item not found')
+            raise ValueError("Tracking item not found")
         if status_key:
             order.status = TYPE_STATUS_ORDER[status_key]
-            if status_key in {'ARRIVED', 'SHIPPED'}:
+            if status_key in {"ARRIVED", "SHIPPED"}:
                 item.status = TYPE_ORDER_ITEM_STATUS.DELIVERED
-            elif status_key in {'ERROR', 'REFUSAL'}:
+            elif status_key in {"ERROR", "REFUSAL"}:
                 item.status = TYPE_ORDER_ITEM_STATUS.ERROR
         if received_quantity is not None:
             item.received_quantity, item.received_at = _set_received_metadata(
@@ -738,17 +747,15 @@ async def update_tracking_item(
             )
         await session.commit()
         return {
-            'source_type': 'site',
-            'item_id': item.id,
-            'order_id': order.id,
-            'status': (
-                order.status.name if order.status else 'UNKNOWN'
-            ),
-            'received_quantity': item.received_quantity,
-            'received_at': item.received_at,
+            "source_type": "site",
+            "item_id": item.id,
+            "order_id": order.id,
+            "status": (order.status.name if order.status else "UNKNOWN"),
+            "received_quantity": item.received_quantity,
+            "received_at": item.received_at,
         }
 
-    raise ValueError('Unsupported source type')
+    raise ValueError("Unsupported source type")
 
 
 async def cleanup_old_tracking_history(
@@ -758,21 +765,13 @@ async def cleanup_old_tracking_history(
 ) -> dict[str, int]:
     cutoff = tracking_history_cutoff(older_than_days)
 
-    supplier_ids = (
-        select(SupplierOrder.id)
-        .where(
-            SupplierOrder.source_type
-            == ORDER_TRACKING_SOURCE.SEARCH_OFFERS.value,
-            SupplierOrder.created_at < cutoff,
-        )
+    supplier_ids = select(SupplierOrder.id).where(
+        SupplierOrder.source_type == ORDER_TRACKING_SOURCE.SEARCH_OFFERS.value,
+        SupplierOrder.created_at < cutoff,
     )
-    order_ids = (
-        select(Order.id)
-        .where(
-            Order.source_type
-            == ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
-            Order.created_at < cutoff,
-        )
+    order_ids = select(Order.id).where(
+        Order.source_type == ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
+        Order.created_at < cutoff,
     )
 
     supplier_items_deleted = (
@@ -797,8 +796,8 @@ async def cleanup_old_tracking_history(
     ).rowcount or 0
     await session.commit()
     return {
-        'supplier_items_deleted': supplier_items_deleted,
-        'supplier_orders_deleted': supplier_orders_deleted,
-        'order_items_deleted': order_items_deleted,
-        'orders_deleted': orders_deleted,
+        "supplier_items_deleted": supplier_items_deleted,
+        "supplier_orders_deleted": supplier_orders_deleted,
+        "order_items_deleted": order_items_deleted,
+        "orders_deleted": orders_deleted,
     }

@@ -8,14 +8,14 @@ class EmailAccount(Base):
     name = Column(String(255), nullable=False, unique=True)
     email = Column(String(255), nullable=False, unique=True, index=True)
     password = Column(String(255), nullable=False)
-    transport = Column(String(32), nullable=False, default='smtp')
+    transport = Column(String(32), nullable=False, default="smtp")
     resend_api_key = Column(String(2048), nullable=True)
     resend_timeout = Column(Integer, default=20)
     resend_last_received_at = Column(DateTime(timezone=True), nullable=True)
 
     imap_host = Column(String(255), nullable=True)
     imap_port = Column(Integer, default=993)
-    imap_folder = Column(String(255), nullable=True, default='INBOX')
+    imap_folder = Column(String(255), nullable=True, default="INBOX")
     imap_additional_folders = Column(JSON, default=[])
 
     smtp_host = Column(String(255), nullable=True)

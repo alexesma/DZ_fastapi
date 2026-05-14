@@ -9,30 +9,45 @@ from sqlalchemy import select
 
 import dz_fastapi.services.supplier_order_responses as response_service
 from dz_fastapi.core.time import now_moscow
-from dz_fastapi.models.order_status_mapping import (ExternalStatusMapping,
-                                                    ExternalStatusMatchMode,
-                                                    ExternalStatusUnmapped,
-                                                    SupplierResponseAction)
-from dz_fastapi.models.partner import (CUSTOMER_ORDER_SHIP_MODE,
-                                       ORDER_TRACKING_SOURCE,
-                                       SUPPLIER_ORDER_STATUS,
-                                       TYPE_ORDER_ITEM_STATUS,
-                                       TYPE_STATUS_ORDER, Order, OrderItem,
-                                       SupplierOrder, SupplierOrderAttachment,
-                                       SupplierOrderItem, SupplierOrderMessage,
-                                       SupplierReceipt, SupplierReceiptItem,
-                                       SupplierResponseConfig)
+from dz_fastapi.models.order_status_mapping import (
+    ExternalStatusMapping,
+    ExternalStatusMatchMode,
+    ExternalStatusUnmapped,
+    SupplierResponseAction,
+)
+from dz_fastapi.models.partner import (
+    CUSTOMER_ORDER_SHIP_MODE,
+    ORDER_TRACKING_SOURCE,
+    SUPPLIER_ORDER_STATUS,
+    TYPE_ORDER_ITEM_STATUS,
+    TYPE_STATUS_ORDER,
+    Order,
+    OrderItem,
+    SupplierOrder,
+    SupplierOrderAttachment,
+    SupplierOrderItem,
+    SupplierOrderMessage,
+    SupplierReceipt,
+    SupplierReceiptItem,
+    SupplierResponseConfig,
+)
 from dz_fastapi.models.settings import CustomerOrderInboxSettings
 from dz_fastapi.services.customer_orders import (
-    _apply_response_updates_csv, _apply_response_updates_excel,
-    _build_order_reply_recipients, _build_supplier_order_recipient,
-    _customer_order_auto_reply_enabled, _customer_order_reply_override_email,
-    _supplier_order_override_email, send_supplier_orders)
-from dz_fastapi.services.order_status_mapping import \
-    EXTERNAL_STATUS_SOURCE_SUPPLIER_EMAIL
+    _apply_response_updates_csv,
+    _apply_response_updates_excel,
+    _build_order_reply_recipients,
+    _build_supplier_order_recipient,
+    _customer_order_auto_reply_enabled,
+    _customer_order_reply_override_email,
+    _supplier_order_override_email,
+    send_supplier_orders,
+)
+from dz_fastapi.services.order_status_mapping import EXTERNAL_STATUS_SOURCE_SUPPLIER_EMAIL
 from dz_fastapi.services.supplier_order_responses import (
-    _extract_supplier_order_id, _get_message_match_context,
-    process_supplier_response_messages)
+    _extract_supplier_order_id,
+    _get_message_match_context,
+    process_supplier_response_messages,
+)
 
 
 def test_apply_response_updates_excel_writes_ship_price_when_configured():
@@ -153,9 +168,7 @@ def test_build_order_reply_recipients_uses_stub_override(monkeypatch):
         "CUSTOMER_ORDER_REPLY_OVERRIDE_EMAIL",
         "info@dragonzap.ru",
     )
-    config = SimpleNamespace(
-        order_reply_emails=["client@example.com", "sales@example.com"]
-    )
+    config = SimpleNamespace(order_reply_emails=["client@example.com", "sales@example.com"])
     recipients = _build_order_reply_recipients(
         "sender@example.com",
         config,
@@ -167,10 +180,7 @@ def test_build_order_reply_recipients_uses_stub_override(monkeypatch):
     )
 
     assert recipients == "info@dragonzap.ru"
-    assert (
-        original
-        == "client@example.com,sales@example.com,sender@example.com"
-    )
+    assert original == "client@example.com,sales@example.com,sender@example.com"
 
 
 def test_supplier_order_override_email_defaults_to_stub(monkeypatch):
@@ -184,49 +194,26 @@ def test_build_supplier_order_recipient_uses_stub_override(monkeypatch):
     provider = SimpleNamespace(email_contact="supplier@example.com")
 
     assert _build_supplier_order_recipient(provider) == "info@dragonzap.ru"
-    assert (
-        _build_supplier_order_recipient(provider, use_override=False)
-        == "supplier@example.com"
-    )
+    assert _build_supplier_order_recipient(provider, use_override=False) == "supplier@example.com"
 
 
 def test_extract_supplier_order_id_ignores_int32_overflow():
-    assert (
-        _extract_supplier_order_id("Заказ поставщику #5709826577")
-        is None
-    )
-    assert (
-        _extract_supplier_order_id("supplier_order_2147483647.xlsx")
-        == 2147483647
-    )
+    assert _extract_supplier_order_id("Заказ поставщику #5709826577") is None
+    assert _extract_supplier_order_id("supplier_order_2147483647.xlsx") == 2147483647
 
 
 def test_extract_supplier_order_id_from_alnum_code():
-    assert (
-        _extract_supplier_order_id("МастерА0000002485.xlsx")
-        == 2485
-    )
+    assert _extract_supplier_order_id("МастерА0000002485.xlsx") == 2485
 
 
 def test_strip_quoted_reply_content_handles_inline_dash_separator():
-    body = (
-        "90916-02778 ОТКАЗ ---------------- "
-        "Кому: avtek3915@yandex.ru "
-        "90916-02778 36863"
-    )
+    body = "90916-02778 ОТКАЗ ---------------- " "Кому: avtek3915@yandex.ru " "90916-02778 36863"
 
-    assert (
-        response_service._strip_quoted_reply_content(body)
-        == "90916-02778 ОТКАЗ"
-    )
+    assert response_service._strip_quoted_reply_content(body) == "90916-02778 ОТКАЗ"
 
 
 def test_parse_supplier_text_response_keeps_reject_for_duplicate_oem():
-    text = (
-        "90916-02778 ОТКАЗ "
-        "90916-02778 36863 "
-        "90311-50064 36863"
-    )
+    text = "90916-02778 ОТКАЗ " "90916-02778 36863 " "90311-50064 36863"
 
     parsed = response_service._parse_supplier_text_response(
         text,
@@ -234,10 +221,7 @@ def test_parse_supplier_text_response_keeps_reject_for_duplicate_oem():
         confirm_keywords=["есть", "да"],
         reject_keywords=["нет", "отказ", "0"],
     )
-    rows_by_oem = {
-        response_service._normalize_oem_key(row.oem_number): row
-        for row in parsed.rows
-    }
+    rows_by_oem = {response_service._normalize_oem_key(row.oem_number): row for row in parsed.rows}
     rejected = rows_by_oem["9091602778"]
 
     assert rejected.text_decision == "reject"
@@ -436,9 +420,7 @@ async def test_send_supplier_orders_uses_provider_email_when_stub_disabled(
     assert sent["to_email"] == "supplier@example.com"
     assert sent["subject"] == f"Заказ поставщику № {order.id}"
     assert f"Заказ поставщику № {order.id}" in sent["body"]
-    assert (
-        f"<b>Заказ поставщику № {order.id}</b>" in sent["body"]
-    )
+    assert f"<b>Заказ поставщику № {order.id}</b>" in sent["body"]
     assert "<table" in sent["body"]
 
 
@@ -497,9 +479,7 @@ async def test_process_supplier_response_messages_updates_confirmed_quantities(
     response_frame.to_excel(buffer, index=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(
-            session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -524,10 +504,7 @@ async def test_process_supplier_response_messages_updates_confirmed_quantities(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -589,9 +566,7 @@ async def test_process_supplier_response_creates_draft_receipt(
     response_frame.to_excel(buffer, index=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(
-            session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -616,10 +591,7 @@ async def test_process_supplier_response_creates_draft_receipt(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -632,16 +604,12 @@ async def test_process_supplier_response_creates_draft_receipt(
 
     receipt = (
         await test_session.execute(
-            select(SupplierReceipt).where(
-                SupplierReceipt.provider_id == provider.id
-            )
+            select(SupplierReceipt).where(SupplierReceipt.provider_id == provider.id)
         )
     ).scalar_one()
     receipt_item = (
         await test_session.execute(
-            select(SupplierReceiptItem).where(
-                SupplierReceiptItem.receipt_id == receipt.id
-            )
+            select(SupplierReceiptItem).where(SupplierReceiptItem.receipt_id == receipt.id)
         )
     ).scalar_one()
 
@@ -696,9 +664,7 @@ async def test_process_supplier_response_without_order_id_matches_positions(
     response_frame.to_excel(buffer, index=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(
-            session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -723,10 +689,7 @@ async def test_process_supplier_response_without_order_id_matches_positions(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -739,8 +702,7 @@ async def test_process_supplier_response_without_order_id_matches_positions(
     message_row = (
         await test_session.execute(
             select(SupplierOrderMessage).where(
-                SupplierOrderMessage.source_message_id
-                == "supplier-msg-no-order-id"
+                SupplierOrderMessage.source_message_id == "supplier-msg-no-order-id"
             )
         )
     ).scalar_one()
@@ -801,9 +763,7 @@ async def test_process_supplier_response_appends_existing_draft_receipt(
     response_frame.to_excel(buffer, index=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(
-            session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -828,10 +788,7 @@ async def test_process_supplier_response_appends_existing_draft_receipt(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -841,22 +798,28 @@ async def test_process_supplier_response_appends_existing_draft_receipt(
 
     result = await process_supplier_response_messages(test_session)
     receipts = (
-        await test_session.execute(
-            select(SupplierReceipt).where(
-                SupplierReceipt.provider_id == provider.id
+        (
+            await test_session.execute(
+                select(SupplierReceipt).where(SupplierReceipt.provider_id == provider.id)
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(receipts) == 1
     assert receipts[0].id == existing_draft.id
 
     receipt_items = (
-        await test_session.execute(
-            select(SupplierReceiptItem).where(
-                SupplierReceiptItem.receipt_id == existing_draft.id
+        (
+            await test_session.execute(
+                select(SupplierReceiptItem).where(
+                    SupplierReceiptItem.receipt_id == existing_draft.id
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert result["processed_messages"] == 1
     assert result["created_receipts"] == 0
@@ -935,9 +898,7 @@ async def test_document_payload_file_posts_receipt_with_doc_fields(
     response_frame.to_excel(buffer, index=False, header=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(
-            session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -962,10 +923,7 @@ async def test_document_payload_file_posts_receipt_with_doc_fields(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -977,16 +935,12 @@ async def test_document_payload_file_posts_receipt_with_doc_fields(
     await test_session.refresh(item)
     receipt = (
         await test_session.execute(
-            select(SupplierReceipt).where(
-                SupplierReceipt.provider_id == provider.id
-            )
+            select(SupplierReceipt).where(SupplierReceipt.provider_id == provider.id)
         )
     ).scalar_one()
     receipt_item = (
         await test_session.execute(
-            select(SupplierReceiptItem).where(
-                SupplierReceiptItem.receipt_id == receipt.id
-            )
+            select(SupplierReceiptItem).where(SupplierReceiptItem.receipt_id == receipt.id)
         )
     ).scalar_one()
 
@@ -1103,16 +1057,12 @@ async def test_document_payload_moves_rows_from_draft_and_keeps_rest(
     )
     await test_session.commit()
 
-    response_frame = pd.DataFrame(
-        [[created_autopart.oem_number, created_autopart.brand.name, 2]]
-    )
+    response_frame = pd.DataFrame([[created_autopart.oem_number, created_autopart.brand.name, 2]])
     buffer = BytesIO()
     response_frame.to_excel(buffer, index=False, header=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(
-        session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -1137,10 +1087,7 @@ async def test_document_payload_moves_rows_from_draft_and_keeps_rest(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -1152,12 +1099,16 @@ async def test_document_payload_moves_rows_from_draft_and_keeps_rest(
     await test_session.refresh(matched_item)
     await test_session.refresh(second_item)
     receipts = (
-        await test_session.execute(
-            select(SupplierReceipt)
-            .where(SupplierReceipt.provider_id == provider.id)
-            .order_by(SupplierReceipt.id.asc())
+        (
+            await test_session.execute(
+                select(SupplierReceipt)
+                .where(SupplierReceipt.provider_id == provider.id)
+                .order_by(SupplierReceipt.id.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     posted_receipt = next(
         (receipt for receipt in receipts if receipt.posted_at is not None),
         None,
@@ -1176,23 +1127,31 @@ async def test_document_payload_moves_rows_from_draft_and_keeps_rest(
     assert int(second_item.received_quantity or 0) == 0
 
     posted_items = (
-        await test_session.execute(
-            select(SupplierReceiptItem).where(
-                SupplierReceiptItem.receipt_id == posted_receipt.id
+        (
+            await test_session.execute(
+                select(SupplierReceiptItem).where(
+                    SupplierReceiptItem.receipt_id == posted_receipt.id
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(posted_items) == 1
     assert posted_items[0].supplier_order_item_id == matched_item.id
     assert posted_items[0].received_quantity == 2
 
     draft_items = (
-        await test_session.execute(
-            select(SupplierReceiptItem)
-            .where(SupplierReceiptItem.receipt_id == draft_receipt.id)
-            .order_by(SupplierReceiptItem.supplier_order_item_id.asc())
+        (
+            await test_session.execute(
+                select(SupplierReceiptItem)
+                .where(SupplierReceiptItem.receipt_id == draft_receipt.id)
+                .order_by(SupplierReceiptItem.supplier_order_item_id.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(draft_items) == 2
     assert draft_items[0].supplier_order_item_id == matched_item.id
     assert draft_items[0].received_quantity == 3
@@ -1270,16 +1229,12 @@ async def test_document_payload_deletes_fully_consumed_draft(
     )
     await test_session.commit()
 
-    response_frame = pd.DataFrame(
-        [[created_autopart.oem_number, created_autopart.brand.name, 3]]
-    )
+    response_frame = pd.DataFrame([[created_autopart.oem_number, created_autopart.brand.name, 3]])
     buffer = BytesIO()
     response_frame.to_excel(buffer, index=False, header=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(
-        session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -1304,10 +1259,7 @@ async def test_document_payload_deletes_fully_consumed_draft(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -1318,12 +1270,16 @@ async def test_document_payload_deletes_fully_consumed_draft(
     result = await process_supplier_response_messages(test_session)
     await test_session.refresh(item)
     receipts = (
-        await test_session.execute(
-            select(SupplierReceipt)
-            .where(SupplierReceipt.provider_id == provider.id)
-            .order_by(SupplierReceipt.id.asc())
+        (
+            await test_session.execute(
+                select(SupplierReceipt)
+                .where(SupplierReceipt.provider_id == provider.id)
+                .order_by(SupplierReceipt.id.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert result["processed_messages"] == 1
     assert result["posted_receipts"] == 1
@@ -1413,9 +1369,7 @@ async def test_document_payload_adds_extra_rows_when_moving_from_draft(
     response_frame.to_excel(buffer, index=False, header=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(
-        session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -1440,10 +1394,7 @@ async def test_document_payload_adds_extra_rows_when_moving_from_draft(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -1453,25 +1404,27 @@ async def test_document_payload_adds_extra_rows_when_moving_from_draft(
 
     result = await process_supplier_response_messages(test_session)
     receipts = (
-        await test_session.execute(
-            select(SupplierReceipt)
-            .where(SupplierReceipt.provider_id == provider.id)
-            .order_by(SupplierReceipt.id.asc())
-        )
-    ).scalars().all()
-    receipt_items = (
-        await test_session.execute(
-            select(SupplierReceiptItem).where(
-                SupplierReceiptItem.receipt_id == receipts[0].id
+        (
+            await test_session.execute(
+                select(SupplierReceipt)
+                .where(SupplierReceipt.provider_id == provider.id)
+                .order_by(SupplierReceipt.id.asc())
             )
         )
-    ).scalars().all()
-    linked_items = [
-        row for row in receipt_items if row.supplier_order_item_id == item.id
-    ]
-    extra_items = [
-        row for row in receipt_items if row.supplier_order_item_id is None
-    ]
+        .scalars()
+        .all()
+    )
+    receipt_items = (
+        (
+            await test_session.execute(
+                select(SupplierReceiptItem).where(SupplierReceiptItem.receipt_id == receipts[0].id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    linked_items = [row for row in receipt_items if row.supplier_order_item_id == item.id]
+    extra_items = [row for row in receipt_items if row.supplier_order_item_id is None]
 
     assert result["processed_messages"] == 1
     assert result["posted_receipts"] == 1
@@ -1563,16 +1516,12 @@ async def test_document_payload_links_order_item_missing_in_draft(
     )
     await test_session.commit()
 
-    response_frame = pd.DataFrame(
-        [["ORDER-ONLY-009", created_autopart.brand.name, 2]]
-    )
+    response_frame = pd.DataFrame([["ORDER-ONLY-009", created_autopart.brand.name, 2]])
     buffer = BytesIO()
     response_frame.to_excel(buffer, index=False, header=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(
-        session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -1597,10 +1546,7 @@ async def test_document_payload_links_order_item_missing_in_draft(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -1612,12 +1558,16 @@ async def test_document_payload_links_order_item_missing_in_draft(
     await test_session.refresh(draft_item)
     await test_session.refresh(missing_in_draft_item)
     receipts = (
-        await test_session.execute(
-            select(SupplierReceipt)
-            .where(SupplierReceipt.provider_id == provider.id)
-            .order_by(SupplierReceipt.id.asc())
+        (
+            await test_session.execute(
+                select(SupplierReceipt)
+                .where(SupplierReceipt.provider_id == provider.id)
+                .order_by(SupplierReceipt.id.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     posted_receipt = next(
         (receipt for receipt in receipts if receipt.posted_at is not None),
         None,
@@ -1635,26 +1585,32 @@ async def test_document_payload_links_order_item_missing_in_draft(
     assert int(missing_in_draft_item.received_quantity or 0) == 2
 
     posted_items = (
-        await test_session.execute(
-            select(SupplierReceiptItem).where(
-                SupplierReceiptItem.receipt_id == posted_receipt.id
+        (
+            await test_session.execute(
+                select(SupplierReceiptItem).where(
+                    SupplierReceiptItem.receipt_id == posted_receipt.id
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(posted_items) == 1
     assert posted_items[0].supplier_order_item_id == missing_in_draft_item.id
-    assert posted_items[0].customer_order_item_id == (
-        missing_in_draft_item.customer_order_item_id
-    )
+    assert posted_items[0].customer_order_item_id == (missing_in_draft_item.customer_order_item_id)
     assert posted_items[0].received_quantity == 2
 
     draft_items = (
-        await test_session.execute(
-            select(SupplierReceiptItem).where(
-                SupplierReceiptItem.receipt_id == remaining_draft.id
+        (
+            await test_session.execute(
+                select(SupplierReceiptItem).where(
+                    SupplierReceiptItem.receipt_id == remaining_draft.id
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(draft_items) == 1
     assert draft_items[0].supplier_order_item_id == draft_item.id
     assert draft_items[0].received_quantity == 4
@@ -1689,9 +1645,7 @@ async def test_shipping_doc_creates_posted_receipt(
     test_session.add(item)
     await test_session.commit()
 
-    async def fake_fetch_messages(
-            session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -1716,10 +1670,7 @@ async def test_shipping_doc_creates_posted_receipt(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -1731,16 +1682,12 @@ async def test_shipping_doc_creates_posted_receipt(
     await test_session.refresh(item)
     receipt = (
         await test_session.execute(
-            select(SupplierReceipt).where(
-                SupplierReceipt.provider_id == provider.id
-            )
+            select(SupplierReceipt).where(SupplierReceipt.provider_id == provider.id)
         )
     ).scalar_one()
     receipt_item = (
         await test_session.execute(
-            select(SupplierReceiptItem).where(
-                SupplierReceiptItem.receipt_id == receipt.id
-            )
+            select(SupplierReceiptItem).where(SupplierReceiptItem.receipt_id == receipt.id)
         )
     ).scalar_one()
 
@@ -1771,9 +1718,7 @@ async def test_process_supplier_response_messages_records_unmapped_status(
 
     raw_status = f"zz_unmapped_status_{order.id}_ci"
 
-    async def fake_fetch_messages(
-            session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -1793,10 +1738,7 @@ async def test_process_supplier_response_messages_records_unmapped_status(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -1804,17 +1746,11 @@ async def test_process_supplier_response_messages_records_unmapped_status(
         lambda _subject, _body_preview: raw_status,
     )
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_parse_supplier_text_response"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_parse_supplier_text_response"),
         lambda *_args, **_kwargs: SimpleNamespace(rows=[], unresolved=[]),
     )
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_detect_global_text_decision"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_detect_global_text_decision"),
         lambda *_args, **_kwargs: (None, None),
     )
     monkeypatch.setattr(
@@ -1832,19 +1768,22 @@ async def test_process_supplier_response_messages_records_unmapped_status(
         )
     ).scalar_one()
     rows = (
-        await test_session.execute(
-            select(ExternalStatusUnmapped).where(
-                ExternalStatusUnmapped.source_key
-                == EXTERNAL_STATUS_SOURCE_SUPPLIER_EMAIL,
-                ExternalStatusUnmapped.provider_id == provider.id,
+        (
+            await test_session.execute(
+                select(ExternalStatusUnmapped).where(
+                    ExternalStatusUnmapped.source_key == EXTERNAL_STATUS_SOURCE_SUPPLIER_EMAIL,
+                    ExternalStatusUnmapped.provider_id == provider.id,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     row = next(
         (
-            candidate for candidate in rows
-            if (candidate.sample_payload or {}).get("supplier_message_id")
-            == message_row.id
+            candidate
+            for candidate in rows
+            if (candidate.sample_payload or {}).get("supplier_message_id") == message_row.id
         ),
         None,
     )
@@ -1876,9 +1815,7 @@ async def test_responses_mode_skips_messages_for_document_configs(
     )
     await test_session.commit()
 
-    async def fake_fetch_messages(
-            session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -1903,10 +1840,7 @@ async def test_responses_mode_skips_messages_for_document_configs(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
 
@@ -1914,9 +1848,7 @@ async def test_responses_mode_skips_messages_for_document_configs(
         test_session,
         file_payload_mode="responses",
     )
-    rows = (
-        await test_session.execute(select(SupplierOrderMessage))
-    ).scalars().all()
+    rows = (await test_session.execute(select(SupplierOrderMessage))).scalars().all()
 
     assert result["fetched_messages"] == 1
     assert result["processed_messages"] == 0
@@ -1944,9 +1876,7 @@ async def test_documents_mode_skips_messages_for_response_configs(
     )
     await test_session.commit()
 
-    async def fake_fetch_messages(
-            session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -1971,10 +1901,7 @@ async def test_documents_mode_skips_messages_for_response_configs(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
 
@@ -1982,9 +1909,7 @@ async def test_documents_mode_skips_messages_for_response_configs(
         test_session,
         file_payload_mode="documents",
     )
-    rows = (
-        await test_session.execute(select(SupplierOrderMessage))
-    ).scalars().all()
+    rows = (await test_session.execute(select(SupplierOrderMessage))).scalars().all()
 
     assert result["fetched_messages"] == 1
     assert result["processed_messages"] == 0
@@ -2009,9 +1934,7 @@ async def test_supplier_response_skip_text_status_when_disabled(
     test_session.add(order)
     await test_session.commit()
 
-    async def fake_fetch_messages(
-            session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -2031,10 +1954,7 @@ async def test_supplier_response_skip_text_status_when_disabled(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -2046,19 +1966,21 @@ async def test_supplier_response_skip_text_status_when_disabled(
     await test_session.refresh(order)
 
     unmapped_rows = (
-        await test_session.execute(
-            select(ExternalStatusUnmapped).where(
-                ExternalStatusUnmapped.source_key
-                == EXTERNAL_STATUS_SOURCE_SUPPLIER_EMAIL,
-                ExternalStatusUnmapped.provider_id == provider.id,
+        (
+            await test_session.execute(
+                select(ExternalStatusUnmapped).where(
+                    ExternalStatusUnmapped.source_key == EXTERNAL_STATUS_SOURCE_SUPPLIER_EMAIL,
+                    ExternalStatusUnmapped.provider_id == provider.id,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     message_row = (
         await test_session.execute(
             select(SupplierOrderMessage).where(
-                SupplierOrderMessage.source_message_id
-                == "supplier-msg-text-off"
+                SupplierOrderMessage.source_message_id == "supplier-msg-text-off"
             )
         )
     ).scalar_one()
@@ -2115,9 +2037,7 @@ async def test_skip_response_files_when_disabled(
     response_frame.to_excel(buffer, index=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(
-            session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -2142,10 +2062,7 @@ async def test_skip_response_files_when_disabled(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -2175,9 +2092,7 @@ async def test_skip_shipping_docs_when_disabled(
     provider.supplier_response_allow_text_status = False
     await test_session.commit()
 
-    async def fake_fetch_messages(
-            session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -2202,10 +2117,7 @@ async def test_skip_shipping_docs_when_disabled(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -2217,8 +2129,7 @@ async def test_skip_shipping_docs_when_disabled(
     message_row = (
         await test_session.execute(
             select(SupplierOrderMessage).where(
-                SupplierOrderMessage.source_message_id
-                == "supplier-msg-upd-off"
+                SupplierOrderMessage.source_message_id == "supplier-msg-upd-off"
             )
         )
     ).scalar_one()
@@ -2287,9 +2198,7 @@ async def test_apply_provider_column_layout_for_response_file(
     response_frame.to_excel(buffer, index=False, header=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(
-            session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -2314,10 +2223,7 @@ async def test_apply_provider_column_layout_for_response_file(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -2379,9 +2285,7 @@ async def test_use_response_filename_pattern_for_spreadsheets(
     response_frame.to_excel(buffer, index=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(
-            session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -2406,10 +2310,7 @@ async def test_use_response_filename_pattern_for_spreadsheets(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -2468,9 +2369,7 @@ async def test_use_response_filename_pattern_for_mime_encoded_filename(
     response_frame.to_excel(buffer, index=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(
-            session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -2495,10 +2394,7 @@ async def test_use_response_filename_pattern_for_mime_encoded_filename(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -2527,12 +2423,7 @@ async def test_use_shipping_doc_filename_pattern(
     provider.supplier_shipping_doc_filename_pattern = r"^doc_\d+\.pdf$"
     await test_session.commit()
 
-    async def fake_fetch_messages(
-            session, *,
-            date_from,
-            date_to=None,
-            **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -2557,10 +2448,7 @@ async def test_use_shipping_doc_filename_pattern(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -2572,8 +2460,7 @@ async def test_use_shipping_doc_filename_pattern(
     message_row = (
         await test_session.execute(
             select(SupplierOrderMessage).where(
-                SupplierOrderMessage.source_message_id
-                == "supplier-msg-doc-pattern"
+                SupplierOrderMessage.source_message_id == "supplier-msg-doc-pattern"
             )
         )
     ).scalar_one()
@@ -2632,14 +2519,10 @@ async def test_parse_text_response_using_supplier_response_config(
     await test_session.commit()
 
     text_payload = (
-        f"{created_autopart.oem_number} 3 "
-        "UNKNOWN999 0 "
-        f"{created_autopart.oem_number} да"
+        f"{created_autopart.oem_number} 3 " "UNKNOWN999 0 " f"{created_autopart.oem_number} да"
     )
 
-    async def fake_fetch_messages(
-            session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -2659,10 +2542,7 @@ async def test_parse_text_response_using_supplier_response_config(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -2675,8 +2555,7 @@ async def test_parse_text_response_using_supplier_response_config(
     message_row = (
         await test_session.execute(
             select(SupplierOrderMessage).where(
-                SupplierOrderMessage.source_message_id
-                == "supplier-msg-text-config"
+                SupplierOrderMessage.source_message_id == "supplier-msg-text-config"
             )
         )
     ).scalar_one()
@@ -2728,16 +2607,11 @@ async def test_auto_confirm_timeout_creates_draft_receipt(
     )
     await test_session.commit()
 
-    async def fake_fetch_messages(
-        session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return []
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
 
@@ -2746,18 +2620,18 @@ async def test_auto_confirm_timeout_creates_draft_receipt(
 
     receipt = (
         await test_session.execute(
-            select(SupplierReceipt).where(
-                SupplierReceipt.provider_id == provider.id
-            )
+            select(SupplierReceipt).where(SupplierReceipt.provider_id == provider.id)
         )
     ).scalar_one()
     receipt_items = (
-        await test_session.execute(
-            select(SupplierReceiptItem).where(
-                SupplierReceiptItem.receipt_id == receipt.id
+        (
+            await test_session.execute(
+                select(SupplierReceiptItem).where(SupplierReceiptItem.receipt_id == receipt.id)
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert result["timeout_auto_confirmed_orders"] == 1
     assert result["created_receipts"] == 1
@@ -2817,16 +2691,11 @@ async def test_auto_confirm_timeout_ignores_import_error_message(
     )
     await test_session.commit()
 
-    async def fake_fetch_messages(
-        session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return []
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
 
@@ -2906,9 +2775,7 @@ async def test_document_payload_includes_unmatched_rows_and_rejects_missing(
     response_frame.to_excel(buffer, index=False, header=False)
     payload = buffer.getvalue()
 
-    async def fake_fetch_messages(
-        session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -2933,10 +2800,7 @@ async def test_document_payload_includes_unmatched_rows_and_rejects_missing(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -2949,26 +2813,20 @@ async def test_document_payload_includes_unmatched_rows_and_rejects_missing(
     await test_session.refresh(missing_item)
     receipt = (
         await test_session.execute(
-            select(SupplierReceipt).where(
-                SupplierReceipt.provider_id == provider.id
-            )
+            select(SupplierReceipt).where(SupplierReceipt.provider_id == provider.id)
         )
     ).scalar_one()
     receipt_items = (
-        await test_session.execute(
-            select(SupplierReceiptItem).where(
-                SupplierReceiptItem.receipt_id == receipt.id
+        (
+            await test_session.execute(
+                select(SupplierReceiptItem).where(SupplierReceiptItem.receipt_id == receipt.id)
             )
         )
-    ).scalars().all()
-    linked_rows = [
-        row
-        for row in receipt_items
-        if row.supplier_order_item_id == matched_item.id
-    ]
-    unlinked_rows = [
-        row for row in receipt_items if row.supplier_order_item_id is None
-    ]
+        .scalars()
+        .all()
+    )
+    linked_rows = [row for row in receipt_items if row.supplier_order_item_id == matched_item.id]
+    unlinked_rows = [row for row in receipt_items if row.supplier_order_item_id is None]
 
     assert result["processed_messages"] == 1
     assert result["posted_receipts"] == 1
@@ -3021,9 +2879,7 @@ async def test_text_response_global_keyword_confirm_creates_draft_receipt(
     )
     await test_session.commit()
 
-    async def fake_fetch_messages(
-        session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -3043,10 +2899,7 @@ async def test_text_response_global_keyword_confirm_creates_draft_receipt(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -3059,23 +2912,18 @@ async def test_text_response_global_keyword_confirm_creates_draft_receipt(
     message_row = (
         await test_session.execute(
             select(SupplierOrderMessage).where(
-                SupplierOrderMessage.source_message_id
-                == "supplier-msg-text-global"
+                SupplierOrderMessage.source_message_id == "supplier-msg-text-global"
             )
         )
     ).scalar_one()
     receipt = (
         await test_session.execute(
-            select(SupplierReceipt).where(
-                SupplierReceipt.provider_id == provider.id
-            )
+            select(SupplierReceipt).where(SupplierReceipt.provider_id == provider.id)
         )
     ).scalar_one()
     receipt_item = (
         await test_session.execute(
-            select(SupplierReceiptItem).where(
-                SupplierReceiptItem.receipt_id == receipt.id
-            )
+            select(SupplierReceiptItem).where(SupplierReceiptItem.receipt_id == receipt.id)
         )
     ).scalar_one()
 
@@ -3129,9 +2977,7 @@ async def test_text_response_parses_numeric_hyphen_oem_with_reserve_keyword(
     )
     await test_session.commit()
 
-    async def fake_fetch_messages(
-        session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -3151,10 +2997,7 @@ async def test_text_response_parses_numeric_hyphen_oem_with_reserve_keyword(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -3167,8 +3010,7 @@ async def test_text_response_parses_numeric_hyphen_oem_with_reserve_keyword(
     message_row = (
         await test_session.execute(
             select(SupplierOrderMessage).where(
-                SupplierOrderMessage.source_message_id
-                == "supplier-msg-text-reserve"
+                SupplierOrderMessage.source_message_id == "supplier-msg-text-reserve"
             )
         )
     ).scalar_one()
@@ -3202,9 +3044,7 @@ async def test_subject_pattern_filters_supplier_response_messages(
     )
     await test_session.commit()
 
-    async def fake_fetch_messages(
-        session, *, date_from, date_to=None, **kwargs
-    ):
+    async def fake_fetch_messages(session, *, date_from, date_to=None, **kwargs):
         return [
             (
                 SimpleNamespace(
@@ -3224,10 +3064,7 @@ async def test_subject_pattern_filters_supplier_response_messages(
         ]
 
     monkeypatch.setattr(
-        (
-            "dz_fastapi.services.supplier_order_responses."
-            "_fetch_supplier_response_messages"
-        ),
+        ("dz_fastapi.services.supplier_order_responses." "_fetch_supplier_response_messages"),
         fake_fetch_messages,
     )
     monkeypatch.setattr(
@@ -3237,13 +3074,16 @@ async def test_subject_pattern_filters_supplier_response_messages(
 
     result = await process_supplier_response_messages(test_session)
     message_rows = (
-        await test_session.execute(
-            select(SupplierOrderMessage).where(
-                SupplierOrderMessage.source_message_id
-                == "supplier-msg-subject-filter"
+        (
+            await test_session.execute(
+                select(SupplierOrderMessage).where(
+                    SupplierOrderMessage.source_message_id == "supplier-msg-subject-filter"
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert result["processed_messages"] == 0
     assert result["skipped_messages"] == 1
@@ -3310,9 +3150,7 @@ async def test_document_receipt_unmatched_row_links_site_order_item(
 
     receipt_item = (
         await test_session.execute(
-            select(SupplierReceiptItem).where(
-                SupplierReceiptItem.receipt_id == receipt.id
-            )
+            select(SupplierReceiptItem).where(SupplierReceiptItem.receipt_id == receipt.id)
         )
     ).scalar_one()
     assert receipt_item.order_item_id == order_item.id

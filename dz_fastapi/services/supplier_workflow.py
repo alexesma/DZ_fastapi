@@ -11,20 +11,33 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.customer_order import crud_supplier_order
-from dz_fastapi.models.partner import (ORDER_TRACKING_SOURCE,
-                                       STOCK_ORDER_STATUS,
-                                       TYPE_ORDER_ITEM_STATUS, TYPE_PRICES,
-                                       TYPE_STATUS_ORDER, CustomerOrder,
-                                       CustomerOrderItem, Order, OrderItem,
-                                       StockOrder, StockOrderItem,
-                                       SupplierOrder, SupplierOrderItem,
-                                       SupplierReceipt, SupplierReceiptItem)
+from dz_fastapi.models.partner import (
+    ORDER_TRACKING_SOURCE,
+    STOCK_ORDER_STATUS,
+    TYPE_ORDER_ITEM_STATUS,
+    TYPE_PRICES,
+    TYPE_STATUS_ORDER,
+    CustomerOrder,
+    CustomerOrderItem,
+    Order,
+    OrderItem,
+    StockOrder,
+    StockOrderItem,
+    SupplierOrder,
+    SupplierOrderItem,
+    SupplierReceipt,
+    SupplierReceiptItem,
+)
 from dz_fastapi.models.user import User
 from dz_fastapi.services.customer_orders import (
-    _load_brand_alias_map, _normalize_key,
-    try_finalize_customer_order_response)
+    _load_brand_alias_map,
+    _normalize_key,
+    try_finalize_customer_order_response,
+)
 from dz_fastapi.services.inventory_stock import (
-    apply_receipt_to_stock_by_id, resolve_warehouse_for_provider)
+    apply_receipt_to_stock_by_id,
+    resolve_warehouse_for_provider,
+)
 
 
 @dataclass(slots=True)
@@ -36,8 +49,8 @@ class StockPickResult:
 def _provider_is_vat_payer(provider) -> bool:
     if provider is None:
         return False
-    raw_type = getattr(provider, 'type_prices', None)
-    raw_value = getattr(raw_type, 'value', raw_type)
+    raw_type = getattr(provider, "type_prices", None)
+    raw_value = getattr(raw_type, "value", raw_type)
     if raw_value is not None:
         normalized = str(raw_value).strip().lower()
         if normalized in {
@@ -52,15 +65,15 @@ def _provider_is_vat_payer(provider) -> bool:
             TYPE_PRICES.CASH.name.lower(),
         }:
             return False
-    return bool(getattr(provider, 'is_vat_payer', False))
+    return bool(getattr(provider, "is_vat_payer", False))
 
 
 def _normalize_receipt_document_number(value: object) -> Optional[str]:
-    text = str(value or '').strip()
+    text = str(value or "").strip()
     if not text:
         return None
     match = re.search(
-        r'(?:№|N)\s*([A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9._/-]*)',
+        r"(?:№|N)\s*([A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9._/-]*)",
         text,
         flags=re.I,
     )
@@ -70,7 +83,7 @@ def _normalize_receipt_document_number(value: object) -> Optional[str]:
 
 
 def _safe_int(value: object) -> Optional[int]:
-    if value in (None, ''):
+    if value in (None, ""):
         return None
     try:
         return int(value)
@@ -151,11 +164,14 @@ async def _match_site_order_item_for_receipt(
     for candidate in candidates:
         if int(candidate.id) in exclude_order_item_ids:
             continue
-        if _normalize_key(
-            candidate.oem_number,
-            candidate.brand_name,
-            brand_aliases,
-        ) != normalized_key:
+        if (
+            _normalize_key(
+                candidate.oem_number,
+                candidate.brand_name,
+                brand_aliases,
+            )
+            != normalized_key
+        ):
             continue
         pending_quantity = _site_order_item_pending_quantity(candidate)
         if pending_quantity <= 0:
@@ -167,9 +183,11 @@ async def _match_site_order_item_for_receipt(
         }:
             continue
         sort_key = (
-            0 if desired_quantity and (
-                    pending_quantity == desired_quantity
-            ) else 1,
+            (
+                0
+                if desired_quantity and (pending_quantity == desired_quantity)
+                else 1
+            ),
             0 if pending_quantity >= desired_quantity else 1,
             abs(pending_quantity - desired_quantity),
             candidate.order.created_at or now_moscow(),
@@ -196,10 +214,14 @@ async def _recalculate_site_order_items_received(
         return set()
 
     order_items = (
-        await session.execute(
-            select(OrderItem).where(OrderItem.id.in_(item_ids))
+        (
+            await session.execute(
+                select(OrderItem).where(OrderItem.id.in_(item_ids))
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     if not order_items:
         return set()
 
@@ -248,12 +270,16 @@ async def _recalculate_site_orders_status(
     if not order_ids:
         return
     orders = (
-        await session.execute(
-            select(Order)
-            .options(selectinload(Order.order_items))
-            .where(Order.id.in_({int(order_id) for order_id in order_ids}))
+        (
+            await session.execute(
+                select(Order)
+                .options(selectinload(Order.order_items))
+                .where(Order.id.in_({int(order_id) for order_id in order_ids}))
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for order in orders:
         items = list(order.order_items or [])
         if not items:
@@ -263,10 +289,8 @@ async def _recalculate_site_orders_status(
         ]
         received_quantities = [
             min(
-                max(
-                    int(item.received_quantity or 0),
-                    0
-                ), ordered_quantities[idx]
+                max(int(item.received_quantity or 0), 0),
+                ordered_quantities[idx],
             )
             for idx, item in enumerate(items)
         ]
@@ -313,15 +337,15 @@ async def _enrich_receipt_payload_with_site_order_link(
     payload: dict,
     linked_order_item_ids: set[int],
 ) -> tuple[dict, Optional[OrderItem]]:
-    received_quantity = _safe_int(payload.get('received_quantity'))
-    if payload.get('order_item_id') is not None:
+    received_quantity = _safe_int(payload.get("received_quantity"))
+    if payload.get("order_item_id") is not None:
         order_item = (
             await session.execute(
                 select(OrderItem)
                 .options(joinedload(OrderItem.order))
                 .join(Order, Order.id == OrderItem.order_id)
                 .where(
-                    OrderItem.id == int(payload['order_item_id']),
+                    OrderItem.id == int(payload["order_item_id"]),
                     Order.provider_id == provider_id,
                     Order.source_type
                     == ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
@@ -329,33 +353,33 @@ async def _enrich_receipt_payload_with_site_order_link(
             )
         ).scalar_one_or_none()
         if order_item is None:
-            raise ValueError('Строка site-заказа для прихода не найдена')
-        payload['order_item_id'] = int(order_item.id)
+            raise ValueError("Строка site-заказа для прихода не найдена")
+        payload["order_item_id"] = int(order_item.id)
         linked_order_item_ids.add(int(order_item.id))
         return payload, order_item
 
     if (received_quantity or 0) <= 0:
         return payload, None
 
-    if payload.get('supplier_order_item_id'):
+    if payload.get("supplier_order_item_id"):
         return payload, None
 
     matched = await _match_site_order_item_for_receipt(
         session,
         provider_id=provider_id,
-        oem_number=payload.get('oem_number'),
-        brand_name=payload.get('brand_name'),
+        oem_number=payload.get("oem_number"),
+        brand_name=payload.get("brand_name"),
         received_quantity=received_quantity,
         exclude_order_item_ids=linked_order_item_ids,
     )
     if matched is None:
         return payload, None
 
-    payload['order_item_id'] = int(matched.id)
-    payload.setdefault('autopart_id', matched.autopart_id)
-    payload.setdefault('oem_number', matched.oem_number)
-    payload.setdefault('brand_name', matched.brand_name)
-    payload.setdefault('autopart_name', matched.autopart_name)
+    payload["order_item_id"] = int(matched.id)
+    payload.setdefault("autopart_id", matched.autopart_id)
+    payload.setdefault("oem_number", matched.oem_number)
+    payload.setdefault("brand_name", matched.brand_name)
+    payload.setdefault("autopart_name", matched.autopart_name)
     linked_order_item_ids.add(int(matched.id))
     return payload, matched
 
@@ -379,22 +403,23 @@ async def update_stock_order_item_pick(
     scan_code: Optional[str] = None,
 ) -> StockPickResult:
     if picked_quantity is None and increment is None:
-        raise ValueError('Укажите количество или шаг изменения')
+        raise ValueError("Укажите количество или шаг изменения")
     if picked_quantity is not None and increment is not None:
-        raise ValueError('Нельзя одновременно передавать количество и шаг')
+        raise ValueError("Нельзя одновременно передавать количество и шаг")
 
     stmt = (
         select(StockOrderItem)
         .options(
-            joinedload(StockOrderItem.stock_order)
-            .selectinload(StockOrder.items),
+            joinedload(StockOrderItem.stock_order).selectinload(
+                StockOrder.items
+            ),
             joinedload(StockOrderItem.picked_by_user),
         )
         .where(StockOrderItem.id == item_id)
     )
     item = (await session.execute(stmt)).scalar_one_or_none()
     if item is None:
-        raise LookupError('Строка складского заказа не найдена')
+        raise LookupError("Строка складского заказа не найдена")
 
     current_qty = int(item.picked_quantity or 0)
     if picked_quantity is not None:
@@ -484,30 +509,30 @@ async def update_stock_order_item_pick(
 
 def serialize_stock_order_item(item: StockOrderItem) -> dict:
     return {
-        'id': item.id,
-        'autopart_id': item.autopart_id,
-        'customer_order_item_id': item.customer_order_item_id,
-        'quantity': item.quantity,
-        'picked_quantity': int(item.picked_quantity or 0),
-        'picked_at': item.picked_at,
-        'picked_by_user_id': item.picked_by_user_id,
-        'picked_by_email': (
+        "id": item.id,
+        "autopart_id": item.autopart_id,
+        "customer_order_item_id": item.customer_order_item_id,
+        "quantity": item.quantity,
+        "picked_quantity": int(item.picked_quantity or 0),
+        "picked_at": item.picked_at,
+        "picked_by_user_id": item.picked_by_user_id,
+        "picked_by_email": (
             item.picked_by_user.email if item.picked_by_user else None
         ),
-        'pick_comment': item.pick_comment,
-        'pick_last_scan_code': item.pick_last_scan_code,
-        'autopart': item.autopart,
+        "pick_comment": item.pick_comment,
+        "pick_last_scan_code": item.pick_last_scan_code,
+        "autopart": item.autopart,
     }
 
 
 def serialize_stock_order(order: StockOrder) -> dict:
     return {
-        'id': order.id,
-        'customer_id': order.customer_id,
-        'customer_name': order.customer.name if order.customer else None,
-        'status': order.status,
-        'created_at': order.created_at,
-        'items': [serialize_stock_order_item(item) for item in order.items],
+        "id": order.id,
+        "customer_id": order.customer_id,
+        "customer_name": order.customer.name if order.customer else None,
+        "status": order.status,
+        "created_at": order.created_at,
+        "items": [serialize_stock_order_item(item) for item in order.items],
     }
 
 
@@ -533,7 +558,7 @@ async def list_supplier_receipt_candidates(
     )
     rows: list[dict] = []
     for order in orders:
-        provider_name = getattr(order.provider, 'name', None)
+        provider_name = getattr(order.provider, "name", None)
         for item in order.items or []:
             if item.receipt_items:
                 continue
@@ -562,48 +587,45 @@ async def list_supplier_receipt_candidates(
                 continue
             rows.append(
                 {
-                    'supplier_order_item_id': item.id,
-                    'supplier_order_id': order.id,
-                    'provider_id': order.provider_id,
-                    'provider_name': provider_name,
-                    'supplier_order_created_at': order.created_at,
-                    'supplier_order_sent_at': order.sent_at,
-                    'supplier_order_status': order.status,
-                    'customer_order_id': (
+                    "supplier_order_item_id": item.id,
+                    "supplier_order_id": order.id,
+                    "provider_id": order.provider_id,
+                    "provider_name": provider_name,
+                    "supplier_order_created_at": order.created_at,
+                    "supplier_order_sent_at": order.sent_at,
+                    "supplier_order_status": order.status,
+                    "customer_order_id": (
                         customer_order.id if customer_order else None
                     ),
-                    'customer_order_number': (
-                        customer_order.order_number
-                        if customer_order
-                        else None
+                    "customer_order_number": (
+                        customer_order.order_number if customer_order else None
                     ),
-                    'customer_name': customer.name if customer else None,
-                    'oem_number': item.oem_number,
-                    'brand_name': item.brand_name,
-                    'autopart_name': item.autopart_name,
-                    'ordered_quantity': int(item.quantity or 0),
-                    'confirmed_quantity': item.confirmed_quantity,
-                    'already_received_quantity': already_received,
-                    'pending_quantity': pending_quantity,
-                    'price': item.price,
-                    'response_price': item.response_price,
-                    'response_comment': item.response_comment,
-                    'response_status_raw': (
-                        item.response_status_raw
-                        or order.response_status_raw
+                    "customer_name": customer.name if customer else None,
+                    "oem_number": item.oem_number,
+                    "brand_name": item.brand_name,
+                    "autopart_name": item.autopart_name,
+                    "ordered_quantity": int(item.quantity or 0),
+                    "confirmed_quantity": item.confirmed_quantity,
+                    "already_received_quantity": already_received,
+                    "pending_quantity": pending_quantity,
+                    "price": item.price,
+                    "response_price": item.response_price,
+                    "response_comment": item.response_comment,
+                    "response_status_raw": (
+                        item.response_status_raw or order.response_status_raw
                     ),
-                    'response_status_normalized': (
+                    "response_status_normalized": (
                         item.response_status_normalized
                         or order.response_status_normalized
                     ),
-                    'min_delivery_day': item.min_delivery_day,
-                    'max_delivery_day': item.max_delivery_day,
-                    'last_receipt_at': (
+                    "min_delivery_day": item.min_delivery_day,
+                    "max_delivery_day": item.max_delivery_day,
+                    "last_receipt_at": (
                         latest_receipt.receipt.posted_at
                         if latest_receipt
                         else None
                     ),
-                    'last_receipt_number': (
+                    "last_receipt_number": (
                         latest_receipt.receipt.document_number
                         if latest_receipt
                         else None
@@ -612,9 +634,9 @@ async def list_supplier_receipt_candidates(
             )
     rows.sort(
         key=lambda row: (
-            row['supplier_order_created_at'],
-            row['supplier_order_id'],
-            row['supplier_order_item_id'],
+            row["supplier_order_created_at"],
+            row["supplier_order_id"],
+            row["supplier_order_item_id"],
         ),
         reverse=True,
     )
@@ -638,25 +660,25 @@ async def list_supplier_receipt_provider_options(
 
     provider_map: dict[int, dict] = {}
     for row in candidates:
-        pid = row.get('provider_id')
+        pid = row.get("provider_id")
         if pid is None:
             continue
         if pid not in provider_map:
-            pname = row.get('provider_name') or f'#{pid}'
+            pname = row.get("provider_name") or f"#{pid}"
             provider_map[pid] = {
-                'provider_name': str(pname).strip(),
-                'count': 0
+                "provider_name": str(pname).strip(),
+                "count": 0,
             }
-        provider_map[pid]['count'] += 1
+        provider_map[pid]["count"] += 1
 
     result = [
         {
-            'provider_id': pid,
-            'provider_name': info['provider_name'],
-            'orders_count': info['count'],
+            "provider_id": pid,
+            "provider_name": info["provider_name"],
+            "orders_count": info["count"],
         }
         for pid, info in sorted(
-            provider_map.items(), key=lambda x: x[1]['provider_name'].lower()
+            provider_map.items(), key=lambda x: x[1]["provider_name"].lower()
         )
     ]
     return result
@@ -713,22 +735,23 @@ async def create_supplier_receipt(
 ) -> SupplierReceipt:
     items_payload = list(items_payload)
     if not items_payload:
-        raise ValueError('Добавьте строки для поступления')
+        raise ValueError("Добавьте строки для поступления")
 
-    item_ids = [int(item['supplier_order_item_id']) for item in items_payload]
+    item_ids = [int(item["supplier_order_item_id"]) for item in items_payload]
     stmt = (
         select(SupplierOrderItem)
         .options(
             joinedload(SupplierOrderItem.supplier_order),
-            joinedload(SupplierOrderItem.customer_order_item)
-            .joinedload(CustomerOrderItem.order),
+            joinedload(SupplierOrderItem.customer_order_item).joinedload(
+                CustomerOrderItem.order
+            ),
         )
         .where(SupplierOrderItem.id.in_(item_ids))
     )
     db_items = (await session.execute(stmt)).scalars().all()
     items_by_id = {item.id: item for item in db_items}
     if len(items_by_id) != len(set(item_ids)):
-        raise LookupError('Не все строки заказов поставщикам найдены')
+        raise LookupError("Не все строки заказов поставщикам найдены")
     warehouse = await resolve_warehouse_for_provider(
         session,
         provider_id=provider_id,
@@ -791,21 +814,21 @@ async def create_supplier_receipt(
                 receipt.created_by_user_id = user.id
 
     for payload in items_payload:
-        item = items_by_id[int(payload['supplier_order_item_id'])]
+        item = items_by_id[int(payload["supplier_order_item_id"])]
         if item.supplier_order.provider_id != provider_id:
             raise ValueError(
-                'Все строки должны относиться к одному поставщику'
+                "Все строки должны относиться к одному поставщику"
             )
         supplier_order_ids.add(int(item.supplier_order_id))
         if item.customer_order_item and item.customer_order_item.order:
             affected_customer_order_ids.add(
                 int(item.customer_order_item.order.id)
             )
-        received_quantity = int(payload.get('received_quantity') or 0)
+        received_quantity = int(payload.get("received_quantity") or 0)
         if received_quantity > int(item.quantity or 0):
             raise ValueError(
-                f'Полученное количество превышает заказанное для OEM '
-                f'{item.oem_number or item.autopart_name or item.id}'
+                f"Полученное количество превышает заказанное для OEM "
+                f"{item.oem_number or item.autopart_name or item.id}"
             )
 
         current_received = int(item.received_quantity or 0)
@@ -815,7 +838,7 @@ async def create_supplier_receipt(
             else int(item.quantity or 0)
         )
         pending_quantity = max(expected_quantity - current_received, 0)
-        requested_quantity = int(payload.get('received_quantity') or 0)
+        requested_quantity = int(payload.get("received_quantity") or 0)
 
         # Explicit zero in receipts UI means a manual refusal of the remaining
         # pending quantity for this supplier order item.
@@ -840,8 +863,7 @@ async def create_supplier_receipt(
                 received_quantity=0,
                 price=item.response_price or item.price,
                 comment=(
-                    payload.get('comment')
-                    or 'Явный отказ остатка по строке'
+                    payload.get("comment") or "Явный отказ остатка по строке"
                 ),
             )
             session.add(receipt_item)
@@ -866,7 +888,7 @@ async def create_supplier_receipt(
             confirmed_quantity=item.confirmed_quantity,
             received_quantity=received_quantity,
             price=item.response_price or item.price,
-            comment=payload.get('comment') or None,
+            comment=payload.get("comment") or None,
         )
         session.add(receipt_item)
 
@@ -921,7 +943,7 @@ async def post_supplier_receipt(
     )
     receipt = (await session.execute(stmt)).scalar_one_or_none()
     if receipt is None:
-        raise LookupError('Документ поступления не найден')
+        raise LookupError("Документ поступления не найден")
 
     if receipt.posted_at is None:
         current_dt = now_moscow()
@@ -1010,10 +1032,16 @@ async def _recalculate_supplier_order_items_received(
         return
 
     order_items = (
-        await session.execute(
-            select(SupplierOrderItem).where(SupplierOrderItem.id.in_(item_ids))
+        (
+            await session.execute(
+                select(SupplierOrderItem).where(
+                    SupplierOrderItem.id.in_(item_ids)
+                )
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     if not order_items:
         return
 
@@ -1069,7 +1097,7 @@ async def unpost_supplier_receipt(
     )
     receipt = (await session.execute(stmt)).scalar_one_or_none()
     if receipt is None:
-        raise LookupError('Документ поступления не найден')
+        raise LookupError("Документ поступления не найден")
 
     if receipt.posted_at is not None:
         await apply_receipt_to_stock_by_id(
@@ -1107,10 +1135,10 @@ async def delete_supplier_receipt(
     )
     receipt = (await session.execute(stmt)).scalar_one_or_none()
     if receipt is None:
-        raise LookupError('Документ поступления не найден')
+        raise LookupError("Документ поступления не найден")
     if receipt.posted_at is not None:
         raise ValueError(
-            'Нельзя удалить проведённый документ. Сначала распроведите его.'
+            "Нельзя удалить проведённый документ. Сначала распроведите его."
         )
 
     affected_order_item_ids = {
@@ -1147,59 +1175,57 @@ def _serialize_receipt_item(item: SupplierReceiptItem) -> dict:
     except Exception:
         pass
     return {
-        'id': item.id,
-        'supplier_order_id': item.supplier_order_id,
-        'supplier_order_item_id': item.supplier_order_item_id,
-        'customer_order_item_id': item.customer_order_item_id,
-        'order_item_id': item.order_item_id,
-        'autopart_id': item.autopart_id,
-        'oem_number': item.oem_number,
-        'brand_name': item.brand_name,
-        'autopart_name': item.autopart_name,
-        'ordered_quantity': item.ordered_quantity,
-        'confirmed_quantity': item.confirmed_quantity,
-        'received_quantity': item.received_quantity,
-        'price': item.price,
-        'total_price_with_vat': item.total_price_with_vat,
-        'gtd_code': item.gtd_code,
-        'country_code': item.country_code,
-        'country_name': item.country_name,
-        'comment': item.comment,
-        'warehouse_id': item.warehouse_id,
-        'warehouse_name': (
+        "id": item.id,
+        "supplier_order_id": item.supplier_order_id,
+        "supplier_order_item_id": item.supplier_order_item_id,
+        "customer_order_item_id": item.customer_order_item_id,
+        "order_item_id": item.order_item_id,
+        "autopart_id": item.autopart_id,
+        "oem_number": item.oem_number,
+        "brand_name": item.brand_name,
+        "autopart_name": item.autopart_name,
+        "ordered_quantity": item.ordered_quantity,
+        "confirmed_quantity": item.confirmed_quantity,
+        "received_quantity": item.received_quantity,
+        "price": item.price,
+        "total_price_with_vat": item.total_price_with_vat,
+        "gtd_code": item.gtd_code,
+        "country_code": item.country_code,
+        "country_name": item.country_name,
+        "comment": item.comment,
+        "warehouse_id": item.warehouse_id,
+        "warehouse_name": (
             item.warehouse.name
-            if getattr(item, 'warehouse', None) is not None
+            if getattr(item, "warehouse", None) is not None
             else None
         ),
-        'customer_name': customer_name,
-        'customer_order_number': customer_order_number,
+        "customer_name": customer_name,
+        "customer_order_number": customer_order_number,
     }
 
 
 def serialize_supplier_receipt(receipt: SupplierReceipt) -> dict:
     return {
-        'id': receipt.id,
-        'provider_id': receipt.provider_id,
-        'provider_name': receipt.provider.name if receipt.provider else None,
-        'provider_is_vat_payer': _provider_is_vat_payer(receipt.provider),
-        'warehouse_id': receipt.warehouse_id,
-        'warehouse_name': receipt.warehouse_name,
-        'supplier_order_id': receipt.supplier_order_id,
-        'source_message_id': receipt.source_message_id,
-        'document_number': _normalize_receipt_document_number(
+        "id": receipt.id,
+        "provider_id": receipt.provider_id,
+        "provider_name": receipt.provider.name if receipt.provider else None,
+        "provider_is_vat_payer": _provider_is_vat_payer(receipt.provider),
+        "warehouse_id": receipt.warehouse_id,
+        "warehouse_name": receipt.warehouse_name,
+        "supplier_order_id": receipt.supplier_order_id,
+        "source_message_id": receipt.source_message_id,
+        "document_number": _normalize_receipt_document_number(
             receipt.document_number
         ),
-        'document_date': receipt.document_date,
-        'created_by_user_id': receipt.created_by_user_id,
-        'created_by_email': (
-            receipt.created_by_user.email
-            if receipt.created_by_user
-            else None
+        "document_date": receipt.document_date,
+        "created_by_user_id": receipt.created_by_user_id,
+        "created_by_email": (
+            receipt.created_by_user.email if receipt.created_by_user else None
         ),
-        'created_at': receipt.created_at,
-        'posted_at': receipt.posted_at,
-        'comment': receipt.comment,
-        'items': [_serialize_receipt_item(item) for item in receipt.items],
+        "created_at": receipt.created_at,
+        "posted_at": receipt.posted_at,
+        "comment": receipt.comment,
+        "items": [_serialize_receipt_item(item) for item in receipt.items],
     }
 
 
@@ -1214,11 +1240,10 @@ async def get_supplier_receipt_detail(
             joinedload(SupplierReceipt.provider),
             joinedload(SupplierReceipt.warehouse),
             joinedload(SupplierReceipt.created_by_user),
-            selectinload(SupplierReceipt.items).joinedload(
-                SupplierReceiptItem.customer_order_item
-            ).joinedload(
-                CustomerOrderItem.order
-            ).joinedload(CustomerOrder.customer),
+            selectinload(SupplierReceipt.items)
+            .joinedload(SupplierReceiptItem.customer_order_item)
+            .joinedload(CustomerOrderItem.order)
+            .joinedload(CustomerOrder.customer),
             selectinload(SupplierReceipt.items).joinedload(
                 SupplierReceiptItem.order_item
             ),
@@ -1230,7 +1255,7 @@ async def get_supplier_receipt_detail(
     )
     receipt = (await session.execute(stmt)).scalar_one_or_none()
     if receipt is None:
-        raise LookupError('Документ поступления не найден')
+        raise LookupError("Документ поступления не найден")
     return receipt
 
 
@@ -1252,9 +1277,9 @@ async def update_supplier_receipt(
     stmt = select(SupplierReceipt).where(SupplierReceipt.id == receipt_id)
     receipt = (await session.execute(stmt)).scalar_one_or_none()
     if receipt is None:
-        raise LookupError('Документ поступления не найден')
+        raise LookupError("Документ поступления не найден")
     if receipt.posted_at is not None:
-        raise ValueError('Нельзя редактировать проведённый документ')
+        raise ValueError("Нельзя редактировать проведённый документ")
     if warehouse_id is not None:
         warehouse = await resolve_warehouse_for_provider(
             session,
@@ -1278,25 +1303,30 @@ async def update_supplier_receipt_item(
     item_id: int,
     **fields,
 ) -> SupplierReceipt:
-    stmt = (
-        select(SupplierReceiptItem)
-        .where(SupplierReceiptItem.id == item_id)
-    )
+    stmt = select(SupplierReceiptItem).where(SupplierReceiptItem.id == item_id)
     item = (await session.execute(stmt)).scalar_one_or_none()
     if item is None:
-        raise LookupError('Строка документа не найдена')
+        raise LookupError("Строка документа не найдена")
     receipt_stmt = select(SupplierReceipt).where(
         SupplierReceipt.id == item.receipt_id
     )
     receipt = (await session.execute(receipt_stmt)).scalar_one_or_none()
     if receipt is None or receipt.posted_at is not None:
-        raise ValueError('Нельзя редактировать строку проведённого документа')
+        raise ValueError("Нельзя редактировать строку проведённого документа")
 
     allowed = {
-        'autopart_id', 'oem_number', 'brand_name', 'autopart_name',
-        'received_quantity', 'price', 'total_price_with_vat',
-        'gtd_code', 'country_code', 'country_name', 'comment',
-        'warehouse_id',
+        "autopart_id",
+        "oem_number",
+        "brand_name",
+        "autopart_name",
+        "received_quantity",
+        "price",
+        "total_price_with_vat",
+        "gtd_code",
+        "country_code",
+        "country_name",
+        "comment",
+        "warehouse_id",
     }
     affected_supplier_order_item_ids = set()
     affected_order_item_ids = set()
@@ -1327,9 +1357,9 @@ async def add_supplier_receipt_items(
     stmt = select(SupplierReceipt).where(SupplierReceipt.id == receipt_id)
     receipt = (await session.execute(stmt)).scalar_one_or_none()
     if receipt is None:
-        raise LookupError('Документ поступления не найден')
+        raise LookupError("Документ поступления не найден")
     if receipt.posted_at is not None:
-        raise ValueError('Нельзя добавлять строки в проведённый документ')
+        raise ValueError("Нельзя добавлять строки в проведённый документ")
 
     linked_supplier_order_item_ids: set[int] = set()
     linked_order_item_ids: set[int] = set()
@@ -1343,17 +1373,17 @@ async def add_supplier_receipt_items(
                 linked_order_item_ids=linked_order_item_ids,
             )
         )
-        supplier_order_item_id = payload.get('supplier_order_item_id')
+        supplier_order_item_id = payload.get("supplier_order_item_id")
         customer_order_item_id = None
         supplier_order_id = None
         order_item_id = (
-            int(payload['order_item_id'])
-            if payload.get('order_item_id') is not None
+            int(payload["order_item_id"])
+            if payload.get("order_item_id") is not None
             else None
         )
-        oem_number = payload.get('oem_number')
-        brand_name = payload.get('brand_name')
-        autopart_name = payload.get('autopart_name')
+        oem_number = payload.get("oem_number")
+        brand_name = payload.get("brand_name")
+        autopart_name = payload.get("autopart_name")
         ordered_quantity = None
         confirmed_quantity = None
 
@@ -1383,20 +1413,20 @@ async def add_supplier_receipt_items(
             supplier_order_item_id=supplier_order_item_id,
             customer_order_item_id=customer_order_item_id,
             order_item_id=order_item_id,
-            autopart_id=payload.get('autopart_id'),
+            autopart_id=payload.get("autopart_id"),
             oem_number=oem_number,
             brand_name=brand_name,
             autopart_name=autopart_name,
             ordered_quantity=ordered_quantity,
             confirmed_quantity=confirmed_quantity,
-            received_quantity=int(payload.get('received_quantity', 0)),
-            price=payload.get('price'),
-            total_price_with_vat=payload.get('total_price_with_vat'),
-            gtd_code=payload.get('gtd_code'),
-            country_code=payload.get('country_code'),
-            country_name=payload.get('country_name'),
-            comment=payload.get('comment'),
-            warehouse_id=payload.get('warehouse_id'),
+            received_quantity=int(payload.get("received_quantity", 0)),
+            price=payload.get("price"),
+            total_price_with_vat=payload.get("total_price_with_vat"),
+            gtd_code=payload.get("gtd_code"),
+            country_code=payload.get("country_code"),
+            country_name=payload.get("country_name"),
+            comment=payload.get("comment"),
+            warehouse_id=payload.get("warehouse_id"),
         )
         if (
             matched_site_order_item is not None
@@ -1423,13 +1453,13 @@ async def delete_supplier_receipt_item(
     stmt = select(SupplierReceiptItem).where(SupplierReceiptItem.id == item_id)
     item = (await session.execute(stmt)).scalar_one_or_none()
     if item is None:
-        raise LookupError('Строка документа не найдена')
+        raise LookupError("Строка документа не найдена")
     receipt_stmt = select(SupplierReceipt).where(
         SupplierReceipt.id == item.receipt_id
     )
     receipt = (await session.execute(receipt_stmt)).scalar_one_or_none()
     if receipt is None or receipt.posted_at is not None:
-        raise ValueError('Нельзя удалять строки проведённого документа')
+        raise ValueError("Нельзя удалять строки проведённого документа")
     receipt_id = item.receipt_id
     affected_supplier_order_item_ids = set()
     affected_order_item_ids = set()
@@ -1490,12 +1520,12 @@ async def create_manual_supplier_receipt(
                 linked_order_item_ids=linked_order_item_ids,
             )
         )
-        supplier_order_item_id = payload.get('supplier_order_item_id')
+        supplier_order_item_id = payload.get("supplier_order_item_id")
         customer_order_item_id = None
         supplier_order_id = None
         order_item_id = (
-            int(payload['order_item_id'])
-            if payload.get('order_item_id') is not None
+            int(payload["order_item_id"])
+            if payload.get("order_item_id") is not None
             else None
         )
         ordered_quantity = None
@@ -1512,10 +1542,10 @@ async def create_manual_supplier_receipt(
                 linked_supplier_order_item_ids.add(int(soi.id))
                 supplier_order_id = soi.supplier_order_id
                 customer_order_item_id = soi.customer_order_item_id
-                payload.setdefault('autopart_id', soi.autopart_id)
-                payload.setdefault('oem_number', soi.oem_number)
-                payload.setdefault('brand_name', soi.brand_name)
-                payload.setdefault('autopart_name', soi.autopart_name)
+                payload.setdefault("autopart_id", soi.autopart_id)
+                payload.setdefault("oem_number", soi.oem_number)
+                payload.setdefault("brand_name", soi.brand_name)
+                payload.setdefault("autopart_name", soi.autopart_name)
                 ordered_quantity = soi.quantity
                 confirmed_quantity = soi.confirmed_quantity
         new_item = SupplierReceiptItem(
@@ -1524,19 +1554,19 @@ async def create_manual_supplier_receipt(
             supplier_order_item_id=supplier_order_item_id,
             customer_order_item_id=customer_order_item_id,
             order_item_id=order_item_id,
-            autopart_id=payload.get('autopart_id'),
-            oem_number=payload.get('oem_number'),
-            brand_name=payload.get('brand_name'),
-            autopart_name=payload.get('autopart_name'),
+            autopart_id=payload.get("autopart_id"),
+            oem_number=payload.get("oem_number"),
+            brand_name=payload.get("brand_name"),
+            autopart_name=payload.get("autopart_name"),
             ordered_quantity=ordered_quantity,
             confirmed_quantity=confirmed_quantity,
-            received_quantity=int(payload.get('received_quantity', 0)),
-            price=payload.get('price'),
-            total_price_with_vat=payload.get('total_price_with_vat'),
-            gtd_code=payload.get('gtd_code'),
-            country_code=payload.get('country_code'),
-            country_name=payload.get('country_name'),
-            comment=payload.get('comment'),
+            received_quantity=int(payload.get("received_quantity", 0)),
+            price=payload.get("price"),
+            total_price_with_vat=payload.get("total_price_with_vat"),
+            gtd_code=payload.get("gtd_code"),
+            country_code=payload.get("country_code"),
+            country_name=payload.get("country_name"),
+            comment=payload.get("comment"),
         )
         if (
             matched_site_order_item is not None
@@ -1574,11 +1604,11 @@ def _auto_refuse_deadline(
 
     from dz_fastapi.services.holidays import next_business_day
 
-    moscow = ZoneInfo('Europe/Moscow')
+    moscow = ZoneInfo("Europe/Moscow")
     if sent_at.tzinfo is None:
-        sent_at_moscow = sent_at.replace(
-            tzinfo=timezone.utc
-        ).astimezone(moscow)
+        sent_at_moscow = sent_at.replace(tzinfo=timezone.utc).astimezone(
+            moscow
+        )
     else:
         sent_at_moscow = sent_at.astimezone(moscow)
 
@@ -1608,7 +1638,7 @@ async def mark_auto_refused_supplier_items(session: AsyncSession) -> int:
 
     from dz_fastapi.services.holidays import get_effective_holiday_set
 
-    moscow = ZoneInfo('Europe/Moscow')
+    moscow = ZoneInfo("Europe/Moscow")
     now = datetime.now(tz=moscow)
 
     # Pre-load holiday set for current + adjacent years

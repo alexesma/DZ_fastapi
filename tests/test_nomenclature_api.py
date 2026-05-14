@@ -38,6 +38,4 @@ async def test_nomenclature_static_autopart_routes_are_not_shadowed(
     response = await async_client.get("/autoparts/storage-locations/")
     assert response.status_code == 200, response.text
     payload = response.json()
-    assert payload == [
-        {"id": created_storage.id, "name": created_storage.name}
-    ]
+    assert payload == [{"id": created_storage.id, "name": created_storage.name}]

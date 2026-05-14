@@ -7,6 +7,7 @@ Combines:
        - is_working_day=True  → forced working day (removes from holiday set,
                                  even if python-holidays or weekend)
 """
+
 from __future__ import annotations
 
 from datetime import date, timedelta
@@ -22,6 +23,7 @@ def _auto_holidays_for_years(years: Iterable[int]) -> set[date]:
     """Return set of public holidays for Russia for the given years."""
     try:
         import holidays as _holidays
+
         result: set[date] = set()
         for year in years:
             ru = _holidays.Russia(years=year)

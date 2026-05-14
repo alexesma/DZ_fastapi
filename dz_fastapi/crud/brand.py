@@ -14,7 +14,7 @@ from dz_fastapi.crud.base import CRUDBase
 from dz_fastapi.models.brand import brand_synonyms
 from dz_fastapi.schemas.brand import BrandCreate, BrandUpdate
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
 
 async def duplicate_brand_name(brand_name: str, session: AsyncSession) -> None:
@@ -22,7 +22,7 @@ async def duplicate_brand_name(brand_name: str, session: AsyncSession) -> None:
     if brand is not None:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
-            detail=f'Brand with name {brand_name} already exists',
+            detail=f"Brand with name {brand_name} already exists",
         )
 
 
@@ -30,7 +30,7 @@ async def brand_exists(brand_id: int, session: AsyncSession) -> Brand:
     brand = await brand_crud.get(session, brand_id)
     if brand is None:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, detail='Brand not found'
+            status_code=HTTPStatus.NOT_FOUND, detail="Brand not found"
         )
     return brand
 
@@ -56,7 +56,7 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
 
         if len(main_brands) > 1:
             logger.warning(
-                'Multiple main brands found in synonym group: %s',
+                "Multiple main brands found in synonym group: %s",
                 [brand.name for brand in main_brands],
             )
             if fallback is not None:
@@ -115,20 +115,20 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
     ) -> List[Brand]:
         edges = union_all(
             select(
-                brand_synonyms.c.brand_id.label('source_id'),
-                brand_synonyms.c.synonym_id.label('target_id'),
+                brand_synonyms.c.brand_id.label("source_id"),
+                brand_synonyms.c.synonym_id.label("target_id"),
             ),
             select(
-                brand_synonyms.c.synonym_id.label('source_id'),
-                brand_synonyms.c.brand_id.label('target_id'),
+                brand_synonyms.c.synonym_id.label("source_id"),
+                brand_synonyms.c.brand_id.label("target_id"),
             ),
-        ).cte('brand_synonym_edges')
+        ).cte("brand_synonym_edges")
 
-        related = select(literal(brand_id).label('brand_id')).cte(
-            'related_brands', recursive=True
+        related = select(literal(brand_id).label("brand_id")).cte(
+            "related_brands", recursive=True
         )
         related = related.union(
-            select(edges.c.target_id.label('brand_id')).join(
+            select(edges.c.target_id.label("brand_id")).join(
                 related, edges.c.source_id == related.c.brand_id
             )
         )
@@ -142,13 +142,13 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
 
     async def create(self, brand: Brand, session: AsyncSession, **kwargs):
         try:
-            logger.debug('Начало создания бренда api')
+            logger.debug("Начало создания бренда api")
             brand.name = await change_brand_name(brand.name)
-            logger.debug(f'Изменённое имя бренда: {brand.name}')
+            logger.debug(f"Изменённое имя бренда: {brand.name}")
             await duplicate_brand_name(brand_name=brand.name, session=session)
-            logger.debug('Проверка дубликата имени бренда завершена')
+            logger.debug("Проверка дубликата имени бренда завершена")
             new_brand = await super().create(brand, session, commit=True)
-            logger.debug(f'Бренд создан и добавлен в сессию: {new_brand}')
+            logger.debug(f"Бренд создан и добавлен в сессию: {new_brand}")
             stmt = (
                 select(Brand)
                 .options(selectinload(Brand.synonyms))
@@ -156,66 +156,66 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
             )
             result = await session.execute(stmt)
             new_brand = result.scalar_one()
-            logger.debug(f'Создан новый бренд: {new_brand}')
+            logger.debug(f"Создан новый бренд: {new_brand}")
             return new_brand
 
         except IntegrityError as e:
-            logger.error(f'Integrity error occurred: {e}')
+            logger.error(f"Integrity error occurred: {e}")
             await session.rollback()
             raise HTTPException(
                 status_code=409,
-                detail=f'Brand with name {brand.name} already exists',
+                detail=f"Brand with name {brand.name} already exists",
             )
         except SQLAlchemyError as e:
-            logger.error(f'Database error occurred: {e}')
+            logger.error(f"Database error occurred: {e}")
             await session.rollback()
             raise HTTPException(
-                status_code=500, detail=f'Database error occurred: {str(e)}'
+                status_code=500, detail=f"Database error occurred: {str(e)}"
             )
         except Exception as e:
-            logger.error(f'Unexpected error occurred: {e}')
+            logger.error(f"Unexpected error occurred: {e}")
             await session.rollback()
             raise HTTPException(
-                status_code=500, detail=f'Unexpected error occurred: {str(e)}'
+                status_code=500, detail=f"Unexpected error occurred: {str(e)}"
             )
 
     async def get_brand_by_id(
         self, brand_id: int, session: AsyncSession
     ) -> Optional[Brand]:
         try:
-            logger.debug(f'Получение бренда по ID: {brand_id}')
-            logger.debug(f'Тип сессии: {type(session)}')
+            logger.debug(f"Получение бренда по ID: {brand_id}")
+            logger.debug(f"Тип сессии: {type(session)}")
             result = await session.execute(
                 select(Brand)
                 .options(selectinload(Brand.synonyms))
                 .where(Brand.id == brand_id)
             )
             brand = result.scalars().first()
-            logger.debug(f'Получен бренд: {brand}')
+            logger.debug(f"Получен бренд: {brand}")
 
             return brand
         except Exception as e:
-            logger.error(f'Ошибка в get_brand_by_id: {e}')
-            logger.exception('Полный стек ошибки:')
+            logger.error(f"Ошибка в get_brand_by_id: {e}")
+            logger.exception("Полный стек ошибки:")
             raise
 
     async def get_brand_by_name(
         self, brand_name: str, session: AsyncSession
     ) -> Optional[Brand]:
         try:
-            logger.debug('Зашли в get_brand_by_name')
+            logger.debug("Зашли в get_brand_by_name")
             normal_name = await change_brand_name(brand_name)
             db_brand = await session.execute(
                 select(Brand)
                 .options(selectinload(Brand.synonyms))
                 .where(Brand.name == normal_name)
             )
-            logger.debug(f'Результат запроса: {db_brand}')
+            logger.debug(f"Результат запроса: {db_brand}")
             brand = db_brand.scalars().first()
-            logger.debug(f'Первый результат запроса: {brand}')
+            logger.debug(f"Первый результат запроса: {brand}")
             return brand
         except Exception as e:
-            logger.error(f'Ошибка в get_brand_by_name: {e}')
+            logger.error(f"Ошибка в get_brand_by_name: {e}")
             raise
 
     async def get_brand_by_name_or_none(
@@ -277,7 +277,7 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
                 current.id, session
             )
             if not brand_with_synonyms:
-                logger.warning(f'Brand with id {current.name} not found')
+                logger.warning(f"Brand with id {current.name} not found")
                 continue
             for synonym in brand_with_synonyms.synonyms:
                 if synonym.id not in checked:
@@ -312,50 +312,50 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
         self, brand_names: List[str], session: AsyncSession
     ) -> List[Brand]:
         try:
-            logger.debug('Получение брендов по названиям')
+            logger.debug("Получение брендов по названиям")
             db_brands = await session.execute(
                 select(Brand)
                 .options(selectinload(Brand.synonyms))
                 .where(Brand.name.in_(brand_names))
             )
             brands = db_brands.scalars().all()
-            logger.debug(f'Найденные бренды: {brands}')
+            logger.debug(f"Найденные бренды: {brands}")
             return brands
         except Exception as e:
-            logger.error(f'Ошибка в get_brands_by_names: {e}')
+            logger.error(f"Ошибка в get_brands_by_names: {e}")
             raise
 
     async def add_synonym(
         self, brand: Brand, synonym: Brand, session: AsyncSession
     ) -> Brand:
         logger.debug(
-            f'Добавление синонима: бренд={brand.name}, '
-            f'синоним={synonym.name}'
+            f"Добавление синонима: бренд={brand.name}, "
+            f"синоним={synonym.name}"
         )
-        logger.debug(f'Атрибуты и методы бренда: {dir(brand)}')
-        logger.debug(f'Атрибуты бренда: {vars(brand)}')
+        logger.debug(f"Атрибуты и методы бренда: {dir(brand)}")
+        logger.debug(f"Атрибуты бренда: {vars(brand)}")
         # Явно загружаем relationship в async-контексте, чтобы
         # не провоцировать lazy-load вне greenlet.
-        await session.refresh(brand, attribute_names=['synonyms'])
-        await session.refresh(synonym, attribute_names=['synonyms'])
+        await session.refresh(brand, attribute_names=["synonyms"])
+        await session.refresh(synonym, attribute_names=["synonyms"])
         if synonym not in brand.synonyms:
             brand.synonyms.append(synonym)
-            logger.debug('Добавили синоним')
+            logger.debug("Добавили синоним")
         if brand not in synonym.synonyms:
             synonym.synonyms.append(brand)
-        logger.debug('Создали синонимы')
+        logger.debug("Создали синонимы")
 
-        logger.debug(f'Синонимы бренда после добавления: {brand.synonyms}')
-        logger.debug(f'Синонимы синонима после добавления: {synonym.synonyms}')
+        logger.debug(f"Синонимы бренда после добавления: {brand.synonyms}")
+        logger.debug(f"Синонимы синонима после добавления: {synonym.synonyms}")
         session.add(brand)
         session.add(synonym)
         try:
             await session.flush()
         except Exception as e:
-            logger.error(f'Ошибка при выполнении flush: {str(e)}')
+            logger.error(f"Ошибка при выполнении flush: {str(e)}")
             raise
-        logger.debug(f'Синонимы бренда после flush: {brand.synonyms}')
-        logger.debug(f'Синонимы синонима после flush: {synonym.synonyms}')
+        logger.debug(f"Синонимы бренда после flush: {brand.synonyms}")
+        logger.debug(f"Синонимы синонима после flush: {synonym.synonyms}")
         return brand
 
     async def add_synonyms(
@@ -366,32 +366,32 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
                 brand_id=brand_id, session=session
             )
             if brand is None:
-                raise Exception('Failed to add synonym, returned None')
+                raise Exception("Failed to add synonym, returned None")
 
-            logger.debug(f'Исходные синонимы бренда: {brand.synonyms}')
+            logger.debug(f"Исходные синонимы бренда: {brand.synonyms}")
 
             for synonym_name in synonym_names:
                 synonym = await self.get_brand_by_name(
                     brand_name=synonym_name, session=session
                 )
                 if not synonym:
-                    raise ValueError(f'Synonym brand {synonym_name} not found')
+                    raise ValueError(f"Synonym brand {synonym_name} not found")
 
-                logger.debug(f'Добавление синонима {synonym_name}')
+                logger.debug(f"Добавление синонима {synonym_name}")
                 brand = await self.add_synonym(
                     brand=brand, synonym=synonym, session=session
                 )
                 if brand is None:
-                    raise Exception(f'Failed to add synonym {synonym_name}')
-                logger.debug(f'Результат add_synonym: {brand}')
+                    raise Exception(f"Failed to add synonym {synonym_name}")
+                logger.debug(f"Результат add_synonym: {brand}")
 
             await session.flush()
-            await session.refresh(brand, attribute_names=['synonyms'])
-            logger.debug(f'Финальные синонимы бренда: {brand.synonyms}')
+            await session.refresh(brand, attribute_names=["synonyms"])
+            logger.debug(f"Финальные синонимы бренда: {brand.synonyms}")
 
             return brand
         except Exception as e:
-            logger.exception(f'Ошибка в add_synonyms: {str(e)}')
+            logger.exception(f"Ошибка в add_synonyms: {str(e)}")
             raise
 
     async def remove_synonyms(
@@ -402,10 +402,10 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
                 brand_id=brand_id, session=session
             )
             if brand is None:
-                raise Exception('Failed to add synonym, returned None')
+                raise Exception("Failed to add synonym, returned None")
             logger.debug(
-                f'Исходные синонимы бренда: '
-                f'{[s.name for s in brand.synonyms]}'
+                f"Исходные синонимы бренда: "
+                f"{[s.name for s in brand.synonyms]}"
             )
 
             for synonym_name in synonym_names:
@@ -413,50 +413,50 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
                     brand_name=synonym_name, session=session
                 )
                 if not synonym:
-                    raise ValueError(f'Synonym brand {synonym_name} not found')
-                logger.debug(f'Удаление синонима {synonym_name}')
+                    raise ValueError(f"Synonym brand {synonym_name} not found")
+                logger.debug(f"Удаление синонима {synonym_name}")
                 if synonym in brand.synonyms:
                     brand.synonyms.remove(synonym)
                     logger.debug(
-                        f'Synonym {synonym_name} '
-                        f'removed from brand {brand.name}'
+                        f"Synonym {synonym_name} "
+                        f"removed from brand {brand.name}"
                     )
                 else:
                     logger.debug(
-                        f'Synonym {synonym_name} '
-                        f'not found in brand {brand.name}'
+                        f"Synonym {synonym_name} "
+                        f"not found in brand {brand.name}"
                     )
 
                 if brand in synonym.synonyms:
                     synonym.synonyms.remove(brand)
                     logger.debug(
-                        f'Brand {brand.name} removed '
-                        f'from synonym {synonym.name}'
+                        f"Brand {brand.name} removed "
+                        f"from synonym {synonym.name}"
                     )
                 else:
                     logger.debug(
-                        f'Brand {brand.name} not '
-                        f'found in synonym {synonym.name}'
+                        f"Brand {brand.name} not "
+                        f"found in synonym {synonym.name}"
                     )
 
             await session.flush()
             logger.debug(
-                'Successfully flushed session after removing synonyms'
+                "Successfully flushed session after removing synonyms"
             )
 
-            await session.refresh(brand, attribute_names=['synonyms'])
-            logger.debug('Brand refreshed after removing synonyms')
+            await session.refresh(brand, attribute_names=["synonyms"])
+            logger.debug("Brand refreshed after removing synonyms")
             logger.debug(
-                f'Final synonyms of the '
-                f'brand: {[s.name for s in brand.synonyms]}'
+                f"Final synonyms of the "
+                f"brand: {[s.name for s in brand.synonyms]}"
             )
 
             return brand
         except ValueError as ve:
-            logger.error(f'ValueError in remove_synonyms: {str(ve)}')
+            logger.error(f"ValueError in remove_synonyms: {str(ve)}")
             raise
         except Exception as e:
-            logger.exception(f'Error in remove_synonyms: {str(e)}')
+            logger.exception(f"Error in remove_synonyms: {str(e)}")
             raise
 
 

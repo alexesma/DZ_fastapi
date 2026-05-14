@@ -1,5 +1,13 @@
-from sqlalchemy import (Boolean, CheckConstraint, Column, ForeignKey, Integer,
-                        String, Text, UniqueConstraint)
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Column,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 
 from dz_fastapi.core.db import Base
@@ -16,20 +24,20 @@ class AutoPartCross(Base):
 
     source_autopart_id = Column(
         Integer,
-        ForeignKey('autopart.id', ondelete='CASCADE'),
+        ForeignKey("autopart.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     cross_brand_id = Column(
         Integer,
-        ForeignKey('brand.id', ondelete='CASCADE'),
+        ForeignKey("brand.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     cross_oem_number = Column(String(50), nullable=False, index=True)
     cross_autopart_id = Column(
         Integer,
-        ForeignKey('autopart.id', ondelete='SET NULL'),
+        ForeignKey("autopart.id", ondelete="SET NULL"),
         nullable=True,
     )
     # Приоритет для сортировки (меньше = важнее)
@@ -40,32 +48,32 @@ class AutoPartCross(Base):
 
     # Отношения
     source_autopart = relationship(
-        'AutoPart',
+        "AutoPart",
         foreign_keys=[source_autopart_id],
-        backref='crosses_as_source',
+        backref="crosses_as_source",
     )
 
     cross_brand = relationship(
-        'Brand',
+        "Brand",
         foreign_keys=[cross_brand_id],
     )
 
     cross_autopart = relationship(
-        'AutoPart',
+        "AutoPart",
         foreign_keys=[cross_autopart_id],
-        backref='crosses_as_cross',
+        backref="crosses_as_cross",
     )
 
     __table_args__ = (
         UniqueConstraint(
-            'source_autopart_id',
-            'cross_brand_id',
-            'cross_oem_number',
-            name='uq_cross',
+            "source_autopart_id",
+            "cross_brand_id",
+            "cross_oem_number",
+            name="uq_cross",
         ),
         CheckConstraint(
-            'source_autopart_id != cross_autopart_id',
-            name='check_not_self_cross',
+            "source_autopart_id != cross_autopart_id",
+            name="check_not_self_cross",
         ),
     )
 
@@ -90,7 +98,7 @@ class AutoPartSubstitution(Base):
     # Исходная деталь (обычно DRAGONZAP)
     source_autopart_id = Column(
         Integer,
-        ForeignKey('autopart.id', ondelete='CASCADE'),
+        ForeignKey("autopart.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -98,7 +106,7 @@ class AutoPartSubstitution(Base):
     # Ссылка на бренд через ID
     substitution_brand_id = Column(
         Integer,
-        ForeignKey('brand.id', ondelete='CASCADE'),
+        ForeignKey("brand.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -126,7 +134,7 @@ class AutoPartSubstitution(Base):
     # NULL = применяется для всех
     customer_config_id = Column(
         Integer,
-        ForeignKey('customerpricelistconfig.id', ondelete='CASCADE'),
+        ForeignKey("customerpricelistconfig.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
@@ -136,39 +144,39 @@ class AutoPartSubstitution(Base):
 
     # Отношения
     source_autopart = relationship(
-        'AutoPart',
+        "AutoPart",
         foreign_keys=[source_autopart_id],
-        backref='substitutions',
+        backref="substitutions",
     )
 
     substitution_brand = relationship(
-        'Brand',
+        "Brand",
         foreign_keys=[substitution_brand_id],
     )
 
     customer_config = relationship(
-        'CustomerPriceListConfig',
-        backref='substitutions',
+        "CustomerPriceListConfig",
+        backref="substitutions",
     )
 
     __table_args__ = (
         UniqueConstraint(
-            'source_autopart_id',
-            'substitution_brand_id',
-            'substitution_oem_number',
-            'customer_config_id',
-            name='uq_substitution',
+            "source_autopart_id",
+            "substitution_brand_id",
+            "substitution_oem_number",
+            "customer_config_id",
+            name="uq_substitution",
         ),
         CheckConstraint(
-            'priority > 0',
-            name='check_priority_positive',
+            "priority > 0",
+            name="check_priority_positive",
         ),
         CheckConstraint(
-            'min_source_quantity >= 0',
-            name='check_min_quantity_non_negative',
+            "min_source_quantity >= 0",
+            name="check_min_quantity_non_negative",
         ),
         CheckConstraint(
-            'quantity_reduction >= 0',
-            name='check_reduction_non_negative',
+            "quantity_reduction >= 0",
+            name="check_reduction_non_negative",
         ),
     )

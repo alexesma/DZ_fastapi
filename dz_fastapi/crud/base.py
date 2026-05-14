@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.db import Base
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
 ModelType = TypeVar("ModelType", bound=Base)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
@@ -38,7 +38,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         result = db_obj.scalars().first()
         if not result:
             raise HTTPException(
-                status_code=404, detail=f'{self.model.__name__} not found'
+                status_code=404, detail=f"{self.model.__name__} not found"
             )
         return result
 
@@ -56,33 +56,33 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         commit: bool = True,
     ):
         try:
-            logger.debug(f'Создание объекта: {obj_in}')
+            logger.debug(f"Создание объекта: {obj_in}")
             obj_in_data = obj_in.model_dump()
 
             db_obj = self.model(**obj_in_data)
             session.add(db_obj)
             await session.flush()
             await session.refresh(db_obj)
-            logger.debug(f'Бренд создан и добавлен в сессию: {db_obj}')
+            logger.debug(f"Бренд создан и добавлен в сессию: {db_obj}")
 
             if commit:
                 await session.commit()
-                logger.debug('Сессия зафиксирована после создания бренда')
+                logger.debug("Сессия зафиксирована после создания бренда")
                 await session.refresh(db_obj)
             return db_obj
         except SQLAlchemyError as e:
-            logger.error(f'Database error occurred: {e}')
+            logger.error(f"Database error occurred: {e}")
             await session.rollback()
             raise HTTPException(
                 status_code=500,
-                detail='Internal Server Error during create brand',
+                detail="Internal Server Error during create brand",
             )
         except Exception as e:
-            logger.error(f'Неожиданная ошибка при создании объекта: {e}')
+            logger.error(f"Неожиданная ошибка при создании объекта: {e}")
             await session.rollback()
             raise HTTPException(
                 status_code=500,
-                detail='Unexpected error occurred during create object',
+                detail="Unexpected error occurred during create object",
             )
 
     async def update(

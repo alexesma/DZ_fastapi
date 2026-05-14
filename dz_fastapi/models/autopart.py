@@ -5,72 +5,87 @@ from uuid import uuid4
 
 from sqlalchemy import DECIMAL, Boolean, CheckConstraint, Column, DateTime
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import (Float, ForeignKey, Index, Integer,
-                        PrimaryKeyConstraint, String, Table, Text,
-                        UniqueConstraint, event, inspect, select)
+from sqlalchemy import (
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    PrimaryKeyConstraint,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+    event,
+    inspect,
+    select,
+)
 from sqlalchemy.orm import relationship
 
 from dz_fastapi.core.base import Base
-from dz_fastapi.core.constants import (MAX_LEN_WEBSITE, MAX_LIGHT_BARCODE,
-                                       MAX_LIGHT_NAME_LOCATION, MAX_LIGHT_OEM,
-                                       MAX_NAME_CATEGORY)
+from dz_fastapi.core.constants import (
+    MAX_LEN_WEBSITE,
+    MAX_LIGHT_BARCODE,
+    MAX_LIGHT_NAME_LOCATION,
+    MAX_LIGHT_OEM,
+    MAX_NAME_CATEGORY,
+)
 from dz_fastapi.core.time import now_moscow
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
 
 @unique
 class TYPE_RESTOCK_DECISION_STATUS(StrEnum):
-    '''
+    """
     Типы статусов для решения о необходимости пополнения конкретной детали
-    '''
+    """
 
-    NEW = 'New'
-    IN_PROGRESS = 'In Progress'
-    FULFILLED = 'Fulfilled'
-    CANCELLED = 'Cancelled'
+    NEW = "New"
+    IN_PROGRESS = "In Progress"
+    FULFILLED = "Fulfilled"
+    CANCELLED = "Cancelled"
 
 
 @unique
 class TYPE_SUPPLIER_DECISION_STATUS(StrEnum):
-    '''
+    """
     Типы статусов для решения для конкретного поставщика
-    '''
+    """
 
-    NEW = 'New'
-    SEND = 'Send'
-    CONFIRMED = 'Confirmed'
-    REJECTED = 'Rejected'
-    FULFILLED = 'Fulfilled'
-    ERROR = 'Error'
+    NEW = "New"
+    SEND = "Send"
+    CONFIRMED = "Confirmed"
+    REJECTED = "Rejected"
+    FULFILLED = "Fulfilled"
+    ERROR = "Error"
 
 
 @unique
 class TYPE_SEND_METHOD(StrEnum):
-    '''
+    """
     Типы способов отправки заказов поставщику
-    '''
+    """
 
-    API = 'API'
-    MAIL = 'E-mail'
+    API = "API"
+    MAIL = "E-mail"
 
 
 def change_string(old_string: str) -> str:
-    '''
+    """
     Функция для изменения строки преобразования
     "АВТОЗАПЧАСТЬ ДЛЯ Haval f7" в "Автозапчасть для HAVAL F7"
-    '''
+    """
     old_string = old_string.capitalize()
-    new_string = ''
+    new_string = ""
     for char in old_string:
-        if ('A' <= char <= 'Z') or ('a' <= char <= 'z'):
+        if ("A" <= char <= "Z") or ("a" <= char <= "z"):
             char = char.upper()
         new_string += char
     return new_string
 
 
 def preprocess_oem_number(oem_number: str) -> str:
-    '''
+    """
     Функция для предварительного обработки отправляемого номера запчасти.
     Удаляет все символы, кроме латинских букв и цифр.
     Переводит все символы в верхний регистр.
@@ -78,8 +93,8 @@ def preprocess_oem_number(oem_number: str) -> str:
     чтобы они были уникальными.
     :param oem_number:
     :return:
-    '''
-    return re.sub(r'[^a-zA-Z0-9]', '', oem_number).upper()
+    """
+    return re.sub(r"[^a-zA-Z0-9]", "", oem_number).upper()
 
 
 def _truncate_if_needed(
@@ -92,7 +107,7 @@ def _truncate_if_needed(
     if len(value) <= max_len:
         return value
     logger.warning(
-        'AutoPart %s too long (%s > %s), truncating',
+        "AutoPart %s too long (%s > %s), truncating",
         field_name,
         len(value),
         max_len,
@@ -101,12 +116,12 @@ def _truncate_if_needed(
 
 
 class AutoPart(Base):
-    '''
+    """
     Модель Автозапчасть
-    '''
+    """
 
-    brand_id = Column(Integer, ForeignKey('brand.id'), nullable=False)
-    brand = relationship('Brand', back_populates='autoparts')
+    brand_id = Column(Integer, ForeignKey("brand.id"), nullable=False)
+    brand = relationship("Brand", back_populates="autoparts")
     oem_number = Column(String(MAX_LIGHT_OEM), nullable=False, index=True)
     name = Column(String(MAX_LIGHT_OEM), nullable=False)
     description = Column(Text, nullable=True)
@@ -114,7 +129,7 @@ class AutoPart(Base):
     height = Column(Float, nullable=True)
     length = Column(Float, nullable=True)
     weight = Column(Float, nullable=True)
-    photos = relationship('Photo', back_populates='autopart')
+    photos = relationship("Photo", back_populates="autopart")
     purchase_price = Column(DECIMAL(10, 2), default=0)
     retail_price = Column(DECIMAL(10, 2), default=0)
     wholesale_price = Column(DECIMAL(10, 2), default=0)
@@ -122,68 +137,68 @@ class AutoPart(Base):
     minimum_balance = Column(Integer, default=0)
     min_balance_auto = Column(Boolean, default=False)
     min_balance_user = Column(Boolean, default=False)
-    comment = Column(Text, nullable=True, default='')
+    comment = Column(Text, nullable=True, default="")
     barcode = Column(String(MAX_LIGHT_BARCODE), nullable=False, unique=True)
     # Категория «Честный знак» (маркировка РФ)
     honest_sign_category = Column(String(100), nullable=True)
     # Применение: на какие автомобили подходит запчасть
     applicability = Column(Text, nullable=True)
     __table_args__ = (
-        UniqueConstraint('brand_id', 'oem_number', name='uq_brand_oem_number'),
-        CheckConstraint('width > 0', name='check_width_positive'),
-        CheckConstraint('height > 0', name='check_height_positive'),
-        CheckConstraint('length > 0', name='check_length_positive'),
-        CheckConstraint('weight > 0', name='check_weight_positive'),
+        UniqueConstraint("brand_id", "oem_number", name="uq_brand_oem_number"),
+        CheckConstraint("width > 0", name="check_width_positive"),
+        CheckConstraint("height > 0", name="check_height_positive"),
+        CheckConstraint("length > 0", name="check_length_positive"),
+        CheckConstraint("weight > 0", name="check_weight_positive"),
         CheckConstraint(
-            'purchase_price >= 0', name='check_purchase_price_non_negative'
+            "purchase_price >= 0", name="check_purchase_price_non_negative"
         ),
         CheckConstraint(
-            'retail_price >= 0', name='check_retail_price_non_negative'
+            "retail_price >= 0", name="check_retail_price_non_negative"
         ),
         CheckConstraint(
-            'wholesale_price >= 0', name='check_wholesale_price_non_negative'
+            "wholesale_price >= 0", name="check_wholesale_price_non_negative"
         ),
     )
     categories = relationship(
-        'Category',
-        secondary='autopart_category_association',
-        back_populates='autoparts',
-        lazy='selectin',
+        "Category",
+        secondary="autopart_category_association",
+        back_populates="autoparts",
+        lazy="selectin",
     )
     storage_locations = relationship(
-        'StorageLocation',
-        secondary='autopart_storage_association',
-        back_populates='autoparts',
-        lazy='selectin',
+        "StorageLocation",
+        secondary="autopart_storage_association",
+        back_populates="autoparts",
+        lazy="selectin",
     )
     # Честный знак (M2M)
     honest_sign_categories = relationship(
-        'HonestSignCategory',
-        secondary='autopart_honest_sign_association',
-        back_populates='autoparts',
-        lazy='selectin',
+        "HonestSignCategory",
+        secondary="autopart_honest_sign_association",
+        back_populates="autoparts",
+        lazy="selectin",
     )
     # Применимость (M2M, дерево узлов)
     applicability_nodes = relationship(
-        'ApplicabilityNode',
-        secondary='autopart_applicability_association',
-        back_populates='autoparts',
-        lazy='selectin',
+        "ApplicabilityNode",
+        secondary="autopart_applicability_association",
+        back_populates="autoparts",
+        lazy="selectin",
     )
     price_list_associations = relationship(
-        'PriceListAutoPartAssociation',
-        back_populates='autopart',
-        cascade='all, delete-orphan',
+        "PriceListAutoPartAssociation",
+        back_populates="autopart",
+        cascade="all, delete-orphan",
     )
     customer_price_list_associations = relationship(
-        'CustomerPriceListAutoPartAssociation',
-        back_populates='autopart',
-        cascade='all, delete-orphan',
+        "CustomerPriceListAutoPartAssociation",
+        back_populates="autopart",
+        cascade="all, delete-orphan",
     )
-    __mapper_args__ = {'polymorphic_identity': 'autopart'}
+    __mapper_args__ = {"polymorphic_identity": "autopart"}
 
 
-@event.listens_for(AutoPart, 'before_insert')
+@event.listens_for(AutoPart, "before_insert")
 def preprocess_auto_part(mapper, connection, target):
     try:
         from dz_fastapi.models.brand import Brand
@@ -194,7 +209,7 @@ def preprocess_auto_part(mapper, connection, target):
         target.oem_number = _truncate_if_needed(
             target.oem_number,
             MAX_LIGHT_OEM,
-            'oem_number',
+            "oem_number",
         )
 
         # Обработка имени
@@ -202,7 +217,7 @@ def preprocess_auto_part(mapper, connection, target):
         target.name = _truncate_if_needed(
             target.name,
             MAX_LIGHT_OEM,
-            'name',
+            "name",
         )
 
         # Обработка описания
@@ -215,22 +230,22 @@ def preprocess_auto_part(mapper, connection, target):
             ).fetchone()
             if brand_name_result:
                 brand_name = brand_name_result[0]
-                target.barcode = f'{brand_name}{target.oem_number}'
+                target.barcode = f"{brand_name}{target.oem_number}"
                 target.barcode = _truncate_if_needed(
                     target.barcode,
                     MAX_LIGHT_BARCODE,
-                    'barcode',
+                    "barcode",
                 )
             else:
-                raise ValueError('Brand not found')
+                raise ValueError("Brand not found")
         else:
-            raise ValueError('Cannot create AutoPart without a brand')
+            raise ValueError("Cannot create AutoPart without a brand")
     except Exception as e:
         logger.exception(f"Error in preprocess_auto_part: {e}")
         raise
 
 
-@event.listens_for(AutoPart, 'before_update')
+@event.listens_for(AutoPart, "before_update")
 def preprocess_auto_part_update(mapper, connection, target):
     state = inspect(target)
 
@@ -239,7 +254,7 @@ def preprocess_auto_part_update(mapper, connection, target):
     target.oem_number = _truncate_if_needed(
         target.oem_number,
         MAX_LIGHT_OEM,
-        'oem_number',
+        "oem_number",
     )
 
     if state.attrs.name.history.has_changes():
@@ -247,7 +262,7 @@ def preprocess_auto_part_update(mapper, connection, target):
     target.name = _truncate_if_needed(
         target.name,
         MAX_LIGHT_OEM,
-        'name',
+        "name",
     )
 
     if state.attrs.description.history.has_changes() and target.description:
@@ -259,110 +274,110 @@ def preprocess_auto_part_update(mapper, connection, target):
     ):
         if not target.brand:
             raise ValueError(
-                'Нельзя изменить автозапчасть без указания бренда.'
+                "Нельзя изменить автозапчасть без указания бренда."
             )
-        target.barcode = f'{target.brand.name}{target.oem_number}'
+        target.barcode = f"{target.brand.name}{target.oem_number}"
     target.barcode = _truncate_if_needed(
         target.barcode,
         MAX_LIGHT_BARCODE,
-        'barcode',
+        "barcode",
     )
 
 
 class Category(Base):
-    '''
+    """
     Модель Категория запчасти или детали автомобиля.
-    '''
+    """
 
     name = Column(String(MAX_NAME_CATEGORY), nullable=False, unique=True)
-    parent_id = Column(Integer, ForeignKey('category.id'), nullable=True)
+    parent_id = Column(Integer, ForeignKey("category.id"), nullable=True)
     children = relationship(
-        'Category', back_populates='parent', lazy='selectin'
+        "Category", back_populates="parent", lazy="selectin"
     )
     parent = relationship(
-        'Category',
+        "Category",
         remote_side=lambda: [Category.id],
-        back_populates='children',
-        lazy='selectin',
+        back_populates="children",
+        lazy="selectin",
     )
-    comment = Column(Text, nullable=True, default='')
+    comment = Column(Text, nullable=True, default="")
     autoparts = relationship(
-        'AutoPart',
-        secondary='autopart_category_association',
-        lazy='selectin',
-        back_populates='categories',
+        "AutoPart",
+        secondary="autopart_category_association",
+        lazy="selectin",
+        back_populates="categories",
     )
 
 
-@event.listens_for(Category, 'before_insert')
+@event.listens_for(Category, "before_insert")
 def preprocess_category(mapper, connection, target):
-    '''
+    """
     Преобразовать имя категории и удалить специальные символы
     :param mapper:
     :param connection:
     :param target:
     :return:
-    '''
-    target.name = re.sub(r'[^\w\s\-\*\(\)""]', '', target.name)
+    """
+    target.name = re.sub(r'[^\w\s\-\*\(\)""]', "", target.name)
 
 
 @unique
 class LocationType(StrEnum):
-    SHELF = 'shelf'      # стеллаж
-    PALLET = 'pallet'    # паллет
-    BIN = 'bin'          # ящик/корзина
-    FLOOR = 'floor'      # пол (напольное хранение)
-    OTHER = 'other'      # прочее
+    SHELF = "shelf"  # стеллаж
+    PALLET = "pallet"  # паллет
+    BIN = "bin"  # ящик/корзина
+    FLOOR = "floor"  # пол (напольное хранение)
+    OTHER = "other"  # прочее
 
 
 class StorageLocation(Base):
-    '''
+    """
     Модель Складское месторасположение запчасти.
-    '''
+    """
 
     name = Column(String(MAX_LIGHT_NAME_LOCATION), nullable=False, unique=True)
     warehouse_id = Column(
         Integer,
-        ForeignKey('warehouse.id', ondelete='RESTRICT'),
+        ForeignKey("warehouse.id", ondelete="RESTRICT"),
         nullable=True,
         index=True,
     )
     location_type = Column(
         SAEnum(
             LocationType,
-            name='locationtype',
+            name="locationtype",
             values_callable=lambda e: [x.value for x in e],
         ),
         nullable=True,
     )
-    capacity = Column(Integer, nullable=True)   # max SKUs (None = unlimited)
+    capacity = Column(Integer, nullable=True)  # max SKUs (None = unlimited)
     system_code = Column(String(50), nullable=True)
     autoparts = relationship(
-        'AutoPart',
-        secondary='autopart_storage_association',
-        back_populates='storage_locations',
-        lazy='selectin',
-        cascade='all, delete',
+        "AutoPart",
+        secondary="autopart_storage_association",
+        back_populates="storage_locations",
+        lazy="selectin",
+        cascade="all, delete",
     )
     warehouse = relationship(
-        'Warehouse',
-        back_populates='locations',
-        lazy='joined',
+        "Warehouse",
+        back_populates="locations",
+        lazy="joined",
     )
     __table_args__ = (
         CheckConstraint(
-            "name ~ '^[A-Z0-9 /]+$'", name='latin_characters_only'
+            "name ~ '^[A-Z0-9 /]+$'", name="latin_characters_only"
         ),
         UniqueConstraint(
-            'warehouse_id',
-            'system_code',
-            name='uq_storagelocation_warehouse_system_code',
+            "warehouse_id",
+            "system_code",
+            name="uq_storagelocation_warehouse_system_code",
         ),
     )
 
     @property
     def warehouse_name(self) -> str | None:
-        warehouse = getattr(self, 'warehouse', None)
+        warehouse = getattr(self, "warehouse", None)
         return warehouse.name if warehouse is not None else None
 
     @property
@@ -371,68 +386,68 @@ class StorageLocation(Base):
 
 
 class Photo(Base):
-    '''
+    """
     Модель Фотография запчасти.
-    '''
+    """
 
     url = Column(String(MAX_LEN_WEBSITE), nullable=False, unique=True)
-    autopart_id = Column(Integer, ForeignKey('autopart.id'))
-    autopart = relationship('AutoPart', back_populates='photos')
+    autopart_id = Column(Integer, ForeignKey("autopart.id"))
+    autopart = relationship("AutoPart", back_populates="photos")
     __table_args__ = (
-        UniqueConstraint('url', 'autopart_id', name='unique_photo'),
+        UniqueConstraint("url", "autopart_id", name="unique_photo"),
         {"extend_existing": True},
     )
 
 
 autopart_storage_association = Table(
-    'autopart_storage_association',
+    "autopart_storage_association",
     Base.metadata,
     Column(
-        'autopart_id',
-        ForeignKey('autopart.id'),
+        "autopart_id",
+        ForeignKey("autopart.id"),
         nullable=False,
     ),
     Column(
-        'storage_location_id',
-        ForeignKey('storagelocation.id'),
+        "storage_location_id",
+        ForeignKey("storagelocation.id"),
         nullable=False,
     ),
     UniqueConstraint(
-        'autopart_id',
-        'storage_location_id',
-        name='unique_autopart_storage_location',
+        "autopart_id",
+        "storage_location_id",
+        name="unique_autopart_storage_location",
     ),
 )
 
 autopart_category_association = Table(
-    'autopart_category_association',
+    "autopart_category_association",
     Base.metadata,
     Column(
-        'autopart_id',
-        ForeignKey('autopart.id'),
+        "autopart_id",
+        ForeignKey("autopart.id"),
         nullable=False,
     ),
     Column(
-        'category_id',
-        ForeignKey('category.id'),
+        "category_id",
+        ForeignKey("category.id"),
         nullable=False,
     ),
-    PrimaryKeyConstraint('autopart_id', 'category_id'),
+    PrimaryKeyConstraint("autopart_id", "category_id"),
     UniqueConstraint(
-        'autopart_id', 'category_id', name='unique_autopart_category'
+        "autopart_id", "category_id", name="unique_autopart_category"
     ),
 )
 
 
 class AutoPartPriceHistory(Base):
-    '''
+    """
     Модель для хранения истории по запчасти.
-    '''
+    """
 
-    autopart_id = Column(Integer, ForeignKey('autopart.id'), nullable=False)
-    provider_id = Column(Integer, ForeignKey('provider.id'), nullable=False)
+    autopart_id = Column(Integer, ForeignKey("autopart.id"), nullable=False)
+    provider_id = Column(Integer, ForeignKey("provider.id"), nullable=False)
     provider_config_id = Column(
-        Integer, ForeignKey('providerpricelistconfig.id'), nullable=True
+        Integer, ForeignKey("providerpricelistconfig.id"), nullable=True
     )
     pricelist_id = Column(Integer, nullable=False, index=True)
 
@@ -444,22 +459,22 @@ class AutoPartPriceHistory(Base):
     price = Column(DECIMAL(10, 2), nullable=False)
     quantity = Column(Integer, nullable=False)
 
-    autopart = relationship('AutoPart')
-    provider = relationship('Provider')
+    autopart = relationship("AutoPart")
+    provider = relationship("Provider")
 
     __table_args__ = (
         Index(
-            'idx_autopart_price_history_autopart_provider_created_at',
-            'autopart_id',
-            'provider_id',
-            'provider_config_id',
-            'created_at',
+            "idx_autopart_price_history_autopart_provider_created_at",
+            "autopart_id",
+            "provider_id",
+            "provider_config_id",
+            "created_at",
         ),
     )
 
 
 class AutoPartRestockDecision(Base):
-    autopart_id = Column(Integer, ForeignKey('autopart.id'), index=True)
+    autopart_id = Column(Integer, ForeignKey("autopart.id"), index=True)
     required_quantity = Column(Integer, nullable=False)
     decision_date = Column(DateTime, default=now_moscow)
     status = Column(
@@ -471,20 +486,20 @@ class AutoPartRestockDecision(Base):
         default=TYPE_RESTOCK_DECISION_STATUS.NEW,
     )
 
-    autopart = relationship('AutoPart')
+    autopart = relationship("AutoPart")
     suppliers = relationship(
-        'AutoPartRestockDecisionSupplier',
-        cascade='all,delete-orphan',
-        lazy='selectin',
-        back_populates='restock_decision',
+        "AutoPartRestockDecisionSupplier",
+        cascade="all,delete-orphan",
+        lazy="selectin",
+        back_populates="restock_decision",
     )
 
 
 class AutoPartRestockDecisionSupplier(Base):
     restock_decision_id = Column(
-        Integer, ForeignKey('autopartrestockdecision.id')
+        Integer, ForeignKey("autopartrestockdecision.id")
     )
-    supplier_id = Column(Integer, ForeignKey('provider.id'))
+    supplier_id = Column(Integer, ForeignKey("provider.id"))
     status = Column(
         SAEnum(
             TYPE_SUPPLIER_DECISION_STATUS,
@@ -508,13 +523,13 @@ class AutoPartRestockDecisionSupplier(Base):
     hash_key = Column(String(255), nullable=True, index=True)
     system_hash = Column(String(255), nullable=True, index=True)
     restock_decision = relationship(
-        'AutoPartRestockDecision', back_populates='suppliers'
+        "AutoPartRestockDecision", back_populates="suppliers"
     )
     brand_name = Column(String)
     min_delivery_day = Column(Integer, default=1)
     max_delivery_day = Column(Integer, default=3)
-    supplier = relationship('Provider')
-    order_items = relationship('OrderItem', back_populates='restock_supplier')
+    supplier = relationship("Provider")
+    order_items = relationship("OrderItem", back_populates="restock_supplier")
     tracking_uuid = Column(
         String(36), default=lambda: str(uuid4()), unique=True, index=True
     )

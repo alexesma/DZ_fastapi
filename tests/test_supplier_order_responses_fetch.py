@@ -184,9 +184,7 @@ async def test_fetch_supplier_responses_ignores_internal_senders(
 
     class _Session:
         async def execute(self, _stmt):
-            return _Result(
-                [SimpleNamespace(email="masterzapzakaz@gmail.com", id=999)]
-            )
+            return _Result([SimpleNamespace(email="masterzapzakaz@gmail.com", id=999)])
 
     monkeypatch.setattr(
         response_service.crud_email_account,

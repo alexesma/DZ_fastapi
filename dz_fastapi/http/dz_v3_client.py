@@ -3,7 +3,7 @@ from typing import Optional
 
 from aiohttp import BasicAuth, ClientSession, TCPConnector
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
 
 class V3Client:
@@ -14,7 +14,7 @@ class V3Client:
         password: str,
         verify_ssl: bool = True,
     ):
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.auth = BasicAuth(login=username, password=password)
         self.verify_ssl = verify_ssl
         self._session = Optional[ClientSession] = None
@@ -35,21 +35,21 @@ class V3Client:
             await self._session.close()
 
     async def post(self, path: str, data: dict):
-        url = f'{self.base_url}{path}'
+        url = f"{self.base_url}{path}"
         try:
             async with self._session.post(url, json=data) as response:
                 response.raise_for_status()
                 return await response.json()
         except Exception as error:
-            logger.error(f'Ошибка POST запроса на {url}: {error}')
+            logger.error(f"Ошибка POST запроса на {url}: {error}")
             return None
 
     async def get(self, path: str, params: dict = None):
-        url = f'{self.base_url}{path}'
+        url = f"{self.base_url}{path}"
         try:
             async with self._session.post(url, params=params) as response:
                 response.raise_for_status()
                 return await response.json()
         except Exception as error:
-            logger.error(f'Ошибка GET запроса на {url}: {error}')
+            logger.error(f"Ошибка GET запроса на {url}: {error}")
             return None

@@ -12,21 +12,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.partner import CustomerOrder, SupplierOrder
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
 # History window for computing order arrival patterns
 HISTORY_WEEKS = 4
 
 # Window boundaries: mean ± half_window (clamped)
-MIN_HALF_WINDOW_MINUTES = 20   # at minimum ±20 min
-MAX_HALF_WINDOW_MINUTES = 60   # at most ±60 min
+MIN_HALF_WINDOW_MINUTES = 20  # at minimum ±20 min
+MAX_HALF_WINDOW_MINUTES = 60  # at most ±60 min
 
 # Minimum gap between two order clusters to treat as separate windows
 TWO_WINDOW_MIN_GAP_MINUTES = 150  # 2.5 hours
 
 # Supplier response expected window
-RESPONSE_WINDOW_START_MINUTES = 40   # start checking after 40 min
-RESPONSE_WINDOW_END_MINUTES = 120    # stop checking after 2 hours
+RESPONSE_WINDOW_START_MINUTES = 40  # start checking after 40 min
+RESPONSE_WINDOW_END_MINUTES = 120  # stop checking after 2 hours
 
 # Outside all windows → reduce polling to this interval (seconds)
 OUTSIDE_WINDOW_SLOW_SECONDS = 20 * 60  # 20 minutes
@@ -39,12 +39,12 @@ GRACE_PERIOD_SECONDS = 60 * 60  # 1 hour grace period after missed window
 class CustomerWindowInfo:
     customer_id: int
     customer_name: str
-    weekday: int                  # 0=Mon … 6=Sun
+    weekday: int  # 0=Mon … 6=Sun
     window_start: time
     window_end: time
-    sample_count: int             # historical orders in this sub-window
-    expected_order_count: int     # typical orders per day in this window
-    window_index: int = 0         # 0 = only/morning, 1 = evening
+    sample_count: int  # historical orders in this sub-window
+    expected_order_count: int  # typical orders per day in this window
+    window_index: int = 0  # 0 = only/morning, 1 = evening
     split_minute: float | None = None
     # minute-of-day divider for 2-window customers
 
@@ -178,17 +178,18 @@ async def compute_customer_order_windows(
         customer_names = {r.id: r.name for r in name_rows}
 
     # Group (customer_id, weekday) → list of (minutes_since_midnight, date)
-    entries_by_group: dict[
-        tuple[int, int], list[tuple[float, date]]
-    ] = defaultdict(list)
+    entries_by_group: dict[tuple[int, int], list[tuple[float, date]]] = (
+        defaultdict(list)
+    )
     for r in rows:
         if not r.customer_id or not r.received_at:
             continue
         key = (r.customer_id, r.received_at.weekday())
         entries_by_group[key].append(
-            (float(
-                r.received_at.hour * 60 + r.received_at.minute
-            ), r.received_at.date())
+            (
+                float(r.received_at.hour * 60 + r.received_at.minute),
+                r.received_at.date(),
+            )
         )
 
     windows: list[CustomerWindowInfo] = []
@@ -204,20 +205,10 @@ async def compute_customer_order_windows(
             evening_entries = [(m, d) for m, d in entries if m > split_m]
 
             w0 = _build_window(
-                customer_id,
-                name,
-                weekday,
-                morning_entries,
-                0,
-                split_m
+                customer_id, name, weekday, morning_entries, 0, split_m
             )
             w1 = _build_window(
-                customer_id,
-                name,
-                weekday,
-                evening_entries,
-                1,
-                split_m
+                customer_id, name, weekday, evening_entries, 1, split_m
             )
 
             # Only use the 2-window split if BOTH clusters qualify
@@ -243,13 +234,10 @@ async def _count_orders_in_window(
     window_end_dt: datetime,
 ) -> int:
     """Count orders received by a customer within ±1h of the given window."""
-    stmt = (
-        select(func.count(CustomerOrder.id))
-        .where(
-            CustomerOrder.customer_id == customer_id,
-            CustomerOrder.received_at >= window_start_dt - timedelta(hours=1),
-            CustomerOrder.received_at <= window_end_dt + timedelta(hours=1),
-        )
+    stmt = select(func.count(CustomerOrder.id)).where(
+        CustomerOrder.customer_id == customer_id,
+        CustomerOrder.received_at >= window_start_dt - timedelta(hours=1),
+        CustomerOrder.received_at <= window_end_dt + timedelta(hours=1),
     )
     result = await session.execute(stmt)
     return result.scalar_one() or 0
@@ -271,19 +259,17 @@ async def is_in_any_order_window(session: AsyncSession) -> bool:
             continue
         if w.window_start <= current_t <= w.window_end:
             return True
-        window_end_dt = datetime.combine(
-            today,
-            w.window_end
-        ).replace(tzinfo=tz)
+        window_end_dt = datetime.combine(today, w.window_end).replace(
+            tzinfo=tz
+        )
         if now <= window_end_dt:
             continue
         elapsed = (now - window_end_dt).total_seconds()
         if elapsed > GRACE_PERIOD_SECONDS:
             continue
-        window_start_dt = datetime.combine(
-            today,
-            w.window_start
-        ).replace(tzinfo=tz)
+        window_start_dt = datetime.combine(today, w.window_start).replace(
+            tzinfo=tz
+        )
         received = await _count_orders_in_window(
             session,
             customer_id=w.customer_id,
@@ -314,17 +300,15 @@ async def get_overdue_customer_windows(
     for w in windows:
         if w.weekday != weekday:
             continue
-        window_end_dt = datetime.combine(
-            today,
-            w.window_end
-        ).replace(tzinfo=tz)
+        window_end_dt = datetime.combine(today, w.window_end).replace(
+            tzinfo=tz
+        )
         if now <= window_end_dt:
             continue
 
-        window_start_dt = datetime.combine(
-            today,
-            w.window_start
-        ).replace(tzinfo=tz)
+        window_start_dt = datetime.combine(today, w.window_start).replace(
+            tzinfo=tz
+        )
         received = await _count_orders_in_window(
             session,
             customer_id=w.customer_id,
@@ -475,12 +459,14 @@ async def get_today_order_windows_status(
             split_t = w.split_minute  # minutes since midnight
             if w.window_index == 0:
                 window_orders = [
-                    (oid, rat) for oid, rat in all_customer_orders
+                    (oid, rat)
+                    for oid, rat in all_customer_orders
                     if rat.hour * 60 + rat.minute <= split_t
                 ]
             else:
                 window_orders = [
-                    (oid, rat) for oid, rat in all_customer_orders
+                    (oid, rat)
+                    for oid, rat in all_customer_orders
                     if rat.hour * 60 + rat.minute > split_t
                 ]
         else:
@@ -491,61 +477,64 @@ async def get_today_order_windows_status(
         first_received_at = window_orders[0][1] if window_orders else None
         last_received_at = window_orders[-1][1] if window_orders else None
 
-        window_end_dt = datetime.combine(
-            today,
-            w.window_end
-        ).replace(tzinfo=tz)
+        window_end_dt = datetime.combine(today, w.window_end).replace(
+            tzinfo=tz
+        )
         window_ended = current_t > w.window_end
 
         if received_count >= w.expected_order_count:
-            status = 'received'
+            status = "received"
         elif not window_ended:
-            status = 'partial' if received_count > 0 else 'pending'
+            status = "partial" if received_count > 0 else "pending"
         else:
             elapsed = (now - window_end_dt).total_seconds()
             if elapsed <= GRACE_PERIOD_SECONDS:
-                status = 'partial' if received_count > 0 else 'grace'
+                status = "partial" if received_count > 0 else "grace"
             else:
-                status = 'partial' if received_count > 0 else 'overdue'
+                status = "partial" if received_count > 0 else "overdue"
 
         # Label only if this customer has 2 windows
         if w.customer_id in customers_with_two_windows:
-            window_label = 'Утро' if w.window_index == 0 else 'Вечер'
+            window_label = "Утро" if w.window_index == 0 else "Вечер"
         else:
             window_label = None
 
-        result.append({
-            'customer_id': w.customer_id,
-            'customer_name': w.customer_name,
-            'window_index': w.window_index,
-            'window_label': window_label,
-            'window_start': w.window_start.strftime('%H:%M'),
-            'window_end': w.window_end.strftime('%H:%M'),
-            'sample_count': w.sample_count,
-            'expected_order_count': w.expected_order_count,
-            'received_count': received_count,
-            'status': status,
-            'first_order_received_at': (
-                first_received_at.isoformat() if first_received_at else None
-            ),
-            'last_order_received_at': (
-                last_received_at.isoformat() if last_received_at else None
-            ),
-            'order_id': first_order_id,
-        })
+        result.append(
+            {
+                "customer_id": w.customer_id,
+                "customer_name": w.customer_name,
+                "window_index": w.window_index,
+                "window_label": window_label,
+                "window_start": w.window_start.strftime("%H:%M"),
+                "window_end": w.window_end.strftime("%H:%M"),
+                "sample_count": w.sample_count,
+                "expected_order_count": w.expected_order_count,
+                "received_count": received_count,
+                "status": status,
+                "first_order_received_at": (
+                    first_received_at.isoformat()
+                    if first_received_at
+                    else None
+                ),
+                "last_order_received_at": (
+                    last_received_at.isoformat() if last_received_at else None
+                ),
+                "order_id": first_order_id,
+            }
+        )
 
     STATUS_ORDER = {
-        'overdue': 0,
-        'grace': 1,
-        'partial': 2,
-        'pending': 3,
-        'received': 4,
+        "overdue": 0,
+        "grace": 1,
+        "partial": 2,
+        "pending": 3,
+        "received": 4,
     }
     result.sort(
         key=lambda x: (
-            STATUS_ORDER.get(x['status'], 9),
-            x['customer_name'],
-            x['window_index'],
+            STATUS_ORDER.get(x["status"], 9),
+            x["customer_name"],
+            x["window_index"],
         )
     )
     return result

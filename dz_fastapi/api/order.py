@@ -7,12 +7,18 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from dz_fastapi.analytics.restock_logic import (
-    evaluate_supplier_offers, fetch_supplier_offers,
-    get_autoparts_below_min_balance, get_historical_min_price,
-    save_restock_decision)
+    evaluate_supplier_offers,
+    fetch_supplier_offers,
+    get_autoparts_below_min_balance,
+    get_historical_min_price,
+    save_restock_decision,
+)
 from dz_fastapi.api.deps import get_current_user
-from dz_fastapi.core.constants import (DEPTH_MONTHS_HISTORY_PRICE_FOR_ORDER,
-                                       LIMIT_ORDER, URL_DZ_SEARCH)
+from dz_fastapi.core.constants import (
+    DEPTH_MONTHS_HISTORY_PRICE_FOR_ORDER,
+    LIMIT_ORDER,
+    URL_DZ_SEARCH,
+)
 from dz_fastapi.core.db import AsyncSession, get_session
 from dz_fastapi.crud.autopart import crud_autopart_restock_decision
 from dz_fastapi.crud.brand import brand_crud
@@ -21,33 +27,45 @@ from dz_fastapi.crud.partner import crud_customer, crud_provider
 from dz_fastapi.http.dz_site_client import DZSiteClient
 from dz_fastapi.models.autopart import TYPE_SUPPLIER_DECISION_STATUS
 from dz_fastapi.models.notification import AppNotificationLevel
-from dz_fastapi.models.partner import (TYPE_ORDER_ITEM_STATUS, TYPE_PRICES,
-                                       TYPE_STATUS_ORDER, Provider)
+from dz_fastapi.models.partner import (
+    TYPE_ORDER_ITEM_STATUS,
+    TYPE_PRICES,
+    TYPE_STATUS_ORDER,
+    Provider,
+)
 from dz_fastapi.models.user import User
-from dz_fastapi.schemas.order import (ConfirmedOfferOut,
-                                      ConfirmedOffersResponse, OrderItemOut,
-                                      OrderOut, OrderPositionOut,
-                                      PlacedOrderHistoryRow,
-                                      PlacedOrderHistoryUpdate,
-                                      SendApiResponse, SupplierOfferOut,
-                                      SupplierOffersResponse, SupplierOrderOut,
-                                      UpdatePositionStatusRequest,
-                                      UpdatePositionStatusResponse)
+from dz_fastapi.schemas.order import (
+    ConfirmedOfferOut,
+    ConfirmedOffersResponse,
+    OrderItemOut,
+    OrderOut,
+    OrderPositionOut,
+    PlacedOrderHistoryRow,
+    PlacedOrderHistoryUpdate,
+    SendApiResponse,
+    SupplierOfferOut,
+    SupplierOffersResponse,
+    SupplierOrderOut,
+    UpdatePositionStatusRequest,
+    UpdatePositionStatusResponse,
+)
 from dz_fastapi.schemas.partner import ProviderExternalReferenceCreate
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
 from dz_fastapi.services.notifications import create_notification
-from dz_fastapi.services.placed_orders import (list_tracking_history,
-                                               sync_site_tracking_statuses,
-                                               update_tracking_item)
+from dz_fastapi.services.placed_orders import (
+    list_tracking_history,
+    sync_site_tracking_statuses,
+    update_tracking_item,
+)
 
-KEY = os.getenv('KEY_FOR_WEBSITE')
+KEY = os.getenv("KEY_FOR_WEBSITE")
 
-logger = logging.getLogger('dz_fastapi')
+logger = logging.getLogger("dz_fastapi")
 
-DRAGONZAP_EXTERNAL_SOURCE = 'DRAGONZAP'
+DRAGONZAP_EXTERNAL_SOURCE = "DRAGONZAP"
 
 
-router = APIRouter(prefix='/order')
+router = APIRouter(prefix="/order")
 
 
 async def _resolve_site_provider_id(
@@ -55,10 +73,10 @@ async def _resolve_site_provider_id(
     item: OrderPositionOut,
     provider_cache: dict[str, int],
 ) -> int:
-    supplier_name = (item.supplier_name or '').strip()
+    supplier_name = (item.supplier_name or "").strip()
     supplier_id = item.supplier_id
     id_cache_key = (
-        f'{DRAGONZAP_EXTERNAL_SOURCE}:id:{int(supplier_id)}'
+        f"{DRAGONZAP_EXTERNAL_SOURCE}:id:{int(supplier_id)}"
         if supplier_id is not None
         else None
     )
@@ -67,24 +85,28 @@ async def _resolve_site_provider_id(
         if cached_provider_id is not None:
             return cached_provider_id
 
-        reference = await (
-            crud_provider.get_external_reference_by_source_supplier(
-                source_system=DRAGONZAP_EXTERNAL_SOURCE,
-                external_supplier_id=int(supplier_id),
-                session=session,
+        reference = (
+            await (
+                crud_provider.get_external_reference_by_source_supplier(
+                    source_system=DRAGONZAP_EXTERNAL_SOURCE,
+                    external_supplier_id=int(supplier_id),
+                    session=session,
+                )
             )
         )
         if reference is not None and reference.is_active:
             provider_cache[id_cache_key] = reference.provider_id
             if supplier_name:
                 provider_cache[
-                    (f'{DRAGONZAP_EXTERNAL_SOURCE}'
-                     f':name:{supplier_name.casefold()}')
+                    (
+                        f"{DRAGONZAP_EXTERNAL_SOURCE}"
+                        f":name:{supplier_name.casefold()}"
+                    )
                 ] = reference.provider_id
             return reference.provider_id
 
     name_cache_key = (
-        f'{DRAGONZAP_EXTERNAL_SOURCE}:name:{supplier_name.casefold()}'
+        f"{DRAGONZAP_EXTERNAL_SOURCE}:name:{supplier_name.casefold()}"
         if supplier_name
         else None
     )
@@ -116,17 +138,17 @@ async def _resolve_site_provider_id(
         raise HTTPException(
             status_code=400,
             detail=(
-                'У позиции отсутствуют supplier_id и supplier_name. '
-                'Невозможно определить поставщика для заказа на сайт.'
+                "У позиции отсутствуют supplier_id и supplier_name. "
+                "Невозможно определить поставщика для заказа на сайт."
             ),
         )
 
     provider = Provider(
-        name=supplier_name or f'Dragonzap supplier #{supplier_id}',
+        name=supplier_name or f"Dragonzap supplier #{supplier_id}",
         is_virtual=True,
         type_prices=TYPE_PRICES.WHOLESALE,
-        description='Created automatically from Dragonzap site order',
-        comment='Automatically created provider from site basket send',
+        description="Created automatically from Dragonzap site order",
+        comment="Automatically created provider from site basket send",
         default_warehouse_id=(await ensure_default_warehouse(session)).id,
     )
     session.add(provider)
@@ -174,7 +196,7 @@ async def _notify_current_user(
     except Exception:
         await session.rollback()
         logger.exception(
-            'Failed to create app notification for user %s',
+            "Failed to create app notification for user %s",
             current_user.id,
         )
 
@@ -185,17 +207,17 @@ def _merge_site_offers(offers_by_brand: list[list[dict]]) -> list[dict]:
     for offers in offers_by_brand:
         for raw in offers or []:
             key = (
-                raw.get('system_hash')
-                or raw.get('hash_key')
+                raw.get("system_hash")
+                or raw.get("hash_key")
                 or (
-                    raw.get('oem'),
-                    raw.get('make_name'),
-                    raw.get('cost'),
-                    raw.get('qnt'),
-                    raw.get('price_name'),
-                    raw.get('sup_logo'),
-                    raw.get('min_delivery_day'),
-                    raw.get('max_delivery_day'),
+                    raw.get("oem"),
+                    raw.get("make_name"),
+                    raw.get("cost"),
+                    raw.get("qnt"),
+                    raw.get("price_name"),
+                    raw.get("sup_logo"),
+                    raw.get("min_delivery_day"),
+                    raw.get("max_delivery_day"),
                 )
             )
             if key in seen:
@@ -207,7 +229,7 @@ def _merge_site_offers(offers_by_brand: list[list[dict]]) -> list[dict]:
 
 def _extract_basket_items(payload: object) -> list[dict]:
     if isinstance(payload, dict):
-        items = payload.get('data')
+        items = payload.get("data")
     else:
         items = payload
     if not isinstance(items, list):
@@ -216,28 +238,28 @@ def _extract_basket_items(payload: object) -> list[dict]:
 
 
 def _build_basket_conflict_detail(basket_items: list[dict]) -> str:
-    preview = ', '.join(
-        str(item.get('oem') or item.get('detail_name') or item.get('id'))
+    preview = ", ".join(
+        str(item.get("oem") or item.get("detail_name") or item.get("id"))
         for item in basket_items[:3]
-        if item.get('oem') or item.get('detail_name') or item.get('id')
+        if item.get("oem") or item.get("detail_name") or item.get("id")
     )
     detail = (
-        'В корзине Dragonzap остались старые позиции. '
-        'Программа попыталась очистить корзину автоматически, '
-        'но не смогла.'
+        "В корзине Dragonzap остались старые позиции. "
+        "Программа попыталась очистить корзину автоматически, "
+        "но не смогла."
     )
     if basket_items:
-        detail += f' Сейчас в корзине {len(basket_items)} поз.'
+        detail += f" Сейчас в корзине {len(basket_items)} поз."
     if preview:
-        detail += f' Примеры: {preview}.'
+        detail += f" Примеры: {preview}."
     detail += (
-        ' Очистите корзину Dragonzap на сайте вручную и повторите отправку.'
+        " Очистите корзину Dragonzap на сайте вручную и повторите отправку."
     )
     return detail
 
 
 def _normalize_tracking_uuid(raw_value: str | None) -> str:
-    value = (raw_value or '').strip()
+    value = (raw_value or "").strip()
     if value and len(value) <= 36:
         return value
     return str(uuid4())
@@ -246,7 +268,7 @@ def _normalize_tracking_uuid(raw_value: str | None) -> str:
 async def _expand_query_brands(
     make_name: str, session: AsyncSession
 ) -> list[str]:
-    normalized_input = str(make_name or '').strip().upper()
+    normalized_input = str(make_name or "").strip().upper()
     if not normalized_input:
         return []
 
@@ -267,7 +289,7 @@ async def _expand_query_brands(
         candidates.extend(
             str(item.name).strip().upper()
             for item in related
-            if str(getattr(item, 'name', '')).strip()
+            if str(getattr(item, "name", "")).strip()
         )
         candidates.append(normalized_input)
         unique = []
@@ -280,7 +302,7 @@ async def _expand_query_brands(
         return unique
     except Exception as exc:
         logger.warning(
-            'Failed to expand brand synonyms for %s: %s',
+            "Failed to expand brand synonyms for %s: %s",
             normalized_input,
             exc,
         )
@@ -288,10 +310,10 @@ async def _expand_query_brands(
 
 
 @router.get(
-    '/get_offers_by_oem_and_make_name',
-    tags=['offer'],
+    "/get_offers_by_oem_and_make_name",
+    tags=["offer"],
     status_code=status.HTTP_200_OK,
-    summary='Получение предложений с сайта dragonzap по oem и brand name',
+    summary="Получение предложений с сайта dragonzap по oem и brand name",
 )
 async def get_offers_by_oem_and_make_name(
     oem: str,
@@ -317,18 +339,18 @@ async def get_offers_by_oem_and_make_name(
                 continue
             for item in offers:
                 if isinstance(item, dict):
-                    item.setdefault('query_brand', brand_name)
+                    item.setdefault("query_brand", brand_name)
             offers_by_brand.append(offers)
 
     merged = _merge_site_offers(offers_by_brand)
-    return {'data': merged, 'query_brands': query_brands}
+    return {"data": merged, "query_brands": query_brands}
 
 
 @router.get(
-    '/generate_restock_offers',
-    tags=['offer'],
+    "/generate_restock_offers",
+    tags=["offer"],
     status_code=status.HTTP_200_OK,
-    summary='Получение предложения для заказа недостающих позиций',
+    summary="Получение предложения для заказа недостающих позиций",
 )
 async def generate_restock_offers(
     session: AsyncSession = Depends(get_session),
@@ -336,21 +358,21 @@ async def generate_restock_offers(
     months_back: Optional[int] = None,
     threshold_percent: Optional[float] = None,
 ):
-    logger.debug('Зашли в generate_restock_offers')
+    logger.debug("Зашли в generate_restock_offers")
     autoparts = await get_autoparts_below_min_balance(
         threshold_percent=threshold_percent or 0.5, session=session
     )
-    logger.debug(f'Словарь autoparts для заказа = {autoparts}')
+    logger.debug(f"Словарь autoparts для заказа = {autoparts}")
     supplier_prices = await fetch_supplier_offers(
         autopart_ids=list(autoparts.keys()), session=session
     )
-    logger.debug(f'Словарь предложений из прайс листов {supplier_prices}')
+    logger.debug(f"Словарь предложений из прайс листов {supplier_prices}")
     historical_min_prices = await get_historical_min_price(
         months_back=months_back or DEPTH_MONTHS_HISTORY_PRICE_FOR_ORDER,
         autopart_ids=list(autoparts.keys()),
         session=session,
     )
-    logger.debug(f'Словарь historical_min_prices = {historical_min_prices}')
+    logger.debug(f"Словарь historical_min_prices = {historical_min_prices}")
     supplier_offers = await evaluate_supplier_offers(
         ids_autoparts_for_order=autoparts,
         autoparts_in_prices=supplier_prices,
@@ -358,47 +380,47 @@ async def generate_restock_offers(
         budget_limit=budget_limit or LIMIT_ORDER,
         session=session,
     )
-    logger.debug(f'Словарь supplier_offers = {supplier_offers}')
+    logger.debug(f"Словарь supplier_offers = {supplier_offers}")
 
     result = []
     for autopart_id, data in supplier_offers.items():
         result.append(
             SupplierOfferOut(
                 autopart_id=autopart_id,
-                oem_number=data['oem_number'],
-                autopart_name=data['detail_name'],
-                supplier_id=data['supplier_id'],
-                supplier_name=data['supplier_name'],
-                price=data['price'],
-                quantity=data['quantity'],
-                total_cost=data['total_cost'],
-                qnt=data['qnt'],
-                min_delivery_day=data['min_delivery_day'],
-                max_delivery_day=data['max_delivery_day'],
-                sup_logo=data['sup_logo'],
-                brand_name=data['make_name'],
-                historical_min_price=data['historical_min_price'],
-                min_qnt=data.get('min_qnt', 1),
-                hash_key=data.get('hash_key'),
-                system_hash=data.get('system_hash'),
+                oem_number=data["oem_number"],
+                autopart_name=data["detail_name"],
+                supplier_id=data["supplier_id"],
+                supplier_name=data["supplier_name"],
+                price=data["price"],
+                quantity=data["quantity"],
+                total_cost=data["total_cost"],
+                qnt=data["qnt"],
+                min_delivery_day=data["min_delivery_day"],
+                max_delivery_day=data["max_delivery_day"],
+                sup_logo=data["sup_logo"],
+                brand_name=data["make_name"],
+                historical_min_price=data["historical_min_price"],
+                min_qnt=data.get("min_qnt", 1),
+                hash_key=data.get("hash_key"),
+                system_hash=data.get("system_hash"),
             )
         )
-    logger.debug('Вышли из generate_restock_offers')
+    logger.debug("Вышли из generate_restock_offers")
     return SupplierOffersResponse(offers=result)
 
 
 @router.post(
-    '/confirm',
-    tags=['offer'],
+    "/confirm",
+    tags=["offer"],
     status_code=status.HTTP_201_CREATED,
-    summary='Подтверждение предложения для заказа недостающих позиций',
+    summary="Подтверждение предложения для заказа недостающих позиций",
 )
 async def confirm_order(
     request: SupplierOffersResponse,
     session: AsyncSession = Depends(get_session),
 ):
     offers_dict = {offer.autopart_id: offer.dict() for offer in request.offers}
-    logger.debug(f'Offers dict for CRUD: {offers_dict}')
+    logger.debug(f"Offers dict for CRUD: {offers_dict}")
     await save_restock_decision(offers=offers_dict, session=session)
     response = [
         ConfirmedOfferOut(
@@ -407,10 +429,10 @@ async def confirm_order(
             quantity=offer.quantity,
             confirmed_price=offer.price,
             status=TYPE_SUPPLIER_DECISION_STATUS.CONFIRMED,
-            send_method=getattr(offer, 'send_method', None),
-            brand_name=getattr(offer, 'brand_name', None),
-            min_delivery_day=getattr(offer, 'min_delivery_day', 1),
-            max_delivery_day=getattr(offer, 'max_delivery_day', 3),
+            send_method=getattr(offer, "send_method", None),
+            brand_name=getattr(offer, "brand_name", None),
+            min_delivery_day=getattr(offer, "min_delivery_day", 1),
+            max_delivery_day=getattr(offer, "max_delivery_day", 3),
         )
         for offer in request.offers
     ]
@@ -420,26 +442,26 @@ async def confirm_order(
 
 
 @router.get(
-    '/confirmed',
-    tags=['offer'],
+    "/confirmed",
+    tags=["offer"],
     status_code=status.HTTP_200_OK,
-    summary='Получение предложения для заказов поставщикам',
+    summary="Получение предложения для заказов поставщикам",
     response_model=list[SupplierOrderOut],
 )
 async def confirmed_orders_supplier(
     session: AsyncSession = Depends(get_session),
 ):
-    logger.debug('Get запрос confirmed')
+    logger.debug("Get запрос confirmed")
     return await crud_autopart_restock_decision.get_new_supplier_orders(
         session=session
     )
 
 
 @router.patch(
-    '/update_position_status',
-    tags=['offer', 'status'],
+    "/update_position_status",
+    tags=["offer", "status"],
     status_code=status.HTTP_200_OK,
-    summary='Изменение статусы заказа',
+    summary="Изменение статусы заказа",
     response_model=UpdatePositionStatusResponse,
 )
 async def update_position_status(
@@ -455,10 +477,10 @@ async def update_position_status(
 
 
 @router.post(
-    '/send_api',
-    tags=['offer', 'order', 'api'],
+    "/send_api",
+    tags=["offer", "order", "api"],
     status_code=status.HTTP_201_CREATED,
-    summary='Отправка заказов поставщику через api',
+    summary="Отправка заказов поставщику через api",
     response_model=SendApiResponse,
 )
 async def send_api(
@@ -469,32 +491,32 @@ async def send_api(
 ):
     if not request:
         raise HTTPException(
-            status_code=400, detail='Список позиций не может быть пустым'
+            status_code=400, detail="Список позиций не может быть пустым"
         )
     customer = await crud_customer.get_by_id(customer_id, session)
     if customer is None:
         raise HTTPException(
             status_code=400,
             detail=(
-                f'Клиент с id={customer_id} не найден. '
-                'Выберите корректного клиента для заказа.'
+                f"Клиент с id={customer_id} не найден. "
+                "Выберите корректного клиента для заказа."
             ),
         )
     prepared_request: list[tuple[OrderPositionOut, str]] = []
     for item in request:
-        request_tracking_uuid = (item.tracking_uuid or '').strip()
+        request_tracking_uuid = (item.tracking_uuid or "").strip()
         normalized_tracking_uuid = _normalize_tracking_uuid(
             request_tracking_uuid
         )
         if normalized_tracking_uuid != request_tracking_uuid:
             logger.debug(
-                'Replacing incoming tracking_uuid=%r with normalized '
-                'tracking_uuid=%s',
+                "Replacing incoming tracking_uuid=%r with normalized "
+                "tracking_uuid=%s",
                 request_tracking_uuid,
                 normalized_tracking_uuid,
             )
             item = item.model_copy(
-                update={'tracking_uuid': normalized_tracking_uuid}
+                update={"tracking_uuid": normalized_tracking_uuid}
             )
         prepared_request.append(
             (item, request_tracking_uuid or normalized_tracking_uuid)
@@ -509,11 +531,11 @@ async def send_api(
     if not provider_ids:
         raise HTTPException(
             status_code=400,
-            detail='У позиций отсутствует supplier_id или supplier_name',
+            detail="У позиций отсутствует supplier_id или supplier_name",
         )
     if len(provider_ids) > 1:
         raise HTTPException(
-            status_code=400, detail='Позиции содержат разных поставщиков'
+            status_code=400, detail="Позиции содержат разных поставщиков"
         )
     provider_id = provider_ids.pop()
     results = []
@@ -530,13 +552,11 @@ async def send_api(
             basket_started_empty = len(current_basket_items) == 0
             if not basket_started_empty:
                 logger.warning(
-                    'Dragonzap basket contains %s stale positions; '
-                    'trying to auto-clean before sending',
+                    "Dragonzap basket contains %s stale positions; "
+                    "trying to auto-clean before sending",
                     len(current_basket_items),
                 )
-                basket_cleaned = await dz_site_client.clean_basket(
-                    api_key=KEY
-                )
+                basket_cleaned = await dz_site_client.clean_basket(api_key=KEY)
                 if not basket_cleaned:
                     raise HTTPException(
                         status_code=409,
@@ -551,12 +571,12 @@ async def send_api(
                     if not item.hash_key:
                         results.append(
                             {
-                                'tracking_uuid': item.tracking_uuid,
-                                'request_tracking_uuid': (
+                                "tracking_uuid": item.tracking_uuid,
+                                "request_tracking_uuid": (
                                     request_tracking_uuid
                                 ),
-                                'status': 'error',
-                                'message': 'Отсутствует hash_key',
+                                "status": "error",
+                                "message": "Отсутствует hash_key",
                             }
                         )
                         failed_count += 1
@@ -576,9 +596,7 @@ async def send_api(
                         )
                     )
                     if added_to_basket:
-                        staged_success.append(
-                            (item, request_tracking_uuid)
-                        )
+                        staged_success.append((item, request_tracking_uuid))
                     else:
                         await crud_order_item.update_order_item_status(
                             tracking_uuid=item.tracking_uuid,
@@ -587,26 +605,26 @@ async def send_api(
                         )
                         results.append(
                             {
-                                'tracking_uuid': item.tracking_uuid,
-                                'request_tracking_uuid': (
+                                "tracking_uuid": item.tracking_uuid,
+                                "request_tracking_uuid": (
                                     request_tracking_uuid
                                 ),
-                                'status': 'error',
-                                'message': 'Ошибка при добавлении в корзину',
+                                "status": "error",
+                                "message": "Ошибка при добавлении в корзину",
                             }
                         )
                         failed_count += 1
                 except Exception as e:
                     logger.error(
-                        f'Ошибка при отправке позиции '
-                        f'{item.tracking_uuid}: {e}'
+                        f"Ошибка при отправке позиции "
+                        f"{item.tracking_uuid}: {e}"
                     )
                     results.append(
                         {
-                            'tracking_uuid': item.tracking_uuid,
-                            'request_tracking_uuid': request_tracking_uuid,
-                            'status': 'error',
-                            'message': f'Внутренняя ошибка: {str(e)}',
+                            "tracking_uuid": item.tracking_uuid,
+                            "request_tracking_uuid": request_tracking_uuid,
+                            "status": "error",
+                            "message": f"Внутренняя ошибка: {str(e)}",
                         }
                     )
                     failed_count += 1
@@ -615,13 +633,13 @@ async def send_api(
                 await _notify_current_user(
                     session,
                     current_user,
-                    title='Dragonzap: заказ не оформлен',
+                    title="Dragonzap: заказ не оформлен",
                     message=(
-                        'Ни одна позиция не была добавлена в корзину сайта. '
-                        'Локальный заказ не создан.'
+                        "Ни одна позиция не была добавлена в корзину сайта. "
+                        "Локальный заказ не создан."
                     ),
                     level=AppNotificationLevel.WARNING,
-                    link='/autoparts/offers',
+                    link="/autoparts/offers",
                 )
                 return SendApiResponse(
                     total_items=len(request),
@@ -636,15 +654,15 @@ async def send_api(
             try:
                 placed = await dz_site_client.order_basket(
                     api_key=KEY,
-                    comment='АвтоЗаказ из поиска по артикулу',
+                    comment="АвтоЗаказ из поиска по артикулу",
                 )
                 if not placed:
                     logger.warning(
-                        'Оформление корзины (baskets/order) вернуло не OK'
+                        "Оформление корзины (baskets/order) вернуло не OK"
                     )
             except Exception as exc:
                 logger.error(
-                    'Ошибка при оформлении корзины в заказ: %s',
+                    "Ошибка при оформлении корзины в заказ: %s",
                     exc,
                 )
 
@@ -655,22 +673,20 @@ async def send_api(
                         api_key=KEY
                     )
                 failure_message = (
-                    'Корзина на Dragonzap не была оформлена в заказ. '
-                    'Локальная запись не создана.'
+                    "Корзина на Dragonzap не была оформлена в заказ. "
+                    "Локальная запись не создана."
                 )
                 if basket_cleaned:
-                    failure_message += ' Временная корзина очищена.'
+                    failure_message += " Временная корзина очищена."
                 else:
-                    failure_message += (
-                        ' Проверьте корзину Dragonzap вручную.'
-                    )
+                    failure_message += " Проверьте корзину Dragonzap вручную."
                 for item, request_tracking_uuid in staged_success:
                     results.append(
                         {
-                            'tracking_uuid': item.tracking_uuid,
-                            'request_tracking_uuid': request_tracking_uuid,
-                            'status': 'error',
-                            'message': failure_message,
+                            "tracking_uuid": item.tracking_uuid,
+                            "request_tracking_uuid": request_tracking_uuid,
+                            "status": "error",
+                            "message": failure_message,
                         }
                     )
                 failed_count += len(staged_success)
@@ -678,10 +694,10 @@ async def send_api(
                 await _notify_current_user(
                     session,
                     current_user,
-                    title='Dragonzap: заказ не оформлен',
+                    title="Dragonzap: заказ не оформлен",
                     message=failure_message,
                     level=AppNotificationLevel.WARNING,
-                    link='/autoparts/offers',
+                    link="/autoparts/offers",
                 )
                 return SendApiResponse(
                     total_items=len(request),
@@ -713,16 +729,16 @@ async def send_api(
                 if exc.status_code != 404:
                     raise
                 logger.debug(
-                    'No AutoPartRestockDecisionSupplier for '
-                    'tracking_uuid=%s; skip restock status update',
+                    "No AutoPartRestockDecisionSupplier for "
+                    "tracking_uuid=%s; skip restock status update",
                     item.tracking_uuid,
                 )
             results.append(
                 {
-                    'tracking_uuid': item.tracking_uuid,
-                    'request_tracking_uuid': request_tracking_uuid,
-                    'status': 'success',
-                    'message': 'Заказ оформлен на сайте Dragonzap',
+                    "tracking_uuid": item.tracking_uuid,
+                    "request_tracking_uuid": request_tracking_uuid,
+                    "status": "success",
+                    "message": "Заказ оформлен на сайте Dragonzap",
                 }
             )
 
@@ -730,16 +746,16 @@ async def send_api(
         await _notify_current_user(
             session,
             current_user,
-            title='Заказ на Dragonzap оформлен',
+            title="Заказ на Dragonzap оформлен",
             message=(
-                f'Создан заказ #{order.id}'
-                f' на {successful_count} поз.'
-                f' Успешно: {successful_count}, ошибок: {failed_count}.'
+                f"Создан заказ #{order.id}"
+                f" на {successful_count} поз."
+                f" Успешно: {successful_count}, ошибок: {failed_count}."
                 + (
-                    ' Перед отправкой программа автоматически очистила '
-                    'старую корзину Dragonzap.'
+                    " Перед отправкой программа автоматически очистила "
+                    "старую корзину Dragonzap."
                     if basket_auto_cleaned
-                    else ''
+                    else ""
                 )
             ),
             level=(
@@ -747,7 +763,7 @@ async def send_api(
                 if failed_count
                 else AppNotificationLevel.SUCCESS
             ),
-            link='/orders/tracking',
+            link="/orders/tracking",
         )
         return SendApiResponse(
             total_items=len(request),
@@ -762,16 +778,16 @@ async def send_api(
         raise
     except Exception as e:
         await session.rollback()
-        logger.error(f'Ошибка при создании заказа: {e}')
+        logger.error(f"Ошибка при создании заказа: {e}")
         raise HTTPException(
-            status_code=500, detail=f'Ошибка при создании заказа: {str(e)}'
+            status_code=500, detail=f"Ошибка при создании заказа: {str(e)}"
         )
 
 
 @router.get(
-    '/tracking-items',
+    "/tracking-items",
     response_model=list[PlacedOrderHistoryRow],
-    summary='История заказов из поиска по артикулу',
+    summary="История заказов из поиска по артикулу",
 )
 async def get_tracking_items(
     oem: Optional[str] = None,
@@ -801,9 +817,9 @@ async def get_tracking_items(
 
 
 @router.post(
-    '/tracking-items/sync-site',
+    "/tracking-items/sync-site",
     response_model=dict,
-    summary='Синхронизировать статусы заказов с сайта Dragonzap',
+    summary="Синхронизировать статусы заказов с сайта Dragonzap",
 )
 async def sync_tracking_items_with_site(
     oem: Optional[str] = None,
@@ -825,9 +841,9 @@ async def sync_tracking_items_with_site(
 
 
 @router.patch(
-    '/tracking-items/{source_type}/{item_id}',
+    "/tracking-items/{source_type}/{item_id}",
     response_model=dict,
-    summary='Обновить статус и получение по позиции заказа',
+    summary="Обновить статус и получение по позиции заказа",
 )
 async def update_tracking_order_item(
     source_type: str,
@@ -847,66 +863,66 @@ async def update_tracking_order_item(
     except KeyError as exc:
         raise HTTPException(
             status_code=400,
-            detail='Неизвестный статус',
+            detail="Неизвестный статус",
         ) from exc
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.get('/{order_id}', response_model=OrderOut)
+@router.get("/{order_id}", response_model=OrderOut)
 async def get_order(
     order_id: int, session: AsyncSession = Depends(get_session)
 ):
-    '''Получение заказа по ID'''
+    """Получение заказа по ID"""
     order = await crud_order.get(obj_id=order_id, session=session)
     if not order:
-        raise HTTPException(status_code=404, detail='Заказ не найден')
+        raise HTTPException(status_code=404, detail="Заказ не найден")
     return order
 
 
-@router.get('/{order_id}/items', response_model=List[OrderItemOut])
+@router.get("/{order_id}/items", response_model=List[OrderItemOut])
 async def get_order_items(
     order_id: int, session: AsyncSession = Depends(get_session)
 ):
-    '''Получение позиций заказа'''
+    """Получение позиций заказа"""
     items = await crud_order_item.get_order_items_by_order_id(
         order_id=order_id, session=session
     )
     return items
 
 
-@router.patch('/{order_id}/status')
+@router.patch("/{order_id}/status")
 async def update_order_status(
     order_id: int,
     status: TYPE_STATUS_ORDER,
     session: AsyncSession = Depends(get_session),
 ):
-    '''Обновление статуса заказа'''
+    """Обновление статуса заказа"""
     order = await crud_order.get(order_id, session)
     if not order:
-        raise HTTPException(status_code=404, detail='Заказ не найден')
+        raise HTTPException(status_code=404, detail="Заказ не найден")
 
     order.status = status
     await session.commit()
-    return {'message': 'Статус заказа обновлен'}
+    return {"message": "Статус заказа обновлен"}
 
 
-@router.get('', response_model=List[OrderOut], summary='Список заказов')
+@router.get("", response_model=List[OrderOut], summary="Список заказов")
 async def list_orders(session: AsyncSession = Depends(get_session)):
     orders = await crud_order.get_all_orders(session=session)
     return orders
 
 
-@router.get('/debug/basket')
+@router.get("/debug/basket")
 async def debug_basket():
     async with DZSiteClient(api_key=KEY, verify_ssl=False) as dz:
         return await dz.get_basket(api_key=KEY)
 
 
 @router.post(
-    '/dragonzap/basket/clear',
-    tags=['offer', 'order', 'api'],
-    summary='Очистить корзину Dragonzap',
+    "/dragonzap/basket/clear",
+    tags=["offer", "order", "api"],
+    summary="Очистить корзину Dragonzap",
 )
 async def clear_dragonzap_basket(
     session: AsyncSession = Depends(get_session),
@@ -917,9 +933,9 @@ async def clear_dragonzap_basket(
         current_basket_items = _extract_basket_items(current_basket)
         if current_basket is not None and not current_basket_items:
             return {
-                'cleared': False,
-                'cleared_items': 0,
-                'message': 'Корзина Dragonzap уже пуста.',
+                "cleared": False,
+                "cleared_items": 0,
+                "message": "Корзина Dragonzap уже пуста.",
             }
 
         cleaned = await dz.clean_basket(api_key=KEY)
@@ -927,30 +943,30 @@ async def clear_dragonzap_basket(
             raise HTTPException(
                 status_code=502,
                 detail=(
-                    'Не удалось очистить корзину Dragonzap. '
-                    'Проверьте сайт вручную и повторите попытку.'
+                    "Не удалось очистить корзину Dragonzap. "
+                    "Проверьте сайт вручную и повторите попытку."
                 ),
             )
 
     cleared_items = len(current_basket_items)
     if cleared_items:
         success_message = (
-            f'Корзина Dragonzap очищена. Удалено позиций: {cleared_items}.'
+            f"Корзина Dragonzap очищена. Удалено позиций: {cleared_items}."
         )
     else:
-        success_message = 'Корзина Dragonzap очищена.'
+        success_message = "Корзина Dragonzap очищена."
     await _notify_current_user(
         session,
         current_user,
-        title='Корзина Dragonzap очищена',
+        title="Корзина Dragonzap очищена",
         message=success_message,
         level=AppNotificationLevel.INFO,
-        link='/autoparts/offers',
+        link="/autoparts/offers",
     )
     return {
-        'cleared': True,
-        'cleared_items': cleared_items,
-        'message': success_message,
+        "cleared": True,
+        "cleared_items": cleared_items,
+        "message": success_message,
     }
 
 
