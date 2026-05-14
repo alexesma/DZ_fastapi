@@ -15,6 +15,15 @@ from dz_fastapi.models.cross import AutoPartCross, AutoPartSubstitution  # noqa
 from dz_fastapi.models.diadoc import DiadocIncomingDocument  # noqa
 from dz_fastapi.models.diadoc import DiadocOutgoingDocument
 from dz_fastapi.models.email_account import EmailAccount  # noqa
+from dz_fastapi.models.finance import (  # noqa
+    BankAccount,
+    BankStatement,
+    BankTransaction,
+    CustomerPayment,
+    PaymentInvoice,
+    PaymentInvoiceItem,
+    SupplierPayment,
+)
 from dz_fastapi.models.inbox_email import EmailRulePattern, InboxEmail, InboxForceProcessAudit
 from dz_fastapi.models.inventory import InventoryItem  # noqa
 from dz_fastapi.models.inventory import (
@@ -139,6 +148,13 @@ __all__ = [
     "DiadocIncomingDocument",
     "DiadocOutgoingDocument",
     "EmailAccount",
+    "PaymentInvoice",
+    "PaymentInvoiceItem",
+    "CustomerPayment",
+    "SupplierPayment",
+    "BankAccount",
+    "BankStatement",
+    "BankTransaction",
     "InboxEmail",
     "EmailRulePattern",
     "InboxForceProcessAudit",
