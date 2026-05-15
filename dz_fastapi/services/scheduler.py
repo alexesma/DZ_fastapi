@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import os
+import resource
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
@@ -144,10 +145,28 @@ SUPPLIER_DOCUMENTS_CHECK_MINUTES = _env_int_with_min(
 DIADOC_INBOUND_SYNC_MINUTES = _env_int_with_min(
     "SCHED_DIADOC_INBOUND_EVERY_MINUTES", 15, min_value=5, max_value=59
 )
+PRICE_PROVIDER_PROCESS_PARALLELISM = _env_int_with_min(
+    "PRICE_PROVIDER_PROCESS_PARALLELISM", 1, min_value=1, max_value=4
+)
 # How long to "slow poll" for orders when outside expected windows (minutes)
 ORDERS_SLOW_POLL_MINUTES = _env_int_with_min(
     "SCHED_ORDERS_SLOW_POLL_MINUTES", 20, min_value=5, max_value=59
 )
+
+
+def _process_rss_mb() -> float | None:
+    """
+    Return current process RSS in MB for lightweight OOM diagnostics.
+    """
+    try:
+        usage = resource.getrusage(resource.RUSAGE_SELF)
+        rss_kb = float(usage.ru_maxrss or 0)
+        if rss_kb <= 0:
+            return None
+        # On Linux ru_maxrss is reported in kilobytes.
+        return rss_kb / 1024.0
+    except Exception:
+        return None
 
 
 async def _notify_scheduler_issue(
@@ -726,6 +745,15 @@ async def _process_one(item, app: FastAPI, sem: asyncio.Semaphore):
                         f"Скачан прайс для провайдера {provider.id} "
                         f"({provider.name}), размер: {len(file_content)} байт"
                     )
+                    rss_before = _process_rss_mb()
+                    if rss_before is not None:
+                        logger.info(
+                            "Provider pricelist processing start: "
+                            "provider_id=%s config_id=%s rss_mb=%.1f",
+                            provider.id,
+                            provider_conf.id if provider_conf else None,
+                            rss_before,
+                        )
                     await process_provider_pricelist(
                         provider=provider,
                         file_content=file_content,
@@ -740,12 +768,22 @@ async def _process_one(item, app: FastAPI, sem: asyncio.Semaphore):
                         qty_col=None,
                         price_col=None,
                         session=session,
+                        include_autoparts_response=False,
                     )
                     logger.info(
                         f"Успешно обработан прайс для провайдера {provider.id}"
                     )
+                    rss_after = _process_rss_mb()
+                    if rss_after is not None:
+                        logger.info(
+                            "Provider pricelist processing end: "
+                            "provider_id=%s config_id=%s rss_mb=%.1f",
+                            provider.id,
+                            provider_conf.id if provider_conf else None,
+                            rss_after,
+                        )
 
-                    if (
+                    if ENABLE_LEGACY_ZZAP_AUTO_SEND and (
                         provider.id == 1
                         or provider.name == PROVIDER_IN["name"]
                     ):
@@ -1503,7 +1541,14 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
     if not downloaded:
         logger.info("Новых писем для обработки не найдено.")
         return
-    sem = asyncio.Semaphore(2)
+    rss_before = _process_rss_mb()
+    logger.info(
+        "Starting provider pricelist processing: files=%s parallelism=%s rss_mb=%s",
+        len(downloaded),
+        PRICE_PROVIDER_PROCESS_PARALLELISM,
+        f"{rss_before:.1f}" if rss_before is not None else "n/a",
+    )
+    sem = asyncio.Semaphore(PRICE_PROVIDER_PROCESS_PARALLELISM)
     process_start = time.perf_counter()
     tasks = [
         asyncio.create_task(_process_one(item, app, sem))
@@ -1537,6 +1582,12 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
         f"process_new_provider_emails завершена за {total_time:.2f} секунд. "
         f"Успешно: {successful}, Ошибок: {errors}"
     )
+    rss_after = _process_rss_mb()
+    if rss_after is not None:
+        logger.info(
+            "Finished provider pricelist processing: rss_mb=%.1f",
+            rss_after,
+        )
 
 
 def _is_price_check_due(schedule) -> bool:
@@ -1554,6 +1605,9 @@ def _is_price_check_due(schedule) -> bool:
 
 async def download_price_provider_task(app: FastAPI):
     logger.info("Starting download_price_provider_task")
+    rss_before = _process_rss_mb()
+    if rss_before is not None:
+        logger.info("download_price_provider_task rss_before=%.1f", rss_before)
     async_session_factory = app.state.session_factory
     async with async_session_factory() as session:
         try:
@@ -1594,6 +1648,12 @@ async def download_price_provider_task(app: FastAPI):
                 message="Price check completed",
             )
             logger.info("Completed download_price_provider_task")
+            rss_after = _process_rss_mb()
+            if rss_after is not None:
+                logger.info(
+                    "download_price_provider_task rss_after=%.1f",
+                    rss_after,
+                )
         except asyncio.CancelledError:
             if getattr(app.state, "is_shutting_down", False):
                 logger.info(

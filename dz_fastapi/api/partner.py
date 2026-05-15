@@ -2518,6 +2518,7 @@ async def download_provider_pricelist(
             price_col=None,
             session=session,
             return_stats=True,
+            include_autoparts_response=False,
         )
         return {
             "detail": (

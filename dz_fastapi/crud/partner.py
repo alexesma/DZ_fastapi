@@ -1513,6 +1513,9 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         self, obj_in: PriceListCreate, session: AsyncSession, **kwargs
     ) -> PriceListResponse:
         try:
+            include_autoparts_response = bool(
+                kwargs.pop("include_autoparts_response", True)
+            )
             obj_in_data = obj_in.model_dump()
             autoparts_data = obj_in_data.pop("autoparts", [])
             db_obj = self.model(**obj_in_data)
@@ -1551,8 +1554,6 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                 autopart_data_dict = dict(autopart_assoc_data["autopart"])
                 quantity = autopart_assoc_data["quantity"]
                 price = autopart_assoc_data["price"]
-
-                logger.debug(f"Processing AutoPart data: {autopart_data_dict}")
 
                 item_default_brand = default_brand
                 raw_brand_name = autopart_data_dict.get("brand")
@@ -1650,7 +1651,6 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                             "quantity": current_data["quantity"],
                         }
                     )
-                    logger.debug(f"New position: autopart_id={autopart_id}")
                     continue
                 price_changed = current_data["price"] != last["price"]
                 qty_changed = current_data["quantity"] != last["quantity"]
@@ -1689,10 +1689,6 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                             "quantity": 0,
                         }
                     )
-                    logger.debug(
-                        f"Position disappeared: autopart_id={autopart_id}, "
-                        f"recording qty=0"
-                    )
             if bulk_insert_data_history:
                 logger.debug(
                     f"Bulk inserting "
@@ -1721,6 +1717,16 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             await session.commit()
             await session.refresh(db_obj)
 
+            provider_obj = await session.get(Provider, db_obj.provider_id)
+            if not include_autoparts_response:
+                return PriceListResponse(
+                    id=db_obj.id,
+                    date=db_obj.date,
+                    provider=provider_obj,
+                    provider_config_id=db_obj.provider_config_id,
+                    autoparts=[],
+                )
+
             stmt = (
                 select(PriceList)
                 .where(PriceList.id == db_obj.id)
@@ -1736,25 +1742,13 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             )
             result = await session.execute(stmt)
             db_obj = result.scalar_one()
-            logger.debug(f"Retrieved PriceList: {db_obj}")
-            if hasattr(db_obj, "autopart_associations"):
-                for assoc in db_obj.autopart_associations:
-                    logger.debug(
-                        f"AutoPart Association - "
-                        f"Pricelist ID: {assoc.pricelist_id}, "
-                        f"Autopart ID: {assoc.autopart_id}, "
-                        f"Quantity: {assoc.quantity}, "
-                        f"Price: {assoc.price}"
-                    )
-                    if hasattr(assoc, "autopart"):
-                        logger.debug(
-                            f"AutoPart - ID: {assoc.autopart.id}, "
-                            f"OEM Number: {assoc.autopart.oem_number}, "
-                            f"Name: {assoc.autopart.name}"
-                        )
+            logger.debug(
+                "Retrieved PriceList id=%s associations=%s",
+                db_obj.id,
+                len(getattr(db_obj, "autopart_associations", []) or []),
+            )
 
             try:
-                provider_obj = await session.get(Provider, db_obj.provider_id)
                 response = PriceListResponse(
                     id=db_obj.id,
                     date=db_obj.date,

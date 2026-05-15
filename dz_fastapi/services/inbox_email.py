@@ -1993,6 +1993,7 @@ async def _process_price_list(
                     qty_col=None,
                     price_col=None,
                     session=session,
+                    include_autoparts_response=False,
                 )
                 processed_configs.append(config.id)
             except Exception as e:

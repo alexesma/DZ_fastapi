@@ -119,6 +119,18 @@ DEFAULT_CUSTOMER_PRICELIST_OUTBOX_EMAIL = (
 )
 
 
+def _dataframe_summary(df: pd.DataFrame, label: str) -> str:
+    if df is None:
+        return f"{label}: <none>"
+    columns = [str(col) for col in list(df.columns[:10])]
+    extra_columns = max(len(df.columns) - len(columns), 0)
+    return (
+        f"{label}: rows={len(df)} cols={len(df.columns)} "
+        f"columns={columns}"
+        f"{' ...' if extra_columns else ''}"
+    )
+
+
 def _is_pricelist_out_account_eligible(account) -> bool:
     purposes = [str(p).lower() for p in (account.purposes or [])]
     return account.is_active and (
@@ -797,6 +809,7 @@ async def process_provider_pricelist(
     price_col: Optional[int],
     session: AsyncSession,
     return_stats: bool = False,
+    include_autoparts_response: bool = True,
 ):
     logger.debug(
         f"Зашли в process_provider_pricelist "
@@ -849,6 +862,20 @@ async def process_provider_pricelist(
     deduplicated_data = _apply_provider_filters(
         deduplicated_data, provider_list_conf
     )
+    logger.info(
+        "Prepared provider pricelist payload: provider_id=%s "
+        "config_id=%s rows_total=%s rows_clean=%s "
+        "rows_deduplicated=%s rows_removed=%s "
+        "rows_dedup_removed=%s rows_after_filters=%s",
+        provider.id,
+        provider_list_conf.id,
+        stats.get("rows_total"),
+        stats.get("rows_clean"),
+        stats.get("rows_deduplicated"),
+        stats.get("rows_removed"),
+        stats.get("rows_dedup_removed"),
+        len(deduplicated_data),
+    )
 
     pricelist_in = PriceListCreate(
         provider_id=provider.id,
@@ -857,15 +884,12 @@ async def process_provider_pricelist(
     )
 
     for item in deduplicated_data:
-        logger.debug(f"Processing item: {item}")
-
         try:
             autopart_data = AutoPartCreatePriceList(
                 oem_number=item["oem_number"],
                 brand=item.get("brand"),
                 name=item.get("name"),
             )
-            logger.debug(f"Created AutoPartCreatePriceList: {autopart_data}")
         except KeyError as ke:
             logger.error(f"Missing key in item: {ke}")
             raise HTTPException(
@@ -883,7 +907,9 @@ async def process_provider_pricelist(
     # Create the price list
     try:
         pricelist = await crud_pricelist.create(
-            obj_in=pricelist_in, session=session
+            obj_in=pricelist_in,
+            session=session,
+            include_autoparts_response=include_autoparts_response,
         )
         await handle_provider_pricelist_watch(
             session=session,
@@ -1556,7 +1582,7 @@ async def process_customer_pricelist(
             df = await crud_pricelist.transform_to_dataframe(
                 associations=associations, session=session
             )
-            logger.debug(f"Transform file to dataframe {df}")
+            logger.debug(_dataframe_summary(df, "customer_pricelist_source_df"))
 
             df = crud_customer_pricelist.apply_coefficient(
                 df, config, apply_general_markup=True
@@ -1594,7 +1620,7 @@ async def process_customer_pricelist(
             df = await crud_pricelist.transform_to_dataframe(
                 associations=associations, session=session
             )
-            logger.debug(f"Transform file to dataframe {df}")
+            logger.debug(_dataframe_summary(df, "customer_pricelist_latest_df"))
 
             df = _apply_source_filters(df, source)
             if df.empty:
@@ -1611,7 +1637,7 @@ async def process_customer_pricelist(
     else:
         final_df = pd.DataFrame()
 
-    logger.debug(f"Final DataFrame before creating associations:\n{final_df}")
+    logger.debug(_dataframe_summary(final_df, "customer_pricelist_final_df"))
     if not final_df.empty:
         overrides = await crud_customer_pricelist_override.get_for_config(
             session=session, config_id=config.id
@@ -1699,7 +1725,7 @@ async def process_customer_pricelist(
         df_diller = await crud_pricelist.transform_to_dataframe(
             associations=associations, session=session
         )
-        logger.debug(f"Transform file to dataframe {df_diller}")
+        logger.debug(_dataframe_summary(df_diller, "zzap_diller_df"))
         df_diller_rename = df_diller.rename(
             columns={
                 "brand": "Производитель",
@@ -1748,7 +1774,7 @@ async def process_customer_pricelist(
         df_excel = await add_origin_brand_from_dz(
             price_zzap=df_excel, session=session
         )
-        logger.debug(f"Измененный файл для ZZAP: {df_excel}")
+        logger.debug(_dataframe_summary(df_excel, "zzap_excel_df"))
 
     if bool(getattr(config, "collapse_duplicates_by_min_price", True)):
         df_excel = _collapse_duplicate_excel_rows(df_excel)

@@ -38,13 +38,15 @@ from dz_fastapi.services.telegram_bot import start_telegram_bot
 # --- Логирование ---
 # Настройка логгера
 logger = logging.getLogger("dz_fastapi")
-logger.setLevel(logging.DEBUG)
+LOG_LEVEL_NAME = os.getenv("APP_LOG_LEVEL", "INFO").strip().upper()
+LOG_LEVEL = getattr(logging, LOG_LEVEL_NAME, logging.INFO)
+logger.setLevel(LOG_LEVEL)
 
 # Создание обработчика для записи логов в файл
 handler = RotatingFileHandler(
     "dz_fastapi.log", maxBytes=200000, backupCount=100
 )
-handler.setLevel(logging.DEBUG)
+handler.setLevel(LOG_LEVEL)
 
 # Создание формата для логов
 formatter = logging.Formatter(
