@@ -10,6 +10,7 @@ from dz_fastapi.models.settings import CustomerOrderInboxSettings
 from dz_fastapi.services.scheduler import (
     _close_stale_supplier_response_messages,
     _notify_scheduler_issue,
+    _should_run_scheduled_job,
     download_price_provider_task,
 )
 
@@ -126,3 +127,96 @@ async def test_close_stale_supplier_response_messages(
     types = [row.message_type for row in rows]
     assert types == ["IGNORED", "IGNORED", "IMPORT_ERROR"]
     assert "Автозакрыто как устаревшее: старше 7 дн." in (rows[0].import_error_details or "")
+
+
+@pytest.mark.asyncio
+async def test_should_run_scheduled_job_allows_cleanup_catch_up(
+    monkeypatch,
+):
+    now = now_moscow().replace(hour=3, minute=10, second=0, microsecond=0)
+    setting = SimpleNamespace(
+        enabled=True,
+        days=[],
+        times=["02:30"],
+        last_run_at=now - timedelta(days=1),
+    )
+
+    async def fake_get_or_create(session, key, defaults=None):
+        assert key == "cleanup_old_pricelists"
+        return setting
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.scheduler.crud_scheduler_setting.get_or_create",
+        fake_get_or_create,
+    )
+    monkeypatch.setattr("dz_fastapi.services.scheduler.now_moscow", lambda: now)
+
+    should_run, resolved_setting = await _should_run_scheduled_job(
+        session=SimpleNamespace(),
+        key="cleanup_old_pricelists",
+    )
+
+    assert should_run is True
+    assert resolved_setting is setting
+
+
+@pytest.mark.asyncio
+async def test_should_run_scheduled_job_skips_cleanup_outside_catch_up_window(
+    monkeypatch,
+):
+    now = now_moscow().replace(hour=10, minute=0, second=0, microsecond=0)
+    setting = SimpleNamespace(
+        enabled=True,
+        days=[],
+        times=["02:30"],
+        last_run_at=now - timedelta(days=1),
+    )
+
+    async def fake_get_or_create(session, key, defaults=None):
+        assert key == "cleanup_old_pricelists"
+        return setting
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.scheduler.crud_scheduler_setting.get_or_create",
+        fake_get_or_create,
+    )
+    monkeypatch.setattr("dz_fastapi.services.scheduler.now_moscow", lambda: now)
+
+    should_run, resolved_setting = await _should_run_scheduled_job(
+        session=SimpleNamespace(),
+        key="cleanup_old_pricelists",
+    )
+
+    assert should_run is False
+    assert resolved_setting is setting
+
+
+@pytest.mark.asyncio
+async def test_should_run_scheduled_job_allows_watchlist_notify_catch_up(
+    monkeypatch,
+):
+    now = now_moscow().replace(hour=9, minute=20, second=0, microsecond=0)
+    setting = SimpleNamespace(
+        enabled=True,
+        days=[],
+        times=["09:00"],
+        last_run_at=now - timedelta(days=1),
+    )
+
+    async def fake_get_or_create(session, key, defaults=None):
+        assert key == "watchlist_notify"
+        return setting
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.scheduler.crud_scheduler_setting.get_or_create",
+        fake_get_or_create,
+    )
+    monkeypatch.setattr("dz_fastapi.services.scheduler.now_moscow", lambda: now)
+
+    should_run, resolved_setting = await _should_run_scheduled_job(
+        session=SimpleNamespace(),
+        key="watchlist_notify",
+    )
+
+    assert should_run is True
+    assert resolved_setting is setting

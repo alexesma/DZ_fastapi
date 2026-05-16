@@ -95,6 +95,17 @@ EMAIL_HOST_ORDER = os.getenv("EMAIL_HOST_ORDERS")
 PRICELIST_STALE_ALERT_RETENTION_DAYS = int(
     os.getenv("PRICELIST_STALE_ALERT_RETENTION_DAYS", "7")
 )
+CLEANUP_OLD_PRICELISTS_CATCH_UP_MINUTES = int(
+    os.getenv("CLEANUP_OLD_PRICELISTS_CATCH_UP_MINUTES", "360")
+)
+SCHEDULER_CATCH_UP_MINUTES = {
+    "watchlist_site_check": 180,
+    "watchlist_notify": 180,
+    "pricelist_stale_notify": 180,
+    "cleanup_old_pricelists": CLEANUP_OLD_PRICELISTS_CATCH_UP_MINUTES,
+    "pricelist_stale_cleanup": CLEANUP_OLD_PRICELISTS_CATCH_UP_MINUTES,
+    "metrics_snapshot": 120,
+}
 ENABLE_LEGACY_ZZAP_AUTO_SEND = os.getenv(
     "ENABLE_LEGACY_ZZAP_AUTO_SEND", "0"
 ).strip().lower() in {"1", "true", "yes", "on"}
@@ -574,15 +585,17 @@ def start_scheduler(app: FastAPI):
     )
 
     # ── Ночные технические задачи (02–04 МСК) ─────────────────────────────
-    # 02:00 — очистка старых прайсов (keep last 5/10)
+    # Очистка старых прайсов:
+    # просыпаемся каждые 10 минут, а точное расписание берём из настройки.
+    # Это даёт шанс догнать пропущенный запуск после OOM/рестарта.
     scheduler.add_job(
         func=cleanup_old_pricelists_task,
         trigger="cron",
         args=[app],
         id="cleanup_old_pricelists",
         name="Cleanup old pricelists keep last 5",
-        hour=2,
-        minute=0,
+        hour="0-23",
+        minute="*/10",
         second=0,
         replace_existing=True,
     )
@@ -611,15 +624,16 @@ def start_scheduler(app: FastAPI):
         replace_existing=True,
     )
 
-    # 03:30 — очистка устаревших алертов прайсов
+    # Очистка алертов по прайсам:
+    # так же просыпаемся часто и полагаемся на guard/догоняющий запуск.
     scheduler.add_job(
         func=cleanup_pricelist_stale_alerts_task,
         trigger="cron",
         args=[app],
         id="cleanup_pricelist_stale_alerts",
         name="Cleanup stale pricelist alerts",
-        hour=3,
-        minute=30,
+        hour="0-23",
+        minute="*/10",
         second=0,
         replace_existing=True,
     )
@@ -1329,7 +1343,9 @@ def _day_key(now: datetime) -> str:
 
 
 async def _should_run_scheduled_job(
-    session: AsyncSession, key: str
+    session: AsyncSession,
+    key: str,
+    allow_missed_for: timedelta | None = None,
 ) -> tuple[bool, object | None]:
     defaults = SCHEDULER_SETTING_DEFAULTS.get(key)
     if not defaults:
@@ -1348,6 +1364,46 @@ async def _should_run_scheduled_job(
     time_key = now.strftime("%H:%M")
     if days and day_key not in days:
         return False, setting
+    if allow_missed_for is None:
+        catch_up_minutes = SCHEDULER_CATCH_UP_MINUTES.get(key, 0)
+        if catch_up_minutes > 0:
+            allow_missed_for = timedelta(minutes=catch_up_minutes)
+    now_minute = now.replace(second=0, microsecond=0)
+    if allow_missed_for and times:
+        scheduled_datetimes = []
+        for raw_time in times:
+            try:
+                hour_str, minute_str = str(raw_time).split(":", 1)
+                scheduled_at = now_minute.replace(
+                    hour=int(hour_str),
+                    minute=int(minute_str),
+                )
+            except (TypeError, ValueError):
+                logger.warning(
+                    "Invalid scheduler time %r for key=%s",
+                    raw_time,
+                    key,
+                )
+                continue
+            scheduled_datetimes.append(scheduled_at)
+        for scheduled_at in sorted(scheduled_datetimes, reverse=True):
+            delay = now_minute - scheduled_at
+            if delay < timedelta(0):
+                continue
+            if delay > allow_missed_for:
+                continue
+            if setting.last_run_at and setting.last_run_at >= scheduled_at:
+                continue
+            if delay > timedelta(0):
+                logger.warning(
+                    "Running scheduler job %s in catch-up mode: "
+                    "scheduled_for=%s now=%s delay_minutes=%s",
+                    key,
+                    scheduled_at.isoformat(),
+                    now_minute.isoformat(),
+                    int(delay.total_seconds() // 60),
+                )
+            return True, setting
     if times and time_key not in times:
         return False, setting
     if setting.last_run_at:
