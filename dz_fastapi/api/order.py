@@ -598,6 +598,10 @@ async def send_api(
                     if added_to_basket:
                         staged_success.append((item, request_tracking_uuid))
                     else:
+                        failure_detail = (
+                            dz_site_client.last_error_detail
+                            or "Ошибка при добавлении в корзину"
+                        )
                         await crud_order_item.update_order_item_status(
                             tracking_uuid=item.tracking_uuid,
                             new_status=TYPE_ORDER_ITEM_STATUS.FAILED,
@@ -610,7 +614,7 @@ async def send_api(
                                     request_tracking_uuid
                                 ),
                                 "status": "error",
-                                "message": "Ошибка при добавлении в корзину",
+                                "message": failure_detail,
                             }
                         )
                         failed_count += 1
@@ -672,10 +676,13 @@ async def send_api(
                     basket_cleaned = await dz_site_client.clean_basket(
                         api_key=KEY
                     )
+                failure_reason = dz_site_client.last_error_detail
                 failure_message = (
                     "Корзина на Dragonzap не была оформлена в заказ. "
                     "Локальная запись не создана."
                 )
+                if failure_reason:
+                    failure_message += f" Причина: {failure_reason}."
                 if basket_cleaned:
                     failure_message += " Временная корзина очищена."
                 else:

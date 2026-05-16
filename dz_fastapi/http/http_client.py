@@ -17,6 +17,11 @@ class HTTPClient:
         self.api_key = api_key
         self.verify_ssl = verify_ssl
         self._session: ClientSession | None = None
+        self.last_error_detail: str | None = None
+
+    def _set_last_error_detail(self, detail: str | None) -> None:
+        normalized = str(detail or "").strip()
+        self.last_error_detail = normalized[:1000] if normalized else None
 
     def _make_connector(self):
         return TCPConnector(ssl=(False if not self.verify_ssl else None))
@@ -49,6 +54,7 @@ class HTTPClient:
 
     async def get(self, path: str, params: dict | None = None):
         self._ensure_session()
+        self._set_last_error_detail(None)
         url = self._resolve_url(path)
         params = dict(params or {})
         params.setdefault("api_key", self.api_key)
@@ -59,6 +65,9 @@ class HTTPClient:
                 async with self._session.get(url, params=params) as resp:
                     text = await resp.text()
                     if resp.status >= 400:
+                        self._set_last_error_detail(
+                            f"GET {url} -> {resp.status}: {text}"
+                        )
                         logger.warning(f"GET {url} -> {resp.status}: {text}")
                         resp.raise_for_status()
                     logger.debug(f"GET {url} <- {text}")
@@ -70,6 +79,7 @@ class HTTPClient:
                 OSError,
             ) as e:
                 last_error = e
+                self._set_last_error_detail(str(e))
                 logger.warning(
                     f"Ошибка GET {url} (попытка {attempt + 1}/3): {e}"
                 )
@@ -78,6 +88,9 @@ class HTTPClient:
                     continue
             except json.JSONDecodeError as e:
                 last_error = e
+                self._set_last_error_detail(
+                    f"Ошибка парсинга JSON от {url}: {e}"
+                )
                 logger.warning(f"Ошибка парсинга JSON от {url}: {e}")
             break
         if last_error:
@@ -94,6 +107,7 @@ class HTTPClient:
         headers: dict | None = None,
     ) -> Optional[dict]:
         self._ensure_session()
+        self._set_last_error_detail(None)
         url = self._resolve_url(path)
         params = dict(params or {})
         params.setdefault("api_key", self.api_key)
@@ -122,11 +136,17 @@ class HTTPClient:
                 ) as resp:
                     text = await resp.text()
                     if resp.status >= 400:
+                        self._set_last_error_detail(
+                            f"POST {url} -> {resp.status}: {text}"
+                        )
                         logger.warning(f"POST {url} -> {resp.status}: {text}")
                         resp.raise_for_status()
                     try:
                         parsed = json.loads(text) if text else {}
                     except json.JSONDecodeError:
+                        self._set_last_error_detail(
+                            f"POST {url} вернул не-JSON: {text}"
+                        )
                         logger.warning(f"POST {url} вернул не-JSON: {text}")
                         return None
                     logger.debug(f"POST {url} parsed response: {parsed}")
@@ -135,6 +155,13 @@ class HTTPClient:
                         isinstance(parsed, dict)
                         and parsed.get("result") == "error"
                     ):
+                        self._set_last_error_detail(
+                            str(
+                                parsed.get("message")
+                                or parsed.get("detail")
+                                or parsed
+                            )
+                        )
                         logger.warning(f"API ответил ошибкой: {parsed}")
                         return None
                     return parsed
@@ -145,6 +172,7 @@ class HTTPClient:
                 OSError,
             ) as e:
                 last_error = e
+                self._set_last_error_detail(str(e))
                 logger.warning(
                     f"Ошибка POST {url} (попытка {attempt + 1}/3): {e}"
                 )
