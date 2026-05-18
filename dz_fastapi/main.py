@@ -30,6 +30,7 @@ from dz_fastapi.api.settings import router as settings_router
 from dz_fastapi.api.watchlist import router as watchlist_router
 from dz_fastapi.api.webchat import router as webchat_router
 from dz_fastapi.core.config import settings
+from dz_fastapi.core.constants import get_upload_dir
 from dz_fastapi.core.db import dispose_engines, get_async_session
 from dz_fastapi.services.auth import ensure_admin_user
 from dz_fastapi.services.scheduler import start_scheduler
@@ -120,9 +121,11 @@ async def health():
     return {"status": "ok"}
 
 
+uploads_dir = os.path.abspath(get_upload_dir())
+
 app.mount(
     "/uploads",
-    StaticFiles(directory=os.path.join(os.getcwd(), "uploads")),
+    StaticFiles(directory=uploads_dir),
     name="uploads",
 )
 # CORS настройка!
