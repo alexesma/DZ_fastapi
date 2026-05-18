@@ -15,6 +15,8 @@ class PriceWatchItemCreate(PriceWatchItemBase):
 
 
 class PriceWatchItemUpdate(BaseModel):
+    brand: Optional[str] = None
+    oem: Optional[str] = None
     max_price: Optional[float] = None
 
 

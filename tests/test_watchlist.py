@@ -26,6 +26,20 @@ async def test_watchlist_crud(async_client):
     data = response.json()
     assert any(row["id"] == item["id"] for row in data["items"])
 
+    response = await async_client.patch(
+        f"/watchlist/{item['id']}",
+        json={
+            "brand": "TEST-UPDATED",
+            "oem": "XYZ999",
+            "max_price": 111.5,
+        },
+    )
+    assert response.status_code == 200
+    updated = response.json()
+    assert updated["brand"] == "TEST-UPDATED"
+    assert updated["oem"] == "XYZ999"
+    assert updated["max_price"] == 111.5
+
     response = await async_client.delete(f"/watchlist/{item['id']}")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"

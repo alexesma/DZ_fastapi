@@ -38,13 +38,13 @@ async def test_watchlist_provider_creates_admin_notification(
 
     sent = {}
 
-    async def fake_create_admin_notifications(**kwargs):
+    async def fake_notify_admin_all(**kwargs):
         sent.update(kwargs)
         return []
 
     monkeypatch.setattr(
-        "dz_fastapi.services.watchlist.create_admin_notifications",
-        fake_create_admin_notifications,
+        "dz_fastapi.services.watchlist.notify_admin_all",
+        fake_notify_admin_all,
     )
 
     items = [{"brand": "TESTBRAND", "oem_number": "OEM123", "price": 99.0, "quantity": 1}]
@@ -57,8 +57,8 @@ async def test_watchlist_provider_creates_admin_notification(
     )
 
     assert sent["session"] is test_session
-    assert sent["title"] == "Watchlist: позиция найдена в прайсе"
-    assert sent["level"] == AppNotificationLevel.INFO
+    assert sent["title"] == "Подходящая цена: позиция найдена в прайсе"
+    assert sent["level"] == AppNotificationLevel.WARNING
     assert sent["link"] == "/watchlist"
     assert sent["commit"] is False
     assert "TESTBRAND OEM123" in sent["message"]

@@ -3,7 +3,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.db import get_session
 from dz_fastapi.crud.watchlist import crud_price_watch_item
-from dz_fastapi.schemas.watchlist import PriceWatchItemCreate, PriceWatchItemOut, PriceWatchListPage
+from dz_fastapi.schemas.watchlist import (
+    PriceWatchItemCreate,
+    PriceWatchItemOut,
+    PriceWatchItemUpdate,
+    PriceWatchListPage,
+)
 
 router = APIRouter()
 
@@ -47,6 +52,28 @@ async def create_watch_item(
         oem=payload.oem,
         max_price=payload.max_price,
     )
+    return PriceWatchItemOut.model_validate(item)
+
+
+@router.patch(
+    "/watchlist/{item_id}",
+    tags=["watchlist"],
+    status_code=status.HTTP_200_OK,
+    response_model=PriceWatchItemOut,
+)
+async def update_watch_item(
+    item_id: int,
+    payload: PriceWatchItemUpdate,
+    session: AsyncSession = Depends(get_session),
+):
+    values = payload.model_dump(exclude_unset=True)
+    item = await crud_price_watch_item.update(
+        session=session,
+        item_id=item_id,
+        values=values,
+    )
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
     return PriceWatchItemOut.model_validate(item)
 
 

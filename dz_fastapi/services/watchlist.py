@@ -11,7 +11,7 @@ from dz_fastapi.crud.watchlist import crud_price_watch_item
 from dz_fastapi.http.dz_site_client import DZSiteClient
 from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import Client, Provider, ProviderPriceListConfig
-from dz_fastapi.services.notifications import create_admin_notifications
+from dz_fastapi.services.notifications import notify_admin_all
 from dz_fastapi.services.watchlist_site import (
     TOP_SITE_OFFERS_LIMIT,
     _collect_top_offers,
@@ -20,6 +20,7 @@ from dz_fastapi.services.watchlist_site import (
 
 logger = logging.getLogger("dz_fastapi")
 SITE_ITEM_SEPARATOR = "--------------------"
+WATCHLIST_PRICE_NOTIFICATION_PREFIX = "Подходящая цена"
 
 
 def _notify_immediately() -> bool:
@@ -82,11 +83,14 @@ async def handle_provider_pricelist_watch(
                     f"Поставщик {provider.name}"
                 )
                 try:
-                    await create_admin_notifications(
+                    await notify_admin_all(
                         session=session,
-                        title="Watchlist: позиция найдена в прайсе",
+                        title=(
+                            f"{WATCHLIST_PRICE_NOTIFICATION_PREFIX}: "
+                            "позиция найдена в прайсе"
+                        ),
                         message=message,
-                        level=AppNotificationLevel.INFO,
+                        level=AppNotificationLevel.WARNING,
                         link="/watchlist",
                         commit=False,
                     )
@@ -211,11 +215,14 @@ async def send_watchlist_daily_notifications(session: AsyncSession):
 
     message_text = "\n".join(lines)
     try:
-        await create_admin_notifications(
+        await notify_admin_all(
             session=session,
-            title="Watchlist: сводка по найденным позициям",
+            title=(
+                f"{WATCHLIST_PRICE_NOTIFICATION_PREFIX}: "
+                "сводка по найденным позициям"
+            ),
             message=message_text,
-            level=AppNotificationLevel.INFO,
+            level=AppNotificationLevel.WARNING,
             link="/watchlist",
             commit=False,
         )

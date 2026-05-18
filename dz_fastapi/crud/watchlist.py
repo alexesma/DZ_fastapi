@@ -56,6 +56,28 @@ class CRUDPriceWatchItem:
         await session.commit()
         return True
 
+    async def update(
+        self,
+        session: AsyncSession,
+        item_id: int,
+        values: dict,
+    ) -> PriceWatchItem | None:
+        item = await session.get(PriceWatchItem, item_id)
+        if not item:
+            return None
+
+        if "brand" in values:
+            item.brand = str(values["brand"] or "").strip()
+        if "oem" in values:
+            item.oem = str(values["oem"] or "").strip()
+        if "max_price" in values:
+            item.max_price = values["max_price"]
+
+        session.add(item)
+        await session.commit()
+        await session.refresh(item)
+        return item
+
     async def get_all(self, session: AsyncSession):
         return (await session.execute(select(PriceWatchItem))).scalars().all()
 

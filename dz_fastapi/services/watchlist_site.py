@@ -16,13 +16,14 @@ from dz_fastapi.models.autopart import AutoPartPriceHistory
 from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import Provider
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
-from dz_fastapi.services.notifications import create_admin_notifications
+from dz_fastapi.services.notifications import notify_admin_all
 
 logger = logging.getLogger("dz_fastapi")
 SITE_PROVIDER_NAME = "Сайт Dragonzap"
 SITE_PRICELIST_ID = 0
 PRICE_STEP = Decimal("0.01")
 TOP_SITE_OFFERS_LIMIT = 3
+WATCHLIST_PRICE_NOTIFICATION_PREFIX = "Подходящая цена"
 
 
 def _notify_immediately() -> bool:
@@ -308,11 +309,14 @@ async def check_watchlist_site(session):
                     message_lines.extend(format_top_offer_lines(top_offers))
                     message = "\n".join(message_lines)
                     try:
-                        await create_admin_notifications(
+                        await notify_admin_all(
                             session=session,
-                            title="Watchlist: позиция найдена на сайте",
+                            title=(
+                                f"{WATCHLIST_PRICE_NOTIFICATION_PREFIX}: "
+                                "позиция найдена на сайте"
+                            ),
                             message=message,
-                            level=AppNotificationLevel.INFO,
+                            level=AppNotificationLevel.WARNING,
                             link="/watchlist",
                             commit=False,
                         )

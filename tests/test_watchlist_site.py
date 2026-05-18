@@ -33,7 +33,7 @@ async def test_watchlist_site_creates_admin_notification(async_client, test_sess
 
     sent = {}
 
-    async def fake_create_admin_notifications(**kwargs):
+    async def fake_notify_admin_all(**kwargs):
         sent.update(kwargs)
         return []
 
@@ -42,14 +42,14 @@ async def test_watchlist_site_creates_admin_notification(async_client, test_sess
         lambda *args, **kwargs: FakeClient(),
     )
     monkeypatch.setattr(
-        "dz_fastapi.services.watchlist_site.create_admin_notifications",
-        fake_create_admin_notifications,
+        "dz_fastapi.services.watchlist_site.notify_admin_all",
+        fake_notify_admin_all,
     )
 
     await check_watchlist_site(test_session)
     assert sent["session"] is test_session
-    assert sent["title"] == "Watchlist: позиция найдена на сайте"
-    assert sent["level"] == AppNotificationLevel.INFO
+    assert sent["title"] == "Подходящая цена: позиция найдена на сайте"
+    assert sent["level"] == AppNotificationLevel.WARNING
     assert sent["link"] == "/watchlist"
     assert sent["commit"] is False
     assert "SITEBRAND SITE123" in sent["message"]

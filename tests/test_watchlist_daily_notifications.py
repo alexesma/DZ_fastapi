@@ -58,7 +58,7 @@ async def test_watchlist_daily_notification_site_separator_and_top3(
 
     sent = {}
 
-    async def fake_create_admin_notifications(**kwargs):
+    async def fake_notify_admin_all(**kwargs):
         sent.update(kwargs)
         return []
 
@@ -67,15 +67,15 @@ async def test_watchlist_daily_notification_site_separator_and_top3(
         lambda *args, **kwargs: FakeClient(),
     )
     monkeypatch.setattr(
-        "dz_fastapi.services.watchlist.create_admin_notifications",
-        fake_create_admin_notifications,
+        "dz_fastapi.services.watchlist.notify_admin_all",
+        fake_notify_admin_all,
     )
 
     await send_watchlist_daily_notifications(test_session)
 
     assert sent["session"] is test_session
-    assert sent["title"] == "Watchlist: сводка по найденным позициям"
-    assert sent["level"] == AppNotificationLevel.INFO
+    assert sent["title"] == "Подходящая цена: сводка по найденным позициям"
+    assert sent["level"] == AppNotificationLevel.WARNING
     assert sent["link"] == "/watchlist"
     assert sent["commit"] is False
     assert "Отслеживаемые позиции:" in sent["message"]
@@ -109,18 +109,18 @@ async def test_watchlist_daily_notification_marks_items_after_notification(
 
     sent = {}
 
-    async def fake_create_admin_notifications(**kwargs):
+    async def fake_notify_admin_all(**kwargs):
         sent.update(kwargs)
         return []
 
     monkeypatch.setattr(
-        "dz_fastapi.services.watchlist.create_admin_notifications",
-        fake_create_admin_notifications,
+        "dz_fastapi.services.watchlist.notify_admin_all",
+        fake_notify_admin_all,
     )
 
     await send_watchlist_daily_notifications(test_session)
     await test_session.refresh(item)
 
-    assert sent["title"] == "Watchlist: сводка по найденным позициям"
+    assert sent["title"] == "Подходящая цена: сводка по найденным позициям"
     assert "CCC 333" in sent["message"]
     assert item.last_notified_site_at is not None
