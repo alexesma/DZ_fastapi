@@ -258,6 +258,12 @@ def _build_basket_conflict_detail(basket_items: list[dict]) -> str:
     return detail
 
 
+def _site_client_error_detail(client: object) -> str | None:
+    detail = getattr(client, "last_error_detail", None)
+    normalized = str(detail or "").strip()
+    return normalized or None
+
+
 def _normalize_tracking_uuid(raw_value: str | None) -> str:
     value = (raw_value or "").strip()
     if value and len(value) <= 36:
@@ -599,7 +605,7 @@ async def send_api(
                         staged_success.append((item, request_tracking_uuid))
                     else:
                         failure_detail = (
-                            dz_site_client.last_error_detail
+                            _site_client_error_detail(dz_site_client)
                             or "Ошибка при добавлении в корзину"
                         )
                         await crud_order_item.update_order_item_status(
@@ -676,7 +682,7 @@ async def send_api(
                     basket_cleaned = await dz_site_client.clean_basket(
                         api_key=KEY
                     )
-                failure_reason = dz_site_client.last_error_detail
+                failure_reason = _site_client_error_detail(dz_site_client)
                 failure_message = (
                     "Корзина на Dragonzap не была оформлена в заказ. "
                     "Локальная запись не создана."
