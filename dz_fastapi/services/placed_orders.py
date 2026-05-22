@@ -1232,9 +1232,7 @@ async def get_tracking_history_insights(
         session,
         normalized_oem_numbers=normalized_oem_numbers or [normalized_oem],
     )
-    resolved_own_provider_config_id = own_provider_config_id or (
-        own_price_configs[0]["id"] if own_price_configs else None
-    )
+    resolved_own_provider_config_id = own_provider_config_id
     own_price_analysis = None
     if resolved_own_provider_config_id is not None:
         own_price_analysis = await _build_own_price_analysis(

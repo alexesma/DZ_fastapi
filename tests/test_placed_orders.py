@@ -423,6 +423,14 @@ async def test_get_tracking_history_insights_builds_price_and_own_stock_summary(
     )
     await test_session.commit()
 
+    summary_without_selected_own = await get_tracking_history_insights(
+        test_session,
+        oem_number="OEM123",
+    )
+
+    assert len(summary_without_selected_own["own_price_configs"]) == 1
+    assert summary_without_selected_own["own_price_analysis"] is None
+
     summary = await get_tracking_history_insights(
         test_session,
         oem_number="OEM123",
