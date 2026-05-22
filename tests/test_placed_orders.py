@@ -511,6 +511,108 @@ async def test_get_tracking_history_insights_builds_price_and_own_stock_summary(
 
 
 @pytest.mark.asyncio
+async def test_get_tracking_history_insights_includes_site_cross_oems_in_system_checks(
+    test_session,
+):
+    today = now_moscow().date()
+    provider = Provider(
+        name="Site cross provider",
+        email_contact="sitecross@example.com",
+        email_incoming_price="sitecross-prices@example.com",
+        type_prices="Wholesale",
+    )
+    customer = Customer(
+        name="Site cross customer",
+        email_contact="sitecross-customer@example.com",
+        email_outgoing_price="sitecross-out@example.com",
+        type_prices="Wholesale",
+    )
+    brand = Brand(name="SITECROSS")
+    test_session.add_all([provider, customer, brand])
+    await test_session.flush()
+
+    base_autopart = AutoPart(
+        name="Base OEM",
+        brand_id=brand.id,
+        oem_number="OEM123",
+    )
+    site_cross_autopart = AutoPart(
+        name="Site cross OEM",
+        brand_id=brand.id,
+        oem_number="OEMSITE",
+    )
+    test_session.add_all([base_autopart, site_cross_autopart])
+    await test_session.flush()
+
+    config = ProviderPriceListConfig(
+        provider_id=provider.id,
+        start_row=1,
+        oem_col=1,
+        qty_col=2,
+        price_col=3,
+        name_price="Site cross config",
+    )
+    test_session.add(config)
+    await test_session.flush()
+
+    pricelist = PriceList(
+        provider_id=provider.id,
+        provider_config_id=config.id,
+        date=today,
+    )
+    test_session.add(pricelist)
+    await test_session.flush()
+
+    test_session.add(
+        PriceListAutoPartAssociation(
+            pricelist_id=pricelist.id,
+            autopart_id=site_cross_autopart.id,
+            quantity=4,
+            price=55,
+            multiplicity=1,
+        )
+    )
+
+    site_order = Order(
+        provider_id=provider.id,
+        customer_id=customer.id,
+        source_type=ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
+        created_at=now_moscow() - timedelta(days=7),
+        status=TYPE_STATUS_ORDER.SHIPPED,
+    )
+    test_session.add(site_order)
+    await test_session.flush()
+
+    test_session.add(
+        OrderItem(
+            order_id=site_order.id,
+            autopart_id=site_cross_autopart.id,
+            oem_number="OEMSITE",
+            brand_name="SITECROSS",
+            autopart_name="Site cross OEM",
+            quantity=2,
+            received_quantity=2,
+            price=60,
+            received_at=site_order.created_at + timedelta(days=2),
+            status=TYPE_ORDER_ITEM_STATUS.DELIVERED,
+        )
+    )
+    await test_session.commit()
+
+    summary = await get_tracking_history_insights(
+        test_session,
+        oem_number="OEM123",
+        extra_oem_numbers=["OEMSITE"],
+    )
+
+    assert summary["cross_oem_numbers"] == []
+    assert summary["site_cross_oem_numbers"] == ["OEMSITE"]
+    assert summary["order_count_last_year"] == 1
+    assert summary["min_offer_with_crosses"]["oem_number"] == "OEMSITE"
+    assert float(summary["min_offer_with_crosses"]["price"]) == 55.0
+
+
+@pytest.mark.asyncio
 async def test_update_tracking_item_updates_site_status_and_received_qty(
     test_session,
 ):

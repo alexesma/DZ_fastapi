@@ -296,6 +296,7 @@ class TrackingInsightOwnPriceAnalysis(BaseModel):
 class TrackingHistoryInsightSummary(BaseModel):
     oem_number: str
     cross_oem_numbers: List[str] = Field(default_factory=list)
+    site_cross_oem_numbers: List[str] = Field(default_factory=list)
     exact_min_offer: Optional[AutopartOfferRow] = None
     min_offer_with_crosses: Optional[AutopartOfferRow] = None
     order_count_last_year: int = 0

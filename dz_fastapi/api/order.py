@@ -56,6 +56,7 @@ from dz_fastapi.services.notifications import create_notification
 from dz_fastapi.services.placed_orders import (
     get_tracking_history_insights,
     list_tracking_history,
+    _normalize_oem,
     sync_site_tracking_statuses,
     update_tracking_item,
 )
@@ -258,6 +259,20 @@ def _build_basket_conflict_detail(basket_items: list[dict]) -> str:
         " Очистите корзину Dragonzap на сайте вручную и повторите отправку."
     )
     return detail
+
+
+def _parse_site_cross_oems(raw_value: str | None) -> list[str]:
+    if not raw_value:
+        return []
+    result: list[str] = []
+    seen: set[str] = set()
+    for part in str(raw_value).split(","):
+        normalized = _normalize_oem(part)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        result.append(normalized)
+    return result
 
 
 def _site_client_error_detail(client: object) -> str | None:
@@ -929,6 +944,7 @@ async def send_api(
 async def get_tracking_items(
     oem: Optional[str] = None,
     brand: Optional[str] = None,
+    site_cross_oems: Optional[str] = Query(default=None),
     provider_id: Optional[int] = None,
     customer_id: Optional[int] = None,
     status: Optional[str] = None,
@@ -944,6 +960,7 @@ async def get_tracking_items(
         session=session,
         oem_number=oem,
         brand_name=brand,
+        extra_oem_numbers=_parse_site_cross_oems(site_cross_oems),
         provider_id=provider_id,
         customer_id=customer_id,
         status=status,
@@ -963,6 +980,7 @@ async def get_tracking_items(
 async def get_tracking_summary(
     oem: Optional[str] = None,
     brand: Optional[str] = None,
+    site_cross_oems: Optional[str] = Query(default=None),
     own_provider_config_id: Optional[int] = Query(default=None),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
@@ -971,6 +989,7 @@ async def get_tracking_summary(
         session=session,
         oem_number=oem,
         brand_name=brand,
+        extra_oem_numbers=_parse_site_cross_oems(site_cross_oems),
         own_provider_config_id=own_provider_config_id,
     )
 

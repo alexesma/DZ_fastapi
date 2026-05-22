@@ -515,6 +515,7 @@ async def list_tracking_history(
     *,
     oem_number: Optional[str] = None,
     brand_name: Optional[str] = None,
+    extra_oem_numbers: Optional[list[str]] = None,
     provider_id: Optional[int] = None,
     customer_id: Optional[int] = None,
     status: Optional[str] = None,
@@ -530,6 +531,17 @@ async def list_tracking_history(
         brand_name=brand_name,
         include_crosses=include_crosses,
     )
+    extra_normalized_oems = [
+        normalized
+        for normalized in (
+            _normalize_oem(value) for value in (extra_oem_numbers or [])
+        )
+        if normalized
+    ]
+    if extra_normalized_oems:
+        normalized_oem_numbers = list(
+            dict.fromkeys((normalized_oem_numbers or []) + extra_normalized_oems)
+        )
     if sync_site:
         await sync_site_tracking_statuses(
             session,
@@ -1172,6 +1184,7 @@ async def get_tracking_history_insights(
     *,
     oem_number: Optional[str] = None,
     brand_name: Optional[str] = None,
+    extra_oem_numbers: Optional[list[str]] = None,
     own_provider_config_id: Optional[int] = None,
 ) -> dict[str, Any]:
     normalized_oem = _normalize_oem(oem_number) or ""
@@ -1181,10 +1194,21 @@ async def get_tracking_history_insights(
         brand_name=brand_name,
         include_crosses=True,
     )
+    extra_normalized_oems = [
+        normalized
+        for normalized in (
+            _normalize_oem(value) for value in (extra_oem_numbers or [])
+        )
+        if normalized and normalized != normalized_oem
+    ]
+    if extra_normalized_oems:
+        normalized_oem_numbers = list(
+            dict.fromkeys((normalized_oem_numbers or []) + extra_normalized_oems)
+        )
     cross_oem_numbers = [
         item
         for item in normalized_oem_numbers
-        if item and item != normalized_oem
+        if item and item != normalized_oem and item not in extra_normalized_oems
     ]
 
     current_offer_rows = await _load_current_offer_candidates(
@@ -1219,6 +1243,7 @@ async def get_tracking_history_insights(
         session,
         oem_number=oem_number,
         brand_name=brand_name,
+        extra_oem_numbers=extra_normalized_oems,
         limit=1000,
         sync_site=False,
         include_crosses=True,
@@ -1287,6 +1312,7 @@ async def get_tracking_history_insights(
     return {
         "oem_number": normalized_oem,
         "cross_oem_numbers": cross_oem_numbers,
+        "site_cross_oem_numbers": extra_normalized_oems,
         "exact_min_offer": exact_min_offer,
         "min_offer_with_crosses": min_offer_with_crosses,
         "order_count_last_year": len(history_rows),
