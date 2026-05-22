@@ -54,9 +54,9 @@ from dz_fastapi.schemas.partner import ProviderExternalReferenceCreate
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
 from dz_fastapi.services.notifications import create_notification
 from dz_fastapi.services.placed_orders import (
+    _normalize_oem,
     get_tracking_history_insights,
     list_tracking_history,
-    _normalize_oem,
     sync_site_tracking_statuses,
     update_tracking_item,
 )
