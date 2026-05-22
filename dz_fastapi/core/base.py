@@ -11,7 +11,11 @@ from dz_fastapi.models.autopart import (
     autopart_storage_association,
 )
 from dz_fastapi.models.brand import Brand, brand_synonyms  # noqa
-from dz_fastapi.models.cross import AutoPartCross, AutoPartSubstitution  # noqa
+from dz_fastapi.models.cross import (  # noqa
+    AutoPartCross,
+    AutoPartInvalidCross,
+    AutoPartSubstitution,
+)
 from dz_fastapi.models.diadoc import DiadocIncomingDocument  # noqa
 from dz_fastapi.models.diadoc import DiadocOutgoingDocument
 from dz_fastapi.models.email_account import EmailAccount  # noqa
@@ -149,6 +153,7 @@ __all__ = [
     "AutoPartRestockDecision",
     "AutoPartRestockDecisionSupplier",
     "AutoPartCross",
+    "AutoPartInvalidCross",
     "AutoPartSubstitution",
     "ChatMessage",
     "User",

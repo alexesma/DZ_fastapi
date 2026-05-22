@@ -15,7 +15,7 @@ from dz_fastapi.core.time import now_moscow
 from dz_fastapi.http.dz_site_client import DZSiteClient
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand
-from dz_fastapi.models.cross import AutoPartCross
+from dz_fastapi.models.cross import AutoPartCross, AutoPartInvalidCross
 from dz_fastapi.models.partner import (
     ORDER_TRACKING_SOURCE,
     SUPPLIER_ORDER_STATUS,
@@ -75,6 +75,64 @@ def _normalize_brand(value: Optional[str]) -> Optional[str]:
     return normalized or None
 
 
+async def _load_tracking_source_autoparts(
+    session: AsyncSession,
+    *,
+    normalized_oem: str,
+    normalized_brand: Optional[str],
+) -> list[AutoPart]:
+    stmt = select(AutoPart).where(AutoPart.oem_number == normalized_oem)
+    if normalized_brand:
+        stmt = (
+            stmt.join(Brand, Brand.id == AutoPart.brand_id)
+            .where(Brand.name.ilike(normalized_brand))
+        )
+    result = await session.execute(stmt)
+    autoparts = list(result.scalars().all())
+    if autoparts or not normalized_brand:
+        return autoparts
+
+    fallback_stmt = select(AutoPart).where(AutoPart.oem_number == normalized_oem)
+    fallback_result = await session.execute(fallback_stmt)
+    return list(fallback_result.scalars().all())
+
+
+async def _load_invalid_cross_state(
+    session: AsyncSession,
+    *,
+    source_autopart_ids: list[int],
+) -> tuple[set[str], set[int]]:
+    if not source_autopart_ids:
+        return set(), set()
+
+    rows = (
+        await session.execute(
+            select(
+                AutoPartInvalidCross.invalid_oem_number,
+                AutoPartInvalidCross.invalid_autopart_id,
+            ).where(
+                AutoPartInvalidCross.source_autopart_id.in_(
+                    source_autopart_ids
+                )
+            )
+        )
+    ).all()
+
+    invalid_oems = {
+        normalized
+        for normalized in (
+            _normalize_oem(row.invalid_oem_number) for row in rows
+        )
+        if normalized
+    }
+    invalid_autopart_ids = {
+        int(row.invalid_autopart_id)
+        for row in rows
+        if row.invalid_autopart_id is not None
+    }
+    return invalid_oems, invalid_autopart_ids
+
+
 async def _resolve_tracking_oem_numbers(
     session: AsyncSession,
     *,
@@ -91,26 +149,16 @@ async def _resolve_tracking_oem_numbers(
         return [normalized_oem]
 
     normalized_brand = _normalize_brand(brand_name)
-
-    async def _load_source_autopart_ids(
-        restrict_brand: bool,
-    ) -> list[int]:
-        stmt = select(AutoPart.id).where(AutoPart.oem_number == normalized_oem)
-        if restrict_brand and normalized_brand:
-            stmt = (
-                stmt.join(Brand, Brand.id == AutoPart.brand_id)
-                .where(Brand.name.ilike(normalized_brand))
-            )
-        result = await session.execute(stmt)
-        return list(result.scalars().all())
-
-    source_autopart_ids = await _load_source_autopart_ids(
-        restrict_brand=True
+    source_autoparts = await _load_tracking_source_autoparts(
+        session,
+        normalized_oem=normalized_oem,
+        normalized_brand=normalized_brand,
     )
-    if not source_autopart_ids and normalized_brand:
-        source_autopart_ids = await _load_source_autopart_ids(
-            restrict_brand=False
-        )
+    source_autopart_ids = [autopart.id for autopart in source_autoparts]
+    invalid_oems, invalid_autopart_ids = await _load_invalid_cross_state(
+        session,
+        source_autopart_ids=source_autopart_ids,
+    )
 
     if source_autopart_ids:
         direct_crosses_stmt = select(
@@ -122,13 +170,14 @@ async def _resolve_tracking_oem_numbers(
         ).all()
         for cross_oem_number, _ in direct_cross_rows:
             normalized_cross_oem = _normalize_oem(cross_oem_number)
-            if normalized_cross_oem:
+            if normalized_cross_oem and normalized_cross_oem not in invalid_oems:
                 resolved_oems.add(normalized_cross_oem)
 
         direct_cross_autopart_ids = [
             cross_autopart_id
             for _, cross_autopart_id in direct_cross_rows
             if cross_autopart_id is not None
+            and cross_autopart_id not in invalid_autopart_ids
         ]
         if direct_cross_autopart_ids:
             direct_cross_oems_stmt = select(AutoPart.oem_number).where(
@@ -139,11 +188,11 @@ async def _resolve_tracking_oem_numbers(
             ).scalars()
             for cross_oem_number in direct_cross_oems:
                 normalized_cross_oem = _normalize_oem(cross_oem_number)
-                if normalized_cross_oem:
+                if normalized_cross_oem and normalized_cross_oem not in invalid_oems:
                     resolved_oems.add(normalized_cross_oem)
 
         reverse_cross_stmt = (
-            select(AutoPart.oem_number)
+            select(AutoPart.id, AutoPart.oem_number)
             .join(
                 AutoPartCross,
                 AutoPartCross.source_autopart_id == AutoPart.id,
@@ -155,17 +204,142 @@ async def _resolve_tracking_oem_numbers(
                 )
             )
         )
-        reverse_cross_oems = (
-            await session.execute(reverse_cross_stmt)
-        ).scalars()
-        for reverse_oem_number in reverse_cross_oems:
+        reverse_cross_rows = (await session.execute(reverse_cross_stmt)).all()
+        for reverse_autopart_id, reverse_oem_number in reverse_cross_rows:
+            if reverse_autopart_id in invalid_autopart_ids:
+                continue
             normalized_reverse_oem = _normalize_oem(reverse_oem_number)
-            if normalized_reverse_oem:
+            if normalized_reverse_oem and normalized_reverse_oem not in invalid_oems:
                 resolved_oems.add(normalized_reverse_oem)
 
     return sorted(
         resolved_oems,
         key=lambda item: (item != normalized_oem, item),
+    )
+
+
+async def _resolve_tracking_cross_items(
+    session: AsyncSession,
+    *,
+    oem_number: Optional[str] = None,
+    brand_name: Optional[str] = None,
+) -> list[dict[str, Any]]:
+    normalized_oem = _normalize_oem(oem_number)
+    if not normalized_oem:
+        return []
+
+    normalized_brand = _normalize_brand(brand_name)
+    source_autoparts = await _load_tracking_source_autoparts(
+        session,
+        normalized_oem=normalized_oem,
+        normalized_brand=normalized_brand,
+    )
+    source_autopart_ids = [autopart.id for autopart in source_autoparts]
+    if not source_autopart_ids:
+        return []
+
+    invalid_oems, invalid_autopart_ids = await _load_invalid_cross_state(
+        session,
+        source_autopart_ids=source_autopart_ids,
+    )
+
+    items: dict[tuple[str, str], dict[str, Any]] = {}
+
+    def _store_item(
+        *,
+        autopart_id: Optional[int],
+        oem_number_value: Optional[str],
+        brand_name_value: Optional[str],
+        name_value: Optional[str],
+    ) -> None:
+        normalized_cross_oem = _normalize_oem(oem_number_value)
+        if (
+            not normalized_cross_oem
+            or normalized_cross_oem == normalized_oem
+            or normalized_cross_oem in invalid_oems
+            or (
+                autopart_id is not None
+                and autopart_id in invalid_autopart_ids
+            )
+        ):
+            return
+        brand_value = str(brand_name_value or "").strip()
+        key = (brand_value.upper(), normalized_cross_oem)
+        items.setdefault(
+            key,
+            {
+                "autopart_id": autopart_id,
+                "oem_number": normalized_cross_oem,
+                "brand_name": brand_value or None,
+                "name": str(name_value or "").strip() or None,
+            },
+        )
+
+    direct_rows = (
+        await session.execute(
+            select(
+                AutoPartCross.cross_autopart_id,
+                AutoPartCross.cross_oem_number,
+                Brand.name,
+                AutoPart.name,
+            )
+            .select_from(AutoPartCross)
+            .join(Brand, Brand.id == AutoPartCross.cross_brand_id)
+            .outerjoin(
+                AutoPart,
+                AutoPart.id == AutoPartCross.cross_autopart_id,
+            )
+            .where(AutoPartCross.source_autopart_id.in_(source_autopart_ids))
+        )
+    ).all()
+    for cross_autopart_id, cross_oem_number, cross_brand_name, cross_name in (
+        direct_rows
+    ):
+        _store_item(
+            autopart_id=cross_autopart_id,
+            oem_number_value=cross_oem_number,
+            brand_name_value=cross_brand_name,
+            name_value=cross_name,
+        )
+
+    reverse_rows = (
+        await session.execute(
+            select(
+                AutoPart.id,
+                AutoPart.oem_number,
+                Brand.name,
+                AutoPart.name,
+            )
+            .select_from(AutoPart)
+            .join(Brand, Brand.id == AutoPart.brand_id)
+            .join(
+                AutoPartCross,
+                AutoPartCross.source_autopart_id == AutoPart.id,
+            )
+            .where(
+                or_(
+                    AutoPartCross.cross_oem_number == normalized_oem,
+                    AutoPartCross.cross_autopart_id.in_(source_autopart_ids),
+                )
+            )
+        )
+    ).all()
+    for autopart_id, reverse_oem_number, reverse_brand_name, reverse_name in (
+        reverse_rows
+    ):
+        _store_item(
+            autopart_id=autopart_id,
+            oem_number_value=reverse_oem_number,
+            brand_name_value=reverse_brand_name,
+            name_value=reverse_name,
+        )
+
+    return sorted(
+        items.values(),
+        key=lambda item: (
+            str(item.get("brand_name") or ""),
+            str(item.get("oem_number") or ""),
+        ),
     )
 
 
@@ -525,6 +699,22 @@ async def list_tracking_history(
     sync_site: bool = False,
     include_crosses: bool = False,
 ) -> list[dict[str, Any]]:
+    normalized_oem = _normalize_oem(oem_number)
+    normalized_brand = _normalize_brand(brand_name)
+    source_autoparts = (
+        await _load_tracking_source_autoparts(
+            session,
+            normalized_oem=normalized_oem,
+            normalized_brand=normalized_brand,
+        )
+        if normalized_oem
+        else []
+    )
+    source_autopart_ids = [autopart.id for autopart in source_autoparts]
+    invalid_oems, _invalid_autopart_ids = await _load_invalid_cross_state(
+        session,
+        source_autopart_ids=source_autopart_ids,
+    )
     normalized_oem_numbers = await _resolve_tracking_oem_numbers(
         session,
         oem_number=oem_number,
@@ -536,7 +726,7 @@ async def list_tracking_history(
         for normalized in (
             _normalize_oem(value) for value in (extra_oem_numbers or [])
         )
-        if normalized
+        if normalized and normalized not in invalid_oems
     ]
     if extra_normalized_oems:
         normalized_oem_numbers = list(
@@ -553,8 +743,6 @@ async def list_tracking_history(
             limit=min(limit, SITE_STATUS_SYNC_LIMIT),
         )
 
-    normalized_oem = _normalize_oem(oem_number)
-    normalized_brand = _normalize_brand(brand_name)
     status_filter = str(status or "").strip().upper() or None
     provider_alias = aliased(Provider, flat=True)
     customer_alias = aliased(Customer, flat=True)
@@ -1035,52 +1223,32 @@ async def _build_own_price_analysis(
                 "provider_name": row["provider_name"],
                 "provider_config_name": row.get("provider_config_name"),
                 "total_quantity": 0,
-                "exact_prices": [],
-                "all_prices": [],
-                "oem_groups": {},
-            },
-        )
-        normalized_row_oem = _normalize_oem(row.get("oem_number")) or str(
-            row.get("oem_number") or ""
-        )
-        oem_group = snapshot["oem_groups"].setdefault(
-            normalized_row_oem,
-            {
-                "quantity": 0,
+                # per-OEM quantities to avoid cross-cancellation in consumption calc
+                "qty_by_oem": {},
                 "exact_prices": [],
                 "all_prices": [],
             },
         )
         quantity = int(row.get("quantity") or 0)
-        oem_group["quantity"] = max(
-            int(oem_group.get("quantity") or 0),
-            quantity,
+        snapshot["total_quantity"] += quantity
+        normalized_row_oem = _normalize_oem(row.get("oem_number")) or str(
+            row.get("oem_number") or ""
         )
+        if normalized_row_oem:
+            snapshot["qty_by_oem"][normalized_row_oem] = (
+                snapshot["qty_by_oem"].get(normalized_row_oem, 0) + quantity
+            )
         price_value = _to_decimal(row.get("price"))
         if price_value is not None:
-            oem_group["all_prices"].append(price_value)
+            snapshot["all_prices"].append(price_value)
             if normalized_row_oem == normalized_exact:
-                oem_group["exact_prices"].append(price_value)
-
-    for snapshot in snapshots_by_key.values():
-        total_quantity = 0
-        exact_prices = []
-        all_prices = []
-        for group in snapshot["oem_groups"].values():
-            total_quantity += int(group.get("quantity") or 0)
-            if group.get("exact_prices"):
-                exact_prices.append(min(group["exact_prices"]))
-            if group.get("all_prices"):
-                all_prices.append(min(group["all_prices"]))
-        snapshot["total_quantity"] = total_quantity
-        snapshot["exact_prices"] = exact_prices
-        snapshot["all_prices"] = all_prices
-        snapshot.pop("oem_groups", None)
+                snapshot["exact_prices"].append(price_value)
 
     snapshots = list(snapshots_by_key.values())
     latest_snapshot = snapshots[-1]
 
-    receipt_events = []
+    # receipt_events keyed by OEM so they can be matched per-OEM in the loop below
+    receipt_events: list[dict[str, Any]] = []
     for row in history_rows:
         received_at = row.get("received_at")
         received_quantity = int(row.get("received_quantity") or 0)
@@ -1091,8 +1259,15 @@ async def _build_own_price_analysis(
                 "received_at": received_at,
                 "received_date": received_at.date(),
                 "received_quantity": received_quantity,
+                # normalised OEM lets us split receipts by position, not lump them
+                "oem_number": _normalize_oem(row.get("oem_number")) or "",
             }
         )
+
+    # Collect the full set of OEM numbers that ever appeared in any snapshot
+    all_oems_in_snapshots: set[str] = set()
+    for s in snapshots:
+        all_oems_in_snapshots.update(s["qty_by_oem"].keys())
 
     arrivals_last_30_days = 0
     arrivals_last_90_days = 0
@@ -1102,32 +1277,41 @@ async def _build_own_price_analysis(
     sold_last_365_days = 0
     today = now_moscow().date()
     for previous_snapshot, current_snapshot in zip(snapshots, snapshots[1:]):
-        previous_qty = int(previous_snapshot["total_quantity"])
-        current_qty = int(current_snapshot["total_quantity"])
-        interval_receipts = sum(
-            event["received_quantity"]
-            for event in receipt_events
-            if previous_snapshot["pricelist_date"]
-            < event["received_date"]
-            <= current_snapshot["pricelist_date"]
-        )
-        expected_qty = previous_qty + interval_receipts
-        inferred_additional_arrival = max(current_qty - expected_qty, 0)
-        interval_arrivals = interval_receipts + inferred_additional_arrival
-        decrease = max(expected_qty - current_qty, 0)
-
         snapshot_date = current_snapshot["pricelist_date"]
+        date_lo = previous_snapshot["pricelist_date"]
+        date_hi = current_snapshot["pricelist_date"]
+
+        # ── Per-OEM delta calculation ────────────────────────────────────────
+        # Summing individual OEM deltas prevents cross-cancellation:
+        # e.g. OEM_X drops 2 while cross OEM_Y rises 2 → combined total unchanged,
+        # but per-OEM we correctly see 2 sold of X and 2 arrived for Y.
+        interval_arrivals = 0
+        decrease = 0
+
+        for oem in all_oems_in_snapshots:
+            prev_qty_oem = previous_snapshot["qty_by_oem"].get(oem, 0)
+            curr_qty_oem = current_snapshot["qty_by_oem"].get(oem, 0)
+
+            receipts_oem = sum(
+                event["received_quantity"]
+                for event in receipt_events
+                if event["oem_number"] == oem
+                and date_lo < event["received_date"] <= date_hi
+            )
+            expected_oem = prev_qty_oem + receipts_oem
+            inferred_oem = max(curr_qty_oem - expected_oem, 0)
+            interval_arrivals += receipts_oem + inferred_oem
+            decrease += max(expected_oem - curr_qty_oem, 0)
+        # ────────────────────────────────────────────────────────────────────
+
         if snapshot_date >= today - timedelta(days=30):
             arrivals_last_30_days += interval_arrivals
-        if snapshot_date >= today - timedelta(days=30):
             sold_last_30_days += decrease
         if snapshot_date >= today - timedelta(days=90):
             arrivals_last_90_days += interval_arrivals
-        if snapshot_date >= today - timedelta(days=90):
             sold_last_90_days += decrease
         if snapshot_date >= today - timedelta(days=365):
             arrivals_last_365_days += interval_arrivals
-        if snapshot_date >= today - timedelta(days=365):
             sold_last_365_days += decrease
 
     latest_price_candidates = (
@@ -1179,6 +1363,229 @@ async def _build_own_price_analysis(
     }
 
 
+_ACTIVE_ORDER_STATUSES = {
+    # supplier orders
+    "NEW", "SCHEDULED", "SENT",
+    # site orders
+    "NEW_OREDER", "ORDERED", "CONFIRMED", "PROCESSING",
+}
+
+_MONTH_NAMES_RU = [
+    "Янв", "Фев", "Мар", "Апр", "Май", "Июн",
+    "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек",
+]
+
+
+def _compute_purchase_price_stats(
+    history_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Return avg_purchase_price, last_purchase_price, price_trend, price_trend_pct."""
+    priced = sorted(
+        [
+            row
+            for row in history_rows
+            if _to_decimal(row.get("price")) is not None
+            and int(row.get("received_quantity") or 0) > 0
+        ],
+        key=lambda r: r.get("created_at") or datetime.min,
+    )
+    if not priced:
+        return {
+            "avg_purchase_price": None,
+            "last_purchase_price": None,
+            "price_trend": None,
+            "price_trend_pct": None,
+        }
+
+    prices = [_to_decimal(r["price"]) for r in priced]  # type: ignore[arg-type]
+    avg_val = float(sum(prices) / len(prices))
+    last_val = float(prices[-1])
+
+    price_trend: Optional[str] = None
+    price_trend_pct: Optional[float] = None
+    if len(priced) >= 2:
+        mid = max(len(priced) // 2, 1)
+        avg_old = sum(prices[:mid]) / mid
+        avg_new = sum(prices[mid:]) / (len(prices) - mid)
+        if avg_old > 0:
+            pct = float((avg_new - avg_old) / avg_old * 100)
+            price_trend_pct = round(pct, 1)
+            if abs(pct) < 2.0:
+                price_trend = "stable"
+            elif pct > 0:
+                price_trend = "up"
+            else:
+                price_trend = "down"
+
+    return {
+        "avg_purchase_price": round(avg_val, 2),
+        "last_purchase_price": round(last_val, 2),
+        "price_trend": price_trend,
+        "price_trend_pct": price_trend_pct,
+    }
+
+
+def _compute_seasonality(
+    history_rows: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Return (seasonality_list, peak_months_top3) grouped by calendar month."""
+    from collections import defaultdict
+
+    monthly: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {"count": 0, "qty": 0}
+    )
+    for row in history_rows:
+        dt = row.get("created_at")
+        if not dt:
+            continue
+        if hasattr(dt, "strftime"):
+            month_key = dt.strftime("%Y-%m")
+            month_num = int(dt.strftime("%m"))
+        else:
+            continue
+        monthly[month_key]["count"] += 1
+        monthly[month_key]["qty"] += int(row.get("ordered_quantity") or 0)
+        monthly[month_key]["month_name"] = _MONTH_NAMES_RU[month_num - 1]
+
+    seasonality = sorted(
+        [
+            {
+                "month": k,
+                "month_name": v["month_name"],
+                "count": v["count"],
+                "qty": v["qty"],
+            }
+            for k, v in monthly.items()
+        ],
+        key=lambda x: x["month"],
+    )
+    peak_months = sorted(seasonality, key=lambda x: x["qty"], reverse=True)[:3]
+    return seasonality, peak_months
+
+
+def _compute_supplier_stats(
+    history_rows: list[dict[str, Any]],
+    current_offer_rows: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], Optional[dict[str, Any]]]:
+    """Per-provider stats from history + current offers. Returns (stats, best_supplier)."""
+    from collections import defaultdict
+
+    # group history by provider key
+    provider_history: dict[Any, list[dict[str, Any]]] = defaultdict(list)
+    for row in history_rows:
+        key = row.get("provider_id") or row.get("provider_name") or "unknown"
+        provider_history[key].append(row)
+
+    # group actionable current offers by provider (skip own-price)
+    provider_offers: dict[Any, list[dict[str, Any]]] = defaultdict(list)
+    for row in current_offer_rows:
+        if bool(row.get("is_own_price")):
+            continue
+        if (_to_decimal(row.get("price")) is None
+                or int(row.get("quantity") or 0) <= 0):
+            continue
+        key = row.get("provider_id") or row.get("provider_name") or "unknown"
+        provider_offers[key].append(dict(row))
+
+    supplier_stats: list[dict[str, Any]] = []
+    for provider_key, rows in provider_history.items():
+        total_ordered = sum(int(r.get("ordered_quantity") or 0) for r in rows)
+        total_received = sum(int(r.get("received_quantity") or 0) for r in rows)
+        fill_rate = (
+            _round_stat(total_received / total_ordered * 100, 1)
+            if total_ordered > 0
+            else None
+        )
+        lead_vals = [
+            int(r["actual_lead_days"])
+            for r in rows
+            if r.get("actual_lead_days") is not None
+        ]
+        avg_lead = (
+            _round_stat(sum(lead_vals) / len(lead_vals), 1) if lead_vals else None
+        )
+        h_prices = [
+            _to_decimal(r.get("price"))
+            for r in rows
+            if _to_decimal(r.get("price")) is not None
+        ]
+        avg_price = (
+            round(float(sum(h_prices) / len(h_prices)), 2) if h_prices else None
+        )
+        sorted_rows = sorted(
+            rows,
+            key=lambda r: r.get("created_at") or datetime.min,
+            reverse=True,
+        )
+        last_ordered_at = sorted_rows[0].get("created_at") if sorted_rows else None
+        provider_name = (
+            sorted_rows[0].get("provider_name") if sorted_rows else str(provider_key)
+        )
+        provider_id = sorted_rows[0].get("provider_id") if sorted_rows else None
+
+        curr_offers = provider_offers.get(provider_key, [])
+        best_curr = (
+            min(curr_offers, key=_offer_sort_key) if curr_offers else None
+        )
+        supplier_stats.append(
+            {
+                "provider_id": provider_id,
+                "provider_name": provider_name,
+                "order_count": len(rows),
+                "fill_rate": fill_rate,
+                "avg_lead_days": avg_lead,
+                "avg_price": avg_price,
+                "last_ordered_at": last_ordered_at,
+                "current_price": (
+                    float(_to_decimal(best_curr.get("price")))  # type: ignore[arg-type]
+                    if best_curr
+                    else None
+                ),
+                "current_qty": (
+                    int(best_curr.get("quantity") or 0) if best_curr else None
+                ),
+                "current_min_delivery": (
+                    best_curr.get("min_delivery_day") if best_curr else None
+                ),
+                "current_max_delivery": (
+                    best_curr.get("max_delivery_day") if best_curr else None
+                ),
+                "current_oem_number": (
+                    best_curr.get("oem_number") if best_curr else None
+                ),
+                "current_brand_name": (
+                    best_curr.get("brand_name") if best_curr else None
+                ),
+                "current_autopart_name": (
+                    best_curr.get("autopart_name") if best_curr else None
+                ),
+                "current_autopart_id": (
+                    best_curr.get("autopart_id") if best_curr else None
+                ),
+                "current_provider_config_id": (
+                    best_curr.get("provider_config_id") if best_curr else None
+                ),
+                "current_provider_config_name": (
+                    best_curr.get("provider_config_name") if best_curr else None
+                ),
+                "is_own_price": bool(
+                    best_curr.get("is_own_price") if best_curr else False
+                ),
+            }
+        )
+
+    def _score(s: dict[str, Any]) -> tuple:
+        has_current = s["current_price"] is not None
+        fill = s["fill_rate"] or 0
+        lead = s["avg_lead_days"] or 9999
+        price = s["current_price"] or 9_999_999
+        return (not has_current, -fill, lead, price)
+
+    best = min(supplier_stats, key=_score) if supplier_stats else None
+    best_supplier = best if (best and best["current_price"] is not None) else None
+    return supplier_stats, best_supplier
+
+
 async def get_tracking_history_insights(
     session: AsyncSession,
     *,
@@ -1188,6 +1595,21 @@ async def get_tracking_history_insights(
     own_provider_config_id: Optional[int] = None,
 ) -> dict[str, Any]:
     normalized_oem = _normalize_oem(oem_number) or ""
+    normalized_brand = _normalize_brand(brand_name)
+    source_autoparts = (
+        await _load_tracking_source_autoparts(
+            session,
+            normalized_oem=normalized_oem,
+            normalized_brand=normalized_brand,
+        )
+        if normalized_oem
+        else []
+    )
+    source_autopart_ids = [autopart.id for autopart in source_autoparts]
+    invalid_oems, _invalid_autopart_ids = await _load_invalid_cross_state(
+        session,
+        source_autopart_ids=source_autopart_ids,
+    )
     normalized_oem_numbers = await _resolve_tracking_oem_numbers(
         session,
         oem_number=oem_number,
@@ -1199,7 +1621,11 @@ async def get_tracking_history_insights(
         for normalized in (
             _normalize_oem(value) for value in (extra_oem_numbers or [])
         )
-        if normalized and normalized != normalized_oem
+        if (
+            normalized
+            and normalized != normalized_oem
+            and normalized not in invalid_oems
+        )
     ]
     if extra_normalized_oems:
         normalized_oem_numbers = list(
@@ -1210,6 +1636,11 @@ async def get_tracking_history_insights(
         for item in normalized_oem_numbers
         if item and item != normalized_oem and item not in extra_normalized_oems
     ]
+    cross_items = await _resolve_tracking_cross_items(
+        session,
+        oem_number=oem_number,
+        brand_name=brand_name,
+    )
 
     current_offer_rows = await _load_current_offer_candidates(
         session,
@@ -1238,6 +1669,11 @@ async def get_tracking_history_insights(
         if actionable_offer_rows
         else None
     )
+    cross_offer_rows = [
+        _build_offer_payload(row)
+        for row in actionable_offer_rows
+        if _normalize_oem(row.get("oem_number")) != normalized_oem
+    ]
 
     history_rows = await list_tracking_history(
         session,
@@ -1309,12 +1745,113 @@ async def get_tracking_history_insights(
             history_rows=history_rows,
         )
 
+    # ── New analytics fields ─────────────────────────────────────────────────
+
+    # 1. Average purchase price + trend (from actually-received history rows)
+    purchase_price_stats = _compute_purchase_price_stats(history_rows)
+
+    # 2. In-transit quantity (ordered but not yet received, active statuses)
+    in_transit_qty = max(
+        sum(
+            int(row.get("ordered_quantity") or 0)
+            - int(row.get("received_quantity") or 0)
+            for row in history_rows
+            if row.get("current_status") in _ACTIVE_ORDER_STATUSES
+        ),
+        0,
+    )
+
+    # 3. Seasonality breakdown
+    seasonality, peak_months = _compute_seasonality(history_rows)
+
+    # 4. Invalid-cross items for display (full detail, not just ids/oems)
+    invalid_cross_items: list[dict[str, Any]] = []
+    if source_autopart_ids:
+        InvalidBrand = aliased(Brand, flat=True)
+        InvalidAutopart = aliased(AutoPart, flat=True)
+        inv_stmt = (
+            select(
+                AutoPartInvalidCross.id,
+                AutoPartInvalidCross.source_autopart_id,
+                AutoPartInvalidCross.invalid_oem_number,
+                AutoPartInvalidCross.comment,
+                AutoPartInvalidCross.invalid_autopart_id,
+                InvalidBrand.name.label("invalid_brand_name"),
+                InvalidAutopart.name.label("invalid_autopart_name"),
+            )
+            .join(
+                InvalidBrand,
+                InvalidBrand.id == AutoPartInvalidCross.invalid_brand_id,
+            )
+            .outerjoin(
+                InvalidAutopart,
+                InvalidAutopart.id == AutoPartInvalidCross.invalid_autopart_id,
+            )
+            .where(
+                AutoPartInvalidCross.source_autopart_id.in_(source_autopart_ids)
+            )
+            .order_by(
+                InvalidBrand.name.asc(),
+                AutoPartInvalidCross.invalid_oem_number.asc(),
+            )
+        )
+        inv_rows = (await session.execute(inv_stmt)).all()
+        invalid_cross_items = [
+            {
+                "id": r.id,
+                "invalid_brand_name": r.invalid_brand_name,
+                "invalid_oem_number": r.invalid_oem_number,
+                "invalid_autopart_name": r.invalid_autopart_name,
+                "comment": r.comment,
+            }
+            for r in inv_rows
+        ]
+
+    # 5. Per-supplier stats + best supplier
+    supplier_stats, best_supplier = _compute_supplier_stats(
+        history_rows, list(current_offer_rows)
+    )
+
+    # 6. Reorder point + optimal order qty (uses own-price analysis)
+    average_actual_lead_days = (
+        _round_stat(sum(actual_lead_values) / len(actual_lead_values), 1)
+        if actual_lead_values
+        else None
+    )
+    reorder_point: Optional[float] = None
+    optimal_order_qty: Optional[float] = None
+    if own_price_analysis:
+        avg_daily = own_price_analysis.get("average_daily_decrease_30_days")
+        if avg_daily and average_actual_lead_days:
+            reorder_point = round(float(avg_daily) * float(average_actual_lead_days), 1)
+            optimal_order_qty = round(
+                float(avg_daily) * float(average_actual_lead_days) * 1.5, 1
+            )
+
+    # 7. Markup / margin (our selling price vs average purchase price)
+    markup_percent: Optional[float] = None
+    margin_percent: Optional[float] = None
+    avg_purchase_price = purchase_price_stats.get("avg_purchase_price")
+    if own_price_analysis and avg_purchase_price:
+        selling_price = own_price_analysis.get("latest_price")
+        if selling_price is not None:
+            sp = float(selling_price)
+            pp = float(avg_purchase_price)
+            if pp > 0:
+                markup_percent = round((sp - pp) / pp * 100, 1)
+            if sp > 0:
+                margin_percent = round((sp - pp) / sp * 100, 1)
+
+    # ────────────────────────────────────────────────────────────────────────
+
     return {
         "oem_number": normalized_oem,
         "cross_oem_numbers": cross_oem_numbers,
         "site_cross_oem_numbers": extra_normalized_oems,
+        "cross_items": cross_items,
         "exact_min_offer": exact_min_offer,
         "min_offer_with_crosses": min_offer_with_crosses,
+        "cross_offer_rows": cross_offer_rows,
         "order_count_last_year": len(history_rows),
         "total_ordered_quantity_last_year": total_ordered_quantity_last_year,
         "total_received_quantity_last_year": total_received_quantity_last_year,
@@ -1331,11 +1868,7 @@ async def get_tracking_history_insights(
         "historical_min_price_with_crosses": (
             min(all_prices) if all_prices else None
         ),
-        "average_actual_lead_days": (
-            _round_stat(sum(actual_lead_values) / len(actual_lead_values), 1)
-            if actual_lead_values
-            else None
-        ),
+        "average_actual_lead_days": average_actual_lead_days,
         "last_ordered_at": max(
             (row.get("created_at") for row in history_rows),
             default=None,
@@ -1350,6 +1883,21 @@ async def get_tracking_history_insights(
         ),
         "own_price_configs": own_price_configs,
         "own_price_analysis": own_price_analysis,
+        # ── new ──
+        "avg_purchase_price": purchase_price_stats["avg_purchase_price"],
+        "last_purchase_price": purchase_price_stats["last_purchase_price"],
+        "price_trend": purchase_price_stats["price_trend"],
+        "price_trend_pct": purchase_price_stats["price_trend_pct"],
+        "markup_percent": markup_percent,
+        "margin_percent": margin_percent,
+        "in_transit_qty": in_transit_qty,
+        "reorder_point": reorder_point,
+        "optimal_order_qty": optimal_order_qty,
+        "seasonality": seasonality,
+        "peak_months": peak_months,
+        "supplier_stats": supplier_stats,
+        "best_supplier": best_supplier,
+        "invalid_cross_items": invalid_cross_items,
     }
 
 

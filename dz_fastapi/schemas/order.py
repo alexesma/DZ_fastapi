@@ -293,12 +293,57 @@ class TrackingInsightOwnPriceAnalysis(BaseModel):
     estimated_days_left_30_days: Optional[int] = None
 
 
+class TrackingInsightCrossItem(BaseModel):
+    autopart_id: Optional[int] = None
+    oem_number: str
+    brand_name: Optional[str] = None
+    name: Optional[str] = None
+
+
+class TrackingInsightSeasonalityMonth(BaseModel):
+    month: str
+    month_name: str
+    count: int = 0
+    qty: int = 0
+
+
+class TrackingInsightInvalidCrossItem(BaseModel):
+    id: int
+    invalid_brand_name: Optional[str] = None
+    invalid_oem_number: str
+    invalid_autopart_name: Optional[str] = None
+    comment: Optional[str] = None
+
+
+class TrackingInsightSupplierStat(BaseModel):
+    provider_id: Optional[int] = None
+    provider_name: Optional[str] = None
+    order_count: int = 0
+    fill_rate: Optional[float] = None
+    avg_lead_days: Optional[float] = None
+    avg_price: Optional[float] = None
+    last_ordered_at: Optional[datetime] = None
+    current_price: Optional[float] = None
+    current_qty: Optional[int] = None
+    current_min_delivery: Optional[int] = None
+    current_max_delivery: Optional[int] = None
+    current_oem_number: Optional[str] = None
+    current_brand_name: Optional[str] = None
+    current_autopart_name: Optional[str] = None
+    current_autopart_id: Optional[int] = None
+    current_provider_config_id: Optional[int] = None
+    current_provider_config_name: Optional[str] = None
+    is_own_price: bool = False
+
+
 class TrackingHistoryInsightSummary(BaseModel):
     oem_number: str
     cross_oem_numbers: List[str] = Field(default_factory=list)
     site_cross_oem_numbers: List[str] = Field(default_factory=list)
+    cross_items: List[TrackingInsightCrossItem] = Field(default_factory=list)
     exact_min_offer: Optional[AutopartOfferRow] = None
     min_offer_with_crosses: Optional[AutopartOfferRow] = None
+    cross_offer_rows: List[AutopartOfferRow] = Field(default_factory=list)
     order_count_last_year: int = 0
     total_ordered_quantity_last_year: int = 0
     total_received_quantity_last_year: int = 0
@@ -313,3 +358,26 @@ class TrackingHistoryInsightSummary(BaseModel):
         default_factory=list
     )
     own_price_analysis: Optional[TrackingInsightOwnPriceAnalysis] = None
+    # ── new analytics fields ──
+    avg_purchase_price: Optional[float] = None
+    last_purchase_price: Optional[float] = None
+    price_trend: Optional[str] = None
+    price_trend_pct: Optional[float] = None
+    markup_percent: Optional[float] = None
+    margin_percent: Optional[float] = None
+    in_transit_qty: int = 0
+    reorder_point: Optional[float] = None
+    optimal_order_qty: Optional[float] = None
+    seasonality: List[TrackingInsightSeasonalityMonth] = Field(
+        default_factory=list
+    )
+    peak_months: List[TrackingInsightSeasonalityMonth] = Field(
+        default_factory=list
+    )
+    supplier_stats: List[TrackingInsightSupplierStat] = Field(
+        default_factory=list
+    )
+    best_supplier: Optional[TrackingInsightSupplierStat] = None
+    invalid_cross_items: List[TrackingInsightInvalidCrossItem] = Field(
+        default_factory=list
+    )

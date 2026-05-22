@@ -180,3 +180,58 @@ class AutoPartSubstitution(Base):
             name="check_reduction_non_negative",
         ),
     )
+
+
+class AutoPartInvalidCross(Base):
+    """
+    Таблица явно неверных кроссов.
+    Используется для ручного исключения ошибочных аналогов из сайта и аналитики.
+    """
+
+    source_autopart_id = Column(
+        Integer,
+        ForeignKey("autopart.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    invalid_brand_id = Column(
+        Integer,
+        ForeignKey("brand.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    invalid_oem_number = Column(String(50), nullable=False, index=True)
+    invalid_autopart_id = Column(
+        Integer,
+        ForeignKey("autopart.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    comment = Column(Text, nullable=True)
+
+    source_autopart = relationship(
+        "AutoPart",
+        foreign_keys=[source_autopart_id],
+        backref="invalid_crosses_as_source",
+    )
+    invalid_brand = relationship(
+        "Brand",
+        foreign_keys=[invalid_brand_id],
+    )
+    invalid_autopart = relationship(
+        "AutoPart",
+        foreign_keys=[invalid_autopart_id],
+        backref="invalid_crosses_as_target",
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "source_autopart_id",
+            "invalid_brand_id",
+            "invalid_oem_number",
+            name="uq_invalid_cross",
+        ),
+        CheckConstraint(
+            "source_autopart_id != invalid_autopart_id",
+            name="check_not_self_invalid_cross",
+        ),
+    )

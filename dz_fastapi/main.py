@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from dz_fastapi.api.auth import router as auth_router
 from dz_fastapi.api.autopart import router as autopart_router
 from dz_fastapi.api.brand import router as brand_router
+from dz_fastapi.api.cross import router as cross_router
 from dz_fastapi.api.customer_order import router as customer_order_router
 from dz_fastapi.api.dashboard import router as dashboard_router
 from dz_fastapi.api.diadoc import router as diadoc_router
@@ -149,6 +150,7 @@ app.add_middleware(
 app.include_router(autopart_router)
 app.include_router(auth_router)
 app.include_router(brand_router)
+app.include_router(cross_router)
 app.include_router(partner_router)
 app.include_router(order_router)
 app.include_router(order_status_mapping_router)

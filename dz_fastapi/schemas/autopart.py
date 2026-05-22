@@ -291,6 +291,83 @@ class CrossOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CrossAdminCreate(BaseModel):
+    source_autopart_id: int
+    cross_brand_id: int
+    cross_oem_number: str
+    priority: int = 100
+    comment: Optional[str] = None
+
+
+class CrossAdminUpdate(BaseModel):
+    source_autopart_id: Optional[int] = None
+    cross_brand_id: Optional[int] = None
+    cross_oem_number: Optional[str] = None
+    priority: Optional[int] = None
+    comment: Optional[str] = None
+
+
+class CrossAdminOut(BaseModel):
+    id: int
+    source_autopart_id: int
+    source_brand_id: Optional[int] = None
+    source_brand_name: Optional[str] = None
+    source_oem_number: str
+    source_name: Optional[str] = None
+    cross_brand_id: int
+    cross_brand_name: Optional[str] = None
+    cross_oem_number: str
+    cross_autopart_id: Optional[int] = None
+    cross_autopart_name: Optional[str] = None
+    priority: int = 100
+    comment: Optional[str] = None
+
+
+class InvalidCrossCreate(BaseModel):
+    invalid_brand_id: int
+    invalid_oem_number: str
+    comment: Optional[str] = None
+
+
+class InvalidCrossOut(BaseModel):
+    id: int
+    invalid_brand_id: int
+    invalid_brand_name: Optional[str] = None
+    invalid_oem_number: str
+    invalid_autopart_id: Optional[int] = None
+    comment: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class InvalidCrossAdminCreate(BaseModel):
+    source_autopart_id: int
+    invalid_brand_id: int
+    invalid_oem_number: str
+    comment: Optional[str] = None
+
+
+class InvalidCrossAdminUpdate(BaseModel):
+    source_autopart_id: Optional[int] = None
+    invalid_brand_id: Optional[int] = None
+    invalid_oem_number: Optional[str] = None
+    comment: Optional[str] = None
+
+
+class InvalidCrossAdminOut(BaseModel):
+    id: int
+    source_autopart_id: int
+    source_brand_id: Optional[int] = None
+    source_brand_name: Optional[str] = None
+    source_oem_number: str
+    source_name: Optional[str] = None
+    invalid_brand_id: int
+    invalid_brand_name: Optional[str] = None
+    invalid_oem_number: str
+    invalid_autopart_id: Optional[int] = None
+    invalid_autopart_name: Optional[str] = None
+    comment: Optional[str] = None
+
+
 # ─── Catalog list item (lighter than full response) ──────────────────────────
 
 

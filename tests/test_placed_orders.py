@@ -5,7 +5,7 @@ import pytest
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand
-from dz_fastapi.models.cross import AutoPartCross
+from dz_fastapi.models.cross import AutoPartCross, AutoPartInvalidCross
 from dz_fastapi.models.order_status_mapping import (
     ExternalStatusMapping,
     ExternalStatusMatchMode,
@@ -494,20 +494,21 @@ async def test_get_tracking_history_insights_builds_price_and_own_stock_summary(
     assert summary["average_actual_lead_days"] == pytest.approx(2.5, abs=0.1)
     assert len(summary["own_price_configs"]) == 1
     assert summary["own_price_configs"][0]["id"] == own_cfg.id
+    assert len(summary["cross_offer_rows"]) == 2
     assert summary["own_price_analysis"]["provider_config_id"] == own_cfg.id
-    assert summary["own_price_analysis"]["current_quantity"] == 7
+    assert summary["own_price_analysis"]["current_quantity"] == 14
     assert float(summary["own_price_analysis"]["latest_price"]) == 80.0
     assert summary["own_price_analysis"]["arrivals_last_30_days"] == 4
     assert summary["own_price_analysis"]["arrivals_last_90_days"] == 4
     assert summary["own_price_analysis"]["arrivals_last_365_days"] == 4
-    assert summary["own_price_analysis"]["sold_last_30_days"] == 9
-    assert summary["own_price_analysis"]["sold_last_90_days"] == 17
-    assert summary["own_price_analysis"]["sold_last_365_days"] == 17
+    assert summary["own_price_analysis"]["sold_last_30_days"] == 14
+    assert summary["own_price_analysis"]["sold_last_90_days"] == 30
+    assert summary["own_price_analysis"]["sold_last_365_days"] == 30
     assert (
         summary["own_price_analysis"]["average_daily_decrease_30_days"]
-        == pytest.approx(0.30, abs=0.01)
+        == pytest.approx(0.47, abs=0.01)
     )
-    assert summary["own_price_analysis"]["estimated_days_left_30_days"] == 23
+    assert summary["own_price_analysis"]["estimated_days_left_30_days"] == 30
 
 
 @pytest.mark.asyncio
@@ -610,6 +611,85 @@ async def test_get_tracking_history_insights_includes_site_cross_oems_in_system_
     assert summary["order_count_last_year"] == 1
     assert summary["min_offer_with_crosses"]["oem_number"] == "OEMSITE"
     assert float(summary["min_offer_with_crosses"]["price"]) == 55.0
+
+
+@pytest.mark.asyncio
+async def test_get_tracking_history_insights_ignores_invalid_site_crosses(
+    test_session,
+):
+    today = now_moscow().date()
+    provider = Provider(
+        name="Invalid site cross provider",
+        email_contact="invalid-sitecross@example.com",
+        email_incoming_price="invalid-sitecross-prices@example.com",
+        type_prices="Wholesale",
+    )
+    brand = Brand(name="INVALIDSITE")
+    test_session.add_all([provider, brand])
+    await test_session.flush()
+
+    base_autopart = AutoPart(
+        name="Base OEM invalid",
+        brand_id=brand.id,
+        oem_number="BASE123",
+    )
+    invalid_cross_autopart = AutoPart(
+        name="Invalid cross OEM",
+        brand_id=brand.id,
+        oem_number="WRONG123",
+    )
+    test_session.add_all([base_autopart, invalid_cross_autopart])
+    await test_session.flush()
+
+    config = ProviderPriceListConfig(
+        provider_id=provider.id,
+        start_row=1,
+        oem_col=1,
+        qty_col=2,
+        price_col=3,
+        name_price="Invalid cross config",
+    )
+    test_session.add(config)
+    await test_session.flush()
+
+    pricelist = PriceList(
+        provider_id=provider.id,
+        provider_config_id=config.id,
+        date=today,
+    )
+    test_session.add(pricelist)
+    await test_session.flush()
+
+    test_session.add(
+        PriceListAutoPartAssociation(
+            pricelist_id=pricelist.id,
+            autopart_id=invalid_cross_autopart.id,
+            quantity=9,
+            price=42,
+            multiplicity=1,
+        )
+    )
+    test_session.add(
+        AutoPartInvalidCross(
+            source_autopart_id=base_autopart.id,
+            invalid_brand_id=brand.id,
+            invalid_oem_number="WRONG123",
+            invalid_autopart_id=invalid_cross_autopart.id,
+            comment="manual reject",
+        )
+    )
+    await test_session.commit()
+
+    summary = await get_tracking_history_insights(
+        test_session,
+        oem_number="BASE123",
+        brand_name="INVALIDSITE",
+        extra_oem_numbers=["WRONG123"],
+    )
+
+    assert summary["site_cross_oem_numbers"] == []
+    assert summary["cross_offer_rows"] == []
+    assert summary["min_offer_with_crosses"] is None
 
 
 @pytest.mark.asyncio
