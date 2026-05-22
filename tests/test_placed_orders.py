@@ -498,17 +498,20 @@ async def test_get_tracking_history_insights_builds_price_and_own_stock_summary(
     assert summary["own_price_analysis"]["provider_config_id"] == own_cfg.id
     assert summary["own_price_analysis"]["current_quantity"] == 14
     assert float(summary["own_price_analysis"]["latest_price"]) == 80.0
-    assert summary["own_price_analysis"]["arrivals_last_30_days"] == 4
-    assert summary["own_price_analysis"]["arrivals_last_90_days"] == 4
-    assert summary["own_price_analysis"]["arrivals_last_365_days"] == 4
-    assert summary["own_price_analysis"]["sold_last_30_days"] == 14
-    assert summary["own_price_analysis"]["sold_last_90_days"] == 30
-    assert summary["own_price_analysis"]["sold_last_365_days"] == 30
+    # Per-OEM fix: OEM123 receipts are NOT counted in OEMCROSS stock analysis.
+    # own_pl_2→own_pl_3: OEMCROSS prev=24, curr=14, receipts(OEMCROSS)=3 → arrivals=3, decrease=13
+    # own_pl_1→own_pl_2: OEMCROSS prev=40, curr=24, no receipts in range → arrivals=0, decrease=16
+    assert summary["own_price_analysis"]["arrivals_last_30_days"] == 3
+    assert summary["own_price_analysis"]["arrivals_last_90_days"] == 3
+    assert summary["own_price_analysis"]["arrivals_last_365_days"] == 3
+    assert summary["own_price_analysis"]["sold_last_30_days"] == 13
+    assert summary["own_price_analysis"]["sold_last_90_days"] == 29
+    assert summary["own_price_analysis"]["sold_last_365_days"] == 29
     assert (
         summary["own_price_analysis"]["average_daily_decrease_30_days"]
-        == pytest.approx(0.47, abs=0.01)
+        == pytest.approx(0.43, abs=0.01)
     )
-    assert summary["own_price_analysis"]["estimated_days_left_30_days"] == 30
+    assert summary["own_price_analysis"]["estimated_days_left_30_days"] == 32
 
 
 @pytest.mark.asyncio
