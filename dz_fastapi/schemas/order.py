@@ -4,9 +4,9 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from dz_fastapi.schemas.autopart import AutopartOfferRow
 from dz_fastapi.models.autopart import TYPE_SEND_METHOD, TYPE_SUPPLIER_DECISION_STATUS
 from dz_fastapi.models.partner import TYPE_ORDER_ITEM_STATUS, TYPE_STATUS_ORDER
+from dz_fastapi.schemas.autopart import AutopartOfferRow
 
 
 class SupplierOfferOut(BaseModel):
