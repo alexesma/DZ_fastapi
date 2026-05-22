@@ -76,6 +76,12 @@ GMAIL_API_SEND_URL = (
 )
 
 
+def _ensure_parent_dir(filepath: str) -> None:
+    parent_dir = os.path.dirname(filepath)
+    if parent_dir:
+        os.makedirs(parent_dir, exist_ok=True)
+
+
 def _price_email_since_date() -> date:
     return date.today() - timedelta(days=DEPTH_DAY_EMAIL)
 
@@ -1033,6 +1039,7 @@ def _imap_fetch_provider_attachment(
                 )
             ) or not filename_pattern_norm:
                 filepath = os.path.join(DOWNLOAD_FOLDER, att.filename)
+                _ensure_parent_dir(filepath)
                 with open(filepath, "wb") as f:
                     f.write(att.payload)
                 logger.debug(f"[thread] Downloaded attachment: {filepath}")
@@ -1447,6 +1454,7 @@ async def download_new_price_provider(
                     return None
                 filename = os.path.basename(provider_conf.file_url)
                 filepath = os.path.join(DOWNLOAD_FOLDER, filename)
+                _ensure_parent_dir(filepath)
                 async with aiofiles.open(filepath, "wb") as f:
                     await f.write(resp.content)
                 logger.debug(f"Загрузка файла из URL: {filepath}")
@@ -1480,6 +1488,7 @@ async def download_new_price_provider(
             logger.debug("Имя вложения совпало")
             filepath = os.path.join(DOWNLOAD_FOLDER, att.filename)
             try:
+                _ensure_parent_dir(filepath)
                 async with aiofiles.open(filepath, "wb") as f:
                     await f.write(att.payload)
                 logger.debug("Скачано вложение: %s", filepath)
