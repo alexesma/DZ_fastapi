@@ -256,7 +256,10 @@ async def test_get_tracking_history_insights_builds_price_and_own_stock_summary(
         type_prices="Wholesale",
     )
     brand = Brand(name="INSIGHT")
-    test_session.add_all([provider_exact, provider_cross, customer, brand])
+    mirror_brand = Brand(name="DRAGONZAP")
+    test_session.add_all(
+        [provider_exact, provider_cross, customer, brand, mirror_brand]
+    )
     await test_session.flush()
 
     source_autopart = AutoPart(
@@ -269,7 +272,14 @@ async def test_get_tracking_history_insights_builds_price_and_own_stock_summary(
         brand_id=brand.id,
         oem_number="OEMCROSS",
     )
-    test_session.add_all([source_autopart, cross_autopart])
+    mirror_cross_autopart = AutoPart(
+        name="Insight cross duplicate",
+        brand_id=mirror_brand.id,
+        oem_number="OEMCROSS",
+    )
+    test_session.add_all(
+        [source_autopart, cross_autopart, mirror_cross_autopart]
+    )
     await test_session.flush()
     test_session.add(
         AutoPartCross(
@@ -345,6 +355,13 @@ async def test_get_tracking_history_insights_builds_price_and_own_stock_summary(
                 multiplicity=1,
             ),
             PriceListAutoPartAssociation(
+                pricelist_id=own_pl_1.id,
+                autopart_id=mirror_cross_autopart.id,
+                quantity=20,
+                price=85,
+                multiplicity=1,
+            ),
+            PriceListAutoPartAssociation(
                 pricelist_id=own_pl_2.id,
                 autopart_id=cross_autopart.id,
                 quantity=12,
@@ -352,8 +369,22 @@ async def test_get_tracking_history_insights_builds_price_and_own_stock_summary(
                 multiplicity=1,
             ),
             PriceListAutoPartAssociation(
+                pricelist_id=own_pl_2.id,
+                autopart_id=mirror_cross_autopart.id,
+                quantity=12,
+                price=82,
+                multiplicity=1,
+            ),
+            PriceListAutoPartAssociation(
                 pricelist_id=own_pl_3.id,
                 autopart_id=cross_autopart.id,
+                quantity=7,
+                price=80,
+                multiplicity=1,
+            ),
+            PriceListAutoPartAssociation(
+                pricelist_id=own_pl_3.id,
+                autopart_id=mirror_cross_autopart.id,
                 quantity=7,
                 price=80,
                 multiplicity=1,

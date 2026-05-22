@@ -1025,15 +1025,45 @@ async def _build_own_price_analysis(
                 "total_quantity": 0,
                 "exact_prices": [],
                 "all_prices": [],
+                "oem_groups": {},
+            },
+        )
+        normalized_row_oem = _normalize_oem(row.get("oem_number")) or str(
+            row.get("oem_number") or ""
+        )
+        oem_group = snapshot["oem_groups"].setdefault(
+            normalized_row_oem,
+            {
+                "quantity": 0,
+                "exact_prices": [],
+                "all_prices": [],
             },
         )
         quantity = int(row.get("quantity") or 0)
-        snapshot["total_quantity"] += quantity
+        oem_group["quantity"] = max(
+            int(oem_group.get("quantity") or 0),
+            quantity,
+        )
         price_value = _to_decimal(row.get("price"))
         if price_value is not None:
-            snapshot["all_prices"].append(price_value)
-            if _normalize_oem(row.get("oem_number")) == normalized_exact:
-                snapshot["exact_prices"].append(price_value)
+            oem_group["all_prices"].append(price_value)
+            if normalized_row_oem == normalized_exact:
+                oem_group["exact_prices"].append(price_value)
+
+    for snapshot in snapshots_by_key.values():
+        total_quantity = 0
+        exact_prices = []
+        all_prices = []
+        for group in snapshot["oem_groups"].values():
+            total_quantity += int(group.get("quantity") or 0)
+            if group.get("exact_prices"):
+                exact_prices.append(min(group["exact_prices"]))
+            if group.get("all_prices"):
+                all_prices.append(min(group["all_prices"]))
+        snapshot["total_quantity"] = total_quantity
+        snapshot["exact_prices"] = exact_prices
+        snapshot["all_prices"] = all_prices
+        snapshot.pop("oem_groups", None)
 
     snapshots = list(snapshots_by_key.values())
     latest_snapshot = snapshots[-1]
