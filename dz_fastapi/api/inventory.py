@@ -11,10 +11,14 @@ StockMovement, StockReserve, ShipmentDocument, and transfers.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
+from decimal import ROUND_HALF_UP, Decimal
+from io import BytesIO
 from typing import List, Optional
 
+import pandas as pd
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import delete, func, insert, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -36,6 +40,7 @@ from dz_fastapi.models.inventory import (
     ReturnToSupplier,
     ShipmentDocument,
     ShipmentDocumentItem,
+    ShipmentDocumentItemLotAllocation,
     ShipmentDocumentStatus,
     StockByLocation,
     StockDocument,
@@ -79,12 +84,14 @@ from dz_fastapi.schemas.inventory import (
     ShipmentBulkSyncResult,
     ShipmentDocumentCreate,
     ShipmentDocumentItemCreate,
+    ShipmentDocumentItemLotAllocationOut,
     ShipmentDocumentItemOut,
     ShipmentDocumentItemUpdate,
     ShipmentDocumentListItem,
     ShipmentDocumentOut,
     ShipmentDocumentUpdate,
     ShipmentPostResult,
+    ShipmentProfitReportRow,
     ShipmentsExportOut,
     ShipmentSyncUpdate,
     StockByLocationOut,
@@ -132,6 +139,7 @@ from dz_fastapi.services.inventory_stock import (
 )
 
 logger = logging.getLogger(__name__)
+MONEY_PRECISION = Decimal("0.01")
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
 
@@ -1284,6 +1292,7 @@ def _lot_to_out(lot: StockLot) -> StockLotOut:
         country_name=lot.country_name,
         initial_quantity=lot.initial_quantity,
         remaining_quantity=lot.remaining_quantity,
+        cost_price=lot.cost_price,
         source_receipt_id=lot.source_receipt_id,
         source_receipt_item_id=lot.source_receipt_item_id,
         source_document_item_id=lot.source_document_item_id,
@@ -1377,6 +1386,7 @@ def _doc_item_to_out(item: StockDocumentItem) -> StockDocumentItemOut:
         autopart_id=item.autopart_id,
         storage_location_id=item.storage_location_id,
         quantity=item.quantity,
+        cost_price=item.cost_price,
         gtd_number=item.gtd_number,
         country_code=item.country_code,
         country_name=item.country_name,
@@ -1487,6 +1497,7 @@ async def create_stock_document(
             autopart_id=item_data.autopart_id,
             storage_location_id=item_data.storage_location_id,
             quantity=item_data.quantity,
+            cost_price=item_data.cost_price,
             gtd_number=item_data.gtd_number,
             country_code=item_data.country_code,
             country_name=item_data.country_name,
@@ -1587,6 +1598,7 @@ async def add_document_item(
         autopart_id=data.autopart_id,
         storage_location_id=data.storage_location_id,
         quantity=data.quantity,
+        cost_price=data.cost_price,
         gtd_number=data.gtd_number,
         country_code=data.country_code,
         country_name=data.country_name,
@@ -2015,12 +2027,72 @@ async def get_available_stock(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
+def _quantize_money(value: Decimal | None) -> Decimal | None:
+    if value is None:
+        return None
+    return value.quantize(MONEY_PRECISION, rounding=ROUND_HALF_UP)
+
+
+def _shipment_item_revenue_total(
+    item: ShipmentDocumentItem,
+) -> Optional[Decimal]:
+    if item.price is None:
+        return None
+    return _quantize_money(Decimal(str(item.price)) * Decimal(item.quantity))
+
+
+def _shipment_item_cost_breakdown(
+    item: ShipmentDocumentItem,
+) -> tuple[int, int]:
+    allocations = item.allocations or []
+    costed_quantity = sum(
+        int(allocation.quantity or 0)
+        for allocation in allocations
+        if allocation.total_cost_price is not None
+    )
+    uncosted_quantity = max(0, int(item.quantity or 0) - costed_quantity)
+    return costed_quantity, uncosted_quantity
+
+
+def _shipment_allocation_to_out(
+    allocation: ShipmentDocumentItemLotAllocation,
+) -> ShipmentDocumentItemLotAllocationOut:
+    provider = allocation.provider
+    lot = allocation.stock_lot
+    return ShipmentDocumentItemLotAllocationOut(
+        id=allocation.id,
+        shipment_document_item_id=allocation.shipment_document_item_id,
+        stock_lot_id=allocation.stock_lot_id,
+        stock_movement_id=allocation.stock_movement_id,
+        provider_id=allocation.provider_id,
+        provider_name=provider.name if provider else None,
+        quantity=allocation.quantity,
+        unit_cost_price=allocation.unit_cost_price,
+        total_cost_price=allocation.total_cost_price,
+        gtd_number=lot.gtd_number if lot else None,
+        lot_received_at=lot.received_at if lot else None,
+    )
+
+
 def _shipment_item_to_out(
     item: ShipmentDocumentItem,
 ) -> ShipmentDocumentItemOut:
     ap = item.autopart
     loc = item.storage_location
     lot = item.lot if hasattr(item, "lot") else None
+    revenue_total = _shipment_item_revenue_total(item)
+    costed_quantity, uncosted_quantity = _shipment_item_cost_breakdown(item)
+    cost_total = _quantize_money(
+        Decimal(str(item.cost_total)) if item.cost_total is not None else None
+    )
+    gross_profit = None
+    margin_percent = None
+    if revenue_total is not None and cost_total is not None and uncosted_quantity == 0:
+        gross_profit = _quantize_money(revenue_total - cost_total)
+        if revenue_total != Decimal("0.00"):
+            margin_percent = _quantize_money(
+                (gross_profit / revenue_total) * Decimal("100")
+            )
     return ShipmentDocumentItemOut(
         id=item.id,
         document_id=item.document_id,
@@ -2028,6 +2100,8 @@ def _shipment_item_to_out(
         storage_location_id=item.storage_location_id,
         quantity=item.quantity,
         price=item.price,
+        cost_price=item.cost_price,
+        cost_total=cost_total,
         reserve_id=item.reserve_id,
         lot_id=item.lot_id,
         notes=item.notes,
@@ -2036,6 +2110,15 @@ def _shipment_item_to_out(
         autopart_brand=ap.brand.name if (ap and ap.brand) else None,
         storage_location_name=loc.name if loc else None,
         gtd_number=lot.gtd_number if lot else None,
+        revenue_total=revenue_total,
+        gross_profit=gross_profit,
+        margin_percent=margin_percent,
+        costed_quantity=costed_quantity,
+        uncosted_quantity=uncosted_quantity,
+        allocations=[
+            _shipment_allocation_to_out(allocation)
+            for allocation in (item.allocations or [])
+        ],
     )
 
 
@@ -2087,6 +2170,23 @@ def _shipment_to_list_item(doc: ShipmentDocument) -> ShipmentDocumentListItem:
     )
 
 
+def _shipment_profit_period_start(
+    dt_value: datetime,
+    period: str,
+) -> Optional[datetime]:
+    if period == "all":
+        return None
+    if period == "day":
+        return dt_value.replace(hour=0, minute=0, second=0, microsecond=0)
+    return dt_value.replace(
+        day=1,
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+
+
 async def _load_shipment(
     session: AsyncSession, doc_id: int
 ) -> ShipmentDocument:
@@ -2104,6 +2204,12 @@ async def _load_shipment(
             selectinload(ShipmentDocument.items).selectinload(
                 ShipmentDocumentItem.lot
             ),
+            selectinload(ShipmentDocument.items)
+            .selectinload(ShipmentDocumentItem.allocations)
+            .selectinload(ShipmentDocumentItemLotAllocation.provider),
+            selectinload(ShipmentDocument.items)
+            .selectinload(ShipmentDocumentItem.allocations)
+            .selectinload(ShipmentDocumentItemLotAllocation.stock_lot),
             selectinload(ShipmentDocument.customer),
             selectinload(ShipmentDocument.warehouse),
         )
@@ -2163,9 +2269,13 @@ async def list_shipment_documents(
     ),
     customer_id: Optional[int] = Query(None),
     customer_order_id: Optional[int] = Query(None),
+    autopart_id: Optional[int] = Query(None),
+    provider_id: Optional[int] = Query(None),
     sync_status: Optional[SyncStatus] = Query(None),
     date_from: Optional[datetime] = Query(None),
     date_to: Optional[datetime] = Query(None),
+    posted_from: Optional[datetime] = Query(None),
+    posted_to: Optional[datetime] = Query(None),
     offset: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     session: AsyncSession = Depends(get_session),
@@ -2189,15 +2299,423 @@ async def list_shipment_documents(
         stmt = stmt.where(
             ShipmentDocument.customer_order_id == customer_order_id
         )
+    if autopart_id is not None:
+        stmt = stmt.where(
+            ShipmentDocument.items.any(
+                ShipmentDocumentItem.autopart_id == autopart_id
+            )
+        )
+    if provider_id is not None:
+        stmt = stmt.where(
+            ShipmentDocument.items.any(
+                ShipmentDocumentItem.allocations.any(
+                    ShipmentDocumentItemLotAllocation.provider_id
+                    == provider_id
+                )
+            )
+        )
     if sync_status is not None:
         stmt = stmt.where(ShipmentDocument.sync_status == sync_status)
     if date_from is not None:
         stmt = stmt.where(ShipmentDocument.doc_date >= date_from)
     if date_to is not None:
         stmt = stmt.where(ShipmentDocument.doc_date <= date_to)
+    if posted_from is not None:
+        stmt = stmt.where(ShipmentDocument.posted_at >= posted_from)
+    if posted_to is not None:
+        stmt = stmt.where(ShipmentDocument.posted_at <= posted_to)
 
     rows = (await session.execute(stmt)).scalars().all()
     return [_shipment_to_list_item(r) for r in rows]
+
+
+async def _collect_shipment_profit_report_rows(
+    session: AsyncSession,
+    *,
+    period: str,
+    group_by_customer: bool,
+    group_by_provider: bool,
+    group_by_brand: bool,
+    group_by_autopart: bool,
+    customer_id: Optional[int],
+    provider_id: Optional[int],
+    autopart_id: Optional[int],
+    date_from: Optional[datetime],
+    date_to: Optional[datetime],
+) -> list[ShipmentProfitReportRow]:
+    stmt = (
+        select(ShipmentDocument)
+        .where(ShipmentDocument.status == ShipmentDocumentStatus.POSTED)
+        .options(
+            selectinload(ShipmentDocument.customer),
+            selectinload(ShipmentDocument.items)
+            .selectinload(ShipmentDocumentItem.autopart)
+            .selectinload(AutoPart.brand),
+            selectinload(ShipmentDocument.items)
+            .selectinload(ShipmentDocumentItem.allocations)
+            .selectinload(ShipmentDocumentItemLotAllocation.provider),
+            selectinload(ShipmentDocument.items)
+            .selectinload(ShipmentDocumentItem.allocations)
+            .selectinload(ShipmentDocumentItemLotAllocation.stock_lot),
+        )
+        .order_by(ShipmentDocument.posted_at.desc(), ShipmentDocument.id.desc())
+    )
+    if customer_id is not None:
+        stmt = stmt.where(ShipmentDocument.customer_id == customer_id)
+    if date_from is not None:
+        stmt = stmt.where(ShipmentDocument.posted_at >= date_from)
+    if date_to is not None:
+        stmt = stmt.where(ShipmentDocument.posted_at <= date_to)
+
+    docs = (await session.execute(stmt)).scalars().all()
+    grouped: dict[
+        tuple[Optional[datetime], Optional[int], Optional[int], Optional[int], Optional[int]],
+        dict,
+    ] = {}
+
+    for doc in docs:
+        effective_dt = doc.posted_at or doc.doc_date
+        period_start = _shipment_profit_period_start(effective_dt, period)
+        current_customer_id = doc.customer_id if group_by_customer else None
+        current_customer_name = (
+            doc.customer.name
+            if group_by_customer and doc.customer is not None
+            else None
+        )
+
+        for item in doc.items or []:
+            if autopart_id is not None and item.autopart_id != autopart_id:
+                continue
+
+            sale_unit_price = (
+                Decimal(str(item.price)) if item.price is not None else None
+            )
+            autopart = item.autopart
+            brand_id = (
+                autopart.brand_id
+                if autopart is not None and group_by_brand
+                else None
+            )
+            brand_name = (
+                autopart.brand.name
+                if (
+                    autopart is not None
+                    and autopart.brand is not None
+                    and group_by_brand
+                )
+                else None
+            )
+            allocations = list(item.allocations or [])
+            allocated_quantity = 0
+
+            for allocation in allocations:
+                quantity_piece = int(allocation.quantity or 0)
+                if quantity_piece <= 0:
+                    continue
+                allocated_quantity += quantity_piece
+                current_provider_id = allocation.provider_id
+                if (
+                    provider_id is not None
+                    and current_provider_id != provider_id
+                ):
+                    continue
+
+                key = (
+                    period_start,
+                    current_customer_id,
+                    current_provider_id if group_by_provider else None,
+                    brand_id,
+                    item.autopart_id if group_by_autopart else None,
+                )
+                provider_name = (
+                    allocation.provider.name
+                    if allocation.provider is not None
+                    else None
+                )
+                row = grouped.setdefault(
+                    key,
+                    {
+                        "period_start": period_start,
+                        "customer_id": current_customer_id,
+                        "customer_name": current_customer_name,
+                        "provider_id": (
+                            current_provider_id if group_by_provider else None
+                        ),
+                        "provider_name": (
+                            provider_name if group_by_provider else None
+                        ),
+                        "brand_id": brand_id,
+                        "brand_name": brand_name,
+                        "autopart_id": (
+                            item.autopart_id if group_by_autopart else None
+                        ),
+                        "autopart_oem": (
+                            autopart.oem_number
+                            if group_by_autopart and autopart is not None
+                            else None
+                        ),
+                        "autopart_name": (
+                            autopart.name
+                            if group_by_autopart and autopart is not None
+                            else None
+                        ),
+                        "autopart_brand": (
+                            autopart.brand.name
+                            if (
+                                group_by_autopart
+                                and autopart is not None
+                                and autopart.brand is not None
+                            )
+                            else None
+                        ),
+                        "quantity": 0,
+                        "revenue_total": Decimal("0.00"),
+                        "cost_total": Decimal("0.00"),
+                        "gross_profit": None,
+                        "margin_percent": None,
+                        "costed_quantity": 0,
+                        "uncosted_quantity": 0,
+                    },
+                )
+                row["quantity"] += quantity_piece
+                if sale_unit_price is not None:
+                    row["revenue_total"] += sale_unit_price * Decimal(
+                        quantity_piece
+                    )
+                if allocation.total_cost_price is not None:
+                    row["cost_total"] += Decimal(
+                        str(allocation.total_cost_price)
+                    )
+                    row["costed_quantity"] += quantity_piece
+                else:
+                    row["uncosted_quantity"] += quantity_piece
+
+            remainder_quantity = max(
+                0,
+                int(item.quantity or 0) - allocated_quantity,
+            )
+            if remainder_quantity <= 0:
+                continue
+            if provider_id is not None:
+                continue
+
+            key = (
+                period_start,
+                current_customer_id,
+                None if group_by_provider else None,
+                brand_id,
+                item.autopart_id if group_by_autopart else None,
+            )
+            row = grouped.setdefault(
+                key,
+                {
+                    "period_start": period_start,
+                    "customer_id": current_customer_id,
+                    "customer_name": current_customer_name,
+                    "provider_id": None,
+                    "provider_name": None,
+                    "brand_id": brand_id,
+                    "brand_name": brand_name,
+                    "autopart_id": (
+                        item.autopart_id if group_by_autopart else None
+                    ),
+                    "autopart_oem": (
+                        autopart.oem_number
+                        if group_by_autopart and autopart is not None
+                        else None
+                    ),
+                    "autopart_name": (
+                        autopart.name
+                        if group_by_autopart and autopart is not None
+                        else None
+                    ),
+                    "autopart_brand": (
+                        autopart.brand.name
+                        if (
+                            group_by_autopart
+                            and autopart is not None
+                            and autopart.brand is not None
+                        )
+                        else None
+                    ),
+                    "quantity": 0,
+                    "revenue_total": Decimal("0.00"),
+                    "cost_total": Decimal("0.00"),
+                    "gross_profit": None,
+                    "margin_percent": None,
+                    "costed_quantity": 0,
+                    "uncosted_quantity": 0,
+                },
+            )
+            row["quantity"] += remainder_quantity
+            if sale_unit_price is not None:
+                row["revenue_total"] += sale_unit_price * Decimal(
+                    remainder_quantity
+                )
+            row["uncosted_quantity"] += remainder_quantity
+
+    rows: list[ShipmentProfitReportRow] = []
+    for row in grouped.values():
+        row["revenue_total"] = _quantize_money(row["revenue_total"]) or Decimal(
+            "0.00"
+        )
+        row["cost_total"] = _quantize_money(row["cost_total"]) or Decimal(
+            "0.00"
+        )
+        if row["uncosted_quantity"] == 0:
+            gross_profit = _quantize_money(
+                row["revenue_total"] - row["cost_total"]
+            )
+            row["gross_profit"] = gross_profit
+            if row["revenue_total"] != Decimal("0.00"):
+                row["margin_percent"] = _quantize_money(
+                    (gross_profit / row["revenue_total"]) * Decimal("100")
+                )
+        rows.append(ShipmentProfitReportRow(**row))
+
+    rows.sort(
+        key=lambda row: (
+            row.period_start.isoformat() if row.period_start else "",
+            row.customer_name or "",
+            row.provider_name or "",
+            row.brand_name or "",
+            row.autopart_oem or "",
+            row.autopart_id or 0,
+        )
+    )
+    return rows
+
+
+def _shipment_profit_report_rows_to_excel(
+    rows: list[ShipmentProfitReportRow],
+    *,
+    period: str,
+) -> BytesIO:
+    export_rows = [
+        {
+            "Период": format_period,
+            "Клиент": row.customer_name,
+            "Поставщик": row.provider_name,
+            "Бренд": row.brand_name or row.autopart_brand,
+            "OEM": row.autopart_oem,
+            "Наименование": row.autopart_name,
+            "Количество": row.quantity,
+            "Выручка": float(row.revenue_total),
+            "Себестоимость": float(row.cost_total),
+            "Валовая прибыль": (
+                float(row.gross_profit) if row.gross_profit is not None else None
+            ),
+            "Маржа %": (
+                float(row.margin_percent) if row.margin_percent is not None else None
+            ),
+            "Оценено, шт": row.costed_quantity,
+            "Неоценено, шт": row.uncosted_quantity,
+        }
+        for row in rows
+        for format_period in [
+            (
+                row.period_start.strftime("%d.%m.%Y")
+                if row.period_start is not None and period == "day"
+                else row.period_start.strftime("%m.%Y")
+                if row.period_start is not None and period == "month"
+                else "Весь период"
+            )
+        ]
+    ]
+    dataframe = pd.DataFrame(export_rows)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        dataframe.to_excel(writer, index=False, sheet_name="profit_report")
+        worksheet = writer.sheets["profit_report"]
+        for column_cells in worksheet.columns:
+            max_length = max(
+                len(str(cell.value)) if cell.value is not None else 0
+                for cell in column_cells
+            )
+            worksheet.column_dimensions[
+                column_cells[0].column_letter
+            ].width = min(max(max_length + 2, 12), 40)
+    output.seek(0)
+    return output
+
+
+@router.get(
+    "/shipments/profit-report/",
+    response_model=List[ShipmentProfitReportRow],
+    summary="Отчёт по выручке, себестоимости и валовой прибыли",
+)
+async def get_shipment_profit_report(
+    period: str = Query("month", pattern="^(all|day|month)$"),
+    group_by_customer: bool = Query(False),
+    group_by_provider: bool = Query(True),
+    group_by_brand: bool = Query(False),
+    group_by_autopart: bool = Query(True),
+    customer_id: Optional[int] = Query(None),
+    provider_id: Optional[int] = Query(None),
+    autopart_id: Optional[int] = Query(None),
+    date_from: Optional[datetime] = Query(None),
+    date_to: Optional[datetime] = Query(None),
+    session: AsyncSession = Depends(get_session),
+):
+    return await _collect_shipment_profit_report_rows(
+        session,
+        period=period,
+        group_by_customer=group_by_customer,
+        group_by_provider=group_by_provider,
+        group_by_brand=group_by_brand,
+        group_by_autopart=group_by_autopart,
+        customer_id=customer_id,
+        provider_id=provider_id,
+        autopart_id=autopart_id,
+        date_from=date_from,
+        date_to=date_to,
+    )
+
+
+@router.get(
+    "/shipments/profit-report/export/",
+    summary="Экспорт отчёта по валовой прибыли в Excel",
+)
+async def export_shipment_profit_report(
+    period: str = Query("month", pattern="^(all|day|month)$"),
+    group_by_customer: bool = Query(False),
+    group_by_provider: bool = Query(True),
+    group_by_brand: bool = Query(False),
+    group_by_autopart: bool = Query(True),
+    customer_id: Optional[int] = Query(None),
+    provider_id: Optional[int] = Query(None),
+    autopart_id: Optional[int] = Query(None),
+    date_from: Optional[datetime] = Query(None),
+    date_to: Optional[datetime] = Query(None),
+    session: AsyncSession = Depends(get_session),
+):
+    rows = await _collect_shipment_profit_report_rows(
+        session,
+        period=period,
+        group_by_customer=group_by_customer,
+        group_by_provider=group_by_provider,
+        group_by_brand=group_by_brand,
+        group_by_autopart=group_by_autopart,
+        customer_id=customer_id,
+        provider_id=provider_id,
+        autopart_id=autopart_id,
+        date_from=date_from,
+        date_to=date_to,
+    )
+    workbook = _shipment_profit_report_rows_to_excel(rows, period=period)
+    filename = (
+        "shipment_profit_report_"
+        f"{period}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.xlsx"
+    )
+    return StreamingResponse(
+        workbook,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        },
+    )
 
 
 @router.get(

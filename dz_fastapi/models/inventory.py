@@ -267,6 +267,11 @@ class StockLot(Base):
     # ── Количество ─────────────────────────────────────────────────────────
     initial_quantity = Column(Integer, nullable=False)  # сколько пришло
     remaining_quantity = Column(Integer, nullable=False)  # сколько осталось
+    cost_price = Column(
+        DECIMAL(12, 4),
+        nullable=True,
+        comment="Закупочная/учётная себестоимость одной единицы партии",
+    )
 
     # ── Источник — строка поступления (для RECEIPT-лотов) ──────────────────
     source_receipt_id = Column(
@@ -518,6 +523,11 @@ class StockDocumentItem(Base):
         nullable=True,
     )
     quantity = Column(Integer, nullable=False)
+    cost_price = Column(
+        DECIMAL(12, 4),
+        nullable=True,
+        comment="Себестоимость единицы для ручного оприходования/корректировки",
+    )
 
     # ГТД — заполняется при ручном оприходовании
     gtd_number = Column(String(64), nullable=True)
@@ -776,6 +786,16 @@ class ShipmentDocumentItem(Base):
     price = Column(
         DECIMAL(10, 2), nullable=True, comment="Цена реализации за единицу"
     )
+    cost_price = Column(
+        DECIMAL(12, 4),
+        nullable=True,
+        comment="Снимок себестоимости за единицу на момент проведения",
+    )
+    cost_total = Column(
+        DECIMAL(14, 2),
+        nullable=True,
+        comment="Суммарная себестоимость строки на момент проведения",
+    )
 
     # ── Источник / связи ────────────────────────────────────────────────────
     reserve_id = Column(
@@ -801,6 +821,79 @@ class ShipmentDocumentItem(Base):
     storage_location = relationship("StorageLocation", lazy="joined")
     reserve = relationship("StockReserve", lazy="noload")
     lot = relationship("StockLot", lazy="noload")
+    allocations = relationship(
+        "ShipmentDocumentItemLotAllocation",
+        back_populates="shipment_document_item",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+
+class ShipmentDocumentItemLotAllocation(Base):
+    """Фактическое списание строки отгрузки по конкретным FIFO-лотам."""
+
+    __tablename__ = "shipmentdocumentitemlotallocation"
+
+    shipment_document_item_id = Column(
+        Integer,
+        ForeignKey("shipmentdocumentitem.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    stock_lot_id = Column(
+        Integer,
+        ForeignKey("stocklot.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    stock_movement_id = Column(
+        Integer,
+        ForeignKey("stockmovement.id", ondelete="SET NULL"),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+    provider_id = Column(
+        Integer,
+        ForeignKey("provider.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="Поставщик исходной партии на момент отгрузки",
+    )
+    quantity = Column(Integer, nullable=False)
+    unit_cost_price = Column(
+        DECIMAL(12, 4),
+        nullable=True,
+        comment="Себестоимость единицы из конкретной партии",
+    )
+    total_cost_price = Column(
+        DECIMAL(14, 2),
+        nullable=True,
+        comment="Суммарная себестоимость списания из конкретной партии",
+    )
+    created_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        nullable=False,
+    )
+
+    shipment_document_item = relationship(
+        "ShipmentDocumentItem",
+        back_populates="allocations",
+        lazy="noload",
+    )
+    stock_lot = relationship("StockLot", lazy="joined")
+    stock_movement = relationship("StockMovement", lazy="joined")
+    provider = relationship("Provider", lazy="joined")
+
+    __table_args__ = (
+        Index(
+            "idx_shipment_item_lot_alloc_report",
+            "provider_id",
+            "shipment_document_item_id",
+            "stock_lot_id",
+        ),
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

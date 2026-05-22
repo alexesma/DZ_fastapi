@@ -20,6 +20,7 @@ from dz_fastapi.models.inventory import (
 )
 
 PriceDecimal = condecimal(max_digits=10, decimal_places=2, ge=0)
+CostPriceDecimal = condecimal(max_digits=12, decimal_places=4, ge=0)
 
 
 class WarehouseBase(BaseModel):
@@ -158,6 +159,7 @@ class StockLotOut(BaseModel):
     country_name: Optional[str] = None
     initial_quantity: int
     remaining_quantity: int
+    cost_price: Optional[Decimal] = None
     source_receipt_id: Optional[int] = None
     source_receipt_item_id: Optional[int] = None
     source_document_item_id: Optional[int] = None
@@ -300,6 +302,7 @@ class StockDocumentItemCreate(BaseModel):
     autopart_id: int
     storage_location_id: Optional[int] = None
     quantity: int = Field(..., gt=0)
+    cost_price: Optional[CostPriceDecimal] = None
     gtd_number: Optional[str] = Field(None, max_length=64)
     country_code: Optional[str] = Field(None, max_length=16)
     country_name: Optional[str] = Field(None, max_length=120)
@@ -310,6 +313,7 @@ class StockDocumentItemUpdate(BaseModel):
     autopart_id: Optional[int] = None
     storage_location_id: Optional[int] = None
     quantity: Optional[int] = Field(None, gt=0)
+    cost_price: Optional[CostPriceDecimal] = None
     gtd_number: Optional[str] = Field(None, max_length=64)
     country_code: Optional[str] = Field(None, max_length=16)
     country_name: Optional[str] = Field(None, max_length=120)
@@ -322,6 +326,7 @@ class StockDocumentItemOut(BaseModel):
     autopart_id: int
     storage_location_id: Optional[int] = None
     quantity: int
+    cost_price: Optional[Decimal] = None
     gtd_number: Optional[str] = None
     country_code: Optional[str] = None
     country_name: Optional[str] = None
@@ -497,6 +502,22 @@ class ShipmentDocumentItemUpdate(BaseModel):
     notes: Optional[str] = None
 
 
+class ShipmentDocumentItemLotAllocationOut(BaseModel):
+    id: int
+    shipment_document_item_id: int
+    stock_lot_id: Optional[int] = None
+    stock_movement_id: Optional[int] = None
+    provider_id: Optional[int] = None
+    provider_name: Optional[str] = None
+    quantity: int
+    unit_cost_price: Optional[Decimal] = None
+    total_cost_price: Optional[Decimal] = None
+    gtd_number: Optional[str] = None
+    lot_received_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ShipmentDocumentItemOut(BaseModel):
     id: int
     document_id: int
@@ -504,6 +525,8 @@ class ShipmentDocumentItemOut(BaseModel):
     storage_location_id: Optional[int] = None
     quantity: int
     price: Optional[Decimal] = None
+    cost_price: Optional[Decimal] = None
+    cost_total: Optional[Decimal] = None
     reserve_id: Optional[int] = None
     lot_id: Optional[int] = None
     notes: Optional[str] = None
@@ -514,6 +537,14 @@ class ShipmentDocumentItemOut(BaseModel):
     storage_location_name: Optional[str] = None
     # из лота (заполняется после проведения)
     gtd_number: Optional[str] = None
+    revenue_total: Optional[Decimal] = None
+    gross_profit: Optional[Decimal] = None
+    margin_percent: Optional[Decimal] = None
+    costed_quantity: int = 0
+    uncosted_quantity: int = 0
+    allocations: List[ShipmentDocumentItemLotAllocationOut] = Field(
+        default_factory=list
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -595,6 +626,29 @@ class ShipmentPostResult(BaseModel):
         default_factory=list,
         description="IDs лотов, затронутых при списании",
     )
+
+
+class ShipmentProfitReportRow(BaseModel):
+    period_start: Optional[datetime] = None
+    customer_id: Optional[int] = None
+    customer_name: Optional[str] = None
+    provider_id: Optional[int] = None
+    provider_name: Optional[str] = None
+    brand_id: Optional[int] = None
+    brand_name: Optional[str] = None
+    autopart_id: Optional[int] = None
+    autopart_oem: Optional[str] = None
+    autopart_name: Optional[str] = None
+    autopart_brand: Optional[str] = None
+    quantity: int = 0
+    revenue_total: Decimal = Decimal("0.00")
+    cost_total: Decimal = Decimal("0.00")
+    gross_profit: Optional[Decimal] = None
+    margin_percent: Optional[Decimal] = None
+    costed_quantity: int = 0
+    uncosted_quantity: int = 0
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ─── Returns ────────────────────────────────────────────────────────────────

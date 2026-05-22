@@ -34,6 +34,7 @@ Invariants enforced by this module:
 from __future__ import annotations
 
 import logging
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Optional
 
 from sqlalchemy import asc, func, select
@@ -53,6 +54,7 @@ from dz_fastapi.models.inventory import (
     ReturnToSupplier,
     ShipmentDocument,
     ShipmentDocumentItem,
+    ShipmentDocumentItemLotAllocation,
     ShipmentDocumentStatus,
     StockByLocation,
     StockDocument,
@@ -72,6 +74,131 @@ DEFAULT_WAREHOUSE_COMMENT = (
     "Склад по умолчанию для входящих документов и первичного размещения."
 )
 RECEIVING_LOCATION_CODE = "RECEIVING"
+UNIT_COST_PRECISION = Decimal("0.0001")
+MONEY_PRECISION = Decimal("0.01")
+
+
+def _to_decimal(value) -> Decimal | None:
+    if value is None:
+        return None
+    if isinstance(value, Decimal):
+        return value
+    return Decimal(str(value))
+
+
+def _quantize_unit_cost(value: Decimal | None) -> Decimal | None:
+    if value is None:
+        return None
+    return value.quantize(UNIT_COST_PRECISION, rounding=ROUND_HALF_UP)
+
+
+def _quantize_money(value: Decimal | None) -> Decimal | None:
+    if value is None:
+        return None
+    return value.quantize(MONEY_PRECISION, rounding=ROUND_HALF_UP)
+
+
+def _derive_receipt_unit_cost(item: SupplierReceiptItem) -> Decimal | None:
+    direct_price = _to_decimal(getattr(item, "price", None))
+    if direct_price is not None:
+        return _quantize_unit_cost(direct_price)
+
+    total_with_vat = _to_decimal(getattr(item, "total_price_with_vat", None))
+    received_quantity = int(getattr(item, "received_quantity", 0) or 0)
+    if total_with_vat is None or received_quantity <= 0:
+        return None
+    return _quantize_unit_cost(total_with_vat / Decimal(received_quantity))
+
+
+def _weighted_average_cost_from_lots(lots: list[StockLot]) -> Decimal | None:
+    total_quantity = 0
+    total_cost = Decimal("0")
+    for lot in lots:
+        quantity = int(lot.remaining_quantity or 0)
+        unit_cost = _quantize_unit_cost(_to_decimal(lot.cost_price))
+        if quantity <= 0 or unit_cost is None:
+            continue
+        total_quantity += quantity
+        total_cost += unit_cost * Decimal(quantity)
+    if total_quantity <= 0:
+        return None
+    return _quantize_unit_cost(total_cost / Decimal(total_quantity))
+
+
+async def _infer_autopart_cost_price(
+    session: AsyncSession,
+    *,
+    autopart_id: int,
+    storage_location_id: Optional[int],
+) -> Decimal | None:
+    """Infer an accounting unit cost for synthetic lots.
+
+    Used for opening balances and positive inventory corrections where we
+    create stock without a direct source receipt. We prefer live lots from the
+    same location, then live lots globally, then the latest known historical
+    cost for the part.
+    """
+    scoped_active_stmt = select(StockLot).where(
+        StockLot.autopart_id == autopart_id,
+        StockLot.remaining_quantity > 0,
+        StockLot.cost_price.is_not(None),
+    )
+    if storage_location_id is not None:
+        scoped_active_stmt = scoped_active_stmt.where(
+            StockLot.storage_location_id == storage_location_id
+        )
+    scoped_active_lots = (
+        await session.execute(
+            scoped_active_stmt.order_by(
+                asc(StockLot.received_at),
+                asc(StockLot.id),
+            )
+        )
+    ).scalars().all()
+    inferred = _weighted_average_cost_from_lots(scoped_active_lots)
+    if inferred is not None:
+        return inferred
+
+    global_active_lots = (
+        await session.execute(
+            select(StockLot)
+            .where(
+                StockLot.autopart_id == autopart_id,
+                StockLot.remaining_quantity > 0,
+                StockLot.cost_price.is_not(None),
+            )
+            .order_by(asc(StockLot.received_at), asc(StockLot.id))
+        )
+    ).scalars().all()
+    inferred = _weighted_average_cost_from_lots(global_active_lots)
+    if inferred is not None:
+        return inferred
+
+    latest_known_stmt = select(StockLot.cost_price).where(
+        StockLot.autopart_id == autopart_id,
+        StockLot.cost_price.is_not(None),
+    )
+    if storage_location_id is not None:
+        scoped_latest = (
+            await session.execute(
+                latest_known_stmt.where(
+                    StockLot.storage_location_id == storage_location_id
+                ).order_by(StockLot.received_at.desc(), StockLot.id.desc()).limit(1)
+            )
+        ).scalar_one_or_none()
+        scoped_latest_cost = _quantize_unit_cost(_to_decimal(scoped_latest))
+        if scoped_latest_cost is not None:
+            return scoped_latest_cost
+
+    latest_known = (
+        await session.execute(
+            latest_known_stmt.order_by(
+                StockLot.received_at.desc(),
+                StockLot.id.desc(),
+            ).limit(1)
+        )
+    ).scalar_one_or_none()
+    return _quantize_unit_cost(_to_decimal(latest_known))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -329,6 +456,7 @@ async def _create_stock_lot(
     source_document_item_id: Optional[int] = None,
     received_at=None,
     external_id: Optional[str] = None,
+    cost_price: Optional[Decimal] = None,
 ) -> StockLot:
     """Insert a new StockLot and return it (flushed, so .id is available)."""
     lot = StockLot(
@@ -345,6 +473,7 @@ async def _create_stock_lot(
         source_document_item_id=source_document_item_id,
         received_at=received_at or now_moscow(),
         external_id=external_id,
+        cost_price=_quantize_unit_cost(_to_decimal(cost_price)),
     )
     session.add(lot)
     await session.flush()
@@ -532,6 +661,7 @@ async def receive_stock(
 
         lot_id: Optional[int] = None
         if not reverse:
+            lot_cost_price = _derive_receipt_unit_cost(item)
             lot = await _create_stock_lot(
                 session,
                 autopart_id=autopart_id,
@@ -544,6 +674,7 @@ async def receive_stock(
                 source_receipt_id=receipt.id,
                 source_receipt_item_id=item.id,
                 received_at=received_at,
+                cost_price=lot_cost_price,
             )
             lot_id = lot.id
         else:
@@ -682,12 +813,18 @@ async def reconcile_stock_absolute(
 
     if delta > 0:
         # Излишек — создаём лот
+        inferred_cost_price = await _infer_autopart_cost_price(
+            session,
+            autopart_id=autopart_id,
+            storage_location_id=storage_location_id,
+        )
         lot = await _create_stock_lot(
             session,
             autopart_id=autopart_id,
             storage_location_id=storage_location_id,
             quantity=delta,
             source_type=LotSourceType.INVENTORY_CORRECTION,
+            cost_price=inferred_cost_price,
         )
         mv = await _apply_stock_delta(
             session,
@@ -786,6 +923,8 @@ async def transfer_stock_with_lot_trace(
         if dest_lot is not None:
             dest_lot.remaining_quantity += take
             dest_lot.initial_quantity += take
+            if dest_lot.cost_price is None and lot.cost_price is not None:
+                dest_lot.cost_price = lot.cost_price
         else:
             dest_lot = await _create_stock_lot(
                 session,
@@ -799,6 +938,7 @@ async def transfer_stock_with_lot_trace(
                 source_receipt_id=lot.source_receipt_id,
                 source_receipt_item_id=lot.source_receipt_item_id,
                 received_at=lot.received_at,  # preserve original date!
+                cost_price=lot.cost_price,
             )
 
         transferred_lots.append(
@@ -935,6 +1075,7 @@ async def post_stock_document(
                 autopart_id=item.autopart_id,
                 storage_location_id=item.storage_location_id,
                 quantity=qty,
+                cost_price=item.cost_price,
                 source_type=LotSourceType.MANUAL,
                 gtd_number=item.gtd_number,
                 country_code=item.country_code,
@@ -1158,6 +1299,11 @@ async def backfill_opening_balance_lots(
             autoparts_skipped += 1
             continue
 
+        inferred_cost_price = await _infer_autopart_cost_price(
+            session,
+            autopart_id=sbl.autopart_id,
+            storage_location_id=sbl.storage_location_id,
+        )
         await _create_stock_lot(
             session,
             autopart_id=sbl.autopart_id,
@@ -1165,6 +1311,7 @@ async def backfill_opening_balance_lots(
             quantity=gap,
             source_type=LotSourceType.OPENING_BALANCE,
             # No GTD for opening balance — unknown provenance
+            cost_price=inferred_cost_price,
         )
         lots_created += 1
 
@@ -1355,7 +1502,11 @@ async def post_shipment_document(
     result = await session.execute(
         select(ShipmentDocument)
         .where(ShipmentDocument.id == doc_id)
-        .options(selectinload(ShipmentDocument.items))
+        .options(
+            selectinload(ShipmentDocument.items).selectinload(
+                ShipmentDocumentItem.allocations
+            )
+        )
     )
     doc = result.scalar_one_or_none()
     if doc is None:
@@ -1390,6 +1541,80 @@ async def post_shipment_document(
         )
         movements_created += len(movements)
 
+        touched_lot_ids = [
+            movement.stock_lot_id
+            for movement in movements
+            if movement.stock_lot_id is not None
+        ]
+        lot_map: dict[int, StockLot] = {}
+        if touched_lot_ids:
+            lots_result = await session.execute(
+                select(StockLot)
+                .options(selectinload(StockLot.source_receipt))
+                .where(StockLot.id.in_(touched_lot_ids))
+            )
+            lot_map = {
+                lot.id: lot for lot in lots_result.scalars().all() if lot.id
+            }
+
+        cost_total = Decimal("0.00")
+        costed_quantity = 0
+        has_known_cost = False
+
+        for movement in movements:
+            if movement.stock_lot_id is None:
+                continue
+            lot = lot_map.get(movement.stock_lot_id)
+            quantity_taken = abs(int(movement.quantity or 0))
+            source_receipt = None
+            if lot is not None:
+                source_receipt = lot.source_receipt
+                if (
+                    source_receipt is None
+                    and lot.source_receipt_id is not None
+                ):
+                    source_receipt = await session.get(
+                        SupplierReceipt, lot.source_receipt_id
+                    )
+            unit_cost = (
+                _quantize_unit_cost(_to_decimal(lot.cost_price))
+                if lot is not None
+                else None
+            )
+            total_cost = (
+                _quantize_money(unit_cost * Decimal(quantity_taken))
+                if unit_cost is not None
+                else None
+            )
+            if total_cost is not None:
+                cost_total += total_cost
+                costed_quantity += quantity_taken
+                has_known_cost = True
+
+            session.add(
+                ShipmentDocumentItemLotAllocation(
+                    shipment_document_item_id=item.id,
+                    stock_lot_id=movement.stock_lot_id,
+                    stock_movement_id=movement.id,
+                    provider_id=(
+                        source_receipt.provider_id
+                        if source_receipt is not None
+                        else None
+                    ),
+                    quantity=quantity_taken,
+                    unit_cost_price=unit_cost,
+                    total_cost_price=total_cost,
+                )
+            )
+
+        item.cost_total = _quantize_money(cost_total) if has_known_cost else None
+        if costed_quantity == int(item.quantity or 0) and costed_quantity > 0:
+            item.cost_price = _quantize_unit_cost(
+                cost_total / Decimal(costed_quantity)
+            )
+        else:
+            item.cost_price = None
+
         # 3. Запоминаем первый задействованный лот в строке
         first_lot_id = next(
             (m.stock_lot_id for m in movements if m.stock_lot_id), None
@@ -1422,7 +1647,11 @@ async def unpost_shipment_document(
     result = await session.execute(
         select(ShipmentDocument)
         .where(ShipmentDocument.id == doc_id)
-        .options(selectinload(ShipmentDocument.items))
+        .options(
+            selectinload(ShipmentDocument.items)
+            .selectinload(ShipmentDocumentItem.allocations)
+            .selectinload(ShipmentDocumentItemLotAllocation.stock_lot)
+        )
     )
     doc = result.scalar_one_or_none()
     if doc is None:
@@ -1435,28 +1664,61 @@ async def unpost_shipment_document(
     movements_created = 0
 
     for item in doc.items:
-        # Восстанавливаем лот, если есть ссылка
-        if item.lot_id:
-            lot = await session.get(StockLot, item.lot_id)
-            if lot is not None:
-                lot.remaining_quantity = min(
-                    lot.remaining_quantity + item.quantity,
-                    lot.initial_quantity,
-                )
+        allocations = list(item.allocations or [])
+        restored_quantity = 0
 
-        mv = await _apply_stock_delta(
-            session,
-            autopart_id=item.autopart_id,
-            storage_location_id=item.storage_location_id,
-            quantity_delta=item.quantity,
-            movement_type=MovementType.RECEIPT,
-            reference_id=doc.id,
-            reference_type="shipment_document_unpost",
-            notes=f"Отмена накладной #{doc_id}",
-            stock_lot_id=item.lot_id,
-        )
-        if mv is not None:
-            movements_created += 1
+        if allocations:
+            for allocation in allocations:
+                lot = allocation.stock_lot
+                if lot is not None and allocation.stock_lot_id is not None:
+                    lot.remaining_quantity = min(
+                        lot.remaining_quantity + allocation.quantity,
+                        lot.initial_quantity,
+                    )
+
+                mv = await _apply_stock_delta(
+                    session,
+                    autopart_id=item.autopart_id,
+                    storage_location_id=item.storage_location_id,
+                    quantity_delta=allocation.quantity,
+                    movement_type=MovementType.RECEIPT,
+                    reference_id=doc.id,
+                    reference_type="shipment_document_unpost",
+                    notes=f"Отмена накладной #{doc_id}",
+                    stock_lot_id=allocation.stock_lot_id,
+                )
+                if mv is not None:
+                    movements_created += 1
+                restored_quantity += int(allocation.quantity or 0)
+                await session.delete(allocation)
+
+        remaining_to_restore = int(item.quantity or 0) - restored_quantity
+        if remaining_to_restore > 0:
+            if item.lot_id:
+                lot = await session.get(StockLot, item.lot_id)
+                if lot is not None:
+                    lot.remaining_quantity = min(
+                        lot.remaining_quantity + remaining_to_restore,
+                        lot.initial_quantity,
+                    )
+
+            mv = await _apply_stock_delta(
+                session,
+                autopart_id=item.autopart_id,
+                storage_location_id=item.storage_location_id,
+                quantity_delta=remaining_to_restore,
+                movement_type=MovementType.RECEIPT,
+                reference_id=doc.id,
+                reference_type="shipment_document_unpost",
+                notes=f"Отмена накладной #{doc_id}",
+                stock_lot_id=item.lot_id,
+            )
+            if mv is not None:
+                movements_created += 1
+
+        item.lot_id = None
+        item.cost_price = None
+        item.cost_total = None
 
     doc.status = ShipmentDocumentStatus.CANCELLED
     doc.posted_at = None
