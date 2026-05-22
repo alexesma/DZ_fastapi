@@ -925,6 +925,9 @@ async def _load_own_price_config_options(
             Provider.name.label("provider_name"),
             ProviderPriceListConfig.name_price.label("name_price"),
             func.max(PriceList.date).label("latest_pricelist_date"),
+            ProviderPriceListConfig.use_for_order_insights.label(
+                "use_for_order_insights"
+            ),
         )
         .select_from(PriceListAutoPartAssociation)
         .join(
@@ -950,6 +953,7 @@ async def _load_own_price_config_options(
             Provider.id,
             Provider.name,
             ProviderPriceListConfig.name_price,
+            ProviderPriceListConfig.use_for_order_insights,
         )
         .order_by(Provider.name.asc(), ProviderPriceListConfig.id.asc())
     )
@@ -1232,7 +1236,14 @@ async def get_tracking_history_insights(
         session,
         normalized_oem_numbers=normalized_oem_numbers or [normalized_oem],
     )
-    resolved_own_provider_config_id = own_provider_config_id
+    resolved_own_provider_config_id = own_provider_config_id or next(
+        (
+            int(config["id"])
+            for config in own_price_configs
+            if bool(config.get("use_for_order_insights"))
+        ),
+        None,
+    )
     own_price_analysis = None
     if resolved_own_provider_config_id is not None:
         own_price_analysis = await _build_own_price_analysis(

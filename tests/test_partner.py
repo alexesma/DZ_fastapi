@@ -608,6 +608,85 @@ async def test_update_provider_pricelist_config(
 
 
 @pytest.mark.asyncio
+async def test_create_provider_pricelist_config_rejects_order_insights_for_non_own_provider(
+    created_providers: list[Provider],
+    async_client: AsyncClient,
+):
+    provider = created_providers[0]
+    response = await async_client.post(
+        f"/providers/{provider.id}/pricelist-config/",
+        json={
+            **CONFIG_DATA,
+            "use_for_order_insights": True,
+        },
+    )
+
+    assert response.status_code == 400
+    assert "Наш прайс" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_update_provider_pricelist_config_switches_order_insights_selection(
+    async_client: AsyncClient,
+    test_session: AsyncSession,
+):
+    provider = Provider(
+        name="Own insight provider",
+        email_contact="own-insight@example.com",
+        email_incoming_price="own-insight-prices@example.com",
+        type_prices="Wholesale",
+        is_own_price=True,
+    )
+    test_session.add(provider)
+    await test_session.commit()
+    await test_session.refresh(provider)
+
+    first_response = await async_client.post(
+        f"/providers/{provider.id}/pricelist-config/",
+        json={
+            **CONFIG_DATA,
+            "name_price": "Own config A",
+            "use_for_order_insights": True,
+        },
+    )
+    second_response = await async_client.post(
+        f"/providers/{provider.id}/pricelist-config/",
+        json={
+            **CONFIG_DATA,
+            "name_price": "Own config B",
+        },
+    )
+
+    assert first_response.status_code == 201, first_response.text
+    assert second_response.status_code == 201, second_response.text
+
+    first_config_id = first_response.json()["id"]
+    second_config_id = second_response.json()["id"]
+
+    toggle_response = await async_client.patch(
+        f"/providers/{provider.id}/pricelist-config/{second_config_id}/",
+        json={"use_for_order_insights": True},
+    )
+
+    assert toggle_response.status_code == 200, toggle_response.text
+    assert toggle_response.json()["use_for_order_insights"] is True
+
+    first_config = await test_session.get(
+        ProviderPriceListConfig,
+        first_config_id,
+    )
+    second_config = await test_session.get(
+        ProviderPriceListConfig,
+        second_config_id,
+    )
+
+    assert first_config is not None
+    assert second_config is not None
+    assert first_config.use_for_order_insights is False
+    assert second_config.use_for_order_insights is True
+
+
+@pytest.mark.asyncio
 async def test_supplier_response_config_crud(
     created_providers: list[Provider],
     async_client: AsyncClient,

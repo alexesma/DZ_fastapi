@@ -513,6 +513,9 @@ class ProviderPriceListConfig(Base):
     min_delivery_day = Column(Integer, nullable=True, default=1)
     max_delivery_day = Column(Integer, nullable=True, default=2)
     is_active = Column(Boolean, default=True, nullable=False)
+    use_for_order_insights = Column(
+        Boolean, default=False, nullable=False
+    )
     provider = relationship("Provider", back_populates="pricelist_configs")
     incoming_email_account = relationship("EmailAccount", lazy="selectin")
     price_lists = relationship(

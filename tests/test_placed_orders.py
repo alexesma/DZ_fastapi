@@ -300,6 +300,7 @@ async def test_get_tracking_history_insights_builds_price_and_own_stock_summary(
         name_price="Own stock",
         min_delivery_day=0,
         max_delivery_day=0,
+        use_for_order_insights=True,
     )
     test_session.add_all([exact_cfg, own_cfg])
     await test_session.flush()
@@ -423,13 +424,22 @@ async def test_get_tracking_history_insights_builds_price_and_own_stock_summary(
     )
     await test_session.commit()
 
-    summary_without_selected_own = await get_tracking_history_insights(
+    summary_auto_selected_own = await get_tracking_history_insights(
         test_session,
         oem_number="OEM123",
     )
 
-    assert len(summary_without_selected_own["own_price_configs"]) == 1
-    assert summary_without_selected_own["own_price_analysis"] is None
+    assert len(summary_auto_selected_own["own_price_configs"]) == 1
+    assert (
+        summary_auto_selected_own["own_price_configs"][0][
+            "use_for_order_insights"
+        ]
+        is True
+    )
+    assert (
+        summary_auto_selected_own["own_price_analysis"]["provider_config_id"]
+        == own_cfg.id
+    )
 
     summary = await get_tracking_history_insights(
         test_session,

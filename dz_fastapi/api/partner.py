@@ -118,6 +118,52 @@ from dz_fastapi.services.supplier_order_responses import (
 )
 
 logger = logging.getLogger("dz_fastapi")
+
+
+async def _clear_order_insights_config_selection(
+    session: AsyncSession,
+    *,
+    exclude_config_id: int | None = None,
+    provider_id: int | None = None,
+) -> None:
+    stmt = select(ProviderPriceListConfig).where(
+        ProviderPriceListConfig.use_for_order_insights.is_(True)
+    )
+    if exclude_config_id is not None:
+        stmt = stmt.where(ProviderPriceListConfig.id != exclude_config_id)
+    if provider_id is not None:
+        stmt = stmt.where(ProviderPriceListConfig.provider_id == provider_id)
+    configs = list((await session.execute(stmt)).scalars().all())
+    for config in configs:
+        config.use_for_order_insights = False
+        session.add(config)
+    if configs:
+        await session.flush()
+
+
+def _validate_order_insights_config_selection(
+    *,
+    provider: Provider,
+    use_for_order_insights: bool,
+    is_active: bool,
+) -> None:
+    if not use_for_order_insights:
+        return
+    if not provider.is_own_price:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Эту настройку можно включить только у поставщика "
+                "с флагом 'Наш прайс'."
+            ),
+        )
+    if not is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Конфигурация для сводки заказа должна быть активной."
+            ),
+        )
 router = APIRouter()
 
 
@@ -559,6 +605,16 @@ async def update_provider(
     updated_provider = await crud_provider.update_provider(
         provider_id=provider_id, obj_in=provider_in, session=session
     )
+    if (
+        "is_own_price" in provider_in.model_fields_set
+        and not bool(updated_provider.is_own_price)
+    ):
+        await _clear_order_insights_config_selection(
+            session,
+            provider_id=provider_id,
+        )
+        await session.commit()
+        await session.refresh(updated_provider)
     return ProviderResponse.model_validate(updated_provider)
 
 
@@ -1100,6 +1156,11 @@ async def set_provider_pricelist_config(
     )
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
+    _validate_order_insights_config_selection(
+        provider=provider,
+        use_for_order_insights=bool(config_in.use_for_order_insights),
+        is_active=bool(config_in.is_active),
+    )
     await _validate_incoming_price_mailbox(
         session, config_in.incoming_email_account_id
     )
@@ -1107,6 +1168,13 @@ async def set_provider_pricelist_config(
     new_config = await crud_provider_pricelist_config.create(
         provider_id=provider_id, config_in=config_in, session=session
     )
+    if new_config.use_for_order_insights:
+        await _clear_order_insights_config_selection(
+            session,
+            exclude_config_id=new_config.id,
+        )
+        await session.commit()
+        await session.refresh(new_config)
     return ProviderPriceListConfigOut.model_validate(new_config)
 
 
@@ -1149,8 +1217,25 @@ async def update_provider_pricelist_config(
         "incoming_email_account_id" in config_in.model_fields_set
         and config_in.incoming_email_account_id != previous_mailbox_id
     )
+    update_payload = config_in.model_dump(exclude_unset=True)
+    if update_payload.get("is_active") is False:
+        update_payload["use_for_order_insights"] = False
+    next_use_for_order_insights = bool(
+        update_payload.get(
+            "use_for_order_insights",
+            provider_config.use_for_order_insights,
+        )
+    )
+    next_is_active = bool(
+        update_payload.get("is_active", provider_config.is_active)
+    )
+    _validate_order_insights_config_selection(
+        provider=provider,
+        use_for_order_insights=next_use_for_order_insights,
+        is_active=next_is_active,
+    )
     update_config = await crud_provider_pricelist_config.update(
-        db_obj=provider_config, obj_in=config_in, session=session
+        db_obj=provider_config, obj_in=update_payload, session=session
     )
     if should_reset_last_uid:
         await set_last_uid(
@@ -1166,6 +1251,13 @@ async def update_provider_pricelist_config(
             previous_mailbox_id,
             config_in.incoming_email_account_id,
         )
+    if update_config.use_for_order_insights:
+        await _clear_order_insights_config_selection(
+            session,
+            exclude_config_id=update_config.id,
+        )
+        await session.commit()
+        await session.refresh(update_config)
     return ProviderPriceListConfigOut.model_validate(update_config)
 
 

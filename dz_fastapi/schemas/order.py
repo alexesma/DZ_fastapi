@@ -272,6 +272,7 @@ class TrackingInsightOwnPriceConfigOption(BaseModel):
     provider_name: str
     name_price: Optional[str] = None
     latest_pricelist_date: Optional[date] = None
+    use_for_order_insights: bool = False
 
 
 class TrackingInsightOwnPriceAnalysis(BaseModel):
