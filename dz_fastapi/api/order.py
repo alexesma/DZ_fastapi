@@ -1,7 +1,7 @@
 import logging
 import os
 from datetime import date
-from typing import List, Optional
+from typing import Any, List, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -315,6 +315,112 @@ async def _expand_query_brands(
         return expanded
 
 
+def _extract_site_brand_rows(payload: Any) -> list[dict[str, Any]]:
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if not isinstance(payload, dict):
+        return []
+    raw_rows = payload.get("data")
+    if not isinstance(raw_rows, list):
+        return []
+    return [item for item in raw_rows if isinstance(item, dict)]
+
+
+def _prepare_site_brand_candidates(
+    payload: Any,
+) -> list[dict[str, Any]]:
+    deduped: dict[str, dict[str, Any]] = {}
+    for row in _extract_site_brand_rows(payload):
+        brand_name = str(row.get("brand") or "").strip().upper()
+        if not brand_name:
+            continue
+        try:
+            rate = int(row.get("rate") or 0)
+        except (TypeError, ValueError):
+            rate = 0
+        current = deduped.get(brand_name)
+        normalized_row = {
+            "brand": brand_name,
+            "number": row.get("number"),
+            "des_text": row.get("des_text"),
+            "rate": rate,
+        }
+        if current is None or rate > int(current.get("rate") or 0):
+            deduped[brand_name] = normalized_row
+
+    return sorted(
+        deduped.values(),
+        key=lambda item: (-int(item.get("rate") or 0), item["brand"]),
+    )
+
+
+async def _fetch_site_offers_for_brands(
+    dz_site_client: DZSiteClient,
+    *,
+    oem: str,
+    brands: list[str],
+    without_cross: bool,
+) -> list[list[dict]]:
+    offers_by_brand: list[list[dict]] = []
+    for brand_name in brands:
+        offers = await dz_site_client.get_offers(
+            oem=oem,
+            brand=brand_name,
+            without_cross=without_cross,
+        )
+        if not offers:
+            continue
+        for item in offers:
+            if isinstance(item, dict):
+                item.setdefault("query_brand", brand_name)
+        offers_by_brand.append(offers)
+    return offers_by_brand
+
+
+async def _resolve_fallback_site_brand(
+    dz_site_client: DZSiteClient,
+    *,
+    oem: str,
+    exclude_brands: list[str],
+    without_cross: bool,
+) -> tuple[list[list[dict]], list[dict[str, Any]], Optional[str]]:
+    site_brand_candidates = _prepare_site_brand_candidates(
+        await dz_site_client.get_brands(oem)
+    )
+    tried = {str(item or "").strip().upper() for item in exclude_brands}
+    for candidate in site_brand_candidates:
+        brand_name = candidate["brand"]
+        if brand_name in tried:
+            continue
+        offers_by_brand = await _fetch_site_offers_for_brands(
+            dz_site_client,
+            oem=oem,
+            brands=[brand_name],
+            without_cross=without_cross,
+        )
+        if offers_by_brand:
+            return offers_by_brand, site_brand_candidates, brand_name
+    return [], site_brand_candidates, None
+
+
+@router.get(
+    "/get_brands_by_oem",
+    tags=["offer"],
+    status_code=status.HTTP_200_OK,
+    summary="Получение брендов с сайта dragonzap по oem",
+)
+async def get_brands_by_oem(
+    oem: str,
+):
+    async with DZSiteClient(
+        base_url=URL_DZ_SEARCH, api_key=KEY, verify_ssl=False
+    ) as dz_site_client:
+        candidates = _prepare_site_brand_candidates(
+            await dz_site_client.get_brands(oem)
+        )
+    return {"data": candidates}
+
+
 @router.get(
     "/get_offers_by_oem_and_make_name",
     tags=["offer"],
@@ -327,29 +433,45 @@ async def get_offers_by_oem_and_make_name(
     without_cross: bool = True,
     session: AsyncSession = Depends(get_session),
 ):
-    query_brands = await _expand_query_brands(
+    requested_brands = await _expand_query_brands(
         make_name=make_name,
         session=session,
     )
-    offers_by_brand: list[list[dict]] = []
+    query_brands = list(requested_brands)
+    site_brand_candidates: list[dict[str, Any]] = []
+    used_fallback_brand = False
     async with DZSiteClient(
         base_url=URL_DZ_SEARCH, api_key=KEY, verify_ssl=False
     ) as dz_site_client:
-        for brand_name in query_brands:
-            offers = await dz_site_client.get_offers(
+        offers_by_brand = await _fetch_site_offers_for_brands(
+            dz_site_client,
+            oem=oem,
+            brands=query_brands,
+            without_cross=without_cross,
+        )
+        if not offers_by_brand:
+            (
+                offers_by_brand,
+                site_brand_candidates,
+                fallback_brand,
+            ) = await _resolve_fallback_site_brand(
+                dz_site_client,
                 oem=oem,
-                brand=brand_name,
+                exclude_brands=query_brands,
                 without_cross=without_cross,
             )
-            if not offers:
-                continue
-            for item in offers:
-                if isinstance(item, dict):
-                    item.setdefault("query_brand", brand_name)
-            offers_by_brand.append(offers)
+            if fallback_brand:
+                query_brands = [fallback_brand]
+                used_fallback_brand = True
 
     merged = _merge_site_offers(offers_by_brand)
-    return {"data": merged, "query_brands": query_brands}
+    return {
+        "data": merged,
+        "query_brands": query_brands,
+        "requested_brands": requested_brands,
+        "site_brand_candidates": site_brand_candidates,
+        "used_fallback_brand": used_fallback_brand,
+    }
 
 
 @router.get(
@@ -809,6 +931,7 @@ async def get_tracking_items(
     customer_id: Optional[int] = None,
     status: Optional[str] = None,
     sync_site: bool = Query(default=False),
+    include_crosses: bool = Query(default=False),
     date_from: Optional[date] = Query(default=None),
     date_to: Optional[date] = Query(default=None),
     limit: int = Query(default=300, ge=1, le=1000),
@@ -826,6 +949,7 @@ async def get_tracking_items(
         date_to=date_to,
         limit=limit,
         sync_site=sync_site,
+        include_crosses=include_crosses,
     )
 
 

@@ -5,13 +5,16 @@ import os
 from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
-from sqlalchemy import delete, literal, select
+from sqlalchemy import delete, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from dz_fastapi.core.constants import URL_DZ_SEARCH
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.http.dz_site_client import DZSiteClient
+from dz_fastapi.models.autopart import AutoPart
+from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.cross import AutoPartCross
 from dz_fastapi.models.partner import (
     ORDER_TRACKING_SOURCE,
     SUPPLIER_ORDER_STATUS,
@@ -66,6 +69,100 @@ def _normalize_oem(value: Optional[str]) -> Optional[str]:
 def _normalize_brand(value: Optional[str]) -> Optional[str]:
     normalized = str(value or "").strip()
     return normalized or None
+
+
+async def _resolve_tracking_oem_numbers(
+    session: AsyncSession,
+    *,
+    oem_number: Optional[str] = None,
+    brand_name: Optional[str] = None,
+    include_crosses: bool = False,
+) -> list[str]:
+    normalized_oem = _normalize_oem(oem_number)
+    if not normalized_oem:
+        return []
+
+    resolved_oems: set[str] = {normalized_oem}
+    if not include_crosses:
+        return [normalized_oem]
+
+    normalized_brand = _normalize_brand(brand_name)
+
+    async def _load_source_autopart_ids(
+        restrict_brand: bool,
+    ) -> list[int]:
+        stmt = select(AutoPart.id).where(AutoPart.oem_number == normalized_oem)
+        if restrict_brand and normalized_brand:
+            stmt = (
+                stmt.join(Brand, Brand.id == AutoPart.brand_id)
+                .where(Brand.name.ilike(normalized_brand))
+            )
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
+    source_autopart_ids = await _load_source_autopart_ids(
+        restrict_brand=True
+    )
+    if not source_autopart_ids and normalized_brand:
+        source_autopart_ids = await _load_source_autopart_ids(
+            restrict_brand=False
+        )
+
+    if source_autopart_ids:
+        direct_crosses_stmt = select(
+            AutoPartCross.cross_oem_number,
+            AutoPartCross.cross_autopart_id,
+        ).where(AutoPartCross.source_autopart_id.in_(source_autopart_ids))
+        direct_cross_rows = (
+            await session.execute(direct_crosses_stmt)
+        ).all()
+        for cross_oem_number, _ in direct_cross_rows:
+            normalized_cross_oem = _normalize_oem(cross_oem_number)
+            if normalized_cross_oem:
+                resolved_oems.add(normalized_cross_oem)
+
+        direct_cross_autopart_ids = [
+            cross_autopart_id
+            for _, cross_autopart_id in direct_cross_rows
+            if cross_autopart_id is not None
+        ]
+        if direct_cross_autopart_ids:
+            direct_cross_oems_stmt = select(AutoPart.oem_number).where(
+                AutoPart.id.in_(direct_cross_autopart_ids)
+            )
+            direct_cross_oems = (
+                await session.execute(direct_cross_oems_stmt)
+            ).scalars()
+            for cross_oem_number in direct_cross_oems:
+                normalized_cross_oem = _normalize_oem(cross_oem_number)
+                if normalized_cross_oem:
+                    resolved_oems.add(normalized_cross_oem)
+
+        reverse_cross_stmt = (
+            select(AutoPart.oem_number)
+            .join(
+                AutoPartCross,
+                AutoPartCross.source_autopart_id == AutoPart.id,
+            )
+            .where(
+                or_(
+                    AutoPartCross.cross_oem_number == normalized_oem,
+                    AutoPartCross.cross_autopart_id.in_(source_autopart_ids),
+                )
+            )
+        )
+        reverse_cross_oems = (
+            await session.execute(reverse_cross_stmt)
+        ).scalars()
+        for reverse_oem_number in reverse_cross_oems:
+            normalized_reverse_oem = _normalize_oem(reverse_oem_number)
+            if normalized_reverse_oem:
+                resolved_oems.add(normalized_reverse_oem)
+
+    return sorted(
+        resolved_oems,
+        key=lambda item: (item != normalized_oem, item),
+    )
 
 
 def _actual_lead_days(
@@ -264,6 +361,7 @@ async def sync_site_tracking_statuses(
     session: AsyncSession,
     *,
     oem_number: Optional[str] = None,
+    oem_numbers: Optional[list[str]] = None,
     brand_name: Optional[str] = None,
     provider_id: Optional[int] = None,
     customer_id: Optional[int] = None,
@@ -280,7 +378,14 @@ async def sync_site_tracking_statuses(
             "errors": 0,
         }
 
+    normalized_oems: list[str] = []
+    for raw_oem in oem_numbers or []:
+        normalized_oem = _normalize_oem(raw_oem)
+        if normalized_oem and normalized_oem not in normalized_oems:
+            normalized_oems.append(normalized_oem)
     normalized_oem = _normalize_oem(oem_number)
+    if normalized_oem and normalized_oem not in normalized_oems:
+        normalized_oems.append(normalized_oem)
     normalized_brand = _normalize_brand(brand_name)
     stmt = (
         select(OrderItem, Order)
@@ -296,8 +401,8 @@ async def sync_site_tracking_statuses(
             OrderItem.id.desc(),
         )
     )
-    if normalized_oem:
-        stmt = stmt.where(OrderItem.oem_number == normalized_oem)
+    if normalized_oems:
+        stmt = stmt.where(OrderItem.oem_number.in_(normalized_oems))
     if normalized_brand:
         stmt = stmt.where(OrderItem.brand_name.ilike(normalized_brand))
     if provider_id is not None:
@@ -413,11 +518,19 @@ async def list_tracking_history(
     date_to: Optional[date] = None,
     limit: int = 300,
     sync_site: bool = False,
+    include_crosses: bool = False,
 ) -> list[dict[str, Any]]:
+    normalized_oem_numbers = await _resolve_tracking_oem_numbers(
+        session,
+        oem_number=oem_number,
+        brand_name=brand_name,
+        include_crosses=include_crosses,
+    )
     if sync_site:
         await sync_site_tracking_statuses(
             session,
             oem_number=oem_number,
+            oem_numbers=normalized_oem_numbers,
             brand_name=brand_name,
             provider_id=provider_id,
             customer_id=customer_id,
@@ -478,11 +591,15 @@ async def list_tracking_history(
             SupplierOrder.created_at <= range_end,
         )
     )
-    if normalized_oem:
+    if normalized_oem_numbers:
+        supplier_stmt = supplier_stmt.where(
+            SupplierOrderItem.oem_number.in_(normalized_oem_numbers)
+        )
+    elif normalized_oem:
         supplier_stmt = supplier_stmt.where(
             SupplierOrderItem.oem_number == normalized_oem
         )
-    if normalized_brand:
+    if normalized_brand and not include_crosses:
         supplier_stmt = supplier_stmt.where(
             SupplierOrderItem.brand_name.ilike(normalized_brand)
         )
@@ -531,9 +648,13 @@ async def list_tracking_history(
             Order.created_at <= range_end,
         )
     )
-    if normalized_oem:
+    if normalized_oem_numbers:
+        site_stmt = site_stmt.where(
+            OrderItem.oem_number.in_(normalized_oem_numbers)
+        )
+    elif normalized_oem:
         site_stmt = site_stmt.where(OrderItem.oem_number == normalized_oem)
-    if normalized_brand:
+    if normalized_brand and not include_crosses:
         site_stmt = site_stmt.where(
             OrderItem.brand_name.ilike(normalized_brand)
         )

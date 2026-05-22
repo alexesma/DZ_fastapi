@@ -5,6 +5,7 @@ import pytest
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.cross import AutoPartCross
 from dz_fastapi.models.order_status_mapping import (
     ExternalStatusMapping,
     ExternalStatusMatchMode,
@@ -151,6 +152,79 @@ async def test_list_tracking_history_returns_site_and_supplier_rows(
     assert len(rows) == 2
     assert {row["source_type"] for row in rows} == {"site", "supplier"}
     assert all(row["ordered_by_email"] == user.email for row in rows)
+
+
+@pytest.mark.asyncio
+async def test_list_tracking_history_includes_cross_oem_rows(
+    test_session,
+):
+    provider = Provider(
+        name="Provider Cross",
+        email_contact="provider-cross@example.com",
+        email_incoming_price="prices-cross@example.com",
+        type_prices="Wholesale",
+    )
+    brand = Brand(name="CROSS")
+    test_session.add_all([provider, brand])
+    await test_session.flush()
+
+    source_autopart = AutoPart(
+        name="Source part",
+        brand_id=brand.id,
+        oem_number="OEM123",
+    )
+    cross_autopart = AutoPart(
+        name="Cross part",
+        brand_id=brand.id,
+        oem_number="OEMCROSS",
+    )
+    test_session.add_all([source_autopart, cross_autopart])
+    await test_session.flush()
+
+    test_session.add(
+        AutoPartCross(
+            source_autopart_id=source_autopart.id,
+            cross_brand_id=brand.id,
+            cross_oem_number="OEMCROSS",
+            cross_autopart_id=cross_autopart.id,
+        )
+    )
+
+    supplier_order = SupplierOrder(
+        provider_id=provider.id,
+        source_type=ORDER_TRACKING_SOURCE.SEARCH_OFFERS.value,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+    )
+    test_session.add(supplier_order)
+    await test_session.flush()
+
+    test_session.add(
+        SupplierOrderItem(
+            supplier_order_id=supplier_order.id,
+            autopart_id=cross_autopart.id,
+            oem_number="OEMCROSS",
+            brand_name="CROSS",
+            autopart_name="Cross part",
+            quantity=2,
+            price=77,
+        )
+    )
+    await test_session.commit()
+
+    exact_rows = await list_tracking_history(
+        test_session,
+        oem_number="OEM123",
+    )
+    cross_rows = await list_tracking_history(
+        test_session,
+        oem_number="OEM123",
+        include_crosses=True,
+    )
+
+    assert exact_rows == []
+    assert len(cross_rows) == 1
+    assert cross_rows[0]["oem_number"] == "OEMCROSS"
+    assert cross_rows[0]["source_type"] == "supplier"
 
 
 @pytest.mark.asyncio

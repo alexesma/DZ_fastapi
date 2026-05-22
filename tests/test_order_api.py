@@ -120,6 +120,34 @@ class _ClearableBasketDZSiteClient(_FakeDZSiteClient):
         return True
 
 
+class _FallbackBrandDZSiteClient(_FakeDZSiteClient):
+    async def get_brands(self, oem):
+        assert oem == "SMD323978"
+        return {
+            "result": "ok",
+            "data": [
+                {"brand": "DRAGONZAP", "rate": 0},
+                {"brand": "GREAT WALL", "rate": 3532},
+            ],
+        }
+
+    async def get_offers(self, oem, brand, without_cross=True):
+        assert oem == "SMD323978"
+        assert without_cross is True
+        if brand == "GREAT WALL":
+            return [
+                {
+                    "oem": oem,
+                    "make_name": brand,
+                    "detail_name": "Прокладка корпуса термостата",
+                    "price": 120.0,
+                    "qnt": 5,
+                    "api_hash": "site-hash-1",
+                }
+            ]
+        return []
+
+
 @pytest.mark.asyncio
 async def test_send_api_resolves_supplier_by_name_when_id_external(
     async_client, test_session, created_customers, monkeypatch
@@ -426,3 +454,30 @@ async def test_clear_dragonzap_basket_endpoint(async_client, test_session, monke
     assert payload["cleared_items"] == 2
     assert "Корзина Dragonzap очищена" in payload["message"]
     assert _ClearableBasketDZSiteClient.clean_called is True
+
+
+@pytest.mark.asyncio
+async def test_get_offers_by_oem_and_make_name_falls_back_to_site_brand(
+    async_client, monkeypatch
+):
+    monkeypatch.setattr(
+        "dz_fastapi.api.order.DZSiteClient",
+        _FallbackBrandDZSiteClient,
+    )
+
+    response = await async_client.get(
+        "/order/get_offers_by_oem_and_make_name",
+        params={
+            "oem": "SMD323978",
+            "make_name": "DRAGONZAP",
+            "without_cross": "true",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["used_fallback_brand"] is True
+    assert payload["requested_brands"] == ["DRAGONZAP"]
+    assert payload["query_brands"] == ["GREAT WALL"]
+    assert len(payload["data"]) == 1
+    assert payload["data"][0]["make_name"] == "GREAT WALL"
