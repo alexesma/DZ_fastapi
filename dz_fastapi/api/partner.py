@@ -164,6 +164,8 @@ def _validate_order_insights_config_selection(
                 "Конфигурация для сводки заказа должна быть активной."
             ),
         )
+
+
 router = APIRouter()
 
 
