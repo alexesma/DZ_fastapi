@@ -46,6 +46,7 @@ from dz_fastapi.schemas.order import (
     SupplierOfferOut,
     SupplierOffersResponse,
     SupplierOrderOut,
+    TrackingHistoryInsightSummary,
     UpdatePositionStatusRequest,
     UpdatePositionStatusResponse,
 )
@@ -53,6 +54,7 @@ from dz_fastapi.schemas.partner import ProviderExternalReferenceCreate
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
 from dz_fastapi.services.notifications import create_notification
 from dz_fastapi.services.placed_orders import (
+    get_tracking_history_insights,
     list_tracking_history,
     sync_site_tracking_statuses,
     update_tracking_item,
@@ -950,6 +952,26 @@ async def get_tracking_items(
         limit=limit,
         sync_site=sync_site,
         include_crosses=include_crosses,
+    )
+
+
+@router.get(
+    "/tracking-summary",
+    response_model=TrackingHistoryInsightSummary,
+    summary="Краткая сводка по заказам и нашим остаткам для поиска по артикулу",
+)
+async def get_tracking_summary(
+    oem: Optional[str] = None,
+    brand: Optional[str] = None,
+    own_provider_config_id: Optional[int] = Query(default=None),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    return await get_tracking_history_insights(
+        session=session,
+        oem_number=oem,
+        brand_name=brand,
+        own_provider_config_id=own_provider_config_id,
     )
 
 

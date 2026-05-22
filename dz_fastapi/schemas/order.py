@@ -1,9 +1,10 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
+from dz_fastapi.schemas.autopart import AutopartOfferRow
 from dz_fastapi.models.autopart import TYPE_SEND_METHOD, TYPE_SUPPLIER_DECISION_STATUS
 from dz_fastapi.models.partner import TYPE_ORDER_ITEM_STATUS, TYPE_STATUS_ORDER
 
@@ -263,3 +264,47 @@ class PlacedOrderHistoryRow(BaseModel):
 class PlacedOrderHistoryUpdate(BaseModel):
     status: Optional[str] = None
     received_quantity: Optional[int] = Field(default=None, ge=0)
+
+
+class TrackingInsightOwnPriceConfigOption(BaseModel):
+    id: int
+    provider_id: int
+    provider_name: str
+    name_price: Optional[str] = None
+    latest_pricelist_date: Optional[date] = None
+
+
+class TrackingInsightOwnPriceAnalysis(BaseModel):
+    provider_config_id: int
+    provider_id: int
+    provider_name: str
+    provider_config_name: Optional[str] = None
+    latest_pricelist_date: Optional[date] = None
+    latest_price: Optional[Decimal] = None
+    current_quantity: int = 0
+    sold_last_30_days: int = 0
+    sold_last_90_days: int = 0
+    sold_last_365_days: int = 0
+    average_daily_decrease_30_days: Optional[float] = None
+    estimated_days_left_30_days: Optional[int] = None
+
+
+class TrackingHistoryInsightSummary(BaseModel):
+    oem_number: str
+    cross_oem_numbers: List[str] = Field(default_factory=list)
+    exact_min_offer: Optional[AutopartOfferRow] = None
+    min_offer_with_crosses: Optional[AutopartOfferRow] = None
+    order_count_last_year: int = 0
+    total_ordered_quantity_last_year: int = 0
+    total_received_quantity_last_year: int = 0
+    unique_suppliers_last_year: int = 0
+    fill_rate_percent: Optional[float] = None
+    historical_min_price_exact: Optional[Decimal] = None
+    historical_min_price_with_crosses: Optional[Decimal] = None
+    average_actual_lead_days: Optional[float] = None
+    last_ordered_at: Optional[datetime] = None
+    last_received_at: Optional[datetime] = None
+    own_price_configs: List[TrackingInsightOwnPriceConfigOption] = Field(
+        default_factory=list
+    )
+    own_price_analysis: Optional[TrackingInsightOwnPriceAnalysis] = None

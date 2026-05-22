@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import logging
 import os
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
-from sqlalchemy import delete, literal, or_, select
+from sqlalchemy import delete, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -23,7 +24,10 @@ from dz_fastapi.models.partner import (
     Customer,
     Order,
     OrderItem,
+    PriceList,
+    PriceListAutoPartAssociation,
     Provider,
+    ProviderPriceListConfig,
     SupplierOrder,
     SupplierOrderItem,
 )
@@ -778,6 +782,475 @@ async def list_tracking_history(
         reverse=True,
     )
     return results[:limit]
+
+
+def _to_decimal(value: Any) -> Optional[Decimal]:
+    if value is None or value == "":
+        return None
+    if isinstance(value, Decimal):
+        return value
+    try:
+        return Decimal(str(value))
+    except Exception:
+        return None
+
+
+def _round_stat(value: Optional[float], digits: int = 1) -> Optional[float]:
+    if value is None:
+        return None
+    return round(float(value), digits)
+
+
+def _offer_sort_key(row: dict[str, Any]) -> tuple[Decimal, int, int]:
+    price = _to_decimal(row.get("price")) or Decimal("999999999")
+    max_delivery = row.get("max_delivery_day")
+    quantity = int(row.get("quantity") or 0)
+    return (
+        price,
+        int(max_delivery) if max_delivery is not None else 999999,
+        -quantity,
+    )
+
+
+def _build_offer_payload(row: dict[str, Any]) -> dict[str, Any]:
+    price_value = _to_decimal(row.get("price"))
+    return {
+        "autopart_id": row.get("autopart_id"),
+        "oem_number": row.get("oem_number"),
+        "brand_name": row.get("brand_name"),
+        "name": row.get("autopart_name"),
+        "provider_id": row.get("provider_id"),
+        "provider_name": row.get("provider_name"),
+        "provider_config_id": row.get("provider_config_id"),
+        "provider_config_name": row.get("provider_config_name"),
+        "price": price_value,
+        "quantity": int(row.get("quantity") or 0),
+        "min_delivery_day": row.get("min_delivery_day"),
+        "max_delivery_day": row.get("max_delivery_day"),
+        "pricelist_id": row.get("pricelist_id"),
+        "pricelist_date": row.get("pricelist_date"),
+        "is_own_price": bool(row.get("is_own_price")),
+    }
+
+
+async def _load_current_offer_candidates(
+    session: AsyncSession,
+    *,
+    normalized_oem_numbers: list[str],
+) -> list[dict[str, Any]]:
+    if not normalized_oem_numbers:
+        return []
+
+    partition_key = func.coalesce(
+        PriceList.provider_config_id, PriceList.provider_id
+    ).label("partition_key")
+    latest_pricelist_rank = (
+        func.row_number()
+        .over(
+            partition_by=partition_key,
+            order_by=(PriceList.date.desc(), PriceList.id.desc()),
+        )
+        .label("latest_rn")
+    )
+
+    latest_pricelists = (
+        select(
+            PriceList.id.label("pricelist_id"),
+            latest_pricelist_rank,
+        )
+        .select_from(PriceList)
+        .where(PriceList.is_active.is_(True))
+        .subquery()
+    )
+
+    stmt = (
+        select(
+            AutoPart.id.label("autopart_id"),
+            AutoPart.oem_number.label("oem_number"),
+            AutoPart.name.label("autopart_name"),
+            Brand.name.label("brand_name"),
+            Provider.id.label("provider_id"),
+            Provider.name.label("provider_name"),
+            Provider.is_own_price.label("is_own_price"),
+            ProviderPriceListConfig.id.label("provider_config_id"),
+            ProviderPriceListConfig.name_price.label("provider_config_name"),
+            PriceListAutoPartAssociation.price.label("price"),
+            PriceListAutoPartAssociation.quantity.label("quantity"),
+            ProviderPriceListConfig.min_delivery_day.label("min_delivery_day"),
+            ProviderPriceListConfig.max_delivery_day.label("max_delivery_day"),
+            PriceList.id.label("pricelist_id"),
+            PriceList.date.label("pricelist_date"),
+        )
+        .select_from(latest_pricelists)
+        .join(PriceList, PriceList.id == latest_pricelists.c.pricelist_id)
+        .join(
+            PriceListAutoPartAssociation,
+            PriceListAutoPartAssociation.pricelist_id == PriceList.id,
+        )
+        .join(
+            AutoPart,
+            AutoPart.id == PriceListAutoPartAssociation.autopart_id,
+        )
+        .join(Brand, Brand.id == AutoPart.brand_id)
+        .join(Provider, Provider.id == PriceList.provider_id)
+        .outerjoin(
+            ProviderPriceListConfig,
+            ProviderPriceListConfig.id == PriceList.provider_config_id,
+        )
+        .where(latest_pricelists.c.latest_rn == 1)
+        .where(AutoPart.oem_number.in_(normalized_oem_numbers))
+        .order_by(
+            AutoPart.oem_number.asc(),
+            Provider.name.asc(),
+            ProviderPriceListConfig.name_price.asc().nullslast(),
+            PriceListAutoPartAssociation.price.asc(),
+        )
+    )
+    return list((await session.execute(stmt)).mappings().all())
+
+
+async def _load_own_price_config_options(
+    session: AsyncSession,
+    *,
+    normalized_oem_numbers: list[str],
+) -> list[dict[str, Any]]:
+    if not normalized_oem_numbers:
+        return []
+
+    recent_cutoff = now_moscow().date() - timedelta(days=TRACKING_HISTORY_DAYS)
+    stmt = (
+        select(
+            ProviderPriceListConfig.id.label("id"),
+            Provider.id.label("provider_id"),
+            Provider.name.label("provider_name"),
+            ProviderPriceListConfig.name_price.label("name_price"),
+            func.max(PriceList.date).label("latest_pricelist_date"),
+        )
+        .select_from(PriceListAutoPartAssociation)
+        .join(
+            PriceList,
+            PriceList.id == PriceListAutoPartAssociation.pricelist_id,
+        )
+        .join(
+            ProviderPriceListConfig,
+            ProviderPriceListConfig.id == PriceList.provider_config_id,
+        )
+        .join(Provider, Provider.id == PriceList.provider_id)
+        .join(
+            AutoPart,
+            AutoPart.id == PriceListAutoPartAssociation.autopart_id,
+        )
+        .where(
+            Provider.is_own_price.is_(True),
+            PriceList.date >= recent_cutoff,
+            AutoPart.oem_number.in_(normalized_oem_numbers),
+        )
+        .group_by(
+            ProviderPriceListConfig.id,
+            Provider.id,
+            Provider.name,
+            ProviderPriceListConfig.name_price,
+        )
+        .order_by(Provider.name.asc(), ProviderPriceListConfig.id.asc())
+    )
+    return [
+        dict(row._mapping)
+        for row in (await session.execute(stmt)).all()
+    ]
+
+
+async def _build_own_price_analysis(
+    session: AsyncSession,
+    *,
+    normalized_oem: Optional[str],
+    normalized_oem_numbers: list[str],
+    provider_config_id: int,
+) -> Optional[dict[str, Any]]:
+    if not normalized_oem_numbers:
+        return None
+
+    stmt = (
+        select(
+            PriceList.id.label("pricelist_id"),
+            PriceList.date.label("pricelist_date"),
+            AutoPart.oem_number.label("oem_number"),
+            PriceListAutoPartAssociation.quantity.label("quantity"),
+            PriceListAutoPartAssociation.price.label("price"),
+            Provider.id.label("provider_id"),
+            Provider.name.label("provider_name"),
+            ProviderPriceListConfig.name_price.label("provider_config_name"),
+        )
+        .select_from(PriceListAutoPartAssociation)
+        .join(
+            PriceList,
+            PriceList.id == PriceListAutoPartAssociation.pricelist_id,
+        )
+        .join(
+            AutoPart,
+            AutoPart.id == PriceListAutoPartAssociation.autopart_id,
+        )
+        .join(Provider, Provider.id == PriceList.provider_id)
+        .join(
+            ProviderPriceListConfig,
+            ProviderPriceListConfig.id == PriceList.provider_config_id,
+        )
+        .where(
+            PriceList.provider_config_id == provider_config_id,
+            PriceList.is_active.is_(True),
+            AutoPart.oem_number.in_(normalized_oem_numbers),
+        )
+        .order_by(PriceList.date.asc(), PriceList.id.asc())
+    )
+    rows = list((await session.execute(stmt)).mappings().all())
+    if not rows:
+        return None
+
+    snapshots_by_key: dict[tuple[date, int], dict[str, Any]] = {}
+    normalized_exact = _normalize_oem(normalized_oem)
+    for row in rows:
+        snapshot_key = (row["pricelist_date"], row["pricelist_id"])
+        snapshot = snapshots_by_key.setdefault(
+            snapshot_key,
+            {
+                "pricelist_date": row["pricelist_date"],
+                "pricelist_id": row["pricelist_id"],
+                "provider_id": row["provider_id"],
+                "provider_name": row["provider_name"],
+                "provider_config_name": row.get("provider_config_name"),
+                "total_quantity": 0,
+                "exact_prices": [],
+                "all_prices": [],
+            },
+        )
+        quantity = int(row.get("quantity") or 0)
+        snapshot["total_quantity"] += quantity
+        price_value = _to_decimal(row.get("price"))
+        if price_value is not None:
+            snapshot["all_prices"].append(price_value)
+            if _normalize_oem(row.get("oem_number")) == normalized_exact:
+                snapshot["exact_prices"].append(price_value)
+
+    snapshots = list(snapshots_by_key.values())
+    latest_snapshot = snapshots[-1]
+
+    sold_last_30_days = 0
+    sold_last_90_days = 0
+    sold_last_365_days = 0
+    today = now_moscow().date()
+    for previous_snapshot, current_snapshot in zip(snapshots, snapshots[1:]):
+        decrease = max(
+            int(previous_snapshot["total_quantity"])
+            - int(current_snapshot["total_quantity"]),
+            0,
+        )
+        if decrease <= 0:
+            continue
+        snapshot_date = current_snapshot["pricelist_date"]
+        if snapshot_date >= today - timedelta(days=30):
+            sold_last_30_days += decrease
+        if snapshot_date >= today - timedelta(days=90):
+            sold_last_90_days += decrease
+        if snapshot_date >= today - timedelta(days=365):
+            sold_last_365_days += decrease
+
+    latest_price_candidates = (
+        latest_snapshot["exact_prices"] or latest_snapshot["all_prices"]
+    )
+    latest_price = (
+        min(latest_price_candidates) if latest_price_candidates else None
+    )
+    average_daily_decrease_30_days = (
+        Decimal(str(sold_last_30_days)) / Decimal("30")
+        if sold_last_30_days > 0
+        else None
+    )
+    estimated_days_left_30_days = None
+    if (
+        average_daily_decrease_30_days is not None
+        and average_daily_decrease_30_days > 0
+        and latest_snapshot["total_quantity"] > 0
+    ):
+        estimated_days_left_30_days = int(
+            Decimal(str(latest_snapshot["total_quantity"]))
+            / average_daily_decrease_30_days
+        )
+
+    return {
+        "provider_config_id": provider_config_id,
+        "provider_id": latest_snapshot["provider_id"],
+        "provider_name": latest_snapshot["provider_name"],
+        "provider_config_name": latest_snapshot.get("provider_config_name"),
+        "latest_pricelist_date": latest_snapshot["pricelist_date"],
+        "latest_price": latest_price,
+        "current_quantity": int(latest_snapshot["total_quantity"]),
+        "sold_last_30_days": sold_last_30_days,
+        "sold_last_90_days": sold_last_90_days,
+        "sold_last_365_days": sold_last_365_days,
+        "average_daily_decrease_30_days": (
+            float(
+                average_daily_decrease_30_days.quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                )
+            )
+            if average_daily_decrease_30_days is not None
+            else None
+        ),
+        "estimated_days_left_30_days": estimated_days_left_30_days,
+    }
+
+
+async def get_tracking_history_insights(
+    session: AsyncSession,
+    *,
+    oem_number: Optional[str] = None,
+    brand_name: Optional[str] = None,
+    own_provider_config_id: Optional[int] = None,
+) -> dict[str, Any]:
+    normalized_oem = _normalize_oem(oem_number) or ""
+    normalized_oem_numbers = await _resolve_tracking_oem_numbers(
+        session,
+        oem_number=oem_number,
+        brand_name=brand_name,
+        include_crosses=True,
+    )
+    cross_oem_numbers = [
+        item
+        for item in normalized_oem_numbers
+        if item and item != normalized_oem
+    ]
+
+    current_offer_rows = await _load_current_offer_candidates(
+        session,
+        normalized_oem_numbers=normalized_oem_numbers or [normalized_oem],
+    )
+    actionable_offer_rows = [
+        row
+        for row in current_offer_rows
+        if _to_decimal(row.get("price")) is not None
+        and int(row.get("quantity") or 0) > 0
+    ]
+    exact_offer_rows = [
+        row
+        for row in actionable_offer_rows
+        if _normalize_oem(row.get("oem_number")) == normalized_oem
+    ]
+    exact_min_offer = (
+        _build_offer_payload(min(exact_offer_rows, key=_offer_sort_key))
+        if exact_offer_rows
+        else None
+    )
+    min_offer_with_crosses = (
+        _build_offer_payload(
+            min(actionable_offer_rows, key=_offer_sort_key)
+        )
+        if actionable_offer_rows
+        else None
+    )
+
+    history_rows = await list_tracking_history(
+        session,
+        oem_number=oem_number,
+        brand_name=brand_name,
+        limit=1000,
+        sync_site=False,
+        include_crosses=True,
+    )
+    exact_history_rows = [
+        row
+        for row in history_rows
+        if _normalize_oem(row.get("oem_number")) == normalized_oem
+    ]
+    total_ordered_quantity_last_year = sum(
+        int(row.get("ordered_quantity") or 0) for row in history_rows
+    )
+    total_received_quantity_last_year = sum(
+        int(row.get("received_quantity") or 0) for row in history_rows
+    )
+    actual_lead_values = [
+        int(row["actual_lead_days"])
+        for row in history_rows
+        if row.get("actual_lead_days") is not None
+    ]
+    fill_rate_percent = (
+        _round_stat(
+            (
+                total_received_quantity_last_year
+                / total_ordered_quantity_last_year
+            )
+            * 100,
+            1,
+        )
+        if total_ordered_quantity_last_year > 0
+        else None
+    )
+    exact_prices = [
+        _to_decimal(row.get("price"))
+        for row in exact_history_rows
+        if _to_decimal(row.get("price")) is not None
+    ]
+    all_prices = [
+        _to_decimal(row.get("price"))
+        for row in history_rows
+        if _to_decimal(row.get("price")) is not None
+    ]
+
+    own_price_configs = await _load_own_price_config_options(
+        session,
+        normalized_oem_numbers=normalized_oem_numbers or [normalized_oem],
+    )
+    resolved_own_provider_config_id = own_provider_config_id or (
+        own_price_configs[0]["id"] if own_price_configs else None
+    )
+    own_price_analysis = None
+    if resolved_own_provider_config_id is not None:
+        own_price_analysis = await _build_own_price_analysis(
+            session,
+            normalized_oem=normalized_oem,
+            normalized_oem_numbers=normalized_oem_numbers or [normalized_oem],
+            provider_config_id=resolved_own_provider_config_id,
+        )
+
+    return {
+        "oem_number": normalized_oem,
+        "cross_oem_numbers": cross_oem_numbers,
+        "exact_min_offer": exact_min_offer,
+        "min_offer_with_crosses": min_offer_with_crosses,
+        "order_count_last_year": len(history_rows),
+        "total_ordered_quantity_last_year": total_ordered_quantity_last_year,
+        "total_received_quantity_last_year": total_received_quantity_last_year,
+        "unique_suppliers_last_year": len(
+            {
+                row.get("provider_id") or row.get("provider_name")
+                for row in history_rows
+                if row.get("provider_id") is not None
+                or row.get("provider_name")
+            }
+        ),
+        "fill_rate_percent": fill_rate_percent,
+        "historical_min_price_exact": min(exact_prices) if exact_prices else None,
+        "historical_min_price_with_crosses": (
+            min(all_prices) if all_prices else None
+        ),
+        "average_actual_lead_days": (
+            _round_stat(sum(actual_lead_values) / len(actual_lead_values), 1)
+            if actual_lead_values
+            else None
+        ),
+        "last_ordered_at": max(
+            (row.get("created_at") for row in history_rows),
+            default=None,
+        ),
+        "last_received_at": max(
+            (
+                row.get("received_at")
+                for row in history_rows
+                if row.get("received_at") is not None
+            ),
+            default=None,
+        ),
+        "own_price_configs": own_price_configs,
+        "own_price_analysis": own_price_analysis,
+    }
 
 
 def _set_received_metadata(

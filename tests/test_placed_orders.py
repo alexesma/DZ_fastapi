@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, timedelta
 
 import pytest
 
@@ -19,7 +19,10 @@ from dz_fastapi.models.partner import (
     Customer,
     Order,
     OrderItem,
+    PriceList,
+    PriceListAutoPartAssociation,
     Provider,
+    ProviderPriceListConfig,
     SupplierOrder,
     SupplierOrderItem,
 )
@@ -28,6 +31,7 @@ from dz_fastapi.services.auth import get_password_hash
 from dz_fastapi.services.order_status_mapping import EXTERNAL_STATUS_SOURCE_DRAGONZAP
 from dz_fastapi.services.placed_orders import (
     cleanup_old_tracking_history,
+    get_tracking_history_insights,
     list_tracking_history,
     sync_site_tracking_statuses,
     update_tracking_item,
@@ -225,6 +229,233 @@ async def test_list_tracking_history_includes_cross_oem_rows(
     assert len(cross_rows) == 1
     assert cross_rows[0]["oem_number"] == "OEMCROSS"
     assert cross_rows[0]["source_type"] == "supplier"
+
+
+@pytest.mark.asyncio
+async def test_get_tracking_history_insights_builds_price_and_own_stock_summary(
+    test_session,
+):
+    today = now_moscow().date()
+    provider_exact = Provider(
+        name="Exact Provider",
+        email_contact="exact@example.com",
+        email_incoming_price="exact-prices@example.com",
+        type_prices="Wholesale",
+    )
+    provider_cross = Provider(
+        name="Cross Provider",
+        email_contact="cross@example.com",
+        email_incoming_price="cross-prices@example.com",
+        type_prices="Wholesale",
+        is_own_price=True,
+    )
+    customer = Customer(
+        name="Insight Customer",
+        email_contact="insight-customer@example.com",
+        email_outgoing_price="insight-out@example.com",
+        type_prices="Wholesale",
+    )
+    brand = Brand(name="INSIGHT")
+    test_session.add_all([provider_exact, provider_cross, customer, brand])
+    await test_session.flush()
+
+    source_autopart = AutoPart(
+        name="Insight source",
+        brand_id=brand.id,
+        oem_number="OEM123",
+    )
+    cross_autopart = AutoPart(
+        name="Insight cross",
+        brand_id=brand.id,
+        oem_number="OEMCROSS",
+    )
+    test_session.add_all([source_autopart, cross_autopart])
+    await test_session.flush()
+    test_session.add(
+        AutoPartCross(
+            source_autopart_id=source_autopart.id,
+            cross_brand_id=brand.id,
+            cross_oem_number="OEMCROSS",
+            cross_autopart_id=cross_autopart.id,
+        )
+    )
+    await test_session.flush()
+
+    exact_cfg = ProviderPriceListConfig(
+        provider_id=provider_exact.id,
+        start_row=1,
+        oem_col=1,
+        qty_col=2,
+        price_col=3,
+        name_price="Exact main",
+        min_delivery_day=3,
+        max_delivery_day=5,
+    )
+    own_cfg = ProviderPriceListConfig(
+        provider_id=provider_cross.id,
+        start_row=1,
+        oem_col=1,
+        qty_col=2,
+        price_col=3,
+        name_price="Own stock",
+        min_delivery_day=0,
+        max_delivery_day=0,
+    )
+    test_session.add_all([exact_cfg, own_cfg])
+    await test_session.flush()
+
+    exact_pricelist = PriceList(
+        provider_id=provider_exact.id,
+        provider_config_id=exact_cfg.id,
+        date=today,
+    )
+    own_pl_1 = PriceList(
+        provider_id=provider_cross.id,
+        provider_config_id=own_cfg.id,
+        date=today - timedelta(days=100),
+    )
+    own_pl_2 = PriceList(
+        provider_id=provider_cross.id,
+        provider_config_id=own_cfg.id,
+        date=today - timedelta(days=40),
+    )
+    own_pl_3 = PriceList(
+        provider_id=provider_cross.id,
+        provider_config_id=own_cfg.id,
+        date=today,
+    )
+    test_session.add_all([exact_pricelist, own_pl_1, own_pl_2, own_pl_3])
+    await test_session.flush()
+
+    test_session.add_all(
+        [
+            PriceListAutoPartAssociation(
+                pricelist_id=exact_pricelist.id,
+                autopart_id=source_autopart.id,
+                quantity=5,
+                price=100,
+                multiplicity=1,
+            ),
+            PriceListAutoPartAssociation(
+                pricelist_id=own_pl_1.id,
+                autopart_id=cross_autopart.id,
+                quantity=20,
+                price=85,
+                multiplicity=1,
+            ),
+            PriceListAutoPartAssociation(
+                pricelist_id=own_pl_2.id,
+                autopart_id=cross_autopart.id,
+                quantity=12,
+                price=82,
+                multiplicity=1,
+            ),
+            PriceListAutoPartAssociation(
+                pricelist_id=own_pl_3.id,
+                autopart_id=cross_autopart.id,
+                quantity=7,
+                price=80,
+                multiplicity=1,
+            ),
+        ]
+    )
+
+    site_order_exact = Order(
+        provider_id=provider_exact.id,
+        customer_id=customer.id,
+        source_type=ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
+        created_at=now_moscow() - timedelta(days=15),
+        status=TYPE_STATUS_ORDER.SHIPPED,
+    )
+    site_order_cross = Order(
+        provider_id=provider_cross.id,
+        customer_id=customer.id,
+        source_type=ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
+        created_at=now_moscow() - timedelta(days=10),
+        status=TYPE_STATUS_ORDER.SHIPPED,
+    )
+    supplier_order = SupplierOrder(
+        provider_id=provider_exact.id,
+        source_type=ORDER_TRACKING_SOURCE.SEARCH_OFFERS.value,
+        created_at=now_moscow() - timedelta(days=5),
+        status=SUPPLIER_ORDER_STATUS.SENT,
+    )
+    test_session.add_all([site_order_exact, site_order_cross, supplier_order])
+    await test_session.flush()
+
+    test_session.add_all(
+        [
+            OrderItem(
+                order_id=site_order_exact.id,
+                autopart_id=source_autopart.id,
+                oem_number="OEM123",
+                brand_name="INSIGHT",
+                autopart_name="Insight source",
+                quantity=1,
+                received_quantity=1,
+                price=90,
+                received_at=site_order_exact.created_at + timedelta(days=1),
+                status=TYPE_ORDER_ITEM_STATUS.DELIVERED,
+            ),
+            OrderItem(
+                order_id=site_order_cross.id,
+                autopart_id=cross_autopart.id,
+                oem_number="OEMCROSS",
+                brand_name="INSIGHT",
+                autopart_name="Insight cross",
+                quantity=3,
+                received_quantity=3,
+                price=70,
+                received_at=site_order_cross.created_at + timedelta(days=4),
+                status=TYPE_ORDER_ITEM_STATUS.DELIVERED,
+            ),
+            SupplierOrderItem(
+                supplier_order_id=supplier_order.id,
+                autopart_id=source_autopart.id,
+                oem_number="OEM123",
+                brand_name="INSIGHT",
+                autopart_name="Insight source",
+                quantity=2,
+                received_quantity=1,
+                price=110,
+            ),
+        ]
+    )
+    await test_session.commit()
+
+    summary = await get_tracking_history_insights(
+        test_session,
+        oem_number="OEM123",
+        own_provider_config_id=own_cfg.id,
+    )
+
+    assert summary["cross_oem_numbers"] == ["OEMCROSS"]
+    assert summary["exact_min_offer"]["provider_id"] == provider_exact.id
+    assert float(summary["exact_min_offer"]["price"]) == 100.0
+    assert summary["min_offer_with_crosses"]["provider_id"] == provider_cross.id
+    assert summary["min_offer_with_crosses"]["oem_number"] == "OEMCROSS"
+    assert float(summary["min_offer_with_crosses"]["price"]) == 80.0
+    assert summary["order_count_last_year"] == 3
+    assert summary["total_ordered_quantity_last_year"] == 6
+    assert summary["total_received_quantity_last_year"] == 5
+    assert summary["unique_suppliers_last_year"] == 2
+    assert summary["fill_rate_percent"] == pytest.approx(83.3, abs=0.1)
+    assert float(summary["historical_min_price_exact"]) == 90.0
+    assert float(summary["historical_min_price_with_crosses"]) == 70.0
+    assert summary["average_actual_lead_days"] == pytest.approx(2.5, abs=0.1)
+    assert len(summary["own_price_configs"]) == 1
+    assert summary["own_price_configs"][0]["id"] == own_cfg.id
+    assert summary["own_price_analysis"]["provider_config_id"] == own_cfg.id
+    assert summary["own_price_analysis"]["current_quantity"] == 7
+    assert float(summary["own_price_analysis"]["latest_price"]) == 80.0
+    assert summary["own_price_analysis"]["sold_last_30_days"] == 5
+    assert summary["own_price_analysis"]["sold_last_90_days"] == 5
+    assert summary["own_price_analysis"]["sold_last_365_days"] == 13
+    assert (
+        summary["own_price_analysis"]["average_daily_decrease_30_days"]
+        == pytest.approx(0.17, abs=0.01)
+    )
+    assert summary["own_price_analysis"]["estimated_days_left_30_days"] == 42
 
 
 @pytest.mark.asyncio
