@@ -965,6 +965,7 @@ async def _build_own_price_analysis(
     normalized_oem: Optional[str],
     normalized_oem_numbers: list[str],
     provider_config_id: int,
+    history_rows: list[dict[str, Any]],
 ) -> Optional[dict[str, Any]]:
     if not normalized_oem_numbers:
         return None
@@ -1033,23 +1034,53 @@ async def _build_own_price_analysis(
     snapshots = list(snapshots_by_key.values())
     latest_snapshot = snapshots[-1]
 
+    receipt_events = []
+    for row in history_rows:
+        received_at = row.get("received_at")
+        received_quantity = int(row.get("received_quantity") or 0)
+        if received_at is None or received_quantity <= 0:
+            continue
+        receipt_events.append(
+            {
+                "received_at": received_at,
+                "received_date": received_at.date(),
+                "received_quantity": received_quantity,
+            }
+        )
+
+    arrivals_last_30_days = 0
+    arrivals_last_90_days = 0
+    arrivals_last_365_days = 0
     sold_last_30_days = 0
     sold_last_90_days = 0
     sold_last_365_days = 0
     today = now_moscow().date()
     for previous_snapshot, current_snapshot in zip(snapshots, snapshots[1:]):
-        decrease = max(
-            int(previous_snapshot["total_quantity"])
-            - int(current_snapshot["total_quantity"]),
-            0,
+        previous_qty = int(previous_snapshot["total_quantity"])
+        current_qty = int(current_snapshot["total_quantity"])
+        interval_receipts = sum(
+            event["received_quantity"]
+            for event in receipt_events
+            if previous_snapshot["pricelist_date"]
+            < event["received_date"]
+            <= current_snapshot["pricelist_date"]
         )
-        if decrease <= 0:
-            continue
+        expected_qty = previous_qty + interval_receipts
+        inferred_additional_arrival = max(current_qty - expected_qty, 0)
+        interval_arrivals = interval_receipts + inferred_additional_arrival
+        decrease = max(expected_qty - current_qty, 0)
+
         snapshot_date = current_snapshot["pricelist_date"]
+        if snapshot_date >= today - timedelta(days=30):
+            arrivals_last_30_days += interval_arrivals
         if snapshot_date >= today - timedelta(days=30):
             sold_last_30_days += decrease
         if snapshot_date >= today - timedelta(days=90):
+            arrivals_last_90_days += interval_arrivals
+        if snapshot_date >= today - timedelta(days=90):
             sold_last_90_days += decrease
+        if snapshot_date >= today - timedelta(days=365):
+            arrivals_last_365_days += interval_arrivals
         if snapshot_date >= today - timedelta(days=365):
             sold_last_365_days += decrease
 
@@ -1083,6 +1114,9 @@ async def _build_own_price_analysis(
         "latest_pricelist_date": latest_snapshot["pricelist_date"],
         "latest_price": latest_price,
         "current_quantity": int(latest_snapshot["total_quantity"]),
+        "arrivals_last_30_days": arrivals_last_30_days,
+        "arrivals_last_90_days": arrivals_last_90_days,
+        "arrivals_last_365_days": arrivals_last_365_days,
         "sold_last_30_days": sold_last_30_days,
         "sold_last_90_days": sold_last_90_days,
         "sold_last_365_days": sold_last_365_days,
@@ -1208,6 +1242,7 @@ async def get_tracking_history_insights(
             normalized_oem=normalized_oem,
             normalized_oem_numbers=normalized_oem_numbers or [normalized_oem],
             provider_config_id=resolved_own_provider_config_id,
+            history_rows=history_rows,
         )
 
     return {

@@ -448,14 +448,17 @@ async def test_get_tracking_history_insights_builds_price_and_own_stock_summary(
     assert summary["own_price_analysis"]["provider_config_id"] == own_cfg.id
     assert summary["own_price_analysis"]["current_quantity"] == 7
     assert float(summary["own_price_analysis"]["latest_price"]) == 80.0
-    assert summary["own_price_analysis"]["sold_last_30_days"] == 5
-    assert summary["own_price_analysis"]["sold_last_90_days"] == 5
-    assert summary["own_price_analysis"]["sold_last_365_days"] == 13
+    assert summary["own_price_analysis"]["arrivals_last_30_days"] == 4
+    assert summary["own_price_analysis"]["arrivals_last_90_days"] == 4
+    assert summary["own_price_analysis"]["arrivals_last_365_days"] == 4
+    assert summary["own_price_analysis"]["sold_last_30_days"] == 9
+    assert summary["own_price_analysis"]["sold_last_90_days"] == 17
+    assert summary["own_price_analysis"]["sold_last_365_days"] == 17
     assert (
         summary["own_price_analysis"]["average_daily_decrease_30_days"]
-        == pytest.approx(0.17, abs=0.01)
+        == pytest.approx(0.30, abs=0.01)
     )
-    assert summary["own_price_analysis"]["estimated_days_left_30_days"] == 42
+    assert summary["own_price_analysis"]["estimated_days_left_30_days"] == 23
 
 
 @pytest.mark.asyncio

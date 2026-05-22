@@ -282,6 +282,9 @@ class TrackingInsightOwnPriceAnalysis(BaseModel):
     latest_pricelist_date: Optional[date] = None
     latest_price: Optional[Decimal] = None
     current_quantity: int = 0
+    arrivals_last_30_days: int = 0
+    arrivals_last_90_days: int = 0
+    arrivals_last_365_days: int = 0
     sold_last_30_days: int = 0
     sold_last_90_days: int = 0
     sold_last_365_days: int = 0
