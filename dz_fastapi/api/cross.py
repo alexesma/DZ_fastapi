@@ -21,6 +21,14 @@ from dz_fastapi.schemas.autopart import (
     InvalidCrossCreate,
     InvalidCrossOut,
 )
+from dz_fastapi.services.crosses import (
+    delete_cross_relation,
+    get_cross_row,
+    resolve_cross_autopart_id,
+    save_cross_relation,
+    snapshot_cross_state,
+    sync_cross_relation_update,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["crosses", "catalog"])
@@ -42,24 +50,6 @@ async def _ensure_brand_exists(
     if brand is None:
         raise HTTPException(status_code=404, detail="Бренд не найден")
     return brand
-
-
-async def _resolve_autopart_match_id(
-    session: AsyncSession,
-    *,
-    brand_id: int,
-    oem_number: str,
-) -> Optional[int]:
-    normalized_oem = preprocess_oem_number(oem_number)
-    match = (
-        await session.execute(
-            select(AutoPart.id).where(
-                AutoPart.brand_id == brand_id,
-                AutoPart.oem_number == normalized_oem,
-            )
-        )
-    ).scalar_one_or_none()
-    return match
 
 
 async def _get_cross_by_id(
@@ -114,6 +104,7 @@ def _cross_to_out(cross: AutoPartCross) -> CrossAdminOut:
         cross_oem_number=cross.cross_oem_number,
         cross_autopart_id=cross.cross_autopart_id,
         cross_autopart_name=(cross_autopart.name if cross_autopart else None),
+        is_bidirectional=bool(cross.is_bidirectional),
         priority=cross.priority,
         comment=cross.comment,
     )
@@ -189,23 +180,33 @@ async def create_cross(
     payload: CrossAdminCreate,
     session: AsyncSession = Depends(get_session),
 ):
-    await _ensure_autopart_exists(session, payload.source_autopart_id)
     await _ensure_brand_exists(session, payload.cross_brand_id)
-    normalized_oem = preprocess_oem_number(payload.cross_oem_number)
-    cross = AutoPartCross(
+    source_autopart = await _ensure_autopart_exists(
+        session, payload.source_autopart_id
+    )
+    existing_cross = await get_cross_row(
+        session,
         source_autopart_id=payload.source_autopart_id,
         cross_brand_id=payload.cross_brand_id,
-        cross_oem_number=normalized_oem,
-        cross_autopart_id=await _resolve_autopart_match_id(
-            session,
-            brand_id=payload.cross_brand_id,
-            oem_number=normalized_oem,
-        ),
-        priority=payload.priority,
-        comment=payload.comment,
+        cross_oem_number=payload.cross_oem_number,
     )
-    session.add(cross)
+    if existing_cross is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Такой кросс уже существует",
+        )
     try:
+        cross, _created = await save_cross_relation(
+            session,
+            source_autopart=source_autopart,
+            cross_brand_id=payload.cross_brand_id,
+            cross_oem_number=payload.cross_oem_number,
+            is_bidirectional=payload.is_bidirectional,
+            priority=payload.priority,
+            comment=payload.comment,
+            overwrite_comment=True,
+            upgrade_existing_bidirectional=True,
+        )
         await session.commit()
     except IntegrityError:
         await session.rollback()
@@ -223,13 +224,23 @@ async def update_cross(
     payload: CrossAdminUpdate,
     session: AsyncSession = Depends(get_session),
 ):
-    cross = await session.get(AutoPartCross, cross_id)
+    cross = await _get_cross_by_id(session, cross_id)
     if cross is None:
         raise HTTPException(status_code=404, detail="Кросс не найден")
+    source_autopart = await _ensure_autopart_exists(
+        session, cross.source_autopart_id
+    )
+    old_state = snapshot_cross_state(
+        cross,
+        source_brand_id=source_autopart.brand_id,
+        source_oem_number=source_autopart.oem_number,
+    )
 
     data = payload.model_dump(exclude_unset=True)
     if "source_autopart_id" in data:
-        await _ensure_autopart_exists(session, data["source_autopart_id"])
+        source_autopart = await _ensure_autopart_exists(
+            session, data["source_autopart_id"]
+        )
     if "cross_brand_id" in data:
         await _ensure_brand_exists(session, data["cross_brand_id"])
     if "cross_oem_number" in data:
@@ -240,13 +251,19 @@ async def update_cross(
     for key, value in data.items():
         setattr(cross, key, value)
 
-    cross.cross_autopart_id = await _resolve_autopart_match_id(
+    cross.cross_autopart_id = await resolve_cross_autopart_id(
         session,
         brand_id=cross.cross_brand_id,
         oem_number=cross.cross_oem_number,
     )
 
     try:
+        await sync_cross_relation_update(
+            session,
+            source_autopart=source_autopart,
+            cross=cross,
+            old_state=old_state,
+        )
         await session.commit()
     except IntegrityError:
         await session.rollback()
@@ -266,7 +283,15 @@ async def delete_cross(
     cross = await session.get(AutoPartCross, cross_id)
     if cross is None:
         raise HTTPException(status_code=404, detail="Кросс не найден")
-    await session.delete(cross)
+    source_autopart = await _ensure_autopart_exists(
+        session, cross.source_autopart_id
+    )
+    await delete_cross_relation(
+        session,
+        cross=cross,
+        source_brand_id=source_autopart.brand_id,
+        source_oem_number=source_autopart.oem_number,
+    )
     await session.commit()
 
 
@@ -319,7 +344,7 @@ async def add_autopart_invalid_cross(
         source_autopart_id=autopart_id,
         invalid_brand_id=payload.invalid_brand_id,
         invalid_oem_number=normalized_oem,
-        invalid_autopart_id=await _resolve_autopart_match_id(
+        invalid_autopart_id=await resolve_cross_autopart_id(
             session,
             brand_id=payload.invalid_brand_id,
             oem_number=normalized_oem,
@@ -396,7 +421,7 @@ async def create_invalid_cross(
         source_autopart_id=payload.source_autopart_id,
         invalid_brand_id=payload.invalid_brand_id,
         invalid_oem_number=normalized_oem,
-        invalid_autopart_id=await _resolve_autopart_match_id(
+        invalid_autopart_id=await resolve_cross_autopart_id(
             session,
             brand_id=payload.invalid_brand_id,
             oem_number=normalized_oem,
@@ -445,7 +470,7 @@ async def update_invalid_cross(
     for key, value in data.items():
         setattr(invalid_cross, key, value)
 
-    invalid_cross.invalid_autopart_id = await _resolve_autopart_match_id(
+    invalid_cross.invalid_autopart_id = await resolve_cross_autopart_id(
         session,
         brand_id=invalid_cross.invalid_brand_id,
         oem_number=invalid_cross.invalid_oem_number,

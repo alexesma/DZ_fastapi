@@ -81,6 +81,11 @@ from dz_fastapi.schemas.autopart import (
 )
 from dz_fastapi.schemas.inventory import WarehouseCreate, WarehouseOut, WarehouseUpdate
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
+from dz_fastapi.services.crosses import (
+    get_cross_row,
+    delete_cross_relation,
+    save_cross_relation,
+)
 from dz_fastapi.services.process import (
     assign_brand,
     check_start_and_finish_date,
@@ -1733,6 +1738,7 @@ async def get_autopart_detail(
             cross_brand_name=c.cross_brand.name if c.cross_brand else None,
             cross_oem_number=c.cross_oem_number,
             cross_autopart_id=c.cross_autopart_id,
+            is_bidirectional=bool(c.is_bidirectional),
             priority=c.priority,
             comment=c.comment,
         )
@@ -1846,6 +1852,7 @@ async def list_autopart_crosses(
             cross_brand_name=c.cross_brand.name if c.cross_brand else None,
             cross_oem_number=c.cross_oem_number,
             cross_autopart_id=c.cross_autopart_id,
+            is_bidirectional=bool(c.is_bidirectional),
             priority=c.priority,
             comment=c.comment,
         )
@@ -1869,24 +1876,28 @@ async def add_autopart_cross(
     ap = await session.get(AutoPart, autopart_id)
     if not ap:
         raise HTTPException(status_code=404, detail="Запчасть не найдена")
-    cross_oem = preprocess_oem_number(payload.cross_oem_number)
-    cross = AutoPartCross(
+    existing_cross = await get_cross_row(
+        session,
         source_autopart_id=autopart_id,
         cross_brand_id=payload.cross_brand_id,
-        cross_oem_number=cross_oem,
-        priority=payload.priority,
-        comment=payload.comment,
+        cross_oem_number=payload.cross_oem_number,
     )
-    # Try to find matching autopart for cross_autopart_id
-    match_stmt = select(AutoPart).where(
-        AutoPart.brand_id == payload.cross_brand_id,
-        AutoPart.oem_number == cross_oem,
-    )
-    match = (await session.execute(match_stmt)).scalar_one_or_none()
-    if match:
-        cross.cross_autopart_id = match.id
-    session.add(cross)
+    if existing_cross is not None:
+        raise HTTPException(
+            status_code=409, detail="Такой кросс-номер уже существует"
+        )
     try:
+        cross, _created = await save_cross_relation(
+            session,
+            source_autopart=ap,
+            cross_brand_id=payload.cross_brand_id,
+            cross_oem_number=payload.cross_oem_number,
+            is_bidirectional=payload.is_bidirectional,
+            priority=payload.priority,
+            comment=payload.comment,
+            overwrite_comment=True,
+            upgrade_existing_bidirectional=True,
+        )
         await session.commit()
         await session.refresh(cross)
     except IntegrityError:
@@ -1901,6 +1912,7 @@ async def add_autopart_cross(
         cross_brand_name=brand_result.name if brand_result else None,
         cross_oem_number=cross.cross_oem_number,
         cross_autopart_id=cross.cross_autopart_id,
+        is_bidirectional=bool(cross.is_bidirectional),
         priority=cross.priority,
         comment=cross.comment,
     )
@@ -1919,7 +1931,17 @@ async def delete_autopart_cross(
     cross = await session.get(AutoPartCross, cross_id)
     if not cross:
         raise HTTPException(status_code=404, detail="Кросс-номер не найден")
-    await session.delete(cross)
+    source_autopart = await session.get(AutoPart, cross.source_autopart_id)
+    await delete_cross_relation(
+        session,
+        cross=cross,
+        source_brand_id=(
+            source_autopart.brand_id if source_autopart is not None else 0
+        ),
+        source_oem_number=(
+            source_autopart.oem_number if source_autopart is not None else ""
+        ),
+    )
     await session.commit()
 
 

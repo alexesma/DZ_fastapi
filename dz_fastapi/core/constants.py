@@ -38,6 +38,18 @@ IMAP_FETCH_PER_ACCOUNT_TIMEOUT = 300
 
 ANALYSIS_EMAIL = "info@dragonzap.ru"
 ORIGINAL_BRANDS = ["CHERY", "HAVAL", "CHANGAN", "GREAT WALL", "JAC", "GEELY"]
+AUTO_OEM_CROSS_BRANDS = [
+    "DRAGONZAP",
+    "CHERY",
+    "HAVAL",
+    "CHANGAN",
+    "GREAT WALL",
+    "JAC",
+    "GEELY",
+    "LIFAN",
+    "MOSKVICH",
+    "МОСКВИЧ",
+]
 PROVIDER = "DRAGONZAP"
 CUSTOMER = "Zzap"
 PROVIDER_IN = {

@@ -64,6 +64,7 @@ from dz_fastapi.services.customer_orders import (
     process_customer_orders,
     send_scheduled_supplier_orders,
 )
+from dz_fastapi.services.crosses import sync_automatic_oem_crosses
 from dz_fastapi.services.diadoc_documents import sync_diadoc_incoming_documents
 from dz_fastapi.services.diadoc_integration import get_diadoc_client_for_session
 from dz_fastapi.services.email import get_emails
@@ -393,6 +394,18 @@ def start_scheduler(app: FastAPI):
         name="Download price provider — полдень (13:00 МСК)",
         hour=13,
         minute=0,
+        second=0,
+        replace_existing=True,
+    )
+    # Ночная синхронизация автокроссов Dragonzap/original.
+    scheduler.add_job(
+        func=sync_auto_oem_crosses_task,
+        trigger="cron",
+        args=[app],
+        id="sync_auto_oem_crosses",
+        name="Sync automatic Dragonzap/original crosses",
+        hour=2,
+        minute=10,
         second=0,
         replace_existing=True,
     )
@@ -1736,6 +1749,39 @@ async def download_price_provider_task(app: FastAPI):
                 )
             except Exception:
                 pass
+
+
+async def sync_auto_oem_crosses_task(app: FastAPI):
+    logger.info("Starting sync_auto_oem_crosses_task")
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            result = await sync_automatic_oem_crosses(session)
+            await session.commit()
+            logger.info(
+                "Completed sync_auto_oem_crosses_task: groups_checked=%s rows_created=%s",
+                result.get("groups_checked", 0),
+                result.get("rows_created", 0),
+            )
+        except asyncio.CancelledError:
+            if getattr(app.state, "is_shutting_down", False):
+                logger.info(
+                    "sync_auto_oem_crosses_task отменена при остановке"
+                )
+                return
+            raise
+        except Exception as e:
+            await session.rollback()
+            logger.error("Error in sync_auto_oem_crosses_task: %s", e)
+            await _notify_scheduler_issue(
+                session,
+                subject="Ошибка автосоздания кроссов",
+                text=(
+                    "Ошибка при ночной синхронизации автокроссов "
+                    "Dragonzap/original.\n"
+                    f"Текст ошибки: {e}"
+                ),
+            )
 
 
 async def cleanup_old_pricelists_task(app: FastAPI):

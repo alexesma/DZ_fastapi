@@ -40,6 +40,9 @@ class AutoPartCross(Base):
         ForeignKey("autopart.id", ondelete="SET NULL"),
         nullable=True,
     )
+    # Тип связи: по умолчанию считаем кросс взаимным.
+    # Для взаимного кросса стараемся поддерживать и обратную запись.
+    is_bidirectional = Column(Boolean, default=True, nullable=False)
     # Приоритет для сортировки (меньше = важнее)
     priority = Column(Integer, default=100)
 

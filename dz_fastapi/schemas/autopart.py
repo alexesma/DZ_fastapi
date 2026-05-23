@@ -276,6 +276,7 @@ ApplicabilityNodeOut.model_rebuild()
 class CrossCreate(BaseModel):
     cross_brand_id: int
     cross_oem_number: str
+    is_bidirectional: bool = True
     priority: int = 100
     comment: Optional[str] = None
 
@@ -286,6 +287,7 @@ class CrossOut(BaseModel):
     cross_brand_name: Optional[str] = None
     cross_oem_number: str
     cross_autopart_id: Optional[int] = None
+    is_bidirectional: bool = True
     priority: int = 100
     comment: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
@@ -295,6 +297,7 @@ class CrossAdminCreate(BaseModel):
     source_autopart_id: int
     cross_brand_id: int
     cross_oem_number: str
+    is_bidirectional: bool = True
     priority: int = 100
     comment: Optional[str] = None
 
@@ -303,6 +306,7 @@ class CrossAdminUpdate(BaseModel):
     source_autopart_id: Optional[int] = None
     cross_brand_id: Optional[int] = None
     cross_oem_number: Optional[str] = None
+    is_bidirectional: Optional[bool] = None
     priority: Optional[int] = None
     comment: Optional[str] = None
 
@@ -319,6 +323,7 @@ class CrossAdminOut(BaseModel):
     cross_oem_number: str
     cross_autopart_id: Optional[int] = None
     cross_autopart_name: Optional[str] = None
+    is_bidirectional: bool = True
     priority: int = 100
     comment: Optional[str] = None
 
