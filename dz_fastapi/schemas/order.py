@@ -275,6 +275,11 @@ class TrackingInsightOwnPriceConfigOption(BaseModel):
     use_for_order_insights: bool = False
 
 
+class TrackingInsightOwnPriceOemQuantity(BaseModel):
+    oem_number: str
+    quantity: int = 0
+
+
 class TrackingInsightOwnPriceAnalysis(BaseModel):
     provider_config_id: int
     provider_id: int
@@ -283,6 +288,9 @@ class TrackingInsightOwnPriceAnalysis(BaseModel):
     latest_pricelist_date: Optional[date] = None
     latest_price: Optional[Decimal] = None
     current_quantity: int = 0
+    current_quantity_breakdown: List[TrackingInsightOwnPriceOemQuantity] = Field(
+        default_factory=list
+    )
     arrivals_last_30_days: int = 0
     arrivals_last_90_days: int = 0
     arrivals_last_365_days: int = 0
@@ -338,6 +346,7 @@ class TrackingInsightSupplierStat(BaseModel):
 
 class TrackingHistoryInsightSummary(BaseModel):
     oem_number: str
+    resolved_oem_numbers: List[str] = Field(default_factory=list)
     cross_oem_numbers: List[str] = Field(default_factory=list)
     site_cross_oem_numbers: List[str] = Field(default_factory=list)
     cross_items: List[TrackingInsightCrossItem] = Field(default_factory=list)

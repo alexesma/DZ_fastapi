@@ -58,13 +58,13 @@ from dz_fastapi.schemas.partner import (
     ProviderCreate,
     ProviderPriceListConfigCreate,
 )
+from dz_fastapi.services.crosses import sync_automatic_oem_crosses
 from dz_fastapi.services.customer_orders import (
     cleanup_order_error_files,
     cleanup_order_reports,
     process_customer_orders,
     send_scheduled_supplier_orders,
 )
-from dz_fastapi.services.crosses import sync_automatic_oem_crosses
 from dz_fastapi.services.diadoc_documents import sync_diadoc_incoming_documents
 from dz_fastapi.services.diadoc_integration import get_diadoc_client_for_session
 from dz_fastapi.services.email import get_emails

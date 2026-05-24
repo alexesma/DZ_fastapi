@@ -1246,6 +1246,20 @@ async def _build_own_price_analysis(
 
     snapshots = list(snapshots_by_key.values())
     latest_snapshot = snapshots[-1]
+    quantity_breakdown = [
+        {
+            "oem_number": oem_number,
+            "quantity": int(quantity),
+        }
+        for oem_number, quantity in sorted(
+            latest_snapshot["qty_by_oem"].items(),
+            key=lambda item: (
+                item[0] != normalized_exact,
+                item[0],
+            ),
+        )
+        if int(quantity or 0) > 0
+    ]
 
     # receipt_events keyed by OEM so they can be matched per-OEM in the loop below
     receipt_events: list[dict[str, Any]] = []
@@ -1344,6 +1358,7 @@ async def _build_own_price_analysis(
         "latest_pricelist_date": latest_snapshot["pricelist_date"],
         "latest_price": latest_price,
         "current_quantity": int(latest_snapshot["total_quantity"]),
+        "current_quantity_breakdown": quantity_breakdown,
         "arrivals_last_30_days": arrivals_last_30_days,
         "arrivals_last_90_days": arrivals_last_90_days,
         "arrivals_last_365_days": arrivals_last_365_days,
@@ -1846,6 +1861,9 @@ async def get_tracking_history_insights(
 
     return {
         "oem_number": normalized_oem,
+        "resolved_oem_numbers": normalized_oem_numbers or (
+            [normalized_oem] if normalized_oem else []
+        ),
         "cross_oem_numbers": cross_oem_numbers,
         "site_cross_oem_numbers": extra_normalized_oems,
         "cross_items": cross_items,

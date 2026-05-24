@@ -80,12 +80,8 @@ from dz_fastapi.schemas.autopart import (
     StorageLocationUpdate,
 )
 from dz_fastapi.schemas.inventory import WarehouseCreate, WarehouseOut, WarehouseUpdate
+from dz_fastapi.services.crosses import delete_cross_relation, get_cross_row, save_cross_relation
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
-from dz_fastapi.services.crosses import (
-    get_cross_row,
-    delete_cross_relation,
-    save_cross_relation,
-)
 from dz_fastapi.services.process import (
     assign_brand,
     check_start_and_finish_date,

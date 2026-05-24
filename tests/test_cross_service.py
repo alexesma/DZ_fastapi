@@ -4,10 +4,7 @@ from sqlalchemy import select
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.cross import AutoPartCross
-from dz_fastapi.services.crosses import (
-    save_cross_relation,
-    sync_automatic_oem_crosses,
-)
+from dz_fastapi.services.crosses import save_cross_relation, sync_automatic_oem_crosses
 
 
 @pytest.mark.asyncio
