@@ -232,6 +232,91 @@ async def test_list_tracking_history_includes_cross_oem_rows(
 
 
 @pytest.mark.asyncio
+async def test_list_tracking_history_includes_transitive_bidirectional_cross_rows(
+    test_session,
+):
+    provider = Provider(
+        name="Provider Cross Chain",
+        email_contact="provider-cross-chain@example.com",
+        email_incoming_price="prices-cross-chain@example.com",
+        type_prices="Wholesale",
+    )
+    brand = Brand(name="CHAIN")
+    test_session.add_all([provider, brand])
+    await test_session.flush()
+
+    part_a = AutoPart(name="Part A", brand_id=brand.id, oem_number="A123")
+    part_b = AutoPart(name="Part B", brand_id=brand.id, oem_number="B123")
+    part_c = AutoPart(name="Part C", brand_id=brand.id, oem_number="C123")
+    test_session.add_all([part_a, part_b, part_c])
+    await test_session.flush()
+
+    test_session.add_all(
+        [
+            AutoPartCross(
+                source_autopart_id=part_a.id,
+                cross_brand_id=brand.id,
+                cross_oem_number="B123",
+                cross_autopart_id=part_b.id,
+                is_bidirectional=True,
+            ),
+            AutoPartCross(
+                source_autopart_id=part_b.id,
+                cross_brand_id=brand.id,
+                cross_oem_number="A123",
+                cross_autopart_id=part_a.id,
+                is_bidirectional=True,
+            ),
+            AutoPartCross(
+                source_autopart_id=part_b.id,
+                cross_brand_id=brand.id,
+                cross_oem_number="C123",
+                cross_autopart_id=part_c.id,
+                is_bidirectional=True,
+            ),
+            AutoPartCross(
+                source_autopart_id=part_c.id,
+                cross_brand_id=brand.id,
+                cross_oem_number="B123",
+                cross_autopart_id=part_b.id,
+                is_bidirectional=True,
+            ),
+        ]
+    )
+
+    supplier_order = SupplierOrder(
+        provider_id=provider.id,
+        source_type=ORDER_TRACKING_SOURCE.SEARCH_OFFERS.value,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+    )
+    test_session.add(supplier_order)
+    await test_session.flush()
+
+    test_session.add(
+        SupplierOrderItem(
+            supplier_order_id=supplier_order.id,
+            autopart_id=part_c.id,
+            oem_number="C123",
+            brand_name="CHAIN",
+            autopart_name="Part C",
+            quantity=2,
+            price=77,
+        )
+    )
+    await test_session.commit()
+
+    cross_rows = await list_tracking_history(
+        test_session,
+        oem_number="A123",
+        include_crosses=True,
+    )
+
+    assert len(cross_rows) == 1
+    assert cross_rows[0]["oem_number"] == "C123"
+    assert cross_rows[0]["source_type"] == "supplier"
+
+
+@pytest.mark.asyncio
 async def test_get_tracking_history_insights_builds_price_and_own_stock_summary(
     test_session,
 ):

@@ -15,6 +15,8 @@ from dz_fastapi.schemas.autopart import (
     CrossAdminCreate,
     CrossAdminOut,
     CrossAdminUpdate,
+    CrossGroupItemOut,
+    CrossGroupOut,
     InvalidCrossAdminCreate,
     InvalidCrossAdminOut,
     InvalidCrossAdminUpdate,
@@ -24,6 +26,7 @@ from dz_fastapi.schemas.autopart import (
 from dz_fastapi.services.crosses import (
     delete_cross_relation,
     get_cross_row,
+    load_bidirectional_cross_members,
     resolve_cross_autopart_id,
     save_cross_relation,
     snapshot_cross_state,
@@ -110,6 +113,16 @@ def _cross_to_out(cross: AutoPartCross) -> CrossAdminOut:
     )
 
 
+def _cluster_item_to_out(item) -> CrossGroupItemOut:
+    return CrossGroupItemOut(
+        autopart_id=item.autopart_id,
+        brand_id=item.brand_id,
+        brand_name=item.brand_name,
+        oem_number=item.oem_number,
+        name=item.name,
+    )
+
+
 def _invalid_cross_to_out(
     invalid_cross: AutoPartInvalidCross,
 ) -> InvalidCrossAdminOut:
@@ -169,6 +182,70 @@ async def list_crosses(
     stmt = stmt.order_by(AutoPartCross.id.desc())
     rows = (await session.execute(stmt)).scalars().all()
     return [_cross_to_out(row) for row in rows]
+
+
+@router.get("/crosses/groups/", response_model=list[CrossGroupOut])
+async def list_cross_groups(
+    q: Optional[str] = Query(default=None),
+    session: AsyncSession = Depends(get_session),
+):
+    search = str(q or "").strip()
+    if not search:
+        return []
+
+    pattern = f"%{search}%"
+    anchor_rows = (
+        await session.execute(
+            select(AutoPart)
+            .join(Brand, Brand.id == AutoPart.brand_id)
+            .options(selectinload(AutoPart.brand))
+            .where(
+                or_(
+                    AutoPart.oem_number.ilike(pattern),
+                    AutoPart.name.ilike(pattern),
+                    Brand.name.ilike(pattern),
+                )
+            )
+            .order_by(Brand.name.asc(), AutoPart.oem_number.asc(), AutoPart.id.asc())
+            .limit(100)
+        )
+    ).scalars().all()
+
+    groups: list[CrossGroupOut] = []
+    seen_signatures: set[tuple[int, ...]] = set()
+    for anchor in anchor_rows:
+        members = await load_bidirectional_cross_members(
+            session,
+            seed_autopart_ids=[anchor.id],
+        )
+        related_members = [item for item in members if item.autopart_id != anchor.id]
+        if not related_members:
+            continue
+        signature = tuple(item.autopart_id for item in members)
+        if signature in seen_signatures:
+            continue
+        seen_signatures.add(signature)
+        ordered_members = sorted(
+            related_members,
+            key=lambda item: (
+                str(item.brand_name or ""),
+                str(item.oem_number or ""),
+                item.autopart_id,
+            ),
+        )
+        groups.append(
+            CrossGroupOut(
+                anchor_autopart_id=anchor.id,
+                anchor_brand_id=anchor.brand_id,
+                anchor_brand_name=(anchor.brand.name if anchor.brand else None),
+                anchor_oem_number=anchor.oem_number,
+                anchor_name=anchor.name,
+                member_count=len(ordered_members),
+                members=[_cluster_item_to_out(item) for item in ordered_members],
+            )
+        )
+
+    return groups
 
 
 @router.post(

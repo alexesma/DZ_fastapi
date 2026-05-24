@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from itertools import combinations
 from typing import Iterable, Optional
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.constants import AUTO_OEM_CROSS_BRANDS
@@ -28,6 +28,15 @@ class CrossLinkState:
     is_bidirectional: bool
 
 
+@dataclass(frozen=True)
+class CrossClusterItem:
+    autopart_id: int
+    brand_id: int
+    brand_name: str | None
+    oem_number: str
+    name: str | None
+
+
 def _normalize_brand_name(name: str | None) -> str:
     return str(name or "").strip().upper()
 
@@ -46,6 +55,87 @@ def _base_oem_for_auto_cross(brand_name: str | None, oem_number: str) -> str:
     ):
         return normalized_oem[2:]
     return normalized_oem
+
+
+async def resolve_bidirectional_cross_component_ids(
+    session: AsyncSession,
+    *,
+    seed_autopart_ids: Iterable[int],
+    excluded_autopart_ids: Optional[set[int]] = None,
+) -> set[int]:
+    excluded_ids = {int(value) for value in (excluded_autopart_ids or set())}
+    frontier = {
+        int(value)
+        for value in seed_autopart_ids
+        if value is not None and int(value) not in excluded_ids
+    }
+    visited = set(frontier)
+    while frontier:
+        edge_rows = (
+            await session.execute(
+                select(
+                    AutoPartCross.source_autopart_id,
+                    AutoPartCross.cross_autopart_id,
+                ).where(
+                    AutoPartCross.is_bidirectional.is_(True),
+                    AutoPartCross.cross_autopart_id.is_not(None),
+                    or_(
+                        AutoPartCross.source_autopart_id.in_(list(frontier)),
+                        AutoPartCross.cross_autopart_id.in_(list(frontier)),
+                    ),
+                )
+            )
+        ).all()
+        next_frontier: set[int] = set()
+        for source_id, cross_id in edge_rows:
+            if cross_id is None or source_id == cross_id:
+                continue
+            if source_id in frontier and cross_id not in visited and cross_id not in excluded_ids:
+                next_frontier.add(int(cross_id))
+            if cross_id in frontier and source_id not in visited and source_id not in excluded_ids:
+                next_frontier.add(int(source_id))
+        visited.update(next_frontier)
+        frontier = next_frontier
+    return visited
+
+
+async def load_bidirectional_cross_members(
+    session: AsyncSession,
+    *,
+    seed_autopart_ids: Iterable[int],
+    excluded_autopart_ids: Optional[set[int]] = None,
+) -> list[CrossClusterItem]:
+    component_ids = await resolve_bidirectional_cross_component_ids(
+        session,
+        seed_autopart_ids=seed_autopart_ids,
+        excluded_autopart_ids=excluded_autopart_ids,
+    )
+    if not component_ids:
+        return []
+    rows = (
+        await session.execute(
+            select(
+                AutoPart.id,
+                AutoPart.brand_id,
+                Brand.name,
+                AutoPart.oem_number,
+                AutoPart.name,
+            )
+            .join(Brand, Brand.id == AutoPart.brand_id)
+            .where(AutoPart.id.in_(component_ids))
+            .order_by(Brand.name.asc(), AutoPart.oem_number.asc(), AutoPart.id.asc())
+        )
+    ).all()
+    return [
+        CrossClusterItem(
+            autopart_id=autopart_id,
+            brand_id=brand_id,
+            brand_name=brand_name,
+            oem_number=oem_number,
+            name=name,
+        )
+        for autopart_id, brand_id, brand_name, oem_number, name in rows
+    ]
 
 
 async def resolve_cross_autopart_id(

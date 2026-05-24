@@ -4,7 +4,11 @@ from sqlalchemy import select
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.cross import AutoPartCross
-from dz_fastapi.services.crosses import save_cross_relation, sync_automatic_oem_crosses
+from dz_fastapi.services.crosses import (
+    load_bidirectional_cross_members,
+    save_cross_relation,
+    sync_automatic_oem_crosses,
+)
 
 
 @pytest.mark.asyncio
@@ -154,3 +158,59 @@ async def test_sync_automatic_oem_crosses_respects_existing_one_way_cross(
     assert result["rows_created"] == 0
     assert len(rows) == 1
     assert rows[0].is_bidirectional is False
+
+
+@pytest.mark.asyncio
+async def test_load_bidirectional_cross_members_resolves_transitive_group(
+    test_session,
+):
+    brand = Brand(name="CHAIN")
+    test_session.add(brand)
+    await test_session.flush()
+
+    part_a = AutoPart(name="Part A", brand_id=brand.id, oem_number="A123")
+    part_b = AutoPart(name="Part B", brand_id=brand.id, oem_number="B123")
+    part_c = AutoPart(name="Part C", brand_id=brand.id, oem_number="C123")
+    part_d = AutoPart(name="Part D", brand_id=brand.id, oem_number="D123")
+    test_session.add_all([part_a, part_b, part_c, part_d])
+    await test_session.flush()
+
+    await save_cross_relation(
+        test_session,
+        source_autopart=part_a,
+        cross_brand_id=brand.id,
+        cross_oem_number="B123",
+        is_bidirectional=True,
+        comment="A<->B",
+    )
+    await save_cross_relation(
+        test_session,
+        source_autopart=part_b,
+        cross_brand_id=brand.id,
+        cross_oem_number="C123",
+        is_bidirectional=True,
+        comment="B<->C",
+    )
+    await save_cross_relation(
+        test_session,
+        source_autopart=part_b,
+        cross_brand_id=brand.id,
+        cross_oem_number="D123",
+        is_bidirectional=False,
+        comment="B->D",
+    )
+    await test_session.commit()
+
+    members = await load_bidirectional_cross_members(
+        test_session,
+        seed_autopart_ids=[part_a.id],
+    )
+
+    assert {
+        (item.autopart_id, item.oem_number)
+        for item in members
+    } == {
+        (part_a.id, "A123"),
+        (part_b.id, "B123"),
+        (part_c.id, "C123"),
+    }

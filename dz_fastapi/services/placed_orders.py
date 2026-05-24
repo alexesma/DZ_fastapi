@@ -32,6 +32,7 @@ from dz_fastapi.models.partner import (
     SupplierOrderItem,
 )
 from dz_fastapi.models.user import User
+from dz_fastapi.services.crosses import load_bidirectional_cross_members
 from dz_fastapi.services.order_status_mapping import (
     EXTERNAL_STATUS_SOURCE_DRAGONZAP,
     apply_status_mapping_to_order_item,
@@ -160,6 +161,16 @@ async def _resolve_tracking_oem_numbers(
         source_autopart_ids=source_autopart_ids,
     )
 
+    bidirectional_members = await load_bidirectional_cross_members(
+        session,
+        seed_autopart_ids=source_autopart_ids,
+        excluded_autopart_ids=invalid_autopart_ids,
+    )
+    for member in bidirectional_members:
+        normalized_component_oem = _normalize_oem(member.oem_number)
+        if normalized_component_oem and normalized_component_oem not in invalid_oems:
+            resolved_oems.add(normalized_component_oem)
+
     if source_autopart_ids:
         direct_crosses_stmt = select(
             AutoPartCross.cross_oem_number,
@@ -273,6 +284,19 @@ async def _resolve_tracking_cross_items(
                 "brand_name": brand_value or None,
                 "name": str(name_value or "").strip() or None,
             },
+        )
+
+    bidirectional_members = await load_bidirectional_cross_members(
+        session,
+        seed_autopart_ids=source_autopart_ids,
+        excluded_autopart_ids=invalid_autopart_ids,
+    )
+    for member in bidirectional_members:
+        _store_item(
+            autopart_id=member.autopart_id,
+            oem_number_value=member.oem_number,
+            brand_name_value=member.brand_name,
+            name_value=member.name,
         )
 
     direct_rows = (

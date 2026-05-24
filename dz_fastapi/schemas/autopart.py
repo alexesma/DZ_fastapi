@@ -328,6 +328,24 @@ class CrossAdminOut(BaseModel):
     comment: Optional[str] = None
 
 
+class CrossGroupItemOut(BaseModel):
+    autopart_id: int
+    brand_id: int
+    brand_name: Optional[str] = None
+    oem_number: str
+    name: Optional[str] = None
+
+
+class CrossGroupOut(BaseModel):
+    anchor_autopart_id: int
+    anchor_brand_id: int
+    anchor_brand_name: Optional[str] = None
+    anchor_oem_number: str
+    anchor_name: Optional[str] = None
+    member_count: int = 0
+    members: List[CrossGroupItemOut] = Field(default_factory=list)
+
+
 class InvalidCrossCreate(BaseModel):
     invalid_brand_id: int
     invalid_oem_number: str
