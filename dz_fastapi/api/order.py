@@ -46,6 +46,7 @@ from dz_fastapi.schemas.order import (
     SupplierOfferOut,
     SupplierOffersResponse,
     SupplierOrderOut,
+    TrackingExceptionsQueueResponse,
     TrackingHistoryInsightSummary,
     UpdatePositionStatusRequest,
     UpdatePositionStatusResponse,
@@ -55,6 +56,7 @@ from dz_fastapi.services.inventory_stock import ensure_default_warehouse
 from dz_fastapi.services.notifications import create_notification
 from dz_fastapi.services.placed_orders import (
     _normalize_oem,
+    get_tracking_exceptions_queue,
     get_tracking_history_insights,
     list_tracking_history,
     sync_site_tracking_statuses,
@@ -992,6 +994,31 @@ async def get_tracking_summary(
         extra_oem_numbers=_parse_site_cross_oems(site_cross_oems),
         own_provider_config_id=own_provider_config_id,
     )
+
+
+@router.get(
+    "/tracking-exceptions-queue",
+    response_model=TrackingExceptionsQueueResponse,
+    summary="Очередь исключений по нашему прайсу",
+)
+async def get_tracking_exceptions_queue_view(
+    own_provider_config_id: Optional[int] = Query(default=None),
+    severity: Optional[str] = Query(default=None),
+    q: Optional[str] = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=1000),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await get_tracking_exceptions_queue(
+            session=session,
+            own_provider_config_id=own_provider_config_id,
+            severity=severity,
+            search=q,
+            limit=limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post(

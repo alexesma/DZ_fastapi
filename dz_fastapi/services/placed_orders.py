@@ -4,6 +4,7 @@ import logging
 import os
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
+from math import ceil, sqrt
 from typing import Any, Optional
 
 from sqlalchemy import delete, func, literal, or_, select
@@ -1527,7 +1528,9 @@ def _compute_supplier_stats(
         provider_offers[key].append(dict(row))
 
     supplier_stats: list[dict[str, Any]] = []
-    for provider_key, rows in provider_history.items():
+    all_provider_keys = set(provider_history) | set(provider_offers)
+    for provider_key in all_provider_keys:
+        rows = provider_history.get(provider_key, [])
         total_ordered = sum(int(r.get("ordered_quantity") or 0) for r in rows)
         total_received = sum(int(r.get("received_quantity") or 0) for r in rows)
         fill_rate = (
@@ -1558,13 +1561,40 @@ def _compute_supplier_stats(
         )
         last_ordered_at = sorted_rows[0].get("created_at") if sorted_rows else None
         provider_name = (
-            sorted_rows[0].get("provider_name") if sorted_rows else str(provider_key)
+            sorted_rows[0].get("provider_name")
+            if sorted_rows
+            else (
+                provider_offers.get(provider_key, [{}])[0].get("provider_name")
+                if provider_offers.get(provider_key)
+                else str(provider_key)
+            )
         )
-        provider_id = sorted_rows[0].get("provider_id") if sorted_rows else None
+        provider_id = (
+            sorted_rows[0].get("provider_id")
+            if sorted_rows
+            else (
+                provider_offers.get(provider_key, [{}])[0].get("provider_id")
+                if provider_offers.get(provider_key)
+                else None
+            )
+        )
 
         curr_offers = provider_offers.get(provider_key, [])
         best_curr = (
             min(curr_offers, key=_offer_sort_key) if curr_offers else None
+        )
+        effective_lead_days = (
+            avg_lead
+            if avg_lead is not None
+            else (
+                float(best_curr.get("max_delivery_day"))
+                if best_curr and best_curr.get("max_delivery_day") is not None
+                else (
+                    float(best_curr.get("min_delivery_day"))
+                    if best_curr and best_curr.get("min_delivery_day") is not None
+                    else None
+                )
+            )
         )
         supplier_stats.append(
             {
@@ -1573,6 +1603,7 @@ def _compute_supplier_stats(
                 "order_count": len(rows),
                 "fill_rate": fill_rate,
                 "avg_lead_days": avg_lead,
+                "effective_lead_days": effective_lead_days,
                 "avg_price": avg_price,
                 "last_ordered_at": last_ordered_at,
                 "current_price": (
@@ -1613,16 +1644,415 @@ def _compute_supplier_stats(
             }
         )
 
+    current_prices = [
+        float(item["current_price"])
+        for item in supplier_stats
+        if item.get("current_price") is not None
+    ]
+    effective_leads = [
+        float(item["effective_lead_days"])
+        for item in supplier_stats
+        if item.get("effective_lead_days") is not None
+    ]
+    min_price = min(current_prices) if current_prices else None
+    max_price = max(current_prices) if current_prices else None
+    min_lead = min(effective_leads) if effective_leads else None
+    max_lead = max(effective_leads) if effective_leads else None
+
+    def _normalized_inverse(
+        value: Optional[float],
+        minimum: Optional[float],
+        maximum: Optional[float],
+    ) -> float:
+        if value is None:
+            return 0.0
+        if minimum is None or maximum is None or maximum <= minimum:
+            return 100.0
+        ratio = (float(value) - float(minimum)) / (float(maximum) - float(minimum))
+        return max(0.0, min(100.0, 100.0 - ratio * 100.0))
+
+    for item in supplier_stats:
+        price_score = _normalized_inverse(
+            item.get("current_price"), min_price, max_price
+        )
+        lead_score = _normalized_inverse(
+            item.get("effective_lead_days"), min_lead, max_lead
+        )
+        fill_score = float(item.get("fill_rate") or 50.0)
+        availability_score = 100.0 if int(item.get("current_qty") or 0) > 0 else 0.0
+        weighted = (
+            fill_score * 0.45
+            + lead_score * 0.30
+            + price_score * 0.15
+            + availability_score * 0.10
+        )
+        item["score"] = round(weighted, 1)
+
     def _score(s: dict[str, Any]) -> tuple:
         has_current = s["current_price"] is not None
         fill = s["fill_rate"] or 0
-        lead = s["avg_lead_days"] or 9999
+        lead = s["effective_lead_days"] or 9999
         price = s["current_price"] or 9_999_999
         return (not has_current, -fill, lead, price)
 
-    best = min(supplier_stats, key=_score) if supplier_stats else None
-    best_supplier = best if (best and best["current_price"] is not None) else None
+    best_candidates = [
+        item
+        for item in supplier_stats
+        if item.get("current_price") is not None and not item.get("is_own_price")
+    ]
+    best = min(best_candidates, key=_score) if best_candidates else None
+    best_supplier = best if best else None
     return supplier_stats, best_supplier
+
+
+def _select_best_supplier_by_price(
+    supplier_stats: list[dict[str, Any]],
+) -> Optional[dict[str, Any]]:
+    candidates = [
+        item
+        for item in supplier_stats
+        if item.get("current_price") is not None and not item.get("is_own_price")
+    ]
+    if not candidates:
+        return None
+    return min(
+        candidates,
+        key=lambda item: (
+            float(item.get("current_price") or 9_999_999),
+            float(item.get("effective_lead_days") or 9_999),
+            -float(item.get("fill_rate") or 0),
+        ),
+    )
+
+
+def _select_best_supplier_by_lead_time(
+    supplier_stats: list[dict[str, Any]],
+) -> Optional[dict[str, Any]]:
+    candidates = [
+        item
+        for item in supplier_stats
+        if item.get("current_price") is not None
+        and item.get("effective_lead_days") is not None
+        and not item.get("is_own_price")
+    ]
+    if not candidates:
+        return None
+    return min(
+        candidates,
+        key=lambda item: (
+            float(item.get("effective_lead_days") or 9_999),
+            -float(item.get("fill_rate") or 0),
+            float(item.get("current_price") or 9_999_999),
+        ),
+    )
+
+
+def _build_tracking_exceptions(
+    *,
+    own_price_analysis: Optional[dict[str, Any]],
+    in_transit_qty: int,
+    reorder_point: Optional[float],
+    price_trend: Optional[str],
+    price_trend_pct: Optional[float],
+    best_supplier: Optional[dict[str, Any]],
+    best_supplier_by_price: Optional[dict[str, Any]],
+    best_supplier_by_lead_time: Optional[dict[str, Any]],
+    missing_in_latest_pricelist: bool = False,
+) -> list[dict[str, str]]:
+    exceptions: list[dict[str, str]] = []
+
+    if not best_supplier_by_price and not best_supplier_by_lead_time:
+        exceptions.append(
+            {
+                "code": "no_supplier_offers",
+                "severity": "critical",
+                "title": "Нет актуальных предложений поставщиков",
+                "description": (
+                    "По позиции и кроссам сейчас нет доступных предложений "
+                    "из прайсов поставщиков для создания закупки."
+                ),
+            }
+        )
+
+    if missing_in_latest_pricelist:
+        exceptions.append(
+            {
+                "code": "missing_in_latest_pricelist",
+                "severity": "critical",
+                "title": "Позиция выпала из последнего нашего прайса",
+                "description": (
+                    "Позиция была в недавних выгрузках, но отсутствует "
+                    "в последнем нашем прайсе. Её нужно отдельно проверить "
+                    "и при необходимости срочно перезаказать."
+                ),
+            }
+        )
+
+    if own_price_analysis:
+        current_qty = int(own_price_analysis.get("current_quantity") or 0)
+        days_left = own_price_analysis.get("estimated_days_left_30_days")
+        available_qty = current_qty + int(in_transit_qty or 0)
+        if days_left is not None and days_left <= 7:
+            exceptions.append(
+                {
+                    "code": "low_stock_cover_critical",
+                    "severity": "critical",
+                    "title": "Очень низкое покрытие остатком",
+                    "description": (
+                        "Текущего остатка и позиций в пути хватит "
+                        f"примерно на {days_left} дн."
+                    ),
+                }
+            )
+        elif days_left is not None and days_left <= 14:
+            exceptions.append(
+                {
+                    "code": "low_stock_cover_warning",
+                    "severity": "warning",
+                    "title": "Низкое покрытие остатком",
+                    "description": (
+                        "Текущего остатка и позиций в пути хватит "
+                        f"примерно на {days_left} дн."
+                    ),
+                }
+            )
+        if reorder_point is not None and available_qty < reorder_point:
+            exceptions.append(
+                {
+                    "code": "below_reorder_point",
+                    "severity": "warning",
+                    "title": "Позиция ниже точки дозаказа",
+                    "description": (
+                        f"Доступно {available_qty} шт с учётом позиций в пути, "
+                        f"при точке дозаказа {round(float(reorder_point), 1)} шт."
+                    ),
+                }
+            )
+
+    if best_supplier and best_supplier.get("fill_rate") is not None and float(
+        best_supplier.get("fill_rate") or 0
+    ) < 80:
+        exceptions.append(
+            {
+                "code": "supplier_fill_rate_low",
+                "severity": "warning",
+                "title": "Низкая надёжность лучшего поставщика",
+                "description": (
+                    f"{best_supplier.get('provider_name') or 'Поставщик'} "
+                    "закрывает в среднем только "
+                    f"{best_supplier.get('fill_rate')}% заказанного объёма."
+                ),
+            }
+        )
+
+    if price_trend == "up" and price_trend_pct is not None and price_trend_pct >= 10:
+        exceptions.append(
+            {
+                "code": "purchase_price_growth",
+                "severity": "info",
+                "title": "Закупочная цена растёт",
+                "description": (
+                    "Средняя закупочная цена по позиции выросла "
+                    f"на {price_trend_pct}% по сравнению с предыдущим периодом."
+                ),
+            }
+        )
+
+    return exceptions[:5]
+
+
+def _build_draft_purchase_order(
+    *,
+    own_price_analysis: Optional[dict[str, Any]],
+    in_transit_qty: int,
+    reorder_point: Optional[float],
+    optimal_order_qty: Optional[float],
+    supplier: Optional[dict[str, Any]],
+) -> Optional[dict[str, Any]]:
+    if not supplier or supplier.get("provider_id") is None:
+        return None
+    if supplier.get("current_price") is None:
+        return None
+
+    current_qty = int((own_price_analysis or {}).get("current_quantity") or 0)
+    available_qty = current_qty + int(in_transit_qty or 0)
+    avg_daily = (own_price_analysis or {}).get("average_daily_decrease_30_days")
+    lead_days = (
+        float(supplier.get("effective_lead_days"))
+        if supplier.get("effective_lead_days") is not None
+        else None
+    )
+    target_qty: Optional[int] = None
+    reason: Optional[str] = None
+
+    if avg_daily and float(avg_daily) > 0:
+        cover_days = max(int(round((lead_days or 7) + 7)), 14)
+        target_qty = int(ceil(float(avg_daily) * cover_days))
+        reason = (
+            f"Цель покрытия: около {cover_days} дн. с учётом темпа расхода "
+            f"{round(float(avg_daily), 2)} шт/день."
+        )
+    elif optimal_order_qty is not None:
+        target_qty = int(ceil(float(optimal_order_qty)))
+        reason = "Использована рассчитанная оптимальная партия."
+    elif reorder_point is not None:
+        target_qty = int(ceil(float(reorder_point)))
+        reason = "Использована точка дозаказа как минимальная цель."
+
+    if target_qty is None:
+        return None
+
+    recommended_qty = max(target_qty - available_qty, 0)
+    if recommended_qty <= 0 and reorder_point is not None and available_qty < reorder_point:
+        recommended_qty = max(int(ceil(float(reorder_point) - available_qty)), 1)
+        reason = "Доступный остаток ниже точки дозаказа."
+    if recommended_qty <= 0:
+        return None
+
+    return {
+        "provider_id": int(supplier["provider_id"]),
+        "provider_name": supplier.get("provider_name") or "—",
+        "provider_config_id": supplier.get("current_provider_config_id"),
+        "provider_config_name": supplier.get("current_provider_config_name"),
+        "autopart_id": supplier.get("current_autopart_id"),
+        "oem_number": supplier.get("current_oem_number") or "",
+        "brand_name": supplier.get("current_brand_name"),
+        "autopart_name": supplier.get("current_autopart_name"),
+        "price": supplier.get("current_price"),
+        "available_qty": available_qty,
+        "in_transit_qty": int(in_transit_qty or 0),
+        "target_qty": target_qty,
+        "recommended_qty": recommended_qty,
+        "lead_days_used": lead_days,
+        "reason": reason,
+    }
+
+
+async def _compute_abc_xyz(
+    session: AsyncSession,
+    *,
+    normalized_oem_numbers: list[str],
+    history_rows: list[dict[str, Any]],
+) -> Optional[dict[str, Any]]:
+    group_oems = {
+        normalized
+        for normalized in (_normalize_oem(item) for item in normalized_oem_numbers)
+        if normalized
+    }
+    if not group_oems:
+        return None
+
+    monthly_qty: dict[str, int] = {}
+    current_month = date.today().replace(day=1)
+    months: list[str] = []
+    year = current_month.year
+    month = current_month.month
+    for offset in range(11, -1, -1):
+        y = year
+        m = month - offset
+        while m <= 0:
+            m += 12
+            y -= 1
+        months.append(f"{y:04d}-{m:02d}")
+        monthly_qty[f"{y:04d}-{m:02d}"] = 0
+
+    annual_ordered_qty = 0
+    for row in history_rows:
+        dt = row.get("created_at")
+        normalized_row_oem = _normalize_oem(row.get("oem_number"))
+        if not dt or normalized_row_oem not in group_oems:
+            continue
+        month_key = dt.strftime("%Y-%m")
+        if month_key in monthly_qty:
+            qty = int(row.get("ordered_quantity") or 0)
+            monthly_qty[month_key] += qty
+            annual_ordered_qty += qty
+
+    series = [monthly_qty[month_key] for month_key in months]
+    active_months = sum(1 for value in series if value > 0)
+    xyz_class: Optional[str] = None
+    monthly_cv: Optional[float] = None
+    if series and annual_ordered_qty > 0:
+        mean_value = sum(series) / len(series)
+        if mean_value > 0:
+            variance = sum((value - mean_value) ** 2 for value in series) / len(series)
+            std_dev = sqrt(variance)
+            monthly_cv = round(std_dev / mean_value, 2)
+            if monthly_cv <= 0.5:
+                xyz_class = "X"
+            elif monthly_cv <= 1.0:
+                xyz_class = "Y"
+            else:
+                xyz_class = "Z"
+
+    cutoff = tracking_history_cutoff()
+    supplier_rows = (
+        await session.execute(
+            select(
+                func.upper(SupplierOrderItem.oem_number).label("oem_number"),
+                func.sum(SupplierOrderItem.quantity).label("qty"),
+            )
+            .select_from(SupplierOrderItem)
+            .join(
+                SupplierOrder,
+                SupplierOrder.id == SupplierOrderItem.supplier_order_id,
+            )
+            .where(
+                SupplierOrder.source_type == ORDER_TRACKING_SOURCE.SEARCH_OFFERS.value,
+                SupplierOrder.created_at >= cutoff,
+                SupplierOrderItem.oem_number.is_not(None),
+            )
+            .group_by(func.upper(SupplierOrderItem.oem_number))
+        )
+    ).all()
+    site_rows = (
+        await session.execute(
+            select(
+                func.upper(OrderItem.oem_number).label("oem_number"),
+                func.sum(OrderItem.quantity).label("qty"),
+            )
+            .select_from(OrderItem)
+            .join(Order, Order.id == OrderItem.order_id)
+            .where(
+                Order.source_type == ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
+                Order.created_at >= cutoff,
+                OrderItem.oem_number.is_not(None),
+            )
+            .group_by(func.upper(OrderItem.oem_number))
+        )
+    ).all()
+
+    qty_by_oem: dict[str, int] = {}
+    for oem_value, qty in list(supplier_rows) + list(site_rows):
+        normalized = _normalize_oem(oem_value)
+        if not normalized:
+            continue
+        qty_by_oem[normalized] = qty_by_oem.get(normalized, 0) + int(qty or 0)
+
+    total_market_qty = sum(qty_by_oem.values())
+    abc_class: Optional[str] = None
+    cumulative_share_pct: Optional[float] = None
+    group_qty = sum(qty_by_oem.get(oem, 0) for oem in group_oems)
+    if total_market_qty > 0 and group_qty > 0:
+        sorted_values = sorted(qty_by_oem.values(), reverse=True)
+        cumulative_before = sum(value for value in sorted_values if value > group_qty)
+        cumulative_share = (cumulative_before + group_qty) / total_market_qty
+        cumulative_share_pct = round(cumulative_share * 100, 1)
+        if cumulative_share <= 0.8:
+            abc_class = "A"
+        elif cumulative_share <= 0.95:
+            abc_class = "B"
+        else:
+            abc_class = "C"
+
+    return {
+        "abc_class": abc_class,
+        "xyz_class": xyz_class,
+        "annual_ordered_qty": annual_ordered_qty,
+        "monthly_cv": monthly_cv,
+        "active_months": active_months,
+        "cumulative_share_pct": cumulative_share_pct,
+    }
 
 
 async def get_tracking_history_insights(
@@ -1850,6 +2280,10 @@ async def get_tracking_history_insights(
     supplier_stats, best_supplier = _compute_supplier_stats(
         history_rows, list(current_offer_rows)
     )
+    best_supplier_by_price = _select_best_supplier_by_price(supplier_stats)
+    best_supplier_by_lead_time = _select_best_supplier_by_lead_time(
+        supplier_stats
+    )
 
     # 6. Reorder point + optimal order qty (uses own-price analysis)
     average_actual_lead_days = (
@@ -1880,6 +2314,34 @@ async def get_tracking_history_insights(
                 markup_percent = round((sp - pp) / pp * 100, 1)
             if sp > 0:
                 margin_percent = round((sp - pp) / sp * 100, 1)
+
+    exceptions = _build_tracking_exceptions(
+        own_price_analysis=own_price_analysis,
+        in_transit_qty=in_transit_qty,
+        reorder_point=reorder_point,
+        price_trend=purchase_price_stats["price_trend"],
+        price_trend_pct=purchase_price_stats["price_trend_pct"],
+        best_supplier=best_supplier,
+        best_supplier_by_price=best_supplier_by_price,
+        best_supplier_by_lead_time=best_supplier_by_lead_time,
+    )
+    recommended_supplier = (
+        best_supplier
+        or best_supplier_by_price
+        or best_supplier_by_lead_time
+    )
+    draft_purchase_order = _build_draft_purchase_order(
+        own_price_analysis=own_price_analysis,
+        in_transit_qty=in_transit_qty,
+        reorder_point=reorder_point,
+        optimal_order_qty=optimal_order_qty,
+        supplier=recommended_supplier,
+    )
+    abc_xyz = await _compute_abc_xyz(
+        session,
+        normalized_oem_numbers=normalized_oem_numbers or [normalized_oem],
+        history_rows=history_rows,
+    )
 
     # ────────────────────────────────────────────────────────────────────────
 
@@ -1939,7 +2401,559 @@ async def get_tracking_history_insights(
         "peak_months": peak_months,
         "supplier_stats": supplier_stats,
         "best_supplier": best_supplier,
+        "best_supplier_by_price": best_supplier_by_price,
+        "best_supplier_by_lead_time": best_supplier_by_lead_time,
+        "recommended_supplier": recommended_supplier,
+        "draft_purchase_order": draft_purchase_order,
+        "exceptions": exceptions,
+        "abc_xyz": abc_xyz,
         "invalid_cross_items": invalid_cross_items,
+    }
+
+
+async def _load_tracking_history_rows_for_oems(
+    session: AsyncSession,
+    *,
+    normalized_oem_numbers: list[str],
+) -> list[dict[str, Any]]:
+    if not normalized_oem_numbers:
+        return []
+
+    cutoff = tracking_history_cutoff()
+
+    supplier_rows = (
+        await session.execute(
+            select(
+                literal("supplier").label("source_type"),
+                SupplierOrder.provider_id.label("provider_id"),
+                Provider.name.label("provider_name"),
+                func.upper(SupplierOrderItem.oem_number).label("oem_number"),
+                Brand.name.label("brand_name"),
+                SupplierOrderItem.autopart_name.label("autopart_name"),
+                SupplierOrderItem.quantity.label("ordered_quantity"),
+                SupplierOrderItem.received_quantity.label("received_quantity"),
+                SupplierOrderItem.price.label("price"),
+                SupplierOrder.created_at.label("created_at"),
+                SupplierOrderItem.received_at.label("received_at"),
+                SupplierOrder.status.label("order_status"),
+            )
+            .select_from(SupplierOrderItem)
+            .join(
+                SupplierOrder,
+                SupplierOrder.id == SupplierOrderItem.supplier_order_id,
+            )
+            .join(Provider, Provider.id == SupplierOrder.provider_id)
+            .outerjoin(
+                AutoPart,
+                AutoPart.id == SupplierOrderItem.autopart_id,
+            )
+            .outerjoin(Brand, Brand.id == AutoPart.brand_id)
+            .where(
+                SupplierOrder.source_type
+                == ORDER_TRACKING_SOURCE.SEARCH_OFFERS.value,
+                SupplierOrder.created_at >= cutoff,
+                SupplierOrderItem.oem_number.is_not(None),
+                func.upper(SupplierOrderItem.oem_number).in_(
+                    normalized_oem_numbers
+                ),
+            )
+        )
+    ).mappings().all()
+
+    site_rows = (
+        await session.execute(
+            select(
+                literal("site").label("source_type"),
+                Order.provider_id.label("provider_id"),
+                Provider.name.label("provider_name"),
+                func.upper(OrderItem.oem_number).label("oem_number"),
+                OrderItem.brand_name.label("brand_name"),
+                OrderItem.autopart_name.label("autopart_name"),
+                OrderItem.quantity.label("ordered_quantity"),
+                OrderItem.received_quantity.label("received_quantity"),
+                OrderItem.price.label("price"),
+                Order.created_at.label("created_at"),
+                OrderItem.received_at.label("received_at"),
+                Order.status.label("order_status"),
+                OrderItem.status.label("item_status"),
+            )
+            .select_from(OrderItem)
+            .join(Order, Order.id == OrderItem.order_id)
+            .join(Provider, Provider.id == Order.provider_id)
+            .where(
+                Order.source_type
+                == ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
+                Order.created_at >= cutoff,
+                OrderItem.oem_number.is_not(None),
+                func.upper(OrderItem.oem_number).in_(normalized_oem_numbers),
+            )
+        )
+    ).mappings().all()
+
+    rows: list[dict[str, Any]] = []
+    for row in supplier_rows:
+        rows.append(
+            {
+                "source_type": row["source_type"],
+                "provider_id": row["provider_id"],
+                "provider_name": row["provider_name"],
+                "oem_number": row["oem_number"],
+                "brand_name": row.get("brand_name"),
+                "autopart_name": row.get("autopart_name"),
+                "ordered_quantity": int(row.get("ordered_quantity") or 0),
+                "received_quantity": int(row.get("received_quantity") or 0),
+                "price": row.get("price"),
+                "created_at": row["created_at"],
+                "received_at": row.get("received_at"),
+                "current_status": (
+                    row["order_status"].name
+                    if getattr(row.get("order_status"), "name", None)
+                    else str(row.get("order_status") or "")
+                ),
+                "actual_lead_days": (
+                    max(
+                        (
+                            row["received_at"].date() - row["created_at"].date()
+                        ).days,
+                        0,
+                    )
+                    if row.get("received_at") is not None
+                    else None
+                ),
+            }
+        )
+
+    for row in site_rows:
+        order_status = row.get("order_status")
+        item_status = row.get("item_status")
+        current_status = (
+            order_status.name
+            if getattr(order_status, "name", None)
+            else (
+                item_status.name
+                if getattr(item_status, "name", None)
+                else str(order_status or item_status or "")
+            )
+        )
+        rows.append(
+            {
+                "source_type": row["source_type"],
+                "provider_id": row["provider_id"],
+                "provider_name": row["provider_name"],
+                "oem_number": row["oem_number"],
+                "brand_name": row.get("brand_name"),
+                "autopart_name": row.get("autopart_name"),
+                "ordered_quantity": int(row.get("ordered_quantity") or 0),
+                "received_quantity": int(row.get("received_quantity") or 0),
+                "price": row.get("price"),
+                "created_at": row["created_at"],
+                "received_at": row.get("received_at"),
+                "current_status": current_status,
+                "actual_lead_days": (
+                    max(
+                        (
+                            row["received_at"].date() - row["created_at"].date()
+                        ).days,
+                        0,
+                    )
+                    if row.get("received_at") is not None
+                    else None
+                ),
+            }
+        )
+
+    return rows
+
+
+async def get_tracking_exceptions_queue(
+    session: AsyncSession,
+    *,
+    own_provider_config_id: Optional[int] = None,
+    severity: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = 200,
+) -> dict[str, Any]:
+    config_stmt = (
+        select(
+            ProviderPriceListConfig.id.label("provider_config_id"),
+            ProviderPriceListConfig.provider_id.label("provider_id"),
+            ProviderPriceListConfig.name_price.label("provider_config_name"),
+            Provider.name.label("provider_name"),
+        )
+        .select_from(ProviderPriceListConfig)
+        .join(Provider, Provider.id == ProviderPriceListConfig.provider_id)
+        .where(Provider.is_own_price.is_(True))
+    )
+    if own_provider_config_id is not None:
+        config_stmt = config_stmt.where(
+            ProviderPriceListConfig.id == own_provider_config_id
+        )
+    else:
+        config_stmt = config_stmt.where(
+            ProviderPriceListConfig.use_for_order_insights.is_(True)
+        )
+    config_stmt = config_stmt.order_by(ProviderPriceListConfig.id.asc()).limit(1)
+    config_row = (await session.execute(config_stmt)).mappings().first()
+    if not config_row:
+        raise ValueError("Не найден конфиг нашего прайса для очереди исключений")
+
+    provider_config_id = int(config_row["provider_config_id"])
+
+    snapshot_stmt = (
+        select(
+            PriceList.id.label("pricelist_id"),
+            PriceList.date.label("pricelist_date"),
+            AutoPart.id.label("autopart_id"),
+            AutoPart.oem_number.label("oem_number"),
+            AutoPart.name.label("autopart_name"),
+            Brand.name.label("brand_name"),
+            PriceListAutoPartAssociation.quantity.label("quantity"),
+            PriceListAutoPartAssociation.price.label("price"),
+        )
+        .select_from(PriceListAutoPartAssociation)
+        .join(
+            PriceList,
+            PriceList.id == PriceListAutoPartAssociation.pricelist_id,
+        )
+        .join(AutoPart, AutoPart.id == PriceListAutoPartAssociation.autopart_id)
+        .join(Brand, Brand.id == AutoPart.brand_id)
+        .where(
+            PriceList.provider_config_id == provider_config_id,
+            PriceList.is_active.is_(True),
+        )
+        .order_by(
+            PriceList.date.asc(),
+            PriceList.id.asc(),
+            AutoPart.oem_number.asc(),
+        )
+    )
+    snapshot_rows = list((await session.execute(snapshot_stmt)).mappings().all())
+    if not snapshot_rows:
+        return {
+            "provider_config_id": provider_config_id,
+            "provider_id": int(config_row["provider_id"]),
+            "provider_name": config_row["provider_name"],
+            "provider_config_name": config_row.get("provider_config_name"),
+            "generated_at": now_moscow(),
+            "total_items": 0,
+            "critical_count": 0,
+            "warning_count": 0,
+            "info_count": 0,
+            "rows": [],
+        }
+
+    snapshots_by_key: dict[tuple[date, int], dict[str, Any]] = {}
+    for row in snapshot_rows:
+        snapshot_key = (row["pricelist_date"], row["pricelist_id"])
+        snapshot = snapshots_by_key.setdefault(
+            snapshot_key,
+            {
+                "pricelist_date": row["pricelist_date"],
+                "pricelist_id": row["pricelist_id"],
+                "qty_by_oem": {},
+            },
+        )
+        oem_number = _normalize_oem(row.get("oem_number"))
+        if not oem_number:
+            continue
+        qty = int(row.get("quantity") or 0)
+        snapshot["qty_by_oem"][oem_number] = (
+            snapshot["qty_by_oem"].get(oem_number, 0) + qty
+        )
+
+    snapshots = list(snapshots_by_key.values())
+    latest_snapshot_key = max(snapshots_by_key.keys())
+    latest_snapshot_rows = [
+        row
+        for row in snapshot_rows
+        if (row["pricelist_date"], row["pricelist_id"]) == latest_snapshot_key
+    ]
+
+    latest_rows_by_oem: dict[str, dict[str, Any]] = {}
+    latest_known_rows_by_oem: dict[str, dict[str, Any]] = {}
+    for row in snapshot_rows:
+        oem_number = _normalize_oem(row.get("oem_number"))
+        if not oem_number:
+            continue
+        latest_known_rows_by_oem[oem_number] = {
+            "oem_number": oem_number,
+            "autopart_id": row.get("autopart_id"),
+            "brand_name": row.get("brand_name"),
+            "autopart_name": row.get("autopart_name"),
+            "latest_price": _to_decimal(row.get("price")),
+            "last_seen_pricelist_date": row.get("pricelist_date"),
+            "last_seen_pricelist_id": row.get("pricelist_id"),
+        }
+
+    for row in latest_snapshot_rows:
+        oem_number = _normalize_oem(row.get("oem_number"))
+        if not oem_number:
+            continue
+        entry = latest_rows_by_oem.setdefault(
+            oem_number,
+            {
+                "oem_number": oem_number,
+                "autopart_id": row.get("autopart_id"),
+                "brand_name": row.get("brand_name"),
+                "autopart_name": row.get("autopart_name"),
+                "current_quantity": 0,
+                "latest_price": None,
+            },
+        )
+        qty = int(row.get("quantity") or 0)
+        entry["current_quantity"] += qty
+        price_value = _to_decimal(row.get("price"))
+        if entry["latest_price"] is None or (
+            price_value is not None and price_value < entry["latest_price"]
+        ):
+            entry["latest_price"] = price_value
+            entry["autopart_id"] = row.get("autopart_id")
+            entry["brand_name"] = row.get("brand_name")
+            entry["autopart_name"] = row.get("autopart_name")
+
+    normalized_oem_numbers = sorted(latest_known_rows_by_oem.keys())
+    history_rows = await _load_tracking_history_rows_for_oems(
+        session,
+        normalized_oem_numbers=normalized_oem_numbers,
+    )
+    current_offer_rows = await _load_current_offer_candidates(
+        session,
+        normalized_oem_numbers=normalized_oem_numbers,
+    )
+
+    history_by_oem: dict[str, list[dict[str, Any]]] = {}
+    for row in history_rows:
+        normalized = _normalize_oem(row.get("oem_number"))
+        if not normalized:
+            continue
+        history_by_oem.setdefault(normalized, []).append(row)
+
+    offers_by_oem: dict[str, list[dict[str, Any]]] = {}
+    for row in current_offer_rows:
+        normalized = _normalize_oem(row.get("oem_number"))
+        if not normalized:
+            continue
+        offers_by_oem.setdefault(normalized, []).append(dict(row))
+
+    sold_last_30_by_oem = {oem: 0 for oem in normalized_oem_numbers}
+    today = now_moscow().date()
+    for previous_snapshot, current_snapshot in zip(snapshots, snapshots[1:]):
+        if current_snapshot["pricelist_date"] < today - timedelta(days=30):
+            continue
+        previous_qty_by_oem = previous_snapshot["qty_by_oem"]
+        current_qty_by_oem = current_snapshot["qty_by_oem"]
+        for oem in normalized_oem_numbers:
+            prev_qty = int(previous_qty_by_oem.get(oem, 0))
+            curr_qty = int(current_qty_by_oem.get(oem, 0))
+            sold_last_30_by_oem[oem] += max(prev_qty - curr_qty, 0)
+
+    severity_filter = str(severity or "").strip().lower() or None
+    search_filter = str(search or "").strip().lower()
+    severity_rank = {"critical": 0, "warning": 1, "info": 2}
+    rows: list[dict[str, Any]] = []
+
+    for oem_number, known_row in latest_known_rows_by_oem.items():
+        latest = latest_rows_by_oem.get(oem_number) or {
+            **known_row,
+            "current_quantity": 0,
+        }
+        oem_history = history_by_oem.get(oem_number, [])
+        supplier_stats, best_supplier = _compute_supplier_stats(
+            oem_history,
+            offers_by_oem.get(oem_number, []),
+        )
+        best_supplier_by_price = _select_best_supplier_by_price(supplier_stats)
+        best_supplier_by_lead_time = _select_best_supplier_by_lead_time(
+            supplier_stats
+        )
+        recommended_supplier = (
+            best_supplier
+            or best_supplier_by_price
+            or best_supplier_by_lead_time
+        )
+
+        sold_last_30_days = int(sold_last_30_by_oem.get(oem_number, 0))
+        average_daily_decrease_30_days = (
+            float(
+                (
+                    Decimal(str(sold_last_30_days)) / Decimal("30")
+                ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            )
+            if sold_last_30_days > 0
+            else None
+        )
+        current_quantity = int(latest.get("current_quantity") or 0)
+        missing_in_latest_pricelist = oem_number not in latest_rows_by_oem
+        estimated_days_left_30_days = (
+            int(current_quantity / average_daily_decrease_30_days)
+            if average_daily_decrease_30_days and average_daily_decrease_30_days > 0
+            else None
+        )
+
+        lead_values = [
+            int(row["actual_lead_days"])
+            for row in oem_history
+            if row.get("actual_lead_days") is not None
+        ]
+        average_actual_lead_days = (
+            _round_stat(sum(lead_values) / len(lead_values), 1)
+            if lead_values
+            else None
+        )
+        reorder_point = (
+            round(
+                float(average_daily_decrease_30_days) * float(average_actual_lead_days),
+                1,
+            )
+            if average_daily_decrease_30_days and average_actual_lead_days
+            else None
+        )
+        optimal_order_qty = (
+            round(float(reorder_point) * 1.5, 1)
+            if reorder_point is not None
+            else None
+        )
+        in_transit_qty = max(
+            sum(
+                max(
+                    int(row.get("ordered_quantity") or 0)
+                    - int(row.get("received_quantity") or 0),
+                    0,
+                )
+                for row in oem_history
+                if row.get("current_status") in _ACTIVE_ORDER_STATUSES
+            ),
+            0,
+        )
+        purchase_stats = _compute_purchase_price_stats(oem_history)
+        exceptions = _build_tracking_exceptions(
+            own_price_analysis={
+                "current_quantity": current_quantity,
+                "estimated_days_left_30_days": estimated_days_left_30_days,
+            },
+            in_transit_qty=in_transit_qty,
+            reorder_point=reorder_point,
+            price_trend=purchase_stats.get("price_trend"),
+            price_trend_pct=purchase_stats.get("price_trend_pct"),
+            best_supplier=recommended_supplier,
+            best_supplier_by_price=best_supplier_by_price,
+            best_supplier_by_lead_time=best_supplier_by_lead_time,
+            missing_in_latest_pricelist=missing_in_latest_pricelist,
+        )
+        if not exceptions:
+            continue
+        if (
+            missing_in_latest_pricelist
+            and sold_last_30_days <= 0
+            and in_transit_qty <= 0
+        ):
+            continue
+
+        row_severity = min(
+            (severity_rank.get(item["severity"], 99) for item in exceptions),
+            default=99,
+        )
+        severity_value = next(
+            (
+                name
+                for name, rank in severity_rank.items()
+                if rank == row_severity
+            ),
+            "info",
+        )
+        if severity_filter and severity_value != severity_filter:
+            continue
+
+        search_blob = " ".join(
+            [
+                str(latest.get("brand_name") or known_row.get("brand_name") or ""),
+                str(oem_number or ""),
+                str(
+                    latest.get("autopart_name")
+                    or known_row.get("autopart_name")
+                    or ""
+                ),
+                str((recommended_supplier or {}).get("provider_name") or ""),
+            ]
+        ).lower()
+        if search_filter and search_filter not in search_blob:
+            continue
+
+        draft = _build_draft_purchase_order(
+            own_price_analysis={
+                "current_quantity": current_quantity,
+                "average_daily_decrease_30_days": average_daily_decrease_30_days,
+            },
+            in_transit_qty=in_transit_qty,
+            reorder_point=reorder_point,
+            optimal_order_qty=optimal_order_qty,
+            supplier=recommended_supplier,
+        )
+
+        rows.append(
+            {
+                "oem_number": oem_number,
+                "brand_name": latest.get("brand_name") or known_row.get("brand_name"),
+                "autopart_name": latest.get("autopart_name")
+                or known_row.get("autopart_name"),
+                "autopart_id": latest.get("autopart_id")
+                or known_row.get("autopart_id"),
+                "current_quantity": current_quantity,
+                "latest_price": float(
+                    latest["latest_price"]
+                    if latest.get("latest_price") is not None
+                    else known_row.get("latest_price")
+                )
+                if (
+                    latest.get("latest_price") is not None
+                    or known_row.get("latest_price") is not None
+                )
+                else None,
+                "in_transit_qty": in_transit_qty,
+                "sold_last_30_days": sold_last_30_days,
+                "average_daily_decrease_30_days": average_daily_decrease_30_days,
+                "estimated_days_left_30_days": estimated_days_left_30_days,
+                "reorder_point": reorder_point,
+                "optimal_order_qty": optimal_order_qty,
+                "recommended_order_qty": (
+                    int(draft["recommended_qty"])
+                    if draft and draft.get("recommended_qty") is not None
+                    else None
+                ),
+                "severity": severity_value,
+                "exception_codes": [item["code"] for item in exceptions],
+                "exception_titles": [item["title"] for item in exceptions],
+                "best_supplier_by_price": best_supplier_by_price,
+                "best_supplier_by_lead_time": best_supplier_by_lead_time,
+                "recommended_supplier": recommended_supplier,
+            }
+        )
+
+    rows.sort(
+        key=lambda item: (
+            severity_rank.get(item["severity"], 99),
+            item["estimated_days_left_30_days"]
+            if item["estimated_days_left_30_days"] is not None
+            else 9_999,
+            item["recommended_order_qty"]
+            if item["recommended_order_qty"] is not None
+            else 9_999,
+            item["oem_number"],
+        )
+    )
+    limited_rows = rows[:limit]
+
+    return {
+        "provider_config_id": provider_config_id,
+        "provider_id": int(config_row["provider_id"]),
+        "provider_name": config_row["provider_name"],
+        "provider_config_name": config_row.get("provider_config_name"),
+        "generated_at": now_moscow(),
+        "total_items": len(rows),
+        "critical_count": sum(1 for row in rows if row["severity"] == "critical"),
+        "warning_count": sum(1 for row in rows if row["severity"] == "warning"),
+        "info_count": sum(1 for row in rows if row["severity"] == "info"),
+        "rows": limited_rows,
     }
 
 

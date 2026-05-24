@@ -329,6 +329,7 @@ class TrackingInsightSupplierStat(BaseModel):
     order_count: int = 0
     fill_rate: Optional[float] = None
     avg_lead_days: Optional[float] = None
+    effective_lead_days: Optional[float] = None
     avg_price: Optional[float] = None
     last_ordered_at: Optional[datetime] = None
     current_price: Optional[float] = None
@@ -342,6 +343,76 @@ class TrackingInsightSupplierStat(BaseModel):
     current_provider_config_id: Optional[int] = None
     current_provider_config_name: Optional[str] = None
     is_own_price: bool = False
+    score: Optional[float] = None
+
+
+class TrackingInsightExceptionItem(BaseModel):
+    code: str
+    severity: str
+    title: str
+    description: str
+
+
+class TrackingInsightDraftPurchaseOrder(BaseModel):
+    provider_id: int
+    provider_name: str
+    provider_config_id: Optional[int] = None
+    provider_config_name: Optional[str] = None
+    autopart_id: Optional[int] = None
+    oem_number: str
+    brand_name: Optional[str] = None
+    autopart_name: Optional[str] = None
+    price: Optional[float] = None
+    available_qty: int = 0
+    in_transit_qty: int = 0
+    target_qty: Optional[int] = None
+    recommended_qty: int = 0
+    lead_days_used: Optional[float] = None
+    reason: Optional[str] = None
+
+
+class TrackingInsightAbcXyz(BaseModel):
+    abc_class: Optional[str] = None
+    xyz_class: Optional[str] = None
+    annual_ordered_qty: int = 0
+    monthly_cv: Optional[float] = None
+    active_months: int = 0
+    cumulative_share_pct: Optional[float] = None
+
+
+class TrackingExceptionsQueueRow(BaseModel):
+    oem_number: str
+    brand_name: Optional[str] = None
+    autopart_name: Optional[str] = None
+    autopart_id: Optional[int] = None
+    current_quantity: int = 0
+    latest_price: Optional[float] = None
+    in_transit_qty: int = 0
+    sold_last_30_days: int = 0
+    average_daily_decrease_30_days: Optional[float] = None
+    estimated_days_left_30_days: Optional[int] = None
+    reorder_point: Optional[float] = None
+    optimal_order_qty: Optional[float] = None
+    recommended_order_qty: Optional[int] = None
+    severity: str
+    exception_codes: List[str] = Field(default_factory=list)
+    exception_titles: List[str] = Field(default_factory=list)
+    best_supplier_by_price: Optional[TrackingInsightSupplierStat] = None
+    best_supplier_by_lead_time: Optional[TrackingInsightSupplierStat] = None
+    recommended_supplier: Optional[TrackingInsightSupplierStat] = None
+
+
+class TrackingExceptionsQueueResponse(BaseModel):
+    provider_config_id: int
+    provider_id: int
+    provider_name: str
+    provider_config_name: Optional[str] = None
+    generated_at: datetime
+    total_items: int = 0
+    critical_count: int = 0
+    warning_count: int = 0
+    info_count: int = 0
+    rows: List[TrackingExceptionsQueueRow] = Field(default_factory=list)
 
 
 class TrackingHistoryInsightSummary(BaseModel):
@@ -387,6 +458,12 @@ class TrackingHistoryInsightSummary(BaseModel):
         default_factory=list
     )
     best_supplier: Optional[TrackingInsightSupplierStat] = None
+    best_supplier_by_price: Optional[TrackingInsightSupplierStat] = None
+    best_supplier_by_lead_time: Optional[TrackingInsightSupplierStat] = None
+    recommended_supplier: Optional[TrackingInsightSupplierStat] = None
+    draft_purchase_order: Optional[TrackingInsightDraftPurchaseOrder] = None
+    exceptions: List[TrackingInsightExceptionItem] = Field(default_factory=list)
+    abc_xyz: Optional[TrackingInsightAbcXyz] = None
     invalid_cross_items: List[TrackingInsightInvalidCrossItem] = Field(
         default_factory=list
     )
