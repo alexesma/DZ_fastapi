@@ -1746,7 +1746,38 @@ def _select_best_supplier_by_lead_time(
         ),
     )
 
+def _select_recommended_supplier_for_order(
+    supplier_stats: list[dict[str, Any]],
+) -> Optional[dict[str, Any]]:
+    candidates = [
+        item
+        for item in supplier_stats
+        if item.get("current_price") is not None and not item.get("is_own_price")
+    ]
+    if not candidates:
+        return None
 
+    in_stock_candidates = [
+        item for item in candidates if int(item.get("current_qty") or 0) > 0
+    ]
+    base_candidates = in_stock_candidates or candidates
+
+    reliable_candidates = [
+        item
+        for item in base_candidates
+        if item.get("fill_rate") is None or float(item.get("fill_rate") or 0) >= 80.0
+    ]
+    preferred_candidates = reliable_candidates or base_candidates
+
+    return min(
+        preferred_candidates,
+        key=lambda item: (
+            float(item.get("current_price") or 9_999_999),
+            -float(item.get("fill_rate") or 0),
+            float(item.get("effective_lead_days") or 9_999),
+            -int(item.get("current_qty") or 0),
+        ),
+    )
 def _build_tracking_exceptions(
     *,
     own_price_analysis: Optional[dict[str, Any]],
@@ -2243,12 +2274,13 @@ async def get_tracking_history_insights(
                 AutoPartInvalidCross.id,
                 AutoPartInvalidCross.source_autopart_id,
                 AutoPartInvalidCross.invalid_oem_number,
+                AutoPartInvalidCross.invalid_brand_name_raw,
                 AutoPartInvalidCross.comment,
                 AutoPartInvalidCross.invalid_autopart_id,
                 InvalidBrand.name.label("invalid_brand_name"),
                 InvalidAutopart.name.label("invalid_autopart_name"),
             )
-            .join(
+            .outerjoin(
                 InvalidBrand,
                 InvalidBrand.id == AutoPartInvalidCross.invalid_brand_id,
             )
@@ -2260,7 +2292,10 @@ async def get_tracking_history_insights(
                 AutoPartInvalidCross.source_autopart_id.in_(source_autopart_ids)
             )
             .order_by(
-                InvalidBrand.name.asc(),
+                func.coalesce(
+                    InvalidBrand.name,
+                    AutoPartInvalidCross.invalid_brand_name_raw,
+                ).asc(),
                 AutoPartInvalidCross.invalid_oem_number.asc(),
             )
         )
@@ -2268,7 +2303,9 @@ async def get_tracking_history_insights(
         invalid_cross_items = [
             {
                 "id": r.id,
-                "invalid_brand_name": r.invalid_brand_name,
+                "invalid_brand_name": (
+                    r.invalid_brand_name or r.invalid_brand_name_raw
+                ),
                 "invalid_oem_number": r.invalid_oem_number,
                 "invalid_autopart_name": r.invalid_autopart_name,
                 "comment": r.comment,
@@ -2325,11 +2362,15 @@ async def get_tracking_history_insights(
         best_supplier_by_price=best_supplier_by_price,
         best_supplier_by_lead_time=best_supplier_by_lead_time,
     )
-    recommended_supplier = (
-        best_supplier
-        or best_supplier_by_price
-        or best_supplier_by_lead_time
+    recommended_supplier = _select_recommended_supplier_for_order(
+        supplier_stats
     )
+    if recommended_supplier is None:
+        recommended_supplier = (
+            best_supplier
+            or best_supplier_by_price
+            or best_supplier_by_lead_time
+        )
     draft_purchase_order = _build_draft_purchase_order(
         own_price_analysis=own_price_analysis,
         in_transit_qty=in_transit_qty,
@@ -2766,11 +2807,15 @@ async def get_tracking_exceptions_queue(
         best_supplier_by_lead_time = _select_best_supplier_by_lead_time(
             supplier_stats
         )
-        recommended_supplier = (
-            best_supplier
-            or best_supplier_by_price
-            or best_supplier_by_lead_time
+        recommended_supplier = _select_recommended_supplier_for_order(
+            supplier_stats
         )
+        if recommended_supplier is None:
+            recommended_supplier = (
+                best_supplier
+                or best_supplier_by_price
+                or best_supplier_by_lead_time
+            )
 
         sold_last_30_days = int(sold_last_30_by_oem.get(oem_number, 0))
         average_daily_decrease_30_days = (

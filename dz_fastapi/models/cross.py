@@ -200,9 +200,10 @@ class AutoPartInvalidCross(Base):
     invalid_brand_id = Column(
         Integer,
         ForeignKey("brand.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
+    invalid_brand_name_raw = Column(String(120), nullable=True, index=True)
     invalid_oem_number = Column(String(50), nullable=False, index=True)
     invalid_autopart_id = Column(
         Integer,

@@ -349,14 +349,16 @@ class CrossGroupOut(BaseModel):
 
 
 class InvalidCrossCreate(BaseModel):
-    invalid_brand_id: int
-    invalid_oem_number: str
+    invalid_autopart_id: Optional[int] = None
+    invalid_brand_id: Optional[int] = None
+    invalid_brand_name: Optional[str] = None
+    invalid_oem_number: Optional[str] = None
     comment: Optional[str] = None
 
 
 class InvalidCrossOut(BaseModel):
     id: int
-    invalid_brand_id: int
+    invalid_brand_id: Optional[int] = None
     invalid_brand_name: Optional[str] = None
     invalid_oem_number: str
     invalid_autopart_id: Optional[int] = None
@@ -366,14 +368,16 @@ class InvalidCrossOut(BaseModel):
 
 class InvalidCrossAdminCreate(BaseModel):
     source_autopart_id: int
-    invalid_brand_id: int
-    invalid_oem_number: str
+    invalid_brand_id: Optional[int] = None
+    invalid_brand_name: Optional[str] = None
+    invalid_oem_number: Optional[str] = None
     comment: Optional[str] = None
 
 
 class InvalidCrossAdminUpdate(BaseModel):
     source_autopart_id: Optional[int] = None
     invalid_brand_id: Optional[int] = None
+    invalid_brand_name: Optional[str] = None
     invalid_oem_number: Optional[str] = None
     comment: Optional[str] = None
 
@@ -385,7 +389,7 @@ class InvalidCrossAdminOut(BaseModel):
     source_brand_name: Optional[str] = None
     source_oem_number: str
     source_name: Optional[str] = None
-    invalid_brand_id: int
+    invalid_brand_id: Optional[int] = None
     invalid_brand_name: Optional[str] = None
     invalid_oem_number: str
     invalid_autopart_id: Optional[int] = None

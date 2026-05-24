@@ -78,6 +78,83 @@ async def _resolve_cross_target(
     return cross_brand_id, preprocess_oem_number(cross_oem_number), None
 
 
+async def _resolve_invalid_cross_target(
+    session: AsyncSession,
+    *,
+    invalid_autopart_id: Optional[int],
+    invalid_brand_id: Optional[int],
+    invalid_brand_name: Optional[str],
+    invalid_oem_number: Optional[str],
+) -> tuple[Optional[int], str, Optional[int], Optional[str]]:
+    if invalid_autopart_id is not None:
+        invalid_autopart = await _ensure_autopart_exists(
+            session, invalid_autopart_id
+        )
+        return (
+            int(invalid_autopart.brand_id),
+            str(invalid_autopart.oem_number or ""),
+            int(invalid_autopart.id),
+            None,
+        )
+    normalized_oem = preprocess_oem_number(invalid_oem_number)
+    normalized_brand_name = str(invalid_brand_name or "").strip() or None
+    if not normalized_oem or (
+        invalid_brand_id is None and normalized_brand_name is None
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Нужно выбрать связанную позицию или указать бренд и OEM "
+                "неверного кросса"
+            ),
+        )
+    if invalid_brand_id is not None:
+        await _ensure_brand_exists(session, invalid_brand_id)
+        return (
+            invalid_brand_id,
+            normalized_oem,
+            None,
+            None,
+        )
+    return (
+        None,
+        normalized_oem,
+        None,
+        normalized_brand_name,
+    )
+
+
+async def _find_existing_invalid_cross(
+    session: AsyncSession,
+    *,
+    source_autopart_id: int,
+    invalid_brand_id: Optional[int],
+    invalid_brand_name_raw: Optional[str],
+    invalid_oem_number: str,
+) -> Optional[AutoPartInvalidCross]:
+    rows = (
+        await session.execute(
+            select(AutoPartInvalidCross).where(
+                AutoPartInvalidCross.source_autopart_id == source_autopart_id,
+                AutoPartInvalidCross.invalid_oem_number == invalid_oem_number,
+            )
+        )
+    ).scalars().all()
+    normalized_brand_name = str(invalid_brand_name_raw or "").strip().upper()
+    for row in rows:
+        if invalid_brand_id is not None and row.invalid_brand_id == invalid_brand_id:
+            return row
+        row_brand_name = str(row.invalid_brand_name_raw or "").strip().upper()
+        if (
+            invalid_brand_id is None
+            and row.invalid_brand_id is None
+            and normalized_brand_name
+            and row_brand_name == normalized_brand_name
+        ):
+            return row
+    return None
+
+
 async def _get_cross_by_id(
     session: AsyncSession, cross_id: int
 ) -> Optional[AutoPartCross]:
@@ -163,7 +240,7 @@ def _invalid_cross_to_out(
         invalid_brand_name=(
             invalid_cross.invalid_brand.name
             if invalid_cross.invalid_brand is not None
-            else None
+            else invalid_cross.invalid_brand_name_raw
         ),
         invalid_oem_number=invalid_cross.invalid_oem_number,
         invalid_autopart_id=invalid_cross.invalid_autopart_id,
@@ -457,7 +534,9 @@ async def list_autopart_invalid_crosses(
             id=row.id,
             invalid_brand_id=row.invalid_brand_id,
             invalid_brand_name=(
-                row.invalid_brand.name if row.invalid_brand is not None else None
+                row.invalid_brand.name
+                if row.invalid_brand is not None
+                else row.invalid_brand_name_raw
             ),
             invalid_oem_number=row.invalid_oem_number,
             invalid_autopart_id=row.invalid_autopart_id,
@@ -478,16 +557,45 @@ async def add_autopart_invalid_cross(
     session: AsyncSession = Depends(get_session),
 ):
     await _ensure_autopart_exists(session, autopart_id)
-    await _ensure_brand_exists(session, payload.invalid_brand_id)
-    normalized_oem = preprocess_oem_number(payload.invalid_oem_number)
+    invalid_brand_id, normalized_oem, invalid_autopart_id, invalid_brand_name_raw = (
+        await _resolve_invalid_cross_target(
+            session,
+            invalid_autopart_id=payload.invalid_autopart_id,
+            invalid_brand_id=payload.invalid_brand_id,
+            invalid_brand_name=payload.invalid_brand_name,
+            invalid_oem_number=payload.invalid_oem_number,
+        )
+    )
+    existing_invalid_cross = await _find_existing_invalid_cross(
+        session,
+        source_autopart_id=autopart_id,
+        invalid_brand_id=invalid_brand_id,
+        invalid_brand_name_raw=invalid_brand_name_raw,
+        invalid_oem_number=normalized_oem,
+    )
+    if existing_invalid_cross is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Такой неверный кросс уже существует "
+                f"(id={existing_invalid_cross.id})"
+            ),
+        )
     invalid_cross = AutoPartInvalidCross(
         source_autopart_id=autopart_id,
-        invalid_brand_id=payload.invalid_brand_id,
+        invalid_brand_id=invalid_brand_id,
+        invalid_brand_name_raw=invalid_brand_name_raw,
         invalid_oem_number=normalized_oem,
-        invalid_autopart_id=await resolve_cross_autopart_id(
-            session,
-            brand_id=payload.invalid_brand_id,
-            oem_number=normalized_oem,
+        invalid_autopart_id=(
+            invalid_autopart_id
+            if invalid_autopart_id is not None
+            else await resolve_cross_autopart_id(
+                session,
+                brand_id=invalid_brand_id,
+                oem_number=normalized_oem,
+            )
+            if invalid_brand_id is not None
+            else None
         ),
         comment=payload.comment,
     )
@@ -501,11 +609,17 @@ async def add_autopart_invalid_cross(
             status_code=409,
             detail="Такой неверный кросс уже существует",
         )
-    brand = await session.get(Brand, invalid_cross.invalid_brand_id)
+    brand = (
+        await session.get(Brand, invalid_cross.invalid_brand_id)
+        if invalid_cross.invalid_brand_id is not None
+        else None
+    )
     return InvalidCrossOut(
         id=invalid_cross.id,
         invalid_brand_id=invalid_cross.invalid_brand_id,
-        invalid_brand_name=brand.name if brand is not None else None,
+        invalid_brand_name=(
+            brand.name if brand is not None else invalid_cross.invalid_brand_name_raw
+        ),
         invalid_oem_number=invalid_cross.invalid_oem_number,
         invalid_autopart_id=invalid_cross.invalid_autopart_id,
         comment=invalid_cross.comment,
@@ -531,6 +645,7 @@ async def list_invalid_crosses(
             or_(
                 AutoPartInvalidCross.invalid_oem_number.ilike(pattern),
                 AutoPartInvalidCross.invalid_brand.has(Brand.name.ilike(pattern)),
+                AutoPartInvalidCross.invalid_brand_name_raw.ilike(pattern),
                 AutoPartInvalidCross.source_autopart.has(
                     or_(
                         AutoPart.oem_number.ilike(pattern),
@@ -555,16 +670,48 @@ async def create_invalid_cross(
     session: AsyncSession = Depends(get_session),
 ):
     await _ensure_autopart_exists(session, payload.source_autopart_id)
-    await _ensure_brand_exists(session, payload.invalid_brand_id)
-    normalized_oem = preprocess_oem_number(payload.invalid_oem_number)
+    (
+        invalid_brand_id,
+        normalized_oem,
+        invalid_autopart_id,
+        invalid_brand_name_raw,
+    ) = await _resolve_invalid_cross_target(
+        session,
+        invalid_autopart_id=None,
+        invalid_brand_id=payload.invalid_brand_id,
+        invalid_brand_name=payload.invalid_brand_name,
+        invalid_oem_number=payload.invalid_oem_number,
+    )
+    existing_invalid_cross = await _find_existing_invalid_cross(
+        session,
+        source_autopart_id=payload.source_autopart_id,
+        invalid_brand_id=invalid_brand_id,
+        invalid_brand_name_raw=invalid_brand_name_raw,
+        invalid_oem_number=normalized_oem,
+    )
+    if existing_invalid_cross is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Такой неверный кросс уже существует "
+                f"(id={existing_invalid_cross.id})"
+            ),
+        )
     invalid_cross = AutoPartInvalidCross(
         source_autopart_id=payload.source_autopart_id,
-        invalid_brand_id=payload.invalid_brand_id,
+        invalid_brand_id=invalid_brand_id,
+        invalid_brand_name_raw=invalid_brand_name_raw,
         invalid_oem_number=normalized_oem,
-        invalid_autopart_id=await resolve_cross_autopart_id(
-            session,
-            brand_id=payload.invalid_brand_id,
-            oem_number=normalized_oem,
+        invalid_autopart_id=(
+            invalid_autopart_id
+            if invalid_autopart_id is not None
+            else await resolve_cross_autopart_id(
+                session,
+                brand_id=invalid_brand_id,
+                oem_number=normalized_oem,
+            )
+            if invalid_brand_id is not None
+            else None
         ),
         comment=payload.comment,
     )
@@ -600,21 +747,66 @@ async def update_invalid_cross(
     data = payload.model_dump(exclude_unset=True)
     if "source_autopart_id" in data:
         await _ensure_autopart_exists(session, data["source_autopart_id"])
-    if "invalid_brand_id" in data:
-        await _ensure_brand_exists(session, data["invalid_brand_id"])
-    if "invalid_oem_number" in data:
-        data["invalid_oem_number"] = preprocess_oem_number(
-            data["invalid_oem_number"]
+    target_fields_updated = any(
+        key in data
+        for key in ("invalid_brand_id", "invalid_brand_name", "invalid_oem_number")
+    )
+    if target_fields_updated:
+        (
+            resolved_brand_id,
+            resolved_oem_number,
+            resolved_autopart_id,
+            resolved_brand_name_raw,
+        ) = await _resolve_invalid_cross_target(
+            session,
+            invalid_autopart_id=invalid_cross.invalid_autopart_id,
+            invalid_brand_id=data.get("invalid_brand_id", invalid_cross.invalid_brand_id),
+            invalid_brand_name=data.get(
+                "invalid_brand_name", invalid_cross.invalid_brand_name_raw
+            ),
+            invalid_oem_number=data.get(
+                "invalid_oem_number", invalid_cross.invalid_oem_number
+            ),
         )
+        source_autopart_id = int(
+            data.get("source_autopart_id", invalid_cross.source_autopart_id)
+        )
+        existing_invalid_cross = await _find_existing_invalid_cross(
+            session,
+            source_autopart_id=source_autopart_id,
+            invalid_brand_id=resolved_brand_id,
+            invalid_brand_name_raw=resolved_brand_name_raw,
+            invalid_oem_number=resolved_oem_number,
+        )
+        if (
+            existing_invalid_cross is not None
+            and existing_invalid_cross.id != invalid_cross.id
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Такой неверный кросс уже существует "
+                    f"(id={existing_invalid_cross.id})"
+                ),
+            )
+        data["invalid_brand_id"] = resolved_brand_id
+        data["invalid_brand_name_raw"] = resolved_brand_name_raw
+        data["invalid_oem_number"] = resolved_oem_number
+        data["invalid_autopart_id"] = (
+            resolved_autopart_id
+            if resolved_autopart_id is not None
+            else await resolve_cross_autopart_id(
+                session,
+                brand_id=resolved_brand_id,
+                oem_number=resolved_oem_number,
+            )
+            if resolved_brand_id is not None
+            else None
+        )
+    data.pop("invalid_brand_name", None)
 
     for key, value in data.items():
         setattr(invalid_cross, key, value)
-
-    invalid_cross.invalid_autopart_id = await resolve_cross_autopart_id(
-        session,
-        brand_id=invalid_cross.invalid_brand_id,
-        oem_number=invalid_cross.invalid_oem_number,
-    )
 
     try:
         await session.commit()
