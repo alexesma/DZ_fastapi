@@ -1746,6 +1746,7 @@ def _select_best_supplier_by_lead_time(
         ),
     )
 
+
 def _select_recommended_supplier_for_order(
     supplier_stats: list[dict[str, Any]],
 ) -> Optional[dict[str, Any]]:
@@ -1778,6 +1779,8 @@ def _select_recommended_supplier_for_order(
             -int(item.get("current_qty") or 0),
         ),
     )
+
+
 def _build_tracking_exceptions(
     *,
     own_price_analysis: Optional[dict[str, Any]],
