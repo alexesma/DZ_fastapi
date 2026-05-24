@@ -295,8 +295,9 @@ class CrossOut(BaseModel):
 
 class CrossAdminCreate(BaseModel):
     source_autopart_id: int
-    cross_brand_id: int
-    cross_oem_number: str
+    cross_autopart_id: Optional[int] = None
+    cross_brand_id: Optional[int] = None
+    cross_oem_number: Optional[str] = None
     is_bidirectional: bool = True
     priority: int = 100
     comment: Optional[str] = None
@@ -304,6 +305,7 @@ class CrossAdminCreate(BaseModel):
 
 class CrossAdminUpdate(BaseModel):
     source_autopart_id: Optional[int] = None
+    cross_autopart_id: Optional[int] = None
     cross_brand_id: Optional[int] = None
     cross_oem_number: Optional[str] = None
     is_bidirectional: Optional[bool] = None

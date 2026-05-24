@@ -55,6 +55,29 @@ async def _ensure_brand_exists(
     return brand
 
 
+async def _resolve_cross_target(
+    session: AsyncSession,
+    *,
+    cross_autopart_id: Optional[int],
+    cross_brand_id: Optional[int],
+    cross_oem_number: Optional[str],
+) -> tuple[int, str, Optional[int]]:
+    if cross_autopart_id is not None:
+        cross_autopart = await _ensure_autopart_exists(session, cross_autopart_id)
+        return (
+            int(cross_autopart.brand_id),
+            str(cross_autopart.oem_number or ""),
+            int(cross_autopart.id),
+        )
+    if cross_brand_id is None or not str(cross_oem_number or "").strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Нужно выбрать связанную позицию или указать бренд и OEM кросса",
+        )
+    await _ensure_brand_exists(session, cross_brand_id)
+    return cross_brand_id, preprocess_oem_number(cross_oem_number), None
+
+
 async def _get_cross_by_id(
     session: AsyncSession, cross_id: int
 ) -> Optional[AutoPartCross]:
@@ -257,27 +280,37 @@ async def create_cross(
     payload: CrossAdminCreate,
     session: AsyncSession = Depends(get_session),
 ):
-    await _ensure_brand_exists(session, payload.cross_brand_id)
     source_autopart = await _ensure_autopart_exists(
         session, payload.source_autopart_id
     )
+    cross_brand_id, cross_oem_number, cross_autopart_id = await _resolve_cross_target(
+        session,
+        cross_autopart_id=payload.cross_autopart_id,
+        cross_brand_id=payload.cross_brand_id,
+        cross_oem_number=payload.cross_oem_number,
+    )
+    if cross_autopart_id == source_autopart.id:
+        raise HTTPException(
+            status_code=400,
+            detail="Нельзя связать позицию саму с собой",
+        )
     existing_cross = await get_cross_row(
         session,
         source_autopart_id=payload.source_autopart_id,
-        cross_brand_id=payload.cross_brand_id,
-        cross_oem_number=payload.cross_oem_number,
+        cross_brand_id=cross_brand_id,
+        cross_oem_number=cross_oem_number,
     )
     if existing_cross is not None:
         raise HTTPException(
             status_code=409,
-            detail="Такой кросс уже существует",
+            detail=f"Такой кросс уже существует (id={existing_cross.id})",
         )
     try:
         cross, _created = await save_cross_relation(
             session,
             source_autopart=source_autopart,
-            cross_brand_id=payload.cross_brand_id,
-            cross_oem_number=payload.cross_oem_number,
+            cross_brand_id=cross_brand_id,
+            cross_oem_number=cross_oem_number,
             is_bidirectional=payload.is_bidirectional,
             priority=payload.priority,
             comment=payload.comment,
@@ -318,12 +351,42 @@ async def update_cross(
         source_autopart = await _ensure_autopart_exists(
             session, data["source_autopart_id"]
         )
-    if "cross_brand_id" in data:
-        await _ensure_brand_exists(session, data["cross_brand_id"])
-    if "cross_oem_number" in data:
-        data["cross_oem_number"] = preprocess_oem_number(
-            data["cross_oem_number"]
+    target_fields_updated = any(
+        key in data
+        for key in ("cross_autopart_id", "cross_brand_id", "cross_oem_number")
+    )
+    if target_fields_updated:
+        resolved_brand_id, resolved_oem_number, resolved_autopart_id = (
+            await _resolve_cross_target(
+                session,
+                cross_autopart_id=data.get(
+                    "cross_autopart_id", cross.cross_autopart_id
+                ),
+                cross_brand_id=data.get("cross_brand_id", cross.cross_brand_id),
+                cross_oem_number=data.get(
+                    "cross_oem_number", cross.cross_oem_number
+                ),
+            )
         )
+        if resolved_autopart_id == source_autopart.id:
+            raise HTTPException(
+                status_code=400,
+                detail="Нельзя связать позицию саму с собой",
+            )
+        existing_cross = await get_cross_row(
+            session,
+            source_autopart_id=source_autopart.id,
+            cross_brand_id=resolved_brand_id,
+            cross_oem_number=resolved_oem_number,
+        )
+        if existing_cross is not None and existing_cross.id != cross.id:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Такой кросс уже существует (id={existing_cross.id})",
+            )
+        data["cross_brand_id"] = resolved_brand_id
+        data["cross_oem_number"] = resolved_oem_number
+        data["cross_autopart_id"] = resolved_autopart_id
 
     for key, value in data.items():
         setattr(cross, key, value)
