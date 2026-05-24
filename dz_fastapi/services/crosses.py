@@ -387,6 +387,8 @@ async def sync_automatic_oem_crosses(
             )
             if created_now:
                 created += 1
+            if existing_reverse is None:
+                created += 1
 
     if created:
         logger.info(
