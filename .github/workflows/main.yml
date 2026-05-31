@@ -47,6 +47,7 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v3
       with:
+        fetch-depth: 0
         submodules: recursive
     # Устанавливаем Python с помощью action
     - name: Set up Python
@@ -111,6 +112,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v3
         with:
+          fetch-depth: 0
           submodules: recursive
 
       - name: Set up Node.js
@@ -143,6 +145,7 @@ jobs:
         # Получение исходного кода из репозитория
         uses: actions/checkout@v3
         with:
+          fetch-depth: 0
           submodules: recursive
 
       - name: Login to Docker
@@ -184,6 +187,7 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v3
         with:
+          fetch-depth: 0
           submodules: recursive
 
       - name: Login to Docker
@@ -217,6 +221,7 @@ jobs:
     - name: Checkout repo
       uses: actions/checkout@v3
       with:
+        fetch-depth: 0
         submodules: recursive
     # Копируем docker-compose.production.yml на продакшен-сервер
     - name: Copy docker-compose.yml via ssh
