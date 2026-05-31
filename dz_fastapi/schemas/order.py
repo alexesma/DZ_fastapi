@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -342,6 +342,11 @@ class TrackingInsightSupplierStat(BaseModel):
     current_autopart_id: Optional[int] = None
     current_provider_config_id: Optional[int] = None
     current_provider_config_name: Optional[str] = None
+    source_type: Optional[str] = None
+    sup_logo: Optional[str] = None
+    hash_key: Optional[str] = None
+    system_hash: Optional[str] = None
+    current_min_qnt: Optional[int] = None
     is_own_price: bool = False
     score: Optional[float] = None
 
@@ -354,7 +359,7 @@ class TrackingInsightExceptionItem(BaseModel):
 
 
 class TrackingInsightDraftPurchaseOrder(BaseModel):
-    provider_id: int
+    provider_id: Optional[int] = None
     provider_name: str
     provider_config_id: Optional[int] = None
     provider_config_name: Optional[str] = None
@@ -367,8 +372,18 @@ class TrackingInsightDraftPurchaseOrder(BaseModel):
     in_transit_qty: int = 0
     target_qty: Optional[int] = None
     recommended_qty: int = 0
+    supplier_available_qty: int = 0
+    proposed_order_qty: int = 0
+    remaining_gap_qty: int = 0
     lead_days_used: Optional[float] = None
     reason: Optional[str] = None
+    source_type: Optional[str] = None
+    sup_logo: Optional[str] = None
+    hash_key: Optional[str] = None
+    system_hash: Optional[str] = None
+    min_qnt: Optional[int] = None
+    min_delivery_day: Optional[int] = None
+    max_delivery_day: Optional[int] = None
 
 
 class TrackingInsightAbcXyz(BaseModel):
@@ -413,6 +428,182 @@ class TrackingExceptionsQueueResponse(BaseModel):
     warning_count: int = 0
     info_count: int = 0
     rows: List[TrackingExceptionsQueueRow] = Field(default_factory=list)
+
+
+class AutoPurchasePreviewRow(BaseModel):
+    oem_number: str
+    brand_name: Optional[str] = None
+    autopart_name: Optional[str] = None
+    autopart_id: Optional[int] = None
+    current_quantity: int = 0
+    latest_price: Optional[float] = None
+    minimum_balance: int = 0
+    multiplicity: int = 1
+    in_transit_qty: int = 0
+    sold_last_30_days: int = 0
+    sold_last_90_days: int = 0
+    avg_daily_30: Optional[float] = None
+    avg_daily_90: Optional[float] = None
+    avg_daily_blended: Optional[float] = None
+    estimated_days_left_30_days: Optional[int] = None
+    average_actual_lead_days: Optional[float] = None
+    lead_time_days_used: Optional[float] = None
+    safety_stock_days: Optional[int] = None
+    safety_stock_qty: Optional[float] = None
+    reorder_point: Optional[float] = None
+    target_stock: Optional[int] = None
+    recommended_order_qty: int = 0
+    decision_status: str
+    autopurchase_mode: str
+    missing_in_latest_pricelist: bool = False
+    reason_codes: List[str] = Field(default_factory=list)
+    reason_titles: List[str] = Field(default_factory=list)
+    reasons: List[TrackingInsightExceptionItem] = Field(default_factory=list)
+    abc_xyz: Optional[TrackingInsightAbcXyz] = None
+    best_supplier_by_price: Optional[TrackingInsightSupplierStat] = None
+    best_supplier_by_lead_time: Optional[TrackingInsightSupplierStat] = None
+    recommended_supplier: Optional[TrackingInsightSupplierStat] = None
+    draft_purchase_order: Optional[TrackingInsightDraftPurchaseOrder] = None
+
+
+class AutoPurchasePreviewResponse(BaseModel):
+    provider_config_id: int
+    provider_id: int
+    provider_name: str
+    provider_config_name: Optional[str] = None
+    generated_at: datetime
+    mode: str
+    used_local_prices_only: bool = True
+    total_items: int = 0
+    auto_approved_count: int = 0
+    needs_review_count: int = 0
+    blocked_count: int = 0
+    rows: List[AutoPurchasePreviewRow] = Field(default_factory=list)
+
+
+class AutoPurchaseRunOut(BaseModel):
+    id: int
+    provider_config_id: int
+    provider_id: int
+    provider_name: str
+    provider_config_name: Optional[str] = None
+    initiated_by_user_id: Optional[int] = None
+    started_at: datetime
+    finished_at: Optional[datetime] = None
+    status: str
+    mode: str
+    trigger_source: str
+    used_local_prices_only: bool = True
+    settings_snapshot: dict[str, Any] = Field(default_factory=dict)
+    summary_snapshot: dict[str, Any] = Field(default_factory=dict)
+    total_items: int = 0
+    auto_approved_count: int = 0
+    needs_review_count: int = 0
+    blocked_count: int = 0
+    sent_count: int = 0
+
+
+class AutoPurchaseRunItemOut(AutoPurchasePreviewRow):
+    id: int
+    run_id: int
+    selected_supplier_id: Optional[int] = None
+    sent_to_site_at: Optional[datetime] = None
+    sent_order_id: Optional[int] = None
+    sent_order_number: Optional[str] = None
+    sent_customer_id: Optional[int] = None
+    send_result_snapshot: dict[str, Any] = Field(default_factory=dict)
+
+
+class AutoPurchaseRunItemsResponse(BaseModel):
+    run: AutoPurchaseRunOut
+    total_items: int = 0
+    rows: List[AutoPurchaseRunItemOut] = Field(default_factory=list)
+
+
+class AutoPurchaseRunItemStatusUpdateRequest(BaseModel):
+    decision_status: str
+    comment: Optional[str] = None
+
+
+class AutoPurchaseRunItemStatusUpdateResponse(BaseModel):
+    run: AutoPurchaseRunOut
+    item: AutoPurchaseRunItemOut
+
+
+class AutoPurchaseRunItemsStatusUpdateRequest(BaseModel):
+    item_ids: List[int] = Field(default_factory=list)
+    decision_status: str
+    comment: Optional[str] = None
+
+
+class AutoPurchaseRunItemsStatusUpdateResponse(BaseModel):
+    run: AutoPurchaseRunOut
+    updated_items: List[AutoPurchaseRunItemOut] = Field(default_factory=list)
+
+
+class AutoPurchaseDraftOrderLineOut(BaseModel):
+    item_id: int
+    autopart_id: Optional[int] = None
+    oem_number: str
+    brand_name: Optional[str] = None
+    autopart_name: Optional[str] = None
+    decision_status: str
+    recommended_order_qty: int = 0
+    proposed_order_qty: int = 0
+    remaining_gap_qty: int = 0
+    supplier_available_qty: int = 0
+    price: Optional[float] = None
+    line_total: Optional[float] = None
+    min_qnt: Optional[int] = None
+    min_delivery_day: Optional[int] = None
+    max_delivery_day: Optional[int] = None
+    hash_key: Optional[str] = None
+    system_hash: Optional[str] = None
+    reason: Optional[str] = None
+
+
+class AutoPurchaseDraftOrderGroupOut(BaseModel):
+    supplier_key: str
+    provider_name: str
+    provider_config_name: Optional[str] = None
+    source_type: Optional[str] = None
+    sup_logo: Optional[str] = None
+    total_items: int = 0
+    total_quantity: int = 0
+    total_sum: Optional[float] = None
+    items: List[AutoPurchaseDraftOrderLineOut] = Field(default_factory=list)
+
+
+class AutoPurchaseSkippedDraftItemOut(BaseModel):
+    item_id: int
+    oem_number: str
+    brand_name: Optional[str] = None
+    reason: str
+
+
+class AutoPurchaseRunDraftOrdersResponse(BaseModel):
+    run: AutoPurchaseRunOut
+    total_groups: int = 0
+    total_items: int = 0
+    total_quantity: int = 0
+    total_sum: Optional[float] = None
+    groups: List[AutoPurchaseDraftOrderGroupOut] = Field(default_factory=list)
+    skipped_items: List[AutoPurchaseSkippedDraftItemOut] = Field(
+        default_factory=list
+    )
+
+
+class AutoPurchaseMarkSentRequest(BaseModel):
+    item_ids: List[int] = Field(default_factory=list)
+    order_id: Optional[int] = None
+    order_number: Optional[str] = None
+    customer_id: Optional[int] = None
+    send_result_snapshot: dict[str, Any] = Field(default_factory=dict)
+
+
+class AutoPurchaseMarkSentResponse(BaseModel):
+    run: AutoPurchaseRunOut
+    updated_items: List[AutoPurchaseRunItemOut] = Field(default_factory=list)
 
 
 class TrackingHistoryInsightSummary(BaseModel):

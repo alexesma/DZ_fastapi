@@ -3,7 +3,7 @@ import re
 from enum import StrEnum, unique
 from uuid import uuid4
 
-from sqlalchemy import DECIMAL, Boolean, CheckConstraint, Column, DateTime
+from sqlalchemy import DECIMAL, JSON, Boolean, CheckConstraint, Column, DateTime
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import (
     Float,
@@ -533,3 +533,86 @@ class AutoPartRestockDecisionSupplier(Base):
     tracking_uuid = Column(
         String(36), default=lambda: str(uuid4()), unique=True, index=True
     )
+
+
+class AutoPurchaseRun(Base):
+    provider_config_id = Column(
+        Integer, ForeignKey("providerpricelistconfig.id"), nullable=False, index=True
+    )
+    provider_id = Column(Integer, ForeignKey("provider.id"), nullable=False, index=True)
+    initiated_by_user_id = Column(
+        Integer, ForeignKey("app_user.id"), nullable=True, index=True
+    )
+    started_at = Column(DateTime(timezone=True), default=now_moscow, nullable=False)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    status = Column(String(32), nullable=False, default="completed", index=True)
+    mode = Column(String(32), nullable=False, default="draft_only", index=True)
+    trigger_source = Column(String(32), nullable=False, default="manual")
+    used_local_prices_only = Column(Boolean, default=True, nullable=False)
+    settings_snapshot = Column(JSON, default=dict, nullable=False)
+    summary_snapshot = Column(JSON, default=dict, nullable=False)
+
+    items = relationship(
+        "AutoPurchaseRunItem",
+        cascade="all,delete-orphan",
+        lazy="selectin",
+        back_populates="run",
+    )
+
+
+class AutoPurchaseRunItem(Base):
+    run_id = Column(Integer, ForeignKey("autopurchaserun.id"), nullable=False, index=True)
+    autopart_id = Column(Integer, ForeignKey("autopart.id"), nullable=True, index=True)
+    selected_supplier_id = Column(
+        Integer, ForeignKey("provider.id"), nullable=True, index=True
+    )
+    sent_order_id = Column(Integer, ForeignKey("order.id"), nullable=True, index=True)
+    sent_customer_id = Column(
+        Integer, ForeignKey("customer.id"), nullable=True, index=True
+    )
+
+    oem_number = Column(String(MAX_LIGHT_OEM), nullable=False, index=True)
+    brand_name = Column(String(MAX_LIGHT_NAME_LOCATION), nullable=True, index=True)
+    autopart_name = Column(String(MAX_LIGHT_OEM), nullable=True)
+
+    current_quantity = Column(Integer, default=0, nullable=False)
+    latest_price = Column(DECIMAL(10, 2), nullable=True)
+    minimum_balance = Column(Integer, default=0, nullable=False)
+    multiplicity = Column(Integer, default=1, nullable=False)
+    in_transit_qty = Column(Integer, default=0, nullable=False)
+    sold_last_30_days = Column(Integer, default=0, nullable=False)
+    sold_last_90_days = Column(Integer, default=0, nullable=False)
+
+    avg_daily_30 = Column(DECIMAL(10, 2), nullable=True)
+    avg_daily_90 = Column(DECIMAL(10, 2), nullable=True)
+    avg_daily_blended = Column(DECIMAL(10, 2), nullable=True)
+    estimated_days_left_30_days = Column(Integer, nullable=True)
+    average_actual_lead_days = Column(DECIMAL(10, 2), nullable=True)
+    lead_time_days_used = Column(DECIMAL(10, 2), nullable=True)
+    safety_stock_days = Column(Integer, nullable=True)
+    safety_stock_qty = Column(DECIMAL(10, 2), nullable=True)
+    reorder_point = Column(DECIMAL(10, 2), nullable=True)
+    target_stock = Column(Integer, nullable=True)
+    recommended_order_qty = Column(Integer, default=0, nullable=False)
+
+    decision_status = Column(String(32), nullable=False, index=True)
+    autopurchase_mode = Column(String(32), nullable=False, index=True)
+    missing_in_latest_pricelist = Column(Boolean, default=False, nullable=False)
+
+    reason_codes = Column(JSON, default=list, nullable=False)
+    reason_titles = Column(JSON, default=list, nullable=False)
+    reasons = Column(JSON, default=list, nullable=False)
+    abc_xyz = Column(JSON, default=dict, nullable=True)
+    best_supplier_by_price = Column(JSON, default=dict, nullable=True)
+    best_supplier_by_lead_time = Column(JSON, default=dict, nullable=True)
+    recommended_supplier = Column(JSON, default=dict, nullable=True)
+    draft_purchase_order = Column(JSON, default=dict, nullable=True)
+    sent_to_site_at = Column(DateTime(timezone=True), nullable=True)
+    sent_order_number = Column(String(36), nullable=True)
+    send_result_snapshot = Column(JSON, default=dict, nullable=True)
+
+    run = relationship("AutoPurchaseRun", back_populates="items")
+    autopart = relationship("AutoPart")
+    selected_supplier = relationship("Provider")
+    sent_order = relationship("Order")
+    sent_customer = relationship("Customer")

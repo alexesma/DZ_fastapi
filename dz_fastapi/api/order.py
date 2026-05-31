@@ -35,6 +35,16 @@ from dz_fastapi.models.partner import (
 )
 from dz_fastapi.models.user import User
 from dz_fastapi.schemas.order import (
+    AutoPurchaseMarkSentRequest,
+    AutoPurchaseMarkSentResponse,
+    AutoPurchasePreviewResponse,
+    AutoPurchaseRunDraftOrdersResponse,
+    AutoPurchaseRunItemsResponse,
+    AutoPurchaseRunItemsStatusUpdateRequest,
+    AutoPurchaseRunItemsStatusUpdateResponse,
+    AutoPurchaseRunItemStatusUpdateRequest,
+    AutoPurchaseRunItemStatusUpdateResponse,
+    AutoPurchaseRunOut,
     ConfirmedOfferOut,
     ConfirmedOffersResponse,
     OrderItemOut,
@@ -52,6 +62,17 @@ from dz_fastapi.schemas.order import (
     UpdatePositionStatusResponse,
 )
 from dz_fastapi.schemas.partner import ProviderExternalReferenceCreate
+from dz_fastapi.services.autopurchase import (
+    create_autopurchase_run,
+    get_autopurchase_preview,
+    get_autopurchase_run,
+    get_autopurchase_run_draft_orders,
+    get_autopurchase_run_items,
+    list_autopurchase_runs,
+    mark_autopurchase_run_items_sent,
+    update_autopurchase_run_item_status,
+    update_autopurchase_run_items_status,
+)
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
 from dz_fastapi.services.notifications import create_notification
 from dz_fastapi.services.placed_orders import (
@@ -1019,6 +1040,221 @@ async def get_tracking_exceptions_queue_view(
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get(
+    "/autopurchase-preview",
+    response_model=AutoPurchasePreviewResponse,
+    summary="Предпросмотр автозаказа по нашему прайсу",
+)
+async def get_autopurchase_preview_view(
+    own_provider_config_id: Optional[int] = Query(default=None),
+    mode: str = Query(default="draft_only"),
+    decision_status: Optional[str] = Query(default=None),
+    q: Optional[str] = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=1000),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await get_autopurchase_preview(
+            session=session,
+            own_provider_config_id=own_provider_config_id,
+            mode=mode,
+            decision_status=decision_status,
+            search=q,
+            limit=limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post(
+    "/autopurchase-runs",
+    response_model=AutoPurchaseRunOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Создать запуск автозаказа",
+)
+async def create_autopurchase_run_view(
+    own_provider_config_id: Optional[int] = Query(default=None),
+    mode: str = Query(default="draft_only"),
+    limit: int = Query(default=1000, ge=1, le=5000),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await create_autopurchase_run(
+            session=session,
+            initiated_by_user_id=current_user.id,
+            own_provider_config_id=own_provider_config_id,
+            mode=mode,
+            limit=limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get(
+    "/autopurchase-runs",
+    response_model=list[AutoPurchaseRunOut],
+    summary="Список запусков автозаказа",
+)
+async def list_autopurchase_runs_view(
+    limit: int = Query(default=50, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    return await list_autopurchase_runs(session=session, limit=limit)
+
+
+@router.get(
+    "/autopurchase-runs/{run_id}",
+    response_model=AutoPurchaseRunOut,
+    summary="Карточка запуска автозаказа",
+)
+async def get_autopurchase_run_view(
+    run_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await get_autopurchase_run(session=session, run_id=run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get(
+    "/autopurchase-runs/{run_id}/items",
+    response_model=AutoPurchaseRunItemsResponse,
+    summary="Строки запуска автозаказа",
+)
+async def get_autopurchase_run_items_view(
+    run_id: int,
+    decision_status: Optional[str] = Query(default=None),
+    q: Optional[str] = Query(default=None),
+    limit: int = Query(default=1000, ge=1, le=5000),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await get_autopurchase_run_items(
+            session=session,
+            run_id=run_id,
+            decision_status=decision_status,
+            search=q,
+            limit=limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.patch(
+    "/autopurchase-runs/{run_id}/items",
+    response_model=AutoPurchaseRunItemsStatusUpdateResponse,
+    summary="Массово обновить статусы строк автозаказа",
+)
+async def update_autopurchase_run_items_status_view(
+    run_id: int,
+    payload: AutoPurchaseRunItemsStatusUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await update_autopurchase_run_items_status(
+            session=session,
+            run_id=run_id,
+            item_ids=payload.item_ids,
+            decision_status=payload.decision_status,
+            comment=payload.comment,
+        )
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = (
+            status.HTTP_404_NOT_FOUND
+            if "не найден" in detail.lower()
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=status_code, detail=detail) from exc
+
+
+@router.patch(
+    "/autopurchase-runs/{run_id}/items/{item_id}",
+    response_model=AutoPurchaseRunItemStatusUpdateResponse,
+    summary="Обновить статус строки автозаказа",
+)
+async def update_autopurchase_run_item_status_view(
+    run_id: int,
+    item_id: int,
+    payload: AutoPurchaseRunItemStatusUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await update_autopurchase_run_item_status(
+            session=session,
+            run_id=run_id,
+            item_id=item_id,
+            decision_status=payload.decision_status,
+            comment=payload.comment,
+        )
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = (
+            status.HTTP_404_NOT_FOUND
+            if "не найден" in detail.lower()
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=status_code, detail=detail) from exc
+
+
+@router.get(
+    "/autopurchase-runs/{run_id}/draft-orders",
+    response_model=AutoPurchaseRunDraftOrdersResponse,
+    summary="Сгруппированные черновики заказов по запуску автозаказа",
+)
+async def get_autopurchase_run_draft_orders_view(
+    run_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await get_autopurchase_run_draft_orders(
+            session=session,
+            run_id=run_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post(
+    "/autopurchase-runs/{run_id}/mark-sent",
+    response_model=AutoPurchaseMarkSentResponse,
+    summary="Пометить строки автозаказа как отправленные на сайт",
+)
+async def mark_autopurchase_run_items_sent_view(
+    run_id: int,
+    payload: AutoPurchaseMarkSentRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await mark_autopurchase_run_items_sent(
+            session=session,
+            run_id=run_id,
+            item_ids=payload.item_ids,
+            order_id=payload.order_id,
+            order_number=payload.order_number,
+            customer_id=payload.customer_id,
+            send_result_snapshot=payload.send_result_snapshot,
+        )
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = (
+            status.HTTP_404_NOT_FOUND
+            if "не найден" in detail.lower()
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=status_code, detail=detail) from exc
 
 
 @router.post(

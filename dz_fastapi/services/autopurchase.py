@@ -1,0 +1,1946 @@
+from __future__ import annotations
+
+import os
+from datetime import date, timedelta
+from decimal import ROUND_HALF_UP, Decimal
+from math import ceil
+from typing import Any, Optional
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from dz_fastapi.core.constants import URL_DZ_SEARCH
+from dz_fastapi.core.time import now_moscow
+from dz_fastapi.crud.brand import brand_crud
+from dz_fastapi.http.dz_site_client import DZSiteClient
+from dz_fastapi.models.autopart import AutoPart, AutoPurchaseRun, AutoPurchaseRunItem
+from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.partner import (
+    PriceList,
+    PriceListAutoPartAssociation,
+    Provider,
+    ProviderPriceListConfig,
+)
+from dz_fastapi.services.placed_orders import (
+    _ACTIVE_ORDER_STATUSES,
+    _build_tracking_exceptions,
+    _compute_abc_xyz,
+    _compute_purchase_price_stats,
+    _load_tracking_history_rows_for_oems,
+    _normalize_oem,
+    _round_stat,
+    _to_decimal,
+)
+
+AUTOPURCHASE_MODE_DRAFT_ONLY = "draft_only"
+AUTOPURCHASE_MODE_AUTO_APPROVE_SAFE = "auto_approve_safe"
+AUTOPURCHASE_MODE_DISABLED = "disabled"
+
+AUTOPURCHASE_STATUS_AUTO_APPROVED = "auto_approved"
+AUTOPURCHASE_STATUS_NEEDS_REVIEW = "needs_review"
+AUTOPURCHASE_STATUS_BLOCKED = "blocked"
+
+AUTOPURCHASE_MANUAL_REASON_CODES = {
+    "autopurchase_manual_auto_approved",
+    "autopurchase_manual_needs_review",
+    "autopurchase_manual_blocked",
+}
+
+FILL_RATE_THRESHOLD_DRAFT = 60.0
+FILL_RATE_THRESHOLD_AUTO_APPROVE = 80.0
+
+SAFETY_STOCK_DAYS_BY_ABC_XYZ: dict[tuple[str, str], int] = {
+    ("A", "X"): 14,
+    ("A", "Y"): 10,
+    ("A", "Z"): 7,
+    ("B", "X"): 10,
+    ("B", "Y"): 7,
+    ("B", "Z"): 5,
+    ("C", "X"): 7,
+    ("C", "Y"): 5,
+    ("C", "Z"): 0,
+}
+
+MAX_LEAD_DAYS_BY_ABC_XYZ: dict[tuple[str, str], int] = {
+    ("A", "X"): 21,
+    ("A", "Y"): 28,
+    ("B", "X"): 30,
+    ("B", "Y"): 35,
+}
+
+SITE_API_KEY = os.getenv("KEY_FOR_WEBSITE")
+
+
+def _quantize_float(value: Optional[float], digits: str = "0.01") -> Optional[float]:
+    if value is None:
+        return None
+    return float(
+        Decimal(str(value)).quantize(
+            Decimal(digits), rounding=ROUND_HALF_UP
+        )
+    )
+
+
+def _get_safety_stock_days(
+    abc_class: Optional[str],
+    xyz_class: Optional[str],
+) -> int:
+    return SAFETY_STOCK_DAYS_BY_ABC_XYZ.get(
+        (str(abc_class or "").upper(), str(xyz_class or "").upper()),
+        5,
+    )
+
+
+def _get_max_allowed_lead_days(
+    abc_class: Optional[str],
+    xyz_class: Optional[str],
+) -> Optional[int]:
+    return MAX_LEAD_DAYS_BY_ABC_XYZ.get(
+        (str(abc_class or "").upper(), str(xyz_class or "").upper())
+    )
+
+
+def _compute_average_daily(sold_qty: int, days: int) -> Optional[float]:
+    if sold_qty <= 0 or days <= 0:
+        return None
+    return _quantize_float(sold_qty / days)
+
+
+def _blend_average_daily(
+    avg_daily_30: Optional[float],
+    avg_daily_90: Optional[float],
+) -> Optional[float]:
+    if avg_daily_30 is not None and avg_daily_90 is not None:
+        return _quantize_float(avg_daily_30 * 0.7 + avg_daily_90 * 0.3)
+    return avg_daily_30 if avg_daily_30 is not None else avg_daily_90
+
+
+def _build_reason(
+    *,
+    code: str,
+    severity: str,
+    title: str,
+    description: str,
+) -> dict[str, str]:
+    return {
+        "code": code,
+        "severity": severity,
+        "title": title,
+        "description": description,
+    }
+
+
+def _to_decimal_value(value: Any) -> Optional[Decimal]:
+    if value is None:
+        return None
+    return Decimal(str(value))
+
+
+def _serialize_autopurchase_run(run: AutoPurchaseRun) -> dict[str, Any]:
+    summary_snapshot = dict(run.summary_snapshot or {})
+    return {
+        "id": int(run.id),
+        "provider_config_id": int(run.provider_config_id),
+        "provider_id": int(run.provider_id),
+        "provider_name": summary_snapshot.get("provider_name") or "",
+        "provider_config_name": summary_snapshot.get("provider_config_name"),
+        "initiated_by_user_id": run.initiated_by_user_id,
+        "started_at": run.started_at,
+        "finished_at": run.finished_at,
+        "status": run.status,
+        "mode": run.mode,
+        "trigger_source": run.trigger_source,
+        "used_local_prices_only": bool(run.used_local_prices_only),
+        "settings_snapshot": dict(run.settings_snapshot or {}),
+        "summary_snapshot": summary_snapshot,
+        "total_items": int(summary_snapshot.get("total_items") or 0),
+        "auto_approved_count": int(
+            summary_snapshot.get("auto_approved_count") or 0
+        ),
+        "needs_review_count": int(
+            summary_snapshot.get("needs_review_count") or 0
+        ),
+        "blocked_count": int(summary_snapshot.get("blocked_count") or 0),
+        "sent_count": int(summary_snapshot.get("sent_count") or 0),
+    }
+
+
+def _serialize_autopurchase_run_item(
+    item: AutoPurchaseRunItem,
+) -> dict[str, Any]:
+    return {
+        "id": int(item.id),
+        "run_id": int(item.run_id),
+        "selected_supplier_id": item.selected_supplier_id,
+        "oem_number": item.oem_number,
+        "brand_name": item.brand_name,
+        "autopart_name": item.autopart_name,
+        "autopart_id": item.autopart_id,
+        "current_quantity": int(item.current_quantity or 0),
+        "latest_price": float(item.latest_price) if item.latest_price is not None else None,
+        "minimum_balance": int(item.minimum_balance or 0),
+        "multiplicity": int(item.multiplicity or 1),
+        "in_transit_qty": int(item.in_transit_qty or 0),
+        "sold_last_30_days": int(item.sold_last_30_days or 0),
+        "sold_last_90_days": int(item.sold_last_90_days or 0),
+        "avg_daily_30": float(item.avg_daily_30) if item.avg_daily_30 is not None else None,
+        "avg_daily_90": float(item.avg_daily_90) if item.avg_daily_90 is not None else None,
+        "avg_daily_blended": (
+            float(item.avg_daily_blended)
+            if item.avg_daily_blended is not None
+            else None
+        ),
+        "estimated_days_left_30_days": item.estimated_days_left_30_days,
+        "average_actual_lead_days": (
+            float(item.average_actual_lead_days)
+            if item.average_actual_lead_days is not None
+            else None
+        ),
+        "lead_time_days_used": (
+            float(item.lead_time_days_used)
+            if item.lead_time_days_used is not None
+            else None
+        ),
+        "safety_stock_days": item.safety_stock_days,
+        "safety_stock_qty": (
+            float(item.safety_stock_qty)
+            if item.safety_stock_qty is not None
+            else None
+        ),
+        "reorder_point": float(item.reorder_point) if item.reorder_point is not None else None,
+        "target_stock": item.target_stock,
+        "recommended_order_qty": int(item.recommended_order_qty or 0),
+        "decision_status": item.decision_status,
+        "autopurchase_mode": item.autopurchase_mode,
+        "missing_in_latest_pricelist": bool(item.missing_in_latest_pricelist),
+        "reason_codes": list(item.reason_codes or []),
+        "reason_titles": list(item.reason_titles or []),
+        "reasons": list(item.reasons or []),
+        "abc_xyz": dict(item.abc_xyz or {}) if item.abc_xyz else None,
+        "best_supplier_by_price": (
+            dict(item.best_supplier_by_price or {})
+            if item.best_supplier_by_price
+            else None
+        ),
+        "best_supplier_by_lead_time": (
+            dict(item.best_supplier_by_lead_time or {})
+            if item.best_supplier_by_lead_time
+            else None
+        ),
+        "recommended_supplier": (
+            dict(item.recommended_supplier or {})
+            if item.recommended_supplier
+            else None
+        ),
+        "draft_purchase_order": (
+            dict(item.draft_purchase_order or {})
+            if item.draft_purchase_order
+            else None
+        ),
+        "sent_to_site_at": item.sent_to_site_at,
+        "sent_order_id": item.sent_order_id,
+        "sent_order_number": item.sent_order_number,
+        "sent_customer_id": item.sent_customer_id,
+        "send_result_snapshot": (
+            dict(item.send_result_snapshot or {})
+            if item.send_result_snapshot
+            else {}
+        ),
+    }
+
+
+def _strip_manual_override_reasons(
+    *,
+    reason_codes: list[str] | None,
+    reason_titles: list[str] | None,
+    reasons: list[dict[str, Any]] | None,
+) -> tuple[list[str], list[str], list[dict[str, Any]]]:
+    filtered_reasons = [
+        dict(reason)
+        for reason in (reasons or [])
+        if str(reason.get("code") or "") not in AUTOPURCHASE_MANUAL_REASON_CODES
+    ]
+    filtered_codes = [
+        code
+        for code in (reason_codes or [])
+        if str(code) not in AUTOPURCHASE_MANUAL_REASON_CODES
+    ]
+    filtered_titles = [
+        title
+        for title in (reason_titles or [])
+        if title
+        and title
+        not in {
+            "Менеджер подтвердил вручную",
+            "Менеджер вернул на ручную проверку",
+            "Менеджер заблокировал строку",
+        }
+    ]
+    return filtered_codes, filtered_titles, filtered_reasons
+
+
+def _build_manual_override_reason(
+    *,
+    decision_status: str,
+    comment: Optional[str],
+) -> dict[str, str]:
+    normalized_status = str(decision_status or "").strip().lower()
+    if normalized_status == AUTOPURCHASE_STATUS_AUTO_APPROVED:
+        return _build_reason(
+            code="autopurchase_manual_auto_approved",
+            severity="info",
+            title="Менеджер подтвердил вручную",
+            description=(
+                f"Строка вручную переведена в автоутверждённые."
+                f"{f' Комментарий: {comment}' if comment else ''}"
+            ),
+        )
+    if normalized_status == AUTOPURCHASE_STATUS_BLOCKED:
+        return _build_reason(
+            code="autopurchase_manual_blocked",
+            severity="warning",
+            title="Менеджер заблокировал строку",
+            description=(
+                "Строка снята с автозаказа вручную."
+                f"{f' Комментарий: {comment}' if comment else ''}"
+            ),
+        )
+    return _build_reason(
+        code="autopurchase_manual_needs_review",
+        severity="info",
+        title="Менеджер вернул на ручную проверку",
+        description=(
+            "Строка требует ручного решения менеджера."
+            f"{f' Комментарий: {comment}' if comment else ''}"
+        ),
+    )
+
+
+def _refresh_run_summary_snapshot(
+    run: AutoPurchaseRun,
+    items: list[AutoPurchaseRunItem],
+) -> None:
+    summary_snapshot = dict(run.summary_snapshot or {})
+    summary_snapshot["total_items"] = len(items)
+    summary_snapshot["auto_approved_count"] = sum(
+        1
+        for item in items
+        if item.decision_status == AUTOPURCHASE_STATUS_AUTO_APPROVED
+    )
+    summary_snapshot["needs_review_count"] = sum(
+        1
+        for item in items
+        if item.decision_status == AUTOPURCHASE_STATUS_NEEDS_REVIEW
+    )
+    summary_snapshot["blocked_count"] = sum(
+        1
+        for item in items
+        if item.decision_status == AUTOPURCHASE_STATUS_BLOCKED
+    )
+    summary_snapshot["sent_count"] = sum(
+        1 for item in items if item.sent_to_site_at is not None
+    )
+    run.summary_snapshot = summary_snapshot
+
+
+def _validate_autopurchase_decision_status(decision_status: str) -> str:
+    normalized_status = str(decision_status or "").strip().lower()
+    if normalized_status not in {
+        AUTOPURCHASE_STATUS_AUTO_APPROVED,
+        AUTOPURCHASE_STATUS_NEEDS_REVIEW,
+        AUTOPURCHASE_STATUS_BLOCKED,
+    }:
+        raise ValueError("Неизвестный статус строки автозаказа")
+    return normalized_status
+
+
+def _apply_autopurchase_item_status_override(
+    item: AutoPurchaseRunItem,
+    *,
+    decision_status: str,
+    comment: Optional[str] = None,
+) -> None:
+    normalized_status = _validate_autopurchase_decision_status(decision_status)
+    recommended_supplier = dict(item.recommended_supplier or {})
+    draft_purchase_order = dict(item.draft_purchase_order or {})
+    if normalized_status == AUTOPURCHASE_STATUS_AUTO_APPROVED:
+        if not recommended_supplier.get("provider_name"):
+            raise ValueError(
+                "Нельзя подтвердить строку без найденного site-поставщика"
+            )
+        if not draft_purchase_order:
+            raise ValueError(
+                "Нельзя подтвердить строку без подготовленного черновика заказа"
+            )
+
+    reason_codes, reason_titles, reasons = _strip_manual_override_reasons(
+        reason_codes=list(item.reason_codes or []),
+        reason_titles=list(item.reason_titles or []),
+        reasons=list(item.reasons or []),
+    )
+    manual_reason = _build_manual_override_reason(
+        decision_status=normalized_status,
+        comment=comment,
+    )
+    reason_codes.append(manual_reason["code"])
+    reason_titles.append(manual_reason["title"])
+    reasons.append(manual_reason)
+
+    item.decision_status = normalized_status
+    item.reason_codes = reason_codes
+    item.reason_titles = reason_titles
+    item.reasons = reasons[:12]
+
+
+async def _expand_site_query_brands(
+    session: AsyncSession,
+    brand_name: Optional[str],
+) -> list[str]:
+    normalized_input = str(brand_name or "").strip().upper()
+    if not normalized_input:
+        return []
+
+    expanded = [normalized_input]
+    try:
+        main_brand = await brand_crud.get_brand_by_name_or_none(
+            brand_name=normalized_input,
+            session=session,
+        )
+        if not main_brand:
+            return expanded
+
+        related = await brand_crud.get_all_synonyms_bi_directional(
+            brand=main_brand,
+            session=session,
+        )
+        candidates = [str(main_brand.name).strip().upper()]
+        candidates.extend(
+            str(item.name).strip().upper()
+            for item in related
+            if str(getattr(item, "name", "")).strip()
+        )
+        candidates.append(normalized_input)
+
+        unique: list[str] = []
+        seen: set[str] = set()
+        for candidate in candidates:
+            if not candidate or candidate in seen:
+                continue
+            seen.add(candidate)
+            unique.append(candidate)
+        return unique
+    except Exception:
+        return expanded
+
+
+def _prepare_site_brand_candidates(payload: Any) -> list[dict[str, Any]]:
+    if isinstance(payload, list):
+        rows = [item for item in payload if isinstance(item, dict)]
+    elif isinstance(payload, dict):
+        raw_rows = payload.get("data")
+        rows = (
+            [item for item in raw_rows if isinstance(item, dict)]
+            if isinstance(raw_rows, list)
+            else []
+        )
+    else:
+        rows = []
+
+    deduped: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        brand_name = str(row.get("brand") or "").strip().upper()
+        if not brand_name:
+            continue
+        try:
+            rate = int(row.get("rate") or 0)
+        except (TypeError, ValueError):
+            rate = 0
+        current = deduped.get(brand_name)
+        normalized_row = {
+            "brand": brand_name,
+            "number": row.get("number"),
+            "des_text": row.get("des_text"),
+            "rate": rate,
+        }
+        if current is None or rate > int(current.get("rate") or 0):
+            deduped[brand_name] = normalized_row
+
+    return sorted(
+        deduped.values(),
+        key=lambda item: (-int(item.get("rate") or 0), item["brand"]),
+    )
+
+
+def _merge_site_offers(offers_by_brand: list[list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    merged: list[dict[str, Any]] = []
+    seen = set()
+    for offers in offers_by_brand:
+        for raw in offers or []:
+            key = (
+                raw.get("system_hash")
+                or raw.get("hash_key")
+                or (
+                    raw.get("oem"),
+                    raw.get("make_name"),
+                    raw.get("cost"),
+                    raw.get("qnt"),
+                    raw.get("price_name"),
+                    raw.get("sup_logo"),
+                    raw.get("min_delivery_day"),
+                    raw.get("max_delivery_day"),
+                )
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(raw)
+    return merged
+
+
+def _build_site_supplier_stat(raw: dict[str, Any]) -> Optional[dict[str, Any]]:
+    try:
+        price = float(raw.get("cost"))
+        quantity = int(raw.get("qnt") or 0)
+        min_delivery = int(raw.get("min_delivery_day") or 1)
+        max_delivery = int(raw.get("max_delivery_day") or min_delivery)
+    except (TypeError, ValueError):
+        return None
+
+    provider_name = str(raw.get("sup_logo") or "").strip() or "Dragonzap"
+    price_name = str(raw.get("price_name") or "").strip() or None
+    effective_lead = _round_stat((min_delivery + max_delivery) / 2, 1)
+    return {
+        "provider_id": None,
+        "provider_name": provider_name,
+        "order_count": 0,
+        "fill_rate": None,
+        "avg_lead_days": None,
+        "effective_lead_days": effective_lead,
+        "avg_price": None,
+        "last_ordered_at": None,
+        "current_price": price,
+        "current_qty": quantity,
+        "current_min_delivery": min_delivery,
+        "current_max_delivery": max_delivery,
+        "current_oem_number": _normalize_oem(raw.get("oem")) or "",
+        "current_brand_name": raw.get("make_name"),
+        "current_autopart_name": raw.get("detail_name"),
+        "current_autopart_id": None,
+        "current_provider_config_id": None,
+        "current_provider_config_name": price_name,
+        "source_type": "site",
+        "sup_logo": str(raw.get("sup_logo") or "").strip() or None,
+        "hash_key": raw.get("hash_key"),
+        "system_hash": raw.get("system_hash"),
+        "current_min_qnt": int(raw.get("min_qnt") or 1),
+        "is_own_price": False,
+        "score": None,
+    }
+
+
+def _select_best_site_supplier_by_price(
+    supplier_stats: list[dict[str, Any]],
+) -> Optional[dict[str, Any]]:
+    candidates = [
+        item for item in supplier_stats if item.get("current_price") is not None
+    ]
+    if not candidates:
+        return None
+    return min(
+        candidates,
+        key=lambda item: (
+            float(item.get("current_price") or 9_999_999),
+            float(item.get("effective_lead_days") or 9_999),
+            -int(item.get("current_qty") or 0),
+        ),
+    )
+
+
+def _select_best_site_supplier_by_lead_time(
+    supplier_stats: list[dict[str, Any]],
+) -> Optional[dict[str, Any]]:
+    candidates = [
+        item
+        for item in supplier_stats
+        if item.get("current_price") is not None
+        and item.get("effective_lead_days") is not None
+    ]
+    if not candidates:
+        return None
+    return min(
+        candidates,
+        key=lambda item: (
+            float(item.get("effective_lead_days") or 9_999),
+            float(item.get("current_price") or 9_999_999),
+            -int(item.get("current_qty") or 0),
+        ),
+    )
+
+
+async def _fetch_site_supplier_stats_for_oem(
+    session: AsyncSession,
+    *,
+    oem_number: str,
+    brand_name: Optional[str],
+) -> tuple[list[dict[str, Any]], list[str], bool]:
+    if not SITE_API_KEY:
+        return [], [], False
+
+    query_brands = await _expand_site_query_brands(session, brand_name)
+    if not query_brands:
+        return [], [], False
+
+    site_brand_candidates: list[dict[str, Any]] = []
+    used_fallback_brand = False
+    offers_by_brand: list[list[dict[str, Any]]] = []
+
+    async with DZSiteClient(
+        base_url=URL_DZ_SEARCH,
+        api_key=SITE_API_KEY,
+        verify_ssl=False,
+    ) as client:
+        for query_brand in query_brands:
+            offers = await client.get_offers(
+                oem=oem_number,
+                brand=query_brand,
+                without_cross=True,
+            )
+            if not offers:
+                continue
+            for item in offers:
+                if isinstance(item, dict):
+                    item.setdefault("query_brand", query_brand)
+            offers_by_brand.append(offers)
+
+        if not offers_by_brand:
+            site_brand_candidates = _prepare_site_brand_candidates(
+                await client.get_brands(oem_number)
+            )
+            tried_brands = set(query_brands)
+            for candidate in site_brand_candidates:
+                fallback_brand = candidate["brand"]
+                if fallback_brand in tried_brands:
+                    continue
+                offers = await client.get_offers(
+                    oem=oem_number,
+                    brand=fallback_brand,
+                    without_cross=True,
+                )
+                if not offers:
+                    continue
+                for item in offers:
+                    if isinstance(item, dict):
+                        item.setdefault("query_brand", fallback_brand)
+                offers_by_brand.append(offers)
+                query_brands = [fallback_brand]
+                used_fallback_brand = True
+                break
+
+    merged = _merge_site_offers(offers_by_brand)
+    supplier_stats: list[dict[str, Any]] = []
+    for raw in merged:
+        site_stat = _build_site_supplier_stat(raw)
+        if site_stat:
+            supplier_stats.append(site_stat)
+    return supplier_stats, query_brands, used_fallback_brand
+
+
+def _select_autopurchase_supplier(
+    supplier_stats: list[dict[str, Any]],
+    *,
+    fill_rate_threshold: float,
+    max_allowed_lead_days: Optional[int],
+) -> Optional[dict[str, Any]]:
+    candidates = [
+        item
+        for item in supplier_stats
+        if item.get("current_price") is not None and not item.get("is_own_price")
+    ]
+    if not candidates:
+        return None
+
+    in_stock_candidates = [
+        item for item in candidates if int(item.get("current_qty") or 0) > 0
+    ]
+    base_candidates = in_stock_candidates or candidates
+
+    filtered_by_fill = []
+    for item in base_candidates:
+        fill_rate = item.get("fill_rate")
+        if fill_rate is None or float(fill_rate) >= float(fill_rate_threshold):
+            filtered_by_fill.append(item)
+    base_candidates = filtered_by_fill or base_candidates
+
+    if max_allowed_lead_days is not None:
+        filtered_by_lead = []
+        for item in base_candidates:
+            effective_lead_days = item.get("effective_lead_days")
+            if (
+                effective_lead_days is None
+                or float(effective_lead_days) <= float(max_allowed_lead_days)
+            ):
+                filtered_by_lead.append(item)
+        base_candidates = filtered_by_lead or base_candidates
+
+    return min(
+        base_candidates,
+        key=lambda item: (
+            float(item.get("current_price") or 9_999_999),
+            -float(item.get("fill_rate") or 0),
+            float(item.get("effective_lead_days") or 9_999),
+            -int(item.get("current_qty") or 0),
+        ),
+    )
+
+
+def _round_up_to_multiplicity(quantity: int, multiplicity: int) -> int:
+    if quantity <= 0:
+        return 0
+    if multiplicity <= 1:
+        return quantity
+    return int(ceil(quantity / multiplicity) * multiplicity)
+
+
+def _summarize_snapshot_rows(
+    snapshot_rows: list[dict[str, Any]],
+) -> tuple[
+    dict[tuple[date, int], dict[str, Any]],
+    dict[str, dict[str, Any]],
+    dict[str, dict[str, Any]],
+]:
+    snapshots_by_key: dict[tuple[date, int], dict[str, Any]] = {}
+    latest_known_rows_by_oem: dict[str, dict[str, Any]] = {}
+
+    for row in snapshot_rows:
+        snapshot_key = (row["pricelist_date"], row["pricelist_id"])
+        snapshot = snapshots_by_key.setdefault(
+            snapshot_key,
+            {
+                "pricelist_date": row["pricelist_date"],
+                "pricelist_id": row["pricelist_id"],
+                "qty_by_oem": {},
+            },
+        )
+        oem_number = _normalize_oem(row.get("oem_number"))
+        if not oem_number:
+            continue
+        qty = int(row.get("quantity") or 0)
+        snapshot["qty_by_oem"][oem_number] = (
+            snapshot["qty_by_oem"].get(oem_number, 0) + qty
+        )
+
+        latest_known_rows_by_oem[oem_number] = {
+            "oem_number": oem_number,
+            "autopart_id": row.get("autopart_id"),
+            "brand_name": row.get("brand_name"),
+            "autopart_name": row.get("autopart_name"),
+            "latest_price": _to_decimal(row.get("price")),
+            "last_seen_pricelist_date": row.get("pricelist_date"),
+            "last_seen_pricelist_id": row.get("pricelist_id"),
+            "minimum_balance": int(row.get("minimum_balance") or 0),
+            "multiplicity": int(row.get("multiplicity") or 1),
+            "min_balance_auto": bool(row.get("min_balance_auto") or False),
+            "min_balance_user": bool(row.get("min_balance_user") or False),
+        }
+
+    latest_rows_by_oem: dict[str, dict[str, Any]] = {}
+    if snapshots_by_key:
+        latest_snapshot_key = max(snapshots_by_key.keys())
+        latest_snapshot_rows = [
+            row
+            for row in snapshot_rows
+            if (row["pricelist_date"], row["pricelist_id"]) == latest_snapshot_key
+        ]
+        for row in latest_snapshot_rows:
+            oem_number = _normalize_oem(row.get("oem_number"))
+            if not oem_number:
+                continue
+            entry = latest_rows_by_oem.setdefault(
+                oem_number,
+                {
+                    "oem_number": oem_number,
+                    "autopart_id": row.get("autopart_id"),
+                    "brand_name": row.get("brand_name"),
+                    "autopart_name": row.get("autopart_name"),
+                    "current_quantity": 0,
+                    "latest_price": None,
+                    "minimum_balance": int(row.get("minimum_balance") or 0),
+                    "multiplicity": int(row.get("multiplicity") or 1),
+                    "min_balance_auto": bool(row.get("min_balance_auto") or False),
+                    "min_balance_user": bool(row.get("min_balance_user") or False),
+                },
+            )
+            qty = int(row.get("quantity") or 0)
+            entry["current_quantity"] += qty
+            price_value = _to_decimal(row.get("price"))
+            if entry["latest_price"] is None or (
+                price_value is not None and price_value < entry["latest_price"]
+            ):
+                entry["latest_price"] = price_value
+                entry["autopart_id"] = row.get("autopart_id")
+                entry["brand_name"] = row.get("brand_name")
+                entry["autopart_name"] = row.get("autopart_name")
+
+    return snapshots_by_key, latest_known_rows_by_oem, latest_rows_by_oem
+
+
+def _calculate_snapshot_sales(
+    snapshots: list[dict[str, Any]],
+    normalized_oem_numbers: list[str],
+    *,
+    days: int,
+) -> dict[str, int]:
+    sold_by_oem = {oem: 0 for oem in normalized_oem_numbers}
+    cutoff = now_moscow().date() - timedelta(days=days)
+    for previous_snapshot, current_snapshot in zip(snapshots, snapshots[1:]):
+        if current_snapshot["pricelist_date"] < cutoff:
+            continue
+        previous_qty_by_oem = previous_snapshot["qty_by_oem"]
+        current_qty_by_oem = current_snapshot["qty_by_oem"]
+        for oem in normalized_oem_numbers:
+            prev_qty = int(previous_qty_by_oem.get(oem, 0))
+            curr_qty = int(current_qty_by_oem.get(oem, 0))
+            sold_by_oem[oem] += max(prev_qty - curr_qty, 0)
+    return sold_by_oem
+
+
+def _build_autopurchase_draft(
+    *,
+    supplier: Optional[dict[str, Any]],
+    available_qty: int,
+    in_transit_qty: int,
+    target_qty: Optional[int],
+    recommended_qty: int,
+    lead_time_days_used: Optional[float],
+    reason: Optional[str],
+) -> Optional[dict[str, Any]]:
+    if not supplier or not supplier.get("provider_name"):
+        return None
+    if supplier.get("current_price") is None:
+        return None
+    if recommended_qty <= 0:
+        return None
+
+    supplier_available_qty = max(int(supplier.get("current_qty") or 0), 0)
+    proposed_order_qty = min(recommended_qty, supplier_available_qty)
+    remaining_gap_qty = max(recommended_qty - proposed_order_qty, 0)
+
+    return {
+        "provider_id": (
+            int(supplier["provider_id"])
+            if supplier.get("provider_id") is not None
+            else None
+        ),
+        "provider_name": supplier.get("provider_name") or "—",
+        "provider_config_id": supplier.get("current_provider_config_id"),
+        "provider_config_name": supplier.get("current_provider_config_name"),
+        "autopart_id": supplier.get("current_autopart_id"),
+        "oem_number": supplier.get("current_oem_number") or "",
+        "brand_name": supplier.get("current_brand_name"),
+        "autopart_name": supplier.get("current_autopart_name"),
+        "price": supplier.get("current_price"),
+        "available_qty": available_qty,
+        "in_transit_qty": int(in_transit_qty or 0),
+        "target_qty": target_qty,
+        "recommended_qty": recommended_qty,
+        "supplier_available_qty": supplier_available_qty,
+        "proposed_order_qty": proposed_order_qty,
+        "remaining_gap_qty": remaining_gap_qty,
+        "lead_days_used": lead_time_days_used,
+        "reason": reason,
+        "source_type": supplier.get("source_type"),
+        "sup_logo": supplier.get("sup_logo"),
+        "hash_key": supplier.get("hash_key"),
+        "system_hash": supplier.get("system_hash"),
+        "min_qnt": supplier.get("current_min_qnt"),
+        "min_delivery_day": supplier.get("current_min_delivery"),
+        "max_delivery_day": supplier.get("current_max_delivery"),
+    }
+
+
+async def get_autopurchase_preview(
+    session: AsyncSession,
+    *,
+    own_provider_config_id: Optional[int] = None,
+    mode: str = AUTOPURCHASE_MODE_DRAFT_ONLY,
+    decision_status: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = 200,
+) -> dict[str, Any]:
+    requested_mode = str(mode or AUTOPURCHASE_MODE_DRAFT_ONLY).strip().lower()
+    if requested_mode not in {
+        AUTOPURCHASE_MODE_DRAFT_ONLY,
+        AUTOPURCHASE_MODE_AUTO_APPROVE_SAFE,
+        AUTOPURCHASE_MODE_DISABLED,
+    }:
+        raise ValueError("Неизвестный режим автозаказа")
+
+    config_stmt = (
+        select(
+            ProviderPriceListConfig.id.label("provider_config_id"),
+            ProviderPriceListConfig.provider_id.label("provider_id"),
+            ProviderPriceListConfig.name_price.label("provider_config_name"),
+            Provider.name.label("provider_name"),
+        )
+        .select_from(ProviderPriceListConfig)
+        .join(Provider, Provider.id == ProviderPriceListConfig.provider_id)
+        .where(Provider.is_own_price.is_(True))
+    )
+    if own_provider_config_id is not None:
+        config_stmt = config_stmt.where(
+            ProviderPriceListConfig.id == own_provider_config_id
+        )
+    else:
+        config_stmt = config_stmt.where(
+            ProviderPriceListConfig.use_for_order_insights.is_(True)
+        )
+    config_stmt = config_stmt.order_by(ProviderPriceListConfig.id.asc()).limit(1)
+    config_row = (await session.execute(config_stmt)).mappings().first()
+    if not config_row:
+        raise ValueError("Не найден конфиг нашего прайса для автозаказа")
+
+    provider_config_id = int(config_row["provider_config_id"])
+
+    snapshot_stmt = (
+        select(
+            PriceList.id.label("pricelist_id"),
+            PriceList.date.label("pricelist_date"),
+            AutoPart.id.label("autopart_id"),
+            AutoPart.oem_number.label("oem_number"),
+            AutoPart.name.label("autopart_name"),
+            AutoPart.minimum_balance.label("minimum_balance"),
+            AutoPart.multiplicity.label("multiplicity"),
+            AutoPart.min_balance_auto.label("min_balance_auto"),
+            AutoPart.min_balance_user.label("min_balance_user"),
+            Brand.name.label("brand_name"),
+            PriceListAutoPartAssociation.quantity.label("quantity"),
+            PriceListAutoPartAssociation.price.label("price"),
+        )
+        .select_from(PriceListAutoPartAssociation)
+        .join(
+            PriceList,
+            PriceList.id == PriceListAutoPartAssociation.pricelist_id,
+        )
+        .join(AutoPart, AutoPart.id == PriceListAutoPartAssociation.autopart_id)
+        .join(Brand, Brand.id == AutoPart.brand_id)
+        .where(
+            PriceList.provider_config_id == provider_config_id,
+            PriceList.is_active.is_(True),
+        )
+        .order_by(
+            PriceList.date.asc(),
+            PriceList.id.asc(),
+            AutoPart.oem_number.asc(),
+        )
+    )
+    snapshot_rows = list((await session.execute(snapshot_stmt)).mappings().all())
+    if not snapshot_rows:
+        return {
+            "provider_config_id": provider_config_id,
+            "provider_id": int(config_row["provider_id"]),
+            "provider_name": config_row["provider_name"],
+            "provider_config_name": config_row.get("provider_config_name"),
+            "generated_at": now_moscow(),
+            "mode": requested_mode,
+            "used_local_prices_only": False,
+            "total_items": 0,
+            "auto_approved_count": 0,
+            "needs_review_count": 0,
+            "blocked_count": 0,
+            "rows": [],
+        }
+
+    snapshots_by_key, latest_known_rows_by_oem, latest_rows_by_oem = (
+        _summarize_snapshot_rows(snapshot_rows)
+    )
+    snapshots = list(snapshots_by_key.values())
+    normalized_oem_numbers = sorted(latest_known_rows_by_oem.keys())
+
+    history_rows = await _load_tracking_history_rows_for_oems(
+        session,
+        normalized_oem_numbers=normalized_oem_numbers,
+    )
+
+    history_by_oem: dict[str, list[dict[str, Any]]] = {}
+    for row in history_rows:
+        normalized = _normalize_oem(row.get("oem_number"))
+        if normalized:
+            history_by_oem.setdefault(normalized, []).append(row)
+
+    sold_last_30_by_oem = _calculate_snapshot_sales(
+        snapshots,
+        normalized_oem_numbers,
+        days=30,
+    )
+    sold_last_90_by_oem = _calculate_snapshot_sales(
+        snapshots,
+        normalized_oem_numbers,
+        days=90,
+    )
+
+    decision_filter = str(decision_status or "").strip().lower() or None
+    search_filter = str(search or "").strip().lower()
+    decision_rank = {
+        AUTOPURCHASE_STATUS_BLOCKED: 0,
+        AUTOPURCHASE_STATUS_NEEDS_REVIEW: 1,
+        AUTOPURCHASE_STATUS_AUTO_APPROVED: 2,
+    }
+    rows: list[dict[str, Any]] = []
+
+    for oem_number, known_row in latest_known_rows_by_oem.items():
+        latest = latest_rows_by_oem.get(oem_number) or {
+            **known_row,
+            "current_quantity": 0,
+        }
+        oem_history = history_by_oem.get(oem_number, [])
+
+        sold_last_30_days = int(sold_last_30_by_oem.get(oem_number, 0))
+        sold_last_90_days = int(sold_last_90_by_oem.get(oem_number, 0))
+        avg_daily_30 = _compute_average_daily(sold_last_30_days, 30)
+        avg_daily_90 = _compute_average_daily(sold_last_90_days, 90)
+        avg_daily_blended = _blend_average_daily(avg_daily_30, avg_daily_90)
+
+        current_quantity = int(latest.get("current_quantity") or 0)
+        minimum_balance = int(latest.get("minimum_balance") or 0)
+        multiplicity = max(int(latest.get("multiplicity") or 1), 1)
+        missing_in_latest_pricelist = oem_number not in latest_rows_by_oem
+        lead_values = [
+            int(row["actual_lead_days"])
+            for row in oem_history
+            if row.get("actual_lead_days") is not None
+        ]
+        average_actual_lead_days = (
+            _round_stat(sum(lead_values) / len(lead_values), 1)
+            if lead_values
+            else None
+        )
+        in_transit_qty = max(
+            sum(
+                max(
+                    int(row.get("ordered_quantity") or 0)
+                    - int(row.get("received_quantity") or 0),
+                    0,
+                )
+                for row in oem_history
+                if row.get("current_status") in _ACTIVE_ORDER_STATUSES
+            ),
+            0,
+        )
+        available_qty = current_quantity + in_transit_qty
+
+        abc_xyz = await _compute_abc_xyz(
+            session,
+            normalized_oem_numbers=[oem_number],
+            history_rows=oem_history,
+        )
+        abc_class = abc_xyz.get("abc_class") if abc_xyz else None
+        xyz_class = abc_xyz.get("xyz_class") if abc_xyz else None
+        safety_stock_days = _get_safety_stock_days(abc_class, xyz_class)
+        lead_time_days_used = (
+            float(average_actual_lead_days)
+            if average_actual_lead_days is not None
+            else None
+        )
+
+        manual_min_balance_fallback = False
+        if lead_time_days_used is None and minimum_balance > 0 and avg_daily_blended:
+            lead_time_days_used = 7.0
+        elif lead_time_days_used is None and minimum_balance > 0:
+            manual_min_balance_fallback = True
+
+        lead_time_demand = (
+            _quantize_float(avg_daily_blended * lead_time_days_used)
+            if avg_daily_blended is not None and lead_time_days_used is not None
+            else None
+        )
+        safety_stock_qty = (
+            _quantize_float(avg_daily_blended * safety_stock_days)
+            if avg_daily_blended is not None
+            else None
+        )
+        reorder_point = (
+            _quantize_float((lead_time_demand or 0) + (safety_stock_qty or 0), "0.1")
+            if lead_time_demand is not None
+            else (
+                float(minimum_balance)
+                if minimum_balance > 0 and manual_min_balance_fallback
+                else None
+            )
+        )
+        review_period_days = (
+            max(7, int(ceil(lead_time_days_used)))
+            if lead_time_days_used is not None
+            else 7
+        )
+        demand_for_review_period = (
+            _quantize_float(avg_daily_blended * review_period_days)
+            if avg_daily_blended is not None
+            else None
+        )
+        target_stock = None
+        if reorder_point is not None:
+            target_stock = int(
+                ceil(float(reorder_point) + float(demand_for_review_period or 0))
+            )
+        elif minimum_balance > 0:
+            target_stock = int(minimum_balance)
+        if target_stock is not None:
+            target_stock = max(target_stock, int(minimum_balance or 0))
+
+        recommended_order_qty = 0
+        if target_stock is not None:
+            recommended_order_qty = max(target_stock - available_qty, 0)
+            recommended_order_qty = _round_up_to_multiplicity(
+                recommended_order_qty, multiplicity
+            )
+
+        estimated_days_left_30_days = (
+            int(current_quantity / avg_daily_30)
+            if avg_daily_30 and avg_daily_30 > 0
+            else None
+        )
+
+        if (
+            recommended_order_qty <= 0
+            and not missing_in_latest_pricelist
+            and minimum_balance <= 0
+        ):
+            continue
+
+        site_supplier_stats, site_query_brands, used_site_fallback_brand = (
+            await _fetch_site_supplier_stats_for_oem(
+                session,
+                oem_number=oem_number,
+                brand_name=latest.get("brand_name")
+                or known_row.get("brand_name"),
+            )
+        )
+        best_supplier_by_price = _select_best_site_supplier_by_price(
+            site_supplier_stats
+        )
+        best_supplier_by_lead_time = _select_best_site_supplier_by_lead_time(
+            site_supplier_stats
+        )
+
+        max_allowed_lead_days = _get_max_allowed_lead_days(
+            abc_class, xyz_class
+        )
+        supplier_fill_threshold = (
+            FILL_RATE_THRESHOLD_AUTO_APPROVE
+            if requested_mode == AUTOPURCHASE_MODE_AUTO_APPROVE_SAFE
+            else FILL_RATE_THRESHOLD_DRAFT
+        )
+        selected_supplier = _select_autopurchase_supplier(
+            site_supplier_stats,
+            fill_rate_threshold=supplier_fill_threshold,
+            max_allowed_lead_days=max_allowed_lead_days,
+        )
+        purchase_stats = _compute_purchase_price_stats(oem_history)
+        exceptions = _build_tracking_exceptions(
+            own_price_analysis={
+                "current_quantity": current_quantity,
+                "estimated_days_left_30_days": estimated_days_left_30_days,
+            },
+            in_transit_qty=in_transit_qty,
+            reorder_point=reorder_point,
+            price_trend=purchase_stats.get("price_trend"),
+            price_trend_pct=purchase_stats.get("price_trend_pct"),
+            best_supplier=selected_supplier,
+            best_supplier_by_price=best_supplier_by_price,
+            best_supplier_by_lead_time=best_supplier_by_lead_time,
+            missing_in_latest_pricelist=missing_in_latest_pricelist,
+        )
+        reasons = list(exceptions)
+
+        if not SITE_API_KEY:
+            reasons.append(
+                _build_reason(
+                    code="site_api_key_missing",
+                    severity="critical",
+                    title="Не настроен API-ключ сайта",
+                    description=(
+                        "Автозаказ переведён на сайт, но в окружении "
+                        "не найден KEY_FOR_WEBSITE, поэтому site-поставщики "
+                        "не могут быть рассчитаны."
+                    ),
+                )
+            )
+        elif not site_supplier_stats:
+            reasons.append(
+                _build_reason(
+                    code="no_site_supplier_offers",
+                    severity="critical",
+                    title="Сайт не вернул подходящих предложений",
+                    description=(
+                        "По точному OEM и бренду с учётом синонимов "
+                        "сайт не вернул доступных предложений для закупки."
+                    ),
+                )
+            )
+        elif used_site_fallback_brand and site_query_brands:
+            reasons.append(
+                _build_reason(
+                    code="site_brand_fallback_used",
+                    severity="info",
+                    title="Для поиска использован бренд с сайта",
+                    description=(
+                        "Сайт не дал результат по исходному бренду и его "
+                        f"синонимам, поэтому автозаказ использовал fallback "
+                        f"бренд {site_query_brands[0]}."
+                    ),
+                )
+            )
+
+        if minimum_balance > 0 and avg_daily_blended is None:
+            reasons.append(
+                _build_reason(
+                    code="manual_min_balance_fallback",
+                    severity="info",
+                    title="Использован ручной минимальный остаток",
+                    description=(
+                        "Недостаточно истории спроса, поэтому расчёт опирается "
+                        "на вручную заданный минимальный остаток."
+                    ),
+                )
+            )
+        if selected_supplier is None:
+            reasons.append(
+                _build_reason(
+                    code="no_acceptable_supplier",
+                    severity="critical",
+                    title="Нет допустимого поставщика для автозаказа",
+                    description=(
+                        "По позиции нет поставщика, который проходит "
+                        "текущие фильтры по цене, наличию, fill rate и сроку."
+                    ),
+                )
+            )
+        if str(xyz_class or "").upper() == "Z":
+            reasons.append(
+                _build_reason(
+                    code="xyz_z_manual_only",
+                    severity="warning",
+                    title="Нерегулярный спрос: нужен ручной контроль",
+                    description=(
+                        "Класс Z означает рваный спрос. Такие позиции не стоит "
+                        "автоматически подтверждать без проверки менеджером."
+                    ),
+                )
+            )
+        selected_supplier_qty = (
+            int(selected_supplier.get("current_qty") or 0)
+            if selected_supplier
+            else 0
+        )
+        if (
+            selected_supplier is not None
+            and recommended_order_qty > 0
+            and selected_supplier_qty < recommended_order_qty
+        ):
+            reasons.append(
+                _build_reason(
+                    code="site_offer_quantity_below_recommendation",
+                    severity="warning",
+                    title="У лучшего site-предложения недостаточно количества",
+                    description=(
+                        f"Сайт предлагает только {selected_supplier_qty} шт, "
+                        f"при рекомендуемом заказе {recommended_order_qty} шт."
+                    ),
+                )
+            )
+        if missing_in_latest_pricelist:
+            reasons.append(
+                _build_reason(
+                    code="missing_in_latest_pricelist_manual_only",
+                    severity="critical",
+                    title="Позиция отсутствует в последнем нашем прайсе",
+                    description=(
+                        "Позиция выпала из последней выгрузки нашего прайса, "
+                        "поэтому её нельзя безопасно пускать в автоподтверждение."
+                    ),
+                )
+            )
+
+        if (
+            missing_in_latest_pricelist
+            and sold_last_30_days <= 0
+            and sold_last_90_days <= 0
+            and in_transit_qty <= 0
+            and minimum_balance <= 0
+        ):
+            continue
+
+        decision_value = AUTOPURCHASE_STATUS_NEEDS_REVIEW
+        if requested_mode == AUTOPURCHASE_MODE_DISABLED:
+            decision_value = AUTOPURCHASE_STATUS_BLOCKED
+            reasons.append(
+                _build_reason(
+                    code="autopurchase_disabled",
+                    severity="info",
+                    title="Автозаказ отключён",
+                    description=(
+                        "Для текущего запуска выбран режим disabled, поэтому "
+                        "строки не могут быть подтверждены автоматически."
+                    ),
+                )
+            )
+        elif selected_supplier is None:
+            decision_value = AUTOPURCHASE_STATUS_BLOCKED
+        elif missing_in_latest_pricelist:
+            decision_value = AUTOPURCHASE_STATUS_BLOCKED
+        elif requested_mode == AUTOPURCHASE_MODE_DRAFT_ONLY:
+            decision_value = AUTOPURCHASE_STATUS_NEEDS_REVIEW
+        else:
+            supplier_fill_rate = selected_supplier.get("fill_rate")
+            has_safe_fill_rate = (
+                supplier_fill_rate is None
+                or float(supplier_fill_rate)
+                >= FILL_RATE_THRESHOLD_AUTO_APPROVE
+            )
+            if (
+                str(xyz_class or "").upper() == "Z"
+                or str(abc_class or "").upper() == "C"
+                or recommended_order_qty <= 0
+                or not has_safe_fill_rate
+                or selected_supplier_qty < recommended_order_qty
+            ):
+                decision_value = AUTOPURCHASE_STATUS_NEEDS_REVIEW
+            else:
+                decision_value = AUTOPURCHASE_STATUS_AUTO_APPROVED
+
+        if decision_filter and decision_value != decision_filter:
+            continue
+
+        search_blob = " ".join(
+            [
+                str(latest.get("brand_name") or known_row.get("brand_name") or ""),
+                str(oem_number or ""),
+                str(
+                    latest.get("autopart_name")
+                    or known_row.get("autopart_name")
+                    or ""
+                ),
+                str((selected_supplier or {}).get("provider_name") or ""),
+            ]
+        ).lower()
+        if search_filter and search_filter not in search_blob:
+            continue
+
+        draft_reason = None
+        if avg_daily_blended is not None and target_stock is not None:
+            draft_reason = (
+                f"Расчёт по спросу {avg_daily_blended} шт/день, "
+                f"lead time {lead_time_days_used or '—'} дн., "
+                f"страховой запас {safety_stock_days} дн."
+            )
+        elif minimum_balance > 0:
+            draft_reason = "Расчёт опирается на вручную заданный минимальный остаток."
+
+        draft_purchase_order = _build_autopurchase_draft(
+            supplier=selected_supplier,
+            available_qty=available_qty,
+            in_transit_qty=in_transit_qty,
+            target_qty=target_stock,
+            recommended_qty=recommended_order_qty,
+            lead_time_days_used=lead_time_days_used,
+            reason=draft_reason,
+        )
+
+        rows.append(
+            {
+                "oem_number": oem_number,
+                "brand_name": latest.get("brand_name") or known_row.get("brand_name"),
+                "autopart_name": latest.get("autopart_name")
+                or known_row.get("autopart_name"),
+                "autopart_id": latest.get("autopart_id")
+                or known_row.get("autopart_id"),
+                "current_quantity": current_quantity,
+                "latest_price": float(
+                    latest["latest_price"]
+                    if latest.get("latest_price") is not None
+                    else known_row.get("latest_price")
+                )
+                if (
+                    latest.get("latest_price") is not None
+                    or known_row.get("latest_price") is not None
+                )
+                else None,
+                "minimum_balance": minimum_balance,
+                "multiplicity": multiplicity,
+                "in_transit_qty": in_transit_qty,
+                "sold_last_30_days": sold_last_30_days,
+                "sold_last_90_days": sold_last_90_days,
+                "avg_daily_30": avg_daily_30,
+                "avg_daily_90": avg_daily_90,
+                "avg_daily_blended": avg_daily_blended,
+                "estimated_days_left_30_days": estimated_days_left_30_days,
+                "average_actual_lead_days": average_actual_lead_days,
+                "lead_time_days_used": lead_time_days_used,
+                "safety_stock_days": safety_stock_days,
+                "safety_stock_qty": safety_stock_qty,
+                "reorder_point": reorder_point,
+                "target_stock": target_stock,
+                "recommended_order_qty": recommended_order_qty,
+                "decision_status": decision_value,
+                "autopurchase_mode": requested_mode,
+                "missing_in_latest_pricelist": missing_in_latest_pricelist,
+                "reason_codes": [item["code"] for item in reasons],
+                "reason_titles": [item["title"] for item in reasons],
+                "reasons": reasons[:8],
+                "abc_xyz": abc_xyz,
+                "best_supplier_by_price": best_supplier_by_price,
+                "best_supplier_by_lead_time": best_supplier_by_lead_time,
+                "recommended_supplier": selected_supplier,
+                "draft_purchase_order": draft_purchase_order,
+            }
+        )
+
+    rows.sort(
+        key=lambda item: (
+            decision_rank.get(item["decision_status"], 99),
+            item["estimated_days_left_30_days"]
+            if item["estimated_days_left_30_days"] is not None
+            else 9_999,
+            -int(item.get("recommended_order_qty") or 0),
+            item["oem_number"],
+        )
+    )
+    limited_rows = rows[:limit]
+
+    return {
+        "provider_config_id": provider_config_id,
+        "provider_id": int(config_row["provider_id"]),
+        "provider_name": config_row["provider_name"],
+        "provider_config_name": config_row.get("provider_config_name"),
+        "generated_at": now_moscow(),
+        "mode": requested_mode,
+        "used_local_prices_only": False,
+        "total_items": len(rows),
+        "auto_approved_count": sum(
+            1
+            for row in rows
+            if row["decision_status"] == AUTOPURCHASE_STATUS_AUTO_APPROVED
+        ),
+        "needs_review_count": sum(
+            1
+            for row in rows
+            if row["decision_status"] == AUTOPURCHASE_STATUS_NEEDS_REVIEW
+        ),
+        "blocked_count": sum(
+            1
+            for row in rows
+            if row["decision_status"] == AUTOPURCHASE_STATUS_BLOCKED
+        ),
+        "rows": limited_rows,
+    }
+
+
+async def create_autopurchase_run(
+    session: AsyncSession,
+    *,
+    initiated_by_user_id: Optional[int],
+    own_provider_config_id: Optional[int] = None,
+    mode: str = AUTOPURCHASE_MODE_DRAFT_ONLY,
+    limit: int = 1000,
+) -> dict[str, Any]:
+    started_at = now_moscow()
+    preview = await get_autopurchase_preview(
+        session,
+        own_provider_config_id=own_provider_config_id,
+        mode=mode,
+        limit=limit,
+    )
+    finished_at = now_moscow()
+
+    run = AutoPurchaseRun(
+        provider_config_id=int(preview["provider_config_id"]),
+        provider_id=int(preview["provider_id"]),
+        initiated_by_user_id=initiated_by_user_id,
+        started_at=started_at,
+        finished_at=finished_at,
+        status="completed",
+        mode=str(preview["mode"]),
+        trigger_source="manual",
+        used_local_prices_only=bool(preview.get("used_local_prices_only", True)),
+        settings_snapshot={
+            "own_provider_config_id": own_provider_config_id,
+            "mode": mode,
+            "limit": limit,
+        },
+        summary_snapshot={
+            "provider_name": preview["provider_name"],
+            "provider_config_name": preview.get("provider_config_name"),
+            "generated_at": preview["generated_at"].isoformat()
+            if preview.get("generated_at")
+            else None,
+            "total_items": preview["total_items"],
+            "auto_approved_count": preview["auto_approved_count"],
+            "needs_review_count": preview["needs_review_count"],
+            "blocked_count": preview["blocked_count"],
+            "sent_count": 0,
+        },
+    )
+    session.add(run)
+    await session.flush()
+
+    for row in preview.get("rows", []):
+        recommended_supplier = row.get("recommended_supplier") or {}
+        item = AutoPurchaseRunItem(
+            run_id=int(run.id),
+            autopart_id=row.get("autopart_id"),
+            selected_supplier_id=recommended_supplier.get("provider_id"),
+            oem_number=row["oem_number"],
+            brand_name=row.get("brand_name"),
+            autopart_name=row.get("autopart_name"),
+            current_quantity=int(row.get("current_quantity") or 0),
+            latest_price=_to_decimal_value(row.get("latest_price")),
+            minimum_balance=int(row.get("minimum_balance") or 0),
+            multiplicity=int(row.get("multiplicity") or 1),
+            in_transit_qty=int(row.get("in_transit_qty") or 0),
+            sold_last_30_days=int(row.get("sold_last_30_days") or 0),
+            sold_last_90_days=int(row.get("sold_last_90_days") or 0),
+            avg_daily_30=_to_decimal_value(row.get("avg_daily_30")),
+            avg_daily_90=_to_decimal_value(row.get("avg_daily_90")),
+            avg_daily_blended=_to_decimal_value(row.get("avg_daily_blended")),
+            estimated_days_left_30_days=row.get("estimated_days_left_30_days"),
+            average_actual_lead_days=_to_decimal_value(
+                row.get("average_actual_lead_days")
+            ),
+            lead_time_days_used=_to_decimal_value(row.get("lead_time_days_used")),
+            safety_stock_days=row.get("safety_stock_days"),
+            safety_stock_qty=_to_decimal_value(row.get("safety_stock_qty")),
+            reorder_point=_to_decimal_value(row.get("reorder_point")),
+            target_stock=row.get("target_stock"),
+            recommended_order_qty=int(row.get("recommended_order_qty") or 0),
+            decision_status=row["decision_status"],
+            autopurchase_mode=row["autopurchase_mode"],
+            missing_in_latest_pricelist=bool(
+                row.get("missing_in_latest_pricelist") or False
+            ),
+            reason_codes=list(row.get("reason_codes") or []),
+            reason_titles=list(row.get("reason_titles") or []),
+            reasons=list(row.get("reasons") or []),
+            abc_xyz=row.get("abc_xyz") or {},
+            best_supplier_by_price=row.get("best_supplier_by_price") or {},
+            best_supplier_by_lead_time=row.get("best_supplier_by_lead_time")
+            or {},
+            recommended_supplier=recommended_supplier or {},
+            draft_purchase_order=row.get("draft_purchase_order") or {},
+        )
+        session.add(item)
+
+    await session.commit()
+    await session.refresh(run)
+    return _serialize_autopurchase_run(run)
+
+
+async def list_autopurchase_runs(
+    session: AsyncSession,
+    *,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    stmt = (
+        select(AutoPurchaseRun)
+        .order_by(AutoPurchaseRun.started_at.desc(), AutoPurchaseRun.id.desc())
+        .limit(limit)
+    )
+    runs = (await session.execute(stmt)).scalars().all()
+    return [_serialize_autopurchase_run(run) for run in runs]
+
+
+async def get_autopurchase_run(
+    session: AsyncSession,
+    *,
+    run_id: int,
+) -> dict[str, Any]:
+    stmt = select(AutoPurchaseRun).where(AutoPurchaseRun.id == run_id)
+    run = (await session.execute(stmt)).scalar_one_or_none()
+    if run is None:
+        raise ValueError("Запуск автозаказа не найден")
+    return _serialize_autopurchase_run(run)
+
+
+async def get_autopurchase_run_items(
+    session: AsyncSession,
+    *,
+    run_id: int,
+    decision_status: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = 1000,
+) -> dict[str, Any]:
+    run_stmt = select(AutoPurchaseRun).where(AutoPurchaseRun.id == run_id)
+    run = (await session.execute(run_stmt)).scalar_one_or_none()
+    if run is None:
+        raise ValueError("Запуск автозаказа не найден")
+
+    stmt = (
+        select(AutoPurchaseRunItem)
+        .where(AutoPurchaseRunItem.run_id == run_id)
+        .order_by(
+            AutoPurchaseRunItem.decision_status.asc(),
+            AutoPurchaseRunItem.recommended_order_qty.desc(),
+            AutoPurchaseRunItem.oem_number.asc(),
+            AutoPurchaseRunItem.id.asc(),
+        )
+    )
+    items = (await session.execute(stmt)).scalars().all()
+
+    decision_filter = str(decision_status or "").strip().lower() or None
+    search_filter = str(search or "").strip().lower()
+    filtered_rows: list[dict[str, Any]] = []
+    for item in items:
+        serialized = _serialize_autopurchase_run_item(item)
+        if decision_filter and serialized["decision_status"] != decision_filter:
+            continue
+        if search_filter:
+            search_blob = " ".join(
+                [
+                    str(serialized.get("brand_name") or ""),
+                    str(serialized.get("oem_number") or ""),
+                    str(serialized.get("autopart_name") or ""),
+                    str(
+                        (serialized.get("recommended_supplier") or {}).get(
+                            "provider_name"
+                        )
+                        or ""
+                    ),
+                ]
+            ).lower()
+            if search_filter not in search_blob:
+                continue
+        filtered_rows.append(serialized)
+
+    return {
+        "run": _serialize_autopurchase_run(run),
+        "total_items": len(filtered_rows),
+        "rows": filtered_rows[:limit],
+    }
+
+
+async def update_autopurchase_run_item_status(
+    session: AsyncSession,
+    *,
+    run_id: int,
+    item_id: int,
+    decision_status: str,
+    comment: Optional[str] = None,
+) -> dict[str, Any]:
+    normalized_status = _validate_autopurchase_decision_status(decision_status)
+
+    run_stmt = select(AutoPurchaseRun).where(AutoPurchaseRun.id == run_id)
+    run = (await session.execute(run_stmt)).scalar_one_or_none()
+    if run is None:
+        raise ValueError("Запуск автозаказа не найден")
+
+    item_stmt = select(AutoPurchaseRunItem).where(
+        AutoPurchaseRunItem.run_id == run_id,
+        AutoPurchaseRunItem.id == item_id,
+    )
+    item = (await session.execute(item_stmt)).scalar_one_or_none()
+    if item is None:
+        raise ValueError("Строка автозаказа не найдена")
+
+    _apply_autopurchase_item_status_override(
+        item,
+        decision_status=normalized_status,
+        comment=comment,
+    )
+
+    items_stmt = select(AutoPurchaseRunItem).where(
+        AutoPurchaseRunItem.run_id == run_id
+    )
+    all_items = list((await session.execute(items_stmt)).scalars().all())
+    _refresh_run_summary_snapshot(run, all_items)
+    await session.commit()
+    await session.refresh(run)
+    await session.refresh(item)
+    return {
+        "run": _serialize_autopurchase_run(run),
+        "item": _serialize_autopurchase_run_item(item),
+    }
+
+
+async def update_autopurchase_run_items_status(
+    session: AsyncSession,
+    *,
+    run_id: int,
+    item_ids: list[int],
+    decision_status: str,
+    comment: Optional[str] = None,
+) -> dict[str, Any]:
+    normalized_status = _validate_autopurchase_decision_status(decision_status)
+    normalized_item_ids = sorted(
+        {
+            int(item_id)
+            for item_id in (item_ids or [])
+            if str(item_id).strip()
+        }
+    )
+    if not normalized_item_ids:
+        raise ValueError("Не переданы item_ids для массового обновления")
+
+    run_stmt = select(AutoPurchaseRun).where(AutoPurchaseRun.id == run_id)
+    run = (await session.execute(run_stmt)).scalar_one_or_none()
+    if run is None:
+        raise ValueError("Запуск автозаказа не найден")
+
+    items_stmt = select(AutoPurchaseRunItem).where(
+        AutoPurchaseRunItem.run_id == run_id,
+        AutoPurchaseRunItem.id.in_(normalized_item_ids),
+    )
+    items = list((await session.execute(items_stmt)).scalars().all())
+    found_item_ids = {int(item.id) for item in items}
+    missing_item_ids = [
+        item_id for item_id in normalized_item_ids if item_id not in found_item_ids
+    ]
+    if missing_item_ids:
+        raise ValueError(
+            "Не найдены строки автозаказа: "
+            + ", ".join(str(item_id) for item_id in missing_item_ids)
+        )
+
+    for item in items:
+        _apply_autopurchase_item_status_override(
+            item,
+            decision_status=normalized_status,
+            comment=comment,
+        )
+
+    all_items_stmt = select(AutoPurchaseRunItem).where(
+        AutoPurchaseRunItem.run_id == run_id
+    )
+    all_items = list((await session.execute(all_items_stmt)).scalars().all())
+    _refresh_run_summary_snapshot(run, all_items)
+    await session.commit()
+    await session.refresh(run)
+    for item in items:
+        await session.refresh(item)
+
+    return {
+        "run": _serialize_autopurchase_run(run),
+        "updated_items": [
+            _serialize_autopurchase_run_item(item) for item in items
+        ],
+    }
+
+
+async def mark_autopurchase_run_items_sent(
+    session: AsyncSession,
+    *,
+    run_id: int,
+    item_ids: list[int],
+    order_id: Optional[int] = None,
+    order_number: Optional[str] = None,
+    customer_id: Optional[int] = None,
+    send_result_snapshot: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+    normalized_item_ids = sorted(
+        {
+            int(item_id)
+            for item_id in (item_ids or [])
+            if str(item_id).strip()
+        }
+    )
+    if not normalized_item_ids:
+        raise ValueError("Не переданы item_ids для пометки как отправленные")
+
+    run_stmt = select(AutoPurchaseRun).where(AutoPurchaseRun.id == run_id)
+    run = (await session.execute(run_stmt)).scalar_one_or_none()
+    if run is None:
+        raise ValueError("Запуск автозаказа не найден")
+
+    items_stmt = select(AutoPurchaseRunItem).where(
+        AutoPurchaseRunItem.run_id == run_id,
+        AutoPurchaseRunItem.id.in_(normalized_item_ids),
+    )
+    items = list((await session.execute(items_stmt)).scalars().all())
+    found_item_ids = {int(item.id) for item in items}
+    missing_item_ids = [
+        item_id for item_id in normalized_item_ids if item_id not in found_item_ids
+    ]
+    if missing_item_ids:
+        raise ValueError(
+            "Не найдены строки автозаказа: "
+            + ", ".join(str(item_id) for item_id in missing_item_ids)
+        )
+
+    sent_at = now_moscow()
+    for item in items:
+        item.sent_to_site_at = sent_at
+        item.sent_order_id = order_id
+        item.sent_order_number = order_number
+        item.sent_customer_id = customer_id
+        item.send_result_snapshot = dict(send_result_snapshot or {})
+
+    all_items_stmt = select(AutoPurchaseRunItem).where(
+        AutoPurchaseRunItem.run_id == run_id
+    )
+    all_items = list((await session.execute(all_items_stmt)).scalars().all())
+    _refresh_run_summary_snapshot(run, all_items)
+    await session.commit()
+    await session.refresh(run)
+    for item in items:
+        await session.refresh(item)
+
+    return {
+        "run": _serialize_autopurchase_run(run),
+        "updated_items": [
+            _serialize_autopurchase_run_item(item) for item in items
+        ],
+    }
+
+
+def _get_draft_group_key(item: AutoPurchaseRunItem) -> tuple[str, str, str, str]:
+    supplier = dict(item.recommended_supplier or {})
+    return (
+        str(supplier.get("provider_name") or "").strip(),
+        str(supplier.get("current_provider_config_name") or "").strip(),
+        str(supplier.get("source_type") or "").strip(),
+        str(supplier.get("sup_logo") or "").strip(),
+    )
+
+
+async def get_autopurchase_run_draft_orders(
+    session: AsyncSession,
+    *,
+    run_id: int,
+) -> dict[str, Any]:
+    run_stmt = select(AutoPurchaseRun).where(AutoPurchaseRun.id == run_id)
+    run = (await session.execute(run_stmt)).scalar_one_or_none()
+    if run is None:
+        raise ValueError("Запуск автозаказа не найден")
+
+    items_stmt = (
+        select(AutoPurchaseRunItem)
+        .where(
+            AutoPurchaseRunItem.run_id == run_id,
+            AutoPurchaseRunItem.decision_status
+            == AUTOPURCHASE_STATUS_AUTO_APPROVED,
+        )
+        .order_by(
+            AutoPurchaseRunItem.oem_number.asc(),
+            AutoPurchaseRunItem.id.asc(),
+        )
+    )
+    items = list((await session.execute(items_stmt)).scalars().all())
+
+    draft_groups: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+    skipped_items: list[dict[str, Any]] = []
+
+    for item in items:
+        supplier = dict(item.recommended_supplier or {})
+        draft = dict(item.draft_purchase_order or {})
+        if item.sent_to_site_at is not None:
+            sent_suffix = (
+                f" в заказ {item.sent_order_number}"
+                if item.sent_order_number
+                else ""
+            )
+            skipped_items.append(
+                {
+                    "item_id": int(item.id),
+                    "oem_number": item.oem_number,
+                    "brand_name": item.brand_name,
+                    "reason": "Уже отправлено на сайт" + sent_suffix,
+                }
+            )
+            continue
+        provider_name = str(supplier.get("provider_name") or "").strip()
+        if not provider_name or not draft:
+            skipped_items.append(
+                {
+                    "item_id": int(item.id),
+                    "oem_number": item.oem_number,
+                    "brand_name": item.brand_name,
+                    "reason": "Нет готового site-поставщика или черновика строки",
+                }
+            )
+            continue
+
+        unit_price = _quantize_float(draft.get("price"))
+        proposed_order_qty = int(
+            draft.get("proposed_order_qty")
+            or draft.get("recommended_qty")
+            or item.recommended_order_qty
+            or 0
+        )
+        if proposed_order_qty <= 0 or unit_price is None:
+            skipped_items.append(
+                {
+                    "item_id": int(item.id),
+                    "oem_number": item.oem_number,
+                    "brand_name": item.brand_name,
+                    "reason": "Строка не даёт ненулевой объём заказа по site-поставщику",
+                }
+            )
+            continue
+
+        group_key = _get_draft_group_key(item)
+        group = draft_groups.get(group_key)
+        if group is None:
+            group = {
+                "supplier_key": "|".join(group_key),
+                "provider_name": provider_name,
+                "provider_config_name": supplier.get(
+                    "current_provider_config_name"
+                ),
+                "source_type": supplier.get("source_type"),
+                "sup_logo": supplier.get("sup_logo"),
+                "total_items": 0,
+                "total_quantity": 0,
+                "total_sum": 0.0,
+                "items": [],
+            }
+            draft_groups[group_key] = group
+
+        remaining_gap_qty = int(draft.get("remaining_gap_qty") or 0)
+        line_total = _quantize_float(unit_price * proposed_order_qty)
+        group["items"].append(
+            {
+                "item_id": int(item.id),
+                "autopart_id": item.autopart_id,
+                "oem_number": item.oem_number,
+                "brand_name": item.brand_name,
+                "autopart_name": item.autopart_name,
+                "decision_status": item.decision_status,
+                "recommended_order_qty": int(item.recommended_order_qty or 0),
+                "proposed_order_qty": proposed_order_qty,
+                "remaining_gap_qty": remaining_gap_qty,
+                "supplier_available_qty": int(
+                    draft.get("supplier_available_qty") or 0
+                ),
+                "price": unit_price,
+                "line_total": line_total,
+                "min_qnt": draft.get("min_qnt"),
+                "min_delivery_day": draft.get("min_delivery_day"),
+                "max_delivery_day": draft.get("max_delivery_day"),
+                "hash_key": draft.get("hash_key"),
+                "system_hash": draft.get("system_hash"),
+                "reason": draft.get("reason"),
+            }
+        )
+        group["total_items"] += 1
+        group["total_quantity"] += proposed_order_qty
+        group["total_sum"] = _quantize_float(
+            float(group["total_sum"]) + float(line_total or 0)
+        ) or 0.0
+
+    groups = sorted(
+        draft_groups.values(),
+        key=lambda item: (
+            -float(item.get("total_sum") or 0),
+            str(item.get("provider_name") or ""),
+        ),
+    )
+
+    return {
+        "run": _serialize_autopurchase_run(run),
+        "total_groups": len(groups),
+        "total_items": sum(int(group["total_items"]) for group in groups),
+        "total_quantity": sum(int(group["total_quantity"]) for group in groups),
+        "total_sum": _quantize_float(
+            sum(float(group["total_sum"]) for group in groups)
+        ),
+        "groups": groups,
+        "skipped_items": skipped_items,
+    }
