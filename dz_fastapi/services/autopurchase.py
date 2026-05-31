@@ -175,7 +175,7 @@ def _serialize_autopurchase_run(run: AutoPurchaseRun) -> dict[str, Any]:
         "status": run.status,
         "mode": run.mode,
         "trigger_source": run.trigger_source,
-        "used_local_prices_only": bool(run.used_local_prices_only),
+        "supplier_source": "site",
         "settings_snapshot": dict(run.settings_snapshot or {}),
         "summary_snapshot": summary_snapshot,
         "total_items": int(summary_snapshot.get("total_items") or 0),
@@ -1223,7 +1223,7 @@ async def get_autopurchase_preview(
             "provider_config_name": config_row.get("provider_config_name"),
             "generated_at": now_moscow(),
             "mode": requested_mode,
-            "used_local_prices_only": False,
+            "supplier_source": "site",
             "total_items": 0,
             "auto_approved_count": 0,
             "needs_review_count": 0,
@@ -1387,6 +1387,14 @@ async def get_autopurchase_preview(
             if avg_daily_30 and avg_daily_30 > 0
             else None
         )
+        if (
+            missing_in_latest_pricelist
+            and sold_last_30_days <= 0
+            and sold_last_90_days <= 0
+            and in_transit_qty <= 0
+            and minimum_balance <= 0
+        ):
+            continue
         if (
             recommended_order_qty <= 0
             and not missing_in_latest_pricelist
@@ -1713,7 +1721,7 @@ async def get_autopurchase_preview(
         "provider_config_name": config_row.get("provider_config_name"),
         "generated_at": now_moscow(),
         "mode": requested_mode,
-        "used_local_prices_only": False,
+        "supplier_source": "site",
         "total_items": len(rows),
         "auto_approved_count": sum(
             1
@@ -1768,11 +1776,12 @@ async def create_autopurchase_run(
             status="completed",
             mode=str(preview["mode"]),
             trigger_source="manual",
-            used_local_prices_only=bool(preview.get("used_local_prices_only", False)),
+            used_local_prices_only=False,
             settings_snapshot={
                 "own_provider_config_id": own_provider_config_id,
                 "mode": mode,
                 "limit": limit,
+                "supplier_source": "site",
             },
             summary_snapshot={
                 "provider_name": preview["provider_name"],

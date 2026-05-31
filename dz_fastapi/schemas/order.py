@@ -473,7 +473,7 @@ class AutoPurchasePreviewResponse(BaseModel):
     provider_config_name: Optional[str] = None
     generated_at: datetime
     mode: str
-    used_local_prices_only: bool = True
+    supplier_source: str = "site"
     total_items: int = 0
     auto_approved_count: int = 0
     needs_review_count: int = 0
@@ -493,7 +493,7 @@ class AutoPurchaseRunOut(BaseModel):
     status: str
     mode: str
     trigger_source: str
-    used_local_prices_only: bool = True
+    supplier_source: str = "site"
     settings_snapshot: dict[str, Any] = Field(default_factory=dict)
     summary_snapshot: dict[str, Any] = Field(default_factory=dict)
     total_items: int = 0
