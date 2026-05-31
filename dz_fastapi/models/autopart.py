@@ -548,7 +548,7 @@ class AutoPurchaseRun(Base):
     status = Column(String(32), nullable=False, default="completed", index=True)
     mode = Column(String(32), nullable=False, default="draft_only", index=True)
     trigger_source = Column(String(32), nullable=False, default="manual")
-    used_local_prices_only = Column(Boolean, default=True, nullable=False)
+    used_local_prices_only = Column(Boolean, default=False, nullable=False)
     settings_snapshot = Column(JSON, default=dict, nullable=False)
     summary_snapshot = Column(JSON, default=dict, nullable=False)
 

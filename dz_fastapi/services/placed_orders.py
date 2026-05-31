@@ -1892,7 +1892,30 @@ def _build_tracking_exceptions(
             }
         )
 
-    return exceptions[:5]
+    return _prioritize_tracking_exceptions(exceptions, limit=5)
+
+
+def _prioritize_tracking_exceptions(
+    exceptions: list[dict[str, Any]],
+    *,
+    limit: Optional[int] = None,
+) -> list[dict[str, Any]]:
+    severity_rank = {"critical": 0, "warning": 1, "info": 2}
+    prioritized = sorted(
+        [
+            item
+            for item in exceptions
+            if isinstance(item, dict) and item.get("code")
+        ],
+        key=lambda item: (
+            severity_rank.get(str(item.get("severity") or "").lower(), 99),
+            str(item.get("title") or ""),
+            str(item.get("code") or ""),
+        ),
+    )
+    if limit is None:
+        return prioritized
+    return prioritized[:limit]
 
 
 def _build_draft_purchase_order(
@@ -1976,6 +1999,8 @@ async def _compute_abc_xyz(
     if not group_oems:
         return None
 
+    cutoff = tracking_history_cutoff()
+    cutoff_date = cutoff.date()
     monthly_qty: dict[str, int] = {}
     current_month = date.today().replace(day=1)
     months: list[str] = []
@@ -1994,7 +2019,11 @@ async def _compute_abc_xyz(
     for row in history_rows:
         dt = row.get("created_at")
         normalized_row_oem = _normalize_oem(row.get("oem_number"))
-        if not dt or normalized_row_oem not in group_oems:
+        if (
+            not dt
+            or dt.date() < cutoff_date
+            or normalized_row_oem not in group_oems
+        ):
             continue
         month_key = dt.strftime("%Y-%m")
         if month_key in monthly_qty:
@@ -2019,7 +2048,154 @@ async def _compute_abc_xyz(
             else:
                 xyz_class = "Z"
 
+    qty_by_oem = await _load_tracking_market_qty_by_oem(session, cutoff=cutoff)
+
+    total_market_qty = sum(qty_by_oem.values())
+    abc_class: Optional[str] = None
+    cumulative_share_pct: Optional[float] = None
+    group_qty = sum(qty_by_oem.get(oem, 0) for oem in group_oems)
+    if total_market_qty > 0 and group_qty > 0:
+        sorted_values = sorted(qty_by_oem.values(), reverse=True)
+        cumulative_before = sum(value for value in sorted_values if value > group_qty)
+        cumulative_share = (cumulative_before + group_qty) / total_market_qty
+        cumulative_share_pct = round(cumulative_share * 100, 1)
+        if cumulative_share <= 0.8:
+            abc_class = "A"
+        elif cumulative_share <= 0.95:
+            abc_class = "B"
+        else:
+            abc_class = "C"
+
+    return {
+        "abc_class": abc_class,
+        "xyz_class": xyz_class,
+        "annual_ordered_qty": annual_ordered_qty,
+        "monthly_cv": monthly_cv,
+        "active_months": active_months,
+        "cumulative_share_pct": cumulative_share_pct,
+    }
+
+
+async def _compute_single_oem_abc_xyz_batch(
+    session: AsyncSession,
+    *,
+    normalized_oem_numbers: list[str],
+    history_rows_by_oem: dict[str, list[dict[str, Any]]],
+) -> dict[str, dict[str, Any]]:
+    normalized_unique_oems = [
+        normalized
+        for normalized in {
+            _normalize_oem(item) for item in normalized_oem_numbers if _normalize_oem(item)
+        }
+    ]
+    if not normalized_unique_oems:
+        return {}
+
     cutoff = tracking_history_cutoff()
+    cutoff_date = cutoff.date()
+    current_month = date.today().replace(day=1)
+    months: list[str] = []
+    year = current_month.year
+    month = current_month.month
+    for offset in range(11, -1, -1):
+        y = year
+        m = month - offset
+        while m <= 0:
+            m += 12
+            y -= 1
+        months.append(f"{y:04d}-{m:02d}")
+
+    monthly_qty_by_oem: dict[str, dict[str, int]] = {
+        oem: {month_key: 0 for month_key in months}
+        for oem in normalized_unique_oems
+    }
+    annual_ordered_qty_by_oem = {oem: 0 for oem in normalized_unique_oems}
+
+    for oem_number in normalized_unique_oems:
+        monthly_qty = monthly_qty_by_oem[oem_number]
+        for row in history_rows_by_oem.get(oem_number, []):
+            dt = row.get("created_at")
+            if not dt or dt.date() < cutoff_date:
+                continue
+            month_key = dt.strftime("%Y-%m")
+            if month_key not in monthly_qty:
+                continue
+            qty = int(row.get("ordered_quantity") or 0)
+            monthly_qty[month_key] += qty
+            annual_ordered_qty_by_oem[oem_number] += qty
+
+    qty_by_oem = await _load_tracking_market_qty_by_oem(session, cutoff=cutoff)
+
+    total_market_qty = sum(qty_by_oem.values())
+    sorted_values = sorted(qty_by_oem.values(), reverse=True)
+    cumulative_before_cache: dict[int, int] = {}
+    result: dict[str, dict[str, Any]] = {}
+
+    for oem_number in normalized_unique_oems:
+        series = [
+            monthly_qty_by_oem[oem_number][month_key]
+            for month_key in months
+        ]
+        annual_ordered_qty = annual_ordered_qty_by_oem[oem_number]
+        active_months = sum(1 for value in series if value > 0)
+        xyz_class: Optional[str] = None
+        monthly_cv: Optional[float] = None
+        if series and annual_ordered_qty > 0:
+            mean_value = sum(series) / len(series)
+            if mean_value > 0:
+                variance = sum((value - mean_value) ** 2 for value in series) / len(
+                    series
+                )
+                std_dev = sqrt(variance)
+                monthly_cv = round(std_dev / mean_value, 2)
+                if monthly_cv <= 0.5:
+                    xyz_class = "X"
+                elif monthly_cv <= 1.0:
+                    xyz_class = "Y"
+                else:
+                    xyz_class = "Z"
+
+        group_qty = qty_by_oem.get(oem_number, 0)
+        abc_class: Optional[str] = None
+        cumulative_share_pct: Optional[float] = None
+        if total_market_qty > 0 and group_qty > 0:
+            cumulative_before = cumulative_before_cache.get(group_qty)
+            if cumulative_before is None:
+                cumulative_before = sum(
+                    value for value in sorted_values if value > group_qty
+                )
+                cumulative_before_cache[group_qty] = cumulative_before
+            cumulative_share = (cumulative_before + group_qty) / total_market_qty
+            cumulative_share_pct = round(cumulative_share * 100, 1)
+            if cumulative_share <= 0.8:
+                abc_class = "A"
+            elif cumulative_share <= 0.95:
+                abc_class = "B"
+            else:
+                abc_class = "C"
+
+        result[oem_number] = {
+            "abc_class": abc_class,
+            "xyz_class": xyz_class,
+            "annual_ordered_qty": annual_ordered_qty,
+            "monthly_cv": monthly_cv,
+            "active_months": active_months,
+            "cumulative_share_pct": cumulative_share_pct,
+        }
+
+    return result
+
+
+async def _load_tracking_market_qty_by_oem(
+    session: AsyncSession,
+    *,
+    cutoff: datetime,
+) -> dict[str, int]:
+    cache_key = f"tracking_market_qty_by_oem:{cutoff.isoformat()}"
+    cached = session.info.get(cache_key)
+    if isinstance(cached, dict):
+        return cached
+
     supplier_rows = (
         await session.execute(
             select(
@@ -2063,30 +2239,8 @@ async def _compute_abc_xyz(
             continue
         qty_by_oem[normalized] = qty_by_oem.get(normalized, 0) + int(qty or 0)
 
-    total_market_qty = sum(qty_by_oem.values())
-    abc_class: Optional[str] = None
-    cumulative_share_pct: Optional[float] = None
-    group_qty = sum(qty_by_oem.get(oem, 0) for oem in group_oems)
-    if total_market_qty > 0 and group_qty > 0:
-        sorted_values = sorted(qty_by_oem.values(), reverse=True)
-        cumulative_before = sum(value for value in sorted_values if value > group_qty)
-        cumulative_share = (cumulative_before + group_qty) / total_market_qty
-        cumulative_share_pct = round(cumulative_share * 100, 1)
-        if cumulative_share <= 0.8:
-            abc_class = "A"
-        elif cumulative_share <= 0.95:
-            abc_class = "B"
-        else:
-            abc_class = "C"
-
-    return {
-        "abc_class": abc_class,
-        "xyz_class": xyz_class,
-        "annual_ordered_qty": annual_ordered_qty,
-        "monthly_cv": monthly_cv,
-        "active_months": active_months,
-        "cumulative_share_pct": cumulative_share_pct,
-    }
+    session.info[cache_key] = qty_by_oem
+    return qty_by_oem
 
 
 async def get_tracking_history_insights(

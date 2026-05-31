@@ -654,6 +654,7 @@ async def update_position_status(
 async def send_api(
     request: list[OrderPositionOut],
     customer_id: int = 2,
+    order_comment: Optional[str] = None,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -703,7 +704,11 @@ async def send_api(
         )
     if len(provider_ids) > 1:
         raise HTTPException(
-            status_code=400, detail="Позиции содержат разных поставщиков"
+            status_code=400,
+            detail=(
+                "Позиции содержат разных поставщиков: "
+                + ", ".join(str(provider_id) for provider_id in sorted(provider_ids))
+            ),
         )
     provider_id = provider_ids.pop()
     results = []
@@ -826,7 +831,11 @@ async def send_api(
             try:
                 placed = await dz_site_client.order_basket(
                     api_key=KEY,
-                    comment="АвтоЗаказ из поиска по артикулу",
+                    comment=(
+                        str(order_comment).strip()
+                        if str(order_comment or "").strip()
+                        else "АвтоЗаказ из модуля автопополнения"
+                    ),
                 )
                 if not placed:
                     logger.warning(
@@ -1091,7 +1100,13 @@ async def create_autopurchase_run_view(
             limit=limit,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        detail = str(exc)
+        status_code = (
+            status.HTTP_409_CONFLICT
+            if "уже выполняется расчёт автозаказа" in detail.lower()
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=status_code, detail=detail) from exc
 
 
 @router.get(
