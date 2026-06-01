@@ -4,6 +4,7 @@ import hashlib
 import logging
 import os
 import re
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from email import message_from_bytes
@@ -252,11 +253,14 @@ async def _fetch_order_messages(
     port: int = 993,
     ssl: bool = True,
     from_email: Optional[str] = None,
+    allowed_senders: Optional[set[str]] = None,
+    limit: Optional[int] = None,
 ) -> list:
     def _fetch():
-        with _create_mailbox(
+        mailbox = _create_mailbox(
             server_mail, port, ssl, timeout=CUSTOMER_ORDERS_IMAP_TIMEOUT_SEC
-        ).login(email_account, email_password) as mailbox:
+        ).login(email_account, email_password)
+        try:
             mailbox.folder.set(folder)
             fetched = None
             if last_uid and int(last_uid) > 0:
@@ -288,28 +292,48 @@ async def _fetch_order_messages(
                     mark_seen=mark_seen,
                     charset="utf-8",
                 )
-            messages = list(fetched)
+            messages = []
+            remaining = max(int(limit or 0), 0)
+            normalized_allowed = {
+                _extract_email(sender).lower()
+                for sender in (allowed_senders or set())
+                if _extract_email(sender)
+            }
+            for message in fetched:
+                if normalized_allowed:
+                    sender = _extract_email(getattr(message, "from_", None))
+                    if sender.lower() not in normalized_allowed:
+                        continue
+                messages.append(message)
+                if remaining and len(messages) >= remaining:
+                    break
             folder_name = normalize_imap_folder(folder)
             for message in messages:
                 setattr(message, "folder_name", folder_name)
             return messages
+        finally:
+            with suppress(Exception):
+                mailbox.logout()
 
     for attempt in range(1, CUSTOMER_ORDERS_IMAP_RETRIES + 1):
         try:
             return await asyncio.to_thread(_fetch)
         except Exception as exc:
             if (
-                not _is_too_many_connections_error(exc)
+                not _is_retryable_imap_fetch_error(exc)
                 or attempt >= CUSTOMER_ORDERS_IMAP_RETRIES
             ):
                 raise
             delay = CUSTOMER_ORDERS_IMAP_RETRY_DELAY_SEC * attempt
             logger.warning(
-                "IMAP connection limit for %s. " "Retry %s/%s in %ss.",
+                "Transient IMAP fetch error for %s (folder=%s). "
+                "Retry %s/%s in %ss. Error: %s",
                 email_account,
+                folder,
                 attempt,
                 CUSTOMER_ORDERS_IMAP_RETRIES,
                 delay,
+                exc,
             )
             await asyncio.sleep(delay)
     return []
@@ -370,6 +394,8 @@ async def _fetch_gmail_messages(
     account,
     date_from: date,
     label: Optional[str] = None,
+    allowed_senders: Optional[set[str]] = None,
+    limit: Optional[int] = None,
 ) -> List[SimpleMessage]:
     if not account.oauth_refresh_token:
         return []
@@ -383,10 +409,20 @@ async def _fetch_gmail_messages(
         query = f"{query} label:{label}"
     url = "https://gmail.googleapis.com/gmail/v1/users/me/messages"
     messages: List[SimpleMessage] = []
+    normalized_allowed = {
+        _extract_email(sender).lower()
+        for sender in (allowed_senders or set())
+        if _extract_email(sender)
+    }
     page_token = None
     async with httpx.AsyncClient(timeout=20) as client:
         while True:
-            max_results = 200
+            remaining = None
+            if limit and limit > 0:
+                remaining = max(limit - len(messages), 0)
+                if remaining <= 0:
+                    break
+            max_results = min(200, remaining) if remaining else 200
             params = {
                 "q": query,
                 "maxResults": max_results,
@@ -411,9 +447,17 @@ async def _fetch_gmail_messages(
                 if not raw_data:
                     continue
                 raw_bytes = base64.urlsafe_b64decode(raw_data + "==")
-                messages.append(_parse_raw_email(raw_bytes))
+                parsed_message = _parse_raw_email(raw_bytes)
+                sender = _extract_email(parsed_message.from_)
+                if normalized_allowed and sender.lower() not in normalized_allowed:
+                    continue
+                messages.append(parsed_message)
                 messages[-1].external_id = str(message_id)
                 messages[-1].folder_name = normalize_imap_folder(label)
+                if limit and limit > 0 and len(messages) >= limit:
+                    break
+            if limit and limit > 0 and len(messages) >= limit:
+                break
             page_token = payload.get("nextPageToken")
             if not page_token:
                 break
@@ -435,6 +479,8 @@ def _safe_uid_as_int(value: Optional[str]) -> Optional[int]:
 async def _fetch_resend_messages(
     account,
     date_from: date,
+    allowed_senders: Optional[set[str]] = None,
+    limit: Optional[int] = None,
 ) -> List[SimpleMessage]:
     if not account.resend_api_key:
         return []
@@ -446,11 +492,19 @@ async def _fetch_resend_messages(
         timeout=getattr(account, "resend_timeout", None),
     )
     messages: List[SimpleMessage] = []
+    normalized_allowed = {
+        _extract_email(sender).lower()
+        for sender in (allowed_senders or set())
+        if _extract_email(sender)
+    }
     for item in emails:
+        sender = _extract_email(item.get("from"))
+        if normalized_allowed and sender.lower() not in normalized_allowed:
+            continue
         messages.append(
             SimpleMessage(
                 uid=None,
-                from_=_extract_email(item.get("from")),
+                from_=sender,
                 subject=str(item.get("subject") or ""),
                 attachments=[
                     SimpleAttachment(
@@ -465,7 +519,23 @@ async def _fetch_resend_messages(
                 received_at=item.get("created_at"),
             )
         )
+        if limit and limit > 0 and len(messages) >= limit:
+            break
     return messages
+
+
+def _remaining_customer_orders_fetch_limit(
+    current_count: int,
+) -> Optional[int]:
+    if CUSTOMER_ORDERS_FETCH_LIMIT <= 0:
+        return None
+    return max(CUSTOMER_ORDERS_FETCH_LIMIT - current_count, 0)
+
+
+def _customer_orders_fetch_limit_reached(current_count: int) -> bool:
+    return CUSTOMER_ORDERS_FETCH_LIMIT > 0 and current_count >= (
+        CUSTOMER_ORDERS_FETCH_LIMIT
+    )
 
 
 def _match_pattern(pattern: Optional[str], value: Optional[str]) -> bool:
@@ -492,6 +562,23 @@ def _is_too_many_connections_error(exc: Exception) -> bool:
         "too many simultaneous connections" in text
         or "too many connections" in text
     )
+
+
+def _is_retryable_imap_fetch_error(exc: Exception) -> bool:
+    if _is_too_many_connections_error(exc):
+        return True
+    text = str(exc).lower()
+    retry_markers = (
+        "socket error",
+        "broken pipe",
+        "socket error: eof",
+        "command: uid => socket error: eof",
+        "connection reset",
+        "connection aborted",
+        "timed out",
+        "timeout",
+    )
+    return any(marker in text for marker in retry_markers)
 
 
 async def _get_out_account(session: AsyncSession, purpose: str):
@@ -3587,6 +3674,12 @@ async def process_customer_orders(
         order_accounts = list(unique_accounts.values())
 
         for account in order_accounts:
+            if _customer_orders_fetch_limit_reached(len(messages)):
+                logger.info(
+                    "Customer order fetch limit reached before account processing: limit=%s",
+                    CUSTOMER_ORDERS_FETCH_LIMIT,
+                )
+                break
             host = account.imap_host or EMAIL_HOST_ORDER
             transport = (account.transport or "smtp").strip().lower()
             folders = resolve_imap_folders(
@@ -3620,9 +3713,14 @@ async def process_customer_orders(
                         folder_uid_floor[folder] = floor_uid
             if transport == "resend_api":
                 try:
+                    remaining_limit = _remaining_customer_orders_fetch_limit(
+                        len(messages)
+                    )
                     account_messages = await _fetch_resend_messages(
                         account,
                         date_from,
+                        allowed_senders=allowed_senders,
+                        limit=remaining_limit,
                     )
                     fetched_count = len(account_messages)
                     account_messages = _filter_messages_by_senders(
@@ -3639,6 +3737,13 @@ async def process_customer_orders(
                     messages.extend(
                         [(msg, account) for msg in account_messages]
                     )
+                    if _customer_orders_fetch_limit_reached(len(messages)):
+                        logger.info(
+                            "Customer order fetch limit reached after Resend account %s: limit=%s",
+                            account.email,
+                            CUSTOMER_ORDERS_FETCH_LIMIT,
+                        )
+                        break
                 except Exception as exc:
                     logger.error(
                         "Order inbox fetch failed for Resend %s: %s",
@@ -3651,11 +3756,26 @@ async def process_customer_orders(
                 try:
                     account_messages = []
                     for label in folders:
-                        account_messages.extend(
-                            await _fetch_gmail_messages(
-                                account, date_from, label=label
+                        remaining_limit = (
+                            _remaining_customer_orders_fetch_limit(
+                                len(messages) + len(account_messages)
                             )
                         )
+                        if remaining_limit == 0:
+                            break
+                        account_messages.extend(
+                            await _fetch_gmail_messages(
+                                account,
+                                date_from,
+                                label=label,
+                                allowed_senders=allowed_senders,
+                                limit=remaining_limit,
+                            )
+                        )
+                        if _customer_orders_fetch_limit_reached(
+                            len(messages) + len(account_messages)
+                        ):
+                            break
                     fetched_count = len(account_messages)
                     account_messages = _filter_messages_by_senders(
                         account_messages, allowed_senders
@@ -3671,6 +3791,13 @@ async def process_customer_orders(
                     messages.extend(
                         [(msg, account) for msg in account_messages]
                     )
+                    if _customer_orders_fetch_limit_reached(len(messages)):
+                        logger.info(
+                            "Customer order fetch limit reached after Google account %s: limit=%s",
+                            account.email,
+                            CUSTOMER_ORDERS_FETCH_LIMIT,
+                        )
+                        break
                 except Exception as exc:
                     logger.error(
                         "Order inbox fetch failed for %s: %s",
@@ -3684,6 +3811,11 @@ async def process_customer_orders(
             try:
                 account_messages = []
                 for folder in folders:
+                    remaining_limit = _remaining_customer_orders_fetch_limit(
+                        len(messages) + len(account_messages)
+                    )
+                    if remaining_limit == 0:
+                        break
                     try:
                         account_messages.extend(
                             await _fetch_order_messages(
@@ -3696,6 +3828,8 @@ async def process_customer_orders(
                                 last_uid=folder_uid_floor.get(folder),
                                 port=account.imap_port or IMAP_SERVER,
                                 ssl=True,
+                                allowed_senders=allowed_senders,
+                                limit=remaining_limit,
                             )
                         )
                     except MailboxFolderSelectError as folder_exc:
@@ -3719,6 +3853,13 @@ async def process_customer_orders(
                     len(account_messages),
                 )
                 messages.extend([(msg, account) for msg in account_messages])
+                if _customer_orders_fetch_limit_reached(len(messages)):
+                    logger.info(
+                        "Customer order fetch limit reached after IMAP account %s: limit=%s",
+                        account.email,
+                        CUSTOMER_ORDERS_FETCH_LIMIT,
+                    )
+                    break
             except Exception as exc:
                 if _is_too_many_connections_error(exc):
                     logger.warning(
@@ -3747,6 +3888,7 @@ async def process_customer_orders(
                     )
                 if uid_floor > 0:
                     fallback_last_uid = uid_floor
+            remaining_limit = _remaining_customer_orders_fetch_limit(0)
             fallback_messages = await _fetch_order_messages(
                 EMAIL_HOST_ORDER,
                 EMAIL_NAME_ORDER,
@@ -3757,6 +3899,8 @@ async def process_customer_orders(
                 last_uid=fallback_last_uid,
                 port=IMAP_SERVER,
                 ssl=True,
+                allowed_senders=global_sender_filter,
+                limit=remaining_limit,
             )
             fetched_count = len(fallback_messages)
             fallback_messages = _filter_messages_by_senders(
@@ -3782,6 +3926,12 @@ async def process_customer_orders(
 
     messages = _dedupe_order_messages(messages)
     messages.sort(key=_message_sort_key)
+
+    if _customer_orders_fetch_limit_reached(len(messages)):
+        logger.info(
+            "Customer order candidate limit reached after dedupe: limit=%s",
+            CUSTOMER_ORDERS_FETCH_LIMIT,
+        )
 
     logger.debug(
         "Получено %d писем-кандидатов после фильтра по отправителю",

@@ -84,6 +84,7 @@ from dz_fastapi.services.placed_orders import (
 )
 from dz_fastapi.services.price_control import run_price_control
 from dz_fastapi.services.process import process_customer_pricelist, process_provider_pricelist
+from dz_fastapi.services.runtime_memory import trim_process_memory
 from dz_fastapi.services.supplier_order_responses import process_supplier_response_messages
 from dz_fastapi.services.supplier_workflow import mark_auto_refused_supplier_items
 from dz_fastapi.services.watchlist import send_watchlist_daily_notifications
@@ -910,6 +911,9 @@ async def send_price_list_task(app: FastAPI):
 
 async def download_customer_orders_task(app: FastAPI):
     logger.info("Starting download_customer_orders_task")
+    rss_before = _process_rss_mb()
+    if rss_before is not None:
+        logger.info("download_customer_orders_task rss_before=%.1f", rss_before)
     async_session_factory = app.state.session_factory
     async with async_session_factory() as session:
         try:
@@ -949,6 +953,10 @@ async def download_customer_orders_task(app: FastAPI):
                     "Ошибка при автоматической обработке заказов клиентов.\n"
                     f"Текст ошибки: {e}"
                 ),
+            )
+        finally:
+            trim_process_memory(
+                logger, context="download_customer_orders_task"
             )
 
 
@@ -1749,6 +1757,10 @@ async def download_price_provider_task(app: FastAPI):
                 )
             except Exception:
                 pass
+        finally:
+            trim_process_memory(
+                logger, context="download_price_provider_task"
+            )
 
 
 async def sync_auto_oem_crosses_task(app: FastAPI):

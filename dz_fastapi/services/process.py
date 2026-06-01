@@ -706,6 +706,8 @@ def _prepare_pricelist_data(
     autoparts_data = data_df.to_dict(orient="records")
     deduplicated_data = deduplicate_autoparts_data(autoparts_data)
     dedup_rows = len(deduplicated_data)
+    del autoparts_data
+    del data_df
 
     stats = {
         "rows_total": int(total_rows),
@@ -1669,6 +1671,7 @@ async def process_customer_pricelist(
             ),
         )
         customer_autoparts_data = final_df.to_dict("records")
+        del final_df
     else:
         raise HTTPException(
             status_code=400, detail="No autoparts to include in the pricelist"

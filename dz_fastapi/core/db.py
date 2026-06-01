@@ -1,3 +1,4 @@
+import os
 from typing import AsyncGenerator
 
 from sqlalchemy import Column, Integer
@@ -25,6 +26,8 @@ Base = declarative_base(cls=PreBase)
 
 _ENGINE_CACHE: dict[bool, AsyncEngine] = {}
 _SESSION_FACTORY_CACHE: dict[bool, async_sessionmaker[AsyncSession]] = {}
+DB_POOL_SIZE = max(1, int(os.getenv("DATABASE_POOL_SIZE", "2")))
+DB_MAX_OVERFLOW = max(0, int(os.getenv("DATABASE_MAX_OVERFLOW", "2")))
 
 
 def get_engine(test=False):
@@ -40,8 +43,8 @@ def get_engine(test=False):
     engine = create_async_engine(
         database_url,
         echo=settings.database_echo,
-        pool_size=5,
-        max_overflow=10,
+        pool_size=DB_POOL_SIZE,
+        max_overflow=DB_MAX_OVERFLOW,
         pool_pre_ping=True,
         future=True,
     )
