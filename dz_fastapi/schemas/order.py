@@ -587,6 +587,8 @@ class AutoPurchaseRunDraftOrdersResponse(BaseModel):
     total_items: int = 0
     total_quantity: int = 0
     total_sum: Optional[float] = None
+    applied_budget_limit: Optional[float] = None
+    applied_position_limit: Optional[int] = None
     groups: List[AutoPurchaseDraftOrderGroupOut] = Field(default_factory=list)
     skipped_items: List[AutoPurchaseSkippedDraftItemOut] = Field(
         default_factory=list

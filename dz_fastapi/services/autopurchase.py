@@ -96,6 +96,13 @@ def _quantize_float(value: Optional[float], digits: str = "0.01") -> Optional[fl
     )
 
 
+def _format_money_value(value: Optional[float]) -> str:
+    normalized = _quantize_float(value)
+    if normalized is None:
+        return "0.00"
+    return f"{normalized:.2f}"
+
+
 def _get_safety_stock_days(
     abc_class: Optional[str],
     xyz_class: Optional[str],
@@ -1749,6 +1756,8 @@ async def create_autopurchase_run(
     own_provider_config_id: Optional[int] = None,
     mode: str = AUTOPURCHASE_MODE_DRAFT_ONLY,
     limit: int = 1000,
+    budget_limit: Optional[float] = None,
+    position_limit: Optional[int] = None,
 ) -> dict[str, Any]:
     async with session.begin():
         lock_acquired = await _try_acquire_autopurchase_run_lock(session)
@@ -1781,6 +1790,8 @@ async def create_autopurchase_run(
                 "own_provider_config_id": own_provider_config_id,
                 "mode": mode,
                 "limit": limit,
+                "budget_limit": _normalize_optional_positive_float(budget_limit),
+                "position_limit": _normalize_optional_positive_int(position_limit),
                 "supplier_source": "site",
             },
             summary_snapshot={
@@ -2115,6 +2126,53 @@ def _get_draft_group_key(item: AutoPurchaseRunItem) -> tuple[str, str, str, str]
     )
 
 
+def _normalize_optional_positive_int(value: Any) -> Optional[int]:
+    if value in (None, "", 0):
+        return None
+    try:
+        normalized = int(value)
+    except (TypeError, ValueError):
+        return None
+    return normalized if normalized > 0 else None
+
+
+def _normalize_optional_positive_float(value: Any) -> Optional[float]:
+    if value in (None, "", 0):
+        return None
+    try:
+        normalized = float(value)
+    except (TypeError, ValueError):
+        return None
+    if normalized <= 0:
+        return None
+    return _quantize_float(normalized)
+
+
+def _get_draft_limits_from_run(
+    run: AutoPurchaseRun,
+) -> tuple[Optional[float], Optional[int]]:
+    settings = dict(run.settings_snapshot or {})
+    budget_limit = _normalize_optional_positive_float(
+        settings.get("budget_limit")
+    )
+    position_limit = _normalize_optional_positive_int(
+        settings.get("position_limit")
+    )
+    return budget_limit, position_limit
+
+
+def _get_draft_item_priority(item: AutoPurchaseRunItem) -> tuple[int, int, int, str, int]:
+    return (
+        int(item.estimated_days_left_30_days)
+        if item.estimated_days_left_30_days is not None
+        else 9_999,
+        -int(item.recommended_order_qty or 0),
+        -int(item.sold_last_30_days or 0),
+        str(item.oem_number or ""),
+        int(item.id or 0),
+    )
+
+
 async def get_autopurchase_run_draft_orders(
     session: AsyncSession,
     *,
@@ -2133,11 +2191,19 @@ async def get_autopurchase_run_draft_orders(
             == AUTOPURCHASE_STATUS_AUTO_APPROVED,
         )
         .order_by(
+            AutoPurchaseRunItem.estimated_days_left_30_days.asc().nulls_last(),
+            AutoPurchaseRunItem.recommended_order_qty.desc(),
+            AutoPurchaseRunItem.sold_last_30_days.desc(),
             AutoPurchaseRunItem.oem_number.asc(),
             AutoPurchaseRunItem.id.asc(),
         )
     )
     items = list((await session.execute(items_stmt)).scalars().all())
+    items.sort(key=_get_draft_item_priority)
+
+    budget_limit, position_limit = _get_draft_limits_from_run(run)
+    selected_total_sum = 0.0
+    selected_total_items = 0
 
     draft_groups: dict[tuple[str, str, str, str], dict[str, Any]] = {}
     skipped_items: list[dict[str, Any]] = []
@@ -2190,6 +2256,44 @@ async def get_autopurchase_run_draft_orders(
             )
             continue
 
+        line_total = _quantize_float(unit_price * proposed_order_qty)
+        if (
+            position_limit is not None
+            and selected_total_items >= position_limit
+        ):
+            skipped_items.append(
+                {
+                    "item_id": int(item.id),
+                    "oem_number": item.oem_number,
+                    "brand_name": item.brand_name,
+                    "reason": (
+                        f"Не вошло в отправку: достигнут лимит позиций "
+                        f"({position_limit} шт.)"
+                    ),
+                }
+            )
+            continue
+
+        if budget_limit is not None and line_total is not None:
+            remaining_budget = max(
+                float(budget_limit) - float(selected_total_sum),
+                0.0,
+            )
+            if float(line_total) > remaining_budget:
+                skipped_items.append(
+                    {
+                        "item_id": int(item.id),
+                        "oem_number": item.oem_number,
+                        "brand_name": item.brand_name,
+                        "reason": (
+                            "Не вошло в отправку: строка превышает остаток "
+                            f"лимита суммы ({_format_money_value(line_total)} руб. > "
+                            f"{_format_money_value(remaining_budget)} руб.)"
+                        ),
+                    }
+                )
+                continue
+
         group_key = _get_draft_group_key(item)
         group = draft_groups.get(group_key)
         if group is None:
@@ -2211,7 +2315,6 @@ async def get_autopurchase_run_draft_orders(
             draft_groups[group_key] = group
 
         remaining_gap_qty = int(draft.get("remaining_gap_qty") or 0)
-        line_total = _quantize_float(unit_price * proposed_order_qty)
         group["items"].append(
             {
                 "item_id": int(item.id),
@@ -2243,6 +2346,10 @@ async def get_autopurchase_run_draft_orders(
         group["total_sum"] = _quantize_float(
             float(group["total_sum"]) + float(line_total or 0)
         ) or 0.0
+        selected_total_items += 1
+        selected_total_sum = _quantize_float(
+            float(selected_total_sum) + float(line_total or 0)
+        ) or 0.0
 
     groups = sorted(
         draft_groups.values(),
@@ -2260,6 +2367,8 @@ async def get_autopurchase_run_draft_orders(
         "total_sum": _quantize_float(
             sum(float(group["total_sum"]) for group in groups)
         ),
+        "applied_budget_limit": budget_limit,
+        "applied_position_limit": position_limit,
         "groups": groups,
         "skipped_items": skipped_items,
     }

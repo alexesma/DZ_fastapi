@@ -1088,6 +1088,8 @@ async def create_autopurchase_run_view(
     own_provider_config_id: Optional[int] = Query(default=None),
     mode: str = Query(default="draft_only"),
     limit: int = Query(default=1000, ge=1, le=5000),
+    budget_limit: Optional[float] = Query(default=None, gt=0),
+    position_limit: Optional[int] = Query(default=None, ge=1, le=5000),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -1098,6 +1100,8 @@ async def create_autopurchase_run_view(
             own_provider_config_id=own_provider_config_id,
             mode=mode,
             limit=limit,
+            budget_limit=budget_limit,
+            position_limit=position_limit,
         )
     except ValueError as exc:
         detail = str(exc)
