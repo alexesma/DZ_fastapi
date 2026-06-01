@@ -608,6 +608,38 @@ class AutoPurchaseMarkSentResponse(BaseModel):
     updated_items: List[AutoPurchaseRunItemOut] = Field(default_factory=list)
 
 
+class AutoPurchaseAiExplanationOut(BaseModel):
+    run_id: int
+    item_id: int
+    model: str
+    generated_at: datetime
+    source: str = "ai"
+    human_explanation: str
+    risk_summary: str
+    manager_note: str
+    supplier_message_draft: Optional[str] = None
+    confidence: float = 0.0
+    requires_human_review: bool = True
+
+
+class AutoPurchaseDraftGroupAiExplanationOut(BaseModel):
+    run_id: int
+    supplier_key: str
+    provider_name: str
+    total_items: int = 0
+    total_quantity: int = 0
+    total_sum: Optional[float] = None
+    model: str
+    generated_at: datetime
+    source: str = "ai"
+    human_explanation: str
+    risk_summary: str
+    manager_note: str
+    supplier_message_draft: Optional[str] = None
+    confidence: float = 0.0
+    requires_human_review: bool = True
+
+
 class TrackingHistoryInsightSummary(BaseModel):
     oem_number: str
     resolved_oem_numbers: List[str] = Field(default_factory=list)

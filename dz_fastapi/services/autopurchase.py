@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 from datetime import date, timedelta
@@ -8,6 +9,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from math import ceil
 from typing import Any, Optional
 
+import httpx
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -81,6 +83,27 @@ AUTOPURCHASE_SITE_FETCH_CONCURRENCY = max(
 )
 AUTOPURCHASE_RUN_LOCK_KEY = int(
     os.getenv("AUTOPURCHASE_RUN_LOCK_KEY", "92025001")
+)
+AUTOPURCHASE_AI_ENABLED = (
+    str(os.getenv("AUTOPURCHASE_AI_ENABLED", "1")).strip().lower()
+    in {"1", "true", "yes", "on"}
+)
+AUTOPURCHASE_AI_MODEL = (
+    str(os.getenv("AUTOPURCHASE_AI_MODEL", "gpt-4o-mini")).strip()
+    or "gpt-4o-mini"
+)
+AUTOPURCHASE_AI_BASE_URL = (
+    str(
+        os.getenv("AUTOPURCHASE_AI_BASE_URL")
+        or os.getenv("OPENAI_BASE_URL")
+        or "https://api.openai.com/v1"
+    ).strip()
+    or "https://api.openai.com/v1"
+)
+AUTOPURCHASE_AI_API_KEY = str(os.getenv("OPENAI_API_KEY", "")).strip()
+AUTOPURCHASE_AI_TIMEOUT_SEC = max(
+    5,
+    int(os.getenv("AUTOPURCHASE_AI_TIMEOUT_SEC", "45")),
 )
 
 logger = logging.getLogger("dz_fastapi")
@@ -279,6 +302,417 @@ def _serialize_autopurchase_run_item(
             else {}
         ),
     }
+
+
+def _extract_text_from_ai_message_content(content: Any) -> str:
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        chunks: list[str] = []
+        for item in content:
+            if isinstance(item, dict):
+                text = str(item.get("text", "")).strip()
+                if text:
+                    chunks.append(text)
+            else:
+                text = str(item or "").strip()
+                if text:
+                    chunks.append(text)
+        return "\n".join(chunks).strip()
+    return str(content or "").strip()
+
+
+def _extract_json_object(text: str) -> Optional[dict[str, Any]]:
+    payload_text = str(text or "").strip()
+    if not payload_text:
+        return None
+    try:
+        parsed = json.loads(payload_text)
+        if isinstance(parsed, dict):
+            return parsed
+    except (TypeError, ValueError):
+        pass
+    start = payload_text.find("{")
+    end = payload_text.rfind("}")
+    if start < 0 or end <= start:
+        return None
+    candidate = payload_text[start:end + 1]
+    try:
+        parsed = json.loads(candidate)
+    except (TypeError, ValueError):
+        return None
+    if isinstance(parsed, dict):
+        return parsed
+    return None
+
+
+def _build_autopurchase_ai_fallback(
+    *,
+    run: AutoPurchaseRun,
+    item: AutoPurchaseRunItem,
+) -> dict[str, Any]:
+    supplier = dict(item.recommended_supplier or {})
+    supplier_name = str(supplier.get("provider_name") or "Dragonzap").strip()
+    current_qty = int(item.current_quantity or 0)
+    in_transit_qty = int(item.in_transit_qty or 0)
+    recommended_qty = int(item.recommended_order_qty or 0)
+    fill_rate = supplier.get("fill_rate")
+    effective_lead_days = supplier.get("effective_lead_days")
+    reasons = list(item.reason_titles or [])
+    short_reasons = ", ".join(reasons[:3]) if reasons else "без дополнительных флагов"
+    human_explanation = (
+        f"Позиция {item.brand_name or '—'} {item.oem_number} попала в автозаказ, "
+        f"потому что текущий остаток {current_qty} шт, в пути {in_transit_qty} шт, "
+        f"а расчёт рекомендует заказать {recommended_qty} шт."
+    )
+    risk_parts = []
+    if item.missing_in_latest_pricelist:
+        risk_parts.append("позиция выпала из последнего нашего прайса")
+    if fill_rate is None:
+        risk_parts.append("по выбранному site-поставщику нет истории fill rate")
+    elif float(fill_rate) < FILL_RATE_THRESHOLD_AUTO_APPROVE:
+        risk_parts.append(
+            f"fill rate поставщика ниже safe-порога ({fill_rate}%)"
+        )
+    if effective_lead_days is not None:
+        risk_parts.append(f"ожидаемый срок {effective_lead_days} дн.")
+    if not risk_parts:
+        risk_parts.append("явных критичных рисков не найдено")
+    manager_note = (
+        f"Проверь строку в режиме {run.mode}. "
+        f"Сайт рекомендует поставщика {supplier_name}. "
+        f"Основные причины: {short_reasons}."
+    )
+    return {
+        "run_id": int(run.id),
+        "item_id": int(item.id),
+        "model": AUTOPURCHASE_AI_MODEL,
+        "generated_at": now_moscow(),
+        "source": "fallback",
+        "human_explanation": human_explanation,
+        "risk_summary": "; ".join(risk_parts),
+        "manager_note": manager_note,
+        "supplier_message_draft": (
+            f"Добрый день. Просим подтвердить наличие и срок поставки по позиции "
+            f"{item.brand_name or ''} {item.oem_number} в количестве "
+            f"{recommended_qty} шт."
+        ).strip(),
+        "confidence": 0.45,
+        "requires_human_review": item.decision_status
+        != AUTOPURCHASE_STATUS_AUTO_APPROVED,
+    }
+
+
+async def _generate_autopurchase_ai_payload(
+    *,
+    run: AutoPurchaseRun,
+    item: AutoPurchaseRunItem,
+) -> dict[str, Any]:
+    fallback = _build_autopurchase_ai_fallback(run=run, item=item)
+    if not AUTOPURCHASE_AI_ENABLED or not AUTOPURCHASE_AI_API_KEY:
+        return fallback
+
+    supplier = dict(item.recommended_supplier or {})
+    draft = dict(item.draft_purchase_order or {})
+    user_payload = {
+        "run": {
+            "id": int(run.id),
+            "mode": run.mode,
+            "provider_name": (run.summary_snapshot or {}).get("provider_name"),
+            "supplier_source": "site",
+        },
+        "item": {
+            "id": int(item.id),
+            "brand_name": item.brand_name,
+            "oem_number": item.oem_number,
+            "autopart_name": item.autopart_name,
+            "current_quantity": int(item.current_quantity or 0),
+            "in_transit_qty": int(item.in_transit_qty or 0),
+            "sold_last_30_days": int(item.sold_last_30_days or 0),
+            "sold_last_90_days": int(item.sold_last_90_days or 0),
+            "estimated_days_left_30_days": item.estimated_days_left_30_days,
+            "reorder_point": (
+                float(item.reorder_point) if item.reorder_point is not None else None
+            ),
+            "target_stock": item.target_stock,
+            "recommended_order_qty": int(item.recommended_order_qty or 0),
+            "decision_status": item.decision_status,
+            "missing_in_latest_pricelist": bool(item.missing_in_latest_pricelist),
+            "abc_xyz": dict(item.abc_xyz or {}),
+            "reason_titles": list(item.reason_titles or []),
+            "reasons": list(item.reasons or []),
+            "recommended_supplier": supplier,
+            "draft_purchase_order": draft,
+        },
+    }
+    system_prompt = (
+        "Ты помогаешь менеджеру закупок понять строку автозаказа. "
+        "Верни только JSON без markdown с полями: "
+        "human_explanation, risk_summary, manager_note, "
+        "supplier_message_draft, confidence, requires_human_review. "
+        "Пиши по-русски, коротко и по делу. Не меняй математику расчёта, "
+        "а объясняй уже готовое решение системы."
+    )
+    payload = {
+        "model": AUTOPURCHASE_AI_MODEL,
+        "temperature": 0.2,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {
+                "role": "user",
+                "content": json.dumps(user_payload, ensure_ascii=False),
+            },
+        ],
+    }
+    url = AUTOPURCHASE_AI_BASE_URL.rstrip("/") + "/chat/completions"
+    try:
+        async with httpx.AsyncClient(timeout=AUTOPURCHASE_AI_TIMEOUT_SEC) as client:
+            response = await client.post(
+                url,
+                headers={
+                    "Authorization": "Bearer " + AUTOPURCHASE_AI_API_KEY,
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+        response.raise_for_status()
+        data = response.json()
+        choices = data.get("choices") or []
+        if not choices:
+            return fallback
+        content = _extract_text_from_ai_message_content(
+            choices[0].get("message", {}).get("content")
+        )
+        parsed = _extract_json_object(content)
+        if not parsed:
+            return fallback
+        return {
+            "run_id": int(run.id),
+            "item_id": int(item.id),
+            "model": AUTOPURCHASE_AI_MODEL,
+            "generated_at": now_moscow(),
+            "source": "ai",
+            "human_explanation": str(
+                parsed.get("human_explanation") or fallback["human_explanation"]
+            )[:4000],
+            "risk_summary": str(
+                parsed.get("risk_summary") or fallback["risk_summary"]
+            )[:4000],
+            "manager_note": str(
+                parsed.get("manager_note") or fallback["manager_note"]
+            )[:4000],
+            "supplier_message_draft": str(
+                parsed.get("supplier_message_draft")
+                or fallback["supplier_message_draft"]
+            )[:4000],
+            "confidence": min(
+                max(float(parsed.get("confidence") or fallback["confidence"]), 0.0),
+                1.0,
+            ),
+            "requires_human_review": bool(
+                parsed.get(
+                    "requires_human_review",
+                    fallback["requires_human_review"],
+                )
+            ),
+        }
+    except Exception as exc:
+        logger.warning(
+            "Autopurchase AI explanation failed run_id=%s item_id=%s: %s",
+            run.id,
+            item.id,
+            exc,
+        )
+        return fallback
+
+
+def _build_autopurchase_group_ai_fallback(
+    *,
+    run: AutoPurchaseRun,
+    group: dict[str, Any],
+) -> dict[str, Any]:
+    items = list(group.get("items") or [])
+    provider_name = str(group.get("provider_name") or "Dragonzap").strip()
+    total_items = int(group.get("total_items") or 0)
+    total_quantity = int(group.get("total_quantity") or 0)
+    total_sum = _quantize_float(group.get("total_sum"))
+    partial_count = sum(
+        1 for item in items if int(item.get("remaining_gap_qty") or 0) > 0
+    )
+    top_positions = ", ".join(
+        f"{item.get('brand_name') or '—'} {item.get('oem_number')}"
+        for item in items[:3]
+    ) or "без расшифровки позиций"
+    human_explanation = (
+        f"Группа поставщика {provider_name} содержит {total_items} поз. "
+        f"к заказу на {total_quantity} шт"
+        f"{f' и сумму {total_sum:.2f} руб.' if total_sum is not None else '.'}"
+    )
+    risk_parts = []
+    if partial_count > 0:
+        risk_parts.append(
+            f"по {partial_count} поз. сайт даёт только частичное количество"
+        )
+    if not risk_parts:
+        risk_parts.append("явных критичных ограничений по группе не видно")
+    manager_note = (
+        f"Run #{run.id}, поставщик {provider_name}. "
+        f"Проверь приоритетные позиции: {top_positions}."
+    )
+    supplier_message_draft = (
+        f"Добрый день. Просим подтвердить заказ по группе автозаказа run #{run.id}. "
+        f"Поставщик: {provider_name}. Всего позиций: {total_items}, "
+        f"общее количество: {total_quantity} шт."
+    )
+    return {
+        "run_id": int(run.id),
+        "supplier_key": str(group.get("supplier_key") or ""),
+        "provider_name": provider_name,
+        "total_items": total_items,
+        "total_quantity": total_quantity,
+        "total_sum": total_sum,
+        "model": AUTOPURCHASE_AI_MODEL,
+        "generated_at": now_moscow(),
+        "source": "fallback",
+        "human_explanation": human_explanation,
+        "risk_summary": "; ".join(risk_parts),
+        "manager_note": manager_note,
+        "supplier_message_draft": supplier_message_draft,
+        "confidence": 0.45,
+        "requires_human_review": partial_count > 0,
+    }
+
+
+async def _generate_autopurchase_group_ai_payload(
+    *,
+    run: AutoPurchaseRun,
+    group: dict[str, Any],
+) -> dict[str, Any]:
+    fallback = _build_autopurchase_group_ai_fallback(run=run, group=group)
+    if not AUTOPURCHASE_AI_ENABLED or not AUTOPURCHASE_AI_API_KEY:
+        return fallback
+
+    items = list(group.get("items") or [])
+    user_payload = {
+        "run": {
+            "id": int(run.id),
+            "mode": run.mode,
+            "provider_name": (run.summary_snapshot or {}).get("provider_name"),
+            "supplier_source": "site",
+        },
+        "group": {
+            "supplier_key": str(group.get("supplier_key") or ""),
+            "provider_name": str(group.get("provider_name") or ""),
+            "provider_config_name": group.get("provider_config_name"),
+            "total_items": int(group.get("total_items") or 0),
+            "total_quantity": int(group.get("total_quantity") or 0),
+            "total_sum": _quantize_float(group.get("total_sum")),
+            "items": [
+                {
+                    "item_id": int(group_item.get("item_id") or 0),
+                    "brand_name": group_item.get("brand_name"),
+                    "oem_number": group_item.get("oem_number"),
+                    "autopart_name": group_item.get("autopart_name"),
+                    "recommended_order_qty": int(
+                        group_item.get("recommended_order_qty") or 0
+                    ),
+                    "proposed_order_qty": int(
+                        group_item.get("proposed_order_qty") or 0
+                    ),
+                    "remaining_gap_qty": int(
+                        group_item.get("remaining_gap_qty") or 0
+                    ),
+                    "price": group_item.get("price"),
+                    "line_total": group_item.get("line_total"),
+                    "reason": group_item.get("reason"),
+                }
+                for group_item in items[:15]
+            ],
+        },
+    }
+    system_prompt = (
+        "Ты помогаешь менеджеру закупок понять группу строк автозаказа "
+        "по одному поставщику. Верни только JSON без markdown с полями: "
+        "human_explanation, risk_summary, manager_note, "
+        "supplier_message_draft, confidence, requires_human_review. "
+        "Пиши по-русски, коротко и по делу. Объясняй уже готовую группу "
+        "к отправке на сайт и не меняй сам расчёт."
+    )
+    payload = {
+        "model": AUTOPURCHASE_AI_MODEL,
+        "temperature": 0.2,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {
+                "role": "user",
+                "content": json.dumps(user_payload, ensure_ascii=False),
+            },
+        ],
+    }
+    url = AUTOPURCHASE_AI_BASE_URL.rstrip("/") + "/chat/completions"
+    try:
+        async with httpx.AsyncClient(timeout=AUTOPURCHASE_AI_TIMEOUT_SEC) as client:
+            response = await client.post(
+                url,
+                headers={
+                    "Authorization": "Bearer " + AUTOPURCHASE_AI_API_KEY,
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+        response.raise_for_status()
+        data = response.json()
+        choices = data.get("choices") or []
+        if not choices:
+            return fallback
+        content = _extract_text_from_ai_message_content(
+            choices[0].get("message", {}).get("content")
+        )
+        parsed = _extract_json_object(content)
+        if not parsed:
+            return fallback
+        return {
+            "run_id": int(run.id),
+            "supplier_key": str(group.get("supplier_key") or ""),
+            "provider_name": str(group.get("provider_name") or ""),
+            "total_items": int(group.get("total_items") or 0),
+            "total_quantity": int(group.get("total_quantity") or 0),
+            "total_sum": _quantize_float(group.get("total_sum")),
+            "model": AUTOPURCHASE_AI_MODEL,
+            "generated_at": now_moscow(),
+            "source": "ai",
+            "human_explanation": str(
+                parsed.get("human_explanation") or fallback["human_explanation"]
+            )[:4000],
+            "risk_summary": str(
+                parsed.get("risk_summary") or fallback["risk_summary"]
+            )[:4000],
+            "manager_note": str(
+                parsed.get("manager_note") or fallback["manager_note"]
+            )[:4000],
+            "supplier_message_draft": str(
+                parsed.get("supplier_message_draft")
+                or fallback["supplier_message_draft"]
+            )[:4000],
+            "confidence": min(
+                max(float(parsed.get("confidence") or fallback["confidence"]), 0.0),
+                1.0,
+            ),
+            "requires_human_review": bool(
+                parsed.get(
+                    "requires_human_review",
+                    fallback["requires_human_review"],
+                )
+            ),
+        }
+    except Exception as exc:
+        logger.warning(
+            "Autopurchase AI group explanation failed run_id=%s supplier_key=%s: %s",
+            run.id,
+            group.get("supplier_key"),
+            exc,
+        )
+        return fallback
 
 
 def _strip_manual_override_reasons(
@@ -1948,6 +2382,28 @@ async def get_autopurchase_run_items(
     }
 
 
+async def get_autopurchase_run_item_ai_explanation(
+    session: AsyncSession,
+    *,
+    run_id: int,
+    item_id: int,
+) -> dict[str, Any]:
+    run_stmt = select(AutoPurchaseRun).where(AutoPurchaseRun.id == run_id)
+    run = (await session.execute(run_stmt)).scalar_one_or_none()
+    if run is None:
+        raise ValueError("Запуск автозаказа не найден")
+
+    item_stmt = select(AutoPurchaseRunItem).where(
+        AutoPurchaseRunItem.run_id == run_id,
+        AutoPurchaseRunItem.id == item_id,
+    )
+    item = (await session.execute(item_stmt)).scalar_one_or_none()
+    if item is None:
+        raise ValueError("Строка автозаказа не найдена")
+
+    return await _generate_autopurchase_ai_payload(run=run, item=item)
+
+
 async def update_autopurchase_run_item_status(
     session: AsyncSession,
     *,
@@ -2378,3 +2834,39 @@ async def get_autopurchase_run_draft_orders(
         "groups": groups,
         "skipped_items": skipped_items,
     }
+
+
+async def get_autopurchase_run_draft_group_ai_explanation(
+    session: AsyncSession,
+    *,
+    run_id: int,
+    supplier_key: str,
+) -> dict[str, Any]:
+    run_stmt = select(AutoPurchaseRun).where(AutoPurchaseRun.id == run_id)
+    run = (await session.execute(run_stmt)).scalar_one_or_none()
+    if run is None:
+        raise ValueError("Запуск автозаказа не найден")
+
+    draft_payload = await get_autopurchase_run_draft_orders(
+        session,
+        run_id=run_id,
+    )
+    normalized_supplier_key = str(supplier_key or "").strip()
+    if not normalized_supplier_key:
+        raise ValueError("Не передан supplier_key группы автозаказа")
+
+    group = next(
+        (
+            item
+            for item in list(draft_payload.get("groups") or [])
+            if str(item.get("supplier_key") or "") == normalized_supplier_key
+        ),
+        None,
+    )
+    if group is None:
+        raise ValueError("Группа черновика автозаказа не найдена")
+
+    return await _generate_autopurchase_group_ai_payload(
+        run=run,
+        group=group,
+    )

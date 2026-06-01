@@ -35,6 +35,8 @@ from dz_fastapi.models.partner import (
 )
 from dz_fastapi.models.user import User
 from dz_fastapi.schemas.order import (
+    AutoPurchaseAiExplanationOut,
+    AutoPurchaseDraftGroupAiExplanationOut,
     AutoPurchaseMarkSentRequest,
     AutoPurchaseMarkSentResponse,
     AutoPurchasePreviewResponse,
@@ -66,7 +68,9 @@ from dz_fastapi.services.autopurchase import (
     create_autopurchase_run,
     get_autopurchase_preview,
     get_autopurchase_run,
+    get_autopurchase_run_draft_group_ai_explanation,
     get_autopurchase_run_draft_orders,
+    get_autopurchase_run_item_ai_explanation,
     get_autopurchase_run_items,
     list_autopurchase_runs,
     mark_autopurchase_run_items_sent,
@@ -1265,6 +1269,60 @@ async def mark_autopurchase_run_items_sent_view(
             order_number=payload.order_number,
             customer_id=payload.customer_id,
             send_result_snapshot=payload.send_result_snapshot,
+        )
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = (
+            status.HTTP_404_NOT_FOUND
+            if "не найден" in detail.lower()
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=status_code, detail=detail) from exc
+
+
+@router.get(
+    "/autopurchase-runs/{run_id}/items/{item_id}/ai-explanation",
+    response_model=AutoPurchaseAiExplanationOut,
+    summary="AI-пояснение по строке автозаказа",
+)
+async def get_autopurchase_run_item_ai_explanation_view(
+    run_id: int,
+    item_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await get_autopurchase_run_item_ai_explanation(
+            session=session,
+            run_id=run_id,
+            item_id=item_id,
+        )
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = (
+            status.HTTP_404_NOT_FOUND
+            if "не найден" in detail.lower()
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=status_code, detail=detail) from exc
+
+
+@router.get(
+    "/autopurchase-runs/{run_id}/draft-group-ai",
+    response_model=AutoPurchaseDraftGroupAiExplanationOut,
+    summary="AI-пояснение по группе черновика автозаказа",
+)
+async def get_autopurchase_run_draft_group_ai_explanation_view(
+    run_id: int,
+    supplier_key: str = Query(...),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await get_autopurchase_run_draft_group_ai_explanation(
+            session=session,
+            run_id=run_id,
+            supplier_key=supplier_key,
         )
     except ValueError as exc:
         detail = str(exc)
