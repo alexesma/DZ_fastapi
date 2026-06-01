@@ -1759,6 +1759,12 @@ async def create_autopurchase_run(
     budget_limit: Optional[float] = None,
     position_limit: Optional[int] = None,
 ) -> dict[str, Any]:
+    # FastAPI request sessions can arrive here with an implicit read
+    # transaction already auto-opened by earlier SELECTs in the same request.
+    # We need a fresh write transaction for advisory locking and for
+    # persisting the run atomically.
+    if session.in_transaction():
+        await session.rollback()
     async with session.begin():
         lock_acquired = await _try_acquire_autopurchase_run_lock(session)
         if not lock_acquired:
