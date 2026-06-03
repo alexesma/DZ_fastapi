@@ -26,8 +26,8 @@ Base = declarative_base(cls=PreBase)
 
 _ENGINE_CACHE: dict[bool, AsyncEngine] = {}
 _SESSION_FACTORY_CACHE: dict[bool, async_sessionmaker[AsyncSession]] = {}
-DB_POOL_SIZE = max(1, int(os.getenv("DATABASE_POOL_SIZE", "2")))
-DB_MAX_OVERFLOW = max(0, int(os.getenv("DATABASE_MAX_OVERFLOW", "2")))
+DB_POOL_SIZE = max(1, int(os.getenv("DATABASE_POOL_SIZE", "5")))
+DB_MAX_OVERFLOW = max(0, int(os.getenv("DATABASE_MAX_OVERFLOW", "5")))
 
 
 def get_engine(test=False):

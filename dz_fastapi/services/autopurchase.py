@@ -350,6 +350,8 @@ def _build_autopurchase_ai_fallback(
     *,
     run: AutoPurchaseRun,
     item: AutoPurchaseRunItem,
+    warning_code: Optional[str] = None,
+    warning_message: Optional[str] = None,
 ) -> dict[str, Any]:
     supplier = dict(item.recommended_supplier or {})
     supplier_name = str(supplier.get("provider_name") or "Dragonzap").strip()
@@ -389,6 +391,8 @@ def _build_autopurchase_ai_fallback(
         "model": AUTOPURCHASE_AI_MODEL,
         "generated_at": now_moscow(),
         "source": "fallback",
+        "warning_code": warning_code,
+        "warning_message": warning_message,
         "human_explanation": human_explanation,
         "risk_summary": "; ".join(risk_parts),
         "manager_note": manager_note,
@@ -403,14 +407,99 @@ def _build_autopurchase_ai_fallback(
     }
 
 
+def _resolve_autopurchase_ai_warning(
+    exc: Exception | None = None,
+) -> tuple[str, str]:
+    if not AUTOPURCHASE_AI_ENABLED:
+        return (
+            "ai_disabled",
+            "AI-пояснения отключены в настройках сервера.",
+        )
+    if not AUTOPURCHASE_AI_API_KEY:
+        return (
+            "missing_api_key",
+            "Не настроен OPENAI_API_KEY, поэтому AI-пояснение недоступно.",
+        )
+    if exc is None:
+        return (
+            "ai_unavailable",
+            "AI-пояснение временно недоступно, показано резервное объяснение по правилам системы.",
+        )
+
+    if isinstance(exc, httpx.HTTPStatusError):
+        status_code = int(exc.response.status_code)
+        detail = ""
+        try:
+            payload = exc.response.json()
+        except Exception:
+            payload = None
+        if isinstance(payload, dict):
+            error_obj = payload.get("error")
+            if isinstance(error_obj, dict):
+                detail = str(
+                    error_obj.get("code")
+                    or error_obj.get("type")
+                    or error_obj.get("message")
+                    or ""
+                ).strip()
+            elif payload.get("detail"):
+                detail = str(payload.get("detail") or "").strip()
+        normalized = detail.lower()
+        if status_code == 401:
+            return (
+                "invalid_api_key",
+                "OpenAI отклонил ключ API. Проверь OPENAI_API_KEY.",
+            )
+        if status_code == 429 and (
+            "insufficient_quota" in normalized
+            or "billing" in normalized
+            or "quota" in normalized
+        ):
+            return (
+                "insufficient_quota",
+                "OpenAI недоступен из-за квоты или оплаты. Проверь billing и лимиты API.",
+            )
+        if status_code == 429:
+            return (
+                "rate_limited",
+                "OpenAI временно ограничил запросы. Попробуй повторить чуть позже.",
+            )
+        if 500 <= status_code <= 599:
+            return (
+                "provider_unavailable",
+                "OpenAI временно недоступен. Показано резервное пояснение по правилам системы.",
+            )
+    if isinstance(exc, httpx.TimeoutException):
+        return (
+            "ai_timeout",
+            "OpenAI не ответил вовремя. Показано резервное пояснение по правилам системы.",
+        )
+    if isinstance(exc, httpx.RequestError):
+        return (
+            "network_error",
+            "Не удалось связаться с OpenAI. Проверь сеть или base URL API.",
+        )
+    return (
+        "ai_unavailable",
+        "AI-пояснение временно недоступно, показано резервное объяснение по правилам системы.",
+    )
+
+
 async def _generate_autopurchase_ai_payload(
     *,
     run: AutoPurchaseRun,
     item: AutoPurchaseRunItem,
 ) -> dict[str, Any]:
-    fallback = _build_autopurchase_ai_fallback(run=run, item=item)
     if not AUTOPURCHASE_AI_ENABLED or not AUTOPURCHASE_AI_API_KEY:
-        return fallback
+        warning_code, warning_message = _resolve_autopurchase_ai_warning()
+        return _build_autopurchase_ai_fallback(
+            run=run,
+            item=item,
+            warning_code=warning_code,
+            warning_message=warning_message,
+        )
+
+    fallback = _build_autopurchase_ai_fallback(run=run, item=item)
 
     supplier = dict(item.recommended_supplier or {})
     draft = dict(item.draft_purchase_order or {})
@@ -517,19 +606,27 @@ async def _generate_autopurchase_ai_payload(
             ),
         }
     except Exception as exc:
+        warning_code, warning_message = _resolve_autopurchase_ai_warning(exc)
         logger.warning(
             "Autopurchase AI explanation failed run_id=%s item_id=%s: %s",
             run.id,
             item.id,
             exc,
         )
-        return fallback
+        return _build_autopurchase_ai_fallback(
+            run=run,
+            item=item,
+            warning_code=warning_code,
+            warning_message=warning_message,
+        )
 
 
 def _build_autopurchase_group_ai_fallback(
     *,
     run: AutoPurchaseRun,
     group: dict[str, Any],
+    warning_code: Optional[str] = None,
+    warning_message: Optional[str] = None,
 ) -> dict[str, Any]:
     items = list(group.get("items") or [])
     provider_name = str(group.get("provider_name") or "Dragonzap").strip()
@@ -574,6 +671,8 @@ def _build_autopurchase_group_ai_fallback(
         "model": AUTOPURCHASE_AI_MODEL,
         "generated_at": now_moscow(),
         "source": "fallback",
+        "warning_code": warning_code,
+        "warning_message": warning_message,
         "human_explanation": human_explanation,
         "risk_summary": "; ".join(risk_parts),
         "manager_note": manager_note,
@@ -588,9 +687,16 @@ async def _generate_autopurchase_group_ai_payload(
     run: AutoPurchaseRun,
     group: dict[str, Any],
 ) -> dict[str, Any]:
-    fallback = _build_autopurchase_group_ai_fallback(run=run, group=group)
     if not AUTOPURCHASE_AI_ENABLED or not AUTOPURCHASE_AI_API_KEY:
-        return fallback
+        warning_code, warning_message = _resolve_autopurchase_ai_warning()
+        return _build_autopurchase_group_ai_fallback(
+            run=run,
+            group=group,
+            warning_code=warning_code,
+            warning_message=warning_message,
+        )
+
+    fallback = _build_autopurchase_group_ai_fallback(run=run, group=group)
 
     items = list(group.get("items") or [])
     user_payload = {
@@ -706,13 +812,19 @@ async def _generate_autopurchase_group_ai_payload(
             ),
         }
     except Exception as exc:
+        warning_code, warning_message = _resolve_autopurchase_ai_warning(exc)
         logger.warning(
             "Autopurchase AI group explanation failed run_id=%s supplier_key=%s: %s",
             run.id,
             group.get("supplier_key"),
             exc,
         )
-        return fallback
+        return _build_autopurchase_group_ai_fallback(
+            run=run,
+            group=group,
+            warning_code=warning_code,
+            warning_message=warning_message,
+        )
 
 
 def _strip_manual_override_reasons(

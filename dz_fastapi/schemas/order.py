@@ -614,6 +614,8 @@ class AutoPurchaseAiExplanationOut(BaseModel):
     model: str
     generated_at: datetime
     source: str = "ai"
+    warning_code: Optional[str] = None
+    warning_message: Optional[str] = None
     human_explanation: str
     risk_summary: str
     manager_note: str
@@ -632,6 +634,8 @@ class AutoPurchaseDraftGroupAiExplanationOut(BaseModel):
     model: str
     generated_at: datetime
     source: str = "ai"
+    warning_code: Optional[str] = None
+    warning_message: Optional[str] = None
     human_explanation: str
     risk_summary: str
     manager_note: str
