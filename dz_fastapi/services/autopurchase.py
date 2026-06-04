@@ -2403,7 +2403,10 @@ async def execute_autopurchase_run_background(
             async with session.begin():
                 persisted_run = await session.get(AutoPurchaseRun, run_id)
                 if persisted_run is None:
-                    logger.error("Autopurchase run %s not found during background execution", run_id)
+                    logger.error(
+                        "Autopurchase run %s not found during background execution",
+                        run_id
+                    )
                     return
 
                 persisted_run.finished_at = finished_at

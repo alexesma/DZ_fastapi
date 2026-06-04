@@ -1090,12 +1090,12 @@ async def get_autopurchase_preview_view(
     summary="Создать запуск автозаказа",
 )
 async def create_autopurchase_run_view(
+    background_tasks: BackgroundTasks,
     own_provider_config_id: Optional[int] = Query(default=None),
     mode: str = Query(default="draft_only"),
     limit: int = Query(default=1000, ge=1, le=5000),
     budget_limit: Optional[float] = Query(default=None, gt=0),
     position_limit: Optional[int] = Query(default=None, ge=1, le=5000),
-    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
