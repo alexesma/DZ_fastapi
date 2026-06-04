@@ -44,6 +44,19 @@ LOG_LEVEL_NAME = os.getenv("APP_LOG_LEVEL", "INFO").strip().upper()
 LOG_LEVEL = getattr(logging, LOG_LEVEL_NAME, logging.INFO)
 logger.setLevel(LOG_LEVEL)
 
+
+def _env_flag(name: str, default: str = "1") -> bool:
+    return os.getenv(name, default).strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+ENABLE_SCHEDULER = _env_flag("ENABLE_SCHEDULER", "1")
+ENABLE_TELEGRAM_BOT = _env_flag("ENABLE_TELEGRAM_BOT", "1")
+
 # Создание обработчика для записи логов в файл
 handler = RotatingFileHandler(
     "dz_fastapi.log", maxBytes=200000, backupCount=100
@@ -79,15 +92,26 @@ async def lifespan(app: FastAPI):
             await ensure_admin_user(session)
     except Exception as e:
         logger.error(f"Failed to ensure admin user: {e}")
-    # 2) Стартуем планировщик и сохраняем его, чтобы потом корректно остановить
-    scheduler = start_scheduler(app)
-    app.state.scheduler = scheduler
+    # 2) Стартуем планировщик, если он включён в этом процессе
+    app.state.scheduler = None
+    if ENABLE_SCHEDULER:
+        scheduler = start_scheduler(app)
+        app.state.scheduler = scheduler
+        logger.info("Scheduler enabled for this process.")
+    else:
+        logger.info("Scheduler disabled for this process via ENABLE_SCHEDULER.")
     bot_task = None
-    try:
-        loop = asyncio.get_event_loop()
-        bot_task = loop.create_task(asyncio.to_thread(start_telegram_bot))
-    except Exception as e:
-        logger.error(f"Failed to start Telegram bot: {e}")
+    if ENABLE_TELEGRAM_BOT:
+        try:
+            loop = asyncio.get_event_loop()
+            bot_task = loop.create_task(asyncio.to_thread(start_telegram_bot))
+            logger.info("Telegram bot enabled for this process.")
+        except Exception as e:
+            logger.error(f"Failed to start Telegram bot: {e}")
+    else:
+        logger.info(
+            "Telegram bot disabled for this process via ENABLE_TELEGRAM_BOT."
+        )
     try:
         yield
     finally:

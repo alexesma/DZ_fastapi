@@ -272,9 +272,12 @@ jobs:
             sleep 5
           done
           # Выполняем миграции одноразовым контейнером из нового web-образа.
-          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml run --rm --no-deps web poetry run alembic upgrade heads
-          # После миграций запускаем постоянные контейнеры приложения и фронта.
-          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --force-recreate web frontend
+          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml run --rm --no-deps \
+            -e RUN_MIGRATIONS_ON_STARTUP=0 \
+            -e RUN_SEED_ON_STARTUP=0 \
+            web poetry run alembic upgrade heads
+          # После миграций запускаем постоянные контейнеры приложения, scheduler и фронта.
+          sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --force-recreate web scheduler frontend
 
   send_success_message:
     runs-on: ubuntu-latest

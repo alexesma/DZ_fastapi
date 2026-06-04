@@ -17,3 +17,10 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ../..:/app
+
+  scheduler:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    volumes:
+      - ../..:/app

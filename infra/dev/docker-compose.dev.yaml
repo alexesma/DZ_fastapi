@@ -63,6 +63,25 @@ services:
       retries: 5
       start_period: 120s
 
+  scheduler:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    container_name: dz_scheduler_dev
+    restart: always
+    volumes:
+      - inbox_uploads_data:/app/uploads
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    env_file:
+      - ../../.env
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   inbox_uploads_data:

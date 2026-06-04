@@ -1,9 +1,24 @@
 services:
   frontend:
     image: alexesma/dz_frontend:latest
+    container_name: dz_frontend
+    depends_on:
+      - web
 
   web:
     image: alexesma/dz_fastapi:latest
+    container_name: dz_fastapi
+    volumes:
+      - inbox_uploads_data:/app/uploads
+
+  scheduler:
+    image: alexesma/dz_fastapi:latest
+    container_name: dz_scheduler
+    volumes:
+      - inbox_uploads_data:/app/uploads
 
   db:
     ports: []
+
+volumes:
+  inbox_uploads_data:
