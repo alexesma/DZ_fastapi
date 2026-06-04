@@ -50,6 +50,6 @@ exec uvicorn dz_fastapi.main:app \
   --host 0.0.0.0 \
   --port 8000 \
   --workers 1 \
-  --limit-concurrency 50 \
+  --limit-concurrency 200 \
   --timeout-keep-alive 10 \
   --log-level debug

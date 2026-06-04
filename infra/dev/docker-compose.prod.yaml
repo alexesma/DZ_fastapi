@@ -10,12 +10,24 @@ services:
     container_name: dz_fastapi
     volumes:
       - inbox_uploads_data:/app/uploads
+    environment:
+      RUN_MODE: "api"
+      ENABLE_SCHEDULER: "0"
+      DATABASE_POOL_SIZE: "10"
+      DATABASE_MAX_OVERFLOW: "10"
+      DATABASE_POOL_TIMEOUT: "10"
 
   scheduler:
     image: alexesma/dz_fastapi:latest
     container_name: dz_scheduler
     volumes:
       - inbox_uploads_data:/app/uploads
+    environment:
+      RUN_MODE: "scheduler"
+      ENABLE_SCHEDULER: "1"
+      DATABASE_POOL_SIZE: "5"
+      DATABASE_MAX_OVERFLOW: "5"
+      DATABASE_POOL_TIMEOUT: "15"
 
   db:
     ports: []
