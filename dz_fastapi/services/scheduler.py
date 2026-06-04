@@ -58,6 +58,7 @@ from dz_fastapi.schemas.partner import (
     ProviderCreate,
     ProviderPriceListConfigCreate,
 )
+from dz_fastapi.services.autopurchase import execute_next_autopurchase_run
 from dz_fastapi.services.crosses import sync_automatic_oem_crosses
 from dz_fastapi.services.customer_orders import (
     cleanup_order_error_files,
@@ -160,6 +161,9 @@ DIADOC_INBOUND_SYNC_MINUTES = _env_int_with_min(
 )
 PRICE_PROVIDER_PROCESS_PARALLELISM = _env_int_with_min(
     "PRICE_PROVIDER_PROCESS_PARALLELISM", 1, min_value=1, max_value=4
+)
+AUTOPURCHASE_QUEUE_POLL_SECONDS = _env_int_with_min(
+    "AUTOPURCHASE_QUEUE_POLL_SECONDS", 15, min_value=5, max_value=300
 )
 # How long to "slow poll" for orders when outside expected windows (minutes)
 ORDERS_SLOW_POLL_MINUTES = _env_int_with_min(
@@ -274,11 +278,31 @@ async def expire_reserves_task(app: FastAPI):
             logger.info("expire_reserves: expired %d reserves", len(rows))
 
 
+async def process_autopurchase_runs_task(app: FastAPI):
+    async with new_session_from_app(app) as session:
+        run_id = await execute_next_autopurchase_run(session)
+    if run_id is not None:
+        logger.info("Processed autopurchase run id=%s", run_id)
+
+
 def start_scheduler(app: FastAPI):
     scheduler = AsyncIOScheduler()
     scheduler.configure(
         timezone="Europe/Moscow",
         job_defaults={"coalesce": True, "max_instances": 1},
+    )
+
+    scheduler.add_job(
+        func=process_autopurchase_runs_task,
+        trigger="interval",
+        args=[app],
+        id="process_autopurchase_runs",
+        name="Process queued autopurchase runs",
+        seconds=AUTOPURCHASE_QUEUE_POLL_SECONDS,
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        next_run_time=now_moscow(),
     )
 
     # ── РАСПИСАНИЕ ПО ВРЕМЕННЫМ ОКНАМ (московское время) ────────────────────

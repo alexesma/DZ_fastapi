@@ -10,7 +10,7 @@ from math import ceil
 from typing import Any, Optional
 
 import httpx
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.constants import URL_DZ_SEARCH
@@ -41,6 +41,11 @@ from dz_fastapi.services.placed_orders import (
 AUTOPURCHASE_MODE_DRAFT_ONLY = "draft_only"
 AUTOPURCHASE_MODE_AUTO_APPROVE_SAFE = "auto_approve_safe"
 AUTOPURCHASE_MODE_DISABLED = "disabled"
+
+AUTOPURCHASE_RUN_STATUS_QUEUED = "queued"
+AUTOPURCHASE_RUN_STATUS_RUNNING = "running"
+AUTOPURCHASE_RUN_STATUS_COMPLETED = "completed"
+AUTOPURCHASE_RUN_STATUS_FAILED = "failed"
 
 AUTOPURCHASE_STATUS_AUTO_APPROVED = "auto_approved"
 AUTOPURCHASE_STATUS_NEEDS_REVIEW = "needs_review"
@@ -1611,6 +1616,150 @@ async def _try_acquire_autopurchase_run_lock(session: AsyncSession) -> bool:
     return bool(result.scalar())
 
 
+async def _get_active_autopurchase_run(
+    session: AsyncSession,
+) -> Optional[AutoPurchaseRun]:
+    stmt = (
+        select(AutoPurchaseRun)
+        .where(
+            AutoPurchaseRun.finished_at.is_(None),
+            AutoPurchaseRun.status.in_(
+                [
+                    AUTOPURCHASE_RUN_STATUS_QUEUED,
+                    AUTOPURCHASE_RUN_STATUS_RUNNING,
+                ]
+            ),
+        )
+        .order_by(AutoPurchaseRun.started_at.desc(), AutoPurchaseRun.id.desc())
+        .limit(1)
+    )
+    return (await session.execute(stmt)).scalar_one_or_none()
+
+
+def _build_run_summary_message(status: str) -> str:
+    if status == AUTOPURCHASE_RUN_STATUS_QUEUED:
+        return "Запуск автозаказа поставлен в очередь"
+    if status == AUTOPURCHASE_RUN_STATUS_RUNNING:
+        return "Расчёт автозаказа выполняется"
+    if status == AUTOPURCHASE_RUN_STATUS_COMPLETED:
+        return "Расчёт автозаказа завершён"
+    if status == AUTOPURCHASE_RUN_STATUS_FAILED:
+        return "Расчёт автозаказа завершился с ошибкой"
+    return "Статус запуска обновлён"
+
+
+def _build_run_settings(
+    *,
+    own_provider_config_id: Optional[int],
+    mode: str,
+    limit: int,
+    budget_limit: Optional[float],
+    position_limit: Optional[int],
+) -> dict[str, Any]:
+    return {
+        "own_provider_config_id": own_provider_config_id,
+        "mode": mode,
+        "limit": limit,
+        "budget_limit": budget_limit,
+        "position_limit": position_limit,
+        "supplier_source": "site",
+    }
+
+
+def _build_initial_run_summary(config_row: dict[str, Any], *, status: str) -> dict[str, Any]:
+    return {
+        "provider_name": config_row.get("provider_name"),
+        "provider_config_name": config_row.get("provider_config_name"),
+        "generated_at": None,
+        "total_items": 0,
+        "auto_approved_count": 0,
+        "needs_review_count": 0,
+        "blocked_count": 0,
+        "sent_count": 0,
+        "message": _build_run_summary_message(status),
+    }
+
+
+async def _persist_autopurchase_preview(
+    session: AsyncSession,
+    *,
+    run_id: int,
+    preview: dict[str, Any],
+) -> None:
+    persisted_run = await session.get(AutoPurchaseRun, run_id)
+    if persisted_run is None:
+        raise ValueError("Запуск автозаказа не найден")
+
+    finished_at = now_moscow()
+    persisted_run.finished_at = finished_at
+    persisted_run.status = AUTOPURCHASE_RUN_STATUS_COMPLETED
+    persisted_run.mode = str(preview["mode"])
+    persisted_run.summary_snapshot = {
+        "provider_name": preview["provider_name"],
+        "provider_config_name": preview.get("provider_config_name"),
+        "generated_at": preview["generated_at"].isoformat()
+        if preview.get("generated_at")
+        else None,
+        "total_items": preview["total_items"],
+        "auto_approved_count": preview["auto_approved_count"],
+        "needs_review_count": preview["needs_review_count"],
+        "blocked_count": preview["blocked_count"],
+        "sent_count": 0,
+        "message": _build_run_summary_message(AUTOPURCHASE_RUN_STATUS_COMPLETED),
+    }
+
+    await session.execute(
+        delete(AutoPurchaseRunItem).where(AutoPurchaseRunItem.run_id == run_id)
+    )
+
+    for row in preview.get("rows", []):
+        recommended_supplier = row.get("recommended_supplier") or {}
+        item = AutoPurchaseRunItem(
+            run_id=run_id,
+            autopart_id=row.get("autopart_id"),
+            selected_supplier_id=recommended_supplier.get("provider_id"),
+            oem_number=row["oem_number"],
+            brand_name=row.get("brand_name"),
+            autopart_name=row.get("autopart_name"),
+            current_quantity=int(row.get("current_quantity") or 0),
+            latest_price=_to_decimal_value(row.get("latest_price")),
+            minimum_balance=int(row.get("minimum_balance") or 0),
+            multiplicity=int(row.get("multiplicity") or 1),
+            in_transit_qty=int(row.get("in_transit_qty") or 0),
+            sold_last_30_days=int(row.get("sold_last_30_days") or 0),
+            sold_last_90_days=int(row.get("sold_last_90_days") or 0),
+            avg_daily_30=_to_decimal_value(row.get("avg_daily_30")),
+            avg_daily_90=_to_decimal_value(row.get("avg_daily_90")),
+            avg_daily_blended=_to_decimal_value(row.get("avg_daily_blended")),
+            estimated_days_left_30_days=row.get("estimated_days_left_30_days"),
+            average_actual_lead_days=_to_decimal_value(
+                row.get("average_actual_lead_days")
+            ),
+            lead_time_days_used=_to_decimal_value(
+                row.get("lead_time_days_used")
+            ),
+            safety_stock_days=row.get("safety_stock_days"),
+            safety_stock_qty=_to_decimal_value(row.get("safety_stock_qty")),
+            reorder_point=_to_decimal_value(row.get("reorder_point")),
+            target_stock=row.get("target_stock"),
+            recommended_order_qty=int(row.get("recommended_order_qty") or 0),
+            decision_status=row["decision_status"],
+            autopurchase_mode=row["autopurchase_mode"],
+            missing_in_latest_pricelist=bool(
+                row.get("missing_in_latest_pricelist") or False
+            ),
+            reason_codes=list(row.get("reason_codes") or []),
+            reason_titles=list(row.get("reason_titles") or []),
+            reasons=list(row.get("reasons") or []),
+            abc_xyz=row.get("abc_xyz") or {},
+            best_supplier_by_price=row.get("best_supplier_by_price") or {},
+            best_supplier_by_lead_time=row.get("best_supplier_by_lead_time") or {},
+            recommended_supplier=recommended_supplier or {},
+            draft_purchase_order=row.get("draft_purchase_order") or {},
+        )
+        session.add(item)
+
+
 def _calculate_snapshot_sales(
     snapshots: list[dict[str, Any]],
     normalized_oem_numbers: list[str],
@@ -2316,8 +2465,8 @@ async def create_autopurchase_run(
     budget_limit: Optional[float] = None,
     position_limit: Optional[int] = None,
 ) -> dict[str, Any]:
-    """Create the run record and return immediately.
-    The heavy calculation is launched as a background task by the API layer.
+    """Create a queued run record and return immediately.
+    The scheduler container picks it up and executes the heavy calculation.
     """
     requested_mode = str(mode or AUTOPURCHASE_MODE_DRAFT_ONLY).strip().lower()
     normalized_budget_limit = _normalize_optional_positive_float(budget_limit)
@@ -2334,6 +2483,13 @@ async def create_autopurchase_run(
                 "Дождитесь завершения текущего запуска и попробуйте снова."
             )
 
+        active_run = await _get_active_autopurchase_run(session)
+        if active_run is not None:
+            raise ValueError(
+                "Сейчас уже выполняется расчёт автозаказа. "
+                "Дождитесь завершения текущего запуска и попробуйте снова."
+            )
+
         config_row = await _resolve_autopurchase_provider_config(
             session,
             own_provider_config_id=own_provider_config_id,
@@ -2344,29 +2500,21 @@ async def create_autopurchase_run(
             initiated_by_user_id=initiated_by_user_id,
             started_at=now_moscow(),
             finished_at=None,
-            status="running",
+            status=AUTOPURCHASE_RUN_STATUS_QUEUED,
             mode=requested_mode,
             trigger_source="manual",
             used_local_prices_only=False,
-            settings_snapshot={
-                "own_provider_config_id": own_provider_config_id,
-                "mode": requested_mode,
-                "limit": limit,
-                "budget_limit": normalized_budget_limit,
-                "position_limit": normalized_position_limit,
-                "supplier_source": "site",
-            },
-            summary_snapshot={
-                "provider_name": config_row.get("provider_name"),
-                "provider_config_name": config_row.get("provider_config_name"),
-                "generated_at": None,
-                "total_items": 0,
-                "auto_approved_count": 0,
-                "needs_review_count": 0,
-                "blocked_count": 0,
-                "sent_count": 0,
-                "message": "Расчёт автозаказа выполняется",
-            },
+            settings_snapshot=_build_run_settings(
+                own_provider_config_id=own_provider_config_id,
+                mode=requested_mode,
+                limit=limit,
+                budget_limit=normalized_budget_limit,
+                position_limit=normalized_position_limit,
+            ),
+            summary_snapshot=_build_initial_run_summary(
+                config_row,
+                status=AUTOPURCHASE_RUN_STATUS_QUEUED,
+            ),
         )
         session.add(run)
         await session.flush()
@@ -2376,117 +2524,94 @@ async def create_autopurchase_run(
     return _serialize_autopurchase_run(run_record)
 
 
-async def execute_autopurchase_run_background(
-    run_id: int,
-    *,
-    own_provider_config_id: Optional[int],
-    mode: str,
-    limit: int,
-) -> None:
-    """Heavy calculation that runs as a background task with its own DB session."""
-    from dz_fastapi.core.db import get_async_session  # local import to avoid circulars
+async def execute_next_autopurchase_run(
+    session: AsyncSession,
+) -> Optional[int]:
+    """Claim and execute the next queued/running unfinished autopurchase run."""
+    if session.in_transaction():
+        await session.rollback()
 
-    session_factory = get_async_session()
-    async with session_factory() as session:
+    run_id: Optional[int] = None
+    own_provider_config_id: Optional[int] = None
+    mode = AUTOPURCHASE_MODE_DRAFT_ONLY
+    limit = AUTOPURCHASE_MAX_LIMIT
+
+    async with session.begin():
+        lock_acquired = await _try_acquire_autopurchase_run_lock(session)
+        if not lock_acquired:
+            return None
+
+        run = (
+            await session.execute(
+                select(AutoPurchaseRun)
+                .where(
+                    AutoPurchaseRun.finished_at.is_(None),
+                    AutoPurchaseRun.status.in_(
+                        [
+                            AUTOPURCHASE_RUN_STATUS_QUEUED,
+                            AUTOPURCHASE_RUN_STATUS_RUNNING,
+                        ]
+                    ),
+                )
+                .order_by(AutoPurchaseRun.started_at.asc(), AutoPurchaseRun.id.asc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if run is None:
+            return None
+
+        run_id = int(run.id)
+        run.status = AUTOPURCHASE_RUN_STATUS_RUNNING
+        summary_snapshot = dict(run.summary_snapshot or {})
+        summary_snapshot["message"] = _build_run_summary_message(
+            AUTOPURCHASE_RUN_STATUS_RUNNING
+        )
+        run.summary_snapshot = summary_snapshot
+
+        settings = dict(run.settings_snapshot or {})
+        own_provider_config_id = settings.get("own_provider_config_id")
+        mode = str(settings.get("mode") or run.mode or AUTOPURCHASE_MODE_DRAFT_ONLY)
         try:
-            preview = await get_autopurchase_preview(
+            limit = int(settings.get("limit") or AUTOPURCHASE_MAX_LIMIT)
+        except (TypeError, ValueError):
+            limit = AUTOPURCHASE_MAX_LIMIT
+
+    if run_id is None:
+        return None
+
+    try:
+        preview = await get_autopurchase_preview(
+            session,
+            own_provider_config_id=own_provider_config_id,
+            mode=mode,
+            limit=limit,
+        )
+
+        if session.in_transaction():
+            await session.rollback()
+        async with session.begin():
+            await _persist_autopurchase_preview(
                 session,
-                own_provider_config_id=own_provider_config_id,
-                mode=mode,
-                limit=limit,
+                run_id=run_id,
+                preview=preview,
             )
 
-            finished_at = now_moscow()
-            if session.in_transaction():
-                await session.rollback()
+        logger.info("Autopurchase run %s completed successfully", run_id)
+        return run_id
 
-            async with session.begin():
-                persisted_run = await session.get(AutoPurchaseRun, run_id)
-                if persisted_run is None:
-                    logger.error(
-                        "Autopurchase run %s not found during background execution",
-                        run_id
-                    )
-                    return
-
-                persisted_run.finished_at = finished_at
-                persisted_run.status = "completed"
-                persisted_run.mode = str(preview["mode"])
-                persisted_run.summary_snapshot = {
-                    "provider_name": preview["provider_name"],
-                    "provider_config_name": preview.get("provider_config_name"),
-                    "generated_at": preview["generated_at"].isoformat()
-                    if preview.get("generated_at")
-                    else None,
-                    "total_items": preview["total_items"],
-                    "auto_approved_count": preview["auto_approved_count"],
-                    "needs_review_count": preview["needs_review_count"],
-                    "blocked_count": preview["blocked_count"],
-                    "sent_count": 0,
-                    "message": "Расчёт автозаказа завершён",
-                }
-
-                for row in preview.get("rows", []):
-                    recommended_supplier = row.get("recommended_supplier") or {}
-                    item = AutoPurchaseRunItem(
-                        run_id=run_id,
-                        autopart_id=row.get("autopart_id"),
-                        selected_supplier_id=recommended_supplier.get("provider_id"),
-                        oem_number=row["oem_number"],
-                        brand_name=row.get("brand_name"),
-                        autopart_name=row.get("autopart_name"),
-                        current_quantity=int(row.get("current_quantity") or 0),
-                        latest_price=_to_decimal_value(row.get("latest_price")),
-                        minimum_balance=int(row.get("minimum_balance") or 0),
-                        multiplicity=int(row.get("multiplicity") or 1),
-                        in_transit_qty=int(row.get("in_transit_qty") or 0),
-                        sold_last_30_days=int(row.get("sold_last_30_days") or 0),
-                        sold_last_90_days=int(row.get("sold_last_90_days") or 0),
-                        avg_daily_30=_to_decimal_value(row.get("avg_daily_30")),
-                        avg_daily_90=_to_decimal_value(row.get("avg_daily_90")),
-                        avg_daily_blended=_to_decimal_value(row.get("avg_daily_blended")),
-                        estimated_days_left_30_days=row.get("estimated_days_left_30_days"),
-                        average_actual_lead_days=_to_decimal_value(
-                            row.get("average_actual_lead_days")
-                        ),
-                        lead_time_days_used=_to_decimal_value(
-                            row.get("lead_time_days_used")
-                        ),
-                        safety_stock_days=row.get("safety_stock_days"),
-                        safety_stock_qty=_to_decimal_value(row.get("safety_stock_qty")),
-                        reorder_point=_to_decimal_value(row.get("reorder_point")),
-                        target_stock=row.get("target_stock"),
-                        recommended_order_qty=int(row.get("recommended_order_qty") or 0),
-                        decision_status=row["decision_status"],
-                        autopurchase_mode=row["autopurchase_mode"],
-                        missing_in_latest_pricelist=bool(
-                            row.get("missing_in_latest_pricelist") or False
-                        ),
-                        reason_codes=list(row.get("reason_codes") or []),
-                        reason_titles=list(row.get("reason_titles") or []),
-                        reasons=list(row.get("reasons") or []),
-                        abc_xyz=row.get("abc_xyz") or {},
-                        best_supplier_by_price=row.get("best_supplier_by_price") or {},
-                        best_supplier_by_lead_time=row.get("best_supplier_by_lead_time") or {},
-                        recommended_supplier=recommended_supplier or {},
-                        draft_purchase_order=row.get("draft_purchase_order") or {},
-                    )
-                    session.add(item)
-
-            logger.info("Autopurchase run %s completed successfully", run_id)
-
-        except Exception as exc:
-            logger.exception("Autopurchase run failed run_id=%s: %s", run_id, exc)
-            if session.in_transaction():
-                await session.rollback()
-            async with session.begin():
-                failed_run = await session.get(AutoPurchaseRun, run_id)
-                if failed_run is not None:
-                    failed_summary = dict(failed_run.summary_snapshot or {})
-                    failed_summary["message"] = str(exc)
-                    failed_run.summary_snapshot = failed_summary
-                    failed_run.finished_at = now_moscow()
-                    failed_run.status = "failed"
+    except Exception as exc:
+        logger.exception("Autopurchase run failed run_id=%s: %s", run_id, exc)
+        if session.in_transaction():
+            await session.rollback()
+        async with session.begin():
+            failed_run = await session.get(AutoPurchaseRun, run_id)
+            if failed_run is not None:
+                failed_summary = dict(failed_run.summary_snapshot or {})
+                failed_summary["message"] = str(exc)
+                failed_run.summary_snapshot = failed_summary
+                failed_run.finished_at = now_moscow()
+                failed_run.status = AUTOPURCHASE_RUN_STATUS_FAILED
+        return run_id
 
 
 async def list_autopurchase_runs(

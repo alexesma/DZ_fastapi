@@ -4,7 +4,7 @@ from datetime import date
 from typing import Any, List, Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from dz_fastapi.analytics.restock_logic import (
     evaluate_supplier_offers,
@@ -66,7 +66,6 @@ from dz_fastapi.schemas.order import (
 from dz_fastapi.schemas.partner import ProviderExternalReferenceCreate
 from dz_fastapi.services.autopurchase import (
     create_autopurchase_run,
-    execute_autopurchase_run_background,
     get_autopurchase_preview,
     get_autopurchase_run,
     get_autopurchase_run_draft_group_ai_explanation,
@@ -1090,7 +1089,6 @@ async def get_autopurchase_preview_view(
     summary="Создать запуск автозаказа",
 )
 async def create_autopurchase_run_view(
-    background_tasks: BackgroundTasks,
     own_provider_config_id: Optional[int] = Query(default=None),
     mode: str = Query(default="draft_only"),
     limit: int = Query(default=1000, ge=1, le=5000),
@@ -1118,13 +1116,6 @@ async def create_autopurchase_run_view(
         )
         raise HTTPException(status_code=status_code, detail=detail) from exc
 
-    background_tasks.add_task(
-        execute_autopurchase_run_background,
-        run_data["id"],
-        own_provider_config_id=own_provider_config_id,
-        mode=mode,
-        limit=limit,
-    )
     return run_data
 
 
