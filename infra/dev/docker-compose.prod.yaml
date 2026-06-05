@@ -16,6 +16,7 @@ services:
       DATABASE_POOL_SIZE: "10"
       DATABASE_MAX_OVERFLOW: "10"
       DATABASE_POOL_TIMEOUT: "10"
+      DATABASE_CONNECT_TIMEOUT: "20"
 
   scheduler:
     image: alexesma/dz_fastapi:latest
@@ -25,9 +26,11 @@ services:
     environment:
       RUN_MODE: "scheduler"
       ENABLE_SCHEDULER: "1"
-      DATABASE_POOL_SIZE: "5"
-      DATABASE_MAX_OVERFLOW: "5"
-      DATABASE_POOL_TIMEOUT: "15"
+      DATABASE_POOL_SIZE: "3"
+      DATABASE_MAX_OVERFLOW: "2"
+      DATABASE_POOL_TIMEOUT: "20"
+      DATABASE_CONNECT_TIMEOUT: "20"
+      SCHEDULER_STARTUP_DELAY_SECONDS: "20"
     healthcheck:
       disable: true
 

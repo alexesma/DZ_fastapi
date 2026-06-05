@@ -29,6 +29,7 @@ _SESSION_FACTORY_CACHE: dict[bool, async_sessionmaker[AsyncSession]] = {}
 DB_POOL_SIZE = max(1, int(os.getenv("DATABASE_POOL_SIZE", "10")))
 DB_MAX_OVERFLOW = max(0, int(os.getenv("DATABASE_MAX_OVERFLOW", "10")))
 DB_POOL_TIMEOUT = max(5, int(os.getenv("DATABASE_POOL_TIMEOUT", "10")))
+DB_CONNECT_TIMEOUT = max(5, int(os.getenv("DATABASE_CONNECT_TIMEOUT", "10")))
 
 
 def get_engine(test=False):
@@ -49,7 +50,9 @@ def get_engine(test=False):
         pool_pre_ping=True,
         pool_timeout=DB_POOL_TIMEOUT,
         pool_recycle=1800,  # переоткрывать соединения каждые 30 минут
-        connect_args={"timeout": 10},  # таймаут установки соединения с Postgres
+        connect_args={
+            "timeout": DB_CONNECT_TIMEOUT
+        },  # таймаут установки соединения с Postgres
         future=True,
     )
     _ENGINE_CACHE[test_key] = engine

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import signal
 import time
 
@@ -10,9 +11,20 @@ from dz_fastapi.services.auth import ensure_admin_user
 from dz_fastapi.services.scheduler import start_scheduler
 
 logger = logging.getLogger("dz_fastapi.scheduler_runner")
+SCHEDULER_STARTUP_DELAY_SECONDS = max(
+    0,
+    int(os.getenv("SCHEDULER_STARTUP_DELAY_SECONDS", "20")),
+)
 
 
 async def main() -> None:
+    if SCHEDULER_STARTUP_DELAY_SECONDS > 0:
+        logger.info(
+            "Delaying standalone scheduler startup for %s seconds",
+            SCHEDULER_STARTUP_DELAY_SECONDS,
+        )
+        await asyncio.sleep(SCHEDULER_STARTUP_DELAY_SECONDS)
+
     session_factory = get_async_session()
 
     app = FastAPI()
