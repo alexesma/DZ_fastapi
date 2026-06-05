@@ -2601,13 +2601,18 @@ async def execute_next_autopurchase_run(
 
     except Exception as exc:
         logger.exception("Autopurchase run failed run_id=%s: %s", run_id, exc)
+        failure_message = str(exc).strip()
+        if failure_message:
+            failure_message = f"{exc.__class__.__name__}: {failure_message}"
+        else:
+            failure_message = exc.__class__.__name__
         if session.in_transaction():
             await session.rollback()
         async with session.begin():
             failed_run = await session.get(AutoPurchaseRun, run_id)
             if failed_run is not None:
                 failed_summary = dict(failed_run.summary_snapshot or {})
-                failed_summary["message"] = str(exc)
+                failed_summary["message"] = failure_message
                 failed_run.summary_snapshot = failed_summary
                 failed_run.finished_at = now_moscow()
                 failed_run.status = AUTOPURCHASE_RUN_STATUS_FAILED
