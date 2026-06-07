@@ -78,6 +78,16 @@ MAX_LEAD_DAYS_BY_ABC_XYZ: dict[tuple[str, str], int] = {
     ("B", "X"): 30,
     ("B", "Y"): 35,
 }
+ABC_CLASS_PRIORITY: dict[str, int] = {
+    "A": 0,
+    "B": 1,
+    "C": 2,
+}
+XYZ_CLASS_PRIORITY: dict[str, int] = {
+    "X": 0,
+    "Y": 1,
+    "Z": 2,
+}
 
 SITE_API_KEY = os.getenv("KEY_FOR_WEBSITE")
 AUTOPURCHASE_REASONS_LIMIT = 8
@@ -88,6 +98,10 @@ AUTOPURCHASE_SITE_FETCH_CONCURRENCY = max(
 )
 AUTOPURCHASE_RUN_LOCK_KEY = int(
     os.getenv("AUTOPURCHASE_RUN_LOCK_KEY", "92025001")
+)
+AUTOPURCHASE_FINISHED_HISTORY_LIMIT = max(
+    0,
+    int(os.getenv("AUTOPURCHASE_FINISHED_HISTORY_LIMIT", "3")),
 )
 AUTOPURCHASE_AI_ENABLED = (
     str(os.getenv("AUTOPURCHASE_AI_ENABLED", "1")).strip().lower()
@@ -109,6 +123,12 @@ AUTOPURCHASE_AI_API_KEY = str(os.getenv("OPENAI_API_KEY", "")).strip()
 AUTOPURCHASE_AI_TIMEOUT_SEC = max(
     5,
     int(os.getenv("AUTOPURCHASE_AI_TIMEOUT_SEC", "45")),
+)
+# Срок поставки по умолчанию (дней), используется как fallback
+# когда фактическая история заказов отсутствует, но есть минимальный остаток.
+AUTOPURCHASE_DEFAULT_LEAD_DAYS_FALLBACK = max(
+    1,
+    int(os.getenv("AUTOPURCHASE_DEFAULT_LEAD_DAYS_FALLBACK", "7")),
 )
 
 logger = logging.getLogger("dz_fastapi")
@@ -196,6 +216,35 @@ def _to_decimal_value(value: Any) -> Optional[Decimal]:
     return Decimal(str(value))
 
 
+def _get_abc_xyz_priority(
+    abc_xyz: Optional[dict[str, Any]],
+) -> tuple[int, int]:
+    payload = dict(abc_xyz or {})
+    abc_class = str(payload.get("abc_class") or "").strip().upper()
+    xyz_class = str(payload.get("xyz_class") or "").strip().upper()
+    return (
+        ABC_CLASS_PRIORITY.get(abc_class, 9),
+        XYZ_CLASS_PRIORITY.get(xyz_class, 9),
+    )
+
+
+def _get_autopurchase_priority_key(
+    item: dict[str, Any],
+) -> tuple[int, int, int, int, int, str]:
+    abc_priority, xyz_priority = _get_abc_xyz_priority(item.get("abc_xyz"))
+    estimated_days_left = item.get("estimated_days_left_30_days")
+    return (
+        int(estimated_days_left)
+        if estimated_days_left is not None
+        else 9_999,
+        abc_priority,
+        xyz_priority,
+        -int(item.get("recommended_order_qty") or 0),
+        -int(item.get("sold_last_30_days") or 0),
+        str(item.get("oem_number") or ""),
+    )
+
+
 def _serialize_autopurchase_run(run: AutoPurchaseRun) -> dict[str, Any]:
     summary_snapshot = dict(run.summary_snapshot or {})
     return {
@@ -223,6 +272,40 @@ def _serialize_autopurchase_run(run: AutoPurchaseRun) -> dict[str, Any]:
         "blocked_count": int(summary_snapshot.get("blocked_count") or 0),
         "sent_count": int(summary_snapshot.get("sent_count") or 0),
     }
+
+
+async def _prune_old_finished_autopurchase_runs(
+    session: AsyncSession,
+) -> int:
+    if AUTOPURCHASE_FINISHED_HISTORY_LIMIT <= 0:
+        return 0
+
+    prune_stmt = (
+        select(AutoPurchaseRun.id)
+        .where(AutoPurchaseRun.finished_at.is_not(None))
+        .order_by(
+            AutoPurchaseRun.finished_at.desc(),
+            AutoPurchaseRun.started_at.desc(),
+            AutoPurchaseRun.id.desc(),
+        )
+        .offset(AUTOPURCHASE_FINISHED_HISTORY_LIMIT)
+    )
+    prune_ids = [
+        int(run_id)
+        for run_id in (await session.execute(prune_stmt)).scalars().all()
+    ]
+    if not prune_ids:
+        return 0
+
+    await session.execute(
+        delete(AutoPurchaseRunItem).where(
+            AutoPurchaseRunItem.run_id.in_(prune_ids)
+        )
+    )
+    await session.execute(
+        delete(AutoPurchaseRun).where(AutoPurchaseRun.id.in_(prune_ids))
+    )
+    return len(prune_ids)
 
 
 def _serialize_autopurchase_run_item(
@@ -1759,6 +1842,8 @@ async def _persist_autopurchase_preview(
         )
         session.add(item)
 
+    await _prune_old_finished_autopurchase_runs(session)
+
 
 def _calculate_snapshot_sales(
     snapshots: list[dict[str, Any]],
@@ -2038,7 +2123,7 @@ async def get_autopurchase_preview(
 
         manual_min_balance_fallback = False
         if lead_time_days_used is None and minimum_balance > 0 and avg_daily_blended:
-            lead_time_days_used = 7.0
+            lead_time_days_used = float(AUTOPURCHASE_DEFAULT_LEAD_DAYS_FALLBACK)
         elif lead_time_days_used is None and minimum_balance > 0:
             manual_min_balance_fallback = True
 
@@ -2095,9 +2180,17 @@ async def get_autopurchase_preview(
                 multiplicity,
             )
 
-        estimated_days_left_30_days = (
-            int(current_quantity / avg_daily_30)
+        # Для расчёта дней запаса предпочитаем 30-дневную среднюю,
+        # но при её отсутствии используем бленд, чтобы не терять приоритет
+        # у товаров, у которых последние 30 дней не было продаж.
+        _avg_for_days_left = (
+            avg_daily_30
             if avg_daily_30 and avg_daily_30 > 0
+            else avg_daily_blended
+        )
+        estimated_days_left_30_days = (
+            int(current_quantity / _avg_for_days_left)
+            if _avg_for_days_left and _avg_for_days_left > 0
             else None
         )
         if (
@@ -2168,16 +2261,7 @@ async def get_autopurchase_preview(
             }
         )
 
-    base_rows.sort(
-        key=lambda item: (
-            0 if item.get("missing_in_latest_pricelist") else 1,
-            item["estimated_days_left_30_days"]
-            if item["estimated_days_left_30_days"] is not None
-            else 9_999,
-            -int(item.get("recommended_order_qty") or 0),
-            item["oem_number"],
-        )
-    )
+    base_rows.sort(key=_get_autopurchase_priority_key)
     candidate_rows = base_rows[:normalized_limit]
 
     site_results_by_oem: dict[str, tuple[list[dict[str, Any]], list[str], bool]] = {}
@@ -2420,11 +2504,7 @@ async def get_autopurchase_preview(
     rows.sort(
         key=lambda item: (
             decision_rank.get(item["decision_status"], 99),
-            item["estimated_days_left_30_days"]
-            if item["estimated_days_left_30_days"] is not None
-            else 9_999,
-            -int(item.get("recommended_order_qty") or 0),
-            item["oem_number"],
+            *_get_autopurchase_priority_key(item),
         )
     )
     return {
@@ -2616,6 +2696,7 @@ async def execute_next_autopurchase_run(
                 failed_run.summary_snapshot = failed_summary
                 failed_run.finished_at = now_moscow()
                 failed_run.status = AUTOPURCHASE_RUN_STATUS_FAILED
+                await _prune_old_finished_autopurchase_runs(session)
         return run_id
 
 
@@ -2624,12 +2705,42 @@ async def list_autopurchase_runs(
     *,
     limit: int = 50,
 ) -> list[dict[str, Any]]:
-    stmt = (
+    normalized_limit = max(1, int(limit or 50))
+
+    active_stmt = (
         select(AutoPurchaseRun)
+        .where(AutoPurchaseRun.finished_at.is_(None))
         .order_by(AutoPurchaseRun.started_at.desc(), AutoPurchaseRun.id.desc())
-        .limit(limit)
+        .limit(normalized_limit)
     )
-    runs = (await session.execute(stmt)).scalars().all()
+    active_runs = list((await session.execute(active_stmt)).scalars().all())
+
+    remaining_limit = max(normalized_limit - len(active_runs), 0)
+    finished_runs: list[AutoPurchaseRun] = []
+    if remaining_limit > 0 and AUTOPURCHASE_FINISHED_HISTORY_LIMIT > 0:
+        finished_stmt = (
+            select(AutoPurchaseRun)
+            .where(AutoPurchaseRun.finished_at.is_not(None))
+            .order_by(
+                AutoPurchaseRun.finished_at.desc(),
+                AutoPurchaseRun.started_at.desc(),
+                AutoPurchaseRun.id.desc(),
+            )
+            .limit(min(remaining_limit, AUTOPURCHASE_FINISHED_HISTORY_LIMIT))
+        )
+        finished_runs = list(
+            (await session.execute(finished_stmt)).scalars().all()
+        )
+
+    runs = sorted(
+        [*active_runs, *finished_runs],
+        key=lambda run: (
+            run.finished_at or run.started_at or now_moscow(),
+            run.started_at or now_moscow(),
+            int(run.id),
+        ),
+        reverse=True,
+    )[:normalized_limit]
     return [_serialize_autopurchase_run(run) for run in runs]
 
 
@@ -2658,21 +2769,17 @@ async def get_autopurchase_run_items(
     if run is None:
         raise ValueError("Запуск автозаказа не найден")
 
-    stmt = (
-        select(AutoPurchaseRunItem)
-        .where(AutoPurchaseRunItem.run_id == run_id)
-        .order_by(
-            AutoPurchaseRunItem.decision_status.asc(),
-            AutoPurchaseRunItem.recommended_order_qty.desc(),
-            AutoPurchaseRunItem.oem_number.asc(),
-            AutoPurchaseRunItem.id.asc(),
-        )
-    )
+    stmt = select(AutoPurchaseRunItem).where(AutoPurchaseRunItem.run_id == run_id)
     items = (await session.execute(stmt)).scalars().all()
 
     decision_filter = str(decision_status or "").strip().lower() or None
     search_filter = str(search or "").strip().lower()
     filtered_rows: list[dict[str, Any]] = []
+    decision_rank = {
+        AUTOPURCHASE_STATUS_AUTO_APPROVED: 0,
+        AUTOPURCHASE_STATUS_NEEDS_REVIEW: 1,
+        AUTOPURCHASE_STATUS_BLOCKED: 2,
+    }
     for item in items:
         serialized = _serialize_autopurchase_run_item(item)
         if decision_filter and serialized["decision_status"] != decision_filter:
@@ -2694,6 +2801,13 @@ async def get_autopurchase_run_items(
             if search_filter not in search_blob:
                 continue
         filtered_rows.append(serialized)
+
+    filtered_rows.sort(
+        key=lambda item: (
+            decision_rank.get(item["decision_status"], 99),
+            *_get_autopurchase_priority_key(item),
+        )
+    )
 
     return {
         "run": _serialize_autopurchase_run(run),
@@ -2943,11 +3057,16 @@ def _get_draft_limits_from_run(
     return budget_limit, position_limit
 
 
-def _get_draft_item_priority(item: AutoPurchaseRunItem) -> tuple[int, int, int, str, int]:
+def _get_draft_item_priority(
+    item: AutoPurchaseRunItem,
+) -> tuple[int, int, int, int, int, str, int]:
+    abc_priority, xyz_priority = _get_abc_xyz_priority(dict(item.abc_xyz or {}))
     return (
         int(item.estimated_days_left_30_days)
         if item.estimated_days_left_30_days is not None
         else 9_999,
+        abc_priority,
+        xyz_priority,
         -int(item.recommended_order_qty or 0),
         -int(item.sold_last_30_days or 0),
         str(item.oem_number or ""),
@@ -2984,7 +3103,7 @@ async def get_autopurchase_run_draft_orders(
     items.sort(key=_get_draft_item_priority)
 
     budget_limit, position_limit = _get_draft_limits_from_run(run)
-    selected_total_sum = 0.0
+    selected_total_sum = Decimal("0")
     selected_total_items = 0
 
     draft_groups: dict[tuple[str, str, str, str], dict[str, Any]] = {}
@@ -3062,19 +3181,31 @@ async def get_autopurchase_run_draft_orders(
                 0.0,
             )
             if float(line_total) > remaining_budget:
-                skipped_items.append(
-                    {
-                        "item_id": int(item.id),
-                        "oem_number": item.oem_number,
-                        "brand_name": item.brand_name,
-                        "reason": (
-                            "Не вошло в отправку: строка превышает остаток "
-                            f"лимита суммы ({_format_money_value(line_total)} руб. > "
-                            f"{_format_money_value(remaining_budget)} руб.)"
-                        ),
-                    }
+                # Пробуем заказать частичное количество в пределах остатка бюджета.
+                max_qty_by_budget = int(remaining_budget // float(unit_price))
+                max_qty_by_budget = _round_up_to_multiplicity(
+                    max_qty_by_budget,
+                    int(item.multiplicity or 1),
                 )
-                continue
+                if max_qty_by_budget > 0 and float(
+                        unit_price * max_qty_by_budget
+                ) <= remaining_budget:
+                    proposed_order_qty = max_qty_by_budget
+                    line_total = _quantize_float(unit_price * proposed_order_qty)
+                else:
+                    skipped_items.append(
+                        {
+                            "item_id": int(item.id),
+                            "oem_number": item.oem_number,
+                            "brand_name": item.brand_name,
+                            "reason": (
+                                "Не вошло в отправку: строка превышает остаток "
+                                f"лимита суммы ({_format_money_value(line_total)} руб. > "
+                                f"{_format_money_value(remaining_budget)} руб.)"
+                            ),
+                        }
+                    )
+                    continue
 
         group_key = _get_draft_group_key(item)
         group = draft_groups.get(group_key)
@@ -3125,13 +3256,14 @@ async def get_autopurchase_run_draft_orders(
         )
         group["total_items"] += 1
         group["total_quantity"] += proposed_order_qty
-        group["total_sum"] = _quantize_float(
-            float(group["total_sum"]) + float(line_total or 0)
-        ) or 0.0
+        # Накапливаем как Decimal, чтобы избежать плавающих ошибок округления.
+        group["total_sum"] = Decimal(str(group["total_sum"])) + Decimal(str(line_total or 0))
         selected_total_items += 1
-        selected_total_sum = _quantize_float(
-            float(selected_total_sum) + float(line_total or 0)
-        ) or 0.0
+        selected_total_sum += Decimal(str(line_total or 0))
+
+    # Финализируем суммы групп: квантизируем Decimal → float для JSON-сериализации.
+    for group in draft_groups.values():
+        group["total_sum"] = _quantize_float(float(group["total_sum"])) or 0.0
 
     groups = sorted(
         draft_groups.values(),
@@ -3146,9 +3278,7 @@ async def get_autopurchase_run_draft_orders(
         "total_groups": len(groups),
         "total_items": sum(int(group["total_items"]) for group in groups),
         "total_quantity": sum(int(group["total_quantity"]) for group in groups),
-        "total_sum": _quantize_float(
-            sum(float(group["total_sum"]) for group in groups)
-        ),
+        "total_sum": _quantize_float(float(selected_total_sum)),
         "applied_budget_limit": budget_limit,
         "applied_position_limit": position_limit,
         "groups": groups,
