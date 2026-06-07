@@ -289,7 +289,16 @@ def start_scheduler(app: FastAPI):
     scheduler = AsyncIOScheduler()
     scheduler.configure(
         timezone="Europe/Moscow",
-        job_defaults={"coalesce": True, "max_instances": 1},
+        job_defaults={
+            "coalesce": True,       # Несколько пропущенных триггеров → 1 запуск,
+                                    # не очередь. Если задача опоздала на 5 минут,
+                                    # она запустится 1 раз, а не 20.
+            "max_instances": 1,     # Никогда не запускать параллельные копии.
+            "misfire_grace_time": None,  # Запускать всегда, без ограничения по
+                                         # времени опоздания. Вместо "was missed"
+                                         # задача встаёт в очередь и выполняется
+                                         # как только event loop освободится.
+        },
     )
 
     scheduler.add_job(

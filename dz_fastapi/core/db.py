@@ -28,8 +28,12 @@ _ENGINE_CACHE: dict[bool, AsyncEngine] = {}
 _SESSION_FACTORY_CACHE: dict[bool, async_sessionmaker[AsyncSession]] = {}
 DB_POOL_SIZE = max(1, int(os.getenv("DATABASE_POOL_SIZE", "10")))
 DB_MAX_OVERFLOW = max(0, int(os.getenv("DATABASE_MAX_OVERFLOW", "10")))
-DB_POOL_TIMEOUT = max(5, int(os.getenv("DATABASE_POOL_TIMEOUT", "10")))
-DB_CONNECT_TIMEOUT = max(5, int(os.getenv("DATABASE_CONNECT_TIMEOUT", "10")))
+DB_POOL_TIMEOUT = max(5, int(os.getenv("DATABASE_POOL_TIMEOUT", "30")))
+# Таймаут установки одного соединения с Postgres.
+# Увеличен с 10 до 30 с: при кратковременной загрузке event loop (например,
+# во время пакетных site API вызовов автозаказа) asyncpg получал CancelledError
+# при DNS-резолве → TimeoutError в scheduler-задачах.
+DB_CONNECT_TIMEOUT = max(5, int(os.getenv("DATABASE_CONNECT_TIMEOUT", "30")))
 
 
 def get_engine(test=False):
