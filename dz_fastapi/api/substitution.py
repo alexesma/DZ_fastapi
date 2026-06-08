@@ -64,6 +64,7 @@ async def upload_substitutions_from_1c(
     |DRAGONZAP   |12345     |GEELY    |1234567    |2   |4      |2        |
     """
 
+    import gc
     df = pd.read_excel(file.file)
 
     required_columns = ["source_brand", "source_oem", "sub_brand", "sub_oem"]
@@ -76,8 +77,10 @@ async def upload_substitutions_from_1c(
     added = 0
     skipped = 0
     errors = []
+    rows = list(df.iterrows())
+    del df; gc.collect()
 
-    for idx, row in df.iterrows():
+    for idx, row in rows:
         try:
             # Найти source autopart
             result = await session.execute(
