@@ -2495,9 +2495,18 @@ async def get_autopurchase_preview(
             decision_value = AUTOPURCHASE_STATUS_NEEDS_REVIEW
         elif (
             requested_mode == AUTOPURCHASE_MODE_AUTO_APPROVE_SAFE
-            and selected_supplier.get("fill_rate") is not None
-            and float(selected_supplier.get("fill_rate") or 0)
-            >= FILL_RATE_THRESHOLD_AUTO_APPROVE
+            and (
+                # Стандартный путь: накопленный fill_rate выше порога
+                (
+                    selected_supplier.get("fill_rate") is not None
+                    and float(selected_supplier.get("fill_rate") or 0)
+                    >= FILL_RATE_THRESHOLD_AUTO_APPROVE
+                )
+                # Bootstrap-путь: нет истории вообще (новая система/поставщик),
+                # но поставщик найден и готов дать нужное количество.
+                # Заказываем с предупреждением — fill_rate накопится после первых заказов.
+                or selected_supplier.get("fill_rate") is None
+            )
             and (
                 max_allowed_lead_days is None
                 or selected_supplier.get("effective_lead_days") is None

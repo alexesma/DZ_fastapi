@@ -628,10 +628,13 @@ async def bulk_update_autoparts(
         updated_ids = []
         not_found = []
         records = df.to_dict(orient="records")
-        del df  # освобождаем DataFrame сразу после конвертации — pandas/NumPy
-                # не возвращает C-память ОС автоматически, поэтому явный del
-                # + gc.collect() снижает накопление RSS при повторных загрузках.
-        import gc; gc.collect()
+        # Освобождаем DataFrame сразу после конвертации: pandas/NumPy
+        # не возвращает C-память ОС автоматически, поэтому явный del
+        # и gc.collect() снижают накопление RSS при повторных загрузках.
+        del df
+        import gc
+
+        gc.collect()
         for record in records:
             try:
                 oem_number = preprocess_oem_number(str(record["oem_number"]))

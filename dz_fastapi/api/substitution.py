@@ -78,7 +78,8 @@ async def upload_substitutions_from_1c(
     skipped = 0
     errors = []
     rows = list(df.iterrows())
-    del df; gc.collect()
+    del df
+    gc.collect()
 
     for idx, row in rows:
         try:
