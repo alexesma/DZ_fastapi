@@ -624,7 +624,11 @@ async def fetch_inbox_for_account(
                 ),
                 timeout=IMAP_FETCH_PER_ACCOUNT_TIMEOUT,
             )
-        except asyncio.TimeoutError:
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            # asyncio.wait_for() при таймауте отменяет внутренний to_thread-таск
+            # и иногда прокидывает CancelledError вместо TimeoutError (Python 3.12).
+            # Оба случая означают «IMAP не ответил вовремя» — продолжаем
+            # без пробрасывания ошибки в DB-сессию.
             logger.error(
                 "IMAP fetch timeout for account id=%s folder=%s "
                 "after %ss — skipping",

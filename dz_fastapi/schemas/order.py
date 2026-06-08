@@ -466,6 +466,13 @@ class AutoPurchasePreviewRow(BaseModel):
     draft_purchase_order: Optional[TrackingInsightDraftPurchaseOrder] = None
 
 
+class AutoPurchaseDiagnosticMetric(BaseModel):
+    code: str
+    title: str
+    value: int = 0
+    description: Optional[str] = None
+
+
 class AutoPurchasePreviewResponse(BaseModel):
     provider_config_id: int
     provider_id: int
@@ -478,6 +485,7 @@ class AutoPurchasePreviewResponse(BaseModel):
     auto_approved_count: int = 0
     needs_review_count: int = 0
     blocked_count: int = 0
+    diagnostics: List[AutoPurchaseDiagnosticMetric] = Field(default_factory=list)
     rows: List[AutoPurchasePreviewRow] = Field(default_factory=list)
 
 

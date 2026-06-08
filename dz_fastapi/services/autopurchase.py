@@ -200,6 +200,21 @@ def _build_reason(
     }
 
 
+def _build_autopurchase_diagnostic_metric(
+    *,
+    code: str,
+    title: str,
+    value: int,
+    description: Optional[str] = None,
+) -> dict[str, Any]:
+    return {
+        "code": code,
+        "title": title,
+        "value": int(value),
+        "description": description,
+    }
+
+
 def _limit_reasons(reasons: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         dict(reason)
@@ -1749,6 +1764,29 @@ def _build_run_settings(
     }
 
 
+def _build_completed_run_summary_message(preview: dict[str, Any]) -> str:
+    total_items = int(preview.get("total_items") or 0)
+    auto_approved_count = int(preview.get("auto_approved_count") or 0)
+    needs_review_count = int(preview.get("needs_review_count") or 0)
+    blocked_count = int(preview.get("blocked_count") or 0)
+
+    if total_items <= 0:
+        return "Расчёт завершён: позиции с потребностью к заказу не найдены"
+    if auto_approved_count <= 0 and needs_review_count > 0:
+        return (
+            "Расчёт завершён: готовых строк к заказу не найдено, "
+            f"на ручную проверку вынесено {needs_review_count} поз."
+        )
+    if auto_approved_count > 0:
+        return (
+            "Расчёт завершён: "
+            f"готово к заказу {auto_approved_count} поз., "
+            f"на проверку {needs_review_count} поз., "
+            f"заблокировано {blocked_count} поз."
+        )
+    return "Расчёт автозаказа завершён"
+
+
 def _build_initial_run_summary(config_row: dict[str, Any], *, status: str) -> dict[str, Any]:
     return {
         "provider_name": config_row.get("provider_name"),
@@ -1759,6 +1797,7 @@ def _build_initial_run_summary(config_row: dict[str, Any], *, status: str) -> di
         "needs_review_count": 0,
         "blocked_count": 0,
         "sent_count": 0,
+        "diagnostics": [],
         "message": _build_run_summary_message(status),
     }
 
@@ -1788,7 +1827,8 @@ async def _persist_autopurchase_preview(
         "needs_review_count": preview["needs_review_count"],
         "blocked_count": preview["blocked_count"],
         "sent_count": 0,
-        "message": _build_run_summary_message(AUTOPURCHASE_RUN_STATUS_COMPLETED),
+        "diagnostics": list(preview.get("diagnostics") or []),
+        "message": _build_completed_run_summary_message(preview),
     }
 
     await session.execute(
@@ -2072,8 +2112,28 @@ async def get_autopurchase_preview(
         AUTOPURCHASE_STATUS_AUTO_APPROVED: 2,
     }
     base_rows: list[dict[str, Any]] = []
+    diagnostics = {
+        "oems_in_own_pricelist_count": len(normalized_oem_numbers),
+        "oems_with_sales_signal_count": 0,
+        "fallback_lead_time_used_count": 0,
+        "fallback_lead_time_sales_only_count": 0,
+        "manual_min_balance_fallback_count": 0,
+        "excluded_missing_without_activity_count": 0,
+        "excluded_zero_need_count": 0,
+        "excluded_zero_need_with_sales_count": 0,
+        "rows_missing_in_latest_pricelist_count": 0,
+        "rows_without_supplier_count": 0,
+        "rows_without_draft_count": 0,
+        "rows_with_partial_supplier_qty_count": 0,
+        "rows_ready_for_draft_count": 0,
+    }
 
-    for oem_number, known_row in latest_known_rows_by_oem.items():
+    for _oem_idx, (oem_number, known_row) in enumerate(latest_known_rows_by_oem.items()):
+        # Каждые 50 OEM отдаём управление event loop — без этого при большом прайсе
+        # цикл блокирует loop на несколько секунд и вызывает TimeoutError в других задачах.
+        if _oem_idx % 50 == 0 and _oem_idx > 0:
+            await asyncio.sleep(0)
+
         latest = latest_rows_by_oem.get(oem_number) or {
             **known_row,
             "current_quantity": 0,
@@ -2084,6 +2144,9 @@ async def get_autopurchase_preview(
         avg_daily_30 = _compute_average_daily(sold_last_30_days, 30)
         avg_daily_90 = _compute_average_daily(sold_last_90_days, 90)
         avg_daily_blended = _blend_average_daily(avg_daily_30, avg_daily_90)
+        has_sales_signal = bool(avg_daily_blended and avg_daily_blended > 0)
+        if has_sales_signal:
+            diagnostics["oems_with_sales_signal_count"] += 1
         current_quantity = int(latest.get("current_quantity") or 0)
         minimum_balance = int(latest.get("minimum_balance") or 0)
         multiplicity = max(int(latest.get("multiplicity") or 1), 1)
@@ -2122,10 +2185,14 @@ async def get_autopurchase_preview(
         )
 
         manual_min_balance_fallback = False
-        if lead_time_days_used is None and minimum_balance > 0 and avg_daily_blended:
+        if lead_time_days_used is None and has_sales_signal:
             lead_time_days_used = float(AUTOPURCHASE_DEFAULT_LEAD_DAYS_FALLBACK)
+            diagnostics["fallback_lead_time_used_count"] += 1
+            if minimum_balance <= 0:
+                diagnostics["fallback_lead_time_sales_only_count"] += 1
         elif lead_time_days_used is None and minimum_balance > 0:
             manual_min_balance_fallback = True
+            diagnostics["manual_min_balance_fallback_count"] += 1
 
         coverable_in_transit_qty = _estimate_coverable_in_transit_qty(
             oem_history,
@@ -2200,12 +2267,16 @@ async def get_autopurchase_preview(
             and in_transit_qty <= 0
             and minimum_balance <= 0
         ):
+            diagnostics["excluded_missing_without_activity_count"] += 1
             continue
         if (
             recommended_order_qty <= 0
             and not missing_in_latest_pricelist
             and minimum_balance <= 0
         ):
+            diagnostics["excluded_zero_need_count"] += 1
+            if sold_last_30_days > 0 or sold_last_90_days > 0:
+                diagnostics["excluded_zero_need_with_sales_count"] += 1
             continue
 
         search_haystack = " ".join(
@@ -2296,7 +2367,10 @@ async def get_autopurchase_preview(
         )
 
     rows: list[dict[str, Any]] = []
-    for candidate_row in candidate_rows:
+    for _row_idx, candidate_row in enumerate(candidate_rows):
+        if _row_idx % 50 == 0 and _row_idx > 0:
+            await asyncio.sleep(0)
+
         oem_number = str(candidate_row["oem_number"])
         site_supplier_stats, site_query_brands, used_site_fallback_brand = (
             site_results_by_oem.get(oem_number) or ([], [], False)
@@ -2360,6 +2434,7 @@ async def get_autopurchase_preview(
             )
 
         if not selected_supplier:
+            diagnostics["rows_without_supplier_count"] += 1
             reasons.append(
                 _build_reason(
                     code="site_supplier_not_found",
@@ -2389,6 +2464,7 @@ async def get_autopurchase_preview(
             selected_supplier
             and int(selected_supplier.get("current_qty") or 0) < recommended_order_qty
         ):
+            diagnostics["rows_with_partial_supplier_qty_count"] += 1
             reasons.append(
                 _build_reason(
                     code="site_qty_less_than_required",
@@ -2454,6 +2530,12 @@ async def get_autopurchase_preview(
                 None,
             ),
         )
+        if candidate_row.get("missing_in_latest_pricelist"):
+            diagnostics["rows_missing_in_latest_pricelist_count"] += 1
+        if draft_purchase_order:
+            diagnostics["rows_ready_for_draft_count"] += 1
+        else:
+            diagnostics["rows_without_draft_count"] += 1
 
         rows.append(
             {
@@ -2531,6 +2613,69 @@ async def get_autopurchase_preview(
             for row in rows
             if row["decision_status"] == AUTOPURCHASE_STATUS_BLOCKED
         ),
+        "diagnostics": [
+            _build_autopurchase_diagnostic_metric(
+                code="oems_in_own_pricelist_count",
+                title="OEM в нашем прайсе",
+                value=diagnostics["oems_in_own_pricelist_count"],
+            ),
+            _build_autopurchase_diagnostic_metric(
+                code="oems_with_sales_signal_count",
+                title="Позиции с сигналом продаж",
+                value=diagnostics["oems_with_sales_signal_count"],
+                description=(
+                    "Позиции, по которым расчёт увидел движение товара по нашим "
+                    "снапшотам за 30/90 дней."
+                ),
+            ),
+            _build_autopurchase_diagnostic_metric(
+                code="fallback_lead_time_used_count",
+                title="Использован fallback по сроку поставки",
+                value=diagnostics["fallback_lead_time_used_count"],
+                description=(
+                    "Позиции с продажами, где не было истории фактического срока "
+                    "поставки и применён дефолтный lead time."
+                ),
+            ),
+            _build_autopurchase_diagnostic_metric(
+                code="fallback_lead_time_sales_only_count",
+                title="Fallback сработал без min balance",
+                value=diagnostics["fallback_lead_time_sales_only_count"],
+                description=(
+                    "Позиции с продажами, для которых потребность удалось посчитать "
+                    "даже при нулевом минимальном остатке."
+                ),
+            ),
+            _build_autopurchase_diagnostic_metric(
+                code="excluded_zero_need_count",
+                title="Отсечено с нулевой потребностью",
+                value=diagnostics["excluded_zero_need_count"],
+            ),
+            _build_autopurchase_diagnostic_metric(
+                code="excluded_zero_need_with_sales_count",
+                title="Нулевая потребность при наличии продаж",
+                value=diagnostics["excluded_zero_need_with_sales_count"],
+                description=(
+                    "Самый важный индикатор для диагностики: позиции продавались, "
+                    "но расчёт всё равно не вывел их в потребность."
+                ),
+            ),
+            _build_autopurchase_diagnostic_metric(
+                code="rows_without_supplier_count",
+                title="Строк без site-поставщика",
+                value=diagnostics["rows_without_supplier_count"],
+            ),
+            _build_autopurchase_diagnostic_metric(
+                code="rows_without_draft_count",
+                title="Строк без готового черновика",
+                value=diagnostics["rows_without_draft_count"],
+            ),
+            _build_autopurchase_diagnostic_metric(
+                code="rows_ready_for_draft_count",
+                title="Строк, готовых к черновику",
+                value=diagnostics["rows_ready_for_draft_count"],
+            ),
+        ],
         "rows": rows,
     }
 
