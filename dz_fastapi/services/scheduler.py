@@ -70,7 +70,11 @@ from dz_fastapi.services.diadoc_documents import sync_diadoc_incoming_documents
 from dz_fastapi.services.diadoc_integration import get_diadoc_client_for_session
 from dz_fastapi.services.email import get_emails
 from dz_fastapi.services.inbox_email import cleanup_inbox_emails, fetch_and_store_emails
-from dz_fastapi.services.monitoring import build_snapshot_payload, get_monitor_summary
+from dz_fastapi.services.monitoring import (
+    build_snapshot_payload,
+    get_monitor_summary,
+    tracked_execution,
+)
 from dz_fastapi.services.notifications import create_admin_notifications, notify_admin_all
 from dz_fastapi.services.order_timing import (
     OUTSIDE_WINDOW_SLOW_SECONDS,
@@ -320,12 +324,14 @@ def start_scheduler(app: FastAPI):
     # «гром стада» на первой секунде каждой минуты.
     #
     # Приоритеты нагрузки:
-    #   1. Заказы + ответы поставщиков — критичные; интенсивно в 08–10
-    #      и 13–16 МСК, медленно в остальное время суток.
-    #   2. Документы поставщиков, Диадок, inbox — рабочий день 09–18 МСК.
-    #   3. Прайсы поставщиков — ночью (00–07, 22–23) плюс лёгкий прогон
-    #      в 13:00 МСК; днём не запускаем чтобы не грузить память.
-    #   4. Технические задачи очистки — 02–04 МСК (минимум активности).
+    #   1. Заказы клиентов — критичные; интенсивно в 08–10 и 13–16 МСК,
+    #      фоново только вне вечернего окна сотрудников.
+    #   2. Ответы поставщиков — активный цикл оставляем в рабочее время,
+    #      фоновый запуск только утром; ночью и вечером не нужен.
+    #   3. Документы поставщиков, Диадок, inbox — рабочий день 09–18 МСК.
+    #   4. Прайсы поставщиков и трекинг сайта — только ночью, без старта
+    #      в вечернее окно 19:00–00:30 МСК.
+    #   5. Технические задачи очистки — 02–04 МСК (минимум активности).
 
     # ── 1. Заказы клиентов ────────────────────────────────────────────────
     # Цикл 1: 08:XX–09:XX МСК — интенсивный (каждые N мин)
@@ -352,14 +358,15 @@ def start_scheduler(app: FastAPI):
         second=15,
         replace_existing=True,
     )
-    # Фоновый режим: остальное время — каждые ORDERS_SLOW_POLL_MINUTES мин
+    # Фоновый режим: вне циклов и вне вечернего окна сотрудников.
+    # Вечер 19:00–00:30 МСК оставляем свободным от этого регламента.
     scheduler.add_job(
         func=download_customer_orders_task,
         trigger="cron",
         args=[app],
         id="download_customer_orders_bg",
         name="Download customer orders — фон (вне циклов)",
-        hour="0-7,10-12,16-23",
+        hour="1-7,10-12,16-18",
         minute=f"*/{ORDERS_SLOW_POLL_MINUTES}",
         second=15,
         replace_existing=True,
@@ -378,14 +385,15 @@ def start_scheduler(app: FastAPI):
         second=25,
         replace_existing=True,
     )
-    # Фоновый режим: вне рабочих часов — каждые 30 мин
+    # Фоновый режим: только раннее утро. Ночью и вечером этот регламент
+    # не запускаем, потому что ответы поставщиков приходят утром.
     scheduler.add_job(
         func=process_supplier_responses_task,
         trigger="cron",
         args=[app],
         id="process_supplier_responses_bg",
         name="Process supplier responses — фон (вне 09–16 МСК)",
-        hour="0-8,16-23",
+        hour="7-8",
         minute="*/30",
         second=25,
         replace_existing=True,
@@ -406,14 +414,15 @@ def start_scheduler(app: FastAPI):
     )
 
     # ── 4. Прайсы поставщиков ─────────────────────────────────────────────
-    # Ночной прогон: 00–07 и 22–23 МСК — каждый час (тяжёлый, pandas)
+    # Ночной прогон: 01–07 МСК — каждый час (тяжёлый, pandas).
+    # Убираем старты в 22:00, 23:00 и 00:00, чтобы не мешать вечерней работе.
     scheduler.add_job(
         func=download_price_provider_task,
         trigger="cron",
         args=[app],
         id="download_price_provider_night",
-        name="Download price provider — ночь (00–07, 22–23 МСК)",
-        hour="0-7,22-23",
+        name="Download price provider — ночь (01–07 МСК)",
+        hour="1-7",
         minute=0,
         second=0,
         jitter=10,
@@ -587,15 +596,15 @@ def start_scheduler(app: FastAPI):
     )
 
     # ── 15. Синхронизация статусов треккинга ──────────────────────────────
-    # Ночь и поздний вечер 00–06, 20–23 МСК — каждые 30 мин
-    # (днём нагрузку не создаём — данные меняются медленно)
+    # Только ночь 01–06 МСК — каждые 30 мин.
+    # Вечернее окно сотрудников 19:00–00:30 не трогаем.
     scheduler.add_job(
         func=sync_site_tracking_statuses_task,
         trigger="cron",
         args=[app],
         id="sync_site_tracking_statuses",
         name="Sync Dragonzap tracking statuses",
-        hour="0-6,20-23",
+        hour="1-6",
         minute="*/30",
         second=0,
         jitter=30,
@@ -798,64 +807,92 @@ async def _process_one(item, app: FastAPI, sem: asyncio.Semaphore):
     try:
         async with sem:
             try:
-                async with new_session_from_app(app) as session:
-                    file_extension = filepath.split(".")[-1].lower()
-                    async with aiofiles.open(filepath, "rb") as f:
-                        file_content = await f.read()
-                    logger.info(
-                        f"Скачан прайс для провайдера {provider.id} "
-                        f"({provider.name}), размер: {len(file_content)} байт"
-                    )
-                    rss_before = _process_rss_mb()
-                    if rss_before is not None:
-                        logger.info(
-                            "Provider pricelist processing start: "
-                            "provider_id=%s config_id=%s rss_mb=%.1f",
-                            provider.id,
-                            provider_conf.id if provider_conf else None,
-                            rss_before,
+                async with tracked_execution(
+                    app,
+                    trace_type="provider_pricelist",
+                    job_key="process_provider_pricelist",
+                    job_name="Process provider pricelist",
+                    provider_id=provider.id,
+                    provider_config_id=provider_conf.id if provider_conf else None,
+                    source_filename=os.path.basename(filepath),
+                    details={
+                        "provider_name": provider.name,
+                        "provider_config_name": (
+                            provider_conf.name_price if provider_conf else None
+                        ),
+                    },
+                ) as trace:
+                    async with new_session_from_app(app) as session:
+                        file_extension = filepath.split(".")[-1].lower()
+                        async with aiofiles.open(filepath, "rb") as f:
+                            file_content = await f.read()
+                        trace.details.update(
+                            {
+                                "file_extension": file_extension,
+                                "file_size_bytes": len(file_content),
+                            }
                         )
-                    await process_provider_pricelist(
-                        provider=provider,
-                        file_content=file_content,
-                        file_extension=file_extension,
-                        provider_list_conf=provider_conf,
-                        use_stored_params=True,
-                        start_row=None,
-                        oem_col=None,
-                        brand_col=None,
-                        name_col=None,
-                        multiplicity_col=None,
-                        qty_col=None,
-                        price_col=None,
-                        session=session,
-                        include_autoparts_response=False,
-                    )
-                    logger.info(
-                        f"Успешно обработан прайс для провайдера {provider.id}"
-                    )
-                    rss_after = _process_rss_mb()
-                    if rss_after is not None:
                         logger.info(
-                            "Provider pricelist processing end: "
-                            "provider_id=%s config_id=%s rss_mb=%.1f",
-                            provider.id,
-                            provider_conf.id if provider_conf else None,
-                            rss_after,
+                            f"Скачан прайс для провайдера {provider.id} "
+                            f"({provider.name}), размер: {len(file_content)} байт"
                         )
+                        rss_before = _process_rss_mb()
+                        if rss_before is not None:
+                            logger.info(
+                                "Provider pricelist processing start: "
+                                "provider_id=%s config_id=%s rss_mb=%.1f",
+                                provider.id,
+                                provider_conf.id if provider_conf else None,
+                                rss_before,
+                            )
+                        pricelist, stats = await process_provider_pricelist(
+                            provider=provider,
+                            file_content=file_content,
+                            file_extension=file_extension,
+                            provider_list_conf=provider_conf,
+                            use_stored_params=True,
+                            start_row=None,
+                            oem_col=None,
+                            brand_col=None,
+                            name_col=None,
+                            multiplicity_col=None,
+                            qty_col=None,
+                            price_col=None,
+                            session=session,
+                            return_stats=True,
+                            include_autoparts_response=False,
+                        )
+                        trace.details.update(
+                            {
+                                "pricelist_id": getattr(pricelist, "id", None),
+                                "stats": stats,
+                            }
+                        )
+                        logger.info(
+                            f"Успешно обработан прайс для провайдера {provider.id}"
+                        )
+                        rss_after = _process_rss_mb()
+                        if rss_after is not None:
+                            logger.info(
+                                "Provider pricelist processing end: "
+                                "provider_id=%s config_id=%s rss_mb=%.1f",
+                                provider.id,
+                                provider_conf.id if provider_conf else None,
+                                rss_after,
+                            )
 
-                    if ENABLE_LEGACY_ZZAP_AUTO_SEND and (
-                        provider.id == 1
-                        or provider.name == PROVIDER_IN["name"]
-                    ):
-                        logger.info(
-                            "Auto-send CUSTOMER_IN branch is enabled for "
-                            "provider_id=%s (%s); "
-                            "running send_price_list_task.",
-                            provider.id,
-                            provider.name,
-                        )
-                        await send_price_list_task(app)
+                        if ENABLE_LEGACY_ZZAP_AUTO_SEND and (
+                            provider.id == 1
+                            or provider.name == PROVIDER_IN["name"]
+                        ):
+                            logger.info(
+                                "Auto-send CUSTOMER_IN branch is enabled for "
+                                "provider_id=%s (%s); "
+                                "running send_price_list_task.",
+                                provider.id,
+                                provider.name,
+                            )
+                            await send_price_list_task(app)
             except Exception as e:
                 logger.error(
                     f"Ошибка обработки прайса для провайдера {provider.id}: "
@@ -943,235 +980,288 @@ async def send_price_list_task(app: FastAPI):
 
 
 async def download_customer_orders_task(app: FastAPI):
-    logger.info("Starting download_customer_orders_task")
-    rss_before = _process_rss_mb()
-    if rss_before is not None:
-        logger.info("download_customer_orders_task rss_before=%.1f", rss_before)
-    async_session_factory = app.state.session_factory
-    async with async_session_factory() as session:
-        try:
-            should_run, setting = await _should_run_scheduled_job(
-                session, "customer_orders_check"
-            )
-            if not should_run:
-                return
-            # Smart window: aggressive polling
-            # in expected windows, slow otherwise
-            in_window = False
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="download_customer_orders",
+        job_name="Download customer orders task",
+    ) as trace:
+        logger.info("Starting download_customer_orders_task")
+        rss_before = _process_rss_mb()
+        if rss_before is not None:
+            logger.info("download_customer_orders_task rss_before=%.1f", rss_before)
+        async_session_factory = app.state.session_factory
+        async with async_session_factory() as session:
             try:
-                in_window = await is_in_any_order_window(session)
-            except Exception as win_exc:
-                logger.warning("Could not compute order windows: %s", win_exc)
-            if not in_window:
-                last_run = setting.last_run_at if setting else None
-                if last_run is not None:
-                    elapsed = (now_moscow() - last_run).total_seconds()
-                    if elapsed < OUTSIDE_WINDOW_SLOW_SECONDS:
-                        logger.debug(
-                            "Outside order windows, slow mode: elapsed=%.0fs",
-                            elapsed,
+                should_run, setting = await _should_run_scheduled_job(
+                    session, "customer_orders_check"
+                )
+                if not should_run:
+                    trace.details["skipped_by_scheduler_setting"] = True
+                    return
+                in_window = False
+                try:
+                    in_window = await is_in_any_order_window(session)
+                    trace.details["in_expected_window"] = bool(in_window)
+                except Exception as win_exc:
+                    logger.warning("Could not compute order windows: %s", win_exc)
+                    trace.details["window_check_error"] = str(win_exc)[:500]
+                if not in_window:
+                    last_run = setting.last_run_at if setting else None
+                    if last_run is not None:
+                        elapsed = (now_moscow() - last_run).total_seconds()
+                        trace.details["elapsed_since_last_run_sec"] = round(
+                            elapsed, 1
                         )
-                        return
-            await process_customer_orders(session)
-            if setting:
-                await _mark_scheduler_ran(session, setting, now_moscow())
-        except Exception as e:
-            logger.error(
-                f"Error processing customer orders: {e}", exc_info=True
-            )
-            await _notify_scheduler_issue(
-                session,
-                subject="Ошибка регламента обработки заказов",
-                text=(
-                    "Ошибка при автоматической обработке заказов клиентов.\n"
-                    f"Текст ошибки: {e}"
-                ),
-            )
-        finally:
-            trim_process_memory(
-                logger, context="download_customer_orders_task"
-            )
+                        if elapsed < OUTSIDE_WINDOW_SLOW_SECONDS:
+                            logger.debug(
+                                "Outside order windows, slow mode: elapsed=%.0fs",
+                                elapsed,
+                            )
+                            trace.details["skipped_by_slow_mode"] = True
+                            return
+                await process_customer_orders(session)
+                trace.details["processed"] = True
+                if setting:
+                    await _mark_scheduler_ran(session, setting, now_moscow())
+            except Exception as e:
+                logger.error(
+                    f"Error processing customer orders: {e}", exc_info=True
+                )
+                trace.details["error"] = str(e)[:2000]
+                trace.details["__trace_status"] = "error"
+                await _notify_scheduler_issue(
+                    session,
+                    subject="Ошибка регламента обработки заказов",
+                    text=(
+                        "Ошибка при автоматической обработке заказов клиентов.\n"
+                        f"Текст ошибки: {e}"
+                    ),
+                )
+            finally:
+                trim_process_memory(
+                    logger, context="download_customer_orders_task"
+                )
 
 
 async def process_supplier_responses_task(app: FastAPI):
-    logger.info("Starting process_supplier_responses_task")
-    async_session_factory = app.state.session_factory
-    async with async_session_factory() as session:
-        try:
-            should_run, setting = await _should_run_scheduled_job(
-                session, "supplier_responses_check"
-            )
-            if not should_run:
-                return
-            # Smart window: aggressive polling only when supplier orders
-            # are within the expected response window (40 min–2 h after sent).
-            # Outside that window — slow down to avoid unnecessary IMAP calls.
-            active_providers: list[int] = []
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="process_supplier_responses",
+        job_name="Process supplier responses task",
+    ) as trace:
+        logger.info("Starting process_supplier_responses_task")
+        async_session_factory = app.state.session_factory
+        async with async_session_factory() as session:
             try:
-                active_providers = (
-                    await get_active_supplier_response_provider_ids(session)
+                should_run, setting = await _should_run_scheduled_job(
+                    session, "supplier_responses_check"
                 )
-            except Exception as win_exc:
-                logger.warning(
-                    "Could not check supplier response window: %s", win_exc
-                )
-            if not active_providers:
-                last_run = setting.last_run_at if setting else None
-                if last_run is not None:
-                    elapsed = (now_moscow() - last_run).total_seconds()
-                    if elapsed < OUTSIDE_WINDOW_SLOW_SECONDS:
-                        logger.debug(
-                            "No suppliers in response window,"
-                            "slow mode: elapsed=%.0fs",
-                            elapsed,
-                        )
-                        return
-            summary = await process_supplier_response_messages(
-                session, file_payload_mode="responses"
-            )
-            logger.info(
-                "Completed process_supplier_responses_task summary=%s",
-                summary,
-            )
-            try:
-                closed_count, stale_days = (
-                    await _close_stale_supplier_response_messages(session)
-                )
-                if closed_count > 0:
-                    logger.info(
-                        (
-                            "Supplier response stale cleanup completed: "
-                            "closed=%s stale_days=%s"
-                        ),
-                        closed_count,
-                        stale_days,
+                if not should_run:
+                    trace.details["skipped_by_scheduler_setting"] = True
+                    return
+                active_providers: list[int] = []
+                try:
+                    active_providers = (
+                        await get_active_supplier_response_provider_ids(session)
                     )
-            except Exception as stale_exc:
-                logger.warning(
-                    "Supplier response stale cleanup failed: %s",
-                    stale_exc,
+                    trace.details["active_provider_ids_count"] = len(
+                        active_providers
+                    )
+                except Exception as win_exc:
+                    logger.warning(
+                        "Could not check supplier response window: %s", win_exc
+                    )
+                    trace.details["window_check_error"] = str(win_exc)[:500]
+                if not active_providers:
+                    last_run = setting.last_run_at if setting else None
+                    if last_run is not None:
+                        elapsed = (now_moscow() - last_run).total_seconds()
+                        trace.details["elapsed_since_last_run_sec"] = round(
+                            elapsed, 1
+                        )
+                        if elapsed < OUTSIDE_WINDOW_SLOW_SECONDS:
+                            logger.debug(
+                                "No suppliers in response window,"
+                                "slow mode: elapsed=%.0fs",
+                                elapsed,
+                            )
+                            trace.details["skipped_by_slow_mode"] = True
+                            return
+                summary = await process_supplier_response_messages(
+                    session, file_payload_mode="responses"
+                )
+                trace.details["summary"] = summary
+                logger.info(
+                    "Completed process_supplier_responses_task summary=%s",
+                    summary,
+                )
+                try:
+                    closed_count, stale_days = (
+                        await _close_stale_supplier_response_messages(session)
+                    )
+                    trace.details["stale_closed_count"] = closed_count
+                    trace.details["stale_days"] = stale_days
+                    if closed_count > 0:
+                        logger.info(
+                            (
+                                "Supplier response stale cleanup completed: "
+                                "closed=%s stale_days=%s"
+                            ),
+                            closed_count,
+                            stale_days,
+                        )
+                except Exception as stale_exc:
+                    logger.warning(
+                        "Supplier response stale cleanup failed: %s",
+                        stale_exc,
+                        exc_info=True,
+                    )
+                    trace.details["stale_cleanup_error"] = str(stale_exc)[:500]
+                if setting:
+                    await _mark_scheduler_ran(session, setting, now_moscow())
+            except Exception as e:
+                logger.error(
+                    "Error processing supplier responses: %s",
+                    e,
                     exc_info=True,
                 )
-            if setting:
-                await _mark_scheduler_ran(session, setting, now_moscow())
-        except Exception as e:
-            logger.error(
-                "Error processing supplier responses: %s",
-                e,
-                exc_info=True,
-            )
-            await _notify_scheduler_issue(
-                session,
-                subject="Ошибка регламента обработки ответов поставщиков",
-                text=(
-                    "Ошибка при автоматической обработке ответов "
-                    f"поставщиков.\nТекст ошибки: {e}"
-                ),
-            )
+                trace.details["error"] = str(e)[:2000]
+                trace.details["__trace_status"] = "error"
+                await _notify_scheduler_issue(
+                    session,
+                    subject="Ошибка регламента обработки ответов поставщиков",
+                    text=(
+                        "Ошибка при автоматической обработке ответов "
+                        f"поставщиков.\nТекст ошибки: {e}"
+                    ),
+                )
 
 
 async def process_supplier_documents_task(app: FastAPI):
-    logger.info("Starting process_supplier_documents_task")
-    async_session_factory = app.state.session_factory
-    async with async_session_factory() as session:
-        try:
-            summary = await process_supplier_response_messages(
-                session, file_payload_mode="documents"
-            )
-            logger.info(
-                "Completed process_supplier_documents_task summary=%s",
-                summary,
-            )
-        except Exception as e:
-            logger.error(
-                "Error processing supplier documents: %s", e, exc_info=True
-            )
-            await _notify_scheduler_issue(
-                session,
-                subject="Ошибка обработки документов поставщиков",
-                text=(
-                    "Ошибка при автоматической обработке документов "
-                    f"(УПД/накладных).\nТекст ошибки: {e}"
-                ),
-            )
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="process_supplier_documents",
+        job_name="Process supplier documents task",
+    ) as trace:
+        logger.info("Starting process_supplier_documents_task")
+        async_session_factory = app.state.session_factory
+        async with async_session_factory() as session:
+            try:
+                summary = await process_supplier_response_messages(
+                    session, file_payload_mode="documents"
+                )
+                trace.details["summary"] = summary
+                logger.info(
+                    "Completed process_supplier_documents_task summary=%s",
+                    summary,
+                )
+            except Exception as e:
+                logger.error(
+                    "Error processing supplier documents: %s", e, exc_info=True
+                )
+                trace.details["error"] = str(e)[:2000]
+                trace.details["__trace_status"] = "error"
+                await _notify_scheduler_issue(
+                    session,
+                    subject="Ошибка обработки документов поставщиков",
+                    text=(
+                        "Ошибка при автоматической обработке документов "
+                        f"(УПД/накладных).\nТекст ошибки: {e}"
+                    ),
+                )
 
 
 async def sync_diadoc_inbound_task(app: FastAPI):
-    logger.info("Starting sync_diadoc_inbound_task")
-    async_session_factory = app.state.session_factory
-    async with async_session_factory() as session:
-        try:
-            should_run, setting = await _should_run_scheduled_job(
-                session, "diadoc_inbound_sync"
-            )
-            if not should_run:
-                return
-            integration = await crud_diadoc_integration_settings.get_or_create(
-                session
-            )
-            if not integration.refresh_token or not integration.box_id_guid:
-                logger.debug(
-                    "Diadoc inbound sync skipped: not connected or box not selected"
-                )
-                return
-            if not bool(integration.inbound_sync_enabled):
-                logger.debug(
-                    "Diadoc inbound sync skipped: disabled in settings"
-                )
-                return
-            integration, client = await get_diadoc_client_for_session(session)
-            result = await sync_diadoc_incoming_documents(
-                session=session,
-                client=client,
-                environment=str(integration.environment or "staging"),
-                box_id_guid=str(integration.box_id_guid),
-                filter_category="Any.Inbound",
-                count=max(
-                    1, min(int(integration.inbound_sync_count or 50), 200)
-                ),
-                download_content=bool(integration.inbound_download_content),
-                register_supplier_message=bool(
-                    integration.inbound_process_enabled
-                ),
-                process_supplier_message=bool(
-                    integration.inbound_process_enabled
-                ),
-            )
-            integration.last_sync_at = now_moscow()
-            integration.last_error = None
-            session.add(integration)
-            await session.commit()
-            logger.info(
-                "Completed sync_diadoc_inbound_task summary=%s",
-                result,
-            )
-            if setting:
-                await _mark_scheduler_ran(session, setting, now_moscow())
-        except Exception as e:
-            logger.error(
-                "Error syncing Diadoc inbound documents: %s",
-                e,
-                exc_info=True,
-            )
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="sync_diadoc_inbound",
+        job_name="Sync Diadoc inbound task",
+    ) as trace:
+        logger.info("Starting sync_diadoc_inbound_task")
+        async_session_factory = app.state.session_factory
+        async with async_session_factory() as session:
             try:
-                integration = (
-                    await crud_diadoc_integration_settings.get_or_create(
-                        session
-                    )
+                should_run, setting = await _should_run_scheduled_job(
+                    session, "diadoc_inbound_sync"
                 )
-                integration.last_error = str(e)[:2000]
+                if not should_run:
+                    trace.details["skipped_by_scheduler_setting"] = True
+                    return
+                integration = await crud_diadoc_integration_settings.get_or_create(
+                    session
+                )
+                if not integration.refresh_token or not integration.box_id_guid:
+                    logger.debug(
+                        "Diadoc inbound sync skipped: not connected or box not selected"
+                    )
+                    trace.details["skipped_not_connected"] = True
+                    return
+                if not bool(integration.inbound_sync_enabled):
+                    logger.debug(
+                        "Diadoc inbound sync skipped: disabled in settings"
+                    )
+                    trace.details["skipped_disabled"] = True
+                    return
+                integration, client = await get_diadoc_client_for_session(session)
+                result = await sync_diadoc_incoming_documents(
+                    session=session,
+                    client=client,
+                    environment=str(integration.environment or "staging"),
+                    box_id_guid=str(integration.box_id_guid),
+                    filter_category="Any.Inbound",
+                    count=max(
+                        1, min(int(integration.inbound_sync_count or 50), 200)
+                    ),
+                    download_content=bool(integration.inbound_download_content),
+                    register_supplier_message=bool(
+                        integration.inbound_process_enabled
+                    ),
+                    process_supplier_message=bool(
+                        integration.inbound_process_enabled
+                    ),
+                )
+                trace.details["summary"] = result
+                integration.last_sync_at = now_moscow()
+                integration.last_error = None
                 session.add(integration)
                 await session.commit()
-            except Exception:
-                await session.rollback()
-            await _notify_scheduler_issue(
-                session,
-                subject="Ошибка синхронизации входящих Диадок",
-                text=(
-                    "Ошибка при автоматической синхронизации "
-                    f"входящих документов Диадок.\nТекст ошибки: {e}"
-                ),
-            )
+                logger.info(
+                    "Completed sync_diadoc_inbound_task summary=%s",
+                    result,
+                )
+                if setting:
+                    await _mark_scheduler_ran(session, setting, now_moscow())
+            except Exception as e:
+                logger.error(
+                    "Error syncing Diadoc inbound documents: %s",
+                    e,
+                    exc_info=True,
+                )
+                trace.details["error"] = str(e)[:2000]
+                trace.details["__trace_status"] = "error"
+                try:
+                    integration = (
+                        await crud_diadoc_integration_settings.get_or_create(
+                            session
+                        )
+                    )
+                    integration.last_error = str(e)[:2000]
+                    session.add(integration)
+                    await session.commit()
+                except Exception:
+                    await session.rollback()
+                await _notify_scheduler_issue(
+                    session,
+                    subject="Ошибка синхронизации входящих Диадок",
+                    text=(
+                        "Ошибка при автоматической синхронизации "
+                        f"входящих документов Диадок.\nТекст ошибки: {e}"
+                    ),
+                )
 
 
 async def check_order_timing_alerts_task(app: FastAPI):
@@ -1358,29 +1448,38 @@ async def cleanup_tracking_orders_task(app: FastAPI):
 
 
 async def sync_site_tracking_statuses_task(app: FastAPI):
-    async_session_factory = app.state.session_factory
-    async with async_session_factory() as session:
-        try:
-            summary = await sync_site_tracking_statuses(session=session)
-            logger.info(
-                "Dragonzap tracking statuses sync summary: %s",
-                summary,
-            )
-        except Exception as e:
-            logger.error(
-                "Error in sync_site_tracking_statuses_task: %s",
-                e,
-                exc_info=True,
-            )
-            await _notify_scheduler_issue(
-                session,
-                subject="Ошибка синхронизации статусов заказов с сайта",
-                text=(
-                    "Ошибка при автоматической синхронизации статусов "
-                    "заказов Dragonzap.\n"
-                    f"Текст ошибки: {e}"
-                ),
-            )
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="sync_site_tracking_statuses",
+        job_name="Sync Dragonzap tracking statuses task",
+    ) as trace:
+        async_session_factory = app.state.session_factory
+        async with async_session_factory() as session:
+            try:
+                summary = await sync_site_tracking_statuses(session=session)
+                trace.details["summary"] = summary
+                logger.info(
+                    "Dragonzap tracking statuses sync summary: %s",
+                    summary,
+                )
+            except Exception as e:
+                logger.error(
+                    "Error in sync_site_tracking_statuses_task: %s",
+                    e,
+                    exc_info=True,
+                )
+                trace.details["error"] = str(e)[:2000]
+                trace.details["__trace_status"] = "error"
+                await _notify_scheduler_issue(
+                    session,
+                    subject="Ошибка синхронизации статусов заказов с сайта",
+                    text=(
+                        "Ошибка при автоматической синхронизации статусов "
+                        "заказов Dragonzap.\n"
+                        f"Текст ошибки: {e}"
+                    ),
+                )
 
 
 def _day_key(now: datetime) -> str:
@@ -1485,152 +1584,183 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
     соединение к БД открытым на весь цикл (что блокировало пул при
     параллельных HTTP-запросах).
     """
-    async_session_factory = app.state.session_factory
-    now = now_moscow()
-    day_key = _day_key(now)
-    time_key = now.strftime("%H:%M")
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="send_scheduled_customer_pricelists",
+        job_name="Send scheduled customer pricelists task",
+    ) as trace:
+        async_session_factory = app.state.session_factory
+        now = now_moscow()
+        day_key = _day_key(now)
+        time_key = now.strftime("%H:%M")
 
-    # --- 1. Загружаем конфиги одной короткой сессией и сразу закрываем её ---
-    try:
-        async with async_session_factory() as session:
-            stmt = (
-                select(CustomerPriceListConfig)
-                .options(selectinload(CustomerPriceListConfig.customer))
-                .where(CustomerPriceListConfig.is_active.is_(True))
-            )
-            configs = (await session.execute(stmt)).scalars().all()
-            # Переводим в список простых данных, чтобы не тянуть lazy-load
-            # после закрытия сессии.
-            pending = []
-            for config in configs:
-                if not config.schedule_days or not config.schedule_times:
-                    continue
-                if day_key not in (config.schedule_days or []):
-                    continue
-                if time_key not in (config.schedule_times or []):
-                    continue
-                if config.last_sent_at:
-                    last_key = config.last_sent_at.strftime("%Y-%m-%d %H:%M")
-                    now_key = now.strftime("%Y-%m-%d %H:%M")
-                    if last_key == now_key:
-                        continue
-                if not config.customer:
-                    continue
-                pending.append((config.id, config.customer))
-    except Exception as e:
-        logger.error(
-            "Error loading configs in "
-            "send_scheduled_customer_pricelists_task: %s",
-            e,
-            exc_info=True,
-        )
-        async with async_session_factory() as err_session:
-            await _notify_scheduler_issue(
-                err_session,
-                subject="Ошибка регламента отправки прайсов клиентам",
-                text=(
-                    "Ошибка при загрузке конфигов авторассылки прайсов.\n"
-                    f"Текст ошибки: {e}"
-                ),
-            )
-        return
-
-    # --- 2. Каждый конфиг — своя сессия, соединение освобождается сразу ---
-    for config_id, customer in pending:
-        request = CustomerPriceListCreate(
-            customer_id=customer.id,
-            config_id=config_id,
-            items=[],
-        )
         try:
             async with async_session_factory() as session:
-                await process_customer_pricelist(
-                    customer=customer, request=request, session=session
+                stmt = (
+                    select(CustomerPriceListConfig)
+                    .options(selectinload(CustomerPriceListConfig.customer))
+                    .where(CustomerPriceListConfig.is_active.is_(True))
                 )
-        except Exception as exc:
+                configs = (await session.execute(stmt)).scalars().all()
+                pending = []
+                for config in configs:
+                    if not config.schedule_days or not config.schedule_times:
+                        continue
+                    if day_key not in (config.schedule_days or []):
+                        continue
+                    if time_key not in (config.schedule_times or []):
+                        continue
+                    if config.last_sent_at:
+                        last_key = config.last_sent_at.strftime("%Y-%m-%d %H:%M")
+                        now_key = now.strftime("%Y-%m-%d %H:%M")
+                        if last_key == now_key:
+                            continue
+                    if not config.customer:
+                        continue
+                    pending.append((config.id, config.customer))
+                trace.details["pending_configs"] = len(pending)
+        except Exception as e:
             logger.error(
-                "Error in send_scheduled_customer_pricelists_task "
-                "for config %s: %s",
-                config_id,
-                exc,
+                "Error loading configs in "
+                "send_scheduled_customer_pricelists_task: %s",
+                e,
                 exc_info=True,
             )
-            try:
-                async with async_session_factory() as err_session:
-                    await _notify_scheduler_issue(
-                        err_session,
-                        subject="Ошибка регламента отправки прайсов клиентам",
-                        text=(
-                            "Ошибка при автоматической отправке прайса "
-                            f"клиенту для config_id={config_id}.\n"
-                            f"Текст ошибки: {exc}"
-                        ),
-                    )
-            except Exception as notify_exc:
-                logger.error(
-                    "Failed to send error notification for config %s: %s",
-                    config_id,
-                    notify_exc,
+            trace.details["error"] = str(e)[:2000]
+            trace.details["__trace_status"] = "error"
+            async with async_session_factory() as err_session:
+                await _notify_scheduler_issue(
+                    err_session,
+                    subject="Ошибка регламента отправки прайсов клиентам",
+                    text=(
+                        "Ошибка при загрузке конфигов авторассылки прайсов.\n"
+                        f"Текст ошибки: {e}"
+                    ),
                 )
+            return
+
+        success_count = 0
+        error_count = 0
+        for config_id, customer in pending:
+            request = CustomerPriceListCreate(
+                customer_id=customer.id,
+                config_id=config_id,
+                items=[],
+            )
+            try:
+                async with async_session_factory() as session:
+                    await process_customer_pricelist(
+                        customer=customer, request=request, session=session
+                    )
+                success_count += 1
+            except Exception as exc:
+                error_count += 1
+                logger.error(
+                    "Error in send_scheduled_customer_pricelists_task "
+                    "for config %s: %s",
+                    config_id,
+                    exc,
+                    exc_info=True,
+                )
+                try:
+                    async with async_session_factory() as err_session:
+                        await _notify_scheduler_issue(
+                            err_session,
+                            subject="Ошибка регламента отправки прайсов клиентам",
+                            text=(
+                                "Ошибка при автоматической отправке прайса "
+                                f"клиенту для config_id={config_id}.\n"
+                                f"Текст ошибки: {exc}"
+                            ),
+                        )
+                except Exception as notify_exc:
+                    logger.error(
+                        "Failed to send error notification for config %s: %s",
+                        config_id,
+                        notify_exc,
+                    )
+        trace.details["success_count"] = success_count
+        trace.details["error_count"] = error_count
+        if error_count > 0:
+            trace.details["__trace_status"] = "error"
 
 
 async def price_control_run_task(app: FastAPI):
-    async_session_factory = app.state.session_factory
-    now = now_moscow()
-    day_key = _day_key(now)
-    time_key = now.strftime("%H:%M")
-    async with async_session_factory() as session:
-        try:
-            stmt = select(PriceControlConfig).where(
-                PriceControlConfig.is_active.is_(True)
-            )
-            configs = (await session.execute(stmt)).scalars().all()
-            if not configs:
-                return
-            for config in configs:
-                schedule_days = config.schedule_days or []
-                schedule_times = config.schedule_times or ["09:00"]
-                if schedule_days and day_key not in schedule_days:
-                    continue
-                if schedule_times and time_key not in schedule_times:
-                    continue
-                if config.last_run_at:
-                    last_key = config.last_run_at.strftime("%Y-%m-%d %H:%M")
-                    now_key = now.strftime("%Y-%m-%d %H:%M")
-                    if last_key == now_key:
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="price_control_run",
+        job_name="Price control run task",
+    ) as trace:
+        async_session_factory = app.state.session_factory
+        now = now_moscow()
+        day_key = _day_key(now)
+        time_key = now.strftime("%H:%M")
+        async with async_session_factory() as session:
+            try:
+                stmt = select(PriceControlConfig).where(
+                    PriceControlConfig.is_active.is_(True)
+                )
+                configs = (await session.execute(stmt)).scalars().all()
+                if not configs:
+                    trace.details["active_configs"] = 0
+                    return
+                trace.details["active_configs"] = len(configs)
+                run_count = 0
+                error_count = 0
+                for config in configs:
+                    schedule_days = config.schedule_days or []
+                    schedule_times = config.schedule_times or ["09:00"]
+                    if schedule_days and day_key not in schedule_days:
                         continue
-                try:
-                    await run_price_control(session, config)
-                except Exception as exc:
-                    logger.error(
-                        "Error running price control for config %s: %s",
-                        config.id,
-                        exc,
-                        exc_info=True,
-                    )
-                    await _notify_scheduler_issue(
-                        session,
-                        subject="Ошибка регламента контроля цен",
-                        text=(
-                            "Ошибка при автоматическом контроле цен "
-                            f"для config_id={config.id}.\n"
-                            f"Текст ошибки: {exc}"
-                        ),
-                    )
-            logger.info("Completed price_control_run_task")
-        except Exception as exc:
-            logger.error(
-                f"Error in price_control_run_task: {exc}",
-                exc_info=True,
-            )
-            await _notify_scheduler_issue(
-                session,
-                subject="Ошибка регламента контроля цен",
-                text=(
-                    "Ошибка при автоматическом запуске контроля цен.\n"
-                    f"Текст ошибки: {exc}"
-                ),
-            )
+                    if schedule_times and time_key not in schedule_times:
+                        continue
+                    if config.last_run_at:
+                        last_key = config.last_run_at.strftime("%Y-%m-%d %H:%M")
+                        now_key = now.strftime("%Y-%m-%d %H:%M")
+                        if last_key == now_key:
+                            continue
+                    try:
+                        await run_price_control(session, config)
+                        run_count += 1
+                    except Exception as exc:
+                        error_count += 1
+                        logger.error(
+                            "Error running price control for config %s: %s",
+                            config.id,
+                            exc,
+                            exc_info=True,
+                        )
+                        await _notify_scheduler_issue(
+                            session,
+                            subject="Ошибка регламента контроля цен",
+                            text=(
+                                "Ошибка при автоматическом контроле цен "
+                                f"для config_id={config.id}.\n"
+                                f"Текст ошибки: {exc}"
+                            ),
+                        )
+                trace.details["run_count"] = run_count
+                trace.details["error_count"] = error_count
+                if error_count > 0:
+                    trace.details["__trace_status"] = "error"
+                logger.info("Completed price_control_run_task")
+            except Exception as exc:
+                logger.error(
+                    f"Error in price_control_run_task: {exc}",
+                    exc_info=True,
+                )
+                trace.details["error"] = str(exc)[:2000]
+                trace.details["__trace_status"] = "error"
+                await _notify_scheduler_issue(
+                    session,
+                    subject="Ошибка регламента контроля цен",
+                    text=(
+                        "Ошибка при автоматическом запуске контроля цен.\n"
+                        f"Текст ошибки: {exc}"
+                    ),
+                )
 
 
 async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
@@ -1650,7 +1780,13 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
 
     if not downloaded:
         logger.info("Новых писем для обработки не найдено.")
-        return
+        return {
+            "downloaded": 0,
+            "successful": 0,
+            "errors": 0,
+            "processing_seconds": 0.0,
+            "total_seconds": time.perf_counter() - start_time,
+        }
     rss_before = _process_rss_mb()
     logger.info(
         "Starting provider pricelist processing: files=%s parallelism=%s rss_mb=%s",
@@ -1698,6 +1834,13 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
             "Finished provider pricelist processing: rss_mb=%.1f",
             rss_after,
         )
+    return {
+        "downloaded": len(downloaded),
+        "successful": successful,
+        "errors": errors,
+        "processing_seconds": process_end - process_start,
+        "total_seconds": total_time,
+    }
 
 
 def _is_price_check_due(schedule) -> bool:
@@ -1714,86 +1857,102 @@ def _is_price_check_due(schedule) -> bool:
 
 
 async def download_price_provider_task(app: FastAPI):
-    logger.info("Starting download_price_provider_task")
-    rss_before = _process_rss_mb()
-    if rss_before is not None:
-        logger.info("download_price_provider_task rss_before=%.1f", rss_before)
-    async_session_factory = app.state.session_factory
-    async with async_session_factory() as session:
-        try:
-            schedule = await crud_price_check_schedule.get_or_create(session)
-            if not _is_price_check_due(schedule):
-                logger.info("Price check skipped by schedule")
-                await crud_price_check_log.create(
-                    session=session,
-                    status="SKIP",
-                    message="Skipped by schedule",
-                )
-                return
-            # Проверяю наличие поставщика
-            provider = await crud_provider.get_provider_or_none(
-                provider=PROVIDER_IN["name"], session=session
-            )
-            if not provider:
-                provider_in_model = ProviderCreate(**PROVIDER_IN)
-                provider = await crud_provider.create(
-                    obj_in=provider_in_model, session=session
-                )
-                config_in_model = ProviderPriceListConfigCreate(
-                    **CONFIG_DATA_PROVIDER
-                )
-                await crud_provider_pricelist_config.create(
-                    provider_id=provider.id,
-                    config_in=config_in_model,
-                    session=session,
-                )
-                logger.info(f"Created initial provider with id: {provider.id}")
-            await process_new_provider_emails(session, app)
-            schedule.last_checked_at = now_moscow()
-            session.add(schedule)
-            await session.commit()
-            await crud_price_check_log.create(
-                session=session,
-                status="OK",
-                message="Price check completed",
-            )
-            logger.info("Completed download_price_provider_task")
-            rss_after = _process_rss_mb()
-            if rss_after is not None:
-                logger.info(
-                    "download_price_provider_task rss_after=%.1f",
-                    rss_after,
-                )
-        except asyncio.CancelledError:
-            if getattr(app.state, "is_shutting_down", False):
-                logger.info(
-                    "download_price_provider_task отменена при остановке"
-                )
-                return
-            raise
-        except Exception as e:
-            logger.error(f"Error in download_price_provider_task: {e}")
-            await _notify_scheduler_issue(
-                session,
-                subject="Ошибка регламента загрузки прайсов",
-                text=(
-                    "Ошибка при автоматической загрузке прайсов "
-                    "поставщиков.\n"
-                    f"Текст ошибки: {e}"
-                ),
-            )
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="download_price_provider",
+        job_name="Download price provider task",
+    ) as trace:
+        logger.info("Starting download_price_provider_task")
+        rss_before = _process_rss_mb()
+        if rss_before is not None:
+            logger.info("download_price_provider_task rss_before=%.1f", rss_before)
+        async_session_factory = app.state.session_factory
+        async with async_session_factory() as session:
             try:
+                schedule = await crud_price_check_schedule.get_or_create(session)
+                if not _is_price_check_due(schedule):
+                    logger.info("Price check skipped by schedule")
+                    trace.details["skipped_by_schedule"] = True
+                    await crud_price_check_log.create(
+                        session=session,
+                        status="SKIP",
+                        message="Skipped by schedule",
+                    )
+                    return
+                # Проверяю наличие поставщика
+                provider = await crud_provider.get_provider_or_none(
+                    provider=PROVIDER_IN["name"], session=session
+                )
+                if not provider:
+                    provider_in_model = ProviderCreate(**PROVIDER_IN)
+                    provider = await crud_provider.create(
+                        obj_in=provider_in_model, session=session
+                    )
+                    config_in_model = ProviderPriceListConfigCreate(
+                        **CONFIG_DATA_PROVIDER
+                    )
+                    await crud_provider_pricelist_config.create(
+                        provider_id=provider.id,
+                        config_in=config_in_model,
+                        session=session,
+                    )
+                    logger.info(f"Created initial provider with id: {provider.id}")
+                trace.details["provider_id"] = getattr(provider, "id", None)
+                trace.details["provider_name"] = getattr(provider, "name", None)
+                email_summary = await process_new_provider_emails(session, app)
+                trace.details["email_processing_summary"] = email_summary
+                if int(email_summary.get("errors") or 0) > 0:
+                    trace.details["__trace_status"] = "error"
+                schedule.last_checked_at = now_moscow()
+                session.add(schedule)
+                await session.commit()
                 await crud_price_check_log.create(
                     session=session,
-                    status="ERROR",
-                    message=str(e)[:240],
+                    status="OK",
+                    message="Price check completed",
                 )
-            except Exception:
-                pass
-        finally:
-            trim_process_memory(
-                logger, context="download_price_provider_task"
-            )
+                logger.info("Completed download_price_provider_task")
+                rss_after = _process_rss_mb()
+                if rss_after is not None:
+                    logger.info(
+                        "download_price_provider_task rss_after=%.1f",
+                        rss_after,
+                    )
+            except asyncio.CancelledError:
+                if getattr(app.state, "is_shutting_down", False):
+                    logger.info(
+                        "download_price_provider_task отменена при остановке"
+                    )
+                    trace.details["cancelled_on_shutdown"] = True
+                    return
+                raise
+            except Exception as e:
+                logger.error(f"Error in download_price_provider_task: {e}")
+                trace.details["error"] = str(e)[:2000]
+                trace.details["__trace_status"] = "error"
+                await _notify_scheduler_issue(
+                    session,
+                    subject="Ошибка регламента загрузки прайсов",
+                    text=(
+                        "Ошибка при автоматической загрузке прайсов "
+                        "поставщиков.\n"
+                        f"Текст ошибки: {e}"
+                    ),
+                )
+                try:
+                    await crud_price_check_log.create(
+                        session=session,
+                        status="ERROR",
+                        message=str(e)[:240],
+                    )
+                except Exception:
+                    pass
+                raise
+            finally:
+                trim_process_memory(
+                    logger, context="download_price_provider_task"
+                )
 
 
 async def sync_auto_oem_crosses_task(app: FastAPI):
@@ -2157,20 +2316,35 @@ async def notify_watchlist_task(app: FastAPI):
 
 async def fetch_inbox_emails_task(app: FastAPI):
     """Автоматически забирает письма со всех активных IMAP-ящиков."""
-    async_session_factory = app.state.session_factory
-    async with async_session_factory() as session:
-        try:
-            logger.info("Starting fetch_inbox_emails_task")
-            result = await fetch_and_store_emails(session, days=3)
-            logger.info(
-                "fetch_inbox_emails_task done: "
-                "fetched=%s stored=%s auto_processed=%s",
-                result.fetched,
-                result.stored,
-                result.auto_processed,
-            )
-        except Exception as e:
-            logger.error("Error in fetch_inbox_emails_task: %s", e)
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="fetch_inbox_emails",
+        job_name="Fetch inbox emails task",
+    ) as trace:
+        async_session_factory = app.state.session_factory
+        async with async_session_factory() as session:
+            try:
+                logger.info("Starting fetch_inbox_emails_task")
+                result = await fetch_and_store_emails(session, days=3)
+                trace.details.update(
+                    {
+                        "fetched": getattr(result, "fetched", None),
+                        "stored": getattr(result, "stored", None),
+                        "auto_processed": getattr(result, "auto_processed", None),
+                    }
+                )
+                logger.info(
+                    "fetch_inbox_emails_task done: "
+                    "fetched=%s stored=%s auto_processed=%s",
+                    result.fetched,
+                    result.stored,
+                    result.auto_processed,
+                )
+            except Exception as e:
+                logger.error("Error in fetch_inbox_emails_task: %s", e)
+                trace.details["error"] = str(e)[:2000]
+                trace.details["__trace_status"] = "error"
 
 
 async def cleanup_inbox_emails_task(app: FastAPI):
@@ -2223,6 +2397,9 @@ PRICE_CHECK_LOG_RETENTION_DAYS = int(
 )
 SUPPLIER_MSG_RETENTION_DAYS = int(
     os.getenv("SUPPLIER_MSG_RETENTION_DAYS", "7")
+)
+EXECUTION_TRACE_RETENTION_DAYS = int(
+    os.getenv("EXECUTION_TRACE_RETENTION_DAYS", "3")
 )
 
 
@@ -2355,14 +2532,15 @@ async def cleanup_metric_snapshots_task(app: FastAPI):
 
 
 async def cleanup_misc_logs_task(app: FastAPI):
-    """Очищает PriceCheckLog и старые IGNORED/закрытые SupplierOrderMessage."""
+    """Очищает служебные логи и старые IGNORED/закрытые SupplierOrderMessage."""
     from dz_fastapi.models.partner import SupplierOrderMessage
-    from dz_fastapi.models.settings import PriceCheckLog
+    from dz_fastapi.models.settings import ExecutionTrace, PriceCheckLog
 
     async_session_factory = app.state.session_factory
     now = now_moscow()
     log_cutoff = now - timedelta(days=PRICE_CHECK_LOG_RETENTION_DAYS)
     msg_cutoff = now - timedelta(days=SUPPLIER_MSG_RETENTION_DAYS)
+    trace_cutoff = now - timedelta(days=EXECUTION_TRACE_RETENTION_DAYS)
     async with async_session_factory() as session:
         try:
             # PriceCheckLog — хранить 30 дней
@@ -2383,12 +2561,21 @@ async def cleanup_misc_logs_task(app: FastAPI):
             )
             deleted_msgs = r2.rowcount or 0
 
+            # ExecutionTrace — хранить 14 дней
+            r3 = await session.execute(
+                delete(ExecutionTrace).where(
+                    ExecutionTrace.started_at < trace_cutoff
+                )
+            )
+            deleted_traces = r3.rowcount or 0
+
             await session.commit()
             logger.info(
                 "cleanup_misc_logs_task: deleted %s price_check_logs, "
-                "%s ignored supplier_messages",
+                "%s ignored supplier_messages, %s execution_traces",
                 deleted_logs,
                 deleted_msgs,
+                deleted_traces,
             )
         except Exception as exc:
             logger.error(

@@ -7,6 +7,7 @@ from dz_fastapi.core.config import settings
 from dz_fastapi.models.settings import (
     CustomerOrderInboxSettings,
     DiadocIntegrationSettings,
+    ExecutionTrace,
     PriceCheckLog,
     PriceCheckSchedule,
     PriceListStaleAlert,
@@ -268,6 +269,62 @@ class CRUDSystemMetricSnapshot:
         return result.scalars().all()
 
 
+class CRUDExecutionTrace:
+    async def create(
+        self,
+        session: AsyncSession,
+        payload: dict,
+    ) -> ExecutionTrace:
+        trace = ExecutionTrace(**payload)
+        session.add(trace)
+        await session.commit()
+        await session.refresh(trace)
+        return trace
+
+    async def update(
+        self,
+        session: AsyncSession,
+        trace_id: int,
+        data: dict,
+    ) -> ExecutionTrace | None:
+        result = await session.execute(
+            select(ExecutionTrace).where(ExecutionTrace.id == trace_id)
+        )
+        trace = result.scalar_one_or_none()
+        if trace is None:
+            return None
+        for key, value in data.items():
+            setattr(trace, key, value)
+        session.add(trace)
+        await session.commit()
+        await session.refresh(trace)
+        return trace
+
+    async def list(
+        self,
+        session: AsyncSession,
+        *,
+        trace_type: str | None = None,
+        job_key: str | None = None,
+        status: str | None = None,
+        provider_id: int | None = None,
+        limit: int = 200,
+        offset: int = 0,
+    ):
+        stmt = select(ExecutionTrace).order_by(ExecutionTrace.started_at.desc())
+        if trace_type:
+            stmt = stmt.where(ExecutionTrace.trace_type == trace_type)
+        if job_key:
+            stmt = stmt.where(ExecutionTrace.job_key == job_key)
+        if status:
+            stmt = stmt.where(ExecutionTrace.status == status)
+        if provider_id is not None:
+            stmt = stmt.where(ExecutionTrace.provider_id == provider_id)
+        stmt = stmt.offset(offset).limit(limit)
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
+
 crud_price_check_schedule = CRUDPriceCheckSchedule()
 crud_price_stale_alert = CRUDPriceListStaleAlert()
 crud_price_check_log = CRUDPriceCheckLog()
@@ -275,3 +332,4 @@ crud_scheduler_setting = CRUDSchedulerSetting()
 crud_customer_order_inbox_settings = CRUDCustomerOrderInboxSettings()
 crud_diadoc_integration_settings = CRUDDiadocIntegrationSettings()
 crud_system_metric_snapshot = CRUDSystemMetricSnapshot()
+crud_execution_trace = CRUDExecutionTrace()

@@ -5,6 +5,7 @@ from sqlalchemy import (
     Column,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -114,6 +115,32 @@ class SystemMetricSnapshot(Base):
     disk_free_bytes = Column(BigInteger, nullable=True)
     mem_total_bytes = Column(BigInteger, nullable=True)
     mem_available_bytes = Column(BigInteger, nullable=True)
+
+
+class ExecutionTrace(Base):
+    trace_type = Column(String(32), nullable=False, index=True)
+    job_key = Column(String(64), nullable=False, index=True)
+    job_name = Column(String(255), nullable=False)
+    status = Column(String(32), nullable=False, index=True, default="started")
+    provider_id = Column(Integer, ForeignKey("provider.id"), nullable=True, index=True)
+    provider_config_id = Column(
+        Integer, ForeignKey("providerpricelistconfig.id"), nullable=True, index=True
+    )
+    source_filename = Column(String(255), nullable=True)
+    started_at = Column(
+        DateTime(timezone=True), default=now_moscow, nullable=False, index=True
+    )
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+    rss_before_mb = Column(Float, nullable=True)
+    rss_after_mb = Column(Float, nullable=True)
+    memory_delta_mb = Column(Float, nullable=True)
+    details = Column(JSON, default=dict, nullable=False)
+
+    provider = relationship("Provider", foreign_keys=[provider_id])
+    provider_config = relationship(
+        "ProviderPriceListConfig", foreign_keys=[provider_config_id]
+    )
 
 
 class PriceListStaleAlert(Base):

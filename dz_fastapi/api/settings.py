@@ -6,6 +6,7 @@ from dz_fastapi.core.db import get_session
 from dz_fastapi.core.scheduler_settings import SCHEDULER_SETTING_DEFAULTS
 from dz_fastapi.crud.settings import (
     crud_customer_order_inbox_settings,
+    crud_execution_trace,
     crud_price_check_log,
     crud_price_check_schedule,
     crud_price_stale_alert,
@@ -16,6 +17,7 @@ from dz_fastapi.models.settings import SupplierHoliday
 from dz_fastapi.schemas.settings import (
     CustomerOrderInboxSettingsOut,
     CustomerOrderInboxSettingsUpdate,
+    ExecutionTraceOut,
     MonitorSummaryOut,
     PriceCheckLogOut,
     PriceCheckScheduleOut,
@@ -239,6 +241,33 @@ async def list_monitor_snapshots(
         session=session, limit=limit, offset=offset
     )
     return [SystemMetricSnapshotOut.model_validate(s) for s in snapshots]
+
+
+@router.get(
+    "/settings/monitor/execution-traces",
+    tags=["settings"],
+    status_code=status.HTTP_200_OK,
+    response_model=list[ExecutionTraceOut],
+)
+async def list_execution_traces(
+    trace_type: str | None = Query(default=None),
+    job_key: str | None = Query(default=None),
+    status_filter: str | None = Query(default=None, alias="status"),
+    provider_id: int | None = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+    session: AsyncSession = Depends(get_session),
+):
+    traces = await crud_execution_trace.list(
+        session=session,
+        trace_type=trace_type,
+        job_key=job_key,
+        status=status_filter,
+        provider_id=provider_id,
+        limit=limit,
+        offset=offset,
+    )
+    return [ExecutionTraceOut.model_validate(trace) for trace in traces]
 
 
 # ---------------------------------------------------------------------------

@@ -98,6 +98,7 @@ from dz_fastapi.models.price_control import (
 from dz_fastapi.models.settings import (
     CustomerOrderInboxSettings,
     DiadocIntegrationSettings,
+    ExecutionTrace,
     PriceCheckLog,
     PriceCheckSchedule,
     PriceListStaleAlert,
@@ -177,6 +178,7 @@ __all__ = [
     "PriceCheckLog",
     "SchedulerSetting",
     "SystemMetricSnapshot",
+    "ExecutionTrace",
     "PriceListStaleAlert",
     "CustomerOrderInboxSettings",
     "DiadocIntegrationSettings",

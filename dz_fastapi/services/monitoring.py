@@ -1,6 +1,8 @@
 import os
 import shutil
 import time
+from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
 from typing import Any
 
 from sqlalchemy import text
@@ -8,7 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.scheduler_settings import SCHEDULER_SETTING_DEFAULTS
 from dz_fastapi.core.time import now_moscow
-from dz_fastapi.crud.settings import crud_price_check_schedule, crud_scheduler_setting
+from dz_fastapi.crud.settings import (
+    crud_execution_trace,
+    crud_price_check_schedule,
+    crud_scheduler_setting,
+)
+from dz_fastapi.services.runtime_memory import process_rss_mb
 
 
 def _read_meminfo() -> tuple[int | None, int | None]:
@@ -191,3 +198,122 @@ def build_snapshot_payload(summary: dict[str, Any]) -> dict[str, Any]:
         "mem_total_bytes": system.get("mem_total_bytes"),
         "mem_available_bytes": system.get("mem_available_bytes"),
     }
+
+
+@dataclass
+class ExecutionTraceContext:
+    app: Any
+    trace_type: str
+    job_key: str
+    job_name: str
+    provider_id: int | None = None
+    provider_config_id: int | None = None
+    source_filename: str | None = None
+    trace_id: int | None = None
+    started_at: Any = field(default_factory=now_moscow)
+    rss_before_mb: float | None = None
+    details: dict[str, Any] = field(default_factory=dict)
+
+
+def _merge_trace_details(
+    current_details: dict[str, Any] | None,
+    extra_details: dict[str, Any] | None,
+) -> dict[str, Any]:
+    merged: dict[str, Any] = {}
+    if isinstance(current_details, dict):
+        merged.update(current_details)
+    if isinstance(extra_details, dict):
+        merged.update(extra_details)
+    merged.pop("__trace_status", None)
+    return merged
+
+
+async def _create_execution_trace(context: ExecutionTraceContext) -> None:
+    session_factory = context.app.state.session_factory
+    async with session_factory() as session:
+        trace = await crud_execution_trace.create(
+            session=session,
+            payload={
+                "trace_type": context.trace_type,
+                "job_key": context.job_key,
+                "job_name": context.job_name,
+                "status": "running",
+                "provider_id": context.provider_id,
+                "provider_config_id": context.provider_config_id,
+                "source_filename": context.source_filename,
+                "started_at": context.started_at,
+                "rss_before_mb": context.rss_before_mb,
+                "details": context.details or {},
+            },
+        )
+        context.trace_id = int(trace.id)
+
+
+async def _finish_execution_trace(
+    context: ExecutionTraceContext,
+    *,
+    status: str,
+    extra_details: dict[str, Any] | None = None,
+) -> None:
+    if context.trace_id is None:
+        return
+    session_factory = context.app.state.session_factory
+    finished_at = now_moscow()
+    rss_after_mb = process_rss_mb()
+    duration_ms = int(
+        max((finished_at - context.started_at).total_seconds(), 0) * 1000
+    )
+    memory_delta_mb = None
+    if context.rss_before_mb is not None and rss_after_mb is not None:
+        memory_delta_mb = float(rss_after_mb) - float(context.rss_before_mb)
+    async with session_factory() as session:
+        await crud_execution_trace.update(
+            session=session,
+            trace_id=context.trace_id,
+            data={
+                "status": status,
+                "finished_at": finished_at,
+                "duration_ms": duration_ms,
+                "rss_after_mb": rss_after_mb,
+                "memory_delta_mb": memory_delta_mb,
+                "details": _merge_trace_details(context.details, extra_details),
+            },
+        )
+
+
+@asynccontextmanager
+async def tracked_execution(
+    app,
+    *,
+    trace_type: str,
+    job_key: str,
+    job_name: str,
+    provider_id: int | None = None,
+    provider_config_id: int | None = None,
+    source_filename: str | None = None,
+    details: dict[str, Any] | None = None,
+):
+    context = ExecutionTraceContext(
+        app=app,
+        trace_type=trace_type,
+        job_key=job_key,
+        job_name=job_name,
+        provider_id=provider_id,
+        provider_config_id=provider_config_id,
+        source_filename=source_filename,
+        rss_before_mb=process_rss_mb(),
+        details=dict(details or {}),
+    )
+    await _create_execution_trace(context)
+    try:
+        yield context
+    except Exception as exc:
+        await _finish_execution_trace(
+            context,
+            status="error",
+            extra_details={"error": str(exc)[:2000]},
+        )
+        raise
+    else:
+        status = str(context.details.get("__trace_status") or "success")
+        await _finish_execution_trace(context, status=status)

@@ -864,6 +864,7 @@ async def process_provider_pricelist(
     deduplicated_data = _apply_provider_filters(
         deduplicated_data, provider_list_conf
     )
+    stats["rows_after_filters"] = int(len(deduplicated_data))
     logger.info(
         "Prepared provider pricelist payload: provider_id=%s "
         "config_id=%s rows_total=%s rows_clean=%s "
@@ -876,7 +877,7 @@ async def process_provider_pricelist(
         stats.get("rows_deduplicated"),
         stats.get("rows_removed"),
         stats.get("rows_dedup_removed"),
-        len(deduplicated_data),
+        stats.get("rows_after_filters"),
     )
 
     pricelist_in = PriceListCreate(

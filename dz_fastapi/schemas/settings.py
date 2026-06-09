@@ -92,6 +92,25 @@ class SystemMetricSnapshotOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ExecutionTraceOut(BaseModel):
+    id: int
+    trace_type: str
+    job_key: str
+    job_name: str
+    status: str
+    provider_id: Optional[int] = None
+    provider_config_id: Optional[int] = None
+    source_filename: Optional[str] = None
+    started_at: datetime
+    finished_at: Optional[datetime] = None
+    duration_ms: Optional[int] = None
+    rss_before_mb: Optional[float] = None
+    rss_after_mb: Optional[float] = None
+    memory_delta_mb: Optional[float] = None
+    details: dict = Field(default_factory=dict)
+    model_config = ConfigDict(from_attributes=True)
+
+
 class SupplierHolidayCreate(BaseModel):
     date: date
     description: Optional[str] = None
