@@ -352,7 +352,7 @@ async def get_offers_by_oem_and_make_name(
     session: AsyncSession = Depends(get_session),
 ):
     requested_brands = await expand_site_query_brands(
-        make_name=make_name,
+        brand_name=make_name,
         session=session,
     )
     query_brands = list(requested_brands)
