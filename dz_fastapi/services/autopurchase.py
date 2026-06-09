@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 import os
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from math import ceil
 from typing import Any, Optional
@@ -237,6 +237,25 @@ def _to_decimal_value(value: Any) -> Optional[Decimal]:
     if value is None:
         return None
     return Decimal(str(value))
+
+
+def _to_json_safe(value: Any) -> Any:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, Decimal):
+        if value == value.to_integral_value():
+            return int(value)
+        return float(value)
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {
+            str(key): _to_json_safe(item_value)
+            for key, item_value in value.items()
+        }
+    if isinstance(value, (list, tuple, set)):
+        return [_to_json_safe(item) for item in value]
+    return str(value)
 
 
 def _get_abc_xyz_priority(
@@ -1710,7 +1729,7 @@ async def _persist_autopurchase_preview(
         "needs_review_count": preview["needs_review_count"],
         "blocked_count": preview["blocked_count"],
         "sent_count": 0,
-        "diagnostics": list(preview.get("diagnostics") or []),
+        "diagnostics": _to_json_safe(list(preview.get("diagnostics") or [])),
         "message": _build_completed_run_summary_message(preview),
     }
 
@@ -1756,12 +1775,18 @@ async def _persist_autopurchase_preview(
             ),
             reason_codes=list(row.get("reason_codes") or []),
             reason_titles=list(row.get("reason_titles") or []),
-            reasons=list(row.get("reasons") or []),
-            abc_xyz=row.get("abc_xyz") or {},
-            best_supplier_by_price=row.get("best_supplier_by_price") or {},
-            best_supplier_by_lead_time=row.get("best_supplier_by_lead_time") or {},
-            recommended_supplier=recommended_supplier or {},
-            draft_purchase_order=row.get("draft_purchase_order") or {},
+            reasons=_to_json_safe(list(row.get("reasons") or [])),
+            abc_xyz=_to_json_safe(row.get("abc_xyz") or {}),
+            best_supplier_by_price=_to_json_safe(
+                row.get("best_supplier_by_price") or {}
+            ),
+            best_supplier_by_lead_time=_to_json_safe(
+                row.get("best_supplier_by_lead_time") or {}
+            ),
+            recommended_supplier=_to_json_safe(recommended_supplier or {}),
+            draft_purchase_order=_to_json_safe(
+                row.get("draft_purchase_order") or {}
+            ),
         )
         session.add(item)
 
@@ -3081,7 +3106,9 @@ async def mark_autopurchase_run_items_sent(
         item.sent_order_id = order_id
         item.sent_order_number = order_number
         item.sent_customer_id = customer_id
-        item.send_result_snapshot = dict(send_result_snapshot or {})
+        item.send_result_snapshot = _to_json_safe(
+            dict(send_result_snapshot or {})
+        )
 
     all_items_stmt = select(AutoPurchaseRunItem).where(
         AutoPurchaseRunItem.run_id == run_id
