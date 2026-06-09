@@ -2,7 +2,6 @@
 import asyncio
 import logging
 import os
-import resource
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
@@ -89,7 +88,7 @@ from dz_fastapi.services.placed_orders import (
 )
 from dz_fastapi.services.price_control import run_price_control
 from dz_fastapi.services.process import process_customer_pricelist, process_provider_pricelist
-from dz_fastapi.services.runtime_memory import trim_process_memory
+from dz_fastapi.services.runtime_memory import process_rss_mb, trim_process_memory
 from dz_fastapi.services.supplier_order_responses import process_supplier_response_messages
 from dz_fastapi.services.supplier_workflow import mark_auto_refused_supplier_items
 from dz_fastapi.services.watchlist import send_watchlist_daily_notifications
@@ -176,18 +175,7 @@ ORDERS_SLOW_POLL_MINUTES = _env_int_with_min(
 
 
 def _process_rss_mb() -> float | None:
-    """
-    Return current process RSS in MB for lightweight OOM diagnostics.
-    """
-    try:
-        usage = resource.getrusage(resource.RUSAGE_SELF)
-        rss_kb = float(usage.ru_maxrss or 0)
-        if rss_kb <= 0:
-            return None
-        # On Linux ru_maxrss is reported in kilobytes.
-        return rss_kb / 1024.0
-    except Exception:
-        return None
+    return process_rss_mb()
 
 
 async def _notify_scheduler_issue(
@@ -2345,6 +2333,10 @@ async def fetch_inbox_emails_task(app: FastAPI):
                 logger.error("Error in fetch_inbox_emails_task: %s", e)
                 trace.details["error"] = str(e)[:2000]
                 trace.details["__trace_status"] = "error"
+            finally:
+                trim_process_memory(
+                    logger, context="fetch_inbox_emails_task"
+                )
 
 
 async def cleanup_inbox_emails_task(app: FastAPI):

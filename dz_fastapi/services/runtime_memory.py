@@ -10,11 +10,29 @@ _LIBC_UNAVAILABLE = object()
 
 
 def process_rss_mb() -> float | None:
+    if sys.platform.startswith("linux"):
+        try:
+            with open("/proc/self/status", "r", encoding="utf-8") as handle:
+                for line in handle:
+                    if not line.startswith("VmRSS:"):
+                        continue
+                    parts = line.split()
+                    if len(parts) < 2:
+                        break
+                    rss_kb = float(parts[1] or 0)
+                    if rss_kb <= 0:
+                        return None
+                    return rss_kb / 1024.0
+        except Exception:
+            pass
+
     try:
         usage = resource.getrusage(resource.RUSAGE_SELF)
         rss_kb = float(usage.ru_maxrss or 0)
         if rss_kb <= 0:
             return None
+        if sys.platform == "darwin":
+            return rss_kb / (1024.0 * 1024.0)
         return rss_kb / 1024.0
     except Exception:
         return None
