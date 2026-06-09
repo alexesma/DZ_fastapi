@@ -15,7 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.constants import URL_DZ_SEARCH
 from dz_fastapi.core.time import now_moscow
-from dz_fastapi.crud.brand import brand_crud
 from dz_fastapi.crud.partner import crud_provider
 from dz_fastapi.http.dz_site_client import DZSiteClient
 from dz_fastapi.models.autopart import AutoPart, AutoPurchaseRun, AutoPurchaseRunItem
@@ -39,6 +38,12 @@ from dz_fastapi.services.placed_orders import (
     _prioritize_tracking_exceptions,
     _round_stat,
     _to_decimal,
+)
+from dz_fastapi.services.site_brand_search import (
+    expand_site_query_brands,
+    fetch_site_offers_for_brands,
+    merge_site_offers,
+    resolve_fallback_site_brand,
 )
 
 AUTOPURCHASE_MODE_DRAFT_ONLY = "draft_only"
@@ -1076,90 +1081,6 @@ def _apply_autopurchase_item_status_override(
     item.reasons = _limit_reasons(reasons)
 
 
-async def _expand_site_query_brands(
-    session: AsyncSession,
-    brand_name: Optional[str],
-) -> list[str]:
-    normalized_input = str(brand_name or "").strip().upper()
-    if not normalized_input:
-        return []
-
-    expanded = [normalized_input]
-    try:
-        main_brand = await brand_crud.get_brand_by_name_or_none(
-            brand_name=normalized_input,
-            session=session,
-        )
-        if not main_brand:
-            return expanded
-
-        related = await brand_crud.get_all_synonyms_bi_directional(
-            brand=main_brand,
-            session=session,
-        )
-        candidates = [str(main_brand.name).strip().upper()]
-        candidates.extend(
-            str(item.name).strip().upper()
-            for item in related
-            if str(getattr(item, "name", "")).strip()
-        )
-        candidates.append(normalized_input)
-
-        unique: list[str] = []
-        seen: set[str] = set()
-        for candidate in candidates:
-            if not candidate or candidate in seen:
-                continue
-            seen.add(candidate)
-            unique.append(candidate)
-        return unique
-    except Exception as exc:
-        logger.warning(
-            "Не удалось расширить бренд для site-запроса brand=%s: %s",
-            normalized_input,
-            exc,
-        )
-        return expanded
-
-
-def _prepare_site_brand_candidates(payload: Any) -> list[dict[str, Any]]:
-    if isinstance(payload, list):
-        rows = [item for item in payload if isinstance(item, dict)]
-    elif isinstance(payload, dict):
-        raw_rows = payload.get("data")
-        rows = (
-            [item for item in raw_rows if isinstance(item, dict)]
-            if isinstance(raw_rows, list)
-            else []
-        )
-    else:
-        rows = []
-
-    deduped: dict[str, dict[str, Any]] = {}
-    for row in rows:
-        brand_name = str(row.get("brand") or "").strip().upper()
-        if not brand_name:
-            continue
-        try:
-            rate = int(row.get("rate") or 0)
-        except (TypeError, ValueError):
-            rate = 0
-        current = deduped.get(brand_name)
-        normalized_row = {
-            "brand": brand_name,
-            "number": row.get("number"),
-            "des_text": row.get("des_text"),
-            "rate": rate,
-        }
-        if current is None or rate > int(current.get("rate") or 0):
-            deduped[brand_name] = normalized_row
-
-    return sorted(
-        deduped.values(),
-        key=lambda item: (-int(item.get("rate") or 0), item["brand"]),
-    )
-
-
 def _normalize_site_supplier_id(value: Any) -> Optional[int]:
     try:
         if value is None or str(value).strip() == "":
@@ -1292,32 +1213,6 @@ def _build_site_history_stats_by_provider(
     return result
 
 
-def _merge_site_offers(offers_by_brand: list[list[dict[str, Any]]]) -> list[dict[str, Any]]:
-    merged: list[dict[str, Any]] = []
-    seen = set()
-    for offers in offers_by_brand:
-        for raw in offers or []:
-            key = (
-                raw.get("system_hash")
-                or raw.get("hash_key")
-                or (
-                    raw.get("oem"),
-                    raw.get("make_name"),
-                    raw.get("cost"),
-                    raw.get("qnt"),
-                    raw.get("price_name"),
-                    raw.get("sup_logo"),
-                    raw.get("min_delivery_day"),
-                    raw.get("max_delivery_day"),
-                )
-            )
-            if key in seen:
-                continue
-            seen.add(key)
-            merged.append(raw)
-    return merged
-
-
 def _build_site_supplier_stat(
     raw: dict[str, Any],
     *,
@@ -1419,7 +1314,7 @@ async def _fetch_site_supplier_stats_for_oem(
     if not SITE_API_KEY:
         return [], [], False
 
-    query_brands = await _expand_site_query_brands(session, brand_name)
+    query_brands = await expand_site_query_brands(session, brand_name)
     if not query_brands:
         return [], [], False
 
@@ -1436,44 +1331,29 @@ async def _fetch_site_supplier_stats_for_oem(
         api_key=SITE_API_KEY,
         verify_ssl=False,
     ) as client:
-        for query_brand in query_brands:
-            offers = await client.get_offers(
-                oem=oem_number,
-                brand=query_brand,
-                without_cross=True,
-            )
-            if not offers:
-                continue
-            for item in offers:
-                if isinstance(item, dict):
-                    item.setdefault("query_brand", query_brand)
-            offers_by_brand.append(offers)
+        offers_by_brand = await fetch_site_offers_for_brands(
+            client,
+            oem=oem_number,
+            brands=query_brands,
+            without_cross=True,
+        )
 
         if not offers_by_brand:
-            site_brand_candidates = _prepare_site_brand_candidates(
-                await client.get_brands(oem_number)
+            (
+                offers_by_brand,
+                site_brand_candidates,
+                fallback_brand,
+            ) = await resolve_fallback_site_brand(
+                client,
+                oem=oem_number,
+                exclude_brands=query_brands,
+                without_cross=True,
             )
-            tried_brands = set(query_brands)
-            for candidate in site_brand_candidates:
-                fallback_brand = candidate["brand"]
-                if fallback_brand in tried_brands:
-                    continue
-                offers = await client.get_offers(
-                    oem=oem_number,
-                    brand=fallback_brand,
-                    without_cross=True,
-                )
-                if not offers:
-                    continue
-                for item in offers:
-                    if isinstance(item, dict):
-                        item.setdefault("query_brand", fallback_brand)
-                offers_by_brand.append(offers)
+            if fallback_brand:
                 query_brands = [fallback_brand]
                 used_fallback_brand = True
-                break
 
-    merged = _merge_site_offers(offers_by_brand)
+    merged = merge_site_offers(offers_by_brand)
     supplier_stats: list[dict[str, Any]] = []
     for raw in merged:
         provider_name = str(raw.get("sup_logo") or "").strip() or "Dragonzap"

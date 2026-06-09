@@ -21,7 +21,6 @@ from dz_fastapi.core.constants import (
 )
 from dz_fastapi.core.db import AsyncSession, get_session
 from dz_fastapi.crud.autopart import crud_autopart_restock_decision
-from dz_fastapi.crud.brand import brand_crud
 from dz_fastapi.crud.order import crud_order, crud_order_item
 from dz_fastapi.crud.partner import crud_customer, crud_provider
 from dz_fastapi.http.dz_site_client import DZSiteClient
@@ -86,6 +85,13 @@ from dz_fastapi.services.placed_orders import (
     list_tracking_history,
     sync_site_tracking_statuses,
     update_tracking_item,
+)
+from dz_fastapi.services.site_brand_search import (
+    expand_site_query_brands,
+    fetch_site_offers_for_brands,
+    merge_site_offers,
+    prepare_site_brand_candidates,
+    resolve_fallback_site_brand,
 )
 
 KEY = os.getenv("KEY_FOR_WEBSITE")
@@ -315,138 +321,6 @@ def _normalize_tracking_uuid(raw_value: str | None) -> str:
     return str(uuid4())
 
 
-async def _expand_query_brands(
-    make_name: str, session: AsyncSession
-) -> list[str]:
-    normalized_input = str(make_name or "").strip().upper()
-    if not normalized_input:
-        return []
-
-    expanded = [normalized_input]
-    try:
-        main_brand = await brand_crud.get_brand_by_name_or_none(
-            brand_name=normalized_input,
-            session=session,
-        )
-        if not main_brand:
-            return expanded
-
-        related = await brand_crud.get_all_synonyms_bi_directional(
-            brand=main_brand,
-            session=session,
-        )
-        candidates = [str(main_brand.name).strip().upper()]
-        candidates.extend(
-            str(item.name).strip().upper()
-            for item in related
-            if str(getattr(item, "name", "")).strip()
-        )
-        candidates.append(normalized_input)
-        unique = []
-        seen: set[str] = set()
-        for candidate in candidates:
-            if not candidate or candidate in seen:
-                continue
-            seen.add(candidate)
-            unique.append(candidate)
-        return unique
-    except Exception as exc:
-        logger.warning(
-            "Failed to expand brand synonyms for %s: %s",
-            normalized_input,
-            exc,
-        )
-        return expanded
-
-
-def _extract_site_brand_rows(payload: Any) -> list[dict[str, Any]]:
-    if isinstance(payload, list):
-        return [item for item in payload if isinstance(item, dict)]
-    if not isinstance(payload, dict):
-        return []
-    raw_rows = payload.get("data")
-    if not isinstance(raw_rows, list):
-        return []
-    return [item for item in raw_rows if isinstance(item, dict)]
-
-
-def _prepare_site_brand_candidates(
-    payload: Any,
-) -> list[dict[str, Any]]:
-    deduped: dict[str, dict[str, Any]] = {}
-    for row in _extract_site_brand_rows(payload):
-        brand_name = str(row.get("brand") or "").strip().upper()
-        if not brand_name:
-            continue
-        try:
-            rate = int(row.get("rate") or 0)
-        except (TypeError, ValueError):
-            rate = 0
-        current = deduped.get(brand_name)
-        normalized_row = {
-            "brand": brand_name,
-            "number": row.get("number"),
-            "des_text": row.get("des_text"),
-            "rate": rate,
-        }
-        if current is None or rate > int(current.get("rate") or 0):
-            deduped[brand_name] = normalized_row
-
-    return sorted(
-        deduped.values(),
-        key=lambda item: (-int(item.get("rate") or 0), item["brand"]),
-    )
-
-
-async def _fetch_site_offers_for_brands(
-    dz_site_client: DZSiteClient,
-    *,
-    oem: str,
-    brands: list[str],
-    without_cross: bool,
-) -> list[list[dict]]:
-    offers_by_brand: list[list[dict]] = []
-    for brand_name in brands:
-        offers = await dz_site_client.get_offers(
-            oem=oem,
-            brand=brand_name,
-            without_cross=without_cross,
-        )
-        if not offers:
-            continue
-        for item in offers:
-            if isinstance(item, dict):
-                item.setdefault("query_brand", brand_name)
-        offers_by_brand.append(offers)
-    return offers_by_brand
-
-
-async def _resolve_fallback_site_brand(
-    dz_site_client: DZSiteClient,
-    *,
-    oem: str,
-    exclude_brands: list[str],
-    without_cross: bool,
-) -> tuple[list[list[dict]], list[dict[str, Any]], Optional[str]]:
-    site_brand_candidates = _prepare_site_brand_candidates(
-        await dz_site_client.get_brands(oem)
-    )
-    tried = {str(item or "").strip().upper() for item in exclude_brands}
-    for candidate in site_brand_candidates:
-        brand_name = candidate["brand"]
-        if brand_name in tried:
-            continue
-        offers_by_brand = await _fetch_site_offers_for_brands(
-            dz_site_client,
-            oem=oem,
-            brands=[brand_name],
-            without_cross=without_cross,
-        )
-        if offers_by_brand:
-            return offers_by_brand, site_brand_candidates, brand_name
-    return [], site_brand_candidates, None
-
-
 @router.get(
     "/get_brands_by_oem",
     tags=["offer"],
@@ -459,7 +333,7 @@ async def get_brands_by_oem(
     async with DZSiteClient(
         base_url=URL_DZ_SEARCH, api_key=KEY, verify_ssl=False
     ) as dz_site_client:
-        candidates = _prepare_site_brand_candidates(
+        candidates = prepare_site_brand_candidates(
             await dz_site_client.get_brands(oem)
         )
     return {"data": candidates}
@@ -477,7 +351,7 @@ async def get_offers_by_oem_and_make_name(
     without_cross: bool = True,
     session: AsyncSession = Depends(get_session),
 ):
-    requested_brands = await _expand_query_brands(
+    requested_brands = await expand_site_query_brands(
         make_name=make_name,
         session=session,
     )
@@ -487,7 +361,7 @@ async def get_offers_by_oem_and_make_name(
     async with DZSiteClient(
         base_url=URL_DZ_SEARCH, api_key=KEY, verify_ssl=False
     ) as dz_site_client:
-        offers_by_brand = await _fetch_site_offers_for_brands(
+        offers_by_brand = await fetch_site_offers_for_brands(
             dz_site_client,
             oem=oem,
             brands=query_brands,
@@ -498,7 +372,7 @@ async def get_offers_by_oem_and_make_name(
                 offers_by_brand,
                 site_brand_candidates,
                 fallback_brand,
-            ) = await _resolve_fallback_site_brand(
+            ) = await resolve_fallback_site_brand(
                 dz_site_client,
                 oem=oem,
                 exclude_brands=query_brands,
@@ -508,7 +382,7 @@ async def get_offers_by_oem_and_make_name(
                 query_brands = [fallback_brand]
                 used_fallback_brand = True
 
-    merged = _merge_site_offers(offers_by_brand)
+    merged = merge_site_offers(offers_by_brand)
     return {
         "data": merged,
         "query_brands": query_brands,
