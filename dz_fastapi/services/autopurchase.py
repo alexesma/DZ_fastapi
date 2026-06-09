@@ -21,6 +21,9 @@ from dz_fastapi.http.dz_site_client import DZSiteClient
 from dz_fastapi.models.autopart import AutoPart, AutoPurchaseRun, AutoPurchaseRunItem
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import (
+    CUSTOMER_ORDER_ITEM_STATUS,
+    CustomerOrder,
+    CustomerOrderItem,
     PriceList,
     PriceListAutoPartAssociation,
     Provider,
@@ -1911,6 +1914,49 @@ def _calculate_snapshot_sales(
     return sold_by_oem
 
 
+async def _load_customer_order_sales_by_oem(
+    session: AsyncSession,
+    normalized_oem_numbers: list[str],
+    *,
+    days: int,
+) -> dict[str, int]:
+    """
+    Возвращает суммарные продажи (ship_qty) по каждому OEM из реальных заказов
+    покупателей за последние ``days`` дней.
+
+    Учитываются только строки со статусом OWN_STOCK или SUPPLIER —
+    то есть реально отгруженные позиции.
+    """
+    if not normalized_oem_numbers:
+        return {}
+    cutoff = now_moscow() - timedelta(days=days)
+    stmt = (
+        select(
+            CustomerOrderItem.oem,
+            func.sum(CustomerOrderItem.ship_qty).label("total_sold"),
+        )
+        .join(CustomerOrder, CustomerOrder.id == CustomerOrderItem.order_id)
+        .where(
+            CustomerOrder.received_at >= cutoff,
+            CustomerOrderItem.status.in_(
+                [CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK, CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER]
+            ),
+            CustomerOrderItem.ship_qty.isnot(None),
+            CustomerOrderItem.ship_qty > 0,
+        )
+        .group_by(CustomerOrderItem.oem)
+    )
+    result = await session.execute(stmt)
+    raw: dict[str, int] = {}
+    for oem_raw, total in result.fetchall():
+        normalized = _normalize_oem(oem_raw)
+        if normalized:
+            raw[normalized] = raw.get(normalized, 0) + int(total or 0)
+
+    # Вернуть словарь для всех запрошенных OEM (0 если продаж нет)
+    return {oem: raw.get(oem, 0) for oem in normalized_oem_numbers}
+
+
 def _build_autopurchase_draft(
     *,
     supplier: Optional[dict[str, Any]],
@@ -2103,6 +2149,21 @@ async def get_autopurchase_preview(
         days=90,
         received_qty_by_oem_and_date=received_qty_by_oem_and_date,
     )
+    # Реальные продажи из заказов покупателей (приоритетнее snapshot-аппроксимации).
+    # Если customer_order_sales > 0 — используем их; иначе snapshot как fallback.
+    co_sold_last_30_by_oem = await _load_customer_order_sales_by_oem(
+        session, normalized_oem_numbers, days=30
+    )
+    co_sold_last_90_by_oem = await _load_customer_order_sales_by_oem(
+        session, normalized_oem_numbers, days=90
+    )
+    for oem in normalized_oem_numbers:
+        co30 = co_sold_last_30_by_oem.get(oem, 0)
+        co90 = co_sold_last_90_by_oem.get(oem, 0)
+        if co30 > 0:
+            sold_last_30_by_oem[oem] = max(sold_last_30_by_oem.get(oem, 0), co30)
+        if co90 > 0:
+            sold_last_90_by_oem[oem] = max(sold_last_90_by_oem.get(oem, 0), co90)
 
     decision_filter = str(decision_status or "").strip().lower() or None
     search_filter = str(search or "").strip().lower()
