@@ -2320,8 +2320,13 @@ async def send_customer_pricelist_now(
         config_id=config.id,
         items=[],
     )
+    # Сокращённый ответ: список autoparts на 100к+ позиций — это десятки
+    # мегабайт JSON и лишний SELECT; фронту достаточно id и счётчика.
     response = await process_customer_pricelist(
-        customer=customer, request=request, session=session
+        customer=customer,
+        request=request,
+        session=session,
+        include_autoparts_response=False,
     )
     return response
 
@@ -2478,6 +2483,8 @@ async def create_customer_pricelist(
         logger.error(f"Customer with id {customer_id} not found.")
         raise HTTPException(status_code=404, detail="Customer not found")
 
+    # Этот ручной эндпоинт сохраняет полный ответ с позициями —
+    # на него завязаны интеграционные проверки наценок и фильтров.
     response = await process_customer_pricelist(
         customer=customer, request=request, session=session
     )

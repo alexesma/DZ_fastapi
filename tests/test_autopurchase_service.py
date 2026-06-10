@@ -3,8 +3,11 @@ from datetime import date
 from dz_fastapi.services.autopurchase import (
     _apply_recovery_mode,
     _blend_average_daily_horizons,
+    _brand_matches_allowed,
     _build_autopurchase_draft,
     _estimate_consecutive_stockout_days,
+    _is_dragonzap_brand,
+    _normalize_brand_key,
     _select_autopurchase_supplier,
     _select_best_site_supplier_by_lead_time,
     _select_best_site_supplier_by_price,
@@ -139,3 +142,87 @@ def test_apply_recovery_mode_raises_floor_for_long_stockout():
 
     assert applied is True
     assert avg_daily == 0.08
+
+
+def test_normalize_brand_key_strips_non_alnum_and_uppercases():
+    assert _normalize_brand_key(" Lynx Auto ") == "LYNXAUTO"
+    assert _normalize_brand_key("DragonZap") == "DRAGONZAP"
+    assert _normalize_brand_key(None) == ""
+
+
+def test_is_dragonzap_brand_tolerates_spelling():
+    assert _is_dragonzap_brand("Dragonzap") is True
+    assert _is_dragonzap_brand(" DRAGON ZAP ") is True
+    assert _is_dragonzap_brand("Lynx") is False
+
+
+def test_brand_matches_allowed_strict_for_other_brand():
+    allowed = {_normalize_brand_key("HYUNDAI/KIA")}
+
+    assert _brand_matches_allowed("Hyundai/Kia", allowed) is True
+    # Бренд сайта может быть шире/уже по написанию — допускаем вхождение.
+    assert _brand_matches_allowed("HYUNDAI", allowed) is True
+    # Чужой бренд по тому же OEM должен отфильтровываться.
+    assert _brand_matches_allowed("PMC", allowed) is False
+    # Пустой make_name — доверяем фильтру самого сайта по make_name.
+    assert _brand_matches_allowed("", allowed) is True
+
+
+def test_build_autopurchase_draft_bumps_qty_to_supplier_min_lot():
+    draft = _build_autopurchase_draft(
+        supplier={
+            "provider_name": "Supplier",
+            "current_price": 100.0,
+            "current_qty": 10,
+            "current_min_qnt": 5,
+        },
+        available_qty=0,
+        in_transit_qty=0,
+        target_qty=2,
+        recommended_qty=2,
+        lead_time_days_used=7.0,
+        reason=None,
+    )
+
+    assert draft is not None
+    assert draft["proposed_order_qty"] == 5
+    assert draft["remaining_gap_qty"] == 0
+
+
+def test_build_autopurchase_draft_returns_none_when_min_lot_unreachable():
+    draft = _build_autopurchase_draft(
+        supplier={
+            "provider_name": "Supplier",
+            "current_price": 100.0,
+            "current_qty": 3,
+            "current_min_qnt": 5,
+        },
+        available_qty=0,
+        in_transit_qty=0,
+        target_qty=2,
+        recommended_qty=2,
+        lead_time_days_used=7.0,
+        reason=None,
+    )
+
+    assert draft is None
+
+
+def test_build_autopurchase_draft_keeps_backlog_qty():
+    draft = _build_autopurchase_draft(
+        supplier={
+            "provider_name": "Supplier",
+            "current_price": 100.0,
+            "current_qty": 10,
+        },
+        available_qty=1,
+        in_transit_qty=0,
+        target_qty=5,
+        recommended_qty=5,
+        lead_time_days_used=7.0,
+        reason=None,
+        open_customer_backlog_qty=4,
+    )
+
+    assert draft is not None
+    assert draft["open_customer_backlog_qty"] == 4

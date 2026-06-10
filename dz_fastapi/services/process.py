@@ -13,6 +13,7 @@ import pandas as pd
 from fastapi import HTTPException
 from libarchive import memory_reader
 from openpyxl import Workbook
+from openpyxl.cell import WriteOnlyCell
 from openpyxl.styles import Alignment, Font, PatternFill
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -79,12 +80,11 @@ from dz_fastapi.models.partner import (
     Provider,
     ProviderPriceListConfig,
 )
-from dz_fastapi.schemas.autopart import AutoPartCreatePriceList, AutoPartResponse
+from dz_fastapi.schemas.autopart import AutoPartResponse
 from dz_fastapi.schemas.partner import (
     AutoPartInPricelist,
     CustomerPriceListCreate,
     CustomerPriceListResponse,
-    PriceListAutoPartAssociationCreate,
     PriceListCreate,
 )
 from dz_fastapi.services.email import (
@@ -102,7 +102,7 @@ from dz_fastapi.services.utils import (
     normalize_mixed_cyrillic,
     position_exclude,
     position_filters,
-    prepare_excel_data,
+    prepare_excel_data_from_records,
 )
 from dz_fastapi.services.watchlist import handle_provider_pricelist_watch
 
@@ -202,31 +202,43 @@ def _build_customer_pricelist_attachment_bytes(
     df_excel: pd.DataFrame,
     config: CustomerPriceListConfig,
 ) -> bytes:
+    """CPU-тяжёлая генерация вложения — вызывать через asyncio.to_thread.
+
+    Используем write-only режим openpyxl и общие объекты стилей:
+    классический режим с созданием Font на каждую ячейку на прайсе
+    в 100к строк работал минуты и держал весь файл в памяти.
+    """
     export_format = _resolve_customer_pricelist_export_format(config)
     if export_format == "csv":
         return df_excel.to_csv(index=False).encode("utf-8-sig")
 
     output = BytesIO()
-    wb = Workbook()
-    ws = wb.active
+    wb = Workbook(write_only=True)
+    ws = wb.create_sheet()
+
+    note_font = Font(name="Arial", size=7)
+    header_font = Font(name="Arial", size=10, bold=True)
+    header_fill = PatternFill(
+        start_color="D9EAD3", end_color="D9EAD3", fill_type="solid"
+    )
+    center_alignment = Alignment(horizontal="center", vertical="center")
+    data_font = Font(name="Arial", size=10)
 
     current_time = now_moscow().strftime("%Y-%m-%d %H:%M:%S")
-    ws.cell(row=1, column=5).value = f"Сформирован {current_time}"
-    ws.cell(row=1, column=5).font = Font(name="Arial", size=7)
-    ws.cell(row=1, column=5).alignment = Alignment(
-        horizontal="center", vertical="center"
-    )
+    note_cell = WriteOnlyCell(ws, value=f"Сформирован {current_time}")
+    note_cell.font = note_font
+    note_cell.alignment = center_alignment
+    ws.append([None, None, None, None, note_cell])
 
-    # Write headers on the second row
     logger.debug("Write headers on the second row")
-    for col_num, column_title in enumerate(df_excel.columns, start=1):
-        cell = ws.cell(row=2, column=col_num)
-        cell.value = column_title
-        cell.font = Font(name="Arial", size=10, bold=True)
-        cell.fill = PatternFill(
-            start_color="D9EAD3", end_color="D9EAD3", fill_type="solid"
-        )
-        cell.alignment = Alignment(horizontal="center", vertical="center")
+    header_cells = []
+    for column_title in df_excel.columns:
+        cell = WriteOnlyCell(ws, value=column_title)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center_alignment
+        header_cells.append(cell)
+    ws.append(header_cells)
 
     # Regex that matches characters illegal in Excel worksheets
     # (control characters except tab \x09, newline \x0A, carriage return \x0D)
@@ -237,15 +249,14 @@ def _build_customer_pricelist_attachment_bytes(
             return _illegal_chars_re.sub("", value)
         return value
 
-    # Write data rows starting from the third row
     logger.debug("Write data rows starting from the third row")
-    for row_num, row_data in enumerate(
-        df_excel.itertuples(index=False), start=3
-    ):
-        for col_num, cell_value in enumerate(row_data, start=1):
-            cell = ws.cell(row=row_num, column=col_num)
-            cell.value = _sanitize_cell(cell_value)
-            cell.font = Font(name="Arial", size=10)
+    for row_data in df_excel.itertuples(index=False):
+        row_cells = []
+        for cell_value in row_data:
+            cell = WriteOnlyCell(ws, value=_sanitize_cell(cell_value))
+            cell.font = data_font
+            row_cells.append(cell)
+        ws.append(row_cells)
 
     wb.save(output)
     attachment_bytes = output.getvalue()
@@ -886,12 +897,23 @@ async def process_provider_pricelist(
         autoparts=[],
     )
 
+    # Передаём строки прайса обычными dict-ами: построение и валидация
+    # десятков тысяч вложенных pydantic-моделей с последующим model_dump()
+    # занимали десятки секунд CPU прямо в event loop.
+    autoparts_payload: list[dict] = []
     for item in deduplicated_data:
         try:
-            autopart_data = AutoPartCreatePriceList(
-                oem_number=item["oem_number"],
-                brand=item.get("brand"),
-                name=item.get("name"),
+            autoparts_payload.append(
+                {
+                    "autopart": {
+                        "oem_number": item["oem_number"],
+                        "brand": item.get("brand"),
+                        "name": item.get("name"),
+                    },
+                    "quantity": int(item["quantity"]),
+                    "price": float(item["price"]),
+                    "multiplicity": int(item.get("multiplicity") or 1),
+                }
             )
         except KeyError as ke:
             logger.error(f"Missing key in item: {ke}")
@@ -899,20 +921,13 @@ async def process_provider_pricelist(
                 status_code=400, detail=f"Missing key in item: {ke}"
             )
 
-        autopart_assoc = PriceListAutoPartAssociationCreate(
-            autopart=autopart_data,
-            quantity=int(item["quantity"]),
-            price=float(item["price"]),
-            multiplicity=int(item.get("multiplicity") or 1),
-        )
-        pricelist_in.autoparts.append(autopart_assoc)
-
     # Create the price list
     try:
         pricelist = await crud_pricelist.create(
             obj_in=pricelist_in,
             session=session,
             include_autoparts_response=include_autoparts_response,
+            autoparts_payload=autoparts_payload,
         )
         await handle_provider_pricelist_watch(
             session=session,
@@ -1446,9 +1461,12 @@ async def send_pricelist(
     subject = subject
     body = body
 
-    attachment_bytes = _build_customer_pricelist_attachment_bytes(
-        df_excel=df_excel,
-        config=config,
+    # CPU-тяжёлая генерация файла — в отдельном потоке, чтобы не
+    # блокировать event loop (а с ним и все остальные запросы) на минуты.
+    attachment_bytes = await asyncio.to_thread(
+        _build_customer_pricelist_attachment_bytes,
+        df_excel,
+        config,
     )
     attachment_filename = (
         attachment_filename
@@ -1549,7 +1567,10 @@ async def send_pricelist(
 
 
 async def process_customer_pricelist(
-    customer: Customer, request: CustomerPriceListCreate, session: AsyncSession
+    customer: Customer,
+    request: CustomerPriceListCreate,
+    session: AsyncSession,
+    include_autoparts_response: bool = True,
 ) -> CustomerPriceListResponse:
 
     config = await crud_customer_pricelist_config.get_by_id(
@@ -1665,7 +1686,10 @@ async def process_customer_pricelist(
                     excluded_autoparts=excluded_autoparts,
                     df=final_df,
                 )
-        final_df = _collapse_duplicate_rows(
+        # Сворачивание дубликатов на больших прайсах — чистый CPU (pandas),
+        # выносим из event loop.
+        final_df = await asyncio.to_thread(
+            _collapse_duplicate_rows,
             final_df,
             prefer_min_price=bool(
                 getattr(config, "collapse_duplicates_by_min_price", True)
@@ -1686,14 +1710,21 @@ async def process_customer_pricelist(
     session.add(customer_pricelist)
     await session.flush()
 
+    # Полная перезагрузка ассоциаций нужна только когда вызывающему коду
+    # требуется развёрнутый ответ (API). Регламенты передают False и
+    # экономят повторный SELECT на ~100к строк с autopart+brand.
     associations = await crud_customer_pricelist.create_associations(
         customer_pricelist_id=customer_pricelist.id,
         autoparts_data=customer_autoparts_data,
         session=session,
+        load_associations=include_autoparts_response,
     )
 
-    # Prepare data for Excel file
-    df_excel = prepare_excel_data(associations=associations)
+    # Prepare data for Excel file: строим из уже готовых записей,
+    # без зависимости от перезагруженных ассоциаций.
+    df_excel = await asyncio.to_thread(
+        prepare_excel_data_from_records, customer_autoparts_data
+    )
 
     # DZ brand expansion (without name labels) — applied at Excel level
     # so that the brand column in output reflects assigned brands,
@@ -1745,35 +1776,31 @@ async def process_customer_pricelist(
 
         # 2. Соединяем df_excel и df_diller по "brand_id".
         #    how='left' чтобы к df_excel присоединить цены диллера (если есть).
-        df_merged = pd.merge(
-            df_excel,
-            df_diller_rename,
-            on=["Производитель", "Артикул"],
-            how="left",
-            suffixes=("", "_diller"),  # Чтобы колонки не конфликтовали
-        )
+        def _apply_diller_floor(
+            df_excel_local: pd.DataFrame,
+            df_diller_local: pd.DataFrame,
+        ) -> pd.DataFrame:
+            df_merged = pd.merge(
+                df_excel_local,
+                df_diller_local,
+                on=["Производитель", "Артикул"],
+                how="left",
+                suffixes=("", "_diller"),  # Чтобы колонки не конфликтовали
+            )
+            # Если наша цена ниже цены диллера * 1.2 — повышаем.
+            mask = (df_merged["Цена_diller"].notna()) & (
+                df_merged["Цена"] < df_merged["Цена_diller"] * 1.2
+            )
+            df_merged.loc[mask, "Цена"] = (
+                np.ceil(df_merged.loc[mask, "Цена_diller"] * 1.2 / 10) * 10
+            )
+            # Возвращаемся к исходному набору колонок df_excel.
+            return df_merged[df_excel_local.columns]
 
-        # Теперь в df_merged есть колонки:
-        # "price" (из df_excel) и "price_diller" (из df_diller)
-        # Проверяем условие: если df_excel['price'] < df_diller['price'] * 1.2
-        # и brand_id совпадает, тогда повышаем цену.
-
-        # 3. Формируем маску (true, где нужно повысить)
-        mask = (df_merged["Цена_diller"].notna()) & (
-            df_merged["Цена"] < df_merged["Цена_diller"] * 1.2
+        # Merge на 100к+ строк — CPU-тяжёлый pandas, выносим из event loop.
+        df_excel = await asyncio.to_thread(
+            _apply_diller_floor, df_excel, df_diller_rename
         )
-        # 4. Применяем
-        df_merged.loc[mask, "Цена"] = (
-            np.ceil(df_merged.loc[mask, "Цена_diller"] * 1.2 / 10) * 10
-        )
-
-        # 5. Возвращаем df_merged к исходному набору колонок df_excel,
-        #    например если в df_excel были колонки:
-        #    ['brand_id','price','name','...']
-        #    или же просто присваиваем обратно df_excel = df_merged
-        #    (учтите, что df_merged может иметь лишние колонки, напр.
-        #    'price_diller').
-        df_excel = df_merged[df_excel.columns]
 
         df_excel = await add_origin_brand_from_dz(
             price_zzap=df_excel, session=session
@@ -1781,12 +1808,17 @@ async def process_customer_pricelist(
         logger.debug(_dataframe_summary(df_excel, "zzap_excel_df"))
 
     if bool(getattr(config, "collapse_duplicates_by_min_price", True)):
-        df_excel = _collapse_duplicate_excel_rows(df_excel)
+        df_excel = await asyncio.to_thread(
+            _collapse_duplicate_excel_rows, df_excel
+        )
 
     if {"Производитель", "Наименование"}.issubset(df_excel.columns):
-        df_excel = df_excel.sort_values(
-            by=["Производитель", "Наименование"], kind="stable"
-        ).reset_index(drop=True)
+        df_excel = await asyncio.to_thread(
+            lambda df: df.sort_values(
+                by=["Производитель", "Наименование"], kind="stable"
+            ).reset_index(drop=True),
+            df_excel,
+        )
     await session.commit()
     logger.debug("Calling send_pricelist")
     recipients = config.emails or (
@@ -1828,6 +1860,7 @@ async def process_customer_pricelist(
         date=customer_pricelist.date,
         customer_id=customer.id,
         autoparts=autoparts_response,
+        positions_count=len(customer_autoparts_data),
     )
     return response
 

@@ -140,6 +140,25 @@ def position_exclude(
     return df[mask]
 
 
+def prepare_excel_data_from_records(records: List[dict]) -> pd.DataFrame:
+    """
+    Собирает DataFrame для экспорта в Excel напрямую из записей
+    клиентского прайса (без повторной загрузки ассоциаций из БД).
+    """
+    return pd.DataFrame(
+        [
+            {
+                "Производитель": record.get("brand"),
+                "Наименование": record.get("name"),
+                "Артикул": record.get("oem_number"),
+                "Количество": record.get("quantity"),
+                "Цена": record.get("price"),
+            }
+            for record in records
+        ]
+    )
+
+
 def prepare_excel_data(
     associations: List[CustomerPriceListAutoPartAssociation],
 ) -> pd.DataFrame:

@@ -8,10 +8,16 @@ import pytest
 from dz_fastapi.analytics.price_history import (
     _get_previous_pricelist,
     build_pricelist_change_summary,
+    build_pricelist_change_summary_by_ids,
     prepare_price_history_plot_data,
 )
 from dz_fastapi.crud.partner import crud_pricelist
-from dz_fastapi.models.partner import PriceList, ProviderPriceListConfig
+from dz_fastapi.models.autopart import AutoPart
+from dz_fastapi.models.partner import (
+    PriceList,
+    PriceListAutoPartAssociation,
+    ProviderPriceListConfig,
+)
 
 
 @pytest.mark.asyncio
@@ -149,6 +155,117 @@ async def test_build_pricelist_change_summary(monkeypatch):
 
     assert summary["sharpest_price_changes"][0]["autopart_id"] == 1
     assert round(summary["sharpest_price_changes"][0]["price_diff_pct"], 2) == 30.0
+
+
+@pytest.mark.asyncio
+async def test_build_pricelist_change_summary_by_ids_matches_python_version(
+    test_session, created_providers, created_brand
+):
+    provider = created_providers[0]
+    config = ProviderPriceListConfig(
+        provider_id=provider.id,
+        start_row=1,
+        oem_col=0,
+        brand_col=1,
+        name_col=2,
+        qty_col=3,
+        price_col=4,
+        name_price="CFG_SQL",
+        name_mail="MAIL_SQL",
+    )
+    test_session.add(config)
+    await test_session.commit()
+    await test_session.refresh(config)
+
+    autoparts = [
+        AutoPart(
+            name=f"PART {idx}",
+            brand_id=created_brand.id,
+            oem_number=f"OEM-SQL-{idx}",
+        )
+        for idx in range(1, 4)
+    ]
+    test_session.add_all(autoparts)
+    await test_session.commit()
+    for autopart in autoparts:
+        await test_session.refresh(autopart)
+
+    old_pl = PriceList(
+        date=date(2026, 3, 26),
+        provider_id=provider.id,
+        provider_config_id=config.id,
+    )
+    new_pl = PriceList(
+        date=date(2026, 3, 27),
+        provider_id=provider.id,
+        provider_config_id=config.id,
+    )
+    test_session.add_all([old_pl, new_pl])
+    await test_session.commit()
+    await test_session.refresh(old_pl)
+    await test_session.refresh(new_pl)
+
+    test_session.add_all(
+        [
+            PriceListAutoPartAssociation(
+                pricelist_id=old_pl.id,
+                autopart_id=autoparts[0].id,
+                price=100,
+                quantity=10,
+            ),
+            PriceListAutoPartAssociation(
+                pricelist_id=old_pl.id,
+                autopart_id=autoparts[1].id,
+                price=200,
+                quantity=20,
+            ),
+            PriceListAutoPartAssociation(
+                pricelist_id=new_pl.id,
+                autopart_id=autoparts[0].id,
+                price=130,
+                quantity=4,
+            ),
+            PriceListAutoPartAssociation(
+                pricelist_id=new_pl.id,
+                autopart_id=autoparts[1].id,
+                price=180,
+                quantity=18,
+            ),
+            PriceListAutoPartAssociation(
+                pricelist_id=new_pl.id,
+                autopart_id=autoparts[2].id,
+                price=50,
+                quantity=7,
+            ),
+        ]
+    )
+    await test_session.commit()
+
+    summary = await build_pricelist_change_summary_by_ids(
+        test_session,
+        new_pl_id=new_pl.id,
+        new_pl_date=new_pl.date,
+        old_pl_id=old_pl.id,
+        old_pl_date=old_pl.date,
+        top_n=20,
+    )
+
+    assert summary["latest_positions_count"] == 3
+    assert summary["previous_positions_count"] == 2
+    assert summary["new_positions_count"] == 1
+    assert summary["removed_positions_count"] == 0
+    assert summary["changed_price_count"] == 2
+    assert summary["changed_quantity_count"] == 2
+
+    top_turnover = summary["top_turnover_positions"]
+    assert top_turnover[0]["autopart_id"] == autoparts[0].id
+    assert top_turnover[0]["quantity_drop"] == 6
+    # Модель нормализует oem_number (убирает дефисы) при сохранении.
+    assert top_turnover[0]["oem_number"] == "OEMSQL1"
+
+    sharpest = summary["sharpest_price_changes"]
+    assert sharpest[0]["autopart_id"] == autoparts[0].id
+    assert round(sharpest[0]["price_diff_pct"], 2) == 30.0
 
 
 def test_prepare_price_history_plot_data_extends_flat_period_until_finish():

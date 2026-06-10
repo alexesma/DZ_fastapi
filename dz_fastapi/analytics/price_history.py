@@ -5,14 +5,14 @@ from typing import Any, List, Optional
 
 import pandas as pd
 from fastapi import HTTPException
-from sqlalchemy import and_, select
+from sqlalchemy import Float, and_, case, cast, func, select
 
 from dz_fastapi.core.db import AsyncSession
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.partner import crud_pricelist
 from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
 from dz_fastapi.models.brand import Brand
-from dz_fastapi.models.partner import PriceList, Provider
+from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation, Provider
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -293,13 +293,168 @@ async def build_pricelist_change_summary(
     }
 
 
+def _pricelist_assoc_subquery(pricelist_id: int, alias: str):
+    return (
+        select(
+            PriceListAutoPartAssociation.autopart_id,
+            cast(PriceListAutoPartAssociation.price, Float).label("price"),
+            PriceListAutoPartAssociation.quantity.label("quantity"),
+        )
+        .where(PriceListAutoPartAssociation.pricelist_id == pricelist_id)
+        .subquery(alias)
+    )
+
+
+async def build_pricelist_change_summary_by_ids(
+    session: AsyncSession,
+    *,
+    new_pl_id: int,
+    new_pl_date: Any,
+    old_pl_id: int,
+    old_pl_date: Any,
+    top_n: int = 20,
+) -> dict[str, Any]:
+    """SQL-версия сравнения двух прайсов.
+
+    Раньше оба прайса целиком грузились в ORM (2×50–100к объектов) и
+    сравнивались в Python в event loop. Теперь агрегаты и top-N считает
+    Postgres, в приложение возвращаются только итоговые числа и 2×top_n строк.
+    """
+    new_rows = _pricelist_assoc_subquery(new_pl_id, "new_rows")
+    old_rows = _pricelist_assoc_subquery(old_pl_id, "old_rows")
+    joined = new_rows.outerjoin(
+        old_rows,
+        new_rows.c.autopart_id == old_rows.c.autopart_id,
+        full=True,
+    )
+
+    both_present = and_(
+        new_rows.c.autopart_id.is_not(None),
+        old_rows.c.autopart_id.is_not(None),
+    )
+    price_diff = new_rows.c.price - old_rows.c.price
+    price_diff_pct = case(
+        (old_rows.c.price == 0, 0.0),
+        else_=price_diff / old_rows.c.price * 100.0,
+    )
+    price_changed = and_(both_present, func.abs(price_diff_pct) > 0.01)
+    quantity_changed = and_(
+        both_present,
+        new_rows.c.quantity != old_rows.c.quantity,
+    )
+
+    totals_stmt = select(
+        func.count(new_rows.c.autopart_id).label("latest_count"),
+        func.count(old_rows.c.autopart_id).label("previous_count"),
+        func.count()
+        .filter(old_rows.c.autopart_id.is_(None))
+        .label("new_count"),
+        func.count()
+        .filter(new_rows.c.autopart_id.is_(None))
+        .label("removed_count"),
+        func.count().filter(price_changed).label("changed_price_count"),
+        func.count().filter(quantity_changed).label("changed_quantity_count"),
+    ).select_from(joined)
+    totals = (await session.execute(totals_stmt)).one()
+
+    detail_columns = (
+        new_rows.c.autopart_id.label("autopart_id"),
+        AutoPart.oem_number,
+        AutoPart.name,
+        Brand.name.label("brand_name"),
+        old_rows.c.price.label("old_price"),
+        new_rows.c.price.label("new_price"),
+        old_rows.c.quantity.label("old_quantity"),
+        new_rows.c.quantity.label("new_quantity"),
+    )
+    detail_joins = (
+        select(*detail_columns)
+        .select_from(joined)
+        .join(AutoPart, AutoPart.id == new_rows.c.autopart_id)
+        .join(Brand, Brand.id == AutoPart.brand_id)
+    )
+
+    quantity_drop = old_rows.c.quantity - new_rows.c.quantity
+    turnover_stmt = (
+        detail_joins.where(
+            both_present, new_rows.c.quantity < old_rows.c.quantity
+        )
+        .order_by(
+            quantity_drop.desc(),
+            old_rows.c.quantity.desc(),
+            new_rows.c.autopart_id.desc(),
+        )
+        .limit(top_n)
+    )
+    price_changes_stmt = (
+        detail_joins.where(price_changed)
+        .order_by(
+            func.abs(price_diff_pct).desc(),
+            func.abs(price_diff).desc(),
+            new_rows.c.autopart_id.desc(),
+        )
+        .limit(top_n)
+    )
+
+    top_turnover_positions = [
+        {
+            "autopart_id": int(row.autopart_id),
+            "oem_number": row.oem_number,
+            "brand": row.brand_name,
+            "name": row.name,
+            "old_quantity": int(row.old_quantity),
+            "new_quantity": int(row.new_quantity),
+            "quantity_drop": int(row.old_quantity - row.new_quantity),
+            "old_price": float(row.old_price),
+            "new_price": float(row.new_price),
+        }
+        for row in (await session.execute(turnover_stmt)).all()
+    ]
+    sharpest_price_changes = []
+    for row in (await session.execute(price_changes_stmt)).all():
+        old_price = float(row.old_price)
+        new_price = float(row.new_price)
+        diff = new_price - old_price
+        sharpest_price_changes.append(
+            {
+                "autopart_id": int(row.autopart_id),
+                "oem_number": row.oem_number,
+                "brand": row.brand_name,
+                "name": row.name,
+                "old_price": old_price,
+                "new_price": new_price,
+                "price_diff": diff,
+                "price_diff_pct": (
+                    (diff / old_price) * 100 if old_price else 0.0
+                ),
+                "old_quantity": int(row.old_quantity),
+                "new_quantity": int(row.new_quantity),
+            }
+        )
+
+    return {
+        "latest_pricelist_id": new_pl_id,
+        "latest_pricelist_date": new_pl_date,
+        "previous_pricelist_id": old_pl_id,
+        "previous_pricelist_date": old_pl_date,
+        "latest_positions_count": int(totals.latest_count),
+        "previous_positions_count": int(totals.previous_count),
+        "new_positions_count": int(totals.new_count),
+        "removed_positions_count": int(totals.removed_count),
+        "changed_price_count": int(totals.changed_price_count),
+        "changed_quantity_count": int(totals.changed_quantity_count),
+        "top_turnover_positions": top_turnover_positions,
+        "sharpest_price_changes": sharpest_price_changes,
+    }
+
+
 async def get_pricelist_change_summary(
     session: AsyncSession,
     provider_id: int,
     provider_config_id: int,
     top_n: int = 20,
 ) -> dict[str, Any]:
-    recent_pricelists = await crud_pricelist.get_last_pricelists_by_provider(
+    recent_pricelists = await crud_pricelist.get_last_pricelist_meta_by_provider(
         provider_id=provider_id,
         provider_config_id=provider_config_id,
         session=session,
@@ -326,13 +481,20 @@ async def get_pricelist_change_summary(
     new_pl = recent_pricelists[0]
     old_pl = _get_previous_pricelist(new_pl, recent_pricelists)
     if old_pl is None:
+        latest_positions_count = (
+            await session.execute(
+                select(func.count()).where(
+                    PriceListAutoPartAssociation.pricelist_id == new_pl.id
+                )
+            )
+        ).scalar() or 0
         return {
             "ready": False,
             "latest_pricelist_id": new_pl.id,
             "latest_pricelist_date": new_pl.date,
             "previous_pricelist_id": None,
             "previous_pricelist_date": None,
-            "latest_positions_count": len(_build_pricelist_map(new_pl)),
+            "latest_positions_count": int(latest_positions_count),
             "previous_positions_count": 0,
             "new_positions_count": 0,
             "removed_positions_count": 0,
@@ -343,10 +505,12 @@ async def get_pricelist_change_summary(
             "note": "Нужны минимум два прайса для сравнения.",
         }
 
-    summary = await build_pricelist_change_summary(
-        new_pl=new_pl,
-        old_pl=old_pl,
-        session=session,
+    summary = await build_pricelist_change_summary_by_ids(
+        session,
+        new_pl_id=int(new_pl.id),
+        new_pl_date=new_pl.date,
+        old_pl_id=int(old_pl.id),
+        old_pl_date=old_pl.date,
         top_n=top_n,
     )
     summary["ready"] = True

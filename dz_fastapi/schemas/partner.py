@@ -306,6 +306,9 @@ class CustomerPriceListResponse(CustomerPriceListBase):
     date: date
     customer_id: int
     autoparts: List["AutoPartInPricelist"]
+    # Итоговое число позиций: позволяет не возвращать весь список
+    # autoparts (на больших прайсах это десятки мегабайт JSON).
+    positions_count: Optional[int] = None
     model_config = ConfigDict(from_attributes=True)
 
 

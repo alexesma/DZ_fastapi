@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from decimal import ROUND_HALF_UP, Decimal
 from math import ceil
@@ -6,7 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 from fastapi import HTTPException
 from pydantic import ValidationError
-from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy import delete, func, insert, select, tuple_, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import joinedload, lazyload, selectinload
 from sqlalchemy.sql import and_
@@ -22,6 +23,7 @@ from dz_fastapi.models.autopart import (
     AutoPart,
     AutoPartPriceHistory,
     AutoPartRestockDecisionSupplier,
+    preprocess_oem_number,
 )
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.order_status_mapping import ExternalStatusMapping, ExternalStatusUnmapped
@@ -1516,8 +1518,14 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             include_autoparts_response = bool(
                 kwargs.pop("include_autoparts_response", True)
             )
+            # Быстрый путь для больших прайсов: список готовых dict-строк
+            # без промежуточных pydantic-моделей (их валидация на 50к+ строк
+            # занимала десятки секунд CPU в event loop).
+            autoparts_payload = kwargs.pop("autoparts_payload", None)
             obj_in_data = obj_in.model_dump()
             autoparts_data = obj_in_data.pop("autoparts", [])
+            if autoparts_payload is not None:
+                autoparts_data = autoparts_payload
             db_obj = self.model(**obj_in_data)
             session.add(db_obj)
             await session.flush()
@@ -1550,7 +1558,15 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             current_positions: dict[int, dict] = {}
 
             # ===== ОБРАБОТКА ВХОДЯЩИХ ДАННЫХ =====
-            for autopart_assoc_data in autoparts_data:
+            # Шаг 1: нормализуем строки и резолвим бренды (с кэшем),
+            # собираем пары (oem, brand_id) для пакетного поиска.
+            prepared_rows: list[dict] = []
+            for _row_idx, autopart_assoc_data in enumerate(autoparts_data):
+                # Каждые 500 строк отдаём управление event loop, чтобы
+                # большой прайс не подвешивал остальные запросы процесса.
+                if _row_idx % 500 == 0 and _row_idx > 0:
+                    await asyncio.sleep(0)
+
                 autopart_data_dict = dict(autopart_assoc_data["autopart"])
                 quantity = autopart_assoc_data["quantity"]
                 price = autopart_assoc_data["price"]
@@ -1583,39 +1599,111 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                     item_default_brand = db_brand
                     autopart_data_dict["brand"] = None
 
-                # Instantiate AutoPartPricelist
-                autopart_data = AutoPartPricelist(**autopart_data_dict)
-
-                autopart = await crud_autopart.create_autopart_from_price(
-                    new_autopart=autopart_data,
-                    session=session,
-                    default_brand=item_default_brand,
-                )
-
-                if not autopart:
+                if item_default_brand is None:
                     logger.warning(
-                        f"Failed to create or retrieve "
-                        f"AutoPart for data: {autopart_data_dict}"
+                        "Skipping pricelist row without brand: %s",
+                        autopart_data_dict,
                     )
                     continue
-                qty = int(quantity)
-                prc = money(price)
-                mult = int(autopart_assoc_data.get("multiplicity") or 1)
-                existing_assoc = bulk_insert_map.get(autopart.id)
+
+                raw_oem = autopart_data_dict.get("oem_number")
+                if not raw_oem:
+                    logger.warning(
+                        "Skipping pricelist row without oem_number: %s",
+                        autopart_data_dict,
+                    )
+                    continue
+                normalized_oem = preprocess_oem_number(str(raw_oem))
+                autopart_data_dict["oem_number"] = normalized_oem
+
+                prepared_rows.append(
+                    {
+                        "oem_number": normalized_oem,
+                        "brand": item_default_brand,
+                        "autopart_data_dict": autopart_data_dict,
+                        "quantity": quantity,
+                        "price": price,
+                        "multiplicity": autopart_assoc_data.get(
+                            "multiplicity"
+                        ),
+                    }
+                )
+
+            # Шаг 2: пакетно находим уже существующие автозапчасти.
+            # Раньше на каждую строку прайса выполнялся отдельный SELECT —
+            # на больших прайсах это десятки тысяч запросов и десятки минут.
+            existing_autopart_ids: dict[tuple[str, int], int] = {}
+            lookup_pairs = sorted(
+                {
+                    (row["oem_number"], int(row["brand"].id))
+                    for row in prepared_rows
+                }
+            )
+            LOOKUP_CHUNK_SIZE = 1000
+            for chunk_start in range(0, len(lookup_pairs), LOOKUP_CHUNK_SIZE):
+                chunk = lookup_pairs[
+                    chunk_start:chunk_start + LOOKUP_CHUNK_SIZE
+                ]
+                lookup_stmt = select(
+                    AutoPart.id,
+                    AutoPart.oem_number,
+                    AutoPart.brand_id,
+                ).where(
+                    tuple_(AutoPart.oem_number, AutoPart.brand_id).in_(chunk)
+                )
+                for ap_id, ap_oem, ap_brand_id in (
+                    await session.execute(lookup_stmt)
+                ).all():
+                    existing_autopart_ids[(ap_oem, int(ap_brand_id))] = int(
+                        ap_id
+                    )
+
+            # Шаг 3: собираем ассоциации; новые автозапчасти создаём
+            # только для пар, которых ещё нет в базе.
+            for _row_idx, row in enumerate(prepared_rows):
+                if _row_idx % 500 == 0 and _row_idx > 0:
+                    await asyncio.sleep(0)
+
+                lookup_key = (row["oem_number"], int(row["brand"].id))
+                autopart_id = existing_autopart_ids.get(lookup_key)
+                if autopart_id is None:
+                    autopart_data = AutoPartPricelist(
+                        **row["autopart_data_dict"]
+                    )
+                    autopart = (
+                        await crud_autopart.create_autopart_from_price(
+                            new_autopart=autopart_data,
+                            session=session,
+                            default_brand=row["brand"],
+                        )
+                    )
+                    if not autopart:
+                        logger.warning(
+                            f"Failed to create or retrieve "
+                            f"AutoPart for data: {row['autopart_data_dict']}"
+                        )
+                        continue
+                    autopart_id = int(autopart.id)
+                    existing_autopart_ids[lookup_key] = autopart_id
+
+                qty = int(row["quantity"])
+                prc = money(row["price"])
+                mult = int(row.get("multiplicity") or 1)
+                existing_assoc = bulk_insert_map.get(autopart_id)
                 if existing_assoc and existing_assoc["price"] < prc:
                     continue
 
                 assoc_row = {
                     "pricelist_id": db_obj.id,
-                    "autopart_id": autopart.id,
+                    "autopart_id": autopart_id,
                     "quantity": qty,
                     "price": prc,
                     "multiplicity": mult,
                 }
-                bulk_insert_map[autopart.id] = assoc_row
+                bulk_insert_map[autopart_id] = assoc_row
 
                 # Запоминаем актуальную позицию для истории изменений.
-                current_positions[autopart.id] = {
+                current_positions[autopart_id] = {
                     "price": prc,
                     "quantity": qty,
                 }
@@ -1892,30 +1980,39 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
     async def transform_to_dataframe(
         self, associations, session: AsyncSession
     ):
-        data = []
-        for assoc in associations:
-            autopart = assoc.autopart
-            brand_name = autopart.brand.name if autopart.brand else None
-            data.append(
-                {
-                    "autopart_id": autopart.id,
-                    "name": autopart.name,
-                    "oem_number": autopart.oem_number,
-                    "brand_id": autopart.brand_id,
-                    "brand": brand_name,
-                    "provider_id": assoc.pricelist.provider_id,
-                    "provider_config_id": assoc.pricelist.provider_config_id,
-                    "pricelist_id": assoc.pricelist.id,
-                    "is_own_price": (
-                        bool(assoc.pricelist.provider.is_own_price)
-                        if assoc.pricelist.provider
-                        else False
-                    ),
-                    "quantity": assoc.quantity,
-                    "price": float(assoc.price),
-                }
-            )
-        return pd.DataFrame(data)
+        def _build_dataframe() -> pd.DataFrame:
+            # Все связи загружены жадно (joinedload), поэтому доступ к
+            # атрибутам не делает запросов и безопасен в отдельном потоке.
+            data = []
+            for assoc in associations:
+                autopart = assoc.autopart
+                brand_name = autopart.brand.name if autopart.brand else None
+                data.append(
+                    {
+                        "autopart_id": autopart.id,
+                        "name": autopart.name,
+                        "oem_number": autopart.oem_number,
+                        "brand_id": autopart.brand_id,
+                        "brand": brand_name,
+                        "provider_id": assoc.pricelist.provider_id,
+                        "provider_config_id": (
+                            assoc.pricelist.provider_config_id
+                        ),
+                        "pricelist_id": assoc.pricelist.id,
+                        "is_own_price": (
+                            bool(assoc.pricelist.provider.is_own_price)
+                            if assoc.pricelist.provider
+                            else False
+                        ),
+                        "quantity": assoc.quantity,
+                        "price": float(assoc.price),
+                    }
+                )
+            return pd.DataFrame(data)
+
+        # Построение DataFrame на 50–100к строк — чистый CPU; выносим из
+        # event loop, чтобы не блокировать другие запросы.
+        return await asyncio.to_thread(_build_dataframe)
 
     async def get_pricelist_ids_by_provider(
         self, session: AsyncSession, provider_id: int
@@ -1937,6 +2034,31 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         )
         result = await session.execute(stmt)
         return result.scalars().first()
+
+    async def get_last_pricelist_meta_by_provider(
+        self,
+        session: AsyncSession,
+        provider_id: int,
+        limit_last_n: int = 2,
+        provider_config_id: int | None = None,
+    ):
+        """Последние прайсы провайдера без загрузки позиций (только id/date).
+
+        Используется для SQL-сравнения прайсов: загрузка полных прайсов
+        с ассоциациями ради метаданных занимала секунды и сотни МБ памяти.
+        """
+        stmt = select(PriceList.id, PriceList.date).where(
+            PriceList.provider_id == provider_id
+        )
+        if provider_config_id is not None:
+            stmt = stmt.where(
+                PriceList.provider_config_id == provider_config_id
+            )
+        stmt = stmt.order_by(
+            PriceList.date.desc().nullslast(),
+            PriceList.id.desc(),
+        ).limit(limit_last_n)
+        return (await session.execute(stmt)).all()
 
     async def get_last_pricelists_by_provider(
         self,
@@ -2400,25 +2522,39 @@ class CRUDCustomerPriceList(
         customer_pricelist_id: int,
         autoparts_data: list[dict],
         session: AsyncSession,
+        load_associations: bool = True,
     ) -> list[CustomerPriceListAutoPartAssociation]:
-        associations = []
+        # Bulk-вставка через Core: построчное создание ORM-объектов на
+        # 100к строк работало в разы медленнее и съедало память.
+        insert_rows = []
         for entry in autoparts_data:
             if "autopart_id" in entry and entry["autopart_id"]:
-                association = CustomerPriceListAutoPartAssociation(
-                    customerpricelist_id=customer_pricelist_id,
-                    autopart_id=entry["autopart_id"],
-                    quantity=entry["quantity"],
-                    price=entry["price"],
+                insert_rows.append(
+                    {
+                        "customerpricelist_id": customer_pricelist_id,
+                        "autopart_id": entry["autopart_id"],
+                        "quantity": entry["quantity"],
+                        "price": entry["price"],
+                    }
                 )
-                associations.append(association)
-                session.add(association)
             else:
                 # Handle items without autopart_id (log)
                 logger.debug(
                     f"Skipping association "
                     f"for item without autopart_id: {entry}"
                 )
+
+        INSERT_CHUNK_SIZE = 5000
+        for chunk_start in range(0, len(insert_rows), INSERT_CHUNK_SIZE):
+            await session.execute(
+                insert(CustomerPriceListAutoPartAssociation),
+                insert_rows[chunk_start:chunk_start + INSERT_CHUNK_SIZE],
+            )
         await session.commit()
+
+        if not load_associations:
+            return []
+
         result = await session.execute(
             select(CustomerPriceListAutoPartAssociation)
             .options(

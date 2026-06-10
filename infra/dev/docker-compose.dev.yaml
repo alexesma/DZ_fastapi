@@ -52,6 +52,13 @@ services:
       - "127.0.0.1:8000:8000"
     env_file:
       - ../../.env
+    environment:
+      # API-контейнер не должен крутить планировщик: тяжёлые регламенты
+      # (прайсы, почта) живут в отдельном контейнере scheduler.
+      RUN_MODE: "api"
+      ENABLE_SCHEDULER: "0"
+      RUN_MIGRATIONS_ON_STARTUP: "1"
+      RUN_SEED_ON_STARTUP: "1"
     depends_on:
       db:
         condition: service_healthy  # Запуск web только когда db здорова
@@ -78,6 +85,13 @@ services:
         max-file: "3"
     env_file:
       - ../../.env
+    environment:
+      RUN_MODE: "scheduler"
+      ENABLE_SCHEDULER: "1"
+      RUN_MIGRATIONS_ON_STARTUP: "0"
+      RUN_SEED_ON_STARTUP: "0"
+    healthcheck:
+      disable: true
     depends_on:
       db:
         condition: service_healthy

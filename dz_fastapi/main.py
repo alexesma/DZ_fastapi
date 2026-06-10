@@ -54,7 +54,12 @@ def _env_flag(name: str, default: str = "1") -> bool:
     }
 
 
-ENABLE_SCHEDULER = _env_flag("ENABLE_SCHEDULER", "1")
+# По умолчанию планировщик в API-процессе ВЫКЛЮЧЕН: тяжёлые регламенты
+# (загрузка прайсов, почта, документы) должны жить в отдельном контейнере
+# scheduler (RUN_MODE=scheduler → dz_fastapi.scheduler_runner). Иначе
+# CPU-нагрузка регламентов блокирует HTTP-запросы. Все compose-файлы
+# задают ENABLE_SCHEDULER явно.
+ENABLE_SCHEDULER = _env_flag("ENABLE_SCHEDULER", "0")
 ENABLE_TELEGRAM_BOT = _env_flag("ENABLE_TELEGRAM_BOT", "1")
 
 # Создание обработчика для записи логов в файл

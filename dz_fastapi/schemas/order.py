@@ -26,8 +26,8 @@ class SupplierOfferOut(BaseModel):
     max_delivery_day: int = Field(
         ..., description="Максимальный срок доставки в днях"
     )
-    historical_min_price: float = Field(
-        ..., description="Исторически минимальная цена"
+    historical_min_price: Optional[float] = Field(
+        None, description="Исторически минимальная цена (None — нет истории)"
     )
     sup_logo: str = Field(..., description="Абривиатура поставщика")
     brand_name: str = Field(..., description="Имя бренда")
@@ -325,6 +325,7 @@ class TrackingInsightInvalidCrossItem(BaseModel):
 
 class TrackingInsightSupplierStat(BaseModel):
     provider_id: Optional[int] = None
+    external_supplier_id: Optional[int] = None
     provider_name: Optional[str] = None
     order_count: int = 0
     fill_rate: Optional[float] = None
@@ -360,6 +361,7 @@ class TrackingInsightExceptionItem(BaseModel):
 
 class TrackingInsightDraftPurchaseOrder(BaseModel):
     provider_id: Optional[int] = None
+    external_supplier_id: Optional[int] = None
     provider_name: str
     provider_config_id: Optional[int] = None
     provider_config_name: Optional[str] = None
@@ -370,6 +372,7 @@ class TrackingInsightDraftPurchaseOrder(BaseModel):
     price: Optional[float] = None
     available_qty: int = 0
     in_transit_qty: int = 0
+    open_customer_backlog_qty: int = 0
     target_qty: Optional[int] = None
     recommended_qty: int = 0
     supplier_available_qty: int = 0
@@ -440,6 +443,10 @@ class AutoPurchasePreviewRow(BaseModel):
     minimum_balance: int = 0
     multiplicity: int = 1
     in_transit_qty: int = 0
+    coverable_in_transit_qty: int = 0
+    open_customer_backlog_qty: int = 0
+    consecutive_stockout_days: int = 0
+    recovery_mode_applied: bool = False
     sold_last_30_days: int = 0
     sold_last_90_days: int = 0
     order_count_30_days: int = 0
@@ -472,6 +479,8 @@ class AutoPurchasePreviewRow(BaseModel):
     best_supplier_by_lead_time: Optional[TrackingInsightSupplierStat] = None
     recommended_supplier: Optional[TrackingInsightSupplierStat] = None
     draft_purchase_order: Optional[TrackingInsightDraftPurchaseOrder] = None
+    site_query_brands: List[str] = Field(default_factory=list)
+    used_site_fallback_brand: bool = False
 
 
 class AutoPurchaseDiagnosticMetric(BaseModel):
@@ -563,6 +572,12 @@ class AutoPurchaseDraftOrderLineOut(BaseModel):
     oem_number: str
     brand_name: Optional[str] = None
     autopart_name: Optional[str] = None
+    site_brand_name: Optional[str] = None
+    site_oem_number: Optional[str] = None
+    site_autopart_name: Optional[str] = None
+    open_customer_backlog_qty: int = 0
+    provider_id: Optional[int] = None
+    external_supplier_id: Optional[int] = None
     decision_status: str
     recommended_order_qty: int = 0
     proposed_order_qty: int = 0
@@ -580,6 +595,8 @@ class AutoPurchaseDraftOrderLineOut(BaseModel):
 
 class AutoPurchaseDraftOrderGroupOut(BaseModel):
     supplier_key: str
+    provider_id: Optional[int] = None
+    external_supplier_id: Optional[int] = None
     provider_name: str
     provider_config_name: Optional[str] = None
     source_type: Optional[str] = None

@@ -954,7 +954,10 @@ async def send_price_list_task(app: FastAPI):
             )
 
             await process_customer_pricelist(
-                customer=customer, request=request, session=session
+                customer=customer,
+                request=request,
+                session=session,
+                include_autoparts_response=False,
             )
 
             logger.info(
@@ -1639,7 +1642,10 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
             try:
                 async with async_session_factory() as session:
                     await process_customer_pricelist(
-                        customer=customer, request=request, session=session
+                        customer=customer,
+                        request=request,
+                        session=session,
+                        include_autoparts_response=False,
                     )
                 success_count += 1
             except Exception as exc:

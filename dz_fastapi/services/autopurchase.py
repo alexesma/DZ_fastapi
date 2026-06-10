@@ -103,6 +103,8 @@ XYZ_CLASS_PRIORITY: dict[str, int] = {
     "Z": 2,
 }
 
+DRAGONZAP_BRAND_NAME = "DRAGONZAP"
+
 SITE_API_KEY = os.getenv("KEY_FOR_WEBSITE")
 AUTOPURCHASE_REASONS_LIMIT = 8
 AUTOPURCHASE_MAX_LIMIT = 1000
@@ -408,6 +410,10 @@ def _serialize_autopurchase_run_item(
         "minimum_balance": int(item.minimum_balance or 0),
         "multiplicity": int(item.multiplicity or 1),
         "in_transit_qty": int(item.in_transit_qty or 0),
+        "open_customer_backlog_qty": int(
+            (item.draft_purchase_order or {}).get("open_customer_backlog_qty")
+            or 0
+        ),
         "sold_last_30_days": int(item.sold_last_30_days or 0),
         "sold_last_90_days": int(item.sold_last_90_days or 0),
         "avg_daily_30": float(item.avg_daily_30) if item.avg_daily_30 is not None else None,
@@ -1369,21 +1375,53 @@ def _select_best_site_supplier_by_lead_time(
     )
 
 
+def _normalize_brand_key(value: Any) -> str:
+    return "".join(ch for ch in str(value or "").upper() if ch.isalnum())
+
+
+def _is_dragonzap_brand(brand_name: Optional[str]) -> bool:
+    return _normalize_brand_key(brand_name) == DRAGONZAP_BRAND_NAME
+
+
+def _brand_matches_allowed(
+    make_name: Any,
+    allowed_brand_keys: set[str],
+) -> bool:
+    make_key = _normalize_brand_key(make_name)
+    if not make_key or not allowed_brand_keys:
+        # Сайт не вернул бренд предложения — доверяем серверной
+        # фильтрации по make_name в самом запросе get_offers.
+        return True
+    return any(
+        make_key == allowed_key
+        or make_key in allowed_key
+        or allowed_key in make_key
+        for allowed_key in allowed_brand_keys
+        if allowed_key
+    )
+
+
 async def _fetch_site_supplier_stats_for_oem(
     session: AsyncSession,
     *,
     oem_number: str,
     brand_name: Optional[str],
     history_rows: Optional[list[dict[str, Any]]] = None,
-) -> tuple[list[dict[str, Any]], list[str], bool]:
+) -> tuple[list[dict[str, Any]], list[str], bool, int]:
     if not SITE_API_KEY:
-        return [], [], False
+        return [], [], False, 0
 
     query_brands = await expand_site_query_brands(session, brand_name)
     if not query_brands:
-        return [], [], False
+        return [], [], False, 0
 
-    site_brand_candidates: list[dict[str, Any]] = []
+    # Бизнес-правило подбора бренда:
+    # - Dragonzap мы производим из других брендов, поэтому ищем по всем
+    #   синонимам и при их отсутствии разрешаем fallback на бренды сайта;
+    # - все остальные бренды заказываем строго тем брендом, который был
+    #   в нашем прайсе — без подмены на аналоги других производителей.
+    requested_is_dragonzap = _is_dragonzap_brand(brand_name)
+
     used_fallback_brand = False
     offers_by_brand: list[list[dict[str, Any]]] = []
     provider_cache: dict[str, int] = {}
@@ -1403,10 +1441,10 @@ async def _fetch_site_supplier_stats_for_oem(
             without_cross=True,
         )
 
-        if not offers_by_brand:
+        if not offers_by_brand and requested_is_dragonzap:
             (
                 offers_by_brand,
-                site_brand_candidates,
+                _site_brand_candidates,
                 fallback_brand,
             ) = await resolve_fallback_site_brand(
                 client,
@@ -1419,8 +1457,22 @@ async def _fetch_site_supplier_stats_for_oem(
                 used_fallback_brand = True
 
     merged = merge_site_offers(offers_by_brand)
+    allowed_brand_keys = {
+        _normalize_brand_key(brand) for brand in query_brands
+    }
+    filtered_other_brand_count = 0
     supplier_stats: list[dict[str, Any]] = []
     for raw in merged:
+        if not _brand_matches_allowed(raw.get("make_name"), allowed_brand_keys):
+            filtered_other_brand_count += 1
+            logger.debug(
+                "Отфильтровано предложение чужого бренда %s для OEM=%s "
+                "(разрешённые бренды: %s)",
+                raw.get("make_name"),
+                oem_number,
+                ", ".join(query_brands),
+            )
+            continue
         provider_name = str(raw.get("sup_logo") or "").strip() or "Dragonzap"
         external_supplier_id = _normalize_site_supplier_id(raw.get("supplier_id"))
         provider_id = await _resolve_existing_site_provider_id(
@@ -1443,7 +1495,12 @@ async def _fetch_site_supplier_stats_for_oem(
         )
         if site_stat:
             supplier_stats.append(site_stat)
-    return supplier_stats, query_brands, used_fallback_brand
+    return (
+        supplier_stats,
+        query_brands,
+        used_fallback_brand,
+        filtered_other_brand_count,
+    )
 
 
 def _select_autopurchase_supplier(
@@ -2142,6 +2199,7 @@ def _build_autopurchase_draft(
     recommended_qty: int,
     lead_time_days_used: Optional[float],
     reason: Optional[str],
+    open_customer_backlog_qty: int = 0,
 ) -> Optional[dict[str, Any]]:
     if not supplier or not supplier.get("provider_name"):
         return None
@@ -2153,7 +2211,13 @@ def _build_autopurchase_draft(
     supplier_available_qty = max(int(supplier.get("current_qty") or 0), 0)
     if supplier_available_qty <= 0:
         return None
+    supplier_min_qnt = max(int(supplier.get("current_min_qnt") or 1), 1)
     proposed_order_qty = min(recommended_qty, supplier_available_qty)
+    if proposed_order_qty < supplier_min_qnt:
+        if supplier_min_qnt > supplier_available_qty:
+            # Сайт не примет строку меньше минимальной партии поставщика.
+            return None
+        proposed_order_qty = supplier_min_qnt
     remaining_gap_qty = max(recommended_qty - proposed_order_qty, 0)
 
     return {
@@ -2173,6 +2237,7 @@ def _build_autopurchase_draft(
         "price": supplier.get("current_price"),
         "available_qty": available_qty,
         "in_transit_qty": int(in_transit_qty or 0),
+        "open_customer_backlog_qty": max(int(open_customer_backlog_qty or 0), 0),
         "target_qty": target_qty,
         "recommended_qty": recommended_qty,
         "supplier_available_qty": supplier_available_qty,
@@ -2645,13 +2710,15 @@ async def get_autopurchase_preview(
     base_rows.sort(key=_get_autopurchase_priority_key)
     candidate_rows = base_rows[:normalized_limit]
 
-    site_results_by_oem: dict[str, tuple[list[dict[str, Any]], list[str], bool]] = {}
+    site_results_by_oem: dict[
+        str, tuple[list[dict[str, Any]], list[str], bool, int]
+    ] = {}
     if candidate_rows:
         site_fetch_semaphore = asyncio.Semaphore(AUTOPURCHASE_SITE_FETCH_CONCURRENCY)
 
         async def _load_site_result(
             candidate_row: dict[str, Any],
-        ) -> tuple[str, tuple[list[dict[str, Any]], list[str], bool]]:
+        ) -> tuple[str, tuple[list[dict[str, Any]], list[str], bool, int]]:
             candidate_oem_number = str(candidate_row["oem_number"])
             try:
                 async with site_fetch_semaphore:
@@ -2667,7 +2734,7 @@ async def get_autopurchase_preview(
                     candidate_oem_number,
                     exc,
                 )
-                site_result = ([], [], False)
+                site_result = ([], [], False, 0)
             return candidate_oem_number, site_result
 
         site_results_by_oem = dict(
@@ -2682,9 +2749,12 @@ async def get_autopurchase_preview(
             await asyncio.sleep(0)
 
         oem_number = str(candidate_row["oem_number"])
-        site_supplier_stats, site_query_brands, used_site_fallback_brand = (
-            site_results_by_oem.get(oem_number) or ([], [], False)
-        )
+        (
+            site_supplier_stats,
+            site_query_brands,
+            used_site_fallback_brand,
+            filtered_other_brand_count,
+        ) = site_results_by_oem.get(oem_number) or ([], [], False, 0)
         best_supplier_by_price = _select_best_site_supplier_by_price(
             site_supplier_stats
         )
@@ -2746,8 +2816,28 @@ async def get_autopurchase_preview(
                 )
             )
 
+        row_brand_is_dragonzap = _is_dragonzap_brand(
+            candidate_row.get("brand_name")
+        )
         if not selected_supplier:
             diagnostics["rows_without_supplier_count"] += 1
+            if only_non_positive_site_qty:
+                not_found_description = (
+                    "Dragonzap вернул предложения, но у них остаток 0 или -1, "
+                    "поэтому автозаказ не использует их."
+                )
+            elif row_brand_is_dragonzap:
+                not_found_description = (
+                    "Dragonzap не вернул подходящее актуальное предложение "
+                    "по этому OEM ни по одному бренду-синониму."
+                )
+            else:
+                not_found_description = (
+                    "Dragonzap не вернул подходящее актуальное предложение "
+                    "по этому OEM строго по бренду "
+                    f"{candidate_row.get('brand_name') or '—'}. "
+                    "Подмена на другие бренды запрещена правилами закупки."
+                )
             reasons.append(
                 _build_reason(
                     code=(
@@ -2761,13 +2851,7 @@ async def get_autopurchase_preview(
                         if only_non_positive_site_qty
                         else "Сайт не дал подходящего поставщика"
                     ),
-                    description=(
-                        "Dragonzap вернул предложения, но у них остаток 0 или -1, "
-                        "поэтому автозаказ не использует их."
-                        if only_non_positive_site_qty
-                        else "Dragonzap не вернул подходящее актуальное предложение "
-                        "по этому OEM."
-                    ),
+                    description=not_found_description,
                 )
             )
         elif selected_supplier.get("fill_rate") is None:
@@ -2783,8 +2867,7 @@ async def get_autopurchase_preview(
                 )
             )
 
-        normalized_brand_name = str(candidate_row.get("brand_name") or "").strip().upper()
-        if normalized_brand_name == "DRAGONZAP" and len(site_query_brands) > 1:
+        if row_brand_is_dragonzap and len(site_query_brands) > 1:
             reasons.append(
                 _build_reason(
                     code="dragonzap_synonyms_used",
@@ -2800,12 +2883,33 @@ async def get_autopurchase_preview(
             reasons.append(
                 _build_reason(
                     code="site_brand_fallback_used",
-                    severity="info",
+                    severity="warning",
                     title="Поиск на сайте ушёл в fallback-бренд",
                     description=(
-                        "Прямой поиск по исходному бренду не дал результата, "
-                        "поэтому сайт проверяли через бренд: "
+                        "Синонимы Dragonzap не дали результата, поэтому сайт "
+                        "проверяли через бренд: "
                         + ", ".join(site_query_brands[:8])
+                        + ". Такая строка не автоутверждается и требует "
+                        "ручной проверки."
+                    ),
+                )
+            )
+
+        if filtered_other_brand_count > 0:
+            reasons.append(
+                _build_reason(
+                    code="site_offers_other_brand_filtered",
+                    severity="info",
+                    title="Отфильтрованы предложения чужих брендов",
+                    description=(
+                        f"Сайт вернул {filtered_other_brand_count} предложений "
+                        "других брендов — они исключены, потому что для этой "
+                        "позиции разрешён только бренд из нашего прайса"
+                        + (
+                            " и его синонимы Dragonzap."
+                            if row_brand_is_dragonzap
+                            else "."
+                        )
                     ),
                 )
             )
@@ -2875,6 +2979,10 @@ async def get_autopurchase_preview(
             decision_value = AUTOPURCHASE_STATUS_BLOCKED
         elif bool(candidate_row.get("missing_in_latest_pricelist") or False):
             decision_value = AUTOPURCHASE_STATUS_NEEDS_REVIEW
+        elif used_site_fallback_brand:
+            # Предложение найдено по fallback-бренду, которого нет среди
+            # подтверждённых синонимов — только ручное решение менеджера.
+            decision_value = AUTOPURCHASE_STATUS_NEEDS_REVIEW
         elif (
             requested_mode == AUTOPURCHASE_MODE_AUTO_APPROVE_SAFE
             and (
@@ -2912,6 +3020,7 @@ async def get_autopurchase_preview(
             target_qty=candidate_row.get("target_stock"),
             recommended_qty=recommended_order_qty,
             lead_time_days_used=candidate_row.get("lead_time_days_used"),
+            open_customer_backlog_qty=open_customer_backlog_qty,
             reason=next(
                 (
                     reason["title"]
@@ -2939,6 +3048,16 @@ async def get_autopurchase_preview(
                 "minimum_balance": int(candidate_row.get("minimum_balance") or 0),
                 "multiplicity": int(candidate_row.get("multiplicity") or 1),
                 "in_transit_qty": int(candidate_row.get("in_transit_qty") or 0),
+                "coverable_in_transit_qty": int(
+                    candidate_row.get("coverable_in_transit_qty") or 0
+                ),
+                "open_customer_backlog_qty": open_customer_backlog_qty,
+                "consecutive_stockout_days": int(
+                    candidate_row.get("consecutive_stockout_days") or 0
+                ),
+                "recovery_mode_applied": bool(
+                    candidate_row.get("recovery_mode_applied") or False
+                ),
                 "sold_last_30_days": int(candidate_row.get("sold_last_30_days") or 0),
                 "sold_last_90_days": int(candidate_row.get("sold_last_90_days") or 0),
                 "avg_daily_30": candidate_row.get("avg_daily_30"),
@@ -3337,6 +3456,12 @@ async def get_autopurchase_run_items(
         session,
         item_oem_numbers,
     )
+    # Backlog считаем по живым данным, потому что в снапшоте строки он не
+    # сохраняется, а от него зависит приоритет вывода.
+    open_backlog_by_oem = await _load_open_customer_backlog_by_oem(
+        session,
+        item_oem_numbers,
+    )
 
     decision_filter = str(decision_status or "").strip().lower() or None
     search_filter = str(search or "").strip().lower()
@@ -3352,6 +3477,12 @@ async def get_autopurchase_run_items(
             customer_order_period_metrics.get(
                 _normalize_oem(serialized.get("oem_number")),
                 {},
+            )
+        )
+        serialized["open_customer_backlog_qty"] = int(
+            open_backlog_by_oem.get(
+                _normalize_oem(serialized.get("oem_number")) or "",
+                serialized.get("open_customer_backlog_qty") or 0,
             )
         )
         if decision_filter and serialized["decision_status"] != decision_filter:
@@ -3633,12 +3764,22 @@ def _get_draft_limits_from_run(
 
 def _get_draft_item_priority(
     item: AutoPurchaseRunItem,
-) -> tuple[int, int, int, int, int, str, int]:
+) -> tuple[int, int, int, int, int, int, str, int]:
     abc_priority, xyz_priority = _get_abc_xyz_priority(dict(item.abc_xyz or {}))
+    open_customer_backlog_qty = int(
+        (item.draft_purchase_order or {}).get("open_customer_backlog_qty") or 0
+    )
     return (
-        int(item.estimated_days_left_30_days)
-        if item.estimated_days_left_30_days is not None
-        else 9_999,
+        (
+            -1
+            if open_customer_backlog_qty > 0
+            else (
+                int(item.estimated_days_left_30_days)
+                if item.estimated_days_left_30_days is not None
+                else 9_999
+            )
+        ),
+        -open_customer_backlog_qty,
         abc_priority,
         xyz_priority,
         -int(item.recommended_order_qty or 0),
@@ -3755,16 +3896,21 @@ async def get_autopurchase_run_draft_orders(
                 0.0,
             )
             if float(line_total) > remaining_budget:
-                # Пробуем заказать частичное количество в пределах остатка бюджета.
+                # Пробуем заказать частичное количество по остатку бюджета.
+                # Округляем ВВЕРХ до кратности и минимальной партии сайта:
+                # небольшой выход за бюджет допустим, важнее не отбросить
+                # нужную позицию. Строку пропускаем только если остатка
+                # бюджета не хватает даже на одну штуку.
+                multiplicity = max(int(item.multiplicity or 1), 1)
+                draft_min_qnt = max(int(draft.get("min_qnt") or 1), 1)
                 max_qty_by_budget = int(remaining_budget // float(unit_price))
-                max_qty_by_budget = _round_up_to_multiplicity(
-                    max_qty_by_budget,
-                    int(item.multiplicity or 1),
-                )
-                if max_qty_by_budget > 0 and float(
-                        unit_price * max_qty_by_budget
-                ) <= remaining_budget:
-                    proposed_order_qty = max_qty_by_budget
+                if max_qty_by_budget >= 1:
+                    budget_qty = _round_up_to_multiplicity(
+                        max_qty_by_budget,
+                        multiplicity,
+                    )
+                    budget_qty = max(budget_qty, draft_min_qnt)
+                    proposed_order_qty = min(budget_qty, proposed_order_qty)
                     line_total = _quantize_float(unit_price * proposed_order_qty)
                 else:
                     skipped_items.append(
@@ -3773,9 +3919,10 @@ async def get_autopurchase_run_draft_orders(
                             "oem_number": item.oem_number,
                             "brand_name": item.brand_name,
                             "reason": (
-                                "Не вошло в отправку: строка превышает остаток "
-                                f"лимита суммы ({_format_money_value(line_total)} руб. > "
-                                f"{_format_money_value(remaining_budget)} руб.)"
+                                "Не вошло в отправку: остатка лимита суммы "
+                                f"({_format_money_value(remaining_budget)} руб.) "
+                                "не хватает даже на 1 шт по цене "
+                                f"{_format_money_value(float(unit_price))} руб."
                             ),
                         }
                     )
@@ -3801,7 +3948,12 @@ async def get_autopurchase_run_draft_orders(
             }
             draft_groups[group_key] = group
 
-        remaining_gap_qty = int(draft.get("remaining_gap_qty") or 0)
+        # Пересчитываем дефицит от фактически выбранного количества:
+        # после урезания по бюджету сохранённое в черновике значение устарело.
+        remaining_gap_qty = max(
+            int(item.recommended_order_qty or 0) - proposed_order_qty,
+            0,
+        )
         group["items"].append(
             {
                 "item_id": int(item.id),
@@ -3809,6 +3961,17 @@ async def get_autopurchase_run_draft_orders(
                 "oem_number": item.oem_number,
                 "brand_name": item.brand_name,
                 "autopart_name": item.autopart_name,
+                # Реквизиты предложения сайта: заказ на Dragonzap должен
+                # уходить с брендом/номером найденного предложения (для
+                # Dragonzap-позиций это бренд-синоним), а не с нашим брендом.
+                "site_brand_name": draft.get("brand_name") or item.brand_name,
+                "site_oem_number": draft.get("oem_number") or item.oem_number,
+                "site_autopart_name": (
+                    draft.get("autopart_name") or item.autopart_name
+                ),
+                "open_customer_backlog_qty": int(
+                    draft.get("open_customer_backlog_qty") or 0
+                ),
                 "decision_status": item.decision_status,
                 "recommended_order_qty": int(item.recommended_order_qty or 0),
                 "proposed_order_qty": proposed_order_qty,

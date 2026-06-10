@@ -24,6 +24,11 @@ from dz_fastapi.crud.autopart import (
 from dz_fastapi.crud.partner import crud_provider
 from dz_fastapi.http.dz_site_client import DZSiteClient
 from dz_fastapi.services.email import send_email_with_attachment
+from dz_fastapi.services.site_brand_search import (
+    expand_site_query_brands,
+    fetch_site_offers_for_brands,
+    merge_site_offers,
+)
 from dz_fastapi.services.telegram import send_file_to_telegram
 
 KEY = os.getenv("KEY_FOR_WEBSITE")
@@ -142,12 +147,22 @@ async def get_requests_for_our_site(
     )
 
     best_offer: Optional[Dict[str, Any]] = None
+    # Правило брендов: позиции Dragonzap всегда ищем по брендам-синонимам
+    # (Dragonzap делаем сами из других брендов), остальные бренды ищем
+    # строго тем брендом, который есть в прайсе.
+    query_brands = await expand_site_query_brands(session, brand)
+    if not query_brands:
+        query_brands = [str(brand or "").strip().upper()]
     async with DZSiteClient(
         base_url=URL_DZ_SEARCH, api_key=KEY, verify_ssl=False
     ) as client:
-        response = await client.get_offers(
-            oem=oem_number, brand=brand, without_cross=True
+        offers_by_brand = await fetch_site_offers_for_brands(
+            client,
+            oem=oem_number,
+            brands=query_brands,
+            without_cross=True,
         )
+    response = merge_site_offers(offers_by_brand)
     logger.debug(f"Ответ на сайте: {response}")
     for item in response:
         try:
@@ -239,17 +254,18 @@ async def evaluate_supplier_offers(
     ) in ids_autoparts_for_order.items():
 
         hist_min_price = historical_min_prices.get(autopart_id)
+        if hist_min_price is not None and hist_min_price <= 0:
+            hist_min_price = None
         if hist_min_price is None:
             logger.warning(
-                f"Нет исторических данных по цене"
-                f" для позиции id = {autopart_id}"
-                f"установили hist_min_price = 999999"
+                "Нет исторических данных по цене для позиции "
+                f"id = {autopart_id}: контроль отклонения цены отключён"
             )
-            hist_min_price = 999999
-
-        max_acceptable_price = (
-            hist_min_price * PERCENTAGE_DEVIATION_ORDER_PRICE
-        )
+            max_acceptable_price = float("inf")
+        else:
+            max_acceptable_price = (
+                hist_min_price * PERCENTAGE_DEVIATION_ORDER_PRICE
+            )
 
         offers = autoparts_in_prices.get(autopart_id, [])
         suitable_offer = None
@@ -360,7 +376,13 @@ async def generate_restock_report(
 
         price_provider = offer["price"]
         hist_min_price = offer["historical_min_price"]
-        deviation = ((price_provider - hist_min_price) / hist_min_price) * 100
+        if hist_min_price is not None and float(hist_min_price) > 0:
+            deviation_text = (
+                f"{((price_provider - hist_min_price) / hist_min_price) * 100:.2f} %"
+            )
+        else:
+            hist_min_price = None
+            deviation_text = "—"
         offer_autopart["OEM Номер"] = autopart.oem_number
         offer_autopart["Производитель"] = autopart.brand.name
         offer_autopart["Наименование"] = autopart.name
@@ -368,8 +390,10 @@ async def generate_restock_report(
         offer_autopart["min_balance"] = autopart.minimum_balance
         offer_autopart["Нужно заказать"] = offer["quantity"]
         offer_autopart["Предложение (цена)"] = price_provider
-        offer_autopart["Истор. мин. цена"] = hist_min_price
-        offer_autopart["Отклонение %"] = f"{deviation:.2f} %"
+        offer_autopart["Истор. мин. цена"] = (
+            hist_min_price if hist_min_price is not None else "нет данных"
+        )
+        offer_autopart["Отклонение %"] = deviation_text
         offer_autopart["Поставщик"] = offer["supplier_name"]
         offer_autopart["Общая сумма"] = offer["total_cost"]
         report.append(offer_autopart)
@@ -504,6 +528,7 @@ async def process_and_add_to_basket(
             min_delivery_day=best_offer["min_delivery_day"],
             max_delivery_day=best_offer["max_delivery_day"],
             api_hash=best_offer["hash_key"],
+            api_key=KEY,
         )
 
         if added:
