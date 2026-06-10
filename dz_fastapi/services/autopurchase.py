@@ -21,12 +21,18 @@ from dz_fastapi.models.autopart import AutoPart, AutoPurchaseRun, AutoPurchaseRu
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import (
     CUSTOMER_ORDER_ITEM_STATUS,
+    STOCK_ORDER_STATUS,
+    SUPPLIER_ORDER_STATUS,
     CustomerOrder,
     CustomerOrderItem,
     PriceList,
     PriceListAutoPartAssociation,
     Provider,
     ProviderPriceListConfig,
+    StockOrder,
+    StockOrderItem,
+    SupplierOrder,
+    SupplierOrderItem,
 )
 from dz_fastapi.services.placed_orders import (
     _ACTIVE_ORDER_STATUSES,
@@ -138,6 +144,11 @@ AUTOPURCHASE_DEFAULT_LEAD_DAYS_FALLBACK = max(
     1,
     int(os.getenv("AUTOPURCHASE_DEFAULT_LEAD_DAYS_FALLBACK", "7")),
 )
+AUTOPURCHASE_DEMAND_WINDOWS = (30, 90, 180, 365)
+AUTOPURCHASE_RECOVERY_STOCKOUT_DAYS = max(
+    1,
+    int(os.getenv("AUTOPURCHASE_RECOVERY_STOCKOUT_DAYS", "45")),
+)
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -191,6 +202,29 @@ def _blend_average_daily(
     if avg_daily_30 is not None and avg_daily_90 is not None:
         return _quantize_float(avg_daily_30 * 0.7 + avg_daily_90 * 0.3)
     return avg_daily_30 if avg_daily_30 is not None else avg_daily_90
+
+
+def _blend_average_daily_horizons(
+    avg_daily_30: Optional[float],
+    avg_daily_90: Optional[float],
+    avg_daily_180: Optional[float],
+    avg_daily_365: Optional[float],
+) -> Optional[float]:
+    weighted_sum = 0.0
+    total_weight = 0.0
+    for value, weight in (
+        (avg_daily_30, 0.45),
+        (avg_daily_90, 0.30),
+        (avg_daily_180, 0.15),
+        (avg_daily_365, 0.10),
+    ):
+        if value is None or value <= 0:
+            continue
+        weighted_sum += float(value) * weight
+        total_weight += weight
+    if total_weight <= 0:
+        return None
+    return _quantize_float(weighted_sum / total_weight)
 
 
 def _build_reason(
@@ -272,13 +306,21 @@ def _get_abc_xyz_priority(
 
 def _get_autopurchase_priority_key(
     item: dict[str, Any],
-) -> tuple[int, int, int, int, int, str]:
+) -> tuple[int, int, int, int, int, int, str]:
     abc_priority, xyz_priority = _get_abc_xyz_priority(item.get("abc_xyz"))
     estimated_days_left = item.get("estimated_days_left_30_days")
+    open_customer_backlog_qty = int(item.get("open_customer_backlog_qty") or 0)
     return (
-        int(estimated_days_left)
-        if estimated_days_left is not None
-        else 9_999,
+        (
+            -1
+            if open_customer_backlog_qty > 0
+            else (
+                int(estimated_days_left)
+                if estimated_days_left is not None
+                else 9_999
+            )
+        ),
+        -open_customer_backlog_qty,
         abc_priority,
         xyz_priority,
         -int(item.get("recommended_order_qty") or 0),
@@ -1288,7 +1330,10 @@ def _select_best_site_supplier_by_price(
     supplier_stats: list[dict[str, Any]],
 ) -> Optional[dict[str, Any]]:
     candidates = [
-        item for item in supplier_stats if item.get("current_price") is not None
+        item
+        for item in supplier_stats
+        if item.get("current_price") is not None
+        and int(item.get("current_qty") or 0) > 0
     ]
     if not candidates:
         return None
@@ -1310,6 +1355,7 @@ def _select_best_site_supplier_by_lead_time(
         for item in supplier_stats
         if item.get("current_price") is not None
         and item.get("effective_lead_days") is not None
+        and int(item.get("current_qty") or 0) > 0
     ]
     if not candidates:
         return None
@@ -1409,15 +1455,13 @@ def _select_autopurchase_supplier(
     candidates = [
         item
         for item in supplier_stats
-        if item.get("current_price") is not None and not item.get("is_own_price")
+        if item.get("current_price") is not None
+        and not item.get("is_own_price")
+        and int(item.get("current_qty") or 0) > 0
     ]
     if not candidates:
         return None
-
-    in_stock_candidates = [
-        item for item in candidates if int(item.get("current_qty") or 0) > 0
-    ]
-    base_candidates = in_stock_candidates or candidates
+    base_candidates = candidates
 
     filtered_by_fill = []
     for item in base_candidates:
@@ -1819,47 +1863,274 @@ def _calculate_snapshot_sales(
     return sold_by_oem
 
 
-async def _load_customer_order_sales_by_oem(
+async def _load_customer_order_requested_by_oem_windows(
     session: AsyncSession,
     normalized_oem_numbers: list[str],
     *,
-    days: int,
-) -> dict[str, int]:
-    """
-    Возвращает суммарные продажи (ship_qty) по каждому OEM из реальных заказов
-    покупателей за последние ``days`` дней.
-
-    Учитываются только строки со статусом OWN_STOCK или SUPPLIER —
-    то есть реально отгруженные позиции.
-    """
+    windows: tuple[int, ...] = AUTOPURCHASE_DEMAND_WINDOWS,
+) -> dict[int, dict[str, int]]:
+    normalized_windows = tuple(sorted({max(int(day), 1) for day in windows}))
+    totals = {
+        days: {oem: 0 for oem in normalized_oem_numbers}
+        for days in normalized_windows
+    }
     if not normalized_oem_numbers:
-        return {}
-    cutoff = now_moscow() - timedelta(days=days)
+        return totals
+
+    current_time = now_moscow()
+    cutoffs = {
+        days: current_time - timedelta(days=days)
+        for days in normalized_windows
+    }
+    max_cutoff = min(cutoffs.values())
     stmt = (
         select(
             CustomerOrderItem.oem,
-            func.sum(CustomerOrderItem.ship_qty).label("total_sold"),
+            CustomerOrder.received_at,
+            CustomerOrderItem.requested_qty,
         )
         .join(CustomerOrder, CustomerOrder.id == CustomerOrderItem.order_id)
         .where(
-            CustomerOrder.received_at >= cutoff,
-            CustomerOrderItem.status.in_(
-                [CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK, CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER]
-            ),
-            CustomerOrderItem.ship_qty.isnot(None),
-            CustomerOrderItem.ship_qty > 0,
+            CustomerOrder.received_at >= max_cutoff,
+            CustomerOrderItem.requested_qty.isnot(None),
+            CustomerOrderItem.requested_qty > 0,
+        )
+    )
+    result = await session.execute(stmt)
+    allowed_oems = set(normalized_oem_numbers)
+    for oem_raw, received_at, requested_qty in result.fetchall():
+        normalized = _normalize_oem(oem_raw)
+        if (
+            not normalized
+            or normalized not in allowed_oems
+            or received_at is None
+        ):
+            continue
+        qty = max(int(requested_qty or 0), 0)
+        if qty <= 0:
+            continue
+        for days, cutoff in cutoffs.items():
+            if received_at >= cutoff:
+                totals[days][normalized] = totals[days].get(normalized, 0) + qty
+    return totals
+
+
+async def _load_open_customer_backlog_by_oem(
+    session: AsyncSession,
+    normalized_oem_numbers: list[str],
+) -> dict[str, int]:
+    backlog_by_oem = {oem: 0 for oem in normalized_oem_numbers}
+    if not normalized_oem_numbers:
+        return backlog_by_oem
+
+    allowed_oems = set(normalized_oem_numbers)
+
+    def _add_backlog(oem_raw: Any, qty: int) -> None:
+        normalized = _normalize_oem(oem_raw)
+        if not normalized or normalized not in allowed_oems:
+            return
+        backlog_by_oem[normalized] = backlog_by_oem.get(normalized, 0) + max(
+            int(qty or 0),
+            0,
+        )
+
+    new_items_stmt = (
+        select(
+            CustomerOrderItem.oem,
+            func.sum(CustomerOrderItem.requested_qty).label("qty"),
+        )
+        .where(
+            CustomerOrderItem.status == CUSTOMER_ORDER_ITEM_STATUS.NEW,
+            CustomerOrderItem.requested_qty > 0,
         )
         .group_by(CustomerOrderItem.oem)
     )
-    result = await session.execute(stmt)
-    raw: dict[str, int] = {}
-    for oem_raw, total in result.fetchall():
-        normalized = _normalize_oem(oem_raw)
-        if normalized:
-            raw[normalized] = raw.get(normalized, 0) + int(total or 0)
+    for oem_raw, qty in (await session.execute(new_items_stmt)).fetchall():
+        _add_backlog(oem_raw, int(qty or 0))
 
-    # Вернуть словарь для всех запрошенных OEM (0 если продаж нет)
-    return {oem: raw.get(oem, 0) for oem in normalized_oem_numbers}
+    stock_items_stmt = (
+        select(
+            CustomerOrderItem.oem,
+            func.sum(StockOrderItem.quantity).label("qty"),
+        )
+        .select_from(StockOrderItem)
+        .join(StockOrder, StockOrder.id == StockOrderItem.stock_order_id)
+        .join(
+            CustomerOrderItem,
+            CustomerOrderItem.id == StockOrderItem.customer_order_item_id,
+        )
+        .where(
+            StockOrder.status == STOCK_ORDER_STATUS.NEW,
+            StockOrderItem.quantity > 0,
+        )
+        .group_by(CustomerOrderItem.oem)
+    )
+    for oem_raw, qty in (await session.execute(stock_items_stmt)).fetchall():
+        _add_backlog(oem_raw, int(qty or 0))
+
+    supplier_items_stmt = (
+        select(
+            CustomerOrderItem.oem,
+            SupplierOrderItem.quantity,
+            SupplierOrderItem.received_quantity,
+        )
+        .select_from(SupplierOrderItem)
+        .join(SupplierOrder, SupplierOrder.id == SupplierOrderItem.supplier_order_id)
+        .join(
+            CustomerOrderItem,
+            CustomerOrderItem.id == SupplierOrderItem.customer_order_item_id,
+        )
+        .where(
+            SupplierOrder.status != SUPPLIER_ORDER_STATUS.REMOVED,
+            SupplierOrderItem.quantity > 0,
+        )
+    )
+    for oem_raw, ordered_qty, received_qty in (
+        await session.execute(supplier_items_stmt)
+    ).fetchall():
+        outstanding_qty = max(
+            int(ordered_qty or 0) - int(received_qty or 0),
+            0,
+        )
+        if outstanding_qty > 0:
+            _add_backlog(oem_raw, outstanding_qty)
+
+    return backlog_by_oem
+
+
+async def _load_customer_order_period_metrics_by_oem(
+    session: AsyncSession,
+    normalized_oem_numbers: list[str],
+    *,
+    windows: tuple[int, ...] = AUTOPURCHASE_DEMAND_WINDOWS,
+) -> dict[str, dict[str, Any]]:
+    normalized_windows = tuple(sorted({max(int(day), 1) for day in windows}))
+    metrics_by_oem = {
+        oem: {
+            **{
+                f"order_count_{days}_days": 0
+                for days in normalized_windows
+            },
+            **{
+                f"min_sale_price_{days}_days": None
+                for days in normalized_windows
+            },
+        }
+        for oem in normalized_oem_numbers
+    }
+    if not normalized_oem_numbers:
+        return metrics_by_oem
+
+    current_time = now_moscow()
+    cutoffs = {
+        days: current_time - timedelta(days=days)
+        for days in normalized_windows
+    }
+    max_cutoff = min(cutoffs.values())
+    order_ids_by_oem_and_window = {
+        oem: {days: set() for days in normalized_windows}
+        for oem in normalized_oem_numbers
+    }
+    allowed_oems = set(normalized_oem_numbers)
+
+    stmt = (
+        select(
+            CustomerOrderItem.oem,
+            CustomerOrder.id,
+            CustomerOrder.received_at,
+            CustomerOrderItem.requested_price,
+        )
+        .join(CustomerOrder, CustomerOrder.id == CustomerOrderItem.order_id)
+        .where(
+            CustomerOrder.received_at >= max_cutoff,
+            CustomerOrderItem.requested_qty.isnot(None),
+            CustomerOrderItem.requested_qty > 0,
+        )
+    )
+    result = await session.execute(stmt)
+    for oem_raw, order_id, received_at, requested_price in result.fetchall():
+        normalized = _normalize_oem(oem_raw)
+        if (
+            not normalized
+            or normalized not in allowed_oems
+            or received_at is None
+            or order_id is None
+        ):
+            continue
+        price_value = None
+        if requested_price is not None:
+            try:
+                candidate_price = float(requested_price)
+            except (TypeError, ValueError):
+                candidate_price = None
+            if candidate_price is not None and candidate_price > 0:
+                price_value = _quantize_float(candidate_price)
+
+        for days, cutoff in cutoffs.items():
+            if received_at < cutoff:
+                continue
+            order_ids_by_oem_and_window[normalized][days].add(int(order_id))
+            price_key = f"min_sale_price_{days}_days"
+            if price_value is not None:
+                current_min_price = metrics_by_oem[normalized][price_key]
+                if current_min_price is None or price_value < current_min_price:
+                    metrics_by_oem[normalized][price_key] = price_value
+
+    for oem_number, window_map in order_ids_by_oem_and_window.items():
+        for days, order_ids in window_map.items():
+            metrics_by_oem[oem_number][f"order_count_{days}_days"] = len(order_ids)
+
+    return metrics_by_oem
+
+
+def _estimate_consecutive_stockout_days(
+    snapshots: list[dict[str, Any]],
+    *,
+    oem_number: str,
+) -> int:
+    if not snapshots:
+        return 0
+    latest_snapshot = snapshots[-1]
+    latest_qty = int(latest_snapshot["qty_by_oem"].get(oem_number, 0) or 0)
+    if latest_qty > 0:
+        return 0
+    latest_date = latest_snapshot["pricelist_date"]
+    stockout_started_at = latest_date
+    for snapshot in reversed(snapshots):
+        qty = int(snapshot["qty_by_oem"].get(oem_number, 0) or 0)
+        if qty > 0:
+            break
+        stockout_started_at = snapshot["pricelist_date"]
+    return max((latest_date - stockout_started_at).days, 0)
+
+
+def _apply_recovery_mode(
+    *,
+    current_quantity: int,
+    consecutive_stockout_days: int,
+    avg_daily_planning: Optional[float],
+    avg_daily_180: Optional[float],
+    avg_daily_365: Optional[float],
+) -> tuple[Optional[float], bool]:
+    if (
+        current_quantity > 0
+        or consecutive_stockout_days < AUTOPURCHASE_RECOVERY_STOCKOUT_DAYS
+    ):
+        return avg_daily_planning, False
+
+    recovery_floor = max(
+        [
+            float(value)
+            for value in (avg_daily_180, avg_daily_365)
+            if value is not None and value > 0
+        ],
+        default=None,
+    )
+    if recovery_floor is None:
+        return avg_daily_planning, False
+    if avg_daily_planning is None or recovery_floor > float(avg_daily_planning):
+        return _quantize_float(recovery_floor), True
+    return avg_daily_planning, False
 
 
 def _build_autopurchase_draft(
@@ -1880,6 +2151,8 @@ def _build_autopurchase_draft(
         return None
 
     supplier_available_qty = max(int(supplier.get("current_qty") or 0), 0)
+    if supplier_available_qty <= 0:
+        return None
     proposed_order_qty = min(recommended_qty, supplier_available_qty)
     remaining_gap_qty = max(recommended_qty - proposed_order_qty, 0)
 
@@ -2042,33 +2315,24 @@ async def get_autopurchase_preview(
         normalized_oem_numbers=normalized_oem_numbers,
         history_rows_by_oem=history_by_oem,
     )
-    sold_last_30_by_oem = _calculate_snapshot_sales(
-        snapshots,
+    snapshot_demand_by_window = {
+        days: _calculate_snapshot_sales(
+            snapshots,
+            normalized_oem_numbers,
+            days=days,
+            received_qty_by_oem_and_date=received_qty_by_oem_and_date,
+        )
+        for days in AUTOPURCHASE_DEMAND_WINDOWS
+    }
+    customer_requested_by_window = await _load_customer_order_requested_by_oem_windows(
+        session,
         normalized_oem_numbers,
-        days=30,
-        received_qty_by_oem_and_date=received_qty_by_oem_and_date,
+        windows=AUTOPURCHASE_DEMAND_WINDOWS,
     )
-    sold_last_90_by_oem = _calculate_snapshot_sales(
-        snapshots,
+    open_customer_backlog_by_oem = await _load_open_customer_backlog_by_oem(
+        session,
         normalized_oem_numbers,
-        days=90,
-        received_qty_by_oem_and_date=received_qty_by_oem_and_date,
     )
-    # Реальные продажи из заказов покупателей (приоритетнее snapshot-аппроксимации).
-    # Если customer_order_sales > 0 — используем их; иначе snapshot как fallback.
-    co_sold_last_30_by_oem = await _load_customer_order_sales_by_oem(
-        session, normalized_oem_numbers, days=30
-    )
-    co_sold_last_90_by_oem = await _load_customer_order_sales_by_oem(
-        session, normalized_oem_numbers, days=90
-    )
-    for oem in normalized_oem_numbers:
-        co30 = co_sold_last_30_by_oem.get(oem, 0)
-        co90 = co_sold_last_90_by_oem.get(oem, 0)
-        if co30 > 0:
-            sold_last_30_by_oem[oem] = max(sold_last_30_by_oem.get(oem, 0), co30)
-        if co90 > 0:
-            sold_last_90_by_oem[oem] = max(sold_last_90_by_oem.get(oem, 0), co90)
 
     decision_filter = str(decision_status or "").strip().lower() or None
     search_filter = str(search or "").strip().lower()
@@ -2081,6 +2345,8 @@ async def get_autopurchase_preview(
     diagnostics = {
         "oems_in_own_pricelist_count": len(normalized_oem_numbers),
         "oems_with_sales_signal_count": 0,
+        "oems_with_open_backlog_count": 0,
+        "recovery_mode_used_count": 0,
         "fallback_lead_time_used_count": 0,
         "fallback_lead_time_sales_only_count": 0,
         "manual_min_balance_fallback_count": 0,
@@ -2105,18 +2371,76 @@ async def get_autopurchase_preview(
             "current_quantity": 0,
         }
         oem_history = history_by_oem.get(oem_number, [])
-        sold_last_30_days = int(sold_last_30_by_oem.get(oem_number, 0))
-        sold_last_90_days = int(sold_last_90_by_oem.get(oem_number, 0))
+        requested_last_30_days = int(
+            customer_requested_by_window[30].get(oem_number, 0)
+        )
+        requested_last_90_days = int(
+            customer_requested_by_window[90].get(oem_number, 0)
+        )
+        requested_last_180_days = int(
+            customer_requested_by_window[180].get(oem_number, 0)
+        )
+        requested_last_365_days = int(
+            customer_requested_by_window[365].get(oem_number, 0)
+        )
+        snapshot_last_30_days = int(
+            snapshot_demand_by_window[30].get(oem_number, 0)
+        )
+        snapshot_last_90_days = int(
+            snapshot_demand_by_window[90].get(oem_number, 0)
+        )
+        snapshot_last_180_days = int(
+            snapshot_demand_by_window[180].get(oem_number, 0)
+        )
+        snapshot_last_365_days = int(
+            snapshot_demand_by_window[365].get(oem_number, 0)
+        )
+        sold_last_30_days = max(requested_last_30_days, snapshot_last_30_days)
+        sold_last_90_days = max(requested_last_90_days, snapshot_last_90_days)
+        sold_last_180_days = max(requested_last_180_days, snapshot_last_180_days)
+        sold_last_365_days = max(requested_last_365_days, snapshot_last_365_days)
         avg_daily_30 = _compute_average_daily(sold_last_30_days, 30)
         avg_daily_90 = _compute_average_daily(sold_last_90_days, 90)
-        avg_daily_blended = _blend_average_daily(avg_daily_30, avg_daily_90)
-        has_sales_signal = bool(avg_daily_blended and avg_daily_blended > 0)
-        if has_sales_signal:
-            diagnostics["oems_with_sales_signal_count"] += 1
+        avg_daily_180 = _compute_average_daily(sold_last_180_days, 180)
+        avg_daily_365 = _compute_average_daily(sold_last_365_days, 365)
         current_quantity = int(latest.get("current_quantity") or 0)
         minimum_balance = int(latest.get("minimum_balance") or 0)
         multiplicity = max(int(latest.get("multiplicity") or 1), 1)
         missing_in_latest_pricelist = oem_number not in latest_rows_by_oem
+        open_customer_backlog_qty = int(
+            open_customer_backlog_by_oem.get(oem_number, 0)
+        )
+        consecutive_stockout_days = _estimate_consecutive_stockout_days(
+            snapshots,
+            oem_number=oem_number,
+        )
+        avg_daily_blended = _blend_average_daily_horizons(
+            avg_daily_30,
+            avg_daily_90,
+            avg_daily_180,
+            avg_daily_365,
+        )
+        avg_daily_blended, recovery_mode_applied = _apply_recovery_mode(
+            current_quantity=current_quantity,
+            consecutive_stockout_days=consecutive_stockout_days,
+            avg_daily_planning=avg_daily_blended,
+            avg_daily_180=avg_daily_180,
+            avg_daily_365=avg_daily_365,
+        )
+        has_sales_signal = bool(
+            (avg_daily_blended and avg_daily_blended > 0)
+            or sold_last_30_days > 0
+            or sold_last_90_days > 0
+            or sold_last_180_days > 0
+            or sold_last_365_days > 0
+            or open_customer_backlog_qty > 0
+        )
+        if has_sales_signal:
+            diagnostics["oems_with_sales_signal_count"] += 1
+        if open_customer_backlog_qty > 0:
+            diagnostics["oems_with_open_backlog_count"] += 1
+        if recovery_mode_applied:
+            diagnostics["recovery_mode_used_count"] += 1
         lead_values = [
             int(row["actual_lead_days"])
             for row in oem_history
@@ -2165,6 +2489,9 @@ async def get_autopurchase_preview(
             lead_time_days_used=lead_time_days_used,
         )
         available_qty_for_planning = current_quantity + coverable_in_transit_qty
+        net_available_qty_for_planning = (
+            available_qty_for_planning - open_customer_backlog_qty
+        )
 
         lead_time_demand = (
             _quantize_float(avg_daily_blended * lead_time_days_used)
@@ -2206,8 +2533,12 @@ async def get_autopurchase_preview(
             target_stock = max(target_stock, int(minimum_balance or 0))
 
         recommended_order_qty = 0
-        if target_stock is not None:
-            recommended_order_qty = max(target_stock - available_qty_for_planning, 0)
+        planning_target_qty = int(target_stock or 0)
+        if target_stock is not None or open_customer_backlog_qty > 0:
+            recommended_order_qty = max(
+                planning_target_qty - net_available_qty_for_planning,
+                0,
+            )
             recommended_order_qty = _round_up_to_multiplicity(
                 recommended_order_qty,
                 multiplicity,
@@ -2221,8 +2552,9 @@ async def get_autopurchase_preview(
             if avg_daily_30 and avg_daily_30 > 0
             else avg_daily_blended
         )
+        free_current_quantity = max(current_quantity - open_customer_backlog_qty, 0)
         estimated_days_left_30_days = (
-            int(current_quantity / _avg_for_days_left)
+            int(free_current_quantity / _avg_for_days_left)
             if _avg_for_days_left and _avg_for_days_left > 0
             else None
         )
@@ -2230,7 +2562,10 @@ async def get_autopurchase_preview(
             missing_in_latest_pricelist
             and sold_last_30_days <= 0
             and sold_last_90_days <= 0
+            and sold_last_180_days <= 0
+            and sold_last_365_days <= 0
             and in_transit_qty <= 0
+            and open_customer_backlog_qty <= 0
             and minimum_balance <= 0
         ):
             diagnostics["excluded_missing_without_activity_count"] += 1
@@ -2241,7 +2576,13 @@ async def get_autopurchase_preview(
             and minimum_balance <= 0
         ):
             diagnostics["excluded_zero_need_count"] += 1
-            if sold_last_30_days > 0 or sold_last_90_days > 0:
+            if (
+                sold_last_30_days > 0
+                or sold_last_90_days > 0
+                or sold_last_180_days > 0
+                or sold_last_365_days > 0
+                or open_customer_backlog_qty > 0
+            ):
                 diagnostics["excluded_zero_need_with_sales_count"] += 1
             continue
 
@@ -2278,12 +2619,15 @@ async def get_autopurchase_preview(
                 "in_transit_qty": in_transit_qty,
                 "coverable_in_transit_qty": coverable_in_transit_qty,
                 "available_qty_for_planning": available_qty_for_planning,
+                "open_customer_backlog_qty": open_customer_backlog_qty,
                 "sold_last_30_days": sold_last_30_days,
                 "sold_last_90_days": sold_last_90_days,
                 "avg_daily_30": avg_daily_30,
                 "avg_daily_90": avg_daily_90,
                 "avg_daily_blended": avg_daily_blended,
                 "estimated_days_left_30_days": estimated_days_left_30_days,
+                "consecutive_stockout_days": consecutive_stockout_days,
+                "recovery_mode_applied": recovery_mode_applied,
                 "average_actual_lead_days": average_actual_lead_days,
                 "lead_time_days_used": lead_time_days_used,
                 "safety_stock_days": safety_stock_days,
@@ -2385,6 +2729,9 @@ async def get_autopurchase_preview(
                 ),
             )
         )
+        only_non_positive_site_qty = bool(site_supplier_stats) and all(
+            int(item.get("current_qty") or 0) <= 0 for item in site_supplier_stats
+        )
 
         if not SITE_API_KEY:
             reasons.append(
@@ -2403,11 +2750,22 @@ async def get_autopurchase_preview(
             diagnostics["rows_without_supplier_count"] += 1
             reasons.append(
                 _build_reason(
-                    code="site_supplier_not_found",
+                    code=(
+                        "site_suppliers_without_positive_qty"
+                        if only_non_positive_site_qty
+                        else "site_supplier_not_found"
+                    ),
                     severity="critical",
-                    title="Сайт не дал подходящего поставщика",
+                    title=(
+                        "Сайт вернул только предложения без доступного остатка"
+                        if only_non_positive_site_qty
+                        else "Сайт не дал подходящего поставщика"
+                    ),
                     description=(
-                        "Dragonzap не вернул подходящее актуальное предложение "
+                        "Dragonzap вернул предложения, но у них остаток 0 или -1, "
+                        "поэтому автозаказ не использует их."
+                        if only_non_positive_site_qty
+                        else "Dragonzap не вернул подходящее актуальное предложение "
                         "по этому OEM."
                     ),
                 )
@@ -2421,6 +2779,64 @@ async def get_autopurchase_preview(
                     description=(
                         "По выбранному site-поставщику ещё нет накопленной "
                         "истории исполнения заказов. Строка требует ручной проверки."
+                    ),
+                )
+            )
+
+        normalized_brand_name = str(candidate_row.get("brand_name") or "").strip().upper()
+        if normalized_brand_name == "DRAGONZAP" and len(site_query_brands) > 1:
+            reasons.append(
+                _build_reason(
+                    code="dragonzap_synonyms_used",
+                    severity="info",
+                    title="Поиск на сайте выполнен по синонимам Dragonzap",
+                    description=(
+                        "Для этой позиции на сайте проверили бренды: "
+                        + ", ".join(site_query_brands[:8])
+                    ),
+                )
+            )
+        elif used_site_fallback_brand and site_query_brands:
+            reasons.append(
+                _build_reason(
+                    code="site_brand_fallback_used",
+                    severity="info",
+                    title="Поиск на сайте ушёл в fallback-бренд",
+                    description=(
+                        "Прямой поиск по исходному бренду не дал результата, "
+                        "поэтому сайт проверяли через бренд: "
+                        + ", ".join(site_query_brands[:8])
+                    ),
+                )
+            )
+
+        open_customer_backlog_qty = int(
+            candidate_row.get("open_customer_backlog_qty") or 0
+        )
+        if open_customer_backlog_qty > 0:
+            reasons.append(
+                _build_reason(
+                    code="open_customer_backlog",
+                    severity="info",
+                    title="Есть открытый клиентский backlog",
+                    description=(
+                        "По OEM есть незакрытая потребность клиентов на "
+                        f"{open_customer_backlog_qty} шт. "
+                        "Расчёт вычитает этот backlog из свободного остатка."
+                    ),
+                )
+            )
+
+        if candidate_row.get("recovery_mode_applied"):
+            reasons.append(
+                _build_reason(
+                    code="recovery_mode_applied",
+                    severity="info",
+                    title="Включён recovery mode",
+                    description=(
+                        "Позиция долго была без остатка, поэтому расчёт поднял "
+                        "спрос по длинной истории 180/365 дней, чтобы вернуть её "
+                        "в оборот."
                     ),
                 )
             )
@@ -2596,11 +3012,30 @@ async def get_autopurchase_preview(
             ),
             _build_autopurchase_diagnostic_metric(
                 code="oems_with_sales_signal_count",
-                title="Позиции с сигналом продаж",
+                title="Позиции с сигналом спроса",
                 value=diagnostics["oems_with_sales_signal_count"],
                 description=(
-                    "Позиции, по которым расчёт увидел движение товара по нашим "
-                    "снапшотам за 30/90 дней."
+                    "Позиции, по которым расчёт увидел клиентский спрос по "
+                    "заказам и/или движение товара по нашим снапшотам "
+                    "за окна 30/90/180/365 дней."
+                ),
+            ),
+            _build_autopurchase_diagnostic_metric(
+                code="oems_with_open_backlog_count",
+                title="Позиции с открытым backlog",
+                value=diagnostics["oems_with_open_backlog_count"],
+                description=(
+                    "Позиции, по которым есть незакрытые клиентские потребности, "
+                    "уменьшающие свободный остаток для планирования."
+                ),
+            ),
+            _build_autopurchase_diagnostic_metric(
+                code="recovery_mode_used_count",
+                title="Recovery mode включался",
+                value=diagnostics["recovery_mode_used_count"],
+                description=(
+                    "Позиции, которые долго были без остатка и для которых "
+                    "расчёт поднял спрос по длинной истории 180/365 дней."
                 ),
             ),
             _build_autopurchase_diagnostic_metric(
@@ -2608,7 +3043,7 @@ async def get_autopurchase_preview(
                 title="Использован fallback по сроку поставки",
                 value=diagnostics["fallback_lead_time_used_count"],
                 description=(
-                    "Позиции с продажами, где не было истории фактического срока "
+                    "Позиции со спросом, где не было истории фактического срока "
                     "поставки и применён дефолтный lead time."
                 ),
             ),
@@ -2617,7 +3052,7 @@ async def get_autopurchase_preview(
                 title="Fallback сработал без min balance",
                 value=diagnostics["fallback_lead_time_sales_only_count"],
                 description=(
-                    "Позиции с продажами, для которых потребность удалось посчитать "
+                    "Позиции со спросом, для которых потребность удалось посчитать "
                     "даже при нулевом минимальном остатке."
                 ),
             ),
@@ -2631,8 +3066,8 @@ async def get_autopurchase_preview(
                 title="Нулевая потребность при наличии продаж",
                 value=diagnostics["excluded_zero_need_with_sales_count"],
                 description=(
-                    "Самый важный индикатор для диагностики: позиции продавались, "
-                    "но расчёт всё равно не вывел их в потребность."
+                    "Самый важный индикатор для диагностики: позиции имели спрос "
+                    "или backlog, но расчёт всё равно не вывел их в потребность."
                 ),
             ),
             _build_autopurchase_diagnostic_metric(
@@ -2891,6 +3326,17 @@ async def get_autopurchase_run_items(
 
     stmt = select(AutoPurchaseRunItem).where(AutoPurchaseRunItem.run_id == run_id)
     items = (await session.execute(stmt)).scalars().all()
+    item_oem_numbers = sorted(
+        {
+            _normalize_oem(item.oem_number)
+            for item in items
+            if _normalize_oem(item.oem_number)
+        }
+    )
+    customer_order_period_metrics = await _load_customer_order_period_metrics_by_oem(
+        session,
+        item_oem_numbers,
+    )
 
     decision_filter = str(decision_status or "").strip().lower() or None
     search_filter = str(search or "").strip().lower()
@@ -2902,6 +3348,12 @@ async def get_autopurchase_run_items(
     }
     for item in items:
         serialized = _serialize_autopurchase_run_item(item)
+        serialized.update(
+            customer_order_period_metrics.get(
+                _normalize_oem(serialized.get("oem_number")),
+                {},
+            )
+        )
         if decision_filter and serialized["decision_status"] != decision_filter:
             continue
         if search_filter:

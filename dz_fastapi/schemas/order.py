@@ -442,6 +442,14 @@ class AutoPurchasePreviewRow(BaseModel):
     in_transit_qty: int = 0
     sold_last_30_days: int = 0
     sold_last_90_days: int = 0
+    order_count_30_days: int = 0
+    order_count_90_days: int = 0
+    order_count_180_days: int = 0
+    order_count_365_days: int = 0
+    min_sale_price_30_days: Optional[float] = None
+    min_sale_price_90_days: Optional[float] = None
+    min_sale_price_180_days: Optional[float] = None
+    min_sale_price_365_days: Optional[float] = None
     avg_daily_30: Optional[float] = None
     avg_daily_90: Optional[float] = None
     avg_daily_blended: Optional[float] = None

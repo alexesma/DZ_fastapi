@@ -1,0 +1,141 @@
+from datetime import date
+
+from dz_fastapi.services.autopurchase import (
+    _apply_recovery_mode,
+    _blend_average_daily_horizons,
+    _build_autopurchase_draft,
+    _estimate_consecutive_stockout_days,
+    _select_autopurchase_supplier,
+    _select_best_site_supplier_by_lead_time,
+    _select_best_site_supplier_by_price,
+)
+
+
+def test_select_best_site_supplier_by_price_ignores_non_positive_qty():
+    supplier = _select_best_site_supplier_by_price(
+        [
+            {
+                "provider_name": "BadStock",
+                "current_price": 10.0,
+                "current_qty": -1,
+                "effective_lead_days": 1,
+            },
+            {
+                "provider_name": "GoodStock",
+                "current_price": 15.0,
+                "current_qty": 5,
+                "effective_lead_days": 2,
+            },
+        ]
+    )
+
+    assert supplier is not None
+    assert supplier["provider_name"] == "GoodStock"
+
+
+def test_select_best_site_supplier_by_lead_time_returns_none_without_positive_qty():
+    supplier = _select_best_site_supplier_by_lead_time(
+        [
+            {
+                "provider_name": "ZeroStock",
+                "current_price": 10.0,
+                "current_qty": 0,
+                "effective_lead_days": 1,
+            },
+            {
+                "provider_name": "NegativeStock",
+                "current_price": 8.0,
+                "current_qty": -1,
+                "effective_lead_days": 2,
+            },
+        ]
+    )
+
+    assert supplier is None
+
+
+def test_select_autopurchase_supplier_ignores_non_positive_qty_even_if_cheapest():
+    supplier = _select_autopurchase_supplier(
+        [
+            {
+                "provider_name": "NoStock",
+                "current_price": 1.0,
+                "current_qty": -1,
+                "effective_lead_days": 1,
+                "fill_rate": 100.0,
+                "is_own_price": False,
+            },
+            {
+                "provider_name": "Available",
+                "current_price": 5.0,
+                "current_qty": 3,
+                "effective_lead_days": 4,
+                "fill_rate": None,
+                "is_own_price": False,
+            },
+        ],
+        fill_rate_threshold=80.0,
+        max_allowed_lead_days=7,
+    )
+
+    assert supplier is not None
+    assert supplier["provider_name"] == "Available"
+
+
+def test_build_autopurchase_draft_returns_none_for_zero_supplier_qty():
+    draft = _build_autopurchase_draft(
+        supplier={
+            "provider_name": "Supplier",
+            "current_price": 100.0,
+            "current_qty": 0,
+        },
+        available_qty=0,
+        in_transit_qty=0,
+        target_qty=5,
+        recommended_qty=5,
+        lead_time_days_used=7.0,
+        reason=None,
+    )
+
+    assert draft is None
+
+
+def test_blend_average_daily_horizons_uses_long_windows_when_present():
+    blended = _blend_average_daily_horizons(0.5, 0.4, 0.3, 0.2)
+
+    assert blended == 0.41
+
+
+def test_estimate_consecutive_stockout_days_counts_latest_zero_streak():
+    stockout_days = _estimate_consecutive_stockout_days(
+        [
+            {
+                "pricelist_date": date(2026, 5, 1),
+                "qty_by_oem": {"OEM1": 3},
+            },
+            {
+                "pricelist_date": date(2026, 5, 10),
+                "qty_by_oem": {"OEM1": 0},
+            },
+            {
+                "pricelist_date": date(2026, 5, 20),
+                "qty_by_oem": {"OEM1": 0},
+            },
+        ],
+        oem_number="OEM1",
+    )
+
+    assert stockout_days == 10
+
+
+def test_apply_recovery_mode_raises_floor_for_long_stockout():
+    avg_daily, applied = _apply_recovery_mode(
+        current_quantity=0,
+        consecutive_stockout_days=90,
+        avg_daily_planning=0.02,
+        avg_daily_180=0.08,
+        avg_daily_365=0.05,
+    )
+
+    assert applied is True
+    assert avg_daily == 0.08
