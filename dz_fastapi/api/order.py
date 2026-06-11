@@ -36,6 +36,7 @@ from dz_fastapi.models.user import User
 from dz_fastapi.schemas.order import (
     AutoPurchaseAiExplanationOut,
     AutoPurchaseDraftGroupAiExplanationOut,
+    AutoPurchaseItemAllocationsRequest,
     AutoPurchaseMarkSentRequest,
     AutoPurchaseMarkSentResponse,
     AutoPurchasePreviewResponse,
@@ -73,6 +74,7 @@ from dz_fastapi.services.autopurchase import (
     get_autopurchase_run_items,
     list_autopurchase_runs,
     mark_autopurchase_run_items_sent,
+    update_autopurchase_run_item_allocations,
     update_autopurchase_run_item_status,
     update_autopurchase_run_items_status,
 )
@@ -1123,6 +1125,39 @@ async def get_autopurchase_run_draft_orders_view(
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.patch(
+    "/autopurchase-runs/{run_id}/items/{item_id}/allocations",
+    response_model=AutoPurchaseRunItemStatusUpdateResponse,
+    summary="Ручной выбор/распределение предложений по строке автозаказа",
+)
+async def update_autopurchase_run_item_allocations_view(
+    run_id: int,
+    item_id: int,
+    payload: AutoPurchaseItemAllocationsRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await update_autopurchase_run_item_allocations(
+            session=session,
+            run_id=run_id,
+            item_id=item_id,
+            allocations=[
+                allocation.model_dump()
+                for allocation in payload.allocations
+            ],
+            comment=payload.comment,
+        )
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = (
+            status.HTTP_404_NOT_FOUND
+            if "не найден" in detail.lower()
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=status_code, detail=detail) from exc
 
 
 @router.post(

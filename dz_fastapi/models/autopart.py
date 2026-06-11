@@ -607,6 +607,11 @@ class AutoPurchaseRunItem(Base):
     best_supplier_by_lead_time = Column(JSON, default=dict, nullable=True)
     recommended_supplier = Column(JSON, default=dict, nullable=True)
     draft_purchase_order = Column(JSON, default=dict, nullable=True)
+    # Топ-10 предложений сайта (по цене): менеджер может вручную выбрать
+    # другое предложение или распределить количество на несколько.
+    top_site_offers = Column(JSON, default=list, nullable=True)
+    # Сводное наличие Dragonzap по кросс-артикулам бренда Dragonzap.
+    cross_group = Column(JSON, default=dict, nullable=True)
     sent_to_site_at = Column(DateTime(timezone=True), nullable=True)
     sent_order_number = Column(String(36), nullable=True)
     send_result_snapshot = Column(JSON, default=dict, nullable=True)

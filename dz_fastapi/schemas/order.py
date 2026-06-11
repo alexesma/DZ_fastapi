@@ -388,6 +388,8 @@ class TrackingInsightDraftPurchaseOrder(BaseModel):
     min_qnt: Optional[int] = None
     min_delivery_day: Optional[int] = None
     max_delivery_day: Optional[int] = None
+    # Ручное распределение количества по нескольким предложениям сайта.
+    allocations: List[dict[str, Any]] = Field(default_factory=list)
 
 
 class TrackingInsightAbcXyz(BaseModel):
@@ -432,6 +434,22 @@ class TrackingExceptionsQueueResponse(BaseModel):
     warning_count: int = 0
     info_count: int = 0
     rows: List[TrackingExceptionsQueueRow] = Field(default_factory=list)
+
+
+class AutoPurchaseCrossGroupItem(BaseModel):
+    oem_number: str
+    brand_name: Optional[str] = None
+    autopart_name: Optional[str] = None
+    quantity: int = 0
+    in_transit_qty: int = 0
+
+
+class AutoPurchaseCrossGroup(BaseModel):
+    own_quantity: int = 0
+    cross_quantity: int = 0
+    group_quantity: int = 0
+    cross_in_transit_qty: int = 0
+    items: List[AutoPurchaseCrossGroupItem] = Field(default_factory=list)
 
 
 class AutoPurchasePreviewRow(BaseModel):
@@ -482,6 +500,10 @@ class AutoPurchasePreviewRow(BaseModel):
     best_supplier_by_lead_time: Optional[TrackingInsightSupplierStat] = None
     recommended_supplier: Optional[TrackingInsightSupplierStat] = None
     draft_purchase_order: Optional[TrackingInsightDraftPurchaseOrder] = None
+    top_site_offers: List[TrackingInsightSupplierStat] = Field(
+        default_factory=list
+    )
+    cross_group: Optional["AutoPurchaseCrossGroup"] = None
     site_query_brands: List[str] = Field(default_factory=list)
     used_site_fallback_brand: bool = False
 
@@ -561,6 +583,16 @@ class AutoPurchaseRunItemStatusUpdateResponse(BaseModel):
 class AutoPurchaseRunItemsStatusUpdateRequest(BaseModel):
     item_ids: List[int] = Field(default_factory=list)
     decision_status: str
+    comment: Optional[str] = None
+
+
+class AutoPurchaseAllocationIn(BaseModel):
+    offer_index: int = Field(..., ge=0)
+    quantity: int = Field(..., gt=0)
+
+
+class AutoPurchaseItemAllocationsRequest(BaseModel):
+    allocations: List[AutoPurchaseAllocationIn] = Field(default_factory=list)
     comment: Optional[str] = None
 
 

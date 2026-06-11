@@ -177,6 +177,16 @@ AUTOPURCHASE_DEFAULT_LEAD_DAYS_FALLBACK = max(
     int(os.getenv("AUTOPURCHASE_DEFAULT_LEAD_DAYS_FALLBACK", "7")),
 )
 AUTOPURCHASE_DEMAND_WINDOWS = (30, 90, 180, 365)
+# Целевой запас: на сколько дней спроса заказываем (1,5 месяца).
+AUTOPURCHASE_TARGET_COVER_DAYS = max(
+    1,
+    int(os.getenv("AUTOPURCHASE_TARGET_COVER_DAYS", "45")),
+)
+# Сколько лучших предложений сайта сохраняем для ручного выбора.
+AUTOPURCHASE_TOP_OFFERS_LIMIT = max(
+    1,
+    int(os.getenv("AUTOPURCHASE_TOP_OFFERS_LIMIT", "10")),
+)
 AUTOPURCHASE_RECOVERY_STOCKOUT_DAYS = max(
     1,
     int(os.getenv("AUTOPURCHASE_RECOVERY_STOCKOUT_DAYS", "45")),
@@ -507,6 +517,10 @@ def _serialize_autopurchase_run_item(
             dict(item.draft_purchase_order or {})
             if item.draft_purchase_order
             else None
+        ),
+        "top_site_offers": list(item.top_site_offers or []),
+        "cross_group": (
+            dict(item.cross_group or {}) if item.cross_group else None
         ),
         "sent_to_site_at": item.sent_to_site_at,
         "sent_order_id": item.sent_order_id,
@@ -1523,6 +1537,136 @@ async def _load_dragonzap_cross_targets(
     return targets[: max(int(limit), 1)]
 
 
+def _sum_active_outstanding_qty(history_rows: list[dict[str, Any]]) -> int:
+    return max(
+        sum(
+            max(
+                int(row.get("ordered_quantity") or 0)
+                - int(row.get("received_quantity") or 0),
+                0,
+            )
+            for row in history_rows
+            if row.get("current_status") in _ACTIVE_ORDER_STATUSES
+        ),
+        0,
+    )
+
+
+async def _load_dragonzap_cross_stock_map(
+    session: AsyncSession,
+    *,
+    latest_known_rows_by_oem: dict[str, dict[str, Any]],
+    latest_rows_by_oem: dict[str, dict[str, Any]],
+    history_by_oem: dict[str, list[dict[str, Any]]],
+) -> dict[str, dict[str, Any]]:
+    """Сводное наличие Dragonzap-позиции по кроссам бренда Dragonzap.
+
+    Пример: DZ123 (3 шт) имеет кросс DZ122 (3 шт) → доступно 6 шт.
+    Кроссы других брендов (CHERY/HAVAL/...) сюда не входят — по ним
+    идёт поиск закупки на сайте.
+    """
+    dz_autopart_to_oem: dict[int, str] = {}
+    for oem, known_row in latest_known_rows_by_oem.items():
+        if not _is_dragonzap_brand(known_row.get("brand_name")):
+            continue
+        autopart_id = known_row.get("autopart_id")
+        if autopart_id is not None:
+            dz_autopart_to_oem[int(autopart_id)] = oem
+    if not dz_autopart_to_oem:
+        return {}
+
+    dz_ids = sorted(dz_autopart_to_oem.keys())
+    related_oems_by_oem: dict[str, set[str]] = {}
+
+    def _link(source_oem: Optional[str], related_oem: Optional[str]) -> None:
+        if not source_oem or not related_oem or source_oem == related_oem:
+            return
+        related_oems_by_oem.setdefault(source_oem, set()).add(related_oem)
+        related_oems_by_oem.setdefault(related_oem, set()).add(source_oem)
+
+    # Кроссы, где наша Dragonzap-позиция — источник, а кросс тоже Dragonzap.
+    forward_stmt = (
+        select(
+            AutoPartCross.source_autopart_id,
+            AutoPartCross.cross_oem_number,
+        )
+        .join(Brand, Brand.id == AutoPartCross.cross_brand_id)
+        .where(
+            AutoPartCross.source_autopart_id.in_(dz_ids),
+            func.upper(Brand.name) == DRAGONZAP_BRAND_NAME,
+        )
+    )
+    for source_autopart_id, cross_oem_raw in (
+        await session.execute(forward_stmt)
+    ).all():
+        _link(
+            dz_autopart_to_oem.get(int(source_autopart_id)),
+            _normalize_oem(cross_oem_raw),
+        )
+
+    # Обратное направление: наша позиция указана как кросс у другой
+    # Dragonzap-позиции.
+    reverse_stmt = (
+        select(
+            AutoPartCross.cross_autopart_id,
+            AutoPart.oem_number,
+        )
+        .join(AutoPart, AutoPart.id == AutoPartCross.source_autopart_id)
+        .join(Brand, Brand.id == AutoPart.brand_id)
+        .where(
+            AutoPartCross.cross_autopart_id.in_(dz_ids),
+            func.upper(Brand.name) == DRAGONZAP_BRAND_NAME,
+        )
+    )
+    for cross_autopart_id, source_oem_raw in (
+        await session.execute(reverse_stmt)
+    ).all():
+        _link(
+            dz_autopart_to_oem.get(int(cross_autopart_id)),
+            _normalize_oem(source_oem_raw),
+        )
+
+    result: dict[str, dict[str, Any]] = {}
+    for oem, related_oems in related_oems_by_oem.items():
+        if oem not in latest_known_rows_by_oem:
+            continue
+        items: list[dict[str, Any]] = []
+        total_quantity = 0
+        total_in_transit = 0
+        for related_oem in sorted(related_oems):
+            related_row = latest_rows_by_oem.get(related_oem)
+            related_known = latest_known_rows_by_oem.get(related_oem)
+            if related_row is None and related_known is None:
+                # Кросс не из нашего прайса — наличие неизвестно.
+                continue
+            related_qty = int((related_row or {}).get("current_quantity") or 0)
+            related_in_transit = _sum_active_outstanding_qty(
+                history_by_oem.get(related_oem, [])
+            )
+            items.append(
+                {
+                    "oem_number": related_oem,
+                    "brand_name": DRAGONZAP_BRAND_NAME,
+                    "quantity": related_qty,
+                    "in_transit_qty": related_in_transit,
+                    "autopart_name": (
+                        (related_row or related_known or {}).get(
+                            "autopart_name"
+                        )
+                    ),
+                }
+            )
+            total_quantity += related_qty
+            total_in_transit += related_in_transit
+        if items:
+            result[oem] = {
+                "items": items,
+                "cross_quantity": total_quantity,
+                "cross_in_transit_qty": total_in_transit,
+            }
+    return result
+
+
 async def _load_last_receipt_price_by_autopart(
     session: AsyncSession,
     autopart_ids: list[int],
@@ -2126,6 +2270,10 @@ async def _persist_autopurchase_preview(
             draft_purchase_order=_to_json_safe(
                 row.get("draft_purchase_order") or {}
             ),
+            top_site_offers=_to_json_safe(
+                list(row.get("top_site_offers") or [])
+            ),
+            cross_group=_to_json_safe(row.get("cross_group") or {}),
         )
         session.add(item)
 
@@ -2638,6 +2786,12 @@ async def get_autopurchase_preview(
         session,
         normalized_oem_numbers,
     )
+    dragonzap_cross_stock_by_oem = await _load_dragonzap_cross_stock_map(
+        session,
+        latest_known_rows_by_oem=latest_known_rows_by_oem,
+        latest_rows_by_oem=latest_rows_by_oem,
+        history_by_oem=history_by_oem,
+    )
 
     decision_filter = str(decision_status or "").strip().lower() or None
     search_filter = str(search or "").strip().lower()
@@ -2793,7 +2947,37 @@ async def get_autopurchase_preview(
             oem_history,
             lead_time_days_used=lead_time_days_used,
         )
-        available_qty_for_planning = current_quantity + coverable_in_transit_qty
+        # Наличие Dragonzap-позиции считаем вместе с кроссами бренда
+        # Dragonzap (свой остаток + остатки и «в пути» кросс-артикулов).
+        cross_group_raw = dragonzap_cross_stock_by_oem.get(oem_number)
+        cross_stock_qty = (
+            int(cross_group_raw.get("cross_quantity") or 0)
+            if cross_group_raw
+            else 0
+        )
+        cross_in_transit_qty = (
+            int(cross_group_raw.get("cross_in_transit_qty") or 0)
+            if cross_group_raw
+            else 0
+        )
+        group_available_quantity = current_quantity + cross_stock_qty
+        cross_group = (
+            {
+                "own_quantity": current_quantity,
+                "cross_quantity": cross_stock_qty,
+                "group_quantity": group_available_quantity,
+                "cross_in_transit_qty": cross_in_transit_qty,
+                "items": list(cross_group_raw.get("items") or []),
+            }
+            if cross_group_raw
+            else None
+        )
+        available_qty_for_planning = (
+            current_quantity
+            + coverable_in_transit_qty
+            + cross_stock_qty
+            + cross_in_transit_qty
+        )
         net_available_qty_for_planning = (
             available_qty_for_planning - open_customer_backlog_qty
         )
@@ -2817,21 +3001,18 @@ async def get_autopurchase_preview(
                 else None
             )
         )
-        review_period_days = (
-            max(7, int(ceil(lead_time_days_used)))
-            if lead_time_days_used is not None
-            else 7
-        )
-        demand_for_review_period = (
-            _quantize_float(avg_daily_blended * review_period_days)
-            if avg_daily_blended is not None
-            else None
-        )
+        # Целевой запас — 1,5 месяца спроса (AUTOPURCHASE_TARGET_COVER_DAYS).
+        # Точка дозаказа (reorder_point) остаётся нижней границей на случай,
+        # когда срок поставки + страховой запас превышают целевое покрытие.
         target_stock = None
-        if reorder_point is not None:
+        if avg_daily_blended is not None and avg_daily_blended > 0:
             target_stock = int(
-                ceil(float(reorder_point) + float(demand_for_review_period or 0))
+                ceil(avg_daily_blended * AUTOPURCHASE_TARGET_COVER_DAYS)
             )
+            if reorder_point is not None:
+                target_stock = max(target_stock, int(ceil(float(reorder_point))))
+        elif reorder_point is not None:
+            target_stock = int(ceil(float(reorder_point)))
         elif minimum_balance > 0:
             target_stock = int(minimum_balance)
         if target_stock is not None:
@@ -2857,7 +3038,11 @@ async def get_autopurchase_preview(
             if avg_daily_30 and avg_daily_30 > 0
             else avg_daily_blended
         )
-        free_current_quantity = max(current_quantity - open_customer_backlog_qty, 0)
+        # Дни запаса считаем по сводному наличию (для Dragonzap — вместе
+        # с остатками кросс-артикулов Dragonzap).
+        free_current_quantity = max(
+            group_available_quantity - open_customer_backlog_qty, 0
+        )
         estimated_days_left_30_days = (
             int(free_current_quantity / _avg_for_days_left)
             if _avg_for_days_left and _avg_for_days_left > 0
@@ -2924,6 +3109,8 @@ async def get_autopurchase_preview(
                 "in_transit_qty": in_transit_qty,
                 "coverable_in_transit_qty": coverable_in_transit_qty,
                 "available_qty_for_planning": available_qty_for_planning,
+                "cross_group": cross_group,
+                "group_available_quantity": group_available_quantity,
                 "open_customer_backlog_qty": open_customer_backlog_qty,
                 "sold_last_30_days": sold_last_30_days,
                 "sold_last_90_days": sold_last_90_days,
@@ -3014,6 +3201,21 @@ async def get_autopurchase_preview(
         best_supplier_by_lead_time = _select_best_site_supplier_by_lead_time(
             site_supplier_stats
         )
+        # Топ предложений сайта по цене — для ручного выбора менеджером.
+        top_site_offers = sorted(
+            [
+                item
+                for item in site_supplier_stats
+                if item.get("current_price") is not None
+                and not item.get("is_own_price")
+                and int(item.get("current_qty") or 0) > 0
+            ],
+            key=lambda item: (
+                float(item.get("current_price") or 9_999_999),
+                float(item.get("effective_lead_days") or 9_999),
+                -int(item.get("current_qty") or 0),
+            ),
+        )[:AUTOPURCHASE_TOP_OFFERS_LIMIT]
 
         abc_xyz = candidate_row.get("abc_xyz")
         abc_class = abc_xyz.get("abc_class") if abc_xyz else None
@@ -3477,6 +3679,8 @@ async def get_autopurchase_preview(
                 "best_supplier_by_lead_time": best_supplier_by_lead_time,
                 "recommended_supplier": selected_supplier,
                 "draft_purchase_order": draft_purchase_order,
+                "top_site_offers": top_site_offers,
+                "cross_group": candidate_row.get("cross_group"),
                 "site_query_brands": site_query_brands,
                 "used_site_fallback_brand": used_site_fallback_brand,
             }
@@ -4032,6 +4236,165 @@ async def update_autopurchase_run_items_status(
     }
 
 
+def _build_allocation_from_offer(
+    offer: dict[str, Any],
+    quantity: int,
+) -> dict[str, Any]:
+    return {
+        "provider_id": offer.get("provider_id"),
+        "external_supplier_id": offer.get("external_supplier_id"),
+        "provider_name": offer.get("provider_name") or "—",
+        "provider_config_name": offer.get("current_provider_config_name"),
+        "source_type": offer.get("source_type"),
+        "sup_logo": offer.get("sup_logo"),
+        "price": offer.get("current_price"),
+        "quantity": int(quantity),
+        "supplier_available_qty": int(offer.get("current_qty") or 0),
+        "min_qnt": offer.get("current_min_qnt"),
+        "min_delivery_day": offer.get("current_min_delivery"),
+        "max_delivery_day": offer.get("current_max_delivery"),
+        "hash_key": offer.get("hash_key"),
+        "system_hash": offer.get("system_hash"),
+        "oem_number": offer.get("current_oem_number") or "",
+        "brand_name": offer.get("current_brand_name"),
+        "autopart_name": offer.get("current_autopart_name"),
+    }
+
+
+async def update_autopurchase_run_item_allocations(
+    session: AsyncSession,
+    *,
+    run_id: int,
+    item_id: int,
+    allocations: list[dict[str, Any]],
+    comment: Optional[str] = None,
+) -> dict[str, Any]:
+    """Ручной выбор предложений из топ-10 (одно или несколько).
+
+    Менеджер может заменить выбор автозаказа или распределить количество
+    между несколькими предложениями. Строка после этого считается
+    подтверждённой вручную.
+    """
+    run_stmt = select(AutoPurchaseRun).where(AutoPurchaseRun.id == run_id)
+    run = (await session.execute(run_stmt)).scalar_one_or_none()
+    if run is None:
+        raise ValueError("Запуск автозаказа не найден")
+
+    item_stmt = select(AutoPurchaseRunItem).where(
+        AutoPurchaseRunItem.run_id == run_id,
+        AutoPurchaseRunItem.id == item_id,
+    )
+    item = (await session.execute(item_stmt)).scalar_one_or_none()
+    if item is None:
+        raise ValueError("Строка автозаказа не найдена")
+    if item.sent_to_site_at is not None:
+        raise ValueError(
+            "Строка уже отправлена на сайт — изменить выбор нельзя"
+        )
+
+    offers = list(item.top_site_offers or [])
+    if not offers:
+        raise ValueError(
+            "По строке нет сохранённых предложений сайта для выбора"
+        )
+
+    normalized_allocations: list[dict[str, Any]] = []
+    for raw in allocations or []:
+        try:
+            offer_index = int(raw.get("offer_index"))
+            quantity = int(raw.get("quantity"))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "Каждое распределение должно содержать offer_index и quantity"
+            ) from exc
+        if offer_index < 0 or offer_index >= len(offers):
+            raise ValueError(f"Неизвестное предложение #{offer_index + 1}")
+        if quantity <= 0:
+            raise ValueError("Количество в распределении должно быть больше 0")
+        offer = dict(offers[offer_index] or {})
+        supplier_available = int(offer.get("current_qty") or 0)
+        if quantity > supplier_available:
+            raise ValueError(
+                f"У предложения #{offer_index + 1} доступно только "
+                f"{supplier_available} шт"
+            )
+        min_qnt = max(int(offer.get("current_min_qnt") or 1), 1)
+        if quantity < min_qnt:
+            raise ValueError(
+                f"Минимальная партия предложения #{offer_index + 1} — "
+                f"{min_qnt} шт"
+            )
+        normalized_allocations.append(
+            _build_allocation_from_offer(offer, quantity)
+        )
+
+    if not normalized_allocations:
+        raise ValueError("Не передано ни одного распределения")
+
+    primary_offer = dict(offers[int(allocations[0]["offer_index"])] or {})
+    total_qty = sum(
+        int(allocation["quantity"]) for allocation in normalized_allocations
+    )
+
+    item.recommended_supplier = _to_json_safe(primary_offer)
+    item.selected_supplier_id = primary_offer.get("provider_id")
+
+    draft = dict(item.draft_purchase_order or {})
+    draft.update(
+        {
+            "provider_id": primary_offer.get("provider_id"),
+            "external_supplier_id": primary_offer.get("external_supplier_id"),
+            "provider_name": primary_offer.get("provider_name") or "—",
+            "price": primary_offer.get("current_price"),
+            "oem_number": primary_offer.get("current_oem_number") or "",
+            "brand_name": primary_offer.get("current_brand_name"),
+            "autopart_name": primary_offer.get("current_autopart_name"),
+            "supplier_available_qty": int(
+                primary_offer.get("current_qty") or 0
+            ),
+            "proposed_order_qty": total_qty,
+            "recommended_qty": int(item.recommended_order_qty or 0),
+            "remaining_gap_qty": max(
+                int(item.recommended_order_qty or 0) - total_qty, 0
+            ),
+            "min_qnt": primary_offer.get("current_min_qnt"),
+            "min_delivery_day": primary_offer.get("current_min_delivery"),
+            "max_delivery_day": primary_offer.get("current_max_delivery"),
+            "hash_key": primary_offer.get("hash_key"),
+            "system_hash": primary_offer.get("system_hash"),
+            "sup_logo": primary_offer.get("sup_logo"),
+            "source_type": primary_offer.get("source_type"),
+            "reason": "Выбор менеджера из топ-предложений",
+            "allocations": _to_json_safe(normalized_allocations),
+        }
+    )
+    item.draft_purchase_order = _to_json_safe(draft)
+
+    _apply_autopurchase_item_status_override(
+        item,
+        decision_status=AUTOPURCHASE_STATUS_AUTO_APPROVED,
+        comment=comment
+        or (
+            "Выбрано вручную: "
+            + ", ".join(
+                f"{allocation['provider_name']} × {allocation['quantity']} шт"
+                for allocation in normalized_allocations
+            )
+        ),
+    )
+
+    items_stmt = select(AutoPurchaseRunItem).where(
+        AutoPurchaseRunItem.run_id == run_id
+    )
+    all_items = list((await session.execute(items_stmt)).scalars().all())
+    _refresh_run_summary_snapshot(run, all_items)
+    await session.commit()
+    return {
+        "run": _serialize_autopurchase_run(run),
+        "item": _serialize_autopurchase_run_item(item),
+    }
+
+
 async def mark_autopurchase_run_items_sent(
     session: AsyncSession,
     *,
@@ -4097,8 +4460,9 @@ async def mark_autopurchase_run_items_sent(
     }
 
 
-def _get_draft_group_key(item: AutoPurchaseRunItem) -> tuple[str, str, str, str]:
-    supplier = dict(item.recommended_supplier or {})
+def _get_supplier_identity_group_key(
+    supplier: dict[str, Any],
+) -> tuple[str, str, str, str]:
     provider_identity = (
         f"provider:{int(supplier['provider_id'])}"
         if supplier.get("provider_id") is not None
@@ -4113,6 +4477,12 @@ def _get_draft_group_key(item: AutoPurchaseRunItem) -> tuple[str, str, str, str]
         str(supplier.get("provider_name") or "").strip(),
         str(supplier.get("current_provider_config_name") or "").strip(),
         str(supplier.get("source_type") or "").strip(),
+    )
+
+
+def _get_draft_group_key(item: AutoPurchaseRunItem) -> tuple[str, str, str, str]:
+    return _get_supplier_identity_group_key(
+        dict(item.recommended_supplier or {})
     )
 
 
@@ -4243,149 +4613,259 @@ async def get_autopurchase_run_draft_orders(
             )
             continue
 
-        unit_price = _quantize_float(draft.get("price"))
-        proposed_order_qty = int(
-            draft.get("proposed_order_qty")
-            or draft.get("recommended_qty")
-            or item.recommended_order_qty
-            or 0
-        )
-        if proposed_order_qty <= 0 or unit_price is None:
-            skipped_items.append(
+        # Одна строка может быть распределена менеджером на несколько
+        # предложений (allocations) — тогда формируем несколько строк
+        # отправки, каждая в группе своего поставщика.
+        manual_allocations = list(draft.get("allocations") or [])
+        if manual_allocations:
+            line_specs = [
                 {
-                    "item_id": int(item.id),
-                    "oem_number": item.oem_number,
-                    "brand_name": item.brand_name,
-                    "reason": "Строка не даёт ненулевой объём заказа по site-поставщику",
-                }
-            )
-            continue
-
-        line_total = _quantize_float(unit_price * proposed_order_qty)
-        if (
-            position_limit is not None
-            and selected_total_items >= position_limit
-        ):
-            skipped_items.append(
-                {
-                    "item_id": int(item.id),
-                    "oem_number": item.oem_number,
-                    "brand_name": item.brand_name,
-                    "reason": (
-                        f"Не вошло в отправку: достигнут лимит позиций "
-                        f"({position_limit} шт.)"
+                    "supplier": {
+                        "provider_id": allocation.get("provider_id"),
+                        "external_supplier_id": allocation.get(
+                            "external_supplier_id"
+                        ),
+                        "provider_name": allocation.get("provider_name"),
+                        "current_provider_config_name": allocation.get(
+                            "provider_config_name"
+                        ),
+                        "source_type": allocation.get("source_type"),
+                        "sup_logo": allocation.get("sup_logo"),
+                    },
+                    "price": allocation.get("price"),
+                    "qty": int(allocation.get("quantity") or 0),
+                    "supplier_available_qty": int(
+                        allocation.get("supplier_available_qty") or 0
                     ),
+                    "site_brand_name": allocation.get("brand_name"),
+                    "site_oem_number": allocation.get("oem_number"),
+                    "site_autopart_name": allocation.get("autopart_name"),
+                    "min_qnt": allocation.get("min_qnt"),
+                    "min_delivery_day": allocation.get("min_delivery_day"),
+                    "max_delivery_day": allocation.get("max_delivery_day"),
+                    "hash_key": allocation.get("hash_key"),
+                    "system_hash": allocation.get("system_hash"),
+                    "reason": "Выбор менеджера из топ-предложений",
+                    "allow_budget_trim": False,
+                }
+                for allocation in manual_allocations
+            ]
+        else:
+            line_specs = [
+                {
+                    "supplier": supplier,
+                    "price": draft.get("price"),
+                    "qty": int(
+                        draft.get("proposed_order_qty")
+                        or draft.get("recommended_qty")
+                        or item.recommended_order_qty
+                        or 0
+                    ),
+                    "supplier_available_qty": int(
+                        draft.get("supplier_available_qty") or 0
+                    ),
+                    "site_brand_name": draft.get("brand_name"),
+                    "site_oem_number": draft.get("oem_number"),
+                    "site_autopart_name": draft.get("autopart_name"),
+                    "min_qnt": draft.get("min_qnt"),
+                    "min_delivery_day": draft.get("min_delivery_day"),
+                    "max_delivery_day": draft.get("max_delivery_day"),
+                    "hash_key": draft.get("hash_key"),
+                    "system_hash": draft.get("system_hash"),
+                    "reason": draft.get("reason"),
+                    "allow_budget_trim": True,
+                }
+            ]
+
+        item_proposed_total = 0
+        for spec in line_specs:
+            spec_supplier = dict(spec.get("supplier") or {})
+            spec_provider_name = str(
+                spec_supplier.get("provider_name") or ""
+            ).strip()
+            unit_price = _quantize_float(spec.get("price"))
+            proposed_order_qty = int(spec.get("qty") or 0)
+            if (
+                proposed_order_qty <= 0
+                or unit_price is None
+                or not spec_provider_name
+            ):
+                skipped_items.append(
+                    {
+                        "item_id": int(item.id),
+                        "oem_number": item.oem_number,
+                        "brand_name": item.brand_name,
+                        "reason": (
+                            "Строка не даёт ненулевой объём заказа "
+                            "по site-поставщику"
+                        ),
+                    }
+                )
+                continue
+
+            line_total = _quantize_float(unit_price * proposed_order_qty)
+            if (
+                position_limit is not None
+                and selected_total_items >= position_limit
+            ):
+                skipped_items.append(
+                    {
+                        "item_id": int(item.id),
+                        "oem_number": item.oem_number,
+                        "brand_name": item.brand_name,
+                        "reason": (
+                            f"Не вошло в отправку: достигнут лимит позиций "
+                            f"({position_limit} шт.)"
+                        ),
+                    }
+                )
+                continue
+
+            if budget_limit is not None and line_total is not None:
+                remaining_budget = max(
+                    float(budget_limit) - float(selected_total_sum),
+                    0.0,
+                )
+                if float(line_total) > remaining_budget:
+                    if not spec.get("allow_budget_trim"):
+                        skipped_items.append(
+                            {
+                                "item_id": int(item.id),
+                                "oem_number": item.oem_number,
+                                "brand_name": item.brand_name,
+                                "reason": (
+                                    "Не вошло в отправку: ручное "
+                                    "распределение превышает остаток "
+                                    "лимита суммы "
+                                    f"({_format_money_value(remaining_budget)}"
+                                    " руб.)"
+                                ),
+                            }
+                        )
+                        continue
+                    # Пробуем заказать частичное количество по остатку
+                    # бюджета. Округляем ВВЕРХ до кратности и минимальной
+                    # партии сайта: небольшой выход за бюджет допустим,
+                    # важнее не отбросить нужную позицию. Строку пропускаем
+                    # только если остатка не хватает даже на одну штуку.
+                    multiplicity = max(int(item.multiplicity or 1), 1)
+                    draft_min_qnt = max(int(spec.get("min_qnt") or 1), 1)
+                    max_qty_by_budget = int(
+                        remaining_budget // float(unit_price)
+                    )
+                    if max_qty_by_budget >= 1:
+                        budget_qty = _round_up_to_multiplicity(
+                            max_qty_by_budget,
+                            multiplicity,
+                        )
+                        budget_qty = max(budget_qty, draft_min_qnt)
+                        proposed_order_qty = min(
+                            budget_qty, proposed_order_qty
+                        )
+                        line_total = _quantize_float(
+                            unit_price * proposed_order_qty
+                        )
+                    else:
+                        skipped_items.append(
+                            {
+                                "item_id": int(item.id),
+                                "oem_number": item.oem_number,
+                                "brand_name": item.brand_name,
+                                "reason": (
+                                    "Не вошло в отправку: остатка лимита "
+                                    "суммы "
+                                    f"({_format_money_value(remaining_budget)}"
+                                    " руб.) не хватает даже на 1 шт по цене "
+                                    f"{_format_money_value(float(unit_price))}"
+                                    " руб."
+                                ),
+                            }
+                        )
+                        continue
+
+            group_key = _get_supplier_identity_group_key(spec_supplier)
+            group = draft_groups.get(group_key)
+            if group is None:
+                group = {
+                    "supplier_key": "|".join(group_key),
+                    "provider_id": spec_supplier.get("provider_id"),
+                    "external_supplier_id": spec_supplier.get(
+                        "external_supplier_id"
+                    ),
+                    "provider_name": spec_provider_name,
+                    "provider_config_name": spec_supplier.get(
+                        "current_provider_config_name"
+                    ),
+                    "source_type": spec_supplier.get("source_type"),
+                    "sup_logo": spec_supplier.get("sup_logo"),
+                    "total_items": 0,
+                    "total_quantity": 0,
+                    "total_sum": 0.0,
+                    "items": [],
+                }
+                draft_groups[group_key] = group
+
+            item_proposed_total += proposed_order_qty
+            # Пересчитываем дефицит от фактически выбранного количества
+            # по всем строкам этой позиции.
+            remaining_gap_qty = max(
+                int(item.recommended_order_qty or 0) - item_proposed_total,
+                0,
+            )
+            group["items"].append(
+                {
+                    "item_id": int(item.id),
+                    "autopart_id": item.autopart_id,
+                    "oem_number": item.oem_number,
+                    "brand_name": item.brand_name,
+                    "autopart_name": item.autopart_name,
+                    # Реквизиты предложения сайта: заказ должен уходить
+                    # с брендом/номером найденного предложения (для
+                    # Dragonzap-позиций это бренд кросса), а не с нашим.
+                    "site_brand_name": (
+                        spec.get("site_brand_name") or item.brand_name
+                    ),
+                    "site_oem_number": (
+                        spec.get("site_oem_number") or item.oem_number
+                    ),
+                    "site_autopart_name": (
+                        spec.get("site_autopart_name") or item.autopart_name
+                    ),
+                    "open_customer_backlog_qty": int(
+                        draft.get("open_customer_backlog_qty") or 0
+                    ),
+                    "decision_status": item.decision_status,
+                    "recommended_order_qty": int(
+                        item.recommended_order_qty or 0
+                    ),
+                    "proposed_order_qty": proposed_order_qty,
+                    "remaining_gap_qty": remaining_gap_qty,
+                    "supplier_available_qty": int(
+                        spec.get("supplier_available_qty") or 0
+                    ),
+                    "price": unit_price,
+                    "line_total": line_total,
+                    "provider_id": spec_supplier.get("provider_id"),
+                    "external_supplier_id": spec_supplier.get(
+                        "external_supplier_id"
+                    ),
+                    "min_qnt": spec.get("min_qnt"),
+                    "min_delivery_day": spec.get("min_delivery_day"),
+                    "max_delivery_day": spec.get("max_delivery_day"),
+                    "hash_key": spec.get("hash_key"),
+                    "system_hash": spec.get("system_hash"),
+                    "reason": spec.get("reason"),
                 }
             )
-            continue
-
-        if budget_limit is not None and line_total is not None:
-            remaining_budget = max(
-                float(budget_limit) - float(selected_total_sum),
-                0.0,
+            group["total_items"] += 1
+            group["total_quantity"] += proposed_order_qty
+            # Накапливаем как Decimal, чтобы избежать плавающих ошибок
+            # округления.
+            group["total_sum"] = Decimal(str(group["total_sum"])) + Decimal(
+                str(line_total or 0)
             )
-            if float(line_total) > remaining_budget:
-                # Пробуем заказать частичное количество по остатку бюджета.
-                # Округляем ВВЕРХ до кратности и минимальной партии сайта:
-                # небольшой выход за бюджет допустим, важнее не отбросить
-                # нужную позицию. Строку пропускаем только если остатка
-                # бюджета не хватает даже на одну штуку.
-                multiplicity = max(int(item.multiplicity or 1), 1)
-                draft_min_qnt = max(int(draft.get("min_qnt") or 1), 1)
-                max_qty_by_budget = int(remaining_budget // float(unit_price))
-                if max_qty_by_budget >= 1:
-                    budget_qty = _round_up_to_multiplicity(
-                        max_qty_by_budget,
-                        multiplicity,
-                    )
-                    budget_qty = max(budget_qty, draft_min_qnt)
-                    proposed_order_qty = min(budget_qty, proposed_order_qty)
-                    line_total = _quantize_float(unit_price * proposed_order_qty)
-                else:
-                    skipped_items.append(
-                        {
-                            "item_id": int(item.id),
-                            "oem_number": item.oem_number,
-                            "brand_name": item.brand_name,
-                            "reason": (
-                                "Не вошло в отправку: остатка лимита суммы "
-                                f"({_format_money_value(remaining_budget)} руб.) "
-                                "не хватает даже на 1 шт по цене "
-                                f"{_format_money_value(float(unit_price))} руб."
-                            ),
-                        }
-                    )
-                    continue
-
-        group_key = _get_draft_group_key(item)
-        group = draft_groups.get(group_key)
-        if group is None:
-            group = {
-                "supplier_key": "|".join(group_key),
-                "provider_id": supplier.get("provider_id"),
-                "external_supplier_id": supplier.get("external_supplier_id"),
-                "provider_name": provider_name,
-                "provider_config_name": supplier.get(
-                    "current_provider_config_name"
-                ),
-                "source_type": supplier.get("source_type"),
-                "sup_logo": supplier.get("sup_logo"),
-                "total_items": 0,
-                "total_quantity": 0,
-                "total_sum": 0.0,
-                "items": [],
-            }
-            draft_groups[group_key] = group
-
-        # Пересчитываем дефицит от фактически выбранного количества:
-        # после урезания по бюджету сохранённое в черновике значение устарело.
-        remaining_gap_qty = max(
-            int(item.recommended_order_qty or 0) - proposed_order_qty,
-            0,
-        )
-        group["items"].append(
-            {
-                "item_id": int(item.id),
-                "autopart_id": item.autopart_id,
-                "oem_number": item.oem_number,
-                "brand_name": item.brand_name,
-                "autopart_name": item.autopart_name,
-                # Реквизиты предложения сайта: заказ на Dragonzap должен
-                # уходить с брендом/номером найденного предложения (для
-                # Dragonzap-позиций это бренд-синоним), а не с нашим брендом.
-                "site_brand_name": draft.get("brand_name") or item.brand_name,
-                "site_oem_number": draft.get("oem_number") or item.oem_number,
-                "site_autopart_name": (
-                    draft.get("autopart_name") or item.autopart_name
-                ),
-                "open_customer_backlog_qty": int(
-                    draft.get("open_customer_backlog_qty") or 0
-                ),
-                "decision_status": item.decision_status,
-                "recommended_order_qty": int(item.recommended_order_qty or 0),
-                "proposed_order_qty": proposed_order_qty,
-                "remaining_gap_qty": remaining_gap_qty,
-                "supplier_available_qty": int(
-                    draft.get("supplier_available_qty") or 0
-                ),
-                "price": unit_price,
-                "line_total": line_total,
-                "provider_id": supplier.get("provider_id"),
-                "external_supplier_id": supplier.get("external_supplier_id"),
-                "min_qnt": draft.get("min_qnt"),
-                "min_delivery_day": draft.get("min_delivery_day"),
-                "max_delivery_day": draft.get("max_delivery_day"),
-                "hash_key": draft.get("hash_key"),
-                "system_hash": draft.get("system_hash"),
-                "reason": draft.get("reason"),
-            }
-        )
-        group["total_items"] += 1
-        group["total_quantity"] += proposed_order_qty
-        # Накапливаем как Decimal, чтобы избежать плавающих ошибок округления.
-        group["total_sum"] = Decimal(str(group["total_sum"])) + Decimal(str(line_total or 0))
-        selected_total_items += 1
-        selected_total_sum += Decimal(str(line_total or 0))
+            selected_total_items += 1
+            selected_total_sum += Decimal(str(line_total or 0))
 
     # Финализируем суммы групп: квантизируем Decimal → float для JSON-сериализации.
     for group in draft_groups.values():
