@@ -19,6 +19,7 @@ from dz_fastapi.crud.partner import crud_provider
 from dz_fastapi.http.dz_site_client import DZSiteClient
 from dz_fastapi.models.autopart import AutoPart, AutoPurchaseRun, AutoPurchaseRunItem
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.cross import AutoPartCross, AutoPartInvalidCross
 from dz_fastapi.models.partner import (
     CUSTOMER_ORDER_ITEM_STATUS,
     STOCK_ORDER_STATUS,
@@ -33,6 +34,8 @@ from dz_fastapi.models.partner import (
     StockOrderItem,
     SupplierOrder,
     SupplierOrderItem,
+    SupplierReceipt,
+    SupplierReceiptItem,
 )
 from dz_fastapi.services.placed_orders import (
     _ACTIVE_ORDER_STATUSES,
@@ -104,6 +107,33 @@ XYZ_CLASS_PRIORITY: dict[str, int] = {
 }
 
 DRAGONZAP_BRAND_NAME = "DRAGONZAP"
+# Бренды-кроссы, которые предпочитаем при подборе замены для Dragonzap:
+# Dragonzap производится из деталей этих марок.
+DRAGONZAP_PREFERRED_CROSS_BRANDS: tuple[str, ...] = tuple(
+    item.strip().upper()
+    for item in os.getenv(
+        "DRAGONZAP_PREFERRED_CROSS_BRANDS",
+        "CHERY,HAVAL,GEELY,LIFAN,JAC,CHANGAN",
+    ).split(",")
+    if item.strip()
+)
+# Сколько кроссов максимум проверяем на сайте для одной Dragonzap-позиции
+# (кроссов может быть десятки — ограничиваем количество запросов).
+AUTOPURCHASE_MAX_CROSS_QUERIES = max(
+    1,
+    int(os.getenv("AUTOPURCHASE_MAX_CROSS_QUERIES", "8")),
+)
+# Контроль закупочной цены относительно нашей продажной цены:
+# жёсткий потолок — закупка не дороже 90% продажи (иначе блокируем),
+# целевой уровень — 70–80% (дороже 80% → только ручная проверка).
+AUTOPURCHASE_MAX_PURCHASE_TO_SALE_RATIO = max(
+    0.1,
+    float(os.getenv("AUTOPURCHASE_MAX_PURCHASE_TO_SALE_RATIO", "0.9")),
+)
+AUTOPURCHASE_TARGET_PURCHASE_TO_SALE_RATIO = max(
+    0.1,
+    float(os.getenv("AUTOPURCHASE_TARGET_PURCHASE_TO_SALE_RATIO", "0.8")),
+)
 
 SITE_API_KEY = os.getenv("KEY_FOR_WEBSITE")
 AUTOPURCHASE_REASONS_LIMIT = 8
@@ -413,6 +443,14 @@ def _serialize_autopurchase_run_item(
         "open_customer_backlog_qty": int(
             (item.draft_purchase_order or {}).get("open_customer_backlog_qty")
             or 0
+        ),
+        "last_receipt_price": (
+            float(
+                (item.draft_purchase_order or {}).get("last_receipt_price")
+            )
+            if (item.draft_purchase_order or {}).get("last_receipt_price")
+            is not None
+            else None
         ),
         "sold_last_30_days": int(item.sold_last_30_days or 0),
         "sold_last_90_days": int(item.sold_last_90_days or 0),
@@ -1401,28 +1439,177 @@ def _brand_matches_allowed(
     )
 
 
+def _get_cross_brand_priority(brand_name: str) -> int:
+    normalized = _normalize_brand_key(brand_name)
+    for index, preferred in enumerate(DRAGONZAP_PREFERRED_CROSS_BRANDS):
+        preferred_key = _normalize_brand_key(preferred)
+        if preferred_key and (
+            normalized == preferred_key
+            or preferred_key in normalized
+            or normalized in preferred_key
+        ):
+            return index
+    return len(DRAGONZAP_PREFERRED_CROSS_BRANDS)
+
+
+async def _load_dragonzap_cross_targets(
+    session: AsyncSession,
+    *,
+    autopart_id: int,
+    limit: int = AUTOPURCHASE_MAX_CROSS_QUERIES,
+) -> list[dict[str, Any]]:
+    """Кроссы Dragonzap-позиции из нашей системы для поиска на сайте.
+
+    Dragonzap производится из деталей других брендов, поэтому замену ищем
+    по кроссам (AutoPartCross), отдавая приоритет брендам
+    DRAGONZAP_PREFERRED_CROSS_BRANDS. Явно ошибочные кроссы
+    (AutoPartInvalidCross) исключаются.
+    """
+    cross_stmt = (
+        select(
+            AutoPartCross.cross_oem_number,
+            AutoPartCross.cross_brand_id,
+            AutoPartCross.priority,
+            Brand.name.label("cross_brand_name"),
+        )
+        .join(Brand, Brand.id == AutoPartCross.cross_brand_id)
+        .where(AutoPartCross.source_autopart_id == autopart_id)
+    )
+    cross_rows = (await session.execute(cross_stmt)).all()
+    if not cross_rows:
+        return []
+
+    invalid_stmt = select(
+        AutoPartInvalidCross.invalid_brand_id,
+        AutoPartInvalidCross.invalid_oem_number,
+    ).where(AutoPartInvalidCross.source_autopart_id == autopart_id)
+    invalid_pairs = {
+        (row.invalid_brand_id, _normalize_oem(row.invalid_oem_number))
+        for row in (await session.execute(invalid_stmt)).all()
+    }
+
+    targets: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for row in cross_rows:
+        brand_name = str(row.cross_brand_name or "").strip()
+        oem_number = _normalize_oem(row.cross_oem_number) or ""
+        if not brand_name or not oem_number:
+            continue
+        if _is_dragonzap_brand(brand_name):
+            continue
+        if (row.cross_brand_id, oem_number) in invalid_pairs:
+            continue
+        dedupe_key = (_normalize_brand_key(brand_name), oem_number)
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        targets.append(
+            {
+                "oem_number": oem_number,
+                "brand_name": brand_name,
+                "brand_priority": _get_cross_brand_priority(brand_name),
+                "cross_priority": int(row.priority or 100),
+            }
+        )
+
+    targets.sort(
+        key=lambda item: (
+            item["brand_priority"],
+            item["cross_priority"],
+            item["brand_name"],
+            item["oem_number"],
+        )
+    )
+    return targets[: max(int(limit), 1)]
+
+
+async def _load_last_receipt_price_by_autopart(
+    session: AsyncSession,
+    autopart_ids: list[int],
+) -> dict[int, dict[str, Any]]:
+    """Последняя цена поступления (закупки) по документам прихода."""
+    result: dict[int, dict[str, Any]] = {}
+    normalized_ids = sorted(
+        {int(item) for item in autopart_ids if item is not None}
+    )
+    if not normalized_ids:
+        return result
+
+    stmt = (
+        select(
+            SupplierReceiptItem.autopart_id,
+            SupplierReceiptItem.price,
+            SupplierReceipt.document_date,
+            SupplierReceipt.created_at,
+        )
+        .join(
+            SupplierReceipt,
+            SupplierReceipt.id == SupplierReceiptItem.receipt_id,
+        )
+        .where(
+            SupplierReceiptItem.autopart_id.in_(normalized_ids),
+            SupplierReceiptItem.price.is_not(None),
+            SupplierReceiptItem.price > 0,
+        )
+        .order_by(
+            SupplierReceiptItem.autopart_id.asc(),
+            SupplierReceipt.document_date.desc().nulls_last(),
+            SupplierReceipt.created_at.desc().nulls_last(),
+            SupplierReceiptItem.id.desc(),
+        )
+    )
+    for row in (await session.execute(stmt)).all():
+        autopart_id = int(row.autopart_id)
+        if autopart_id in result:
+            continue
+        result[autopart_id] = {
+            "price": float(row.price),
+            "document_date": row.document_date,
+        }
+    return result
+
+
 async def _fetch_site_supplier_stats_for_oem(
     session: AsyncSession,
     *,
     oem_number: str,
     brand_name: Optional[str],
     history_rows: Optional[list[dict[str, Any]]] = None,
-) -> tuple[list[dict[str, Any]], list[str], bool, int]:
+    autopart_id: Optional[int] = None,
+) -> tuple[list[dict[str, Any]], list[str], bool, int, int]:
     if not SITE_API_KEY:
-        return [], [], False, 0
+        return [], [], False, 0, 0
 
     query_brands = await expand_site_query_brands(session, brand_name)
     if not query_brands:
-        return [], [], False, 0
+        return [], [], False, 0, 0
 
     # Бизнес-правило подбора бренда:
-    # - Dragonzap мы производим из других брендов, поэтому ищем по всем
-    #   синонимам и при их отсутствии разрешаем fallback на бренды сайта;
+    # - Dragonzap мы производим из других брендов, поэтому замену ищем
+    #   через кроссы нашей системы (приоритет — CHERY/HAVAL/GEELY/LIFAN/
+    #   JAC/CHANGAN), на сайте запрашиваем кроссы и берём самый дешёвый
+    #   вариант; синонимы бренда и fallback по брендам сайта — запасные пути;
     # - все остальные бренды заказываем строго тем брендом, который был
     #   в нашем прайсе — без подмены на аналоги других производителей.
     requested_is_dragonzap = _is_dragonzap_brand(brand_name)
 
+    cross_targets: list[dict[str, Any]] = []
+    if requested_is_dragonzap and autopart_id is not None:
+        try:
+            cross_targets = await _load_dragonzap_cross_targets(
+                session,
+                autopart_id=int(autopart_id),
+            )
+        except Exception as exc:
+            logger.warning(
+                "Не удалось загрузить кроссы Dragonzap для autopart_id=%s: %s",
+                autopart_id,
+                exc,
+            )
+            cross_targets = []
+
     used_fallback_brand = False
+    searched_queries: list[str] = []
     offers_by_brand: list[list[dict[str, Any]]] = []
     provider_cache: dict[str, int] = {}
     site_history_stats_by_provider = _build_site_history_stats_by_provider(
@@ -1434,16 +1621,42 @@ async def _fetch_site_supplier_stats_for_oem(
         api_key=SITE_API_KEY,
         verify_ssl=False,
     ) as client:
-        offers_by_brand = await fetch_site_offers_for_brands(
+        # 1) Кроссы из нашей системы (только Dragonzap): ищем по номеру
+        #    кросса под его брендом, разрешая сайту добавлять свои кроссы.
+        for cross_target in cross_targets:
+            cross_offers = await client.get_offers(
+                oem=cross_target["oem_number"],
+                brand=cross_target["brand_name"],
+                without_cross=False,
+            )
+            searched_queries.append(
+                f"{cross_target['brand_name']} {cross_target['oem_number']}"
+            )
+            if not cross_offers:
+                continue
+            for item in cross_offers:
+                if isinstance(item, dict):
+                    item.setdefault(
+                        "query_brand", cross_target["brand_name"]
+                    )
+            offers_by_brand.append(cross_offers)
+
+        # 2) Прямой поиск по исходному номеру (для Dragonzap — по всем
+        #    синонимам бренда, для остальных — строго по бренду из прайса).
+        direct_offers = await fetch_site_offers_for_brands(
             client,
             oem=oem_number,
             brands=query_brands,
             without_cross=True,
         )
+        searched_queries.extend(
+            f"{brand} {oem_number}" for brand in query_brands
+        )
+        offers_by_brand.extend(direct_offers)
 
         if not offers_by_brand and requested_is_dragonzap:
             (
-                offers_by_brand,
+                fallback_offers,
                 _site_brand_candidates,
                 fallback_brand,
             ) = await resolve_fallback_site_brand(
@@ -1453,13 +1666,19 @@ async def _fetch_site_supplier_stats_for_oem(
                 without_cross=True,
             )
             if fallback_brand:
+                offers_by_brand = fallback_offers
                 query_brands = [fallback_brand]
+                searched_queries.append(f"{fallback_brand} {oem_number}")
                 used_fallback_brand = True
 
     merged = merge_site_offers(offers_by_brand)
-    allowed_brand_keys = {
-        _normalize_brand_key(brand) for brand in query_brands
-    }
+    # Для Dragonzap допустимы любые бренды из кроссов (своих и сайта),
+    # поэтому фильтр по бренду применяем только к строгим брендам.
+    allowed_brand_keys = (
+        set()
+        if requested_is_dragonzap
+        else {_normalize_brand_key(brand) for brand in query_brands}
+    )
     filtered_other_brand_count = 0
     supplier_stats: list[dict[str, Any]] = []
     for raw in merged:
@@ -1495,11 +1714,21 @@ async def _fetch_site_supplier_stats_for_oem(
         )
         if site_stat:
             supplier_stats.append(site_stat)
+
+    unique_searched_queries: list[str] = []
+    seen_queries: set[str] = set()
+    for query_label in searched_queries:
+        if query_label in seen_queries:
+            continue
+        seen_queries.add(query_label)
+        unique_searched_queries.append(query_label)
+
     return (
         supplier_stats,
-        query_brands,
+        unique_searched_queries,
         used_fallback_brand,
         filtered_other_brand_count,
+        len(cross_targets),
     )
 
 
@@ -1508,6 +1737,7 @@ def _select_autopurchase_supplier(
     *,
     fill_rate_threshold: float,
     max_allowed_lead_days: Optional[int],
+    max_allowed_price: Optional[float] = None,
 ) -> Optional[dict[str, Any]]:
     candidates = [
         item
@@ -1516,6 +1746,14 @@ def _select_autopurchase_supplier(
         and not item.get("is_own_price")
         and int(item.get("current_qty") or 0) > 0
     ]
+    # Жёсткий потолок закупочной цены: закупать дороже max_allowed_price
+    # (доля от нашей продажной цены) нельзя — иначе маржа исчезает.
+    if max_allowed_price is not None:
+        candidates = [
+            item
+            for item in candidates
+            if float(item.get("current_price") or 0) <= float(max_allowed_price)
+        ]
     if not candidates:
         return None
     base_candidates = candidates
@@ -2200,6 +2438,7 @@ def _build_autopurchase_draft(
     lead_time_days_used: Optional[float],
     reason: Optional[str],
     open_customer_backlog_qty: int = 0,
+    last_receipt_price: Optional[float] = None,
 ) -> Optional[dict[str, Any]]:
     if not supplier or not supplier.get("provider_name"):
         return None
@@ -2235,6 +2474,7 @@ def _build_autopurchase_draft(
         "brand_name": supplier.get("current_brand_name"),
         "autopart_name": supplier.get("current_autopart_name"),
         "price": supplier.get("current_price"),
+        "last_receipt_price": last_receipt_price,
         "available_qty": available_qty,
         "in_transit_qty": int(in_transit_qty or 0),
         "open_customer_backlog_qty": max(int(open_customer_backlog_qty or 0), 0),
@@ -2711,14 +2951,25 @@ async def get_autopurchase_preview(
     candidate_rows = base_rows[:normalized_limit]
 
     site_results_by_oem: dict[
-        str, tuple[list[dict[str, Any]], list[str], bool, int]
+        str, tuple[list[dict[str, Any]], list[str], bool, int, int]
     ] = {}
+    last_receipt_by_autopart: dict[int, dict[str, Any]] = {}
     if candidate_rows:
+        # Цена последнего поступления — ориентир закупочной цены
+        # из загруженных документов прихода.
+        last_receipt_by_autopart = await _load_last_receipt_price_by_autopart(
+            session,
+            [
+                int(candidate_row["autopart_id"])
+                for candidate_row in candidate_rows
+                if candidate_row.get("autopart_id") is not None
+            ],
+        )
         site_fetch_semaphore = asyncio.Semaphore(AUTOPURCHASE_SITE_FETCH_CONCURRENCY)
 
         async def _load_site_result(
             candidate_row: dict[str, Any],
-        ) -> tuple[str, tuple[list[dict[str, Any]], list[str], bool, int]]:
+        ) -> tuple[str, tuple[list[dict[str, Any]], list[str], bool, int, int]]:
             candidate_oem_number = str(candidate_row["oem_number"])
             try:
                 async with site_fetch_semaphore:
@@ -2727,6 +2978,7 @@ async def get_autopurchase_preview(
                         oem_number=candidate_oem_number,
                         brand_name=candidate_row.get("brand_name"),
                         history_rows=list(candidate_row.get("history_rows") or []),
+                        autopart_id=candidate_row.get("autopart_id"),
                     )
             except Exception as exc:
                 logger.warning(
@@ -2734,7 +2986,7 @@ async def get_autopurchase_preview(
                     candidate_oem_number,
                     exc,
                 )
-                site_result = ([], [], False, 0)
+                site_result = ([], [], False, 0, 0)
             return candidate_oem_number, site_result
 
         site_results_by_oem = dict(
@@ -2754,7 +3006,8 @@ async def get_autopurchase_preview(
             site_query_brands,
             used_site_fallback_brand,
             filtered_other_brand_count,
-        ) = site_results_by_oem.get(oem_number) or ([], [], False, 0)
+            cross_targets_count,
+        ) = site_results_by_oem.get(oem_number) or ([], [], False, 0, 0)
         best_supplier_by_price = _select_best_site_supplier_by_price(
             site_supplier_stats
         )
@@ -2771,10 +3024,31 @@ async def get_autopurchase_preview(
             if requested_mode == AUTOPURCHASE_MODE_AUTO_APPROVE_SAFE
             else FILL_RATE_THRESHOLD_DRAFT
         )
+        # Контроль закупки: latest_price в нашем прайсе — это ПРОДАЖНАЯ
+        # цена, закупка обязана быть ниже (потолок 90%, цель 70–80%).
+        own_sale_price = candidate_row.get("latest_price")
+        max_allowed_purchase_price = (
+            _quantize_float(
+                float(own_sale_price)
+                * AUTOPURCHASE_MAX_PURCHASE_TO_SALE_RATIO
+            )
+            if own_sale_price is not None and float(own_sale_price) > 0
+            else None
+        )
+        candidate_autopart_id = candidate_row.get("autopart_id")
+        last_receipt = (
+            last_receipt_by_autopart.get(int(candidate_autopart_id))
+            if candidate_autopart_id is not None
+            else None
+        )
+        last_receipt_price = (
+            float(last_receipt["price"]) if last_receipt else None
+        )
         selected_supplier = _select_autopurchase_supplier(
             site_supplier_stats,
             fill_rate_threshold=supplier_fill_threshold,
             max_allowed_lead_days=max_allowed_lead_days,
+            max_allowed_price=max_allowed_purchase_price,
         )
         purchase_stats = _compute_purchase_price_stats(
             candidate_row.get("history_rows") or []
@@ -2819,41 +3093,76 @@ async def get_autopurchase_preview(
         row_brand_is_dragonzap = _is_dragonzap_brand(
             candidate_row.get("brand_name")
         )
+        cheapest_site_price = min(
+            (
+                float(item["current_price"])
+                for item in site_supplier_stats
+                if item.get("current_price") is not None
+                and not item.get("is_own_price")
+                and int(item.get("current_qty") or 0) > 0
+            ),
+            default=None,
+        )
+        blocked_by_price_cap = bool(
+            not selected_supplier
+            and cheapest_site_price is not None
+            and max_allowed_purchase_price is not None
+            and cheapest_site_price > max_allowed_purchase_price
+        )
         if not selected_supplier:
             diagnostics["rows_without_supplier_count"] += 1
-            if only_non_positive_site_qty:
-                not_found_description = (
-                    "Dragonzap вернул предложения, но у них остаток 0 или -1, "
-                    "поэтому автозаказ не использует их."
-                )
-            elif row_brand_is_dragonzap:
-                not_found_description = (
-                    "Dragonzap не вернул подходящее актуальное предложение "
-                    "по этому OEM ни по одному бренду-синониму."
+            if blocked_by_price_cap:
+                reasons.append(
+                    _build_reason(
+                        code="site_price_above_sale_price",
+                        severity="critical",
+                        title="Закупка дороже нашей продажной цены",
+                        description=(
+                            "Самое дешёвое предложение сайта "
+                            f"{_format_money_value(cheapest_site_price)} руб. "
+                            "превышает потолок закупки "
+                            f"{_format_money_value(max_allowed_purchase_price)} руб. "
+                            f"({int(AUTOPURCHASE_MAX_PURCHASE_TO_SALE_RATIO * 100)}% "
+                            "от нашей продажной цены "
+                            f"{_format_money_value(float(own_sale_price))} руб.). "
+                            "Заказывать по такой цене невыгодно."
+                        ),
+                    )
                 )
             else:
-                not_found_description = (
-                    "Dragonzap не вернул подходящее актуальное предложение "
-                    "по этому OEM строго по бренду "
-                    f"{candidate_row.get('brand_name') or '—'}. "
-                    "Подмена на другие бренды запрещена правилами закупки."
+                if only_non_positive_site_qty:
+                    not_found_description = (
+                        "Dragonzap вернул предложения, но у них остаток 0 или -1, "
+                        "поэтому автозаказ не использует их."
+                    )
+                elif row_brand_is_dragonzap:
+                    not_found_description = (
+                        "Dragonzap не вернул подходящее актуальное предложение "
+                        "ни по кроссам позиции, ни по самому номеру."
+                    )
+                else:
+                    not_found_description = (
+                        "Dragonzap не вернул подходящее актуальное предложение "
+                        "по этому OEM строго по бренду "
+                        f"{candidate_row.get('brand_name') or '—'}. "
+                        "Подмена на другие бренды запрещена правилами закупки."
+                    )
+                reasons.append(
+                    _build_reason(
+                        code=(
+                            "site_suppliers_without_positive_qty"
+                            if only_non_positive_site_qty
+                            else "site_supplier_not_found"
+                        ),
+                        severity="critical",
+                        title=(
+                            "Сайт вернул только предложения без доступного остатка"
+                            if only_non_positive_site_qty
+                            else "Сайт не дал подходящего поставщика"
+                        ),
+                        description=not_found_description,
+                    )
                 )
-            reasons.append(
-                _build_reason(
-                    code=(
-                        "site_suppliers_without_positive_qty"
-                        if only_non_positive_site_qty
-                        else "site_supplier_not_found"
-                    ),
-                    severity="critical",
-                    title=(
-                        "Сайт вернул только предложения без доступного остатка"
-                        if only_non_positive_site_qty
-                        else "Сайт не дал подходящего поставщика"
-                    ),
-                    description=not_found_description,
-                )
-            )
         elif selected_supplier.get("fill_rate") is None:
             reasons.append(
                 _build_reason(
@@ -2867,15 +3176,32 @@ async def get_autopurchase_preview(
                 )
             )
 
-        if row_brand_is_dragonzap and len(site_query_brands) > 1:
+        if row_brand_is_dragonzap and cross_targets_count > 0:
             reasons.append(
                 _build_reason(
-                    code="dragonzap_synonyms_used",
+                    code="dragonzap_crosses_used",
                     severity="info",
-                    title="Поиск на сайте выполнен по синонимам Dragonzap",
+                    title="Поиск выполнен по кроссам Dragonzap",
                     description=(
-                        "Для этой позиции на сайте проверили бренды: "
+                        f"Проверено кроссов: {cross_targets_count}. "
+                        "Запросы на сайт (с учётом кроссов сайта): "
+                        + ", ".join(site_query_brands[:10])
+                        + ". Выбирается самый дешёвый подходящий вариант."
+                    ),
+                )
+            )
+        elif row_brand_is_dragonzap and cross_targets_count == 0:
+            reasons.append(
+                _build_reason(
+                    code="dragonzap_no_crosses",
+                    severity="warning",
+                    title="У Dragonzap-позиции нет кроссов в системе",
+                    description=(
+                        "Кроссы для этой позиции не заведены, поэтому поиск "
+                        "шёл только по бренду и синонимам: "
                         + ", ".join(site_query_brands[:8])
+                        + ". Добавьте кроссы (CHERY/HAVAL/GEELY/LIFAN/JAC/"
+                        "CHANGAN), чтобы автозаказ находил замену дешевле."
                     ),
                 )
             )
@@ -2964,6 +3290,63 @@ async def get_autopurchase_preview(
                 )
             )
 
+        # Маржинальность: закупка дороже целевых 70–80% от продажи —
+        # автоутверждение запрещаем, оставляем менеджеру.
+        purchase_margin_below_target = False
+        selected_price = (
+            float(selected_supplier["current_price"])
+            if selected_supplier
+            and selected_supplier.get("current_price") is not None
+            else None
+        )
+        if (
+            selected_price is not None
+            and own_sale_price is not None
+            and float(own_sale_price) > 0
+            and selected_price
+            > float(own_sale_price) * AUTOPURCHASE_TARGET_PURCHASE_TO_SALE_RATIO
+        ):
+            purchase_margin_below_target = True
+            margin_pct = (
+                (float(own_sale_price) - selected_price)
+                / float(own_sale_price)
+                * 100
+            )
+            reasons.append(
+                _build_reason(
+                    code="purchase_margin_below_target",
+                    severity="warning",
+                    title="Маржа ниже целевых 20–30%",
+                    description=(
+                        f"Закупка {_format_money_value(selected_price)} руб. "
+                        "при нашей продажной цене "
+                        f"{_format_money_value(float(own_sale_price))} руб. — "
+                        f"маржа всего {margin_pct:.0f}%. Целевая закупка не "
+                        f"дороже {int(AUTOPURCHASE_TARGET_PURCHASE_TO_SALE_RATIO * 100)}% "
+                        "от продажной цены."
+                    ),
+                )
+            )
+        if (
+            selected_price is not None
+            and last_receipt_price is not None
+            and last_receipt_price > 0
+            and selected_price > last_receipt_price * 1.1
+        ):
+            reasons.append(
+                _build_reason(
+                    code="purchase_above_last_receipt",
+                    severity="warning",
+                    title="Дороже последнего поступления",
+                    description=(
+                        f"Закупка {_format_money_value(selected_price)} руб. "
+                        "дороже цены последнего поступления "
+                        f"{_format_money_value(last_receipt_price)} руб. "
+                        "более чем на 10%."
+                    ),
+                )
+            )
+
         decision_value = AUTOPURCHASE_STATUS_NEEDS_REVIEW
         if requested_mode == AUTOPURCHASE_MODE_DISABLED:
             decision_value = AUTOPURCHASE_STATUS_BLOCKED
@@ -2982,6 +3365,9 @@ async def get_autopurchase_preview(
         elif used_site_fallback_brand:
             # Предложение найдено по fallback-бренду, которого нет среди
             # подтверждённых синонимов — только ручное решение менеджера.
+            decision_value = AUTOPURCHASE_STATUS_NEEDS_REVIEW
+        elif purchase_margin_below_target:
+            # Маржа ниже целевой — автоутверждение запрещено.
             decision_value = AUTOPURCHASE_STATUS_NEEDS_REVIEW
         elif (
             requested_mode == AUTOPURCHASE_MODE_AUTO_APPROVE_SAFE
@@ -3021,6 +3407,7 @@ async def get_autopurchase_preview(
             recommended_qty=recommended_order_qty,
             lead_time_days_used=candidate_row.get("lead_time_days_used"),
             open_customer_backlog_qty=open_customer_backlog_qty,
+            last_receipt_price=last_receipt_price,
             reason=next(
                 (
                     reason["title"]
@@ -3045,6 +3432,8 @@ async def get_autopurchase_preview(
                 "autopart_name": candidate_row.get("autopart_name"),
                 "current_quantity": int(candidate_row.get("current_quantity") or 0),
                 "latest_price": candidate_row.get("latest_price"),
+                "last_receipt_price": last_receipt_price,
+                "max_allowed_purchase_price": max_allowed_purchase_price,
                 "minimum_balance": int(candidate_row.get("minimum_balance") or 0),
                 "multiplicity": int(candidate_row.get("multiplicity") or 1),
                 "in_transit_qty": int(candidate_row.get("in_transit_qty") or 0),

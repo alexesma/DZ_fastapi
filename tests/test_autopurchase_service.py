@@ -6,6 +6,7 @@ from dz_fastapi.services.autopurchase import (
     _brand_matches_allowed,
     _build_autopurchase_draft,
     _estimate_consecutive_stockout_days,
+    _get_cross_brand_priority,
     _is_dragonzap_brand,
     _normalize_brand_key,
     _select_autopurchase_supplier,
@@ -206,6 +207,58 @@ def test_build_autopurchase_draft_returns_none_when_min_lot_unreachable():
     )
 
     assert draft is None
+
+
+def test_select_autopurchase_supplier_respects_purchase_price_cap():
+    stats = [
+        {
+            "provider_name": "Expensive",
+            "current_price": 95.0,
+            "current_qty": 10,
+            "effective_lead_days": 1,
+            "fill_rate": 100.0,
+            "is_own_price": False,
+        },
+        {
+            "provider_name": "Cheap",
+            "current_price": 60.0,
+            "current_qty": 5,
+            "effective_lead_days": 5,
+            "fill_rate": 100.0,
+            "is_own_price": False,
+        },
+    ]
+
+    # Потолок закупки 90 руб: дорогой поставщик отфильтрован.
+    supplier = _select_autopurchase_supplier(
+        stats,
+        fill_rate_threshold=80.0,
+        max_allowed_lead_days=None,
+        max_allowed_price=90.0,
+    )
+    assert supplier is not None
+    assert supplier["provider_name"] == "Cheap"
+
+    # Потолок ниже всех предложений — поставщика нет вовсе.
+    supplier = _select_autopurchase_supplier(
+        stats,
+        fill_rate_threshold=80.0,
+        max_allowed_lead_days=None,
+        max_allowed_price=50.0,
+    )
+    assert supplier is None
+
+
+def test_get_cross_brand_priority_prefers_dragonzap_donor_brands():
+    assert _get_cross_brand_priority("CHERY") == 0
+    assert _get_cross_brand_priority("Chery Automobile") == 0
+    assert _get_cross_brand_priority("JAC") < _get_cross_brand_priority(
+        "TOYOTA"
+    )
+    # Не из списка предпочтительных — в конец.
+    assert _get_cross_brand_priority("BOSCH") == _get_cross_brand_priority(
+        "TOYOTA"
+    )
 
 
 def test_build_autopurchase_draft_keeps_backlog_qty():

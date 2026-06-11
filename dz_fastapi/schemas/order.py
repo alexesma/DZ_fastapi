@@ -370,6 +370,7 @@ class TrackingInsightDraftPurchaseOrder(BaseModel):
     brand_name: Optional[str] = None
     autopart_name: Optional[str] = None
     price: Optional[float] = None
+    last_receipt_price: Optional[float] = None
     available_qty: int = 0
     in_transit_qty: int = 0
     open_customer_backlog_qty: int = 0
@@ -440,6 +441,8 @@ class AutoPurchasePreviewRow(BaseModel):
     autopart_id: Optional[int] = None
     current_quantity: int = 0
     latest_price: Optional[float] = None
+    last_receipt_price: Optional[float] = None
+    max_allowed_purchase_price: Optional[float] = None
     minimum_balance: int = 0
     multiplicity: int = 1
     in_transit_qty: int = 0
