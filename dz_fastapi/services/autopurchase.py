@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from math import ceil
@@ -50,7 +51,6 @@ from dz_fastapi.services.placed_orders import (
 )
 from dz_fastapi.services.site_brand_search import (
     expand_site_query_brands,
-    fetch_site_offers_for_brands,
     merge_site_offers,
     resolve_fallback_site_brand,
 )
@@ -177,11 +177,30 @@ AUTOPURCHASE_DEFAULT_LEAD_DAYS_FALLBACK = max(
     int(os.getenv("AUTOPURCHASE_DEFAULT_LEAD_DAYS_FALLBACK", "7")),
 )
 AUTOPURCHASE_DEMAND_WINDOWS = (30, 90, 180, 365)
-# Целевой запас: на сколько дней спроса заказываем (1,5 месяца).
+# Целевой запас: на сколько дней спроса заказываем (1,5 месяца для A
+# и позиций без класса; для B и C — меньше, чтобы не замораживать деньги
+# в медленных позициях).
 AUTOPURCHASE_TARGET_COVER_DAYS = max(
     1,
     int(os.getenv("AUTOPURCHASE_TARGET_COVER_DAYS", "45")),
 )
+AUTOPURCHASE_TARGET_COVER_DAYS_B = max(
+    1,
+    int(os.getenv("AUTOPURCHASE_TARGET_COVER_DAYS_B", "30")),
+)
+AUTOPURCHASE_TARGET_COVER_DAYS_C = max(
+    1,
+    int(os.getenv("AUTOPURCHASE_TARGET_COVER_DAYS_C", "21")),
+)
+# Кэш предложений сайта между запусками (сек); 0 — выключить.
+AUTOPURCHASE_SITE_CACHE_TTL_SEC = max(
+    0,
+    int(os.getenv("AUTOPURCHASE_SITE_CACHE_TTL_SEC", "3600")),
+)
+_SITE_OFFERS_CACHE: dict[
+    tuple[str, str, bool], tuple[float, list[dict[str, Any]]]
+] = {}
+_SITE_OFFERS_CACHE_MAX_ENTRIES = 20000
 # Сколько лучших предложений сайта сохраняем для ручного выбора.
 AUTOPURCHASE_TOP_OFFERS_LIMIT = max(
     1,
@@ -235,6 +254,73 @@ def _compute_average_daily(sold_qty: int, days: int) -> Optional[float]:
     if sold_qty <= 0 or days <= 0:
         return None
     return _quantize_float(sold_qty / days)
+
+
+def _compute_availability_adjusted_daily(
+    sold_qty: int,
+    window_days: int,
+    in_stock_days: int,
+) -> Optional[float]:
+    """Спрос в день НАЛИЧИЯ товара, а не календарный.
+
+    Если товар был в наличии 10 дней из 30 и продано 10 шт, реальный
+    спрос ~1 шт/день, а не 0.33 — иначе система сама занижает заказ
+    после каждого stockout. Нижняя граница знаменателя (7 дней)
+    защищает от взрывных оценок по 1–2 дням наличия.
+    """
+    if sold_qty <= 0 or window_days <= 0:
+        return None
+    floor_days = min(window_days, 7)
+    effective_days = max(min(int(in_stock_days), window_days), floor_days)
+    return _quantize_float(sold_qty / effective_days)
+
+
+def _get_target_cover_days(abc_class: Optional[str]) -> int:
+    normalized = str(abc_class or "").strip().upper()
+    if normalized == "B":
+        return AUTOPURCHASE_TARGET_COVER_DAYS_B
+    if normalized == "C":
+        return AUTOPURCHASE_TARGET_COVER_DAYS_C
+    return AUTOPURCHASE_TARGET_COVER_DAYS
+
+
+async def _get_site_offers_cached(
+    client: DZSiteClient,
+    *,
+    oem: str,
+    brand: str,
+    without_cross: bool,
+) -> list[dict[str, Any]]:
+    """get_offers с TTL-кэшем: повторный пересчёт не бомбит сайт заново."""
+    cache_key = (
+        str(oem or "").strip().upper(),
+        str(brand or "").strip().upper(),
+        bool(without_cross),
+    )
+    if AUTOPURCHASE_SITE_CACHE_TTL_SEC > 0:
+        cached = _SITE_OFFERS_CACHE.get(cache_key)
+        if (
+            cached is not None
+            and (time.monotonic() - cached[0]) < AUTOPURCHASE_SITE_CACHE_TTL_SEC
+        ):
+            return [dict(item) for item in cached[1]]
+
+    offers = await client.get_offers(
+        oem=oem,
+        brand=brand,
+        without_cross=without_cross,
+    )
+    normalized_offers = [
+        item for item in (offers or []) if isinstance(item, dict)
+    ]
+    if AUTOPURCHASE_SITE_CACHE_TTL_SEC > 0:
+        if len(_SITE_OFFERS_CACHE) >= _SITE_OFFERS_CACHE_MAX_ENTRIES:
+            _SITE_OFFERS_CACHE.clear()
+        _SITE_OFFERS_CACHE[cache_key] = (
+            time.monotonic(),
+            [dict(item) for item in normalized_offers],
+        )
+    return normalized_offers
 
 
 def _blend_average_daily(
@@ -1670,8 +1756,14 @@ async def _load_dragonzap_cross_stock_map(
 async def _load_last_receipt_price_by_autopart(
     session: AsyncSession,
     autopart_ids: list[int],
+    *,
+    receipts_limit: int = 3,
 ) -> dict[int, dict[str, Any]]:
-    """Последняя цена поступления (закупки) по документам прихода."""
+    """Ориентир закупочной цены из документов прихода.
+
+    Средневзвешенная по количеству цена последних 2–3 поступлений:
+    одна аномальная поставка не должна сбивать ориентир.
+    """
     result: dict[int, dict[str, Any]] = {}
     normalized_ids = sorted(
         {int(item) for item in autopart_ids if item is not None}
@@ -1683,6 +1775,7 @@ async def _load_last_receipt_price_by_autopart(
         select(
             SupplierReceiptItem.autopart_id,
             SupplierReceiptItem.price,
+            SupplierReceiptItem.received_quantity,
             SupplierReceipt.document_date,
             SupplierReceipt.created_at,
         )
@@ -1702,13 +1795,23 @@ async def _load_last_receipt_price_by_autopart(
             SupplierReceiptItem.id.desc(),
         )
     )
+    rows_by_autopart: dict[int, list[Any]] = {}
     for row in (await session.execute(stmt)).all():
         autopart_id = int(row.autopart_id)
-        if autopart_id in result:
-            continue
+        bucket = rows_by_autopart.setdefault(autopart_id, [])
+        if len(bucket) < max(int(receipts_limit), 1):
+            bucket.append(row)
+
+    for autopart_id, rows in rows_by_autopart.items():
+        weighted_sum = 0.0
+        weight_total = 0.0
+        for row in rows:
+            weight = max(float(row.received_quantity or 0), 1.0)
+            weighted_sum += float(row.price) * weight
+            weight_total += weight
         result[autopart_id] = {
-            "price": float(row.price),
-            "document_date": row.document_date,
+            "price": _quantize_float(weighted_sum / weight_total),
+            "document_date": rows[0].document_date,
         }
     return result
 
@@ -1768,7 +1871,8 @@ async def _fetch_site_supplier_stats_for_oem(
         # 1) Кроссы из нашей системы (только Dragonzap): ищем по номеру
         #    кросса под его брендом, разрешая сайту добавлять свои кроссы.
         for cross_target in cross_targets:
-            cross_offers = await client.get_offers(
+            cross_offers = await _get_site_offers_cached(
+                client,
                 oem=cross_target["oem_number"],
                 brand=cross_target["brand_name"],
                 without_cross=False,
@@ -1779,24 +1883,24 @@ async def _fetch_site_supplier_stats_for_oem(
             if not cross_offers:
                 continue
             for item in cross_offers:
-                if isinstance(item, dict):
-                    item.setdefault(
-                        "query_brand", cross_target["brand_name"]
-                    )
+                item.setdefault("query_brand", cross_target["brand_name"])
             offers_by_brand.append(cross_offers)
 
         # 2) Прямой поиск по исходному номеру (для Dragonzap — по всем
         #    синонимам бренда, для остальных — строго по бренду из прайса).
-        direct_offers = await fetch_site_offers_for_brands(
-            client,
-            oem=oem_number,
-            brands=query_brands,
-            without_cross=True,
-        )
-        searched_queries.extend(
-            f"{brand} {oem_number}" for brand in query_brands
-        )
-        offers_by_brand.extend(direct_offers)
+        for query_brand in query_brands:
+            direct_offers = await _get_site_offers_cached(
+                client,
+                oem=oem_number,
+                brand=query_brand,
+                without_cross=True,
+            )
+            searched_queries.append(f"{query_brand} {oem_number}")
+            if not direct_offers:
+                continue
+            for item in direct_offers:
+                item.setdefault("query_brand", query_brand)
+            offers_by_brand.append(direct_offers)
 
         if not offers_by_brand and requested_is_dragonzap:
             (
@@ -1876,6 +1980,55 @@ async def _fetch_site_supplier_stats_for_oem(
     )
 
 
+def _plan_auto_allocations(
+    offers: list[dict[str, Any]],
+    *,
+    needed_qty: int,
+    max_allowed_price: Optional[float] = None,
+) -> tuple[list[dict[str, Any]], int]:
+    """Жадно закрывает потребность по самым дешёвым предложениям.
+
+    Каждое предложение заказывается только целыми партиями (min_qnt —
+    кратность, округление вверх). Возвращает (распределения, закрыто шт).
+    """
+    if needed_qty <= 0:
+        return [], 0
+
+    allocations: list[dict[str, Any]] = []
+    remaining = int(needed_qty)
+    for offer in offers:
+        if remaining <= 0:
+            break
+        price = offer.get("current_price")
+        if price is None or offer.get("is_own_price"):
+            continue
+        if (
+            max_allowed_price is not None
+            and float(price) > float(max_allowed_price)
+        ):
+            continue
+        lot = max(int(offer.get("current_min_qnt") or 1), 1)
+        orderable_cap = _round_down_to_lot(
+            int(offer.get("current_qty") or 0),
+            lot,
+        )
+        if orderable_cap <= 0:
+            continue
+        take_qty = min(
+            _round_up_to_multiplicity(remaining, lot),
+            orderable_cap,
+        )
+        if take_qty <= 0:
+            continue
+        allocations.append(_build_allocation_from_offer(offer, take_qty))
+        remaining -= take_qty
+
+    covered_qty = sum(
+        int(allocation["quantity"]) for allocation in allocations
+    )
+    return allocations, covered_qty
+
+
 def _select_autopurchase_supplier(
     supplier_stats: list[dict[str, Any]],
     *,
@@ -1937,6 +2090,15 @@ def _round_up_to_multiplicity(quantity: int, multiplicity: int) -> int:
     if multiplicity <= 1:
         return quantity
     return int(ceil(quantity / multiplicity) * multiplicity)
+
+
+def _round_down_to_lot(quantity: int, lot: int) -> int:
+    """Максимум, который можно заказать целыми партиями поставщика."""
+    if quantity <= 0:
+        return 0
+    if lot <= 1:
+        return quantity
+    return (int(quantity) // int(lot)) * int(lot)
 
 
 def _summarize_snapshot_rows(
@@ -2306,6 +2468,46 @@ def _calculate_snapshot_sales(
     return sold_by_oem
 
 
+def _calculate_in_stock_days(
+    snapshots: list[dict[str, Any]],
+    normalized_oem_numbers: list[str],
+    *,
+    days: int,
+) -> dict[str, int]:
+    """Сколько дней окна товар реально был в наличии (по снапшотам)."""
+    in_stock_by_oem = {oem: 0 for oem in normalized_oem_numbers}
+    if not snapshots:
+        return in_stock_by_oem
+    today = now_moscow().date()
+    cutoff = today - timedelta(days=days)
+
+    def _add_span(qty_by_oem: dict[str, int], start: date, end: date) -> None:
+        span_days = (end - max(start, cutoff)).days
+        if span_days <= 0:
+            return
+        for oem in normalized_oem_numbers:
+            if int(qty_by_oem.get(oem, 0) or 0) > 0:
+                in_stock_by_oem[oem] += span_days
+
+    for previous_snapshot, current_snapshot in zip(snapshots, snapshots[1:]):
+        if current_snapshot["pricelist_date"] < cutoff:
+            continue
+        _add_span(
+            previous_snapshot["qty_by_oem"],
+            previous_snapshot["pricelist_date"],
+            current_snapshot["pricelist_date"],
+        )
+    # Хвост от последнего снапшота до сегодня.
+    _add_span(
+        snapshots[-1]["qty_by_oem"],
+        snapshots[-1]["pricelist_date"],
+        today,
+    )
+    return {
+        oem: min(value, days) for oem, value in in_stock_by_oem.items()
+    }
+
+
 async def _load_customer_order_requested_by_oem_windows(
     session: AsyncSession,
     normalized_oem_numbers: list[str],
@@ -2598,13 +2800,20 @@ def _build_autopurchase_draft(
     supplier_available_qty = max(int(supplier.get("current_qty") or 0), 0)
     if supplier_available_qty <= 0:
         return None
-    supplier_min_qnt = max(int(supplier.get("current_min_qnt") or 1), 1)
-    proposed_order_qty = min(recommended_qty, supplier_available_qty)
-    if proposed_order_qty < supplier_min_qnt:
-        if supplier_min_qnt > supplier_available_qty:
-            # Сайт не примет строку меньше минимальной партии поставщика.
-            return None
-        proposed_order_qty = supplier_min_qnt
+    # min_qnt поставщика — это КРАТНОСТЬ (размер партии): заказывать можно
+    # только целыми партиями, округляя потребность ВВЕРХ.
+    # Пример: нужно 57, партия 20 → заказываем 60.
+    supplier_lot = max(int(supplier.get("current_min_qnt") or 1), 1)
+    orderable_cap_qty = _round_down_to_lot(supplier_available_qty, supplier_lot)
+    if orderable_cap_qty <= 0:
+        # У поставщика нет даже одной целой партии.
+        return None
+    proposed_order_qty = min(
+        _round_up_to_multiplicity(recommended_qty, supplier_lot),
+        orderable_cap_qty,
+    )
+    if proposed_order_qty <= 0:
+        return None
     remaining_gap_qty = max(recommended_qty - proposed_order_qty, 0)
 
     return {
@@ -2777,6 +2986,14 @@ async def get_autopurchase_preview(
         )
         for days in AUTOPURCHASE_DEMAND_WINDOWS
     }
+    in_stock_days_by_window = {
+        days: _calculate_in_stock_days(
+            snapshots,
+            normalized_oem_numbers,
+            days=days,
+        )
+        for days in AUTOPURCHASE_DEMAND_WINDOWS
+    }
     customer_requested_by_window = await _load_customer_order_requested_by_oem_windows(
         session,
         normalized_oem_numbers,
@@ -2858,10 +3075,28 @@ async def get_autopurchase_preview(
         sold_last_90_days = max(requested_last_90_days, snapshot_last_90_days)
         sold_last_180_days = max(requested_last_180_days, snapshot_last_180_days)
         sold_last_365_days = max(requested_last_365_days, snapshot_last_365_days)
-        avg_daily_30 = _compute_average_daily(sold_last_30_days, 30)
-        avg_daily_90 = _compute_average_daily(sold_last_90_days, 90)
-        avg_daily_180 = _compute_average_daily(sold_last_180_days, 180)
-        avg_daily_365 = _compute_average_daily(sold_last_365_days, 365)
+        # Спрос считаем на день НАЛИЧИЯ: продажи делим на дни, когда товар
+        # реально был на складе, иначе stockout занижает прогноз.
+        avg_daily_30 = _compute_availability_adjusted_daily(
+            sold_last_30_days,
+            30,
+            in_stock_days_by_window[30].get(oem_number, 30),
+        )
+        avg_daily_90 = _compute_availability_adjusted_daily(
+            sold_last_90_days,
+            90,
+            in_stock_days_by_window[90].get(oem_number, 90),
+        )
+        avg_daily_180 = _compute_availability_adjusted_daily(
+            sold_last_180_days,
+            180,
+            in_stock_days_by_window[180].get(oem_number, 180),
+        )
+        avg_daily_365 = _compute_availability_adjusted_daily(
+            sold_last_365_days,
+            365,
+            in_stock_days_by_window[365].get(oem_number, 365),
+        )
         current_quantity = int(latest.get("current_quantity") or 0)
         minimum_balance = int(latest.get("minimum_balance") or 0)
         multiplicity = max(int(latest.get("multiplicity") or 1), 1)
@@ -3001,13 +3236,15 @@ async def get_autopurchase_preview(
                 else None
             )
         )
-        # Целевой запас — 1,5 месяца спроса (AUTOPURCHASE_TARGET_COVER_DAYS).
+        # Целевой запас — дни покрытия по классу ABC (A=45 «1,5 месяца»,
+        # B=30, C=21), чтобы не замораживать деньги в медленных позициях.
         # Точка дозаказа (reorder_point) остаётся нижней границей на случай,
         # когда срок поставки + страховой запас превышают целевое покрытие.
+        target_cover_days = _get_target_cover_days(abc_class)
         target_stock = None
         if avg_daily_blended is not None and avg_daily_blended > 0:
             target_stock = int(
-                ceil(avg_daily_blended * AUTOPURCHASE_TARGET_COVER_DAYS)
+                ceil(avg_daily_blended * target_cover_days)
             )
             if reorder_point is not None:
                 target_stock = max(target_stock, int(ceil(float(reorder_point))))
@@ -3474,23 +3711,47 @@ async def get_autopurchase_preview(
             )
 
         recommended_order_qty = int(candidate_row.get("recommended_order_qty") or 0)
+        # План закрытия потребности: если у лучшего поставщика не хватает
+        # количества, добираем у следующих по цене (целыми партиями).
+        auto_allocations, covered_supply_qty = _plan_auto_allocations(
+            top_site_offers,
+            needed_qty=recommended_order_qty,
+            max_allowed_price=max_allowed_purchase_price,
+        )
         if (
             selected_supplier
             and int(selected_supplier.get("current_qty") or 0) < recommended_order_qty
         ):
             diagnostics["rows_with_partial_supplier_qty_count"] += 1
-            reasons.append(
-                _build_reason(
-                    code="site_qty_less_than_required",
-                    severity="warning",
-                    title="У лучшего site-поставщика не хватает количества",
-                    description=(
-                        f"Сайт даёт только {int(selected_supplier.get('current_qty') or 0)} "
-                        f"шт при потребности {recommended_order_qty} шт. "
-                        "Позиция требует ручного решения или дополнительного дозаказа."
-                    ),
+            if covered_supply_qty >= recommended_order_qty and len(auto_allocations) > 1:
+                reasons.append(
+                    _build_reason(
+                        code="need_split_across_suppliers",
+                        severity="info",
+                        title="Потребность закрывается несколькими поставщиками",
+                        description=(
+                            f"У лучшего поставщика только "
+                            f"{int(selected_supplier.get('current_qty') or 0)} шт, "
+                            f"поэтому {covered_supply_qty} шт распределены на "
+                            f"{len(auto_allocations)} предложений "
+                            "(по возрастанию цены, целыми партиями)."
+                        ),
+                    )
                 )
-            )
+            else:
+                reasons.append(
+                    _build_reason(
+                        code="site_qty_less_than_required",
+                        severity="warning",
+                        title="У лучшего site-поставщика не хватает количества",
+                        description=(
+                            f"Сайт даёт только {int(selected_supplier.get('current_qty') or 0)} "
+                            f"шт при потребности {recommended_order_qty} шт, "
+                            f"всеми предложениями закрывается {covered_supply_qty} шт. "
+                            "Позиция требует ручного решения или дополнительного дозаказа."
+                        ),
+                    )
+                )
 
         # Маржинальность: закупка дороже целевых 70–80% от продажи —
         # автоутверждение запрещаем, оставляем менеджеру.
@@ -3591,8 +3852,9 @@ async def get_autopurchase_preview(
                 or float(selected_supplier.get("effective_lead_days") or 0)
                 <= float(max_allowed_lead_days)
             )
-            and int(selected_supplier.get("current_qty") or 0)
-            >= recommended_order_qty
+            # Потребность закрыта: одним поставщиком или авто-распределением
+            # по нескольким (целыми партиями).
+            and covered_supply_qty >= recommended_order_qty
         ):
             decision_value = AUTOPURCHASE_STATUS_AUTO_APPROVED
 
@@ -3619,6 +3881,20 @@ async def get_autopurchase_preview(
                 None,
             ),
         )
+        # Авто-распределение по нескольким поставщикам: если один лучший
+        # не закрывает потребность, черновик содержит разбивку.
+        if (
+            draft_purchase_order
+            and len(auto_allocations) > 1
+            and covered_supply_qty
+            > int(draft_purchase_order.get("proposed_order_qty") or 0)
+        ):
+            draft_purchase_order["allocations"] = auto_allocations
+            draft_purchase_order["proposed_order_qty"] = covered_supply_qty
+            draft_purchase_order["remaining_gap_qty"] = max(
+                recommended_order_qty - covered_supply_qty, 0
+            )
+
         if candidate_row.get("missing_in_latest_pricelist"):
             diagnostics["rows_missing_in_latest_pricelist_count"] += 1
         if draft_purchase_order:
@@ -3811,6 +4087,7 @@ async def create_autopurchase_run(
     limit: int = 1000,
     budget_limit: Optional[float] = None,
     position_limit: Optional[int] = None,
+    trigger_source: str = "manual",
 ) -> dict[str, Any]:
     """Create a queued run record and return immediately.
     The scheduler container picks it up and executes the heavy calculation.
@@ -3849,7 +4126,7 @@ async def create_autopurchase_run(
             finished_at=None,
             status=AUTOPURCHASE_RUN_STATUS_QUEUED,
             mode=requested_mode,
-            trigger_source="manual",
+            trigger_source=str(trigger_source or "manual"),
             used_local_prices_only=False,
             settings_snapshot=_build_run_settings(
                 own_provider_config_id=own_provider_config_id,
@@ -3871,6 +4148,38 @@ async def create_autopurchase_run(
     return _serialize_autopurchase_run(run_record)
 
 
+async def _send_autopurchase_run_telegram_summary(
+    *,
+    run_id: int,
+    preview: dict[str, Any],
+) -> None:
+    from dz_fastapi.services.telegram import send_message_to_telegram
+
+    approved_sum = 0.0
+    approved_qty = 0
+    for row in preview.get("rows", []):
+        if row.get("decision_status") != AUTOPURCHASE_STATUS_AUTO_APPROVED:
+            continue
+        draft = row.get("draft_purchase_order") or {}
+        qty = int(draft.get("proposed_order_qty") or 0)
+        price = float(draft.get("price") or 0)
+        approved_qty += qty
+        approved_sum += qty * price
+
+    lines = [
+        f"🤖 Автозаказ: ночной расчёт #{run_id} готов.",
+        f"Позиции с потребностью: {int(preview.get('total_items') or 0)}",
+        (
+            f"Готово к заказу: {int(preview.get('auto_approved_count') or 0)} поз. "
+            f"на {approved_qty} шт ≈ {_format_money_value(approved_sum)} руб."
+        ),
+        f"На ручную проверку: {int(preview.get('needs_review_count') or 0)} поз.",
+        f"Заблокировано: {int(preview.get('blocked_count') or 0)} поз.",
+        "Открой раздел «Автозаказ», проверь и отправь черновики.",
+    ]
+    await send_message_to_telegram("\n".join(lines))
+
+
 async def execute_next_autopurchase_run(
     session: AsyncSession,
 ) -> Optional[int]:
@@ -3882,6 +4191,7 @@ async def execute_next_autopurchase_run(
     own_provider_config_id: Optional[int] = None
     mode = AUTOPURCHASE_MODE_DRAFT_ONLY
     limit = AUTOPURCHASE_MAX_LIMIT
+    run_trigger_source = "manual"
 
     async with session.begin():
         lock_acquired = await _try_acquire_autopurchase_run_lock(session)
@@ -3908,6 +4218,7 @@ async def execute_next_autopurchase_run(
             return None
 
         run_id = int(run.id)
+        run_trigger_source = str(run.trigger_source or "manual")
         run.status = AUTOPURCHASE_RUN_STATUS_RUNNING
         summary_snapshot = dict(run.summary_snapshot or {})
         summary_snapshot["message"] = _build_run_summary_message(
@@ -3944,6 +4255,21 @@ async def execute_next_autopurchase_run(
             )
 
         logger.info("Autopurchase run %s completed successfully", run_id)
+
+        # Утренняя сводка по ночному (scheduled) расчёту в Telegram.
+        if run_trigger_source == "scheduled":
+            try:
+                await _send_autopurchase_run_telegram_summary(
+                    run_id=run_id,
+                    preview=preview,
+                )
+            except Exception as notify_exc:
+                logger.warning(
+                    "Не удалось отправить Telegram-сводку автозаказа "
+                    "run_id=%s: %s",
+                    run_id,
+                    notify_exc,
+                )
         return run_id
 
     except Exception as exc:
@@ -4313,17 +4639,24 @@ async def update_autopurchase_run_item_allocations(
             raise ValueError("Количество в распределении должно быть больше 0")
         offer = dict(offers[offer_index] or {})
         supplier_available = int(offer.get("current_qty") or 0)
-        if quantity > supplier_available:
+        # min_qnt — кратность (размер партии): заказ только целыми
+        # партиями, запрошенное количество округляем ВВЕРХ.
+        lot = max(int(offer.get("current_min_qnt") or 1), 1)
+        orderable_cap = _round_down_to_lot(supplier_available, lot)
+        if orderable_cap <= 0:
+            raise ValueError(
+                f"У предложения #{offer_index + 1} нет даже одной целой "
+                f"партии ({lot} шт), доступно {supplier_available} шт"
+            )
+        if quantity > orderable_cap:
             raise ValueError(
                 f"У предложения #{offer_index + 1} доступно только "
-                f"{supplier_available} шт"
+                f"{orderable_cap} шт целыми партиями по {lot} шт"
             )
-        min_qnt = max(int(offer.get("current_min_qnt") or 1), 1)
-        if quantity < min_qnt:
-            raise ValueError(
-                f"Минимальная партия предложения #{offer_index + 1} — "
-                f"{min_qnt} шт"
-            )
+        quantity = min(
+            _round_up_to_multiplicity(quantity, lot),
+            orderable_cap,
+        )
         normalized_allocations.append(
             _build_allocation_from_offer(offer, quantity)
         )
@@ -4548,6 +4881,36 @@ def _get_draft_item_priority(
     )
 
 
+def _get_draft_item_profit_score(item: AutoPurchaseRunItem) -> float:
+    """Прибыльность позиции: маржинальность × скорость продаж.
+
+    Используется при ограниченном бюджете: лимит в первую очередь
+    тратим на то, что быстрее и прибыльнее всего вернёт деньги.
+    """
+    draft = dict(item.draft_purchase_order or {})
+    purchase_price = float(draft.get("price") or 0)
+    sale_price = float(item.latest_price or 0)
+    if purchase_price <= 0 or sale_price <= 0:
+        return 0.0
+    margin_ratio = max((sale_price - purchase_price) / purchase_price, 0.0)
+    daily_sales = max(int(item.sold_last_30_days or 0), 0) / 30.0
+    return margin_ratio * daily_sales
+
+
+def _get_draft_item_budget_priority(
+    item: AutoPurchaseRunItem,
+) -> tuple[int, float, tuple]:
+    draft = dict(item.draft_purchase_order or {})
+    open_customer_backlog_qty = int(
+        draft.get("open_customer_backlog_qty") or 0
+    )
+    return (
+        0 if open_customer_backlog_qty > 0 else 1,
+        -_get_draft_item_profit_score(item),
+        _get_draft_item_priority(item),
+    )
+
+
 async def get_autopurchase_run_draft_orders(
     session: AsyncSession,
     *,
@@ -4574,9 +4937,14 @@ async def get_autopurchase_run_draft_orders(
         )
     )
     items = list((await session.execute(items_stmt)).scalars().all())
-    items.sort(key=_get_draft_item_priority)
 
     budget_limit, position_limit = _get_draft_limits_from_run(run)
+    if budget_limit is not None or position_limit is not None:
+        # Лимит режет хвост списка — сортируем по отдаче на вложенный
+        # рубль (backlog всегда первым), а не только по дням запаса.
+        items.sort(key=_get_draft_item_budget_priority)
+    else:
+        items.sort(key=_get_draft_item_priority)
     selected_total_sum = Decimal("0")
     selected_total_items = 0
 
@@ -4744,21 +5112,25 @@ async def get_autopurchase_run_draft_orders(
                         )
                         continue
                     # Пробуем заказать частичное количество по остатку
-                    # бюджета. Округляем ВВЕРХ до кратности и минимальной
-                    # партии сайта: небольшой выход за бюджет допустим,
-                    # важнее не отбросить нужную позицию. Строку пропускаем
+                    # бюджета. Заказ возможен только целыми партиями
+                    # поставщика (min_qnt = кратность), поэтому подрезаем
+                    # до целого числа партий, но не меньше одной партии —
+                    # небольшой выход за бюджет допустим. Строку пропускаем
                     # только если остатка не хватает даже на одну штуку.
                     multiplicity = max(int(item.multiplicity or 1), 1)
-                    draft_min_qnt = max(int(spec.get("min_qnt") or 1), 1)
+                    supplier_lot = max(int(spec.get("min_qnt") or 1), 1)
+                    lot_step = max(supplier_lot, multiplicity)
                     max_qty_by_budget = int(
                         remaining_budget // float(unit_price)
                     )
                     if max_qty_by_budget >= 1:
-                        budget_qty = _round_up_to_multiplicity(
+                        budget_qty = _round_down_to_lot(
                             max_qty_by_budget,
-                            multiplicity,
+                            lot_step,
                         )
-                        budget_qty = max(budget_qty, draft_min_qnt)
+                        # Меньше одной партии заказать нельзя — берём её,
+                        # даже если чуть выходим за бюджет.
+                        budget_qty = max(budget_qty, lot_step)
                         proposed_order_qty = min(
                             budget_qty, proposed_order_qty
                         )

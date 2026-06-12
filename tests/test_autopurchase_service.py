@@ -1,14 +1,20 @@
-from datetime import date
+from datetime import date, timedelta
 
+from dz_fastapi.core.time import now_moscow
 from dz_fastapi.services.autopurchase import (
     _apply_recovery_mode,
     _blend_average_daily_horizons,
     _brand_matches_allowed,
     _build_autopurchase_draft,
+    _calculate_in_stock_days,
+    _compute_availability_adjusted_daily,
     _estimate_consecutive_stockout_days,
     _get_cross_brand_priority,
+    _get_target_cover_days,
     _is_dragonzap_brand,
     _normalize_brand_key,
+    _plan_auto_allocations,
+    _round_down_to_lot,
     _select_autopurchase_supplier,
     _select_best_site_supplier_by_lead_time,
     _select_best_site_supplier_by_price,
@@ -259,6 +265,154 @@ def test_get_cross_brand_priority_prefers_dragonzap_donor_brands():
     assert _get_cross_brand_priority("BOSCH") == _get_cross_brand_priority(
         "TOYOTA"
     )
+
+
+def test_build_autopurchase_draft_rounds_up_to_supplier_lot():
+    # Пример из бизнес-правила: нужно 57, партия поставщика 20 → заказ 60.
+    draft = _build_autopurchase_draft(
+        supplier={
+            "provider_name": "Supplier",
+            "current_price": 100.0,
+            "current_qty": 200,
+            "current_min_qnt": 20,
+        },
+        available_qty=0,
+        in_transit_qty=0,
+        target_qty=57,
+        recommended_qty=57,
+        lead_time_days_used=7.0,
+        reason=None,
+    )
+
+    assert draft is not None
+    assert draft["proposed_order_qty"] == 60
+    assert draft["remaining_gap_qty"] == 0
+
+
+def test_build_autopurchase_draft_caps_lot_by_supplier_stock():
+    # Нужно 57 (3 партии = 60), но у поставщика только 50 → 2 партии = 40.
+    draft = _build_autopurchase_draft(
+        supplier={
+            "provider_name": "Supplier",
+            "current_price": 100.0,
+            "current_qty": 50,
+            "current_min_qnt": 20,
+        },
+        available_qty=0,
+        in_transit_qty=0,
+        target_qty=57,
+        recommended_qty=57,
+        lead_time_days_used=7.0,
+        reason=None,
+    )
+
+    assert draft is not None
+    assert draft["proposed_order_qty"] == 40
+    assert draft["remaining_gap_qty"] == 17
+
+
+def test_round_down_to_lot():
+    assert _round_down_to_lot(50, 20) == 40
+    assert _round_down_to_lot(19, 20) == 0
+    assert _round_down_to_lot(57, 1) == 57
+
+
+def test_plan_auto_allocations_splits_across_suppliers_with_lots():
+    offers = [
+        {
+            "provider_name": "Cheap",
+            "current_price": 100.0,
+            "current_qty": 25,
+            "current_min_qnt": 10,
+            "is_own_price": False,
+        },
+        {
+            "provider_name": "Second",
+            "current_price": 120.0,
+            "current_qty": 100,
+            "current_min_qnt": 20,
+            "is_own_price": False,
+        },
+    ]
+
+    allocations, covered = _plan_auto_allocations(offers, needed_qty=57)
+
+    # Cheap: 2 целых партии по 10 = 20 шт; остаток 37 → Second: 2 партии
+    # по 20 = 40 шт (округление вверх).
+    assert [a["quantity"] for a in allocations] == [20, 40]
+    assert covered == 60
+
+
+def test_plan_auto_allocations_respects_price_cap():
+    offers = [
+        {
+            "provider_name": "TooExpensive",
+            "current_price": 200.0,
+            "current_qty": 100,
+            "current_min_qnt": 1,
+            "is_own_price": False,
+        },
+        {
+            "provider_name": "Ok",
+            "current_price": 90.0,
+            "current_qty": 100,
+            "current_min_qnt": 1,
+            "is_own_price": False,
+        },
+    ]
+
+    allocations, covered = _plan_auto_allocations(
+        offers,
+        needed_qty=10,
+        max_allowed_price=100.0,
+    )
+
+    assert len(allocations) == 1
+    assert allocations[0]["provider_name"] == "Ok"
+    assert covered == 10
+
+
+def test_compute_availability_adjusted_daily_uses_in_stock_days():
+    # 10 продаж за 30 дней, но товар был в наличии только 10 дней →
+    # реальный спрос 1 шт/день, а не 0.33.
+    assert _compute_availability_adjusted_daily(10, 30, 10) == 1.0
+    # Полное наличие — обычная средняя.
+    assert _compute_availability_adjusted_daily(30, 30, 30) == 1.0
+    # Нижняя граница знаменателя (7 дней) защищает от взрывных оценок.
+    assert _compute_availability_adjusted_daily(14, 30, 1) == 2.0
+    assert _compute_availability_adjusted_daily(0, 30, 10) is None
+
+
+def test_calculate_in_stock_days_counts_only_positive_spans():
+    today = now_moscow().date()
+    snapshots = [
+        {
+            "pricelist_date": today - timedelta(days=20),
+            "qty_by_oem": {"OEM1": 5},
+        },
+        {
+            "pricelist_date": today - timedelta(days=10),
+            "qty_by_oem": {"OEM1": 0},
+        },
+        {
+            "pricelist_date": today - timedelta(days=5),
+            "qty_by_oem": {"OEM1": 3},
+        },
+    ]
+
+    in_stock = _calculate_in_stock_days(snapshots, ["OEM1"], days=30)
+
+    # 10 дней (20→10) товар был, 5 дней (10→5) не было,
+    # 5 дней хвоста (5→сегодня) был.
+    assert in_stock["OEM1"] == 15
+
+
+def test_get_target_cover_days_differentiated_by_abc():
+    assert _get_target_cover_days("A") == 45
+    assert _get_target_cover_days("B") == 30
+    assert _get_target_cover_days("C") == 21
+    # Без класса — полные 1,5 месяца.
+    assert _get_target_cover_days(None) == 45
 
 
 def test_build_autopurchase_draft_keeps_backlog_qty():

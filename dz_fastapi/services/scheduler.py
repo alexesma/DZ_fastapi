@@ -57,7 +57,7 @@ from dz_fastapi.schemas.partner import (
     ProviderCreate,
     ProviderPriceListConfigCreate,
 )
-from dz_fastapi.services.autopurchase import execute_next_autopurchase_run
+from dz_fastapi.services.autopurchase import create_autopurchase_run, execute_next_autopurchase_run
 from dz_fastapi.services.crosses import sync_automatic_oem_crosses
 from dz_fastapi.services.customer_orders import (
     cleanup_order_error_files,
@@ -277,6 +277,43 @@ async def process_autopurchase_runs_task(app: FastAPI):
         logger.info("Processed autopurchase run id=%s", run_id)
 
 
+AUTOPURCHASE_NIGHT_RUN_ENABLED = (
+    str(os.getenv("AUTOPURCHASE_NIGHT_RUN_ENABLED", "1")).strip().lower()
+    in {"1", "true", "yes", "on"}
+)
+
+
+async def auto_create_autopurchase_run_task(app: FastAPI):
+    """Ночной автозапуск расчёта автозаказа (draft_only).
+
+    Создаёт запуск после ночной загрузки прайсов; очередь исполняет его,
+    а по завершении менеджер получает утреннюю сводку в Telegram.
+    """
+    if not AUTOPURCHASE_NIGHT_RUN_ENABLED:
+        return
+    async with new_session_from_app(app) as session:
+        try:
+            run_data = await create_autopurchase_run(
+                session=session,
+                initiated_by_user_id=None,
+                mode="draft_only",
+                limit=1000,
+                trigger_source="scheduled",
+            )
+            logger.info(
+                "Night autopurchase run created: id=%s",
+                run_data.get("id"),
+            )
+        except ValueError as exc:
+            logger.info("Night autopurchase run skipped: %s", exc)
+        except Exception as exc:
+            logger.error(
+                "Night autopurchase run failed to start: %s",
+                exc,
+                exc_info=True,
+            )
+
+
 def start_scheduler(app: FastAPI):
     scheduler = AsyncIOScheduler()
     scheduler.configure(
@@ -304,6 +341,22 @@ def start_scheduler(app: FastAPI):
         max_instances=1,
         coalesce=True,
         next_run_time=now_moscow(),
+    )
+
+    # Ночной автозапуск расчёта автозаказа: 05:30 МСК, после ночной
+    # загрузки прайсов (01–07). Очередь исполнит, Telegram пришлёт сводку.
+    scheduler.add_job(
+        func=auto_create_autopurchase_run_task,
+        trigger="cron",
+        args=[app],
+        id="auto_create_autopurchase_run",
+        name="Create night autopurchase run",
+        hour=5,
+        minute=30,
+        second=0,
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
     )
 
     # ── РАСПИСАНИЕ ПО ВРЕМЕННЫМ ОКНАМ (московское время) ────────────────────
