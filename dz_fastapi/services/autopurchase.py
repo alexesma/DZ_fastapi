@@ -192,6 +192,23 @@ AUTOPURCHASE_TARGET_COVER_DAYS_C = max(
     1,
     int(os.getenv("AUTOPURCHASE_TARGET_COVER_DAYS_C", "21")),
 )
+# Максимум, во сколько раз корректировка «спрос на день наличия» может
+# поднять календарную среднюю продаж.
+AUTOPURCHASE_AVAILABILITY_BOOST_CAP = max(
+    1.0,
+    float(os.getenv("AUTOPURCHASE_AVAILABILITY_BOOST_CAP", "3")),
+)
+# Сколько дней наблюдений наличия нужно, чтобы полностью доверять
+# поправке «спрос на день наличия» (меньше дней — ближе к календарной).
+AUTOPURCHASE_AVAILABILITY_CONFIDENCE_DAYS = max(
+    1,
+    int(os.getenv("AUTOPURCHASE_AVAILABILITY_CONFIDENCE_DAYS", "14")),
+)
+# Ценовые сигналы: «нет продаж при наличии» и «всплеск спроса на минимуме».
+AUTOPURCHASE_NO_SALES_MIN_STOCK_DAYS = 14
+AUTOPURCHASE_PRICE_HIGH_FACTOR = 1.2
+AUTOPURCHASE_DEMAND_SPIKE_FACTOR = 3.0
+AUTOPURCHASE_DEMAND_SPIKE_MIN_QTY = 10
 # Кэш предложений сайта между запусками (сек); 0 — выключить.
 AUTOPURCHASE_SITE_CACHE_TTL_SEC = max(
     0,
@@ -265,14 +282,34 @@ def _compute_availability_adjusted_daily(
 
     Если товар был в наличии 10 дней из 30 и продано 10 шт, реальный
     спрос ~1 шт/день, а не 0.33 — иначе система сама занижает заказ
-    после каждого stockout. Нижняя граница знаменателя (7 дней)
-    защищает от взрывных оценок по 1–2 дням наличия.
+    после каждого stockout. Три защиты от взрывных оценок:
+    - нижняя граница знаменателя (7 дней);
+    - доверие к поправке пропорционально числу дней наблюдений:
+      3 дня наличия — почти не доверяем (остаёмся у календарной
+      средней), AUTOPURCHASE_AVAILABILITY_CONFIDENCE_DAYS и больше —
+      доверяем полностью;
+    - итог не может превышать календарную среднюю больше чем в
+      AUTOPURCHASE_AVAILABILITY_BOOST_CAP раз.
     """
     if sold_qty <= 0 or window_days <= 0:
         return None
     floor_days = min(window_days, 7)
     effective_days = max(min(int(in_stock_days), window_days), floor_days)
-    return _quantize_float(sold_qty / effective_days)
+    adjusted_daily = sold_qty / effective_days
+    calendar_daily = sold_qty / window_days
+    confidence = min(
+        max(int(in_stock_days), 0)
+        / AUTOPURCHASE_AVAILABILITY_CONFIDENCE_DAYS,
+        1.0,
+    )
+    blended_daily = (
+        calendar_daily + (adjusted_daily - calendar_daily) * confidence
+    )
+    capped_daily = min(
+        blended_daily,
+        calendar_daily * AUTOPURCHASE_AVAILABILITY_BOOST_CAP,
+    )
+    return _quantize_float(capped_daily)
 
 
 def _get_target_cover_days(abc_class: Optional[str]) -> int:
@@ -3047,17 +3084,32 @@ async def get_autopurchase_preview(
             "current_quantity": 0,
         }
         oem_history = history_by_oem.get(oem_number, [])
-        requested_last_30_days = int(
-            customer_requested_by_window[30].get(oem_number, 0)
+        # Открытый backlog НЕ должен попадать в спрос: незакрытые заявки
+        # учитываются отдельно (вычитаются из свободного остатка), иначе
+        # потребность задваивается — один раз через раздутый спрос/цель
+        # и второй раз через вычет backlog из наличия.
+        _open_backlog_for_demand = int(
+            open_customer_backlog_by_oem.get(oem_number, 0)
         )
-        requested_last_90_days = int(
-            customer_requested_by_window[90].get(oem_number, 0)
+        requested_last_30_days = max(
+            int(customer_requested_by_window[30].get(oem_number, 0))
+            - _open_backlog_for_demand,
+            0,
         )
-        requested_last_180_days = int(
-            customer_requested_by_window[180].get(oem_number, 0)
+        requested_last_90_days = max(
+            int(customer_requested_by_window[90].get(oem_number, 0))
+            - _open_backlog_for_demand,
+            0,
         )
-        requested_last_365_days = int(
-            customer_requested_by_window[365].get(oem_number, 0)
+        requested_last_180_days = max(
+            int(customer_requested_by_window[180].get(oem_number, 0))
+            - _open_backlog_for_demand,
+            0,
+        )
+        requested_last_365_days = max(
+            int(customer_requested_by_window[365].get(oem_number, 0))
+            - _open_backlog_for_demand,
+            0,
         )
         snapshot_last_30_days = int(
             snapshot_demand_by_window[30].get(oem_number, 0)
@@ -3351,6 +3403,11 @@ async def get_autopurchase_preview(
                 "open_customer_backlog_qty": open_customer_backlog_qty,
                 "sold_last_30_days": sold_last_30_days,
                 "sold_last_90_days": sold_last_90_days,
+                "sold_last_180_days": sold_last_180_days,
+                "sold_last_365_days": sold_last_365_days,
+                "in_stock_days_90": int(
+                    in_stock_days_by_window[90].get(oem_number, 0)
+                ),
                 "avg_daily_30": avg_daily_30,
                 "avg_daily_90": avg_daily_90,
                 "avg_daily_blended": avg_daily_blended,
@@ -3378,6 +3435,7 @@ async def get_autopurchase_preview(
         str, tuple[list[dict[str, Any]], list[str], bool, int, int]
     ] = {}
     last_receipt_by_autopart: dict[int, dict[str, Any]] = {}
+    candidate_period_metrics: dict[str, dict[str, Any]] = {}
     if candidate_rows:
         # Цена последнего поступления — ориентир закупочной цены
         # из загруженных документов прихода.
@@ -3388,6 +3446,17 @@ async def get_autopurchase_preview(
                 for candidate_row in candidate_rows
                 if candidate_row.get("autopart_id") is not None
             ],
+        )
+        # Исторические цены продаж и число заказов по окнам —
+        # для ценовых сигналов и блока «Заказы и цены».
+        candidate_period_metrics = (
+            await _load_customer_order_period_metrics_by_oem(
+                session,
+                [
+                    str(candidate_row["oem_number"])
+                    for candidate_row in candidate_rows
+                ],
+            )
         )
         site_fetch_semaphore = asyncio.Semaphore(AUTOPURCHASE_SITE_FETCH_CONCURRENCY)
 
@@ -3810,6 +3879,91 @@ async def get_autopurchase_preview(
                 )
             )
 
+        # ── Ценовые сигналы ──────────────────────────────────────────
+        # Отсутствие продаж или их всплеск может объясняться нашей ценой,
+        # а не реальным спросом — предупреждаем менеджера.
+        period_metrics = candidate_period_metrics.get(oem_number, {})
+        min_sale_price_365 = period_metrics.get("min_sale_price_365_days")
+        sold_30 = int(candidate_row.get("sold_last_30_days") or 0)
+        sold_90 = int(candidate_row.get("sold_last_90_days") or 0)
+        sold_365 = int(candidate_row.get("sold_last_365_days") or 0)
+        in_stock_days_90 = int(candidate_row.get("in_stock_days_90") or 0)
+
+        if (
+            sold_90 <= 0
+            and sold_365 > 0
+            and in_stock_days_90 >= AUTOPURCHASE_NO_SALES_MIN_STOCK_DAYS
+            and own_sale_price is not None
+            and min_sale_price_365 is not None
+            and float(own_sale_price)
+            > float(min_sale_price_365) * AUTOPURCHASE_PRICE_HIGH_FACTOR
+        ):
+            price_over_pct = (
+                (float(own_sale_price) - float(min_sale_price_365))
+                / float(min_sale_price_365)
+                * 100
+            )
+            reasons.append(
+                _build_reason(
+                    code="no_sales_price_suspect",
+                    severity="warning",
+                    title="Нет продаж при наличии — возможно, мешает цена",
+                    description=(
+                        f"Товар был в наличии {in_stock_days_90} дн за "
+                        "последние 90 дней, но продаж нет, хотя раньше "
+                        f"продавался ({sold_365} шт за год). Текущая цена "
+                        f"{_format_money_value(float(own_sale_price))} руб. "
+                        "выше исторической цены продаж "
+                        f"{_format_money_value(float(min_sale_price_365))} руб. "
+                        f"на {price_over_pct:.0f}% — проверьте цену перед "
+                        "дозаказом."
+                    ),
+                )
+            )
+
+        demand_spike_price_suspect = False
+        if (
+            sold_30 >= AUTOPURCHASE_DEMAND_SPIKE_MIN_QTY
+            and sold_365 > 0
+            and (sold_30 / 30.0)
+            >= AUTOPURCHASE_DEMAND_SPIKE_FACTOR * (sold_365 / 365.0)
+        ):
+            spike_factor = (sold_30 / 30.0) / (sold_365 / 365.0)
+            price_at_low = bool(
+                own_sale_price is not None
+                and min_sale_price_365 is not None
+                and float(own_sale_price) <= float(min_sale_price_365)
+            )
+            demand_spike_price_suspect = price_at_low
+            reasons.append(
+                _build_reason(
+                    code=(
+                        "demand_spike_price_low"
+                        if price_at_low
+                        else "demand_spike"
+                    ),
+                    severity="warning" if price_at_low else "info",
+                    title=(
+                        "Всплеск спроса при цене на минимуме"
+                        if price_at_low
+                        else "Всплеск спроса"
+                    ),
+                    description=(
+                        f"Продажи за 30 дней ({sold_30} шт) в "
+                        f"{spike_factor:.1f} раза выше среднегодового темпа."
+                        + (
+                            " Текущая цена на историческом минимуме — "
+                            "проверьте, не занижена ли цена (возможна "
+                            "ошибка), прежде чем заказывать под такой "
+                            "спрос."
+                            if price_at_low
+                            else " Если это сезон или акция — учтите при "
+                            "подтверждении объёма."
+                        )
+                    ),
+                )
+            )
+
         decision_value = AUTOPURCHASE_STATUS_NEEDS_REVIEW
         if requested_mode == AUTOPURCHASE_MODE_DISABLED:
             decision_value = AUTOPURCHASE_STATUS_BLOCKED
@@ -3831,6 +3985,10 @@ async def get_autopurchase_preview(
             decision_value = AUTOPURCHASE_STATUS_NEEDS_REVIEW
         elif purchase_margin_below_target:
             # Маржа ниже целевой — автоутверждение запрещено.
+            decision_value = AUTOPURCHASE_STATUS_NEEDS_REVIEW
+        elif demand_spike_price_suspect:
+            # Всплеск спроса при цене на минимуме — возможно, цена занижена
+            # ошибочно; заказ под такой спрос только после ручной проверки.
             decision_value = AUTOPURCHASE_STATUS_NEEDS_REVIEW
         elif (
             requested_mode == AUTOPURCHASE_MODE_AUTO_APPROVE_SAFE
@@ -3927,6 +4085,16 @@ async def get_autopurchase_preview(
                 ),
                 "sold_last_30_days": int(candidate_row.get("sold_last_30_days") or 0),
                 "sold_last_90_days": int(candidate_row.get("sold_last_90_days") or 0),
+                "sold_last_180_days": int(
+                    candidate_row.get("sold_last_180_days") or 0
+                ),
+                "sold_last_365_days": int(
+                    candidate_row.get("sold_last_365_days") or 0
+                ),
+                **{
+                    metric_key: metric_value
+                    for metric_key, metric_value in period_metrics.items()
+                },
                 "avg_daily_30": candidate_row.get("avg_daily_30"),
                 "avg_daily_90": candidate_row.get("avg_daily_90"),
                 "avg_daily_blended": candidate_row.get("avg_daily_blended"),

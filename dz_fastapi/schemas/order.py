@@ -470,6 +470,8 @@ class AutoPurchasePreviewRow(BaseModel):
     recovery_mode_applied: bool = False
     sold_last_30_days: int = 0
     sold_last_90_days: int = 0
+    sold_last_180_days: int = 0
+    sold_last_365_days: int = 0
     order_count_30_days: int = 0
     order_count_90_days: int = 0
     order_count_180_days: int = 0

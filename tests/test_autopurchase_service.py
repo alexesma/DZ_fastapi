@@ -373,13 +373,17 @@ def test_plan_auto_allocations_respects_price_cap():
 
 
 def test_compute_availability_adjusted_daily_uses_in_stock_days():
-    # 10 продаж за 30 дней, но товар был в наличии только 10 дней →
-    # реальный спрос 1 шт/день, а не 0.33.
-    assert _compute_availability_adjusted_daily(10, 30, 10) == 1.0
-    # Полное наличие — обычная средняя.
+    # 10 продаж за 30 дней, наличие 10 дней: поправка даёт 1.0 шт/день,
+    # доверие 10/14 → 0.33 + (1.0 − 0.33) × 0.714 ≈ 0.81.
+    assert _compute_availability_adjusted_daily(10, 30, 10) == 0.81
+    # Полное наличие — обычная календарная средняя.
     assert _compute_availability_adjusted_daily(30, 30, 30) == 1.0
-    # Нижняя граница знаменателя (7 дней) защищает от взрывных оценок.
-    assert _compute_availability_adjusted_daily(14, 30, 1) == 2.0
+    # Один день наличия: доверие 1/14 → почти календарная средняя
+    # (0.47 + (2.0 − 0.47) × 0.071 ≈ 0.58), потолок ×3 не достигнут.
+    assert _compute_availability_adjusted_daily(14, 30, 1) == 0.58
+    # Потолок ×3: 14 дней наличия из 90 — полное доверие поправке
+    # (98/14 = 7.0), но не больше календарной ×3 (98/90 × 3 ≈ 3.27).
+    assert _compute_availability_adjusted_daily(98, 90, 14) == 3.27
     assert _compute_availability_adjusted_daily(0, 30, 10) is None
 
 
