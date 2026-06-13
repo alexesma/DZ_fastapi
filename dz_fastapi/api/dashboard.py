@@ -3,7 +3,7 @@ from datetime import timedelta
 from statistics import median
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -18,12 +18,34 @@ from dz_fastapi.models.partner import (
     ProviderPriceListConfig,
 )
 from dz_fastapi.schemas.dashboard import (
+    InventoryDashboardResponse,
     SupplierPriceTrendPoint,
     SupplierPriceTrendResponse,
     SupplierPriceTrendSeries,
 )
+from dz_fastapi.services.inventory_dashboard import get_inventory_control_dashboard
 
 router = APIRouter()
+
+
+@router.get(
+    "/dashboard/inventory-control",
+    tags=["dashboard"],
+    status_code=status.HTTP_200_OK,
+    response_model=InventoryDashboardResponse,
+    dependencies=[Depends(require_admin)],
+)
+async def get_inventory_control(
+    own_provider_config_id: Optional[int] = Query(default=None),
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        return await get_inventory_control_dashboard(
+            session=session,
+            own_provider_config_id=own_provider_config_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 def _to_float(value: object) -> Optional[float]:
