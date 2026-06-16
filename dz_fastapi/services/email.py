@@ -6,6 +6,7 @@ import os
 import re
 import smtplib
 import socket
+import time
 import unicodedata
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
@@ -301,7 +302,15 @@ def _message_matches_provider_header_filters(
     expected_sender = _extract_email(
         getattr(provider, "email_incoming_price", None)
     ).lower()
-    if expected_sender and sender != expected_sender:
+    # Лояльное сравнение «содержит» (как серверный SEARCH from_), а не
+    # строгое ==: иначе fallback отбрасывает письма, которые серверный
+    # поиск нашёл бы (другой адрес рассылки/поддомен у того же отправителя).
+    if (
+        expected_sender
+        and sender
+        and expected_sender not in sender
+        and sender not in expected_sender
+    ):
         return False
 
     subject = str(getattr(msg, "subject", "") or "")
@@ -847,11 +856,15 @@ def _imap_fetch_provider_attachment(
     filename_pattern: str | None,
     max_emails: int,
     last_uids: dict,
+    ignore_last_uid: bool = False,
 ) -> tuple | None:
     """Blocking IMAP fetch — must be called via asyncio.to_thread.
 
     Returns ``(filepath, uid_to_set, folder_name)`` on success or ``None``
     if no matching attachment was found.
+
+    ``ignore_last_uid=True`` (ручное «принудительно скачать») берёт свежее
+    подходящее письмо из окна дат даже если оно уже скачивалось.
     """
     criteria_kwargs: dict = {"date_gte": since_date}
     if email_incoming_price:
@@ -893,51 +906,81 @@ def _imap_fetch_provider_attachment(
                 folder,
                 provider_conf_id,
             )
-            debug_emails = list(
-                mailbox.fetch(
-                    AND(date_gte=date.today(), all=True),
-                    headers_only=True,
-                    limit=20,
-                    mark_seen=False,
-                    reverse=True,
-                )
-            )
-            logger.debug(
-                "[thread] Fetched %s recent headers for "
-                "provider_conf_id=%s folder=%s",
-                len(debug_emails),
-                provider_conf_id,
-                folder,
-            )
-            for msg in debug_emails:
-                logger.debug(
-                    "Uid: %s, from: %s, date: %s, subject: %s",
-                    msg.uid,
-                    msg.from_,
-                    msg.date,
-                    msg.subject,
-                )
-
-            last_uid = last_uids.get(folder, 0)
-            logger.debug(
-                "[thread] Last UID for folder %s: %s", folder, last_uid
-            )
-
+            # Отладочный fetch — защищён: при полном отказе SEARCH у
+            # провайдера он не должен ронять весь запрос (иначе 500).
             try:
-                email_list = list(
-                    mailbox.fetch(criteria, mark_seen=False, **fetch_kwargs)
+                debug_emails = list(
+                    mailbox.fetch(
+                        AND(date_gte=date.today(), all=True),
+                        headers_only=True,
+                        limit=20,
+                        mark_seen=False,
+                        reverse=True,
+                    )
                 )
-            except Exception as exc:
-                if not _is_mailbox_uid_search_error(exc):
-                    raise
+                logger.debug(
+                    "[thread] Fetched %s recent headers for "
+                    "provider_conf_id=%s folder=%s",
+                    len(debug_emails),
+                    provider_conf_id,
+                    folder,
+                )
+                for msg in debug_emails:
+                    logger.debug(
+                        "Uid: %s, from: %s, date: %s, subject: %s",
+                        msg.uid,
+                        msg.from_,
+                        msg.date,
+                        msg.subject,
+                    )
+            except Exception as debug_exc:  # pragma: no cover - defensive
+                logger.debug(
+                    "[thread] Debug header fetch failed "
+                    "provider_conf_id=%s folder=%s: %s",
+                    provider_conf_id,
+                    folder,
+                    debug_exc,
+                )
+
+            # В режиме «принудительно» порог UID обнуляем — берём свежее
+            # подходящее письмо, даже если его уже скачивали.
+            last_uid = 0 if ignore_last_uid else last_uids.get(folder, 0)
+            logger.debug(
+                "[thread] Last UID for folder %s: %s (ignore=%s)",
+                folder,
+                last_uid,
+                ignore_last_uid,
+            )
+
+            # Ретрай комбинированного SEARCH: [UNAVAILABLE] у Yandex/Mail.ru
+            # часто транзиентный и проходит со 2-3 попытки. Только потом
+            # уходим в локальный fallback по заголовкам.
+            email_list = None
+            search_error: Exception | None = None
+            for attempt in range(3):
+                try:
+                    email_list = list(
+                        mailbox.fetch(
+                            criteria, mark_seen=False, **fetch_kwargs
+                        )
+                    )
+                    search_error = None
+                    break
+                except Exception as exc:
+                    if not _is_mailbox_uid_search_error(exc):
+                        raise
+                    search_error = exc
+                    if attempt < 2:
+                        time.sleep(1.5 * (attempt + 1))
+            if email_list is None:
                 logger.warning(
-                    "[thread] IMAP UID SEARCH failed; "
+                    "[thread] IMAP UID SEARCH failed after retries; "
                     "using UID fallback for provider_id=%s "
                     "provider_conf_id=%s folder=%s: %s",
                     provider_id,
                     provider_conf_id,
                     folder,
-                    exc,
+                    search_error,
                 )
 
                 email_list = _fetch_candidate_emails_with_uid_fallback(
@@ -1060,6 +1103,7 @@ async def download_price_provider(
     server_mail: str = EMAIL_HOST,
     email_account: str = EMAIL_NAME,
     email_password: str = EMAIL_PASSWORD,
+    force: bool = False,
 ):
     """
     Загружает данные провайдера из почты.
@@ -1178,6 +1222,7 @@ async def download_price_provider(
             filename_pattern=filename_pattern,
             max_emails=max_emails,
             last_uids=last_uids,
+            ignore_last_uid=force,
         )
 
         if imap_result is None:
@@ -1185,13 +1230,18 @@ async def download_price_provider(
 
         filepath, uid_to_set, folder_name = imap_result
         if uid_to_set is not None:
-            await _set_last_uid_compat(
-                provider.id,
-                uid_to_set,
-                session,
-                provider_config_id=provider_conf.id,
-                folder=folder_name,
-            )
+            # В режиме «принудительно» курсор last_uid только продвигаем
+            # вперёд и никогда не опускаем — чтобы повторное ручное
+            # скачивание старого письма не сбило ночной регламент.
+            stored_last_uid = last_uids.get(folder_name, 0)
+            if not force or uid_to_set > stored_last_uid:
+                await _set_last_uid_compat(
+                    provider.id,
+                    uid_to_set,
+                    session,
+                    provider_config_id=provider_conf.id,
+                    folder=folder_name,
+                )
         return filepath
     except ValueError as e:
         logger.error(f"Ошибка обработки писем: {e}")

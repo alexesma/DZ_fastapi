@@ -2598,6 +2598,7 @@ async def download_provider_pricelist(
             provider=provider,
             provider_conf=provider_list_config,
             session=session,
+            force=True,
         )
         if not filepath:
             raise HTTPException(
