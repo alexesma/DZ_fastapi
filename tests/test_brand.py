@@ -55,6 +55,20 @@ async def test_create_brand_with_cyrillic_name(test_session):
 
 
 @pytest.mark.asyncio
+async def test_create_brand_duplicate_returns_conflict(test_session):
+    payload = TEST_BRAND
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        first_response = await ac.post("/brand/", json=payload)
+        second_response = await ac.post("/brand/", json=payload)
+
+    assert first_response.status_code == 201, first_response.text
+    assert second_response.status_code == 409, second_response.text
+    assert second_response.json()["detail"] == "Brand with name TEST-BRAND already exists"
+
+
+@pytest.mark.asyncio
 async def test_upload_logo(test_session, created_brand: Brand):
 
     with tempfile.TemporaryDirectory() as temp_upload_dir:

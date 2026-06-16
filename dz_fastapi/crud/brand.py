@@ -147,7 +147,12 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
             logger.debug(f"Изменённое имя бренда: {brand.name}")
             await duplicate_brand_name(brand_name=brand.name, session=session)
             logger.debug("Проверка дубликата имени бренда завершена")
-            new_brand = await super().create(brand, session, commit=True)
+            brand_data = brand.model_dump()
+            new_brand = Brand(**brand_data)
+            session.add(new_brand)
+            await session.flush()
+            await session.refresh(new_brand)
+            await session.commit()
             logger.debug(f"Бренд создан и добавлен в сессию: {new_brand}")
             stmt = (
                 select(Brand)
@@ -159,6 +164,9 @@ class CRUDBrand(CRUDBase[Brand, BrandCreate, BrandUpdate]):
             logger.debug(f"Создан новый бренд: {new_brand}")
             return new_brand
 
+        except HTTPException:
+            await session.rollback()
+            raise
         except IntegrityError as e:
             logger.error(f"Integrity error occurred: {e}")
             await session.rollback()

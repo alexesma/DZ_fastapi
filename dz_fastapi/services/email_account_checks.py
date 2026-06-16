@@ -22,6 +22,10 @@ def test_imap_connection(
     try:
         client.login(username, password)
         client.select(folder)
+        status, data = client.uid("SEARCH", "ALL")
+        if status != "OK":
+            detail = data[0].decode(errors="replace") if data else "empty response"
+            raise RuntimeError(f"IMAP UID SEARCH failed: {detail}")
     finally:
         try:
             client.logout()

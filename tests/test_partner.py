@@ -215,6 +215,28 @@ async def test_update_provider_success(
 
 
 @pytest.mark.asyncio
+async def test_update_provider_is_own_price_false_keeps_response_serializable(
+    test_session: AsyncSession,
+    async_client: AsyncClient,
+    created_providers: list[Provider],
+):
+    provider_to_update = created_providers[0]
+
+    response = await async_client.patch(
+        f"/providers/{provider_to_update.id}/",
+        json={"is_own_price": False},
+    )
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    updated_provider = ProviderResponse.model_validate(data)
+
+    assert updated_provider.id == provider_to_update.id
+    assert updated_provider.is_own_price is False
+    assert isinstance(updated_provider.price_lists, list)
+
+
+@pytest.mark.asyncio
 async def test_update_provider_type_price_sets_vat_flag(
     test_session: AsyncSession,
     async_client: AsyncClient,

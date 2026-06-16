@@ -616,7 +616,10 @@ async def update_provider(
             provider_id=provider_id,
         )
         await session.commit()
-        await session.refresh(updated_provider)
+        updated_provider = await crud_provider.get_by_id(
+            provider_id=provider_id,
+            session=session,
+        )
     return ProviderResponse.model_validate(updated_provider)
 
 

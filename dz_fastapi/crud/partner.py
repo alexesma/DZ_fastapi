@@ -579,7 +579,10 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         updated_provider = await self.update(
             db_obj=provider, obj_in=obj_in, session=session, commit=True
         )
-        return updated_provider
+        return await self.get_by_id(
+            provider_id=updated_provider.id,
+            session=session,
+        )
 
     async def get_by_email_incoming_price(
         self, session: AsyncSession, email: str
