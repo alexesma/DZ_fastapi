@@ -267,6 +267,12 @@ async def import_crosses(
     content = await file.read()
     if not content:
         raise HTTPException(status_code=400, detail="Файл пустой")
+    logger.info(
+        "Cross import requested: filename=%s size=%s dry_run=%s",
+        file.filename,
+        len(content),
+        dry_run,
+    )
     try:
         return await import_crosses_from_file(
             session,
