@@ -278,7 +278,7 @@ async def process_autopurchase_runs_task(app: FastAPI):
 
 
 AUTOPURCHASE_NIGHT_RUN_ENABLED = (
-    str(os.getenv("AUTOPURCHASE_NIGHT_RUN_ENABLED", "1")).strip().lower()
+    str(os.getenv("AUTOPURCHASE_NIGHT_RUN_ENABLED", "0")).strip().lower()
     in {"1", "true", "yes", "on"}
 )
 
@@ -286,8 +286,8 @@ AUTOPURCHASE_NIGHT_RUN_ENABLED = (
 async def auto_create_autopurchase_run_task(app: FastAPI):
     """Ночной автозапуск расчёта автозаказа (draft_only).
 
-    Создаёт запуск после ночной загрузки прайсов; очередь исполняет его,
-    а по завершении менеджер получает утреннюю сводку в Telegram.
+    Сейчас выключен по умолчанию: ручной запуск остаётся основным сценарием,
+    но режим можно вернуть через AUTOPURCHASE_NIGHT_RUN_ENABLED=1.
     """
     if not AUTOPURCHASE_NIGHT_RUN_ENABLED:
         return
@@ -343,21 +343,27 @@ def start_scheduler(app: FastAPI):
         next_run_time=now_moscow(),
     )
 
-    # Ночной автозапуск расчёта автозаказа: 05:30 МСК, после ночной
-    # загрузки прайсов (01–07). Очередь исполнит, Telegram пришлёт сводку.
-    scheduler.add_job(
-        func=auto_create_autopurchase_run_task,
-        trigger="cron",
-        args=[app],
-        id="auto_create_autopurchase_run",
-        name="Create night autopurchase run",
-        hour=5,
-        minute=30,
-        second=0,
-        replace_existing=True,
-        max_instances=1,
-        coalesce=True,
-    )
+    # Ночной автозапуск расчёта автозаказа выключен по умолчанию: сейчас
+    # используем ручной запуск, а очередь ниже продолжает исполнять такие runs.
+    if AUTOPURCHASE_NIGHT_RUN_ENABLED:
+        scheduler.add_job(
+            func=auto_create_autopurchase_run_task,
+            trigger="cron",
+            args=[app],
+            id="auto_create_autopurchase_run",
+            name="Create night autopurchase run",
+            hour=5,
+            minute=30,
+            second=0,
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+    else:
+        logger.info(
+            "Night autopurchase run disabled via "
+            "AUTOPURCHASE_NIGHT_RUN_ENABLED."
+        )
 
     # ── РАСПИСАНИЕ ПО ВРЕМЕННЫМ ОКНАМ (московское время) ────────────────────
     # Все часы — московское время (timezone='Europe/Moscow').
