@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,12 +17,14 @@ from dz_fastapi.schemas.autopart import (
     CrossAdminUpdate,
     CrossGroupItemOut,
     CrossGroupOut,
+    CrossImportResult,
     InvalidCrossAdminCreate,
     InvalidCrossAdminOut,
     InvalidCrossAdminUpdate,
     InvalidCrossCreate,
     InvalidCrossOut,
 )
+from dz_fastapi.services.cross_import import import_crosses_from_file
 from dz_fastapi.services.crosses import (
     delete_cross_relation,
     get_cross_row,
@@ -249,6 +251,36 @@ def _invalid_cross_to_out(
         ),
         comment=invalid_cross.comment,
     )
+
+
+@router.post("/crosses/import", response_model=CrossImportResult)
+async def import_crosses(
+    file: UploadFile = File(...),
+    dry_run: bool = Query(
+        default=True,
+        description=(
+            "true — только превью (ничего не пишем), false — реальная загрузка"
+        ),
+    ),
+    session: AsyncSession = Depends(get_session),
+):
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Файл пустой")
+    try:
+        return await import_crosses_from_file(
+            session,
+            content=content,
+            filename=file.filename or "",
+            dry_run=dry_run,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Ошибка импорта кроссов: %s", exc)
+        raise HTTPException(
+            status_code=500, detail="Ошибка обработки файла кроссов"
+        ) from exc
 
 
 @router.get("/crosses/", response_model=list[CrossAdminOut])

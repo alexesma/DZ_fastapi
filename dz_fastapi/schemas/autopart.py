@@ -348,6 +348,20 @@ class CrossGroupOut(BaseModel):
     members: List[CrossGroupItemOut] = Field(default_factory=list)
 
 
+class CrossImportResult(BaseModel):
+    dry_run: bool = True
+    total_groups: int = 0
+    groups_with_pair: int = 0
+    groups_linked: int = 0
+    total_numbers: int = 0
+    matched_numbers: int = 0
+    unmatched_numbers: int = 0
+    crosses_created: int = 0
+    crosses_already_existed: int = 0
+    crosses_skipped_invalid: int = 0
+    unmatched_sample: List[str] = Field(default_factory=list)
+
+
 class InvalidCrossCreate(BaseModel):
     invalid_autopart_id: Optional[int] = None
     invalid_brand_id: Optional[int] = None
