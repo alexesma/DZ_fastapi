@@ -9,6 +9,7 @@ from dz_fastapi.services.autopurchase import (
     _calculate_in_stock_days,
     _compute_availability_adjusted_daily,
     _estimate_consecutive_stockout_days,
+    _evaluate_autopurchase_auto_send_gate,
     _get_cross_brand_priority,
     _get_target_cover_days,
     _is_dragonzap_brand,
@@ -437,3 +438,64 @@ def test_build_autopurchase_draft_keeps_backlog_qty():
 
     assert draft is not None
     assert draft["open_customer_backlog_qty"] == 4
+
+
+def test_auto_send_gate_allows_price_within_90d_min_plus_ten_percent():
+    allowed, reason = _evaluate_autopurchase_auto_send_gate(
+        row={"oem_number": "ABC123"},
+        supplier={"current_price": 109.0, "current_qty": 5},
+        draft={"price": 109.0, "supplier_available_qty": 5, "oem_number": "ABC123"},
+        price_context={
+            "min_price": 100.0,
+            "sample_count": 3,
+            "oems": ["ABC123"],
+        },
+    )
+
+    assert allowed is True
+    assert reason["code"] == "auto_send_price_gate_passed"
+
+
+def test_auto_send_gate_blocks_without_history():
+    allowed, reason = _evaluate_autopurchase_auto_send_gate(
+        row={"oem_number": "ABC123"},
+        supplier={"current_price": 100.0, "current_qty": 5},
+        draft={"price": 100.0, "supplier_available_qty": 5, "oem_number": "ABC123"},
+        price_context={"oems": ["ABC123"]},
+    )
+
+    assert allowed is False
+    assert reason["code"] == "auto_send_no_90d_purchase_history"
+
+
+def test_auto_send_gate_blocks_price_above_tolerance():
+    allowed, reason = _evaluate_autopurchase_auto_send_gate(
+        row={"oem_number": "ABC123"},
+        supplier={"current_price": 112.0, "current_qty": 5},
+        draft={"price": 112.0, "supplier_available_qty": 5, "oem_number": "ABC123"},
+        price_context={"min_price": 100.0, "sample_count": 2, "oems": ["ABC123"]},
+    )
+
+    assert allowed is False
+    assert reason["code"] == "auto_send_price_above_90d_min"
+
+
+def test_auto_send_gate_blocks_low_supplier_qty_and_unconfirmed_cross():
+    low_qty_allowed, low_qty_reason = _evaluate_autopurchase_auto_send_gate(
+        row={"oem_number": "ABC123"},
+        supplier={"current_price": 100.0, "current_qty": 1},
+        draft={"price": 100.0, "supplier_available_qty": 1, "oem_number": "ABC123"},
+        price_context={"min_price": 100.0, "sample_count": 2, "oems": ["ABC123"]},
+    )
+
+    cross_allowed, cross_reason = _evaluate_autopurchase_auto_send_gate(
+        row={"oem_number": "ABC123"},
+        supplier={"current_price": 100.0, "current_qty": 5},
+        draft={"price": 100.0, "supplier_available_qty": 5, "oem_number": "XYZ999"},
+        price_context={"min_price": 100.0, "sample_count": 2, "oems": ["ABC123"]},
+    )
+
+    assert low_qty_allowed is False
+    assert low_qty_reason["code"] == "auto_send_supplier_qty_too_low"
+    assert cross_allowed is False
+    assert cross_reason["code"] == "auto_send_unconfirmed_cross"

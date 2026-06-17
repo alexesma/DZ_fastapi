@@ -11,20 +11,27 @@ from math import ceil
 from typing import Any, Optional
 
 import httpx
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.constants import URL_DZ_SEARCH
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.partner import crud_provider
 from dz_fastapi.http.dz_site_client import DZSiteClient
-from dz_fastapi.models.autopart import AutoPart, AutoPurchaseRun, AutoPurchaseRunItem
+from dz_fastapi.models.autopart import (
+    TYPE_SUPPLIER_DECISION_STATUS,
+    AutoPart,
+    AutoPartPriceHistory,
+    AutoPurchaseRun,
+    AutoPurchaseRunItem,
+)
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.cross import AutoPartCross, AutoPartInvalidCross
 from dz_fastapi.models.partner import (
     CUSTOMER_ORDER_ITEM_STATUS,
     STOCK_ORDER_STATUS,
     SUPPLIER_ORDER_STATUS,
+    Customer,
     CustomerOrder,
     CustomerOrderItem,
     PriceList,
@@ -38,6 +45,8 @@ from dz_fastapi.models.partner import (
     SupplierReceipt,
     SupplierReceiptItem,
 )
+from dz_fastapi.models.user import User, UserRole, UserStatus
+from dz_fastapi.schemas.order import OrderPositionOut
 from dz_fastapi.services.placed_orders import (
     _ACTIVE_ORDER_STATUSES,
     _build_tracking_exceptions,
@@ -227,6 +236,26 @@ AUTOPURCHASE_RECOVERY_STOCKOUT_DAYS = max(
     1,
     int(os.getenv("AUTOPURCHASE_RECOVERY_STOCKOUT_DAYS", "45")),
 )
+AUTOPURCHASE_AUTO_SEND_ENABLED = (
+    str(os.getenv("AUTOPURCHASE_AUTO_SEND_ENABLED", "1")).strip().lower()
+    in {"1", "true", "yes", "on"}
+)
+AUTOPURCHASE_AUTO_SEND_CUSTOMER_NAME = (
+    str(os.getenv("AUTOPURCHASE_AUTO_SEND_CUSTOMER_NAME", "Zzap")).strip()
+    or "Zzap"
+)
+AUTOPURCHASE_AUTO_PRICE_LOOKBACK_DAYS = max(
+    1,
+    int(os.getenv("AUTOPURCHASE_AUTO_PRICE_LOOKBACK_DAYS", "90")),
+)
+AUTOPURCHASE_AUTO_PRICE_TOLERANCE = max(
+    1.0,
+    float(os.getenv("AUTOPURCHASE_AUTO_PRICE_TOLERANCE", "1.10")),
+)
+AUTOPURCHASE_AUTO_MIN_SUPPLIER_QTY = max(
+    2,
+    int(os.getenv("AUTOPURCHASE_AUTO_MIN_SUPPLIER_QTY", "2")),
+)
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -405,6 +434,261 @@ def _build_reason(
         "title": title,
         "description": description,
     }
+
+
+async def _load_autopurchase_price_gate_context(
+    session: AsyncSession,
+    *,
+    autopart_ids: list[int],
+    own_provider_id: int,
+) -> dict[int, dict[str, Any]]:
+    """История закупки для автопилота: позиция + подтверждённые кроссы.
+
+    Сайт-кроссы не участвуют: берём только связи AutoPartCross из нашей базы.
+    Историю продажного прайса владельца исключаем через own_provider_id.
+    """
+    source_ids = sorted({int(item_id) for item_id in autopart_ids if item_id})
+    if not source_ids:
+        return {}
+
+    group_ids_by_source = {source_id: {source_id} for source_id in source_ids}
+    cross_rows = (
+        await session.execute(
+            select(
+                AutoPartCross.source_autopart_id,
+                AutoPartCross.cross_autopart_id,
+                AutoPartCross.cross_brand_id,
+                AutoPartCross.cross_oem_number,
+            ).where(
+                or_(
+                    AutoPartCross.source_autopart_id.in_(source_ids),
+                    AutoPartCross.cross_autopart_id.in_(source_ids),
+                )
+            )
+        )
+    ).all()
+
+    unresolved_pairs: set[tuple[int, str]] = set()
+    for source_id, cross_autopart_id, cross_brand_id, cross_oem_raw in cross_rows:
+        normalized_cross_oem = _normalize_oem(cross_oem_raw)
+        if int(source_id) in group_ids_by_source:
+            if cross_autopart_id is not None:
+                group_ids_by_source[int(source_id)].add(int(cross_autopart_id))
+            elif cross_brand_id is not None and normalized_cross_oem:
+                unresolved_pairs.add((int(cross_brand_id), normalized_cross_oem))
+        if cross_autopart_id is not None and int(cross_autopart_id) in group_ids_by_source:
+            group_ids_by_source[int(cross_autopart_id)].add(int(source_id))
+
+    if unresolved_pairs:
+        pair_rows = (
+            await session.execute(
+                select(AutoPart.id, AutoPart.brand_id, AutoPart.oem_number).where(
+                    tuple_(AutoPart.brand_id, AutoPart.oem_number).in_(
+                        list(unresolved_pairs)
+                    )
+                )
+            )
+        ).all()
+        autopart_id_by_pair = {
+            (int(brand_id), _normalize_oem(oem_number)): int(autopart_id)
+            for autopart_id, brand_id, oem_number in pair_rows
+        }
+        for source_id, _cross_autopart_id, cross_brand_id, cross_oem_raw in cross_rows:
+            if int(source_id) not in group_ids_by_source:
+                continue
+            normalized_cross_oem = _normalize_oem(cross_oem_raw)
+            if cross_brand_id is None or not normalized_cross_oem:
+                continue
+            resolved_id = autopart_id_by_pair.get(
+                (int(cross_brand_id), normalized_cross_oem)
+            )
+            if resolved_id is not None:
+                group_ids_by_source[int(source_id)].add(resolved_id)
+
+    all_group_ids = sorted(
+        {item_id for group_ids in group_ids_by_source.values() for item_id in group_ids}
+    )
+    autopart_rows = (
+        await session.execute(
+            select(AutoPart.id, AutoPart.oem_number).where(
+                AutoPart.id.in_(all_group_ids)
+            )
+        )
+    ).all()
+    oem_by_autopart_id = {
+        int(autopart_id): _normalize_oem(oem_number)
+        for autopart_id, oem_number in autopart_rows
+    }
+
+    cutoff = now_moscow() - timedelta(days=AUTOPURCHASE_AUTO_PRICE_LOOKBACK_DAYS)
+    price_rows = (
+        await session.execute(
+            select(
+                AutoPartPriceHistory.autopart_id,
+                func.min(AutoPartPriceHistory.price).label("min_price"),
+                func.count(AutoPartPriceHistory.id).label("sample_count"),
+            )
+            .where(
+                AutoPartPriceHistory.autopart_id.in_(all_group_ids),
+                AutoPartPriceHistory.created_at >= cutoff,
+                AutoPartPriceHistory.price > 0,
+                AutoPartPriceHistory.quantity >= AUTOPURCHASE_AUTO_MIN_SUPPLIER_QTY,
+                AutoPartPriceHistory.provider_id != int(own_provider_id),
+            )
+            .group_by(AutoPartPriceHistory.autopart_id)
+        )
+    ).all()
+    min_price_by_autopart_id = {
+        int(autopart_id): float(min_price)
+        for autopart_id, min_price, _sample_count in price_rows
+        if min_price is not None
+    }
+    sample_count_by_autopart_id = {
+        int(autopart_id): int(sample_count or 0)
+        for autopart_id, _min_price, sample_count in price_rows
+    }
+
+    context: dict[int, dict[str, Any]] = {}
+    for source_id, group_ids in group_ids_by_source.items():
+        group_min_prices = [
+            min_price_by_autopart_id[item_id]
+            for item_id in group_ids
+            if item_id in min_price_by_autopart_id
+        ]
+        min_price = min(group_min_prices) if group_min_prices else None
+        context[source_id] = {
+            "autopart_ids": sorted(group_ids),
+            "oems": sorted(
+                {
+                    oem_by_autopart_id[item_id]
+                    for item_id in group_ids
+                    if oem_by_autopart_id.get(item_id)
+                }
+            ),
+            "min_price": min_price,
+            "sample_count": sum(
+                sample_count_by_autopart_id.get(item_id, 0)
+                for item_id in group_ids
+            ),
+            "lookback_days": AUTOPURCHASE_AUTO_PRICE_LOOKBACK_DAYS,
+        }
+    return context
+
+
+def _evaluate_autopurchase_auto_send_gate(
+    *,
+    row: dict[str, Any],
+    supplier: Optional[dict[str, Any]],
+    draft: Optional[dict[str, Any]],
+    price_context: Optional[dict[str, Any]],
+) -> tuple[bool, dict[str, Any]]:
+    if not supplier or not draft:
+        return False, _build_reason(
+            code="auto_send_no_ready_offer",
+            severity="warning",
+            title="Автоотправка остановлена: нет готового предложения",
+            description=(
+                "Строка не имеет готового site-поставщика или черновика заказа."
+            ),
+        )
+
+    offer_price = _quantize_float(
+        draft.get("price") or supplier.get("current_price")
+    )
+    supplier_qty = int(
+        draft.get("supplier_available_qty")
+        or supplier.get("current_qty")
+        or 0
+    )
+    site_oem = _normalize_oem(
+        draft.get("oem_number") or supplier.get("current_oem_number")
+    )
+    own_oem = _normalize_oem(row.get("oem_number"))
+    allowed_oems = set((price_context or {}).get("oems") or [])
+    if own_oem:
+        allowed_oems.add(own_oem)
+
+    if supplier_qty < AUTOPURCHASE_AUTO_MIN_SUPPLIER_QTY:
+        return False, _build_reason(
+            code="auto_send_supplier_qty_too_low",
+            severity="warning",
+            title="Автоотправка остановлена: малый остаток поставщика",
+            description=(
+                f"У site-поставщика доступно {supplier_qty} шт. "
+                "Автоматическая отправка разрешена только при остатке "
+                f"от {AUTOPURCHASE_AUTO_MIN_SUPPLIER_QTY} шт."
+            ),
+        )
+
+    if site_oem and allowed_oems and site_oem not in allowed_oems:
+        return False, _build_reason(
+            code="auto_send_unconfirmed_cross",
+            severity="warning",
+            title="Автоотправка остановлена: кросс не подтверждён",
+            description=(
+                "Предложение сайта найдено по OEM "
+                f"{site_oem}, которого нет среди подтверждённых кроссов "
+                "этой позиции в нашей системе."
+            ),
+        )
+
+    historical_min = (
+        float((price_context or {}).get("min_price"))
+        if (price_context or {}).get("min_price") is not None
+        else None
+    )
+    if historical_min is None or historical_min <= 0:
+        return False, _build_reason(
+            code="auto_send_no_90d_purchase_history",
+            severity="warning",
+            title="Автоотправка остановлена: нет истории цены 90 дней",
+            description=(
+                "За последние "
+                f"{AUTOPURCHASE_AUTO_PRICE_LOOKBACK_DAYS} дней не найдена "
+                "валидная закупочная цена по позиции или её подтверждённым "
+                "кроссам."
+            ),
+        )
+
+    if offer_price is None or offer_price <= 0:
+        return False, _build_reason(
+            code="auto_send_no_offer_price",
+            severity="warning",
+            title="Автоотправка остановлена: нет цены предложения",
+            description="У рекомендованного предложения сайта нет валидной цены.",
+        )
+
+    allowed_price = _quantize_float(
+        historical_min * AUTOPURCHASE_AUTO_PRICE_TOLERANCE
+    )
+    if allowed_price is not None and offer_price > allowed_price:
+        return False, _build_reason(
+            code="auto_send_price_above_90d_min",
+            severity="warning",
+            title="Автоотправка остановлена: цена выше истории",
+            description=(
+                f"Цена предложения {_format_money_value(offer_price)} руб. "
+                "выше минимальной закупочной цены за "
+                f"{AUTOPURCHASE_AUTO_PRICE_LOOKBACK_DAYS} дней "
+                f"{_format_money_value(historical_min)} руб. "
+                f"более чем на {int((AUTOPURCHASE_AUTO_PRICE_TOLERANCE - 1) * 100)}%."
+            ),
+        )
+
+    return True, _build_reason(
+        code="auto_send_price_gate_passed",
+        severity="info",
+        title="Автоотправка разрешена по истории закупки",
+        description=(
+            f"Цена предложения {_format_money_value(offer_price)} руб. "
+            "<= допустимого порога "
+            f"{_format_money_value(allowed_price)} руб. "
+            "(минимальная закупочная цена по позиции/кроссам за "
+            f"{AUTOPURCHASE_AUTO_PRICE_LOOKBACK_DAYS} дней: "
+            f"{_format_money_value(historical_min)} руб.; "
+            f"наблюдений: {int((price_context or {}).get('sample_count') or 0)})."
+        ),
+    )
 
 
 def _build_autopurchase_diagnostic_metric(
@@ -3436,16 +3720,25 @@ async def get_autopurchase_preview(
     ] = {}
     last_receipt_by_autopart: dict[int, dict[str, Any]] = {}
     candidate_period_metrics: dict[str, dict[str, Any]] = {}
+    auto_send_price_context_by_autopart: dict[int, dict[str, Any]] = {}
     if candidate_rows:
+        candidate_autopart_ids = [
+            int(candidate_row["autopart_id"])
+            for candidate_row in candidate_rows
+            if candidate_row.get("autopart_id") is not None
+        ]
         # Цена последнего поступления — ориентир закупочной цены
         # из загруженных документов прихода.
         last_receipt_by_autopart = await _load_last_receipt_price_by_autopart(
             session,
-            [
-                int(candidate_row["autopart_id"])
-                for candidate_row in candidate_rows
-                if candidate_row.get("autopart_id") is not None
-            ],
+            candidate_autopart_ids,
+        )
+        auto_send_price_context_by_autopart = (
+            await _load_autopurchase_price_gate_context(
+                session,
+                autopart_ids=candidate_autopart_ids,
+                own_provider_id=int(config_row["provider_id"]),
+            )
         )
         # Исторические цены продаж и число заказов по окнам —
         # для ценовых сигналов и блока «Заказы и цены».
@@ -4016,11 +4309,6 @@ async def get_autopurchase_preview(
         ):
             decision_value = AUTOPURCHASE_STATUS_AUTO_APPROVED
 
-        if decision_filter and decision_value != decision_filter:
-            continue
-
-        limited_reasons = _limit_reasons(reasons)
-
         draft_purchase_order = _build_autopurchase_draft(
             supplier=selected_supplier,
             available_qty=int(candidate_row.get("available_qty_for_planning") or 0),
@@ -4052,6 +4340,30 @@ async def get_autopurchase_preview(
             draft_purchase_order["remaining_gap_qty"] = max(
                 recommended_order_qty - covered_supply_qty, 0
             )
+
+        if selected_supplier and draft_purchase_order:
+            auto_send_allowed, auto_send_reason = (
+                _evaluate_autopurchase_auto_send_gate(
+                    row=candidate_row,
+                    supplier=selected_supplier,
+                    draft=draft_purchase_order,
+                    price_context=auto_send_price_context_by_autopart.get(
+                        int(candidate_autopart_id)
+                    )
+                    if candidate_autopart_id is not None
+                    else None,
+                )
+            )
+            reasons.append(auto_send_reason)
+            if auto_send_allowed:
+                decision_value = AUTOPURCHASE_STATUS_AUTO_APPROVED
+            elif decision_value == AUTOPURCHASE_STATUS_AUTO_APPROVED:
+                decision_value = AUTOPURCHASE_STATUS_NEEDS_REVIEW
+
+        if decision_filter and decision_value != decision_filter:
+            continue
+
+        limited_reasons = _limit_reasons(reasons)
 
         if candidate_row.get("missing_in_latest_pricelist"):
             diagnostics["rows_missing_in_latest_pricelist_count"] += 1
@@ -4423,6 +4735,15 @@ async def execute_next_autopurchase_run(
             )
 
         logger.info("Autopurchase run %s completed successfully", run_id)
+
+        try:
+            await _auto_send_autopurchase_run_items(session, run_id=run_id)
+        except Exception as auto_send_exc:
+            logger.exception(
+                "Autopurchase auto-send unexpected failure run_id=%s: %s",
+                run_id,
+                auto_send_exc,
+            )
 
         # Утренняя сводка по ночному (scheduled) расчёту в Telegram.
         if run_trigger_source == "scheduled":
@@ -4959,6 +5280,204 @@ async def mark_autopurchase_run_items_sent(
             _serialize_autopurchase_run_item(item) for item in items
         ],
     }
+
+
+async def _resolve_autopurchase_auto_send_user(
+    session: AsyncSession,
+    run: AutoPurchaseRun,
+) -> Optional[User]:
+    if run.initiated_by_user_id is not None:
+        user = await session.get(User, int(run.initiated_by_user_id))
+        if user is not None and user.status == UserStatus.ACTIVE:
+            return user
+    return (
+        await session.execute(
+            select(User)
+            .where(User.status == UserStatus.ACTIVE)
+            .order_by(
+                (User.role == UserRole.ADMIN).desc(),
+                User.id.asc(),
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
+async def _resolve_autopurchase_auto_send_customer(
+    session: AsyncSession,
+) -> Optional[Customer]:
+    normalized_name = AUTOPURCHASE_AUTO_SEND_CUSTOMER_NAME.strip().casefold()
+    if not normalized_name:
+        return None
+    return (
+        await session.execute(
+            select(Customer)
+            .where(func.lower(Customer.name) == normalized_name)
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
+def _build_autopurchase_tracking_uuid(run_id: int, item_id: int) -> str:
+    return f"ap-{int(run_id)}-{int(item_id)}"
+
+
+async def _auto_send_autopurchase_run_items(
+    session: AsyncSession,
+    *,
+    run_id: int,
+) -> None:
+    if not AUTOPURCHASE_AUTO_SEND_ENABLED:
+        return
+    if not SITE_API_KEY:
+        logger.warning(
+            "Autopurchase auto-send skipped run_id=%s: KEY_FOR_WEBSITE is missing",
+            run_id,
+        )
+        return
+
+    run = await session.get(AutoPurchaseRun, int(run_id))
+    if run is None:
+        return
+
+    current_user = await _resolve_autopurchase_auto_send_user(session, run)
+    if current_user is None:
+        logger.warning(
+            "Autopurchase auto-send skipped run_id=%s: no active user found",
+            run_id,
+        )
+        return
+
+    customer = await _resolve_autopurchase_auto_send_customer(session)
+    if customer is None:
+        logger.warning(
+            "Autopurchase auto-send skipped run_id=%s: customer %r not found",
+            run_id,
+            AUTOPURCHASE_AUTO_SEND_CUSTOMER_NAME,
+        )
+        return
+
+    draft_payload = await get_autopurchase_run_draft_orders(
+        session,
+        run_id=run_id,
+    )
+    groups = list(draft_payload.get("groups") or [])
+    if not groups:
+        return
+
+    from dz_fastapi.services.site_order_sender import send_dragonzap_site_order
+
+    for group in groups:
+        lines = list(group.get("items") or [])
+        order_positions: list[OrderPositionOut] = []
+        item_id_by_tracking_uuid: dict[str, int] = {}
+        for line in lines:
+            item_id = int(line.get("item_id") or 0)
+            quantity = int(line.get("proposed_order_qty") or 0)
+            price = _quantize_float(line.get("price"))
+            tracking_uuid = _build_autopurchase_tracking_uuid(run_id, item_id)
+            if item_id <= 0 or quantity <= 0 or price is None:
+                continue
+            if not line.get("hash_key"):
+                logger.warning(
+                    "Autopurchase auto-send skips item_id=%s run_id=%s: no hash_key",
+                    item_id,
+                    run_id,
+                )
+                continue
+            item_id_by_tracking_uuid[tracking_uuid] = item_id
+            order_positions.append(
+                OrderPositionOut(
+                    autopart_id=line.get("autopart_id"),
+                    oem_number=(
+                        line.get("site_oem_number")
+                        or line.get("oem_number")
+                        or ""
+                    ),
+                    brand_name=(
+                        line.get("site_brand_name")
+                        or line.get("brand_name")
+                        or ""
+                    ),
+                    autopart_name=(
+                        line.get("site_autopart_name")
+                        or line.get("autopart_name")
+                    ),
+                    supplier_id=line.get("external_supplier_id"),
+                    supplier_name=group.get("provider_name"),
+                    price_name=group.get("provider_config_name"),
+                    sup_logo=group.get("sup_logo"),
+                    quantity=quantity,
+                    confirmed_price=float(price),
+                    min_delivery_day=line.get("min_delivery_day"),
+                    max_delivery_day=line.get("max_delivery_day"),
+                    status=TYPE_SUPPLIER_DECISION_STATUS.SEND,
+                    tracking_uuid=tracking_uuid,
+                    hash_key=line.get("hash_key"),
+                    system_hash=line.get("system_hash"),
+                )
+            )
+
+        if not order_positions:
+            continue
+
+        try:
+            response = await send_dragonzap_site_order(
+                session=session,
+                current_user=current_user,
+                request=order_positions,
+                customer_id=int(customer.id),
+                order_comment=(
+                    f"Автозаказ #{run_id}: автоотправка по цене "
+                    "не выше исторического минимума +10%"
+                ),
+            )
+        except Exception as exc:
+            logger.exception(
+                "Autopurchase auto-send failed run_id=%s supplier=%s: %s",
+                run_id,
+                group.get("provider_name"),
+                exc,
+            )
+            continue
+
+        successful_item_ids = [
+            item_id_by_tracking_uuid.get(
+                str(result.get("request_tracking_uuid") or result.get("tracking_uuid"))
+            )
+            for result in response.results
+            if result.get("status") == "success"
+        ]
+        successful_item_ids = [
+            int(item_id)
+            for item_id in successful_item_ids
+            if item_id is not None
+        ]
+        if not successful_item_ids:
+            continue
+        await mark_autopurchase_run_items_sent(
+            session=session,
+            run_id=run_id,
+            item_ids=successful_item_ids,
+            order_id=response.order_id,
+            order_number=response.order_number,
+            customer_id=int(customer.id),
+            send_result_snapshot={
+                "source": "autopurchase_auto_send",
+                "provider_name": group.get("provider_name"),
+                "total_items": response.total_items,
+                "successful_items": response.successful_items,
+                "failed_items": response.failed_items,
+                "results": response.results,
+            },
+        )
+        logger.info(
+            "Autopurchase auto-send completed run_id=%s provider=%s success=%s/%s",
+            run_id,
+            group.get("provider_name"),
+            response.successful_items,
+            response.total_items,
+        )
 
 
 def _get_supplier_identity_group_key(
