@@ -555,6 +555,57 @@ class AutoPurchaseRunOut(BaseModel):
     sent_count: int = 0
 
 
+class AutoPurchaseTopItemBase(BaseModel):
+    source: str = "file"
+    oem_number: str
+    brand_name: Optional[str] = None
+    autopart_name: Optional[str] = None
+    rank: int = 0
+    sold_qty: int = 0
+    target_stock_qty: int = 0
+    is_active: bool = True
+    note: Optional[str] = None
+
+
+class AutoPurchaseTopItemCreate(AutoPurchaseTopItemBase):
+    pass
+
+
+class AutoPurchaseTopItemUpdate(BaseModel):
+    oem_number: Optional[str] = None
+    brand_name: Optional[str] = None
+    autopart_name: Optional[str] = None
+    rank: Optional[int] = None
+    sold_qty: Optional[int] = None
+    target_stock_qty: Optional[int] = None
+    is_active: Optional[bool] = None
+    note: Optional[str] = None
+
+
+class AutoPurchaseTopItemOut(AutoPurchaseTopItemBase):
+    id: int
+    autopart_id: Optional[int] = None
+    current_quantity: int = 0
+    in_transit_qty: int = 0
+    gap_qty: int = 0
+    imported_at: datetime
+    updated_at: datetime
+
+
+class AutoPurchaseTopItemsResponse(BaseModel):
+    source: str
+    total_items: int = 0
+    rows: List[AutoPurchaseTopItemOut] = Field(default_factory=list)
+
+
+class AutoPurchaseTopImportResponse(BaseModel):
+    source: str
+    imported_count: int = 0
+    updated_count: int = 0
+    skipped_count: int = 0
+    total_active: int = 0
+
+
 class AutoPurchaseRunItemOut(AutoPurchasePreviewRow):
     id: int
     run_id: int

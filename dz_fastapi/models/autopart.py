@@ -573,7 +573,7 @@ class AutoPurchaseRunItem(Base):
 
     oem_number = Column(String(MAX_LIGHT_OEM), nullable=False, index=True)
     brand_name = Column(String(MAX_LIGHT_NAME_LOCATION), nullable=True, index=True)
-    autopart_name = Column(String(MAX_LIGHT_OEM), nullable=True)
+    autopart_name = Column(String(MAX_LIGHT_NAME_LOCATION), nullable=True)
 
     current_quantity = Column(Integer, default=0, nullable=False)
     latest_price = Column(DECIMAL(10, 2), nullable=True)
@@ -621,3 +621,35 @@ class AutoPurchaseRunItem(Base):
     selected_supplier = relationship("Provider")
     sent_order = relationship("Order")
     sent_customer = relationship("Customer")
+
+
+class AutoPurchaseTopItem(Base):
+    source = Column(String(32), nullable=False, default="file", index=True)
+    autopart_id = Column(Integer, ForeignKey("autopart.id"), nullable=True, index=True)
+    oem_number = Column(String(MAX_LIGHT_OEM), nullable=False, index=True)
+    brand_name = Column(String(MAX_LIGHT_NAME_LOCATION), nullable=True, index=True)
+    autopart_name = Column(String(MAX_LIGHT_OEM), nullable=True)
+    rank = Column(Integer, nullable=False, default=0, index=True)
+    sold_qty = Column(Integer, nullable=False, default=0)
+    target_stock_qty = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+    note = Column(Text, nullable=True)
+    imported_at = Column(DateTime(timezone=True), default=now_moscow, nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        onupdate=now_moscow,
+        nullable=False,
+    )
+    raw_payload = Column(JSON, default=dict, nullable=False)
+
+    autopart = relationship("AutoPart")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "source",
+            "oem_number",
+            "brand_name",
+            name="uq_autopurchasetopitem_source_oem_brand",
+        ),
+    )

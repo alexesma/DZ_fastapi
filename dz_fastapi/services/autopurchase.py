@@ -24,6 +24,7 @@ from dz_fastapi.models.autopart import (
     AutoPartPriceHistory,
     AutoPurchaseRun,
     AutoPurchaseRunItem,
+    AutoPurchaseTopItem,
 )
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.cross import AutoPartCross, AutoPartInvalidCross
@@ -2621,6 +2622,9 @@ def _build_run_settings(
     limit: int,
     budget_limit: Optional[float],
     position_limit: Optional[int],
+    top_source: Optional[str],
+    top_limit: Optional[int],
+    top_days: Optional[int],
 ) -> dict[str, Any]:
     return {
         "own_provider_config_id": own_provider_config_id,
@@ -2628,6 +2632,9 @@ def _build_run_settings(
         "limit": limit,
         "budget_limit": budget_limit,
         "position_limit": position_limit,
+        "top_source": top_source,
+        "top_limit": top_limit,
+        "top_days": top_days,
         "supplier_source": "site",
     }
 
@@ -3212,6 +3219,7 @@ async def get_autopurchase_preview(
     decision_status: Optional[str] = None,
     search: Optional[str] = None,
     limit: int = 200,
+    top_targets_by_oem: Optional[dict[str, dict[str, Any]]] = None,
 ) -> dict[str, Any]:
     requested_mode = str(mode or AUTOPURCHASE_MODE_DRAFT_ONLY).strip().lower()
     normalized_limit = max(min(int(limit or 200), AUTOPURCHASE_MAX_LIMIT), 1)
@@ -3280,6 +3288,24 @@ async def get_autopurchase_preview(
         _summarize_snapshot_rows(snapshot_rows)
     )
     snapshots = list(snapshots_by_key.values())
+    top_filter_enabled = top_targets_by_oem is not None
+    normalized_top_targets = {
+        _normalize_oem(oem): dict(target or {})
+        for oem, target in (top_targets_by_oem or {}).items()
+        if _normalize_oem(oem)
+    }
+    if top_filter_enabled:
+        latest_known_rows_by_oem = {
+            oem: row
+            for oem, row in latest_known_rows_by_oem.items()
+            if oem in normalized_top_targets
+        }
+        latest_rows_by_oem = {
+            oem: row
+            for oem, row in latest_rows_by_oem.items()
+            if oem in normalized_top_targets
+        }
+
     normalized_oem_numbers = sorted(latest_known_rows_by_oem.keys())
 
     history_rows = await _load_tracking_history_rows_for_oems(
@@ -3591,6 +3617,13 @@ async def get_autopurchase_preview(
         if target_stock is not None:
             target_stock = max(target_stock, int(minimum_balance or 0))
 
+        top_target_info = normalized_top_targets.get(oem_number) or {}
+        top_target_stock_qty = int(top_target_info.get("target_stock_qty") or 0)
+        top_source = str(top_target_info.get("source") or "").strip() or None
+        top_rank = top_target_info.get("rank")
+        if top_target_stock_qty > 0:
+            target_stock = max(int(target_stock or 0), top_target_stock_qty)
+
         recommended_order_qty = 0
         planning_target_qty = int(target_stock or 0)
         if target_stock is not None or open_customer_backlog_qty > 0:
@@ -3705,6 +3738,9 @@ async def get_autopurchase_preview(
                 "reorder_point": reorder_point,
                 "target_stock": target_stock,
                 "recommended_order_qty": recommended_order_qty,
+                "top_source": top_source,
+                "top_rank": top_rank,
+                "top_target_stock_qty": top_target_stock_qty,
                 "autopurchase_mode": requested_mode,
                 "missing_in_latest_pricelist": missing_in_latest_pricelist,
                 "abc_xyz": abc_xyz,
@@ -3874,6 +3910,24 @@ async def get_autopurchase_preview(
                 ),
             )
         )
+        if candidate_row.get("top_source"):
+            top_rank_text = (
+                f"#{int(candidate_row['top_rank'])}"
+                if candidate_row.get("top_rank") is not None
+                else "без места"
+            )
+            reasons.append(
+                _build_reason(
+                    code="autopurchase_top_target",
+                    severity="info",
+                    title="Позиция из топ-списка",
+                    description=(
+                        f"Источник: {candidate_row.get('top_source')}, "
+                        f"место {top_rank_text}. Целевой остаток из топа: "
+                        f"{int(candidate_row.get('top_target_stock_qty') or 0)} шт."
+                    ),
+                )
+            )
         only_non_positive_site_qty = bool(site_supplier_stats) and all(
             int(item.get("current_qty") or 0) <= 0 for item in site_supplier_stats
         )
@@ -4567,6 +4621,9 @@ async def create_autopurchase_run(
     limit: int = 1000,
     budget_limit: Optional[float] = None,
     position_limit: Optional[int] = None,
+    top_source: Optional[str] = None,
+    top_limit: Optional[int] = None,
+    top_days: Optional[int] = None,
     trigger_source: str = "manual",
 ) -> dict[str, Any]:
     """Create a queued run record and return immediately.
@@ -4575,6 +4632,9 @@ async def create_autopurchase_run(
     requested_mode = str(mode or AUTOPURCHASE_MODE_DRAFT_ONLY).strip().lower()
     normalized_budget_limit = _normalize_optional_positive_float(budget_limit)
     normalized_position_limit = _normalize_optional_positive_int(position_limit)
+    normalized_top_source = _normalize_autopurchase_top_source(top_source)
+    normalized_top_limit = _normalize_optional_positive_int(top_limit)
+    normalized_top_days = _normalize_optional_positive_int(top_days)
 
     if session.in_transaction():
         await session.rollback()
@@ -4614,6 +4674,9 @@ async def create_autopurchase_run(
                 limit=limit,
                 budget_limit=normalized_budget_limit,
                 position_limit=normalized_position_limit,
+                top_source=normalized_top_source,
+                top_limit=normalized_top_limit,
+                top_days=normalized_top_days,
             ),
             summary_snapshot=_build_initial_run_summary(
                 config_row,
@@ -4660,6 +4723,109 @@ async def _send_autopurchase_run_telegram_summary(
     await send_message_to_telegram("\n".join(lines))
 
 
+def _normalize_autopurchase_top_source(value: Any) -> Optional[str]:
+    source = str(value or "").strip().lower()
+    if not source:
+        return None
+    if source not in {"file", "current"}:
+        raise ValueError("Неизвестный источник топ-позиций для автозаказа")
+    return source
+
+
+async def _load_file_top_targets_for_autopurchase(
+    session: AsyncSession,
+    *,
+    limit: Optional[int],
+) -> dict[str, dict[str, Any]]:
+    normalized_limit = max(min(int(limit or 300), 1000), 1)
+    stmt = (
+        select(AutoPurchaseTopItem)
+        .where(
+            AutoPurchaseTopItem.source == "file",
+            AutoPurchaseTopItem.is_active.is_(True),
+        )
+        .order_by(
+            AutoPurchaseTopItem.rank.asc(),
+            AutoPurchaseTopItem.sold_qty.desc(),
+            AutoPurchaseTopItem.id.asc(),
+        )
+        .limit(normalized_limit)
+    )
+    targets: dict[str, dict[str, Any]] = {}
+    for item in (await session.execute(stmt)).scalars().all():
+        normalized_oem = _normalize_oem(item.oem_number)
+        if not normalized_oem:
+            continue
+        targets[normalized_oem] = {
+            "source": "file",
+            "rank": int(item.rank or 0),
+            "target_stock_qty": int(item.target_stock_qty or 0),
+            "sold_qty": int(item.sold_qty or 0),
+        }
+    return targets
+
+
+async def _load_current_top_targets_for_autopurchase(
+    session: AsyncSession,
+    *,
+    limit: Optional[int],
+    days: Optional[int],
+) -> dict[str, dict[str, Any]]:
+    normalized_limit = max(min(int(limit or 300), 1000), 1)
+    normalized_days = max(min(int(days or 365), 730), 1)
+    cutoff = now_moscow() - timedelta(days=normalized_days)
+    stmt = (
+        select(
+            CustomerOrderItem.oem,
+            func.sum(CustomerOrderItem.requested_qty).label("sold_qty"),
+        )
+        .join(CustomerOrder, CustomerOrder.id == CustomerOrderItem.order_id)
+        .where(
+            CustomerOrder.received_at >= cutoff,
+            CustomerOrderItem.requested_qty.isnot(None),
+            CustomerOrderItem.requested_qty > 0,
+        )
+        .group_by(CustomerOrderItem.oem)
+        .order_by(func.sum(CustomerOrderItem.requested_qty).desc())
+        .limit(normalized_limit)
+    )
+    targets: dict[str, dict[str, Any]] = {}
+    for rank, row in enumerate((await session.execute(stmt)).all(), start=1):
+        normalized_oem = _normalize_oem(row.oem)
+        if not normalized_oem:
+            continue
+        sold_qty = int(row.sold_qty or 0)
+        targets[normalized_oem] = {
+            "source": "current",
+            "rank": rank,
+            "target_stock_qty": max(int(round(sold_qty / normalized_days * 45)), 1),
+            "sold_qty": sold_qty,
+        }
+    return targets
+
+
+async def _load_top_targets_for_autopurchase_run(
+    session: AsyncSession,
+    *,
+    top_source: Optional[str],
+    top_limit: Optional[int],
+    top_days: Optional[int],
+) -> dict[str, dict[str, Any]]:
+    normalized_source = _normalize_autopurchase_top_source(top_source)
+    if normalized_source == "file":
+        return await _load_file_top_targets_for_autopurchase(
+            session,
+            limit=top_limit,
+        )
+    if normalized_source == "current":
+        return await _load_current_top_targets_for_autopurchase(
+            session,
+            limit=top_limit,
+            days=top_days,
+        )
+    return {}
+
+
 async def execute_next_autopurchase_run(
     session: AsyncSession,
 ) -> Optional[int]:
@@ -4672,6 +4838,9 @@ async def execute_next_autopurchase_run(
     mode = AUTOPURCHASE_MODE_DRAFT_ONLY
     limit = AUTOPURCHASE_MAX_LIMIT
     run_trigger_source = "manual"
+    top_source: Optional[str] = None
+    top_limit: Optional[int] = None
+    top_days: Optional[int] = None
 
     async with session.begin():
         lock_acquired = await _try_acquire_autopurchase_run_lock(session)
@@ -4713,16 +4882,28 @@ async def execute_next_autopurchase_run(
             limit = int(settings.get("limit") or AUTOPURCHASE_MAX_LIMIT)
         except (TypeError, ValueError):
             limit = AUTOPURCHASE_MAX_LIMIT
+        top_source = settings.get("top_source")
+        top_limit = _normalize_optional_positive_int(settings.get("top_limit"))
+        top_days = _normalize_optional_positive_int(settings.get("top_days"))
 
     if run_id is None:
         return None
 
     try:
+        top_targets_by_oem = None
+        if top_source:
+            top_targets_by_oem = await _load_top_targets_for_autopurchase_run(
+                session,
+                top_source=top_source,
+                top_limit=top_limit,
+                top_days=top_days,
+            )
         preview = await get_autopurchase_preview(
             session,
             own_provider_config_id=own_provider_config_id,
             mode=mode,
             limit=limit,
+            top_targets_by_oem=top_targets_by_oem,
         )
 
         if session.in_transaction():

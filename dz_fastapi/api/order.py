@@ -4,7 +4,7 @@ from datetime import date
 from typing import Any, List, Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 
 from dz_fastapi.analytics.restock_logic import (
     evaluate_supplier_offers,
@@ -47,6 +47,11 @@ from dz_fastapi.schemas.order import (
     AutoPurchaseRunItemStatusUpdateRequest,
     AutoPurchaseRunItemStatusUpdateResponse,
     AutoPurchaseRunOut,
+    AutoPurchaseTopImportResponse,
+    AutoPurchaseTopItemCreate,
+    AutoPurchaseTopItemOut,
+    AutoPurchaseTopItemsResponse,
+    AutoPurchaseTopItemUpdate,
     ConfirmedOfferOut,
     ConfirmedOffersResponse,
     OrderItemOut,
@@ -77,6 +82,13 @@ from dz_fastapi.services.autopurchase import (
     update_autopurchase_run_item_allocations,
     update_autopurchase_run_item_status,
     update_autopurchase_run_items_status,
+)
+from dz_fastapi.services.autopurchase_top import (
+    create_autopurchase_top_item,
+    import_autopurchase_top_items,
+    list_autopurchase_top_items,
+    list_current_autopurchase_top_items,
+    update_autopurchase_top_item,
 )
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
 from dz_fastapi.services.notifications import create_notification
@@ -958,6 +970,122 @@ async def get_autopurchase_preview_view(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@router.get(
+    "/autopurchase-top/items",
+    response_model=AutoPurchaseTopItemsResponse,
+    summary="Редактируемый топ позиций для автозаказа",
+)
+async def list_autopurchase_top_items_view(
+    source: str = Query(default="file"),
+    limit: int = Query(default=100, ge=1, le=1000),
+    active_only: bool = Query(default=True),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    return await list_autopurchase_top_items(
+        session=session,
+        source=source,
+        limit=limit,
+        active_only=active_only,
+    )
+
+
+@router.get(
+    "/autopurchase-top/current",
+    response_model=AutoPurchaseTopItemsResponse,
+    summary="Текущий топ позиций по клиентским заказам",
+)
+async def list_current_autopurchase_top_items_view(
+    days: int = Query(default=365, ge=1, le=730),
+    limit: int = Query(default=100, ge=1, le=1000),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    return await list_current_autopurchase_top_items(
+        session=session,
+        days=days,
+        limit=limit,
+    )
+
+
+@router.post(
+    "/autopurchase-top/items",
+    response_model=AutoPurchaseTopItemOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Добавить позицию в топ автозаказа",
+)
+async def create_autopurchase_top_item_view(
+    payload: AutoPurchaseTopItemCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await create_autopurchase_top_item(
+            session=session,
+            payload=payload.model_dump(),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.patch(
+    "/autopurchase-top/items/{item_id}",
+    response_model=AutoPurchaseTopItemOut,
+    summary="Обновить позицию топа автозаказа",
+)
+async def update_autopurchase_top_item_view(
+    item_id: int,
+    payload: AutoPurchaseTopItemUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await update_autopurchase_top_item(
+            session=session,
+            item_id=item_id,
+            payload=payload.model_dump(exclude_unset=True),
+        )
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = (
+            status.HTTP_404_NOT_FOUND
+            if "не найдена" in detail.lower()
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=status_code, detail=detail) from exc
+
+
+@router.post(
+    "/autopurchase-top/import",
+    response_model=AutoPurchaseTopImportResponse,
+    summary="Импортировать топ позиций для автозаказа из CSV/XLSX",
+)
+async def import_autopurchase_top_items_view(
+    source: str = Query(default="file"),
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Файл пустой")
+    try:
+        return await import_autopurchase_top_items(
+            session=session,
+            content=content,
+            filename=file.filename or "",
+            source=source,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Autopurchase top import failed: %s", exc)
+        raise HTTPException(
+            status_code=400,
+            detail="Не удалось импортировать файл топ-позиций",
+        ) from exc
+
+
 @router.post(
     "/autopurchase-runs",
     response_model=AutoPurchaseRunOut,
@@ -970,6 +1098,9 @@ async def create_autopurchase_run_view(
     limit: int = Query(default=1000, ge=1, le=5000),
     budget_limit: Optional[float] = Query(default=None, gt=0),
     position_limit: Optional[int] = Query(default=None, ge=1, le=5000),
+    top_source: Optional[str] = Query(default=None),
+    top_limit: Optional[int] = Query(default=None, ge=1, le=1000),
+    top_days: Optional[int] = Query(default=None, ge=1, le=730),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -982,6 +1113,9 @@ async def create_autopurchase_run_view(
             limit=limit,
             budget_limit=budget_limit,
             position_limit=position_limit,
+            top_source=top_source,
+            top_limit=top_limit,
+            top_days=top_days,
         )
     except ValueError as exc:
         detail = str(exc)
