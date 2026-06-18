@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import io
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
 import pandas as pd
@@ -28,7 +28,18 @@ def _normalize_oem(value: Any) -> str:
     return "".join(ch for ch in str(value or "").upper() if ch.isalnum())
 
 
+def _is_missing_value(value: Any) -> bool:
+    if value is None or value == "":
+        return True
+    try:
+        return bool(pd.isna(value))
+    except (TypeError, ValueError):
+        return False
+
+
 def _normalize_text(value: Any) -> str:
+    if _is_missing_value(value):
+        return ""
     return str(value or "").strip()
 
 
@@ -46,17 +57,38 @@ def _pick_column(row: dict[str, Any], names: set[str]) -> Any:
 
 
 def _safe_int(value: Any, default: int = 0) -> int:
-    if value is None or value == "":
+    if _is_missing_value(value):
         return default
-    try:
-        if pd.isna(value):
-            return default
-    except TypeError:
-        pass
     try:
         return max(int(float(str(value).replace(",", ".").strip())), 0)
     except (TypeError, ValueError):
         return default
+
+
+def _json_safe_value(value: Any) -> Any:
+    if _is_missing_value(value):
+        return None
+    if isinstance(value, dict):
+        return {str(key): _json_safe_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe_value(item) for item in value]
+    if isinstance(value, tuple):
+        return [_json_safe_value(item) for item in value]
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if hasattr(value, "item"):
+        try:
+            return _json_safe_value(value.item())
+        except (TypeError, ValueError):
+            return str(value)
+    return value
+
+
+def _json_safe_payload(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        str(key): _json_safe_value(value)
+        for key, value in dict(row or {}).items()
+    }
 
 
 def _serialize_top_item(
@@ -222,7 +254,7 @@ async def create_autopurchase_top_item(
         note=_normalize_text(payload.get("note")) or None,
         imported_at=now_moscow(),
         updated_at=now_moscow(),
-        raw_payload=dict(payload),
+        raw_payload=_json_safe_payload(payload),
     )
     session.add(item)
     await session.commit()
@@ -352,7 +384,7 @@ async def import_autopurchase_top_items(
             existing.is_active = True
             existing.note = note
             existing.updated_at = now
-            existing.raw_payload = dict(raw_row)
+            existing.raw_payload = _json_safe_payload(raw_row)
             updated_count += 1
         else:
             session.add(
@@ -369,7 +401,7 @@ async def import_autopurchase_top_items(
                     note=note,
                     imported_at=now,
                     updated_at=now,
-                    raw_payload=dict(raw_row),
+                    raw_payload=_json_safe_payload(raw_row),
                 )
             )
             imported_count += 1
