@@ -48,6 +48,10 @@ def _normalize_source(value: str | None) -> str:
     return source or TOP_SOURCE_FILE
 
 
+def _normalize_brand_filter(value: str | None) -> str:
+    return _normalize_text(value).lower()
+
+
 def _pick_column(row: dict[str, Any], names: set[str]) -> Any:
     for key, value in row.items():
         normalized_key = _normalize_text(key).lower().replace(" ", "_")
@@ -195,9 +199,11 @@ async def list_autopurchase_top_items(
     source: str = TOP_SOURCE_FILE,
     limit: int = 100,
     active_only: bool = True,
+    brand: Optional[str] = None,
 ) -> dict[str, Any]:
     normalized_source = _normalize_source(source)
     normalized_limit = max(min(int(limit or 100), 1000), 1)
+    normalized_brand = _normalize_brand_filter(brand)
     stmt = (
         select(AutoPurchaseTopItem)
         .where(AutoPurchaseTopItem.source == normalized_source)
@@ -210,6 +216,10 @@ async def list_autopurchase_top_items(
     )
     if active_only:
         stmt = stmt.where(AutoPurchaseTopItem.is_active.is_(True))
+    if normalized_brand:
+        stmt = stmt.where(
+            func.lower(AutoPurchaseTopItem.brand_name).contains(normalized_brand)
+        )
     rows = (await session.execute(stmt)).scalars().all()
     stock_by_oem = await _load_latest_own_stock_by_oem(session)
     return {
@@ -429,9 +439,11 @@ async def list_current_autopurchase_top_items(
     *,
     days: int = 365,
     limit: int = 100,
+    brand: Optional[str] = None,
 ) -> dict[str, Any]:
     normalized_days = max(min(int(days or 365), 730), 1)
     normalized_limit = max(min(int(limit or 100), 1000), 1)
+    normalized_brand = _normalize_brand_filter(brand)
     cutoff = now_moscow() - timedelta(days=normalized_days)
     stmt = (
         select(
@@ -455,6 +467,10 @@ async def list_current_autopurchase_top_items(
         .order_by(func.sum(CustomerOrderItem.requested_qty).desc())
         .limit(normalized_limit)
     )
+    if normalized_brand:
+        stmt = stmt.where(
+            func.lower(CustomerOrderItem.brand).contains(normalized_brand)
+        )
     stock_by_oem = await _load_latest_own_stock_by_oem(session)
     rows: list[dict[str, Any]] = []
     for rank, row in enumerate((await session.execute(stmt)).all(), start=1):

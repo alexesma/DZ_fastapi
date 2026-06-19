@@ -979,6 +979,7 @@ async def list_autopurchase_top_items_view(
     source: str = Query(default="file"),
     limit: int = Query(default=100, ge=1, le=1000),
     active_only: bool = Query(default=True),
+    brand: Optional[str] = Query(default=None),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -987,6 +988,7 @@ async def list_autopurchase_top_items_view(
         source=source,
         limit=limit,
         active_only=active_only,
+        brand=brand,
     )
 
 
@@ -998,6 +1000,7 @@ async def list_autopurchase_top_items_view(
 async def list_current_autopurchase_top_items_view(
     days: int = Query(default=365, ge=1, le=730),
     limit: int = Query(default=100, ge=1, le=1000),
+    brand: Optional[str] = Query(default=None),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -1005,6 +1008,7 @@ async def list_current_autopurchase_top_items_view(
         session=session,
         days=days,
         limit=limit,
+        brand=brand,
     )
 
 
@@ -1101,6 +1105,7 @@ async def create_autopurchase_run_view(
     top_source: Optional[str] = Query(default=None),
     top_limit: Optional[int] = Query(default=None, ge=1, le=1000),
     top_days: Optional[int] = Query(default=None, ge=1, le=730),
+    top_brand: Optional[str] = Query(default=None),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -1116,6 +1121,7 @@ async def create_autopurchase_run_view(
             top_source=top_source,
             top_limit=top_limit,
             top_days=top_days,
+            top_brand=top_brand,
         )
     except ValueError as exc:
         detail = str(exc)

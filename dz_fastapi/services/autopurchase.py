@@ -2625,6 +2625,7 @@ def _build_run_settings(
     top_source: Optional[str],
     top_limit: Optional[int],
     top_days: Optional[int],
+    top_brand: Optional[str],
 ) -> dict[str, Any]:
     return {
         "own_provider_config_id": own_provider_config_id,
@@ -2635,6 +2636,7 @@ def _build_run_settings(
         "top_source": top_source,
         "top_limit": top_limit,
         "top_days": top_days,
+        "top_brand": top_brand,
         "supplier_source": "site",
     }
 
@@ -4624,6 +4626,7 @@ async def create_autopurchase_run(
     top_source: Optional[str] = None,
     top_limit: Optional[int] = None,
     top_days: Optional[int] = None,
+    top_brand: Optional[str] = None,
     trigger_source: str = "manual",
 ) -> dict[str, Any]:
     """Create a queued run record and return immediately.
@@ -4635,6 +4638,7 @@ async def create_autopurchase_run(
     normalized_top_source = _normalize_autopurchase_top_source(top_source)
     normalized_top_limit = _normalize_optional_positive_int(top_limit)
     normalized_top_days = _normalize_optional_positive_int(top_days)
+    normalized_top_brand = str(top_brand or "").strip() or None
 
     if session.in_transaction():
         await session.rollback()
@@ -4677,6 +4681,7 @@ async def create_autopurchase_run(
                 top_source=normalized_top_source,
                 top_limit=normalized_top_limit,
                 top_days=normalized_top_days,
+                top_brand=normalized_top_brand,
             ),
             summary_snapshot=_build_initial_run_summary(
                 config_row,
@@ -4732,12 +4737,19 @@ def _normalize_autopurchase_top_source(value: Any) -> Optional[str]:
     return source
 
 
+def _normalize_autopurchase_top_brand(value: Any) -> Optional[str]:
+    brand = str(value or "").strip().lower()
+    return brand or None
+
+
 async def _load_file_top_targets_for_autopurchase(
     session: AsyncSession,
     *,
     limit: Optional[int],
+    brand: Optional[str],
 ) -> dict[str, dict[str, Any]]:
     normalized_limit = max(min(int(limit or 300), 1000), 1)
+    normalized_brand = _normalize_autopurchase_top_brand(brand)
     stmt = (
         select(AutoPurchaseTopItem)
         .where(
@@ -4751,6 +4763,10 @@ async def _load_file_top_targets_for_autopurchase(
         )
         .limit(normalized_limit)
     )
+    if normalized_brand:
+        stmt = stmt.where(
+            func.lower(AutoPurchaseTopItem.brand_name).contains(normalized_brand)
+        )
     targets: dict[str, dict[str, Any]] = {}
     for item in (await session.execute(stmt)).scalars().all():
         normalized_oem = _normalize_oem(item.oem_number)
@@ -4770,9 +4786,11 @@ async def _load_current_top_targets_for_autopurchase(
     *,
     limit: Optional[int],
     days: Optional[int],
+    brand: Optional[str],
 ) -> dict[str, dict[str, Any]]:
     normalized_limit = max(min(int(limit or 300), 1000), 1)
     normalized_days = max(min(int(days or 365), 730), 1)
+    normalized_brand = _normalize_autopurchase_top_brand(brand)
     cutoff = now_moscow() - timedelta(days=normalized_days)
     stmt = (
         select(
@@ -4789,6 +4807,10 @@ async def _load_current_top_targets_for_autopurchase(
         .order_by(func.sum(CustomerOrderItem.requested_qty).desc())
         .limit(normalized_limit)
     )
+    if normalized_brand:
+        stmt = stmt.where(
+            func.lower(CustomerOrderItem.brand).contains(normalized_brand)
+        )
     targets: dict[str, dict[str, Any]] = {}
     for rank, row in enumerate((await session.execute(stmt)).all(), start=1):
         normalized_oem = _normalize_oem(row.oem)
@@ -4810,18 +4832,21 @@ async def _load_top_targets_for_autopurchase_run(
     top_source: Optional[str],
     top_limit: Optional[int],
     top_days: Optional[int],
+    top_brand: Optional[str],
 ) -> dict[str, dict[str, Any]]:
     normalized_source = _normalize_autopurchase_top_source(top_source)
     if normalized_source == "file":
         return await _load_file_top_targets_for_autopurchase(
             session,
             limit=top_limit,
+            brand=top_brand,
         )
     if normalized_source == "current":
         return await _load_current_top_targets_for_autopurchase(
             session,
             limit=top_limit,
             days=top_days,
+            brand=top_brand,
         )
     return {}
 
@@ -4841,6 +4866,7 @@ async def execute_next_autopurchase_run(
     top_source: Optional[str] = None
     top_limit: Optional[int] = None
     top_days: Optional[int] = None
+    top_brand: Optional[str] = None
 
     async with session.begin():
         lock_acquired = await _try_acquire_autopurchase_run_lock(session)
@@ -4885,6 +4911,7 @@ async def execute_next_autopurchase_run(
         top_source = settings.get("top_source")
         top_limit = _normalize_optional_positive_int(settings.get("top_limit"))
         top_days = _normalize_optional_positive_int(settings.get("top_days"))
+        top_brand = str(settings.get("top_brand") or "").strip() or None
 
     if run_id is None:
         return None
@@ -4897,6 +4924,7 @@ async def execute_next_autopurchase_run(
                 top_source=top_source,
                 top_limit=top_limit,
                 top_days=top_days,
+                top_brand=top_brand,
             )
         preview = await get_autopurchase_preview(
             session,
