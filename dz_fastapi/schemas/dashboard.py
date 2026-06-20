@@ -32,6 +32,70 @@ class SupplierPriceTrendResponse(BaseModel):
     series: list[SupplierPriceTrendSeries] = Field(default_factory=list)
 
 
+class DashboardDailyOrderRow(BaseModel):
+    date: date
+    customer_order_count: int = 0
+    customer_position_count: int = 0
+    customer_qty: int = 0
+    customer_sum: float = 0.0
+    supplier_order_count: int = 0
+    supplier_position_count: int = 0
+    supplier_qty: int = 0
+    supplier_sum: float = 0.0
+
+
+class DashboardPartnerOrderRow(BaseModel):
+    partner_id: int
+    partner_name: str
+    order_count: int = 0
+    position_count: int = 0
+    quantity: int = 0
+    total_sum: float = 0.0
+
+
+class DashboardOrderDynamicsSummary(BaseModel):
+    customer_order_count: int = 0
+    customer_qty: int = 0
+    customer_sum: float = 0.0
+    supplier_order_count: int = 0
+    supplier_qty: int = 0
+    supplier_sum: float = 0.0
+    purchase_coverage_pct: Optional[float] = None
+
+
+class DashboardOrderDynamicsResponse(BaseModel):
+    generated_at: datetime
+    days: int
+    summary: DashboardOrderDynamicsSummary
+    daily: list[DashboardDailyOrderRow] = Field(default_factory=list)
+    customers: list[DashboardPartnerOrderRow] = Field(default_factory=list)
+    suppliers: list[DashboardPartnerOrderRow] = Field(default_factory=list)
+
+
+class DashboardSupplierReliabilityRow(BaseModel):
+    provider_id: int
+    provider_name: str
+    order_count: int = 0
+    line_count: int = 0
+    evaluated_line_count: int = 0
+    ordered_qty: int = 0
+    evaluated_qty: int = 0
+    received_qty: int = 0
+    pending_qty: int = 0
+    fill_rate_pct: Optional[float] = None
+    on_time_pct: Optional[float] = None
+    late_line_count: int = 0
+    avg_lead_days: Optional[float] = None
+
+
+class DashboardSupplierReliabilityResponse(BaseModel):
+    generated_at: datetime
+    days: int
+    suppliers: list[DashboardSupplierReliabilityRow] = Field(
+        default_factory=list
+    )
+
+
 class InventoryDashboardSummary(BaseModel):
     total_skus: int = 0
     in_stock_skus: int = 0
