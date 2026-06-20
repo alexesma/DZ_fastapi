@@ -25,7 +25,14 @@ async def test_watchlist_site_creates_admin_notification(async_client, test_sess
 
         async def get_offers(self, oem, brand, without_cross=True):
             return [
-                {"cost": "150", "qnt": "2", "price_name": "S1"},
+                {
+                    "cost": "150",
+                    "qnt": "2",
+                    "price_name": "S1",
+                    "hash_key": "hash-1",
+                    "min_delivery_day": 1,
+                    "max_delivery_day": 2,
+                },
                 {"cost": "151", "qnt": "3", "price_name": "S2"},
                 {"cost": "152", "qnt": "4", "price_name": "S3"},
                 {"cost": "153", "qnt": "5", "price_name": "S4"},
@@ -53,5 +60,23 @@ async def test_watchlist_site_creates_admin_notification(async_client, test_sess
     assert sent["link"] == "/watchlist"
     assert sent["commit"] is False
     assert "SITEBRAND SITE123" in sent["message"]
-    assert "Топ 3 предложения:" in sent["message"]
-    assert "4. " not in sent["message"]
+    assert "Топ 5 предложения:" in sent["message"]
+    watch_response = await async_client.get(
+        "/watchlist", params={"page": 1, "page_size": 10}
+    )
+    snapshot = watch_response.json()["items"][0]["last_seen_site_offers"]
+    assert len(snapshot) == 4
+    assert snapshot[0] == {
+        "price": 150.0,
+        "qty": 2,
+        "supplier_name": "S1",
+        "supplier_id": None,
+        "brand_name": None,
+        "oem_number": None,
+        "autopart_name": None,
+        "min_qnt": 1,
+        "min_delivery_day": 1,
+        "max_delivery_day": 2,
+        "hash_key": "hash-1",
+        "system_hash": None,
+    }

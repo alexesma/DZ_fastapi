@@ -22,7 +22,7 @@ logger = logging.getLogger("dz_fastapi")
 SITE_PROVIDER_NAME = "Сайт Dragonzap"
 SITE_PRICELIST_ID = 0
 PRICE_STEP = Decimal("0.01")
-TOP_SITE_OFFERS_LIMIT = 3
+TOP_SITE_OFFERS_LIMIT = 5
 WATCHLIST_PRICE_NOTIFICATION_PREFIX = "Подходящая цена"
 
 
@@ -106,12 +106,27 @@ def _normalize_offer(offer: dict) -> dict | None:
             offer, ("max_delivery_day", "max_delivery", "max_delivery_days")
         )
     )
+    supplier_id = _to_int(
+        _pick_first(offer, ("supplier_id", "provider_id", "sup_id"))
+    )
+    min_qnt = _to_int(
+        _pick_first(offer, ("min_qnt", "min_quantity", "multiplicity"))
+    )
     return {
         "price": price,
         "qty": qty,
         "supplier_name": supplier_name,
+        "supplier_id": supplier_id,
+        "brand_name": _pick_first(offer, ("make_name", "brand_name", "brand")),
+        "oem_number": _pick_first(offer, ("oem", "oem_number", "article")),
+        "autopart_name": _pick_first(
+            offer, ("detail_name", "autopart_name", "name")
+        ),
+        "min_qnt": max(min_qnt or 1, 1),
         "min_delivery_day": min_delivery,
         "max_delivery_day": max_delivery,
+        "hash_key": offer.get("hash_key"),
+        "system_hash": offer.get("system_hash"),
     }
 
 
@@ -295,6 +310,7 @@ async def check_watchlist_site(session):
             item.last_seen_site_at = now
             item.last_seen_site_price = best_price
             item.last_seen_site_qty = best_qty
+            item.last_seen_site_offers = top_offers
             if _notify_immediately():
                 should_notify = (
                     not item.last_notified_site_at

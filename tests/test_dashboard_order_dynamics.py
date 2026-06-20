@@ -8,6 +8,8 @@ from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.partner import (
     CustomerOrder,
     CustomerOrderItem,
+    Order,
+    OrderItem,
     SupplierOrder,
     SupplierOrderItem,
 )
@@ -28,7 +30,12 @@ async def test_order_dynamics_aggregates_daily_and_partner_totals(
         provider_id=created_providers[0].id,
         created_at=created_at,
     )
-    test_session.add_all([customer_order, supplier_order])
+    site_order = Order(
+        provider_id=created_providers[0].id,
+        customer_id=created_customers[0].id,
+        created_at=created_at,
+    )
+    test_session.add_all([customer_order, supplier_order, site_order])
     await test_session.flush()
 
     test_session.add_all(
@@ -53,6 +60,12 @@ async def test_order_dynamics_aggregates_daily_and_partner_totals(
                 quantity=4,
                 price=80,
             ),
+            OrderItem(
+                order_id=site_order.id,
+                oem_number="OEM-SITE",
+                quantity=6,
+                price=50,
+            ),
         ]
     )
     await test_session.commit()
@@ -67,18 +80,20 @@ async def test_order_dynamics_aggregates_daily_and_partner_totals(
         "customer_order_count": 1,
         "customer_qty": 5,
         "customer_sum": 650.0,
-        "supplier_order_count": 1,
-        "supplier_qty": 4,
-        "supplier_sum": 320.0,
-        "purchase_coverage_pct": 80.0,
+        "supplier_order_count": 2,
+        "supplier_qty": 10,
+        "supplier_sum": 620.0,
+        "purchase_coverage_pct": 200.0,
     }
     populated_day = next(
         row for row in result["daily"] if row["customer_order_count"]
     )
     assert populated_day["customer_position_count"] == 2
-    assert populated_day["supplier_position_count"] == 1
+    assert populated_day["supplier_position_count"] == 2
     assert result["customers"][0]["partner_name"] == created_customers[0].name
     assert result["suppliers"][0]["partner_name"] == created_providers[0].name
+    assert result["suppliers"][0]["order_count"] == 2
+    assert result["suppliers"][0]["total_sum"] == 620.0
 
 
 def test_supplier_reliability_excludes_not_due_lines_from_rating():
@@ -91,6 +106,7 @@ def test_supplier_reliability_excludes_not_due_lines_from_rating():
             provider_name="Reliable Parts",
             created_at=created_at,
             quantity=10,
+            price=100,
             received_quantity=8,
             received_at=created_at + timedelta(days=4),
             max_delivery_day=7,
@@ -101,6 +117,7 @@ def test_supplier_reliability_excludes_not_due_lines_from_rating():
             provider_name="Reliable Parts",
             created_at=created_at,
             quantity=5,
+            price=100,
             received_quantity=0,
             received_at=None,
             max_delivery_day=3,
@@ -111,6 +128,7 @@ def test_supplier_reliability_excludes_not_due_lines_from_rating():
             provider_name="Reliable Parts",
             created_at=generated_at - timedelta(days=1),
             quantity=4,
+            price=100,
             received_quantity=0,
             received_at=None,
             max_delivery_day=5,
@@ -129,6 +147,10 @@ def test_supplier_reliability_excludes_not_due_lines_from_rating():
     assert result["evaluated_qty"] == 15
     assert result["received_qty"] == 8
     assert result["pending_qty"] == 11
+    assert result["ordered_sum"] == 1900.0
+    assert result["evaluated_sum"] == 1500.0
+    assert result["received_sum"] == 800.0
+    assert result["pending_sum"] == 1100.0
     assert result["fill_rate_pct"] == 53.3
     assert result["on_time_pct"] == 50.0
     assert result["late_line_count"] == 1

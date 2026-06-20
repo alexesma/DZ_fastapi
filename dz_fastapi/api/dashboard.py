@@ -4,7 +4,7 @@ from statistics import median
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -15,6 +15,8 @@ from dz_fastapi.models.partner import (
     Customer,
     CustomerOrder,
     CustomerOrderItem,
+    Order,
+    OrderItem,
     PriceList,
     PriceListAutoPartAssociation,
     Provider,
@@ -75,6 +77,9 @@ async def get_order_dynamics(
     supplier_day = func.date(
         func.timezone("Europe/Moscow", SupplierOrder.created_at)
     )
+    site_order_day = func.date(
+        func.timezone("Europe/Moscow", Order.created_at)
+    )
     customer_sum_expr = func.coalesce(
         func.sum(
             CustomerOrderItem.requested_qty
@@ -91,6 +96,10 @@ async def get_order_dynamics(
             SupplierOrderItem.quantity
             * func.coalesce(SupplierOrderItem.price, 0)
         ),
+        0,
+    )
+    site_order_sum_expr = func.coalesce(
+        func.sum(OrderItem.quantity * func.coalesce(OrderItem.price, 0)),
         0,
     )
 
@@ -128,6 +137,20 @@ async def get_order_dynamics(
         .where(supplier_day >= start_date)
         .group_by(supplier_day)
         .order_by(supplier_day.asc())
+    )
+    site_order_daily_stmt = (
+        select(
+            site_order_day.label("day"),
+            func.count(func.distinct(Order.id)).label("order_count"),
+            func.count(OrderItem.id).label("position_count"),
+            func.coalesce(func.sum(OrderItem.quantity), 0).label("quantity"),
+            site_order_sum_expr.label("total_sum"),
+        )
+        .select_from(Order)
+        .join(OrderItem, OrderItem.order_id == Order.id)
+        .where(site_order_day >= start_date)
+        .group_by(site_order_day)
+        .order_by(site_order_day.asc())
     )
     customer_partner_stmt = (
         select(
@@ -170,29 +193,61 @@ async def get_order_dynamics(
         .order_by(func.sum(SupplierOrderItem.quantity).desc())
         .limit(partner_limit)
     )
+    site_order_partner_stmt = (
+        select(
+            Provider.id.label("partner_id"),
+            Provider.name.label("partner_name"),
+            func.count(func.distinct(Order.id)).label("order_count"),
+            func.count(OrderItem.id).label("position_count"),
+            func.coalesce(func.sum(OrderItem.quantity), 0).label("quantity"),
+            site_order_sum_expr.label("total_sum"),
+        )
+        .select_from(Order)
+        .join(Provider, Provider.id == Order.provider_id)
+        .join(OrderItem, OrderItem.order_id == Order.id)
+        .where(site_order_day >= start_date)
+        .group_by(Provider.id, Provider.name)
+    )
 
     customer_daily_rows = (await session.execute(customer_daily_stmt)).all()
     supplier_daily_rows = (await session.execute(supplier_daily_stmt)).all()
+    site_order_daily_rows = (
+        await session.execute(site_order_daily_stmt)
+    ).all()
     customer_partner_rows = (
         await session.execute(customer_partner_stmt)
     ).all()
     supplier_partner_rows = (
         await session.execute(supplier_partner_stmt)
     ).all()
+    site_order_partner_rows = (
+        await session.execute(site_order_partner_stmt)
+    ).all()
 
-    def aggregate_map(rows):
-        return {
-            row.day: {
-                "order_count": int(row.order_count or 0),
-                "position_count": int(row.position_count or 0),
-                "quantity": int(row.quantity or 0),
-                "total_sum": float(row.total_sum or 0),
-            }
-            for row in rows
-        }
+    def aggregate_map(*row_groups):
+        result = {}
+        for rows in row_groups:
+            for row in rows:
+                item = result.setdefault(
+                    row.day,
+                    {
+                        "order_count": 0,
+                        "position_count": 0,
+                        "quantity": 0,
+                        "total_sum": 0.0,
+                    },
+                )
+                item["order_count"] += int(row.order_count or 0)
+                item["position_count"] += int(row.position_count or 0)
+                item["quantity"] += int(row.quantity or 0)
+                item["total_sum"] += float(row.total_sum or 0)
+        return result
 
     customer_by_day = aggregate_map(customer_daily_rows)
-    supplier_by_day = aggregate_map(supplier_daily_rows)
+    supplier_by_day = aggregate_map(
+        supplier_daily_rows,
+        site_order_daily_rows,
+    )
     daily = []
     for offset in range(days):
         day = start_date + timedelta(days=offset)
@@ -216,18 +271,30 @@ async def get_order_dynamics(
             }
         )
 
-    def partner_payload(rows):
-        return [
-            {
-                "partner_id": int(row.partner_id),
-                "partner_name": row.partner_name or f"#{row.partner_id}",
-                "order_count": int(row.order_count or 0),
-                "position_count": int(row.position_count or 0),
-                "quantity": int(row.quantity or 0),
-                "total_sum": float(row.total_sum or 0),
-            }
-            for row in rows
-        ]
+    def partner_payload(*row_groups):
+        result = {}
+        for rows in row_groups:
+            for row in rows:
+                partner_id = int(row.partner_id)
+                item = result.setdefault(
+                    partner_id,
+                    {
+                        "partner_id": partner_id,
+                        "partner_name": row.partner_name or f"#{partner_id}",
+                        "order_count": 0,
+                        "position_count": 0,
+                        "quantity": 0,
+                        "total_sum": 0.0,
+                    },
+                )
+                item["order_count"] += int(row.order_count or 0)
+                item["position_count"] += int(row.position_count or 0)
+                item["quantity"] += int(row.quantity or 0)
+                item["total_sum"] += float(row.total_sum or 0)
+        return sorted(
+            result.values(),
+            key=lambda item: (-item["total_sum"], -item["quantity"]),
+        )[:partner_limit]
 
     customer_order_count = sum(
         int(row["customer_order_count"]) for row in daily
@@ -258,7 +325,10 @@ async def get_order_dynamics(
         },
         "daily": daily,
         "customers": partner_payload(customer_partner_rows),
-        "suppliers": partner_payload(supplier_partner_rows),
+        "suppliers": partner_payload(
+            supplier_partner_rows,
+            site_order_partner_rows,
+        ),
     }
 
 
@@ -278,6 +348,10 @@ def _build_supplier_reliability(rows, *, generated_at):
                 "evaluated_qty": 0,
                 "received_qty": 0,
                 "pending_qty": 0,
+                "ordered_sum": 0.0,
+                "evaluated_sum": 0.0,
+                "received_sum": 0.0,
+                "pending_sum": 0.0,
                 "deadline_line_count": 0,
                 "on_time_line_count": 0,
                 "late_line_count": 0,
@@ -286,10 +360,17 @@ def _build_supplier_reliability(rows, *, generated_at):
         )
         ordered_qty = max(int(row.quantity or 0), 0)
         received_qty = min(max(int(row.received_quantity or 0), 0), ordered_qty)
-        item["order_ids"].add(int(row.order_id))
+        unit_price = max(float(row.price or 0), 0.0)
+        ordered_sum = ordered_qty * unit_price
+        received_sum = received_qty * unit_price
+        item["order_ids"].add(
+            (getattr(row, "order_source", "supplier"), int(row.order_id))
+        )
         item["line_count"] += 1
         item["ordered_qty"] += ordered_qty
         item["pending_qty"] += max(ordered_qty - received_qty, 0)
+        item["ordered_sum"] += ordered_sum
+        item["pending_sum"] += max(ordered_sum - received_sum, 0.0)
 
         created_at = row.created_at
         received_at = row.received_at
@@ -306,6 +387,8 @@ def _build_supplier_reliability(rows, *, generated_at):
             item["evaluated_line_count"] += 1
             item["evaluated_qty"] += ordered_qty
             item["received_qty"] += received_qty
+            item["evaluated_sum"] += ordered_sum
+            item["received_sum"] += received_sum
 
         if deadline is not None and is_evaluated:
             item["deadline_line_count"] += 1
@@ -324,6 +407,7 @@ def _build_supplier_reliability(rows, *, generated_at):
     result = []
     for item in grouped.values():
         evaluated_qty = item["evaluated_qty"]
+        evaluated_sum = item["evaluated_sum"]
         deadline_lines = item["deadline_line_count"]
         lead_days = item["lead_days"]
         result.append(
@@ -337,9 +421,13 @@ def _build_supplier_reliability(rows, *, generated_at):
                 "evaluated_qty": evaluated_qty,
                 "received_qty": item["received_qty"],
                 "pending_qty": item["pending_qty"],
+                "ordered_sum": round(item["ordered_sum"], 2),
+                "evaluated_sum": round(evaluated_sum, 2),
+                "received_sum": round(item["received_sum"], 2),
+                "pending_sum": round(item["pending_sum"], 2),
                 "fill_rate_pct": (
-                    round(item["received_qty"] / evaluated_qty * 100.0, 1)
-                    if evaluated_qty > 0
+                    round(item["received_sum"] / evaluated_sum * 100.0, 1)
+                    if evaluated_sum > 0
                     else None
                 ),
                 "on_time_pct": (
@@ -384,10 +472,16 @@ async def get_supplier_reliability(
     stmt = (
         select(
             SupplierOrder.id.label("order_id"),
+            literal("supplier").label("order_source"),
             SupplierOrder.provider_id,
             Provider.name.label("provider_name"),
             SupplierOrder.created_at,
             SupplierOrderItem.quantity,
+            func.coalesce(
+                SupplierOrderItem.response_price,
+                SupplierOrderItem.price,
+                0,
+            ).label("price"),
             SupplierOrderItem.received_quantity,
             SupplierOrderItem.received_at,
             SupplierOrderItem.max_delivery_day,
@@ -401,7 +495,29 @@ async def get_supplier_reliability(
         .where(SupplierOrder.created_at >= date_from)
         .order_by(SupplierOrder.created_at.desc())
     )
-    rows = (await session.execute(stmt)).all()
+    site_stmt = (
+        select(
+            Order.id.label("order_id"),
+            literal("site").label("order_source"),
+            Order.provider_id,
+            Provider.name.label("provider_name"),
+            Order.created_at,
+            OrderItem.quantity,
+            func.coalesce(OrderItem.price, 0).label("price"),
+            OrderItem.received_quantity,
+            OrderItem.received_at,
+            OrderItem.max_delivery_day,
+        )
+        .select_from(OrderItem)
+        .join(Order, Order.id == OrderItem.order_id)
+        .join(Provider, Provider.id == Order.provider_id)
+        .where(Order.created_at >= date_from)
+        .order_by(Order.created_at.desc())
+    )
+    rows = [
+        *(await session.execute(stmt)).all(),
+        *(await session.execute(site_stmt)).all(),
+    ]
     return {
         "generated_at": generated_at,
         "days": days,

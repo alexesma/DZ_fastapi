@@ -7,12 +7,11 @@ from dz_fastapi.services.watchlist import SITE_ITEM_SEPARATOR, send_watchlist_da
 
 
 @pytest.mark.asyncio
-async def test_watchlist_daily_notification_site_separator_and_top3(
+async def test_watchlist_daily_notification_uses_saved_site_snapshot(
     test_session,
     monkeypatch,
 ):
     monkeypatch.setenv("WATCHLIST_NOTIFY_MODE", "daily")
-    monkeypatch.setenv("KEY_FOR_WEBSITE", "test")
 
     item_one = await crud_price_watch_item.create(
         test_session,
@@ -34,6 +33,22 @@ async def test_watchlist_daily_notification_site_separator_and_top3(
     item_one.last_seen_site_at = now
     item_one.last_seen_site_price = 100.0
     item_one.last_seen_site_qty = 1
+    item_one.last_seen_site_offers = [
+        {
+            "price": 100.0,
+            "qty": 1,
+            "supplier_name": "S1",
+            "min_delivery_day": 1,
+            "max_delivery_day": 2,
+        },
+        {
+            "price": 101.0,
+            "qty": 2,
+            "supplier_name": "S2",
+            "min_delivery_day": 2,
+            "max_delivery_day": 3,
+        },
+    ]
     item_two.last_seen_site_at = now
     item_two.last_seen_site_price = 200.0
     item_two.last_seen_site_qty = 2
@@ -41,31 +56,12 @@ async def test_watchlist_daily_notification_site_separator_and_top3(
     test_session.add(item_two)
     await test_session.commit()
 
-    class FakeClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-        async def get_offers(self, oem, brand, without_cross=True):
-            return [
-                {"cost": "100", "qnt": "1", "price_name": "S1"},
-                {"cost": "101", "qnt": "2", "price_name": "S2"},
-                {"cost": "102", "qnt": "3", "price_name": "S3"},
-                {"cost": "103", "qnt": "4", "price_name": "S4"},
-            ]
-
     sent = {}
 
     async def fake_notify_admin_all(**kwargs):
         sent.update(kwargs)
         return []
 
-    monkeypatch.setattr(
-        "dz_fastapi.services.watchlist.DZSiteClient",
-        lambda *args, **kwargs: FakeClient(),
-    )
     monkeypatch.setattr(
         "dz_fastapi.services.watchlist.notify_admin_all",
         fake_notify_admin_all,
@@ -84,7 +80,8 @@ async def test_watchlist_daily_notification_site_separator_and_top3(
     assert "Прайс: цена 95.0 | Поставщик 77" in sent["message"]
     assert "Сайт:" in sent["message"]
     assert "BBB 222" in sent["message"]
-    assert "4. " not in sent["message"]
+    assert "1. S1 | Цена 100.00 | Кол-во 1 | Срок 1 - 2" in sent["message"]
+    assert "2. S2 | Цена 101.00 | Кол-во 2 | Срок 2 - 3" in sent["message"]
 
 
 @pytest.mark.asyncio

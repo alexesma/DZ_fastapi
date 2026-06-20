@@ -82,6 +82,10 @@ class DashboardSupplierReliabilityRow(BaseModel):
     evaluated_qty: int = 0
     received_qty: int = 0
     pending_qty: int = 0
+    ordered_sum: float = 0.0
+    evaluated_sum: float = 0.0
+    received_sum: float = 0.0
+    pending_sum: float = 0.0
     fill_rate_pct: Optional[float] = None
     on_time_pct: Optional[float] = None
     late_line_count: int = 0

@@ -5,18 +5,12 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.core.constants import URL_DZ_SEARCH
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.watchlist import crud_price_watch_item
-from dz_fastapi.http.dz_site_client import DZSiteClient
 from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import Client, Provider, ProviderPriceListConfig
 from dz_fastapi.services.notifications import notify_admin_all
-from dz_fastapi.services.watchlist_site import (
-    TOP_SITE_OFFERS_LIMIT,
-    _collect_top_offers,
-    format_top_offer_lines,
-)
+from dz_fastapi.services.watchlist_site import TOP_SITE_OFFERS_LIMIT, format_top_offer_lines
 
 logger = logging.getLogger("dz_fastapi")
 SITE_ITEM_SEPARATOR = "--------------------"
@@ -150,30 +144,13 @@ async def send_watchlist_daily_notifications(session: AsyncSession):
 
     provider_by_id = {item.id: item for item in provider_items}
     site_by_id = {item.id: item for item in site_items}
-    if site_items:
-        site_offer_map: dict[int, list[dict]] = {}
-        key = os.getenv("KEY_FOR_WEBSITE")
-        if key:
-            async with DZSiteClient(
-                base_url=URL_DZ_SEARCH, api_key=key, verify_ssl=False
-            ) as client:
-                for item in site_items:
-                    try:
-                        offers = await client.get_offers(
-                            oem=item.oem, brand=item.brand, without_cross=True
-                        )
-                    except Exception as e:
-                        logger.error(f"DZ search failed for {item.oem}: {e}")
-                        continue
-                    if not offers:
-                        continue
-                    top_offers = _collect_top_offers(
-                        offers,
-                        item.max_price,
-                        limit=TOP_SITE_OFFERS_LIMIT,
-                    )
-                    if top_offers:
-                        site_offer_map[item.id] = top_offers
+    site_offer_map = {
+        item.id: list(item.last_seen_site_offers or [])[
+            :TOP_SITE_OFFERS_LIMIT
+        ]
+        for item in site_items
+        if item.last_seen_site_offers
+    }
 
     notify_items = [
         item

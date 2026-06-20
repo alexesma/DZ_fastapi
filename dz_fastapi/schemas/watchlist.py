@@ -30,6 +30,8 @@ class PriceWatchItemOut(PriceWatchItemBase):
     last_seen_provider_pricelist_id: Optional[int] = None
     last_seen_site_at: Optional[datetime] = None
     last_seen_site_price: Optional[float] = None
+    last_seen_site_qty: Optional[int] = None
+    last_seen_site_offers: Optional[list[dict]] = None
 
     model_config = ConfigDict(from_attributes=True)
 
