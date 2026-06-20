@@ -12,6 +12,7 @@ from dz_fastapi.services.autopurchase import (
     _evaluate_autopurchase_auto_send_gate,
     _get_cross_brand_priority,
     _get_target_cover_days,
+    _has_sendable_site_identity,
     _is_dragonzap_brand,
     _normalize_brand_key,
     _plan_auto_allocations,
@@ -499,3 +500,9 @@ def test_auto_send_gate_blocks_low_supplier_qty_and_unconfirmed_cross():
     assert low_qty_reason["code"] == "auto_send_supplier_qty_too_low"
     assert cross_allowed is False
     assert cross_reason["code"] == "auto_send_unconfirmed_cross"
+
+
+def test_auto_send_accepts_hash_or_system_hash_identity():
+    assert _has_sendable_site_identity({"hash_key": "hash-1"}) is True
+    assert _has_sendable_site_identity({"system_hash": "system-1"}) is True
+    assert _has_sendable_site_identity({"hash_key": "", "system_hash": None}) is False

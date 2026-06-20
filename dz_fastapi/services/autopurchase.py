@@ -5531,6 +5531,13 @@ def _build_autopurchase_tracking_uuid(run_id: int, item_id: int) -> str:
     return f"ap-{int(run_id)}-{int(item_id)}"
 
 
+def _has_sendable_site_identity(payload: dict[str, Any]) -> bool:
+    return bool(
+        str(payload.get("hash_key") or "").strip()
+        or str(payload.get("system_hash") or "").strip()
+    )
+
+
 async def _auto_send_autopurchase_run_items(
     session: AsyncSession,
     *,
@@ -5587,9 +5594,10 @@ async def _auto_send_autopurchase_run_items(
             tracking_uuid = _build_autopurchase_tracking_uuid(run_id, item_id)
             if item_id <= 0 or quantity <= 0 or price is None:
                 continue
-            if not line.get("hash_key"):
+            if not _has_sendable_site_identity(line):
                 logger.warning(
-                    "Autopurchase auto-send skips item_id=%s run_id=%s: no hash_key",
+                    "Autopurchase auto-send skips item_id=%s run_id=%s: "
+                    "no hash_key or system_hash",
                     item_id,
                     run_id,
                 )
