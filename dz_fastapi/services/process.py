@@ -15,6 +15,7 @@ from libarchive import memory_reader
 from openpyxl import Workbook
 from openpyxl.cell import WriteOnlyCell
 from openpyxl.styles import Alignment, Font, PatternFill
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.analytics.price_history import analyze_new_pricelist
@@ -834,6 +835,23 @@ async def process_provider_pricelist(
         raise HTTPException(
             status_code=404, detail="Configuration not transferred"
         )
+
+    if session.get_bind().dialect.name == "postgresql":
+        lock_key = 4_450_000_000 + int(provider_list_conf.id)
+        lock_acquired = (
+            await session.execute(
+                text("SELECT pg_try_advisory_xact_lock(:lock_key)"),
+                {"lock_key": lock_key},
+            )
+        ).scalar_one()
+        if not lock_acquired:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Этот прайс уже обрабатывается. Дождитесь завершения "
+                    "текущей загрузки и не запускайте её повторно."
+                ),
+            )
 
     if use_stored_params:
         start_row = provider_list_conf.start_row

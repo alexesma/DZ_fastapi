@@ -538,28 +538,16 @@ def _to_float(value: object) -> Optional[float]:
         return None
 
 
-async def _pricelist_position_count(
-    session: AsyncSession, pricelist_id: int
-) -> int:
-    return int(
-        (
-            await session.execute(
-                select(func.count()).where(
-                    PriceListAutoPartAssociation.pricelist_id == pricelist_id
-                )
-            )
-        ).scalar()
-        or 0
-    )
-
-
 async def _load_pair_stats(
     session: AsyncSession,
     prev_pricelist_id: int,
     curr_pricelist_id: int,
-) -> tuple[int, Optional[float], int, int, Optional[float]]:
-    """Сравнение двух прайсов: (общих позиций, медиана % изм. цены,
-    появилось позиций, ушло позиций, доля изменивших цену %)."""
+) -> tuple[int, Optional[float], Optional[float]]:
+    """Один запрос: (общих позиций, медиана % изм. цены, доля изменивших %).
+
+    Количества новых/ушедших позиций считаются вызывающим кодом из уже
+    загруженных total-счётчиков, чтобы не делать лишние COUNT-запросы.
+    """
     curr_assoc = aliased(PriceListAutoPartAssociation)
     prev_assoc = aliased(PriceListAutoPartAssociation)
     stmt = (
@@ -576,35 +564,22 @@ async def _load_pair_stats(
     rows = (await session.execute(stmt)).all()
     overlap_count = len(rows)
 
-    curr_total = await _pricelist_position_count(session, curr_pricelist_id)
-    prev_total = await _pricelist_position_count(session, prev_pricelist_id)
-    new_positions = max(curr_total - overlap_count, 0)
-    removed_positions = max(prev_total - overlap_count, 0)
-
     ratios: list[float] = []
-    comparable = 0
     changed = 0
     for curr_price, prev_price in rows:
         curr_value = _to_float(curr_price)
         prev_value = _to_float(prev_price)
         if curr_value is None or prev_value is None or prev_value <= 0:
             continue
-        comparable += 1
         pct = ((curr_value / prev_value) - 1.0) * 100.0
         ratios.append(pct)
         if abs(pct) > 0.01:
             changed += 1
     median_pct = float(median(ratios)) if ratios else None
     changed_share_pct = (
-        round((changed / comparable) * 100.0, 1) if comparable > 0 else None
+        round((changed / len(ratios)) * 100.0, 1) if ratios else None
     )
-    return (
-        overlap_count,
-        median_pct,
-        new_positions,
-        removed_positions,
-        changed_share_pct,
-    )
+    return overlap_count, median_pct, changed_share_pct
 
 
 def _rolling_median(
@@ -767,7 +742,7 @@ async def get_supplier_price_trends(
 
     pair_cache: dict[
         tuple[int, int],
-        tuple[int, Optional[float], int, int, Optional[float]],
+        tuple[int, Optional[float], Optional[float]],
     ] = {}
 
     async def _cached_pair(prev_id: int, curr_id: int):
@@ -800,33 +775,26 @@ async def get_supplier_price_trends(
             new_positions = None
             removed_positions = None
             changed_share_pct = None
-            cumulative_index_pct = None
             if prev_item is not None:
                 prev_pricelist_id = int(prev_item["pricelist_id"])
                 (
                     overlap_count,
                     step_index_pct,
-                    new_positions,
-                    removed_positions,
                     changed_share_pct,
                 ) = await _cached_pair(prev_pricelist_id, pricelist_id)
-                prev_metric = metric_map.get(prev_pricelist_id, {})
-                prev_total = int(prev_metric.get("total_sku_count", 0))
-                if prev_total > 0 and overlap_count is not None:
+                prev_total = int(
+                    metric_map.get(prev_pricelist_id, {}).get(
+                        "total_sku_count", 0
+                    )
+                )
+                curr_total = int(metric.get("total_sku_count", 0))
+                # Новые/ушедшие позиции — из уже загруженных total-счётчиков.
+                new_positions = max(curr_total - overlap_count, 0)
+                removed_positions = max(prev_total - overlap_count, 0)
+                if prev_total > 0:
                     coverage_pct = round(
                         (overlap_count / prev_total) * 100, 2
                     )
-                # Накопленный индекс цены к первому прайсу периода —
-                # показывает нетто-тренд, не размываясь сглаживанием.
-                if (
-                    base_pricelist_id is not None
-                    and base_pricelist_id != pricelist_id
-                ):
-                    cumulative_index_pct = (
-                        await _cached_pair(base_pricelist_id, pricelist_id)
-                    )[1]
-            else:
-                cumulative_index_pct = 0.0
             points.append(
                 SupplierPriceTrendPoint(
                     pricelist_id=pricelist_id,
@@ -839,11 +807,6 @@ async def get_supplier_price_trends(
                     step_index_pct=(
                         round(step_index_pct, 2)
                         if step_index_pct is not None
-                        else None
-                    ),
-                    cumulative_index_pct=(
-                        round(cumulative_index_pct, 2)
-                        if cumulative_index_pct is not None
                         else None
                     ),
                     coverage_pct=coverage_pct,
@@ -865,9 +828,17 @@ async def get_supplier_price_trends(
             )
 
         latest_point = points[-1] if points else None
-        net_price_change_pct = (
-            latest_point.cumulative_index_pct if latest_point else None
-        )
+        # Нетто-изменение цены: первая загрузка периода → последняя.
+        # Один запрос на серию (а не по каждой точке).
+        net_price_change_pct = None
+        if (
+            latest_point is not None
+            and base_pricelist_id is not None
+            and base_pricelist_id != latest_point.pricelist_id
+        ):
+            net_price_change_pct = (
+                await _cached_pair(base_pricelist_id, latest_point.pricelist_id)
+            )[1]
         latest_uploaded_at = (
             latest_point.uploaded_at if latest_point else None
         )

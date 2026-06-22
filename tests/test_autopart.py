@@ -16,9 +16,45 @@ from dz_fastapi.models.autopart import (
 )
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation
+from dz_fastapi.schemas.autopart import AutoPartCreate
 from tests.test_constants import TEST_AUTOPART, TEST_BRAND
 
 logger = logging.getLogger("dz_fastapi")
+
+
+@pytest.mark.asyncio
+async def test_create_autopart_uses_fallback_for_barcode_collision(
+    test_session,
+):
+    short_brand = Brand(name="A")
+    long_brand = Brand(name="AB")
+    test_session.add_all([short_brand, long_brand])
+    await test_session.commit()
+    await test_session.refresh(short_brand)
+    await test_session.refresh(long_brand)
+
+    first = await crud_autopart.create_autopart(
+        AutoPartCreate(
+            brand_id=short_brand.id,
+            oem_number="BC",
+            name="First",
+        ),
+        short_brand,
+        test_session,
+    )
+    second = await crud_autopart.create_autopart(
+        AutoPartCreate(
+            brand_id=long_brand.id,
+            oem_number="C",
+            name="Second",
+        ),
+        long_brand,
+        test_session,
+    )
+
+    assert first.barcode == "ABC"
+    assert second.barcode.startswith("ABC~")
+    assert second.barcode != first.barcode
 
 
 @pytest.mark.asyncio

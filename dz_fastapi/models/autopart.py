@@ -1,5 +1,6 @@
 import logging
 import re
+from hashlib import sha1
 from enum import StrEnum, unique
 from uuid import uuid4
 
@@ -32,6 +33,22 @@ from dz_fastapi.core.constants import (
 from dz_fastapi.core.time import now_moscow
 
 logger = logging.getLogger("dz_fastapi")
+
+
+def _build_autopart_barcode(connection, target, brand_name: str) -> str:
+    base = f"{brand_name}{target.oem_number}"
+    candidate = _truncate_if_needed(base, MAX_LIGHT_BARCODE, "barcode")
+    collision = connection.execute(
+        select(AutoPart.id).where(AutoPart.barcode == candidate).limit(1)
+    ).first()
+    if collision is None:
+        return candidate
+
+    digest = sha1(
+        f"{target.brand_id}:{target.oem_number}".encode("utf-8")
+    ).hexdigest()[:10]
+    suffix = f"~{target.brand_id:x}-{digest}"
+    return f"{base[:MAX_LIGHT_BARCODE - len(suffix)]}{suffix}"
 
 
 @unique
@@ -230,11 +247,10 @@ def preprocess_auto_part(mapper, connection, target):
             ).fetchone()
             if brand_name_result:
                 brand_name = brand_name_result[0]
-                target.barcode = f"{brand_name}{target.oem_number}"
-                target.barcode = _truncate_if_needed(
-                    target.barcode,
-                    MAX_LIGHT_BARCODE,
-                    "barcode",
+                target.barcode = _build_autopart_barcode(
+                    connection,
+                    target,
+                    brand_name,
                 )
             else:
                 raise ValueError("Brand not found")

@@ -97,7 +97,10 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             )
             autopart_data["name"] = await change_string(autopart_data["name"])
             autopart = AutoPart(**autopart_data)
-            autopart.brand = brand
+            # Keep the shared Brand ORM object outside the nested insert
+            # savepoint. A failed insert must not expire it for the remaining
+            # tens of thousands of rows in the same pricelist import.
+            autopart.brand_id = brand.id
             autopart.categories = []
             if category_name:
                 category = await crud_category.get_category_id_by_name(
@@ -155,7 +158,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         except SQLAlchemyError as error:
             if rollback_on_error:
                 await session.rollback()
-            raise SQLAlchemyError("Failed to create autopart") from error
+            raise
 
     async def get_multi(
         self, session: AsyncSession, *, skip: int = 0, limit: int = 100
@@ -306,14 +309,29 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             )
             logger.debug(f"AutopartCreate data: {autopart_create_data}")
 
-            async with session.begin_nested():
-                autopart = await self.create_autopart(
-                    new_autopart=autopart_create_data,
-                    brand=brand,
-                    session=session,
-                    commit=False,
-                    rollback_on_error=False,
+            try:
+                async with session.begin_nested():
+                    autopart = await self.create_autopart(
+                        new_autopart=autopart_create_data,
+                        brand=brand,
+                        session=session,
+                        commit=False,
+                        rollback_on_error=False,
+                    )
+            except IntegrityError:
+                # Another importer may have committed the same brand/OEM
+                # while this row was waiting. The savepoint is rolled back,
+                # so the outer pricelist transaction remains usable.
+                existing_autopart = (
+                    await self.get_autopart_by_oem_brand_or_none(
+                        oem_number=autopart_data["oem_number"],
+                        brand_id=brand.id,
+                        session=session,
+                    )
                 )
+                if existing_autopart is not None:
+                    return existing_autopart
+                raise
             logger.debug(f"Created autopart: {autopart}")
 
             return autopart
