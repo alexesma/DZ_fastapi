@@ -3,9 +3,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from dz_fastapi.api.dashboard import _build_supplier_reliability, get_order_dynamics
+from dz_fastapi.api.dashboard import (
+    _build_supplier_reliability,
+    get_order_dynamics,
+    get_order_margin,
+)
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.partner import (
+    CUSTOMER_ORDER_ITEM_STATUS,
     CustomerOrder,
     CustomerOrderItem,
     Order,
@@ -13,6 +18,7 @@ from dz_fastapi.models.partner import (
     SupplierOrder,
     SupplierOrderItem,
 )
+from dz_fastapi.services.inventory_dashboard import resolve_inventory_unit_cost
 
 
 @pytest.mark.asyncio
@@ -94,6 +100,57 @@ async def test_order_dynamics_aggregates_daily_and_partner_totals(
     assert result["suppliers"][0]["partner_name"] == created_providers[0].name
     assert result["suppliers"][0]["order_count"] == 2
     assert result["suppliers"][0]["total_sum"] == 620.0
+
+
+@pytest.mark.asyncio
+async def test_order_margin_uses_fulfilled_customer_order_rows(
+    test_session,
+    created_customers,
+):
+    customer_order = CustomerOrder(
+        customer_id=created_customers[0].id,
+        received_at=now_moscow() - timedelta(days=1),
+    )
+    test_session.add(customer_order)
+    await test_session.flush()
+    test_session.add(
+        CustomerOrderItem(
+            order_id=customer_order.id,
+            oem="MARGIN-1",
+            brand="BRAND",
+            requested_qty=3,
+            requested_price=100,
+            ship_qty=2,
+            reject_qty=1,
+            matched_price=60,
+            status=CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER,
+        )
+    )
+    await test_session.commit()
+
+    result = await get_order_margin(days=30, session=test_session)
+
+    assert result["source"] == "customer_orders_estimate"
+    assert len(result["rows"]) == 1
+    row = result["rows"][0]
+    assert row["quantity"] == 2
+    assert row["revenue_total"] == 200.0
+    assert row["cost_total"] == 120.0
+    assert row["gross_profit"] == 80.0
+    assert row["margin_percent"] == 40.0
+    assert row["uncosted_quantity"] == 0
+
+
+def test_inventory_unit_cost_falls_back_to_own_pricelist_price():
+    assert resolve_inventory_unit_cost(125.0, 180.0) == (
+        125.0,
+        "catalog_cost",
+    )
+    assert resolve_inventory_unit_cost(None, 180.0) == (
+        180.0,
+        "own_pricelist_estimate",
+    )
+    assert resolve_inventory_unit_cost(0, 0) == (None, None)
 
 
 def test_supplier_reliability_excludes_not_due_lines_from_rating():

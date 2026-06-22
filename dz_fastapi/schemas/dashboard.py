@@ -81,6 +81,26 @@ class DashboardOrderDynamicsResponse(BaseModel):
     suppliers: list[DashboardPartnerOrderRow] = Field(default_factory=list)
 
 
+class DashboardOrderMarginRow(BaseModel):
+    period_start: datetime
+    customer_id: int
+    customer_name: str
+    quantity: int = 0
+    revenue_total: float = 0.0
+    cost_total: float = 0.0
+    gross_profit: Optional[float] = None
+    margin_percent: Optional[float] = None
+    costed_quantity: int = 0
+    uncosted_quantity: int = 0
+
+
+class DashboardOrderMarginResponse(BaseModel):
+    generated_at: datetime
+    source: str = "customer_orders_estimate"
+    note: str
+    rows: list[DashboardOrderMarginRow] = Field(default_factory=list)
+
+
 class DashboardSupplierReliabilityRow(BaseModel):
     provider_id: int
     provider_name: str
@@ -122,6 +142,7 @@ class InventoryDashboardSummary(BaseModel):
     dead_stock_value: float = 0.0
     service_level_pct: Optional[float] = None
     inventory_turnover: Optional[float] = None
+    valuation_fallback_skus: int = 0
 
 
 class InventoryAbcXyzCell(BaseModel):
@@ -146,6 +167,7 @@ class InventoryDashboardRow(BaseModel):
     sold_last_90_days: int = 0
     sold_last_365_days: int = 0
     unit_cost: Optional[float] = None
+    unit_cost_source: Optional[str] = None
     frozen_value: Optional[float] = None
     sale_price: Optional[float] = None
     abc_class: Optional[str] = None

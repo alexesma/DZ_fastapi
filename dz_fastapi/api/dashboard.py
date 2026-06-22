@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from statistics import median
 from typing import Optional
 
@@ -11,8 +11,9 @@ from sqlalchemy.orm import aliased
 from dz_fastapi.api.deps import require_admin
 from dz_fastapi.core.db import get_session
 from dz_fastapi.core.time import now_moscow
-from dz_fastapi.models.autopart import AutoPartPriceHistory
+from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
 from dz_fastapi.models.partner import (
+    CUSTOMER_ORDER_ITEM_STATUS,
     Customer,
     CustomerOrder,
     CustomerOrderItem,
@@ -27,6 +28,7 @@ from dz_fastapi.models.partner import (
 )
 from dz_fastapi.schemas.dashboard import (
     DashboardOrderDynamicsResponse,
+    DashboardOrderMarginResponse,
     DashboardSupplierReliabilityResponse,
     InventoryDashboardResponse,
     SupplierPriceTrendPoint,
@@ -67,7 +69,7 @@ async def get_inventory_control(
 )
 async def get_order_dynamics(
     days: int = Query(default=14, ge=7, le=31),
-    partner_limit: int = Query(default=10, ge=1, le=30),
+    partner_limit: int = Query(default=200, ge=1, le=1000),
     session: AsyncSession = Depends(get_session),
 ):
     today = now_moscow().date()
@@ -170,7 +172,6 @@ async def get_order_dynamics(
         .where(customer_day >= start_date)
         .group_by(Customer.id, Customer.name)
         .order_by(func.sum(CustomerOrderItem.requested_qty).desc())
-        .limit(partner_limit)
     )
     supplier_partner_stmt = (
         select(
@@ -192,7 +193,6 @@ async def get_order_dynamics(
         .where(supplier_day >= start_date)
         .group_by(Provider.id, Provider.name)
         .order_by(func.sum(SupplierOrderItem.quantity).desc())
-        .limit(partner_limit)
     )
     site_order_partner_stmt = (
         select(
@@ -330,6 +330,131 @@ async def get_order_dynamics(
             supplier_partner_rows,
             site_order_partner_rows,
         ),
+    }
+
+
+@router.get(
+    "/dashboard/order-margin",
+    tags=["dashboard"],
+    status_code=status.HTTP_200_OK,
+    response_model=DashboardOrderMarginResponse,
+    dependencies=[Depends(require_admin)],
+)
+async def get_order_margin(
+    days: int = Query(default=30, ge=1, le=365),
+    session: AsyncSession = Depends(get_session),
+):
+    """Операционная оценка маржи для проектов без полного складского цикла."""
+    generated_at = now_moscow()
+    start_date = generated_at.date() - timedelta(days=days - 1)
+    start_at = datetime.combine(start_date, time.min).replace(
+        tzinfo=generated_at.tzinfo
+    )
+    stmt = (
+        select(
+            CustomerOrder.received_at,
+            Customer.id.label("customer_id"),
+            Customer.name.label("customer_name"),
+            CustomerOrderItem.status,
+            CustomerOrderItem.requested_qty,
+            CustomerOrderItem.requested_price,
+            CustomerOrderItem.ship_qty,
+            CustomerOrderItem.reject_qty,
+            CustomerOrderItem.matched_price,
+            AutoPart.purchase_price,
+            AutoPart.wholesale_price,
+        )
+        .select_from(CustomerOrderItem)
+        .join(CustomerOrder, CustomerOrder.id == CustomerOrderItem.order_id)
+        .join(Customer, Customer.id == CustomerOrder.customer_id)
+        .outerjoin(AutoPart, AutoPart.id == CustomerOrderItem.autopart_id)
+        .where(
+            CustomerOrder.received_at >= start_at,
+            CustomerOrderItem.status.in_(
+                (
+                    CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK,
+                    CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER,
+                )
+            ),
+        )
+        .order_by(CustomerOrder.received_at.asc())
+    )
+    grouped: dict[tuple[object, int], dict] = {}
+    for row in (await session.execute(stmt)).all():
+        requested_qty = max(int(row.requested_qty or 0), 0)
+        reject_qty = max(int(row.reject_qty or 0), 0)
+        quantity = (
+            max(int(row.ship_qty or 0), 0)
+            if row.ship_qty is not None
+            else max(requested_qty - reject_qty, 0)
+        )
+        if quantity <= 0:
+            continue
+        received_at = row.received_at or generated_at
+        if received_at.tzinfo is None:
+            received_at = received_at.replace(tzinfo=generated_at.tzinfo)
+        period_day = received_at.astimezone(generated_at.tzinfo).date()
+        key = (period_day, int(row.customer_id))
+        item = grouped.setdefault(
+            key,
+            {
+                "period_start": datetime.combine(
+                    period_day, time.min
+                ).replace(tzinfo=generated_at.tzinfo),
+                "customer_id": int(row.customer_id),
+                "customer_name": row.customer_name or f"#{row.customer_id}",
+                "quantity": 0,
+                "revenue_total": 0.0,
+                "cost_total": 0.0,
+                "costed_quantity": 0,
+                "uncosted_quantity": 0,
+            },
+        )
+        sale_price = float(row.requested_price or 0)
+        catalog_cost = float(row.purchase_price or 0) or float(
+            row.wholesale_price or 0
+        )
+        supplier_cost = float(row.matched_price or 0)
+        unit_cost = (
+            supplier_cost or catalog_cost
+            if row.status == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
+            else catalog_cost
+        )
+        item["quantity"] += quantity
+        item["revenue_total"] += quantity * sale_price
+        if unit_cost > 0:
+            item["cost_total"] += quantity * unit_cost
+            item["costed_quantity"] += quantity
+        else:
+            item["uncosted_quantity"] += quantity
+
+    rows = []
+    for item in grouped.values():
+        item["revenue_total"] = round(item["revenue_total"], 2)
+        item["cost_total"] = round(item["cost_total"], 2)
+        if item["uncosted_quantity"] == 0:
+            gross_profit = round(
+                item["revenue_total"] - item["cost_total"], 2
+            )
+            item["gross_profit"] = gross_profit
+            item["margin_percent"] = (
+                round(gross_profit / item["revenue_total"] * 100, 2)
+                if item["revenue_total"] > 0
+                else None
+            )
+        else:
+            item["gross_profit"] = None
+            item["margin_percent"] = None
+        rows.append(item)
+    rows.sort(key=lambda item: (item["period_start"], item["customer_name"]))
+    return {
+        "generated_at": generated_at,
+        "source": "customer_orders_estimate",
+        "note": (
+            "Расчётная маржа по исполненным строкам заказов клиентов; "
+            "она используется только когда нет проведённых отгрузок."
+        ),
+        "rows": rows,
     }
 
 

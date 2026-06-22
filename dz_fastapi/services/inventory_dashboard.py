@@ -53,6 +53,17 @@ INVENTORY_STATE_OOS_DEMAND = "out_of_stock_demand"
 INVENTORY_STATE_OOS_NO_DEMAND = "out_of_stock_no_demand"
 
 
+def resolve_inventory_unit_cost(
+    catalog_unit_cost: Optional[float],
+    own_pricelist_price: Optional[float],
+) -> tuple[Optional[float], Optional[str]]:
+    if catalog_unit_cost and catalog_unit_cost > 0:
+        return catalog_unit_cost, "catalog_cost"
+    if own_pricelist_price and own_pricelist_price > 0:
+        return own_pricelist_price, "own_pricelist_estimate"
+    return None, None
+
+
 def classify_inventory_state(
     *,
     current_quantity: int,
@@ -175,6 +186,7 @@ async def get_inventory_control_dashboard(
         "dead_stock_value": 0.0,
         "service_level_pct": None,
         "inventory_turnover": None,
+        "valuation_fallback_skus": 0,
     }
     history_note = (
         "«Забытые чемпионы» и сезонность появятся после загрузки истории "
@@ -302,7 +314,7 @@ async def get_inventory_control_dashboard(
         abc_class = str(abc_xyz.get("abc_class") or "").upper() or "—"
         xyz_class = str(abc_xyz.get("xyz_class") or "").upper() or "—"
 
-        unit_cost = (
+        catalog_unit_cost = (
             unit_cost_by_autopart.get(int(autopart_id))
             if autopart_id is not None
             else None
@@ -312,6 +324,12 @@ async def get_inventory_control_dashboard(
             if latest.get("latest_price") is not None
             else None
         )
+        unit_cost, unit_cost_source = resolve_inventory_unit_cost(
+            catalog_unit_cost,
+            sale_price,
+        )
+        if unit_cost_source == "own_pricelist_estimate":
+            summary["valuation_fallback_skus"] += 1
         stock_value = (current_quantity * unit_cost) if unit_cost else 0.0
         annual_sales_value = (
             sold[365] * unit_cost if unit_cost else 0.0
@@ -384,6 +402,7 @@ async def get_inventory_control_dashboard(
                 "sold_last_90_days": sold[90],
                 "sold_last_365_days": sold[365],
                 "unit_cost": round(unit_cost, 2) if unit_cost else None,
+                "unit_cost_source": unit_cost_source,
                 "frozen_value": round(stock_value, 2) if stock_value else None,
                 "sale_price": sale_price,
                 "abc_class": abc_class if abc_class != "—" else None,
