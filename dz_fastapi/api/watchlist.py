@@ -1,8 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.db import get_session
 from dz_fastapi.crud.watchlist import crud_price_watch_item
+from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
+from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.partner import (
+    PriceList,
+    PriceListAutoPartAssociation,
+    Provider,
+    ProviderPriceListConfig,
+)
 from dz_fastapi.schemas.watchlist import (
     PriceWatchItemCreate,
     PriceWatchItemOut,
@@ -11,6 +20,68 @@ from dz_fastapi.schemas.watchlist import (
 )
 
 router = APIRouter()
+
+
+async def _get_saved_provider_offer(item, session: AsyncSession):
+    if not item.last_seen_provider_pricelist_id:
+        return None
+    normalized_oem = preprocess_oem_number(item.oem)
+    stmt = (
+        select(
+            AutoPart.id.label("autopart_id"),
+            AutoPart.oem_number,
+            AutoPart.name.label("autopart_name"),
+            Brand.name.label("brand_name"),
+            Provider.id.label("supplier_id"),
+            Provider.name.label("supplier_name"),
+            PriceListAutoPartAssociation.price,
+            PriceListAutoPartAssociation.quantity,
+            PriceListAutoPartAssociation.multiplicity,
+            ProviderPriceListConfig.min_delivery_day,
+            ProviderPriceListConfig.max_delivery_day,
+        )
+        .select_from(PriceListAutoPartAssociation)
+        .join(
+            AutoPart,
+            AutoPart.id == PriceListAutoPartAssociation.autopart_id,
+        )
+        .join(Brand, Brand.id == AutoPart.brand_id)
+        .join(
+            PriceList,
+            PriceList.id == PriceListAutoPartAssociation.pricelist_id,
+        )
+        .join(Provider, Provider.id == PriceList.provider_id)
+        .outerjoin(
+            ProviderPriceListConfig,
+            ProviderPriceListConfig.id == PriceList.provider_config_id,
+        )
+        .where(
+            PriceList.id == item.last_seen_provider_pricelist_id,
+            AutoPart.oem_number == normalized_oem,
+            func.lower(Brand.name) == str(item.brand).strip().lower(),
+            PriceListAutoPartAssociation.quantity > 0,
+        )
+        .limit(1)
+    )
+    row = (await session.execute(stmt)).mappings().first()
+    if row is None:
+        return None
+    return {
+        "source_type": "supplier",
+        "key": f"provider-{item.id}-{row['supplier_id']}",
+        "autopart_id": row["autopart_id"],
+        "oem_number": row["oem_number"],
+        "autopart_name": row["autopart_name"],
+        "brand_name": row["brand_name"],
+        "supplier_id": row["supplier_id"],
+        "supplier_name": row["supplier_name"],
+        "price": float(row["price"]),
+        "quantity": int(row["quantity"]),
+        "min_qnt": max(int(row["multiplicity"] or 1), 1),
+        "min_delivery_day": row["min_delivery_day"],
+        "max_delivery_day": row["max_delivery_day"],
+        "snapshot_at": item.last_seen_provider_at,
+    }
 
 
 @router.get(
@@ -28,8 +99,16 @@ async def list_watch_items(
     items, total = await crud_price_watch_item.list(
         session=session, page=page, page_size=page_size, search=search
     )
+    output_items = []
+    for item in items:
+        payload = PriceWatchItemOut.model_validate(item)
+        payload.last_seen_provider_offer = await _get_saved_provider_offer(
+            item,
+            session,
+        )
+        output_items.append(payload)
     return PriceWatchListPage(
-        items=[PriceWatchItemOut.model_validate(i) for i in items],
+        items=output_items,
         page=page,
         page_size=page_size,
         total=total,

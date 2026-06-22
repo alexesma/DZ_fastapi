@@ -1,7 +1,7 @@
 import logging
 import re
-from hashlib import sha1
 from enum import StrEnum, unique
+from hashlib import sha1
 from uuid import uuid4
 
 from sqlalchemy import DECIMAL, JSON, Boolean, CheckConstraint, Column, DateTime

@@ -28,6 +28,7 @@ class PriceWatchItemOut(PriceWatchItemBase):
     last_seen_provider_id: Optional[int] = None
     last_seen_provider_config_id: Optional[int] = None
     last_seen_provider_pricelist_id: Optional[int] = None
+    last_seen_provider_offer: Optional[dict] = None
     last_seen_site_at: Optional[datetime] = None
     last_seen_site_price: Optional[float] = None
     last_seen_site_qty: Optional[int] = None

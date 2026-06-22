@@ -4290,12 +4290,20 @@ async def send_supplier_orders(
     smtp_kwargs = {}
     if account:
         smtp_kwargs = build_email_delivery_kwargs(account)
-    override_email = await _supplier_order_override_email_from_settings(
+    automatic_order_override_email = await _supplier_order_override_email_from_settings(
         session
     )
 
     for order in orders:
         provider = order.provider
+        is_manual_search_order = (
+            order.source_type == ORDER_TRACKING_SOURCE.SEARCH_OFFERS.value
+        )
+        override_email = (
+            None
+            if is_manual_search_order
+            else automatic_order_override_email
+        )
         original_recipient = _build_supplier_order_recipient(
             provider,
             use_override=False,

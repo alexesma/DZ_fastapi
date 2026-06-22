@@ -347,6 +347,69 @@ async def test_send_supplier_orders_uses_stub_override_email(
 
 
 @pytest.mark.asyncio
+async def test_manual_search_supplier_order_bypasses_stub(
+    monkeypatch,
+    test_session,
+    created_providers,
+    created_autopart,
+):
+    provider = created_providers[0]
+    provider.email_contact = "supplier@example.com"
+    order = SupplierOrder(
+        provider_id=provider.id,
+        status=SUPPLIER_ORDER_STATUS.NEW,
+        source_type=ORDER_TRACKING_SOURCE.SEARCH_OFFERS.value,
+    )
+    test_session.add(order)
+    await test_session.flush()
+    test_session.add(
+        SupplierOrderItem(
+            supplier_order_id=order.id,
+            autopart_id=created_autopart.id,
+            quantity=2,
+            price=75.0,
+        )
+    )
+    await test_session.commit()
+
+    sent_calls = []
+
+    async def fake_send_email_attachment_async(
+        to_email,
+        subject,
+        body,
+        attachment,
+        filename,
+        use_tls,
+        **kwargs,
+    ):
+        sent_calls.append({"to_email": to_email, "subject": subject})
+
+    async def fake_get_out_account(session, purpose):
+        return None
+
+    monkeypatch.setenv("SUPPLIER_ORDER_OVERRIDE_EMAIL", "stub@example.com")
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders._send_email_attachment_async",
+        fake_send_email_attachment_async,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders._get_out_account",
+        fake_get_out_account,
+    )
+
+    result = await send_supplier_orders(test_session, [order.id])
+
+    assert result == {"sent": 1, "failed": 0}
+    assert sent_calls == [
+        {
+            "to_email": "supplier@example.com",
+            "subject": f"Заказ поставщику № {order.id}",
+        }
+    ]
+
+
+@pytest.mark.asyncio
 async def test_send_supplier_orders_uses_provider_email_when_stub_disabled(
     monkeypatch,
     test_session,

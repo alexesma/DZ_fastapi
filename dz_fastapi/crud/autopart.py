@@ -155,7 +155,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                 await session.flush()
             logger.debug(f"Created new AutoPart: ID={autopart.id}")
             return autopart
-        except SQLAlchemyError as error:
+        except SQLAlchemyError:
             if rollback_on_error:
                 await session.rollback()
             raise
