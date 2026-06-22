@@ -1,4 +1,5 @@
 import logging
+import os
 from datetime import datetime
 from io import BytesIO
 from typing import Any, List, Optional
@@ -6,6 +7,7 @@ from typing import Any, List, Optional
 import pandas as pd
 from fastapi import HTTPException
 from sqlalchemy import Float, and_, case, cast, func, select
+from sqlalchemy.orm import aliased
 
 from dz_fastapi.core.db import AsyncSession
 from dz_fastapi.core.time import now_moscow
@@ -518,6 +520,108 @@ async def get_pricelist_change_summary(
     return summary
 
 
+# Порог нетто-изменения медианной цены прайса (%), при котором шлём алерт.
+PRICE_ALERT_THRESHOLD_PCT = max(
+    1.0,
+    float(os.getenv("PRICE_ALERT_THRESHOLD_PCT", "10")),
+)
+
+
+async def _median_price_change_pct(
+    session: AsyncSession,
+    *,
+    prev_pricelist_id: int,
+    new_pricelist_id: int,
+) -> Optional[float]:
+    """Медианное % изменение цены по общим позициям двух прайсов (PG)."""
+    new_assoc = PriceListAutoPartAssociation
+    prev_assoc = aliased(PriceListAutoPartAssociation)
+    change_expr = (
+        (
+            cast(new_assoc.price, Float)
+            / cast(prev_assoc.price, Float)
+            - 1.0
+        )
+        * 100.0
+    )
+    stmt = (
+        select(func.percentile_cont(0.5).within_group(change_expr.asc()))
+        .select_from(new_assoc)
+        .join(
+            prev_assoc,
+            new_assoc.autopart_id == prev_assoc.autopart_id,
+        )
+        .where(
+            new_assoc.pricelist_id == new_pricelist_id,
+            prev_assoc.pricelist_id == prev_pricelist_id,
+            prev_assoc.price > 0,
+            new_assoc.price > 0,
+        )
+    )
+    value = (await session.execute(stmt)).scalar()
+    return round(float(value), 2) if value is not None else None
+
+
+async def _maybe_alert_price_change(
+    session: AsyncSession,
+    *,
+    new_pl: PriceList,
+    summary: dict[str, Any],
+) -> None:
+    """Всплывающее уведомление + Telegram при резком сдвиге цен прайса."""
+    prev_id = summary.get("previous_pricelist_id")
+    new_id = summary.get("latest_pricelist_id")
+    if not prev_id or not new_id:
+        return
+    try:
+        median_change = await _median_price_change_pct(
+            session,
+            prev_pricelist_id=int(prev_id),
+            new_pricelist_id=int(new_id),
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось посчитать сдвиг цен для алерта: %s", exc)
+        return
+    if median_change is None or abs(median_change) < PRICE_ALERT_THRESHOLD_PCT:
+        return
+
+    from dz_fastapi.models.notification import AppNotificationLevel
+    from dz_fastapi.services.notifications import create_admin_notifications
+
+    provider_name = getattr(getattr(new_pl, "provider", None), "name", None) or (
+        f"provider #{new_pl.provider_id}"
+    )
+    direction = "выросли" if median_change > 0 else "упали"
+    title = f"Резкий сдвиг цен: {provider_name}"
+    text = (
+        f"Цены поставщика «{provider_name}» {direction} на "
+        f"{abs(median_change):.1f}% (медиана) в новой загрузке прайса. "
+        f"Изменено позиций: {summary.get('changed_price_count', 0)}."
+    )
+    try:
+        await create_admin_notifications(
+            session=session,
+            title=title,
+            message=text,
+            level=(
+                AppNotificationLevel.WARNING
+                if median_change > 0
+                else AppNotificationLevel.INFO
+            ),
+            link="/",
+            commit=False,
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось создать уведомление о сдвиге цен: %s", exc)
+
+    try:
+        from dz_fastapi.services.telegram import send_message_to_telegram
+
+        await send_message_to_telegram(f"⚠️ {title}\n{text}")
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Не удалось отправить Telegram о сдвиге цен: %s", exc)
+
+
 async def analyze_new_pricelist(new_pl: PriceList, session: AsyncSession):
     """
     Сравнить новый прайс-лист (new_pl) с предыдущим для того же поставщика
@@ -554,6 +658,7 @@ async def analyze_new_pricelist(new_pl: PriceList, session: AsyncSession):
         summary["changed_price_count"],
         summary["changed_quantity_count"],
     )
+    await _maybe_alert_price_change(session, new_pl=new_pl, summary=summary)
     return summary
 
 

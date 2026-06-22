@@ -7,11 +7,21 @@ TELEGRAM_REQUEST_TIMEOUT = ClientTimeout(total=30)
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_TO")
+# Прокси для обхода блокировки Telegram в РФ. Поддерживает http(s):// и
+# socks5:// (для socks нужен aiohttp-socks). Пусто — без прокси.
+TELEGRAM_PROXY_URL = (os.getenv("TELEGRAM_PROXY_URL") or "").strip() or None
+# Базовый адрес Bot API. Можно указать свой relay (reverse-proxy на VPS вне
+# РФ, который проксирует https://api.telegram.org) — самый надёжный путь для
+# сервера. Пример: https://tg-relay.example.com
+TELEGRAM_API_BASE = (
+    (os.getenv("TELEGRAM_API_BASE") or "https://api.telegram.org").strip()
+    .rstrip("/")
+)
 TELEGRAM_DOC_URL = (
-    f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendDocument"
+    f"{TELEGRAM_API_BASE}/bot{TELEGRAM_BOT_TOKEN}/sendDocument"
 )
 TELEGRAM_MSG_URL = (
-    f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    f"{TELEGRAM_API_BASE}/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
 )
 
 
@@ -42,7 +52,9 @@ async def send_file_to_telegram(
     async with aiohttp.ClientSession(
         timeout=TELEGRAM_REQUEST_TIMEOUT
     ) as session:
-        async with session.post(TELEGRAM_DOC_URL, data=data) as response:
+        async with session.post(
+            TELEGRAM_DOC_URL, data=data, proxy=TELEGRAM_PROXY_URL
+        ) as response:
             if response.status != 200:
                 error_text = await response.text()
                 raise Exception(
@@ -70,7 +82,9 @@ async def send_message_to_telegram(
     async with aiohttp.ClientSession(
         timeout=TELEGRAM_REQUEST_TIMEOUT
     ) as session:
-        async with session.post(TELEGRAM_MSG_URL, data=payload) as response:
+        async with session.post(
+            TELEGRAM_MSG_URL, data=payload, proxy=TELEGRAM_PROXY_URL
+        ) as response:
             if response.status != 200:
                 error_text = await response.text()
                 raise Exception(

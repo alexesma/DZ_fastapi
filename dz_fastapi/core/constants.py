@@ -33,8 +33,15 @@ IMAP_SOCKET_TIMEOUT = 60
 # time allowed to fetch one account (all folders). Set high enough to survive
 # large mailboxes with price-list attachments (several MB each), but low enough
 # to let the scheduler move on if a server truly hangs.
-# Scheduler interval is 30 min → 5 min per account is a safe ceiling.
-IMAP_FETCH_PER_ACCOUNT_TIMEOUT = 300
+# This is configurable because one unavailable account must not hold the whole
+# scheduler cycle for several minutes.
+try:
+    IMAP_FETCH_PER_ACCOUNT_TIMEOUT = max(
+        15,
+        int(os.getenv("IMAP_FETCH_PER_ACCOUNT_TIMEOUT_SEC", "90")),
+    )
+except (TypeError, ValueError):
+    IMAP_FETCH_PER_ACCOUNT_TIMEOUT = 90
 
 ANALYSIS_EMAIL = "info@dragonzap.ru"
 ORIGINAL_BRANDS = ["CHERY", "HAVAL", "CHANGAN", "GREAT WALL", "JAC", "GEELY"]

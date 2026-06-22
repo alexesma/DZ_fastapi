@@ -9,10 +9,16 @@ from dz_fastapi.models.partner import SupplierOrderMessage
 from dz_fastapi.models.settings import CustomerOrderInboxSettings
 from dz_fastapi.services.scheduler import (
     _close_stale_supplier_response_messages,
+    _cron_minute_for_interval,
     _notify_scheduler_issue,
     _should_run_scheduled_job,
     download_price_provider_task,
 )
+
+
+def test_cron_interval_59_runs_once_per_hour():
+    assert _cron_minute_for_interval(59) == "0"
+    assert _cron_minute_for_interval(30) == "*/30"
 
 
 @pytest.mark.asyncio

@@ -159,6 +159,24 @@ FETCH_INBOX_EMAILS_MINUTES = _env_int_with_min(
 SUPPLIER_DOCUMENTS_CHECK_MINUTES = _env_int_with_min(
     "SCHED_SUPPLIER_DOCUMENTS_EVERY_MINUTES", 30
 )
+SUPPLIER_RESPONSES_TASK_TIMEOUT_SEC = _env_int_with_min(
+    "SUPPLIER_RESPONSES_TASK_TIMEOUT_SEC",
+    1200,
+    min_value=60,
+    max_value=3600,
+)
+SUPPLIER_DOCUMENTS_TASK_TIMEOUT_SEC = _env_int_with_min(
+    "SUPPLIER_DOCUMENTS_TASK_TIMEOUT_SEC",
+    2700,
+    min_value=60,
+    max_value=3500,
+)
+FETCH_INBOX_TASK_TIMEOUT_SEC = _env_int_with_min(
+    "FETCH_INBOX_TASK_TIMEOUT_SEC",
+    1200,
+    min_value=60,
+    max_value=3500,
+)
 DIADOC_INBOUND_SYNC_MINUTES = _env_int_with_min(
     "SCHED_DIADOC_INBOUND_EVERY_MINUTES", 15, min_value=5, max_value=59
 )
@@ -172,6 +190,12 @@ AUTOPURCHASE_QUEUE_POLL_SECONDS = _env_int_with_min(
 ORDERS_SLOW_POLL_MINUTES = _env_int_with_min(
     "SCHED_ORDERS_SLOW_POLL_MINUTES", 20, min_value=5, max_value=59
 )
+
+
+def _cron_minute_for_interval(interval: int) -> str:
+    # Cron */59 means :00 and :59, not a true 59-minute interval. For an
+    # hourly cadence use one stable start at the beginning of each hour.
+    return "0" if interval >= 59 else f"*/{interval}"
 
 
 def _process_rss_mb() -> float | None:
@@ -389,7 +413,7 @@ def start_scheduler(app: FastAPI):
         id="download_customer_orders_cycle1",
         name="Download customer orders — цикл 1 (08–10 МСК)",
         hour="8-9",
-        minute=f"*/{CUSTOMER_ORDERS_CHECK_MINUTES}",
+        minute=_cron_minute_for_interval(CUSTOMER_ORDERS_CHECK_MINUTES),
         second=15,
         replace_existing=True,
     )
@@ -401,7 +425,7 @@ def start_scheduler(app: FastAPI):
         id="download_customer_orders_cycle2",
         name="Download customer orders — цикл 2 (13–16 МСК)",
         hour="13-15",
-        minute=f"*/{CUSTOMER_ORDERS_CHECK_MINUTES}",
+        minute=_cron_minute_for_interval(CUSTOMER_ORDERS_CHECK_MINUTES),
         second=15,
         replace_existing=True,
     )
@@ -414,7 +438,7 @@ def start_scheduler(app: FastAPI):
         id="download_customer_orders_bg",
         name="Download customer orders — фон (вне циклов)",
         hour="1-7,10-12,16-18",
-        minute=f"*/{ORDERS_SLOW_POLL_MINUTES}",
+        minute=_cron_minute_for_interval(ORDERS_SLOW_POLL_MINUTES),
         second=15,
         replace_existing=True,
     )
@@ -428,7 +452,7 @@ def start_scheduler(app: FastAPI):
         id="process_supplier_responses_active",
         name="Process supplier responses — активный (09–16 МСК)",
         hour="9-15",
-        minute=f"*/{SUPPLIER_RESPONSES_CHECK_MINUTES}",
+        minute=_cron_minute_for_interval(SUPPLIER_RESPONSES_CHECK_MINUTES),
         second=25,
         replace_existing=True,
     )
@@ -455,7 +479,7 @@ def start_scheduler(app: FastAPI):
         id="process_supplier_documents",
         name="Process supplier documents (УПД/накладные)",
         hour="9-17",
-        minute=f"*/{SUPPLIER_DOCUMENTS_CHECK_MINUTES}",
+        minute=_cron_minute_for_interval(SUPPLIER_DOCUMENTS_CHECK_MINUTES),
         second=35,
         replace_existing=True,
     )
@@ -553,7 +577,7 @@ def start_scheduler(app: FastAPI):
         id="sync_diadoc_inbound",
         name="Sync Diadoc inbound documents",
         hour="9-18",
-        minute=f"*/{DIADOC_INBOUND_SYNC_MINUTES}",
+        minute=_cron_minute_for_interval(DIADOC_INBOUND_SYNC_MINUTES),
         second=55,
         replace_existing=True,
     )
@@ -667,7 +691,7 @@ def start_scheduler(app: FastAPI):
         id="fetch_inbox_emails",
         name="Fetch inbox emails (all accounts)",
         hour="8-18",
-        minute=f"*/{FETCH_INBOX_EMAILS_MINUTES}",
+        minute=_cron_minute_for_interval(FETCH_INBOX_EMAILS_MINUTES),
         second=0,
         jitter=60,
         replace_existing=True,
@@ -1139,8 +1163,11 @@ async def process_supplier_responses_task(app: FastAPI):
                             )
                             trace.details["skipped_by_slow_mode"] = True
                             return
-                summary = await process_supplier_response_messages(
-                    session, file_payload_mode="responses"
+                summary = await asyncio.wait_for(
+                    process_supplier_response_messages(
+                        session, file_payload_mode="responses"
+                    ),
+                    timeout=SUPPLIER_RESPONSES_TASK_TIMEOUT_SEC,
                 )
                 trace.details["summary"] = summary
                 logger.info(
@@ -1200,8 +1227,11 @@ async def process_supplier_documents_task(app: FastAPI):
         async_session_factory = app.state.session_factory
         async with async_session_factory() as session:
             try:
-                summary = await process_supplier_response_messages(
-                    session, file_payload_mode="documents"
+                summary = await asyncio.wait_for(
+                    process_supplier_response_messages(
+                        session, file_payload_mode="documents"
+                    ),
+                    timeout=SUPPLIER_DOCUMENTS_TASK_TIMEOUT_SEC,
                 )
                 trace.details["summary"] = summary
                 logger.info(
@@ -2379,7 +2409,10 @@ async def fetch_inbox_emails_task(app: FastAPI):
         async with async_session_factory() as session:
             try:
                 logger.info("Starting fetch_inbox_emails_task")
-                result = await fetch_and_store_emails(session, days=3)
+                result = await asyncio.wait_for(
+                    fetch_and_store_emails(session, days=3),
+                    timeout=FETCH_INBOX_TASK_TIMEOUT_SEC,
+                )
                 trace.details.update(
                     {
                         "fetched": getattr(result, "fetched", None),

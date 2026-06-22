@@ -7,13 +7,20 @@ from pydantic import BaseModel, Field
 class SupplierPriceTrendPoint(BaseModel):
     pricelist_id: int
     date: date
-    sku_count: int = 0
-    stock_total_qty: int = 0
+    uploaded_at: Optional[datetime] = None
+    # Артикулы (позиции), а не сумма количеств:
+    total_sku_count: int = 0   # всего артикулов в прайсе
+    sku_count: int = 0         # из них в наличии (qty > 0)
+    stock_total_qty: int = 0   # сумма количеств (оставлено для совместимости)
     avg_price: Optional[float] = None
-    step_index_pct: Optional[float] = None
+    step_index_pct: Optional[float] = None        # изменение цены к пред. загрузке
     step_index_smooth_pct: Optional[float] = None
+    cumulative_index_pct: Optional[float] = None  # нетто к началу периода
     coverage_pct: Optional[float] = None
     overlap_count: Optional[int] = None
+    new_positions: Optional[int] = None           # появилось позиций
+    removed_positions: Optional[int] = None        # ушло позиций
+    changed_share_pct: Optional[float] = None      # доля изменивших цену, %
 
 
 class SupplierPriceTrendSeries(BaseModel):
@@ -21,6 +28,8 @@ class SupplierPriceTrendSeries(BaseModel):
     provider_id: Optional[int] = None
     provider_name: Optional[str] = None
     provider_config_name: Optional[str] = None
+    latest_uploaded_at: Optional[datetime] = None
+    net_price_change_pct: Optional[float] = None   # последняя загрузка vs первая
     points: list[SupplierPriceTrendPoint] = Field(default_factory=list)
 
 

@@ -11,6 +11,7 @@ from sqlalchemy.orm import aliased
 from dz_fastapi.api.deps import require_admin
 from dz_fastapi.core.db import get_session
 from dz_fastapi.core.time import now_moscow
+from dz_fastapi.models.autopart import AutoPartPriceHistory
 from dz_fastapi.models.partner import (
     Customer,
     CustomerOrder,
@@ -537,11 +538,28 @@ def _to_float(value: object) -> Optional[float]:
         return None
 
 
+async def _pricelist_position_count(
+    session: AsyncSession, pricelist_id: int
+) -> int:
+    return int(
+        (
+            await session.execute(
+                select(func.count()).where(
+                    PriceListAutoPartAssociation.pricelist_id == pricelist_id
+                )
+            )
+        ).scalar()
+        or 0
+    )
+
+
 async def _load_pair_stats(
     session: AsyncSession,
     prev_pricelist_id: int,
     curr_pricelist_id: int,
-) -> tuple[int, Optional[float]]:
+) -> tuple[int, Optional[float], int, int, Optional[float]]:
+    """Сравнение двух прайсов: (общих позиций, медиана % изм. цены,
+    появилось позиций, ушло позиций, доля изменивших цену %)."""
     curr_assoc = aliased(PriceListAutoPartAssociation)
     prev_assoc = aliased(PriceListAutoPartAssociation)
     stmt = (
@@ -553,25 +571,40 @@ async def _load_pair_stats(
         .where(
             curr_assoc.pricelist_id == curr_pricelist_id,
             prev_assoc.pricelist_id == prev_pricelist_id,
-            curr_assoc.quantity > 0,
-            prev_assoc.quantity > 0,
-            prev_assoc.price > 0,
         )
     )
     rows = (await session.execute(stmt)).all()
-    if not rows:
-        return 0, None
+    overlap_count = len(rows)
+
+    curr_total = await _pricelist_position_count(session, curr_pricelist_id)
+    prev_total = await _pricelist_position_count(session, prev_pricelist_id)
+    new_positions = max(curr_total - overlap_count, 0)
+    removed_positions = max(prev_total - overlap_count, 0)
 
     ratios: list[float] = []
+    comparable = 0
+    changed = 0
     for curr_price, prev_price in rows:
         curr_value = _to_float(curr_price)
         prev_value = _to_float(prev_price)
         if curr_value is None or prev_value is None or prev_value <= 0:
             continue
-        ratios.append(((curr_value / prev_value) - 1.0) * 100.0)
-    if not ratios:
-        return 0, None
-    return len(ratios), float(median(ratios))
+        comparable += 1
+        pct = ((curr_value / prev_value) - 1.0) * 100.0
+        ratios.append(pct)
+        if abs(pct) > 0.01:
+            changed += 1
+    median_pct = float(median(ratios)) if ratios else None
+    changed_share_pct = (
+        round((changed / comparable) * 100.0, 1) if comparable > 0 else None
+    )
+    return (
+        overlap_count,
+        median_pct,
+        new_positions,
+        removed_positions,
+        changed_share_pct,
+    )
 
 
 def _rolling_median(
@@ -671,6 +704,7 @@ async def get_supplier_price_trends(
     metric_stmt = (
         select(
             PriceListAutoPartAssociation.pricelist_id,
+            func.count().label("total_sku_count"),
             func.count()
             .filter(PriceListAutoPartAssociation.quantity > 0)
             .label("sku_count"),
@@ -687,11 +721,27 @@ async def get_supplier_price_trends(
     metric_rows = (await session.execute(metric_stmt)).all()
     metric_map = {
         int(row.pricelist_id): {
+            "total_sku_count": int(row.total_sku_count or 0),
             "sku_count": int(row.sku_count or 0),
             "stock_total_qty": int(row.stock_total_qty or 0),
             "avg_price": _to_float(row.avg_price),
         }
         for row in metric_rows
+    }
+
+    # Реальное время загрузки прайса берём из истории цен (created_at
+    # пишется в момент загрузки) — у самого PriceList времени нет.
+    uploaded_stmt = (
+        select(
+            AutoPartPriceHistory.pricelist_id,
+            func.max(AutoPartPriceHistory.created_at).label("uploaded_at"),
+        )
+        .where(AutoPartPriceHistory.pricelist_id.in_(pricelist_ids))
+        .group_by(AutoPartPriceHistory.pricelist_id)
+    )
+    uploaded_map = {
+        int(row.pricelist_id): row.uploaded_at
+        for row in (await session.execute(uploaded_stmt)).all()
     }
 
     provider_ids = list(points_by_provider.keys())
@@ -715,55 +765,92 @@ async def get_supplier_price_trends(
         for row in provider_rows
     }
 
-    pair_cache: dict[tuple[int, int], tuple[int, Optional[float]]] = {}
+    pair_cache: dict[
+        tuple[int, int],
+        tuple[int, Optional[float], int, int, Optional[float]],
+    ] = {}
+
+    async def _cached_pair(prev_id: int, curr_id: int):
+        key = (prev_id, curr_id)
+        if key not in pair_cache:
+            pair_cache[key] = await _load_pair_stats(
+                session=session,
+                prev_pricelist_id=prev_id,
+                curr_pricelist_id=curr_id,
+            )
+        return pair_cache[key]
+
     series: list[SupplierPriceTrendSeries] = []
     for provider_config_id, raw_points in points_by_provider.items():
         ordered_points = sorted(
             raw_points,
             key=lambda item: (item["date"], item["pricelist_id"]),
         )
+        base_pricelist_id = (
+            int(ordered_points[0]["pricelist_id"]) if ordered_points else None
+        )
         points: list[SupplierPriceTrendPoint] = []
         prev_item = None
         for item in ordered_points:
             pricelist_id = int(item["pricelist_id"])
             metric = metric_map.get(pricelist_id, {})
-            sku_count = int(metric.get("sku_count", 0))
-            stock_total_qty = int(metric.get("stock_total_qty", 0))
-            avg_price = metric.get("avg_price")
             step_index_pct = None
             coverage_pct = None
             overlap_count = None
+            new_positions = None
+            removed_positions = None
+            changed_share_pct = None
+            cumulative_index_pct = None
             if prev_item is not None:
                 prev_pricelist_id = int(prev_item["pricelist_id"])
-                cache_key = (prev_pricelist_id, pricelist_id)
-                if cache_key not in pair_cache:
-                    pair_cache[cache_key] = await _load_pair_stats(
-                        session=session,
-                        prev_pricelist_id=prev_pricelist_id,
-                        curr_pricelist_id=pricelist_id,
-                    )
-                overlap_count, step_index_pct = pair_cache[cache_key]
+                (
+                    overlap_count,
+                    step_index_pct,
+                    new_positions,
+                    removed_positions,
+                    changed_share_pct,
+                ) = await _cached_pair(prev_pricelist_id, pricelist_id)
                 prev_metric = metric_map.get(prev_pricelist_id, {})
-                prev_sku_count = int(prev_metric.get("sku_count", 0))
-                if prev_sku_count > 0 and overlap_count is not None:
+                prev_total = int(prev_metric.get("total_sku_count", 0))
+                if prev_total > 0 and overlap_count is not None:
                     coverage_pct = round(
-                        (overlap_count / prev_sku_count) * 100,
-                        2,
+                        (overlap_count / prev_total) * 100, 2
                     )
+                # Накопленный индекс цены к первому прайсу периода —
+                # показывает нетто-тренд, не размываясь сглаживанием.
+                if (
+                    base_pricelist_id is not None
+                    and base_pricelist_id != pricelist_id
+                ):
+                    cumulative_index_pct = (
+                        await _cached_pair(base_pricelist_id, pricelist_id)
+                    )[1]
+            else:
+                cumulative_index_pct = 0.0
             points.append(
                 SupplierPriceTrendPoint(
                     pricelist_id=pricelist_id,
                     date=item["date"],
-                    sku_count=sku_count,
-                    stock_total_qty=stock_total_qty,
-                    avg_price=avg_price,
+                    uploaded_at=uploaded_map.get(pricelist_id),
+                    total_sku_count=int(metric.get("total_sku_count", 0)),
+                    sku_count=int(metric.get("sku_count", 0)),
+                    stock_total_qty=int(metric.get("stock_total_qty", 0)),
+                    avg_price=metric.get("avg_price"),
                     step_index_pct=(
                         round(step_index_pct, 2)
                         if step_index_pct is not None
                         else None
                     ),
+                    cumulative_index_pct=(
+                        round(cumulative_index_pct, 2)
+                        if cumulative_index_pct is not None
+                        else None
+                    ),
                     coverage_pct=coverage_pct,
                     overlap_count=overlap_count,
+                    new_positions=new_positions,
+                    removed_positions=removed_positions,
+                    changed_share_pct=changed_share_pct,
                 )
             )
             prev_item = item
@@ -777,6 +864,13 @@ async def get_supplier_price_trends(
                 round(smooth_value, 2) if smooth_value is not None else None
             )
 
+        latest_point = points[-1] if points else None
+        net_price_change_pct = (
+            latest_point.cumulative_index_pct if latest_point else None
+        )
+        latest_uploaded_at = (
+            latest_point.uploaded_at if latest_point else None
+        )
         provider_info = provider_map.get(provider_config_id, {})
         series.append(
             SupplierPriceTrendSeries(
@@ -784,6 +878,8 @@ async def get_supplier_price_trends(
                 provider_id=provider_info.get("provider_id"),
                 provider_name=provider_info.get("provider_name"),
                 provider_config_name=provider_info.get("provider_config_name"),
+                latest_uploaded_at=latest_uploaded_at,
+                net_price_change_pct=net_price_change_pct,
                 points=points,
             )
         )

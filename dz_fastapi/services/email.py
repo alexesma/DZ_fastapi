@@ -253,6 +253,34 @@ def _dedupe_fetched_messages(
     return list(deduped.values())
 
 
+def _strip_file_extension(name: str) -> str:
+    if "." in name:
+        return name.rsplit(".", 1)[0]
+    return name
+
+
+def _attachment_name_matches_pattern(filename: str, pattern: str) -> bool:
+    """Совпадение имени вложения с шаблоном, игнорируя расширение.
+
+    Поставщик может слать прайс то .xlsx, то .zip с тем же базовым именем —
+    сравнение без расширения позволяет принять архив под тем же шаблоном
+    (на уровне обработки zip/rar уже распаковываются).
+    """
+    filename_norm = normalize_str(filename or "").lower()
+    pattern_norm = normalize_str(pattern or "").lower()
+    if not pattern_norm:
+        return True
+    if pattern_norm in filename_norm or filename_norm in pattern_norm:
+        return True
+    file_base = _strip_file_extension(filename_norm)
+    pattern_base = _strip_file_extension(pattern_norm)
+    if pattern_base and (
+        pattern_base in file_base or file_base in pattern_base
+    ):
+        return True
+    return False
+
+
 def _message_matches_provider_config(
     msg: _FetchedInboxMessage,
     provider_conf: ProviderPriceListConfig,
@@ -284,10 +312,11 @@ def _message_matches_provider_config(
     )
     if not raw_pattern:
         return True
-    pattern_norm = normalize_str(raw_pattern)
     for att in attachments:
-        filename_norm = normalize_str(getattr(att, "filename", "") or "")
-        if pattern_norm in filename_norm or filename_norm in pattern_norm:
+        if _attachment_name_matches_pattern(
+            getattr(att, "filename", "") or "",
+            raw_pattern,
+        ):
             return True
     return False
 
@@ -1070,17 +1099,10 @@ def _imap_fetch_provider_attachment(
 
         for att in msg.attachments:
             logger.debug(f"[thread] Found attachment: {att.filename}")
-            filename_norm = normalize_str(att.filename).lower()
-            filename_pattern_norm = normalize_str(
-                filename_pattern or ""
-            ).lower()
-            if (
-                filename_pattern_norm
-                and (
-                    filename_pattern_norm in filename_norm
-                    or filename_norm in filename_pattern_norm
-                )
-            ) or not filename_pattern_norm:
+            if _attachment_name_matches_pattern(
+                att.filename or "",
+                filename_pattern or "",
+            ):
                 filepath = os.path.join(DOWNLOAD_FOLDER, att.filename)
                 _ensure_parent_dir(filepath)
                 with open(filepath, "wb") as f:
