@@ -1089,6 +1089,7 @@ class CustomerPriceListSourceBase(BaseModel):
     provider_config_id: int
     enabled: bool = True
     markup: float = 1.0
+    mask_price_quantity: bool = False
     brand_markups: Optional[Dict[str, float]] = Field(default_factory=dict)
     brand_filters: Optional[Dict[str, Any]] = Field(default_factory=dict)
     position_filters: Optional[Dict[str, Any]] = Field(default_factory=dict)
@@ -1151,6 +1152,7 @@ class CustomerPriceListSourceUpdate(BaseModel):
     provider_config_id: Optional[int] = None
     enabled: Optional[bool] = None
     markup: Optional[float] = None
+    mask_price_quantity: Optional[bool] = None
     brand_markups: Optional[Dict[str, float]] = None
     brand_filters: Optional[Dict[str, Any]] = None
     position_filters: Optional[Dict[str, Any]] = None
@@ -1387,6 +1389,7 @@ class ProviderCustomerPriceListSourceUsageOut(BaseModel):
     provider_config_name: Optional[str] = None
     enabled: bool = True
     markup: float = 1.0
+    mask_price_quantity: bool = False
     brand_markups: Optional[Dict[str, float]] = Field(default_factory=dict)
     brand_filters: Optional[Dict[str, Any]] = Field(default_factory=dict)
     position_filters: Optional[Dict[str, Any]] = Field(default_factory=dict)

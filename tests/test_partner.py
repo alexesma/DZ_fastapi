@@ -2,6 +2,7 @@ import io
 import logging
 from datetime import date
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
@@ -1838,6 +1839,81 @@ async def test_customer_pricelist_source_brand_markups_applied(
     assert len(actual_prices) == 2
     assert abs(actual_prices[0] - 110.0) < 0.01
     assert abs(actual_prices[1] - 140.0) < 0.01
+
+
+def test_customer_pricelist_source_masking_changes_supplier_price_and_qty():
+    config = CustomerPriceListConfig(
+        customer_id=101,
+        general_markup=1.0,
+        own_price_list_markup=1.0,
+        third_party_markup=1.0,
+    )
+    source = SimpleNamespace(
+        id=202,
+        provider_config_id=303,
+        markup=10.0,
+        brand_markups={},
+        mask_price_quantity=True,
+    )
+    df = pd.DataFrame(
+        [
+            {
+                "autopart_id": 1,
+                "name": "Masked supplier part",
+                "oem_number": "MASK-001",
+                "brand_id": 1,
+                "brand": "TOYOTA",
+                "provider_id": 10,
+                "provider_config_id": 303,
+                "is_own_price": False,
+                "quantity": 7,
+                "price": 100.0,
+            }
+        ]
+    )
+
+    masked = process_service._apply_source_markups(df, config, source)
+
+    assert int(masked.iloc[0]["quantity"]) == 5
+    assert float(masked.iloc[0]["price"]).is_integer()
+    assert 109 <= float(masked.iloc[0]["price"]) <= 112
+
+
+def test_customer_pricelist_source_masking_does_not_touch_own_price():
+    config = CustomerPriceListConfig(
+        customer_id=101,
+        general_markup=1.0,
+        own_price_list_markup=1.0,
+        third_party_markup=1.0,
+    )
+    source = SimpleNamespace(
+        id=202,
+        provider_config_id=303,
+        markup=10.0,
+        brand_markups={},
+        mask_price_quantity=True,
+    )
+    df = pd.DataFrame(
+        [
+            {
+                "autopart_id": 1,
+                "name": "Own part",
+                "oem_number": "OWN-001",
+                "brand_id": 1,
+                "brand": "DRAGONZAP",
+                "provider_id": 10,
+                "provider_config_id": 303,
+                "is_own_price": True,
+                "quantity": 7,
+                "price": 100.25,
+            }
+        ]
+    )
+
+    masked = process_service._apply_source_markups(df, config, source)
+
+    assert int(masked.iloc[0]["quantity"]) == 7
+    assert abs(float(masked.iloc[0]["price"]) - 110.275) < 0.001
 
 
 @pytest.mark.asyncio

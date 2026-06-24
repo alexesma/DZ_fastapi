@@ -1103,6 +1103,7 @@ class CustomerPriceListSource(Base):
     )
     enabled = Column(Boolean, default=True)
     markup = Column(Float, default=1.0)
+    mask_price_quantity = Column(Boolean, default=False, nullable=False)
     brand_markups = Column(JSON, default={})
     brand_filters = Column(JSON, default={})
     position_filters = Column(JSON, default={})

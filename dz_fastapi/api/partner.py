@@ -1020,6 +1020,9 @@ def build_customer_source_response(
         is_own_price=bool(getattr(provider, "is_own_price", False)),
         enabled=bool(source.enabled),
         markup=source.markup,
+        mask_price_quantity=bool(
+            getattr(source, "mask_price_quantity", False)
+        ),
         brand_markups=source.brand_markups or {},
         brand_filters=source.brand_filters or {},
         position_filters=source.position_filters or {},

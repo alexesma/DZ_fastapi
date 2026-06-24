@@ -1,5 +1,6 @@
 import asyncio
 import copy
+import hashlib
 import logging
 import os
 import re
@@ -389,6 +390,101 @@ def _resolve_source_brand_markup_multipliers(source) -> dict[str, float]:
     return result
 
 
+def _stable_unit_interval(*parts: object) -> float:
+    seed = "|".join(str(part or "") for part in parts)
+    digest = hashlib.blake2b(seed.encode("utf-8"), digest_size=8).digest()
+    return int.from_bytes(digest, "big") / float(2**64 - 1)
+
+
+def _customer_pricelist_mask_week_key() -> str:
+    year, week, _ = now_moscow().isocalendar()
+    return f"{year}-W{week:02d}"
+
+
+def _masked_markup_multiplier(base_multiplier: float, unit: float) -> float:
+    markup = max(float(base_multiplier or 1.0) - 1.0, 0.0)
+    if markup <= 0:
+        return 1.0
+    min_markup = markup * 0.9
+    max_markup = markup * 1.2
+    return 1.0 + min_markup + (max_markup - min_markup) * unit
+
+
+def _mask_supplier_quantity(quantity: object, unit: float) -> int:
+    try:
+        qty = int(float(quantity or 0))
+    except (TypeError, ValueError):
+        return 0
+    if qty <= 0:
+        return 0
+    if qty <= 2:
+        return qty
+    if qty <= 5:
+        return max(qty - 1, 1)
+    if qty <= 10:
+        return max(qty - 2, 1)
+    if qty <= 30:
+        masked = round(qty * (0.65 + 0.25 * unit))
+    elif qty <= 100:
+        masked = round(qty * (0.50 + 0.30 * unit))
+    else:
+        masked = round(qty * (0.25 + 0.30 * unit))
+        masked = min(masked, 180)
+        masked = max(10, int(round(masked / 5) * 5))
+    return max(1, min(int(masked), qty))
+
+
+def _apply_supplier_price_quantity_mask(
+    df: pd.DataFrame,
+    config: CustomerPriceListConfig,
+    source,
+) -> pd.DataFrame:
+    if df.empty or not bool(getattr(source, "mask_price_quantity", False)):
+        return df
+
+    df = df.copy()
+    week_key = _customer_pricelist_mask_week_key()
+    source_id = getattr(source, "id", None) or getattr(
+        source, "provider_config_id", ""
+    )
+    customer_id = getattr(config, "customer_id", "")
+
+    def _row_key(row: pd.Series) -> tuple[object, ...]:
+        return (
+            customer_id,
+            source_id,
+            row.get("provider_config_id", ""),
+            row.get("brand", ""),
+            row.get("oem_number", ""),
+            week_key,
+        )
+
+    def _masked_quantity(row: pd.Series) -> int:
+        if bool(row.get("is_own_price")):
+            return int(float(row.get("quantity") or 0))
+        unit = _stable_unit_interval(*_row_key(row), "qty")
+        return _mask_supplier_quantity(row.get("quantity"), unit)
+
+    def _masked_price(row: pd.Series) -> float:
+        price = float(row.get("price") or 0)
+        if price <= 0 or bool(row.get("is_own_price")):
+            return price
+        source_multiplier = float(row.get("__source_multiplier") or 1.0)
+        if source_multiplier <= 1.0:
+            return max(1, round(price))
+        unit = _stable_unit_interval(*_row_key(row), "price")
+        masked_source_multiplier = _masked_markup_multiplier(
+            source_multiplier, unit
+        )
+        return max(
+            1, round(price / source_multiplier * masked_source_multiplier)
+        )
+
+    df["quantity"] = df.apply(_masked_quantity, axis=1)
+    df["price"] = df.apply(_masked_price, axis=1)
+    return _sanitize_positive_price_quantity(df, context="source_masking")
+
+
 def _apply_source_markups(
     df: pd.DataFrame,
     config: CustomerPriceListConfig,
@@ -428,6 +524,7 @@ def _apply_source_markups(
         ),
         axis=1,
     )
+    df = _apply_supplier_price_quantity_mask(df, config, source)
     df = df.drop(columns=["__brand_markup_key", "__source_multiplier"])
     return _sanitize_positive_price_quantity(df, context="source_markups")
 

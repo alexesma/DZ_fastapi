@@ -66,3 +66,13 @@ def test_customer_pricelist_source_brand_markups_normalized():
         "TOYOTA": 10.0,
         "GEELY": 40.0,
     }
+
+
+def test_customer_pricelist_source_masking_defaults_to_disabled():
+    payload = CustomerPriceListSourceCreate(provider_config_id=20)
+    assert payload.mask_price_quantity is False
+
+
+def test_customer_pricelist_source_update_accepts_masking_flag():
+    payload = CustomerPriceListSourceUpdate(mask_price_quantity=True)
+    assert payload.mask_price_quantity is True
