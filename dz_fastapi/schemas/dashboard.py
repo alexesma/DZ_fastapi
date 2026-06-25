@@ -176,6 +176,7 @@ class InventoryDashboardRow(BaseModel):
     in_stock_days_90: int = 0
     in_stock_days_180: int = 0
     in_stock_days_365: int = 0
+    observed_in_stock_days: int = 0
     unit_cost: Optional[float] = None
     unit_cost_source: Optional[str] = None
     frozen_value: Optional[float] = None

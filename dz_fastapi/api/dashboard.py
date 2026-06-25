@@ -228,20 +228,38 @@ async def get_order_dynamics(
         .group_by(Provider.id, Provider.name)
         .order_by(func.sum(SupplierOrderItem.quantity).desc())
     )
-    site_order_partner_stmt = (
-        select(
-            Provider.id.label("partner_id"),
-            Provider.name.label("partner_name"),
-            func.count(func.distinct(Order.id)).label("order_count"),
-            func.count(OrderItem.id).label("position_count"),
-            func.coalesce(func.sum(OrderItem.quantity), 0).label("quantity"),
-            site_order_sum_expr.label("total_sum"),
+
+    def _site_order_partner_stmt(cross_docking: bool):
+        # Site-заказы Dragonzap делим по source_type так же, как заказы
+        # поставщикам: CUSTOMER_ORDER = под клиента (cross-docking),
+        # остальное (DRAGONZAP_SEARCH/SEARCH_OFFERS) = на склад.
+        source_filter = (
+            Order.source_type == ORDER_TRACKING_SOURCE.CUSTOMER_ORDER.value
+            if cross_docking
+            else func.coalesce(Order.source_type, "")
+            != ORDER_TRACKING_SOURCE.CUSTOMER_ORDER.value
         )
-        .select_from(Order)
-        .join(Provider, Provider.id == Order.provider_id)
-        .join(OrderItem, OrderItem.order_id == Order.id)
-        .where(site_order_day >= start_date)
-        .group_by(Provider.id, Provider.name)
+        return (
+            select(
+                Provider.id.label("partner_id"),
+                Provider.name.label("partner_name"),
+                func.count(func.distinct(Order.id)).label("order_count"),
+                func.count(OrderItem.id).label("position_count"),
+                func.coalesce(func.sum(OrderItem.quantity), 0).label(
+                    "quantity"
+                ),
+                site_order_sum_expr.label("total_sum"),
+            )
+            .select_from(Order)
+            .join(Provider, Provider.id == Order.provider_id)
+            .join(OrderItem, OrderItem.order_id == Order.id)
+            .where(site_order_day >= start_date, source_filter)
+            .group_by(Provider.id, Provider.name)
+        )
+
+    site_order_partner_stmt = _site_order_partner_stmt(cross_docking=False)
+    site_order_cross_docking_stmt = _site_order_partner_stmt(
+        cross_docking=True
     )
 
     customer_daily_rows = (await session.execute(customer_daily_stmt)).all()
@@ -257,6 +275,9 @@ async def get_order_dynamics(
     ).all()
     site_order_partner_rows = (
         await session.execute(site_order_partner_stmt)
+    ).all()
+    site_order_cross_docking_rows = (
+        await session.execute(site_order_cross_docking_stmt)
     ).all()
     cross_docking_partner_rows = (
         await session.execute(cross_docking_partner_stmt)
@@ -366,6 +387,7 @@ async def get_order_dynamics(
         "suppliers": partner_payload(
             supplier_partner_rows,
             site_order_partner_rows,
+            site_order_cross_docking_rows,
             cross_docking_partner_rows,
         ),
         "suppliers_warehouse": partner_payload(
@@ -374,6 +396,7 @@ async def get_order_dynamics(
         ),
         "suppliers_cross_docking": partner_payload(
             cross_docking_partner_rows,
+            site_order_cross_docking_rows,
         ),
     }
 

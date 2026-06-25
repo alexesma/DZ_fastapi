@@ -21,10 +21,8 @@ from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation
 from dz_fastapi.services.autopurchase import (
     AUTOPURCHASE_DEMAND_WINDOWS,
-    _blend_average_daily_horizons,
     _calculate_in_stock_days,
     _calculate_snapshot_sales,
-    _compute_availability_adjusted_daily,
     _load_customer_order_requested_by_oem_windows,
     _resolve_autopurchase_provider_config,
     _summarize_snapshot_rows,
@@ -44,6 +42,27 @@ SLOW_COVER_DAYS = 90
 OVERSTOCK_COVER_DAYS = 180
 # Сколько строк показываем в каждой панели дашборда.
 DASHBOARD_TOP_LIMIT = 100
+
+# Минимум дней наблюдения, чтобы не делить на крошечный знаменатель.
+MIN_OBSERVED_DAYS = 7
+
+
+def _coverage_daily_rate(
+    sold_365: int,
+    in_stock_days_365: int,
+) -> Optional[float]:
+    """Скорость продаж = продано ÷ дни ФАКТИЧЕСКОГО наличия.
+
+    Без потолка автозаказа: для дашборда важна реалистичная картина.
+    Если товар был в наличии 20 дней и продано 32 шт — это 1,6 шт/день,
+    а не 0,09 (32/365). Так покрытие учитывает, что данные собираются
+    недавно и не вся история была в наличии.
+    """
+    if sold_365 <= 0:
+        return None
+    observed_days = max(int(in_stock_days_365), MIN_OBSERVED_DAYS)
+    return round(sold_365 / observed_days, 4)
+
 
 INVENTORY_STATE_URGENT = "urgent"
 INVENTORY_STATE_HEALTHY = "healthy"
@@ -277,26 +296,13 @@ async def get_inventory_control_dashboard(
             )
             for days in AUTOPURCHASE_DEMAND_WINDOWS
         }
-        avg_daily = _blend_average_daily_horizons(
-            _compute_availability_adjusted_daily(
-                sold[30], 30, in_stock_days_by_window[30].get(oem_number, 30)
-            ),
-            _compute_availability_adjusted_daily(
-                sold[90], 90, in_stock_days_by_window[90].get(oem_number, 90)
-            ),
-            _compute_availability_adjusted_daily(
-                sold[180], 180,
-                in_stock_days_by_window[180].get(oem_number, 180),
-            ),
-            _compute_availability_adjusted_daily(
-                sold[365], 365,
-                in_stock_days_by_window[365].get(oem_number, 365),
-            ),
+        observed_in_stock_days = int(
+            in_stock_days_by_window[365].get(oem_number, 0)
         )
-        in_stock_days = {
-            days: int(in_stock_days_by_window[days].get(oem_number, 0))
-            for days in AUTOPURCHASE_DEMAND_WINDOWS
-        }
+        # Скорость продаж по дням фактического наличия (без потолка):
+        # реалистичная картина для дашборда, учитывает короткий период
+        # сбора данных и то, что не всё время позиция была на складе.
+        avg_daily = _coverage_daily_rate(sold[365], observed_in_stock_days)
         estimated_days_left = (
             int(current_quantity / avg_daily)
             if avg_daily and avg_daily > 0
@@ -406,10 +412,8 @@ async def get_inventory_control_dashboard(
                 "sold_last_30_days": sold[30],
                 "sold_last_90_days": sold[90],
                 "sold_last_365_days": sold[365],
-                "in_stock_days_30": in_stock_days[30],
-                "in_stock_days_90": in_stock_days[90],
-                "in_stock_days_180": in_stock_days[180],
-                "in_stock_days_365": in_stock_days[365],
+                "observed_in_stock_days": observed_in_stock_days,
+                "in_stock_days_365": observed_in_stock_days,
                 "unit_cost": round(unit_cost, 2) if unit_cost else None,
                 "unit_cost_source": unit_cost_source,
                 "frozen_value": round(stock_value, 2) if stock_value else None,
