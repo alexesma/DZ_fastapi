@@ -17,7 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import AutoPart
-from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation, Provider
+from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation
 from dz_fastapi.services.autopurchase import (
     AUTOPURCHASE_DEMAND_WINDOWS,
     _blend_average_daily_horizons,
@@ -148,7 +149,7 @@ async def get_inventory_control_dashboard(
             AutoPart.multiplicity.label("multiplicity"),
             AutoPart.min_balance_auto.label("min_balance_auto"),
             AutoPart.min_balance_user.label("min_balance_user"),
-            Provider.name.label("brand_name"),
+            Brand.name.label("brand_name"),
             PriceListAutoPartAssociation.quantity.label("quantity"),
             PriceListAutoPartAssociation.price.label("price"),
         )
@@ -158,7 +159,7 @@ async def get_inventory_control_dashboard(
             PriceList.id == PriceListAutoPartAssociation.pricelist_id,
         )
         .join(AutoPart, AutoPart.id == PriceListAutoPartAssociation.autopart_id)
-        .join(Provider, Provider.id == PriceList.provider_id)
+        .join(Brand, Brand.id == AutoPart.brand_id)
         .where(
             PriceList.provider_config_id == provider_config_id,
             PriceList.is_active.is_(True),
@@ -292,6 +293,10 @@ async def get_inventory_control_dashboard(
                 in_stock_days_by_window[365].get(oem_number, 365),
             ),
         )
+        in_stock_days = {
+            days: int(in_stock_days_by_window[days].get(oem_number, 0))
+            for days in AUTOPURCHASE_DEMAND_WINDOWS
+        }
         estimated_days_left = (
             int(current_quantity / avg_daily)
             if avg_daily and avg_daily > 0
@@ -401,6 +406,10 @@ async def get_inventory_control_dashboard(
                 "sold_last_30_days": sold[30],
                 "sold_last_90_days": sold[90],
                 "sold_last_365_days": sold[365],
+                "in_stock_days_30": in_stock_days[30],
+                "in_stock_days_90": in_stock_days[90],
+                "in_stock_days_180": in_stock_days[180],
+                "in_stock_days_365": in_stock_days[365],
                 "unit_cost": round(unit_cost, 2) if unit_cost else None,
                 "unit_cost_source": unit_cost_source,
                 "frozen_value": round(stock_value, 2) if stock_value else None,

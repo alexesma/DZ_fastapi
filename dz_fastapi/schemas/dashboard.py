@@ -79,6 +79,12 @@ class DashboardOrderDynamicsResponse(BaseModel):
     daily: list[DashboardDailyOrderRow] = Field(default_factory=list)
     customers: list[DashboardPartnerOrderRow] = Field(default_factory=list)
     suppliers: list[DashboardPartnerOrderRow] = Field(default_factory=list)
+    suppliers_warehouse: list[DashboardPartnerOrderRow] = Field(
+        default_factory=list
+    )
+    suppliers_cross_docking: list[DashboardPartnerOrderRow] = Field(
+        default_factory=list
+    )
 
 
 class DashboardOrderMarginRow(BaseModel):
@@ -166,6 +172,10 @@ class InventoryDashboardRow(BaseModel):
     sold_last_30_days: int = 0
     sold_last_90_days: int = 0
     sold_last_365_days: int = 0
+    in_stock_days_30: int = 0
+    in_stock_days_90: int = 0
+    in_stock_days_180: int = 0
+    in_stock_days_365: int = 0
     unit_cost: Optional[float] = None
     unit_cost_source: Optional[str] = None
     frozen_value: Optional[float] = None

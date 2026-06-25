@@ -100,6 +100,10 @@ async def test_order_dynamics_aggregates_daily_and_partner_totals(
     assert result["suppliers"][0]["partner_name"] == created_providers[0].name
     assert result["suppliers"][0]["order_count"] == 2
     assert result["suppliers"][0]["total_sum"] == 620.0
+    assert result["suppliers_warehouse"][0]["order_count"] == 1
+    assert result["suppliers_warehouse"][0]["total_sum"] == 300.0
+    assert result["suppliers_cross_docking"][0]["order_count"] == 1
+    assert result["suppliers_cross_docking"][0]["total_sum"] == 320.0
 
 
 @pytest.mark.asyncio

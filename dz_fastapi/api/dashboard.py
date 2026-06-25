@@ -14,6 +14,7 @@ from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
 from dz_fastapi.models.partner import (
     CUSTOMER_ORDER_ITEM_STATUS,
+    ORDER_TRACKING_SOURCE,
     Customer,
     CustomerOrder,
     CustomerOrderItem,
@@ -190,7 +191,40 @@ async def get_order_dynamics(
             SupplierOrderItem,
             SupplierOrderItem.supplier_order_id == SupplierOrder.id,
         )
-        .where(supplier_day >= start_date)
+        .where(
+            supplier_day >= start_date,
+            func.coalesce(SupplierOrder.source_type, "")
+            != ORDER_TRACKING_SOURCE.CUSTOMER_ORDER.value,
+            SupplierOrderItem.customer_order_item_id.is_(None),
+        )
+        .group_by(Provider.id, Provider.name)
+        .order_by(func.sum(SupplierOrderItem.quantity).desc())
+    )
+    cross_docking_partner_stmt = (
+        select(
+            Provider.id.label("partner_id"),
+            Provider.name.label("partner_name"),
+            func.count(func.distinct(SupplierOrder.id)).label("order_count"),
+            func.count(SupplierOrderItem.id).label("position_count"),
+            func.coalesce(func.sum(SupplierOrderItem.quantity), 0).label(
+                "quantity"
+            ),
+            supplier_sum_expr.label("total_sum"),
+        )
+        .select_from(SupplierOrder)
+        .join(Provider, Provider.id == SupplierOrder.provider_id)
+        .join(
+            SupplierOrderItem,
+            SupplierOrderItem.supplier_order_id == SupplierOrder.id,
+        )
+        .where(
+            supplier_day >= start_date,
+            (
+                func.coalesce(SupplierOrder.source_type, "")
+                == ORDER_TRACKING_SOURCE.CUSTOMER_ORDER.value
+            )
+            | SupplierOrderItem.customer_order_item_id.is_not(None),
+        )
         .group_by(Provider.id, Provider.name)
         .order_by(func.sum(SupplierOrderItem.quantity).desc())
     )
@@ -223,6 +257,9 @@ async def get_order_dynamics(
     ).all()
     site_order_partner_rows = (
         await session.execute(site_order_partner_stmt)
+    ).all()
+    cross_docking_partner_rows = (
+        await session.execute(cross_docking_partner_stmt)
     ).all()
 
     def aggregate_map(*row_groups):
@@ -329,6 +366,14 @@ async def get_order_dynamics(
         "suppliers": partner_payload(
             supplier_partner_rows,
             site_order_partner_rows,
+            cross_docking_partner_rows,
+        ),
+        "suppliers_warehouse": partner_payload(
+            supplier_partner_rows,
+            site_order_partner_rows,
+        ),
+        "suppliers_cross_docking": partner_payload(
+            cross_docking_partner_rows,
         ),
     }
 
