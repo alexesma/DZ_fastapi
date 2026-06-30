@@ -77,6 +77,9 @@ class CustomerOrderConfigBase(BaseModel):
     order_reply_emails: List[EmailStr] = Field(default_factory=list)
     email_account_id: Optional[int] = None
     email_account_ids: List[int] = Field(default_factory=list)
+    forward_customer_order_enabled: bool = False
+    forward_customer_order_email: Optional[EmailStr] = None
+    forward_customer_order_email_account_id: Optional[int] = None
     pricelist_config_id: Optional[int] = None
 
     order_start_row: int = 1
@@ -109,6 +112,7 @@ class CustomerOrderConfigBase(BaseModel):
     @field_validator(
         "order_subject_pattern",
         "order_filename_pattern",
+        "forward_customer_order_email",
         "order_number_regex_subject",
         "order_number_regex_filename",
         mode="before",
@@ -141,6 +145,9 @@ class CustomerOrderConfigUpdate(BaseModel):
     order_reply_emails: Optional[List[EmailStr]] = None
     email_account_id: Optional[int] = None
     email_account_ids: Optional[List[int]] = None
+    forward_customer_order_enabled: Optional[bool] = None
+    forward_customer_order_email: Optional[EmailStr] = None
+    forward_customer_order_email_account_id: Optional[int] = None
     pricelist_config_id: Optional[int] = None
 
     order_start_row: Optional[int] = None
@@ -173,6 +180,7 @@ class CustomerOrderConfigUpdate(BaseModel):
     @field_validator(
         "order_subject_pattern",
         "order_filename_pattern",
+        "forward_customer_order_email",
         "order_number_regex_subject",
         "order_number_regex_filename",
         "order_number_regex_body",

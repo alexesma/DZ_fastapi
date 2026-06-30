@@ -2276,6 +2276,220 @@ def _build_supplier_order_body_html(
     )
 
 
+def _customer_order_forward_attachment_filename(order_id: int) -> str:
+    return f"Заказ_клиента_{int(order_id):010d}.xls"
+
+
+def _build_customer_order_forward_rows(
+    order: CustomerOrder,
+) -> tuple[list[dict[str, object]], int, float]:
+    rows: list[dict[str, object]] = []
+    total_qty = 0
+    total_sum = 0.0
+    for index, item in enumerate(order.items or [], start=1):
+        quantity = int(item.requested_qty or 0)
+        price = float(item.requested_price or 0)
+        line_sum = round(quantity * price, 2)
+        total_qty += quantity
+        total_sum += line_sum
+        rows.append(
+            {
+                "index": index,
+                "brand": item.brand or "",
+                "oem": item.oem or "",
+                "comment": order.order_number or order.id,
+                "name": item.name or "",
+                "note": item.reject_reason_text or "",
+                "qty": quantity,
+                "price": _format_numeric_for_excel(price),
+                "sum": _format_numeric_for_excel(line_sum),
+                "price_code": "",
+            }
+        )
+    return rows, total_qty, round(total_sum, 2)
+
+
+def _build_customer_order_forward_attachment_bytes(
+    *,
+    order: CustomerOrder,
+    rows: list[dict[str, object]],
+    total_qty: int,
+    total_sum: float,
+) -> bytes:
+    order_datetime = order.created_at or now_moscow()
+    order_datetime_text = order_datetime.strftime("%d.%m.%Y %H:%M:%S")
+    row_lines = "".join(
+        (
+            "<tr>"
+            f'<td>{escape(str(row["index"]))}</td>'
+            f'<td>{escape(str(row["brand"] or ""))}</td>'
+            f'<td>{escape(str(row["oem"] or ""))}</td>'
+            f'<td>{escape(str(row["comment"] or ""))}</td>'
+            f'<td>{escape(str(row["name"] or ""))}</td>'
+            f'<td>{escape(str(row["note"] or ""))}</td>'
+            f'<td>{escape(str(row["qty"] or ""))}</td>'
+            f'<td>{escape(str(row["price"] or ""))}</td>'
+            f'<td>{escape(str(row["sum"] or ""))}</td>'
+            f'<td>{escape(str(row["price_code"] or ""))}</td>'
+            "</tr>"
+        )
+        for row in rows
+    )
+    html = (
+        "<html><head><meta charset=\"utf-8\"></head><body>"
+        "<div>"
+        f"<p><b>Заказ клиента № {escape(str(order.order_number or order.id))}</b></p>"
+        '<table cellspacing="0" cellpadding="2">'
+        f"<tr><td><b>Дата</b></td><td>{escape(order_datetime_text)}</td></tr>"
+        f"<tr><td><b>ID заказа</b></td><td>{escape(str(order.id))}</td></tr>"
+        "</table>"
+        "<br/>"
+        '<table border="1" cellpadding="4" cellspacing="0" '
+        'style="border-collapse: collapse;">'
+        "<thead>"
+        "<tr>"
+        "<th>№</th>"
+        "<th>Производитель</th>"
+        "<th>Номер детали</th>"
+        "<th>Комментарий</th>"
+        "<th>Наименование</th>"
+        "<th>Примечание</th>"
+        "<th>Кол-во</th>"
+        "<th>Цена</th>"
+        "<th>Сумма</th>"
+        "<th>Прайс</th>"
+        "</tr>"
+        "</thead>"
+        f"<tbody>{row_lines}</tbody>"
+        "<tfoot>"
+        f'<tr><td colspan="6"><b>Итого:</b></td>'
+        f"<td>{escape(str(total_qty))}</td>"
+        "<td>RUR</td>"
+        f'<td>{escape(f"{total_sum:.2f}")}</td>'
+        "<td></td></tr>"
+        "</tfoot>"
+        "</table>"
+        "</div>"
+        "</body></html>"
+    )
+    return html.encode("utf-8")
+
+
+async def _send_forwarded_customer_order_email(
+    session: AsyncSession,
+    config: CustomerOrderConfig,
+    order: CustomerOrder,
+) -> None:
+    if not bool(getattr(config, "forward_customer_order_enabled", False)):
+        return
+
+    to_email = str(
+        getattr(config, "forward_customer_order_email", "") or ""
+    ).strip()
+    if not to_email:
+        logger.warning(
+            "Customer order forwarding enabled without recipient: "
+            "config_id=%s order_id=%s",
+            config.id,
+            order.id,
+        )
+        await _notify_admins(
+            session,
+            title="Переотправка заказа клиента не выполнена",
+            message=(
+                f"Конфиг заказа: {config.id}\n"
+                f"Заказ: {order.order_number or order.id}\n"
+                "Причина: не указан email получателя."
+            ),
+            level=AppNotificationLevel.WARNING,
+            link="/customer-orders",
+            commit=True,
+        )
+        return
+
+    try:
+        out_account = None
+        account_id = getattr(
+            config, "forward_customer_order_email_account_id", None
+        )
+        if account_id:
+            out_account = await crud_email_account.get(session, int(account_id))
+            if out_account and not bool(getattr(out_account, "is_active", True)):
+                out_account = None
+        if out_account is None:
+            out_account = await _get_out_account(session, "orders_out")
+
+        kwargs = {}
+        if out_account:
+            kwargs = build_email_delivery_kwargs(out_account)
+
+        rows, total_qty, total_sum = _build_customer_order_forward_rows(order)
+        attachment_bytes = _build_customer_order_forward_attachment_bytes(
+            order=order,
+            rows=rows,
+            total_qty=total_qty,
+            total_sum=total_sum,
+        )
+        filename = _customer_order_forward_attachment_filename(order.id)
+        subject = f"Заказ клиента {order.order_number or order.id}"
+        body = (
+            "Во вложении заказ клиента для обработки.\n"
+            f"ID заказа в системе: {order.id}\n"
+            f"Строк: {len(rows)}\n"
+            f"Итого количество: {total_qty}\n"
+            f"Итого сумма: {total_sum:.2f} RUR"
+        )
+        await _send_email_attachment_async(
+            to_email,
+            subject,
+            body,
+            attachment_bytes,
+            filename,
+            False,
+            **kwargs,
+        )
+        logger.info(
+            "Forwarded customer order email sent: order_id=%s config_id=%s to=%s",
+            order.id,
+            config.id,
+            to_email,
+        )
+        await _notify_admins(
+            session,
+            title="Заказ клиента переотправлен",
+            message=(
+                f"Конфиг заказа: {config.id}\n"
+                f"Заказ: {order.order_number or order.id}\n"
+                f"Получатель: {to_email}\n"
+                f"Строк: {len(rows)}"
+            ),
+            level=AppNotificationLevel.SUCCESS,
+            link="/customer-orders",
+            commit=True,
+        )
+    except Exception as exc:
+        logger.error(
+            "Failed to forward customer order email: order_id=%s config_id=%s: %s",
+            order.id,
+            config.id,
+            exc,
+            exc_info=True,
+        )
+        await _notify_admins(
+            session,
+            title="Ошибка переотправки заказа клиента",
+            message=(
+                f"Конфиг заказа: {config.id}\n"
+                f"Заказ: {order.order_number or order.id}\n"
+                f"Получатель: {to_email}\n"
+                f"Ошибка: {exc}"
+            ),
+            level=AppNotificationLevel.ERROR,
+            link="/customer-orders",
+            commit=True,
+        )
+
+
 async def _send_order_import_notification(
     session: AsyncSession,
     config: CustomerOrderConfig,
@@ -2928,6 +3142,7 @@ async def _complete_imported_order_processing(
         rows_count=len(parsed_rows),
     )
     await _send_reject_report(session, order, rejected_items)
+    await _send_forwarded_customer_order_email(session, config, order)
     if _customer_order_auto_reply_enabled():
         sent = await try_finalize_customer_order_response(
             session,

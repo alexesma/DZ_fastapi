@@ -687,6 +687,13 @@ class CustomerOrderConfig(Base):
         Integer, ForeignKey("emailaccount.id"), nullable=True
     )
     email_account_ids = Column(JSON, default=[])
+    forward_customer_order_enabled = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    forward_customer_order_email = Column(String(255), nullable=True)
+    forward_customer_order_email_account_id = Column(
+        Integer, ForeignKey("emailaccount.id"), nullable=True
+    )
 
     pricelist_config_id = Column(
         Integer, ForeignKey("customerpricelistconfig.id"), nullable=True
@@ -730,7 +737,15 @@ class CustomerOrderConfig(Base):
     folder_last_uids = Column(JSON, default=dict)
 
     customer = relationship("Customer", back_populates="order_configs")
-    email_account = relationship("EmailAccount")
+    email_account = relationship(
+        "EmailAccount",
+        foreign_keys=[email_account_id],
+    )
+    forward_customer_order_email_account = relationship(
+        "EmailAccount",
+        foreign_keys=[forward_customer_order_email_account_id],
+        lazy="selectin",
+    )
 
 
 class CustomerOrder(Base):
