@@ -243,6 +243,8 @@ class Provider(Client):
     is_virtual = Column(Boolean, default=False)
     is_own_price = Column(Boolean, default=False)
     is_vat_payer = Column(Boolean, default=False, nullable=False)
+    autopurchase_blocked = Column(Boolean, default=False, nullable=False)
+    autopurchase_block_reason = Column(Text, nullable=True)
     order_schedule_days = Column(JSON, default=[])
     order_schedule_times = Column(JSON, default=[])
     order_schedule_enabled = Column(Boolean, default=False)
@@ -516,6 +518,8 @@ class ProviderPriceListConfig(Base):
     use_for_order_insights = Column(
         Boolean, default=False, nullable=False
     )
+    autopurchase_blocked = Column(Boolean, default=False, nullable=False)
+    autopurchase_block_reason = Column(Text, nullable=True)
     provider = relationship("Provider", back_populates="pricelist_configs")
     incoming_email_account = relationship("EmailAccount", lazy="selectin")
     price_lists = relationship(

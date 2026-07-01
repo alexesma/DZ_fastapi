@@ -68,6 +68,8 @@ class ProviderBase(ClientBase):
     email_incoming_price: Optional[EmailStr] = None
     is_own_price: Optional[bool] = False
     is_vat_payer: Optional[bool] = False
+    autopurchase_blocked: Optional[bool] = False
+    autopurchase_block_reason: Optional[str] = None
     order_schedule_days: Optional[List[str]] = None
     order_schedule_times: Optional[List[str]] = None
     order_schedule_enabled: Optional[bool] = None
@@ -122,6 +124,8 @@ class ProviderUpdate(BaseModel):
     is_virtual: Optional[bool] = None
     is_own_price: Optional[bool] = None
     is_vat_payer: Optional[bool] = None
+    autopurchase_blocked: Optional[bool] = None
+    autopurchase_block_reason: Optional[str] = None
     order_schedule_days: Optional[List[str]] = None
     order_schedule_times: Optional[List[str]] = None
     order_schedule_enabled: Optional[bool] = None
@@ -489,6 +493,8 @@ class ProviderPriceListConfigBase(BaseModel):
     max_delivery_day: Optional[int] = Field(default=3, ge=0)
     is_active: bool = True
     use_for_order_insights: bool = False
+    autopurchase_blocked: bool = False
+    autopurchase_block_reason: Optional[str] = None
 
 
 class ProviderPriceListConfigCreate(ProviderPriceListConfigBase):
@@ -518,6 +524,8 @@ class ProviderPriceListConfigUpdate(BaseModel):
     max_delivery_day: Optional[int] = Field(default=None, ge=0)
     is_active: Optional[bool] = None
     use_for_order_insights: Optional[bool] = None
+    autopurchase_blocked: Optional[bool] = None
+    autopurchase_block_reason: Optional[str] = None
 
 
 class ProviderPriceListConfigResponse(ProviderPriceListConfigBase):
@@ -1366,6 +1374,8 @@ class ProviderPriceListConfigOut(BaseModel):
     max_delivery_day: int | None = 3
     is_active: bool = True
     use_for_order_insights: bool = False
+    autopurchase_blocked: bool = False
+    autopurchase_block_reason: str | None = None
     latest_pricelist: Optional[PriceListShort] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -1377,6 +1387,7 @@ class ProviderPriceListConfigOption(BaseModel):
     provider_name: str
     name_price: Optional[str] = None
     is_own_price: bool = False
+    autopurchase_blocked: bool = False
 
 
 class ProviderCustomerPriceListSourceUsageOut(BaseModel):

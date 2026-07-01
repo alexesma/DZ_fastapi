@@ -558,6 +558,7 @@ async def get_provider_config_options(
             provider_name=provider.name,
             name_price=config.name_price,
             is_own_price=bool(provider.is_own_price),
+            autopurchase_blocked=bool(config.autopurchase_blocked),
         )
         for config, provider in rows
     ]

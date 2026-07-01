@@ -669,3 +669,34 @@ class AutoPurchaseTopItem(Base):
             name="uq_autopurchasetopitem_source_oem_brand",
         ),
     )
+
+
+class AutoPurchaseExcludedItem(Base):
+    autopart_id = Column(Integer, ForeignKey("autopart.id"), nullable=True, index=True)
+    oem_number = Column(String(MAX_LIGHT_OEM), nullable=False, index=True)
+    brand_name = Column(
+        String(MAX_LIGHT_NAME_LOCATION),
+        nullable=False,
+        default="",
+        index=True,
+    )
+    autopart_name = Column(String(MAX_LIGHT_OEM), nullable=True)
+    reason = Column(Text, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+    created_at = Column(DateTime(timezone=True), default=now_moscow, nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        onupdate=now_moscow,
+        nullable=False,
+    )
+
+    autopart = relationship("AutoPart")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "oem_number",
+            "brand_name",
+            name="uq_autopurchaseexcludeditem_oem_brand",
+        ),
+    )

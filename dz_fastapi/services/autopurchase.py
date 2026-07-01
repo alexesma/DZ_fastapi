@@ -22,6 +22,7 @@ from dz_fastapi.models.autopart import (
     TYPE_SUPPLIER_DECISION_STATUS,
     AutoPart,
     AutoPartPriceHistory,
+    AutoPurchaseExcludedItem,
     AutoPurchaseRun,
     AutoPurchaseRunItem,
     AutoPurchaseTopItem,
@@ -1665,6 +1666,31 @@ async def _resolve_existing_site_provider_id(
     return None
 
 
+async def _is_autopurchase_provider_blocked(
+    session: AsyncSession,
+    *,
+    provider_id: Optional[int],
+    provider_block_cache: dict[int, bool],
+) -> bool:
+    if provider_id is None:
+        return False
+    normalized_provider_id = int(provider_id)
+    cached = provider_block_cache.get(normalized_provider_id)
+    if cached is not None:
+        return cached
+    blocked = bool(
+        (
+            await session.execute(
+                select(Provider.autopurchase_blocked).where(
+                    Provider.id == normalized_provider_id
+                )
+            )
+        ).scalar_one_or_none()
+    )
+    provider_block_cache[normalized_provider_id] = blocked
+    return blocked
+
+
 def _get_site_history_provider_key(
     *,
     provider_id: Optional[int],
@@ -2251,6 +2277,7 @@ async def _fetch_site_supplier_stats_for_oem(
     )
     filtered_other_brand_count = 0
     supplier_stats: list[dict[str, Any]] = []
+    provider_block_cache: dict[int, bool] = {}
     for raw in merged:
         if not _brand_matches_allowed(raw.get("make_name"), allowed_brand_keys):
             filtered_other_brand_count += 1
@@ -2270,6 +2297,19 @@ async def _fetch_site_supplier_stats_for_oem(
             supplier_name=provider_name,
             provider_cache=provider_cache,
         )
+        if await _is_autopurchase_provider_blocked(
+            session,
+            provider_id=provider_id,
+            provider_block_cache=provider_block_cache,
+        ):
+            logger.info(
+                "Autopurchase skipped blocked site provider provider_id=%s "
+                "supplier=%s OEM=%s",
+                provider_id,
+                provider_name,
+                oem_number,
+            )
+            continue
         history_stat = site_history_stats_by_provider.get(
             _get_site_history_provider_key(
                 provider_id=provider_id,
@@ -3196,7 +3236,11 @@ async def _resolve_autopurchase_provider_config(
         )
         .select_from(ProviderPriceListConfig)
         .join(Provider, Provider.id == ProviderPriceListConfig.provider_id)
-        .where(Provider.is_own_price.is_(True))
+        .where(
+            Provider.is_own_price.is_(True),
+            Provider.autopurchase_blocked.is_(False),
+            ProviderPriceListConfig.autopurchase_blocked.is_(False),
+        )
     )
     if own_provider_config_id is not None:
         config_stmt = config_stmt.where(
@@ -3378,12 +3422,14 @@ async def get_autopurchase_preview(
         "excluded_missing_without_activity_count": 0,
         "excluded_zero_need_count": 0,
         "excluded_zero_need_with_sales_count": 0,
+        "excluded_manual_autopurchase_count": 0,
         "rows_missing_in_latest_pricelist_count": 0,
         "rows_without_supplier_count": 0,
         "rows_without_draft_count": 0,
         "rows_with_partial_supplier_qty_count": 0,
         "rows_ready_for_draft_count": 0,
     }
+    excluded_item_keys = await _load_autopurchase_excluded_item_keys(session)
 
     for _oem_idx, (oem_number, known_row) in enumerate(latest_known_rows_by_oem.items()):
         # Каждые 50 OEM отдаём управление event loop — без этого при большом прайсе
@@ -3395,6 +3441,13 @@ async def get_autopurchase_preview(
             **known_row,
             "current_quantity": 0,
         }
+        if _is_autopurchase_item_excluded(
+            oem_number,
+            latest.get("brand_name") or known_row.get("brand_name"),
+            excluded_item_keys,
+        ):
+            diagnostics["excluded_manual_autopurchase_count"] += 1
+            continue
         oem_history = history_by_oem.get(oem_number, [])
         # Открытый backlog НЕ должен попадать в спрос: незакрытые заявки
         # учитываются отдельно (вычитаются из свободного остатка), иначе
@@ -4595,6 +4648,15 @@ async def get_autopurchase_preview(
                 ),
             ),
             _build_autopurchase_diagnostic_metric(
+                code="excluded_manual_autopurchase_count",
+                title="Исключено вручную из автозаказа",
+                value=diagnostics["excluded_manual_autopurchase_count"],
+                description=(
+                    "Позиции, отмеченные пользователем как не участвующие "
+                    "в автозаказе."
+                ),
+            ),
+            _build_autopurchase_diagnostic_metric(
                 code="rows_without_supplier_count",
                 title="Строк без site-поставщика",
                 value=diagnostics["rows_without_supplier_count"],
@@ -4737,9 +4799,55 @@ def _normalize_autopurchase_top_source(value: Any) -> Optional[str]:
     return source
 
 
-def _normalize_autopurchase_top_brand(value: Any) -> Optional[str]:
-    brand = str(value or "").strip().lower()
-    return brand or None
+def _normalize_autopurchase_top_brands(value: Any) -> list[str]:
+    raw_value = str(value or "").strip().lower()
+    if not raw_value:
+        return []
+    return [
+        item.strip()
+        for item in raw_value.split(",")
+        if item.strip()
+    ]
+
+
+def _autopurchase_exclusion_key(oem_number: Any, brand_name: Any) -> tuple[str, str]:
+    return (
+        _normalize_oem(oem_number),
+        _normalize_brand_key(brand_name),
+    )
+
+
+async def _load_autopurchase_excluded_item_keys(
+    session: AsyncSession,
+) -> set[tuple[str, str]]:
+    rows = (
+        await session.execute(
+            select(
+                AutoPurchaseExcludedItem.oem_number,
+                AutoPurchaseExcludedItem.brand_name,
+            ).where(AutoPurchaseExcludedItem.is_active.is_(True))
+        )
+    ).all()
+    return {
+        _autopurchase_exclusion_key(row.oem_number, row.brand_name)
+        for row in rows
+        if _normalize_oem(row.oem_number)
+    }
+
+
+def _is_autopurchase_item_excluded(
+    oem_number: Any,
+    brand_name: Any,
+    excluded_keys: set[tuple[str, str]],
+) -> bool:
+    normalized_oem = _normalize_oem(oem_number)
+    if not normalized_oem:
+        return False
+    normalized_brand = _normalize_brand_key(brand_name)
+    return (
+        (normalized_oem, normalized_brand) in excluded_keys
+        or (normalized_oem, "") in excluded_keys
+    )
 
 
 async def _load_file_top_targets_for_autopurchase(
@@ -4749,7 +4857,8 @@ async def _load_file_top_targets_for_autopurchase(
     brand: Optional[str],
 ) -> dict[str, dict[str, Any]]:
     normalized_limit = max(min(int(limit or 300), 1000), 1)
-    normalized_brand = _normalize_autopurchase_top_brand(brand)
+    normalized_brands = _normalize_autopurchase_top_brands(brand)
+    excluded_keys = await _load_autopurchase_excluded_item_keys(session)
     stmt = (
         select(AutoPurchaseTopItem)
         .where(
@@ -4763,14 +4872,23 @@ async def _load_file_top_targets_for_autopurchase(
         )
         .limit(normalized_limit)
     )
-    if normalized_brand:
+    if normalized_brands:
         stmt = stmt.where(
-            func.lower(AutoPurchaseTopItem.brand_name).contains(normalized_brand)
+            or_(*[
+                func.lower(AutoPurchaseTopItem.brand_name).contains(item)
+                for item in normalized_brands
+            ])
         )
     targets: dict[str, dict[str, Any]] = {}
     for item in (await session.execute(stmt)).scalars().all():
         normalized_oem = _normalize_oem(item.oem_number)
         if not normalized_oem:
+            continue
+        if _is_autopurchase_item_excluded(
+            item.oem_number,
+            item.brand_name,
+            excluded_keys,
+        ):
             continue
         targets[normalized_oem] = {
             "source": "file",
@@ -4790,11 +4908,13 @@ async def _load_current_top_targets_for_autopurchase(
 ) -> dict[str, dict[str, Any]]:
     normalized_limit = max(min(int(limit or 300), 1000), 1)
     normalized_days = max(min(int(days or 365), 730), 1)
-    normalized_brand = _normalize_autopurchase_top_brand(brand)
+    normalized_brands = _normalize_autopurchase_top_brands(brand)
+    excluded_keys = await _load_autopurchase_excluded_item_keys(session)
     cutoff = now_moscow() - timedelta(days=normalized_days)
     stmt = (
         select(
             CustomerOrderItem.oem,
+            CustomerOrderItem.brand,
             func.sum(CustomerOrderItem.requested_qty).label("sold_qty"),
         )
         .join(CustomerOrder, CustomerOrder.id == CustomerOrderItem.order_id)
@@ -4803,18 +4923,27 @@ async def _load_current_top_targets_for_autopurchase(
             CustomerOrderItem.requested_qty.isnot(None),
             CustomerOrderItem.requested_qty > 0,
         )
-        .group_by(CustomerOrderItem.oem)
+        .group_by(CustomerOrderItem.oem, CustomerOrderItem.brand)
         .order_by(func.sum(CustomerOrderItem.requested_qty).desc())
         .limit(normalized_limit)
     )
-    if normalized_brand:
+    if normalized_brands:
         stmt = stmt.where(
-            func.lower(CustomerOrderItem.brand).contains(normalized_brand)
+            or_(*[
+                func.lower(CustomerOrderItem.brand).contains(item)
+                for item in normalized_brands
+            ])
         )
     targets: dict[str, dict[str, Any]] = {}
     for rank, row in enumerate((await session.execute(stmt)).all(), start=1):
         normalized_oem = _normalize_oem(row.oem)
         if not normalized_oem:
+            continue
+        if _is_autopurchase_item_excluded(
+            row.oem,
+            row.brand,
+            excluded_keys,
+        ):
             continue
         sold_qty = int(row.sold_qty or 0)
         targets[normalized_oem] = {

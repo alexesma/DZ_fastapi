@@ -36,6 +36,8 @@ from dz_fastapi.models.user import User
 from dz_fastapi.schemas.order import (
     AutoPurchaseAiExplanationOut,
     AutoPurchaseDraftGroupAiExplanationOut,
+    AutoPurchaseExcludedItemOut,
+    AutoPurchaseExcludeItemRequest,
     AutoPurchaseItemAllocationsRequest,
     AutoPurchaseMarkSentRequest,
     AutoPurchaseMarkSentResponse,
@@ -85,9 +87,11 @@ from dz_fastapi.services.autopurchase import (
 )
 from dz_fastapi.services.autopurchase_top import (
     create_autopurchase_top_item,
+    exclude_autopurchase_item,
     import_autopurchase_top_items,
     list_autopurchase_top_items,
     list_current_autopurchase_top_items,
+    restore_autopurchase_item,
     update_autopurchase_top_item,
 )
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
@@ -1057,6 +1061,44 @@ async def update_autopurchase_top_item_view(
             else status.HTTP_400_BAD_REQUEST
         )
         raise HTTPException(status_code=status_code, detail=detail) from exc
+
+
+@router.post(
+    "/autopurchase-top/exclusions",
+    response_model=AutoPurchaseExcludedItemOut,
+    summary="Исключить позицию из автозаказа",
+)
+async def exclude_autopurchase_top_item_view(
+    payload: AutoPurchaseExcludeItemRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await exclude_autopurchase_item(
+            session=session,
+            payload=payload.model_dump(exclude_unset=True),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post(
+    "/autopurchase-top/exclusions/restore",
+    response_model=AutoPurchaseExcludedItemOut,
+    summary="Вернуть позицию в автозаказ",
+)
+async def restore_autopurchase_top_item_view(
+    payload: AutoPurchaseExcludeItemRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await restore_autopurchase_item(
+            session=session,
+            payload=payload.model_dump(exclude_unset=True),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post(

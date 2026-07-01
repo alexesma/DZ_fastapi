@@ -5,11 +5,11 @@ from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
 import pandas as pd
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.time import now_moscow
-from dz_fastapi.models.autopart import AutoPart, AutoPurchaseTopItem
+from dz_fastapi.models.autopart import AutoPart, AutoPurchaseExcludedItem, AutoPurchaseTopItem
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import (
     CustomerOrder,
@@ -48,8 +48,40 @@ def _normalize_source(value: str | None) -> str:
     return source or TOP_SOURCE_FILE
 
 
-def _normalize_brand_filter(value: str | None) -> str:
-    return _normalize_text(value).lower()
+def _normalize_brand_filters(value: str | None) -> list[str]:
+    raw_value = _normalize_text(value).lower()
+    if not raw_value:
+        return []
+    return [
+        item.strip()
+        for item in raw_value.split(",")
+        if item.strip()
+    ]
+
+
+def _normalize_brand_key(value: Any) -> str:
+    return _normalize_text(value).casefold()
+
+
+def _exclusion_key(oem_number: Any, brand_name: Any) -> tuple[str, str]:
+    return (_normalize_oem(oem_number), _normalize_brand_key(brand_name))
+
+
+async def _load_active_exclusions(
+    session: AsyncSession,
+) -> dict[tuple[str, str], AutoPurchaseExcludedItem]:
+    rows = (
+        await session.execute(
+            select(AutoPurchaseExcludedItem).where(
+                AutoPurchaseExcludedItem.is_active.is_(True)
+            )
+        )
+    ).scalars().all()
+    return {
+        _exclusion_key(item.oem_number, item.brand_name): item
+        for item in rows
+        if _normalize_oem(item.oem_number)
+    }
 
 
 def _pick_column(row: dict[str, Any], names: set[str]) -> Any:
@@ -100,6 +132,7 @@ def _serialize_top_item(
     *,
     current_quantity: int = 0,
     in_transit_qty: int = 0,
+    exclusion: AutoPurchaseExcludedItem | None = None,
 ) -> dict[str, Any]:
     target_stock_qty = int(item.target_stock_qty or 0)
     available_qty = int(current_quantity or 0) + int(in_transit_qty or 0)
@@ -118,6 +151,8 @@ def _serialize_top_item(
         "current_quantity": int(current_quantity or 0),
         "in_transit_qty": int(in_transit_qty or 0),
         "gap_qty": max(target_stock_qty - available_qty, 0),
+        "excluded_from_autopurchase": exclusion is not None,
+        "exclusion_reason": exclusion.reason if exclusion is not None else None,
         "imported_at": item.imported_at,
         "updated_at": item.updated_at,
     }
@@ -203,7 +238,7 @@ async def list_autopurchase_top_items(
 ) -> dict[str, Any]:
     normalized_source = _normalize_source(source)
     normalized_limit = max(min(int(limit or 100), 1000), 1)
-    normalized_brand = _normalize_brand_filter(brand)
+    normalized_brands = _normalize_brand_filters(brand)
     stmt = (
         select(AutoPurchaseTopItem)
         .where(AutoPurchaseTopItem.source == normalized_source)
@@ -216,12 +251,16 @@ async def list_autopurchase_top_items(
     )
     if active_only:
         stmt = stmt.where(AutoPurchaseTopItem.is_active.is_(True))
-    if normalized_brand:
+    if normalized_brands:
         stmt = stmt.where(
-            func.lower(AutoPurchaseTopItem.brand_name).contains(normalized_brand)
+            or_(*[
+                func.lower(AutoPurchaseTopItem.brand_name).contains(item)
+                for item in normalized_brands
+            ])
         )
     rows = (await session.execute(stmt)).scalars().all()
     stock_by_oem = await _load_latest_own_stock_by_oem(session)
+    exclusions = await _load_active_exclusions(session)
     return {
         "source": normalized_source,
         "total_items": len(rows),
@@ -229,6 +268,9 @@ async def list_autopurchase_top_items(
             _serialize_top_item(
                 item,
                 current_quantity=stock_by_oem.get(_normalize_oem(item.oem_number), 0),
+                exclusion=exclusions.get(
+                    _exclusion_key(item.oem_number, item.brand_name)
+                ),
             )
             for item in rows
         ],
@@ -245,7 +287,7 @@ async def create_autopurchase_top_item(
     if not oem_number:
         raise ValueError("Укажите OEM/артикул топ-позиции")
 
-    brand_name = _normalize_text(payload.get("brand_name")) or None
+    brand_name = _normalize_text(payload.get("brand_name"))
     autopart_id = await _resolve_autopart_id(
         session,
         oem_number=oem_number,
@@ -270,9 +312,11 @@ async def create_autopurchase_top_item(
     await session.commit()
     await session.refresh(item)
     stock_by_oem = await _load_latest_own_stock_by_oem(session)
+    exclusions = await _load_active_exclusions(session)
     return _serialize_top_item(
         item,
         current_quantity=stock_by_oem.get(_normalize_oem(item.oem_number), 0),
+        exclusion=exclusions.get(_exclusion_key(item.oem_number, item.brand_name)),
     )
 
 
@@ -316,10 +360,83 @@ async def update_autopurchase_top_item(
     await session.commit()
     await session.refresh(item)
     stock_by_oem = await _load_latest_own_stock_by_oem(session)
+    exclusions = await _load_active_exclusions(session)
     return _serialize_top_item(
         item,
         current_quantity=stock_by_oem.get(_normalize_oem(item.oem_number), 0),
+        exclusion=exclusions.get(_exclusion_key(item.oem_number, item.brand_name)),
     )
+
+
+async def exclude_autopurchase_item(
+    session: AsyncSession,
+    *,
+    payload: dict[str, Any],
+) -> AutoPurchaseExcludedItem:
+    oem_number = _normalize_oem(payload.get("oem_number"))
+    if not oem_number:
+        raise ValueError("Укажите OEM/артикул для исключения")
+
+    brand_name = _normalize_text(payload.get("brand_name"))
+    existing = (
+        await session.execute(
+            select(AutoPurchaseExcludedItem).where(
+                AutoPurchaseExcludedItem.oem_number == oem_number,
+                AutoPurchaseExcludedItem.brand_name == brand_name,
+            )
+        )
+    ).scalar_one_or_none()
+    now = now_moscow()
+    if existing is None:
+        existing = AutoPurchaseExcludedItem(
+            oem_number=oem_number,
+            brand_name=brand_name,
+            created_at=now,
+        )
+    existing.autopart_id = payload.get("autopart_id") or existing.autopart_id
+    existing.autopart_name = (
+        _normalize_text(payload.get("autopart_name"))
+        or existing.autopart_name
+    )
+    existing.reason = (
+        _normalize_text(payload.get("reason"))
+        or existing.reason
+        or "Исключено вручную из автозаказа"
+    )
+    existing.is_active = bool(payload.get("is_active", True))
+    existing.updated_at = now
+    session.add(existing)
+    await session.commit()
+    await session.refresh(existing)
+    return existing
+
+
+async def restore_autopurchase_item(
+    session: AsyncSession,
+    *,
+    payload: dict[str, Any],
+) -> AutoPurchaseExcludedItem:
+    oem_number = _normalize_oem(payload.get("oem_number"))
+    if not oem_number:
+        raise ValueError("Укажите OEM/артикул для возврата")
+
+    brand_name = _normalize_text(payload.get("brand_name")) or None
+    item = (
+        await session.execute(
+            select(AutoPurchaseExcludedItem).where(
+                AutoPurchaseExcludedItem.oem_number == oem_number,
+                AutoPurchaseExcludedItem.brand_name == brand_name,
+            )
+        )
+    ).scalar_one_or_none()
+    if item is None:
+        raise ValueError("Исключение для позиции не найдено")
+    item.is_active = False
+    item.updated_at = now_moscow()
+    session.add(item)
+    await session.commit()
+    await session.refresh(item)
+    return item
 
 
 async def import_autopurchase_top_items(
@@ -443,7 +560,7 @@ async def list_current_autopurchase_top_items(
 ) -> dict[str, Any]:
     normalized_days = max(min(int(days or 365), 730), 1)
     normalized_limit = max(min(int(limit or 100), 1000), 1)
-    normalized_brand = _normalize_brand_filter(brand)
+    normalized_brands = _normalize_brand_filters(brand)
     cutoff = now_moscow() - timedelta(days=normalized_days)
     stmt = (
         select(
@@ -467,11 +584,15 @@ async def list_current_autopurchase_top_items(
         .order_by(func.sum(CustomerOrderItem.requested_qty).desc())
         .limit(normalized_limit)
     )
-    if normalized_brand:
+    if normalized_brands:
         stmt = stmt.where(
-            func.lower(CustomerOrderItem.brand).contains(normalized_brand)
+            or_(*[
+                func.lower(CustomerOrderItem.brand).contains(item)
+                for item in normalized_brands
+            ])
         )
     stock_by_oem = await _load_latest_own_stock_by_oem(session)
+    exclusions = await _load_active_exclusions(session)
     rows: list[dict[str, Any]] = []
     for rank, row in enumerate((await session.execute(stmt)).all(), start=1):
         oem_number = _normalize_oem(row.oem)
@@ -480,6 +601,7 @@ async def list_current_autopurchase_top_items(
         sold_qty = int(row.sold_qty or 0)
         current_quantity = stock_by_oem.get(oem_number, 0)
         target_stock_qty = max(int(round(sold_qty / max(normalized_days, 1) * 45)), 1)
+        exclusion = exclusions.get(_exclusion_key(oem_number, row.brand))
         rows.append(
             {
                 "id": -rank,
@@ -496,6 +618,10 @@ async def list_current_autopurchase_top_items(
                 "current_quantity": current_quantity,
                 "in_transit_qty": 0,
                 "gap_qty": max(target_stock_qty - current_quantity, 0),
+                "excluded_from_autopurchase": exclusion is not None,
+                "exclusion_reason": (
+                    exclusion.reason if exclusion is not None else None
+                ),
                 "imported_at": now_moscow(),
                 "updated_at": now_moscow(),
             }

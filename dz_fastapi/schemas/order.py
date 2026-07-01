@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from dz_fastapi.models.autopart import TYPE_SEND_METHOD, TYPE_SUPPLIER_DECISION_STATUS
 from dz_fastapi.models.partner import TYPE_ORDER_ITEM_STATUS, TYPE_STATUS_ORDER
@@ -582,12 +582,37 @@ class AutoPurchaseTopItemUpdate(BaseModel):
     note: Optional[str] = None
 
 
+class AutoPurchaseExcludeItemRequest(BaseModel):
+    autopart_id: Optional[int] = None
+    oem_number: str
+    brand_name: Optional[str] = None
+    autopart_name: Optional[str] = None
+    reason: Optional[str] = None
+    is_active: bool = True
+
+
+class AutoPurchaseExcludedItemOut(BaseModel):
+    id: int
+    autopart_id: Optional[int] = None
+    oem_number: str
+    brand_name: Optional[str] = None
+    autopart_name: Optional[str] = None
+    reason: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class AutoPurchaseTopItemOut(AutoPurchaseTopItemBase):
     id: int
     autopart_id: Optional[int] = None
     current_quantity: int = 0
     in_transit_qty: int = 0
     gap_qty: int = 0
+    excluded_from_autopurchase: bool = False
+    exclusion_reason: Optional[str] = None
     imported_at: datetime
     updated_at: datetime
 
