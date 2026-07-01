@@ -63,6 +63,16 @@ def _normalize_brand_key(value: Any) -> str:
     return _normalize_text(value).casefold()
 
 
+def _pick_best_name(current: str | None, candidate: Any) -> str | None:
+    candidate_text = _normalize_text(candidate) or None
+    if not candidate_text:
+        return current
+    if not current:
+        return candidate_text
+    # Длинное название обычно информативнее короткого общего описания.
+    return candidate_text if len(candidate_text) > len(current) else current
+
+
 def _exclusion_key(oem_number: Any, brand_name: Any) -> tuple[str, str]:
     return (_normalize_oem(oem_number), _normalize_brand_key(brand_name))
 
@@ -567,8 +577,7 @@ async def list_current_autopurchase_top_items(
             CustomerOrderItem.oem,
             CustomerOrderItem.brand,
             CustomerOrderItem.name,
-            func.sum(CustomerOrderItem.requested_qty).label("sold_qty"),
-            func.count(CustomerOrderItem.id).label("order_count"),
+            CustomerOrderItem.requested_qty,
         )
         .join(CustomerOrder, CustomerOrder.id == CustomerOrderItem.order_id)
         .where(
@@ -576,13 +585,6 @@ async def list_current_autopurchase_top_items(
             CustomerOrderItem.requested_qty.isnot(None),
             CustomerOrderItem.requested_qty > 0,
         )
-        .group_by(
-            CustomerOrderItem.oem,
-            CustomerOrderItem.brand,
-            CustomerOrderItem.name,
-        )
-        .order_by(func.sum(CustomerOrderItem.requested_qty).desc())
-        .limit(normalized_limit)
     )
     if normalized_brands:
         stmt = stmt.where(
@@ -593,28 +595,63 @@ async def list_current_autopurchase_top_items(
         )
     stock_by_oem = await _load_latest_own_stock_by_oem(session)
     exclusions = await _load_active_exclusions(session)
-    rows: list[dict[str, Any]] = []
-    for rank, row in enumerate((await session.execute(stmt)).all(), start=1):
+    grouped: dict[tuple[str, str], dict[str, Any]] = {}
+    for row in (await session.execute(stmt)).all():
         oem_number = _normalize_oem(row.oem)
         if not oem_number:
             continue
-        sold_qty = int(row.sold_qty or 0)
+        brand_name = _normalize_text(row.brand) or ""
+        key = (oem_number, _normalize_brand_key(brand_name))
+        item = grouped.setdefault(
+            key,
+            {
+                "oem_number": oem_number,
+                "brand_name": brand_name or None,
+                "autopart_name": None,
+                "sold_qty": 0,
+                "order_count": 0,
+            },
+        )
+        item["autopart_name"] = _pick_best_name(
+            item.get("autopart_name"),
+            row.name,
+        )
+        item["sold_qty"] = int(item.get("sold_qty") or 0) + int(
+            row.requested_qty or 0
+        )
+        item["order_count"] = int(item.get("order_count") or 0) + 1
+
+    grouped_rows = sorted(
+        grouped.values(),
+        key=lambda item: (
+            -int(item.get("sold_qty") or 0),
+            str(item.get("brand_name") or ""),
+            str(item.get("oem_number") or ""),
+        ),
+    )[:normalized_limit]
+    rows: list[dict[str, Any]] = []
+    for rank, row in enumerate(grouped_rows, start=1):
+        oem_number = str(row.get("oem_number") or "")
+        sold_qty = int(row.get("sold_qty") or 0)
         current_quantity = stock_by_oem.get(oem_number, 0)
         target_stock_qty = max(int(round(sold_qty / max(normalized_days, 1) * 45)), 1)
-        exclusion = exclusions.get(_exclusion_key(oem_number, row.brand))
+        exclusion = exclusions.get(_exclusion_key(oem_number, row.get("brand_name")))
         rows.append(
             {
                 "id": -rank,
                 "source": TOP_SOURCE_CURRENT,
                 "autopart_id": None,
                 "oem_number": oem_number,
-                "brand_name": _normalize_text(row.brand) or None,
-                "autopart_name": _normalize_text(row.name) or None,
+                "brand_name": row.get("brand_name"),
+                "autopart_name": row.get("autopart_name"),
                 "rank": rank,
                 "sold_qty": sold_qty,
                 "target_stock_qty": target_stock_qty,
                 "is_active": True,
-                "note": f"Заказов за {normalized_days} дн: {int(row.order_count or 0)}",
+                "note": (
+                    f"Заказов за {normalized_days} дн: "
+                    f"{int(row.get('order_count') or 0)}"
+                ),
                 "current_quantity": current_quantity,
                 "in_transit_qty": 0,
                 "gap_qty": max(target_stock_qty - current_quantity, 0),

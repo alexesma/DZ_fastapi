@@ -4915,7 +4915,7 @@ async def _load_current_top_targets_for_autopurchase(
         select(
             CustomerOrderItem.oem,
             CustomerOrderItem.brand,
-            func.sum(CustomerOrderItem.requested_qty).label("sold_qty"),
+            CustomerOrderItem.requested_qty,
         )
         .join(CustomerOrder, CustomerOrder.id == CustomerOrderItem.order_id)
         .where(
@@ -4923,9 +4923,6 @@ async def _load_current_top_targets_for_autopurchase(
             CustomerOrderItem.requested_qty.isnot(None),
             CustomerOrderItem.requested_qty > 0,
         )
-        .group_by(CustomerOrderItem.oem, CustomerOrderItem.brand)
-        .order_by(func.sum(CustomerOrderItem.requested_qty).desc())
-        .limit(normalized_limit)
     )
     if normalized_brands:
         stmt = stmt.where(
@@ -4934,8 +4931,8 @@ async def _load_current_top_targets_for_autopurchase(
                 for item in normalized_brands
             ])
         )
-    targets: dict[str, dict[str, Any]] = {}
-    for rank, row in enumerate((await session.execute(stmt)).all(), start=1):
+    grouped: dict[tuple[str, str], int] = {}
+    for row in (await session.execute(stmt)).all():
         normalized_oem = _normalize_oem(row.oem)
         if not normalized_oem:
             continue
@@ -4945,7 +4942,18 @@ async def _load_current_top_targets_for_autopurchase(
             excluded_keys,
         ):
             continue
-        sold_qty = int(row.sold_qty or 0)
+        key = (normalized_oem, _normalize_brand_key(row.brand))
+        grouped[key] = grouped.get(key, 0) + int(row.requested_qty or 0)
+
+    targets: dict[str, dict[str, Any]] = {}
+    grouped_rows = sorted(
+        grouped.items(),
+        key=lambda item: (-int(item[1] or 0), item[0][1], item[0][0]),
+    )[:normalized_limit]
+    for rank, ((normalized_oem, _brand_key), sold_qty) in enumerate(
+        grouped_rows,
+        start=1,
+    ):
         targets[normalized_oem] = {
             "source": "current",
             "rank": rank,
