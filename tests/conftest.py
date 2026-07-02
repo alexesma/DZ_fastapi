@@ -11,6 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
+from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.core.base import (
     AutoPart,
     Brand,
@@ -24,6 +25,7 @@ from dz_fastapi.core.config import settings
 from dz_fastapi.core.constants import get_max_file_size, get_upload_dir
 from dz_fastapi.core.db import Base, get_async_session, get_session
 from dz_fastapi.main import app
+from dz_fastapi.models.user import User, UserRole, UserStatus
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -270,11 +272,25 @@ async def override_dependencies(test_engine):
     # Create and store session factory for scheduler tests
     app.state.session_factory = async_sessionmaker
 
+    # Default authenticated user for all API tests (router-level auth).
+    # Tests that need a specific user still override get_current_user
+    # themselves.
+    async def override_current_user_default():
+        return User(
+            id=0,
+            name="Test User",
+            email="conftest-default@test.local",
+            password_hash="not-a-real-hash",
+            role=UserRole.ADMIN,
+            status=UserStatus.ACTIVE,
+        )
+
     # Apply dependency overrides
     app.dependency_overrides[get_upload_dir] = override_get_upload_dir
     app.dependency_overrides[get_max_file_size] = override_get_max_file_size
     app.dependency_overrides[get_session] = override_get_session
     app.dependency_overrides[get_async_session] = override_get_session
+    app.dependency_overrides[get_current_user] = override_current_user_default
 
     logger.debug("Dependencies overridden for the test")
 

@@ -37,6 +37,7 @@ from dz_fastapi.analytics.restock_logic import (
     get_autoparts_below_min_balance,
     process_restock_pipeline,
 )
+from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.api.validators import change_storage_name
 from dz_fastapi.core.db import get_session
 from dz_fastapi.crud.autopart import crud_autopart, crud_category, crud_storage, crud_warehouse
@@ -91,7 +92,9 @@ from dz_fastapi.services.process import (
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+# Все эндпоинты каталога требуют авторизации: здесь закупочные цены
+# поставщиков и управление кроссами.
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 def _warehouse_to_out(warehouse: Warehouse) -> WarehouseOut:

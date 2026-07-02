@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 from datetime import date
 from typing import Any, List, Optional
 from uuid import uuid4
@@ -118,6 +119,41 @@ KEY = os.getenv("KEY_FOR_WEBSITE")
 logger = logging.getLogger("dz_fastapi")
 
 DRAGONZAP_EXTERNAL_SOURCE = "DRAGONZAP"
+
+# Кэш ответов сайта для ручного поиска: повторный запрос того же OEM
+# в течение TTL не бьёт по Dragonzap. TTL короткий, чтобы цены и
+# hash_key предложений не успевали протухнуть.
+SITE_SEARCH_CACHE_TTL_SEC = int(os.getenv("SITE_SEARCH_CACHE_TTL_SEC", "180"))
+_SITE_SEARCH_CACHE_MAX_ENTRIES = 500
+_site_search_cache: dict[tuple, tuple[float, Any]] = {}
+
+
+def _site_search_cache_get(key: tuple) -> Any:
+    entry = _site_search_cache.get(key)
+    if entry is None:
+        return None
+    created_at, value = entry
+    if time.monotonic() - created_at > SITE_SEARCH_CACHE_TTL_SEC:
+        _site_search_cache.pop(key, None)
+        return None
+    return value
+
+
+def _site_search_cache_set(key: tuple, value: Any) -> None:
+    if SITE_SEARCH_CACHE_TTL_SEC <= 0:
+        return
+    if len(_site_search_cache) >= _SITE_SEARCH_CACHE_MAX_ENTRIES:
+        now = time.monotonic()
+        expired_keys = [
+            cache_key
+            for cache_key, (created_at, _) in _site_search_cache.items()
+            if now - created_at > SITE_SEARCH_CACHE_TTL_SEC
+        ]
+        for cache_key in expired_keys:
+            _site_search_cache.pop(cache_key, None)
+        if len(_site_search_cache) >= _SITE_SEARCH_CACHE_MAX_ENTRIES:
+            _site_search_cache.clear()
+    _site_search_cache[key] = (time.monotonic(), value)
 
 
 router = APIRouter(prefix="/order")
@@ -348,14 +384,21 @@ def _normalize_tracking_uuid(raw_value: str | None) -> str:
 )
 async def get_brands_by_oem(
     oem: str,
+    current_user: User = Depends(get_current_user),
 ):
+    cache_key = ("brands", str(oem or "").strip().upper())
+    cached = _site_search_cache_get(cache_key)
+    if cached is not None:
+        return cached
     async with DZSiteClient(
         base_url=URL_DZ_SEARCH, api_key=KEY, verify_ssl=False
     ) as dz_site_client:
         candidates = prepare_site_brand_candidates(
             await dz_site_client.get_brands(oem)
         )
-    return {"data": candidates}
+    response = {"data": candidates}
+    _site_search_cache_set(cache_key, response)
+    return response
 
 
 @router.get(
@@ -369,7 +412,17 @@ async def get_offers_by_oem_and_make_name(
     make_name: str,
     without_cross: bool = True,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
+    cache_key = (
+        "offers",
+        str(oem or "").strip().upper(),
+        str(make_name or "").strip().upper(),
+        bool(without_cross),
+    )
+    cached = _site_search_cache_get(cache_key)
+    if cached is not None:
+        return cached
     requested_brands = await expand_site_query_brands(
         brand_name=make_name,
         session=session,
@@ -402,13 +455,15 @@ async def get_offers_by_oem_and_make_name(
                 used_fallback_brand = True
 
     merged = merge_site_offers(offers_by_brand)
-    return {
+    response = {
         "data": merged,
         "query_brands": query_brands,
         "requested_brands": requested_brands,
         "site_brand_candidates": site_brand_candidates,
         "used_fallback_brand": used_fallback_brand,
     }
+    _site_search_cache_set(cache_key, response)
+    return response
 
 
 @router.get(
