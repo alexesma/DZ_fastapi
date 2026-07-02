@@ -31,6 +31,7 @@ from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.cross import AutoPartCross, AutoPartInvalidCross
 from dz_fastapi.models.partner import (
     CUSTOMER_ORDER_ITEM_STATUS,
+    CUSTOMER_ORDER_STATUS,
     STOCK_ORDER_STATUS,
     SUPPLIER_ORDER_STATUS,
     Customer,
@@ -2809,6 +2810,22 @@ async def _persist_autopurchase_preview(
         )
         session.add(item)
 
+    # Контур «план vs факт»: фиксируем прогноз для последующей сверки.
+    try:
+        from dz_fastapi.services.autopurchase_feedback import record_forecast_snapshots
+
+        await record_forecast_snapshots(
+            session,
+            run_id=run_id,
+            rows=list(preview.get("rows") or []),
+        )
+    except Exception as feedback_exc:  # pragma: no cover - defensive
+        logger.warning(
+            "Не удалось записать снимки план/факт run_id=%s: %s",
+            run_id,
+            feedback_exc,
+        )
+
     await _prune_old_finished_autopurchase_runs(session)
 
 
@@ -2878,6 +2895,44 @@ def _calculate_in_stock_days(
     }
 
 
+async def _load_superseded_customer_order_ids(
+    session: AsyncSession,
+    *,
+    cutoff: datetime,
+) -> set[int]:
+    """Id устаревших версий заказов клиентов.
+
+    Один и тот же заказ клиента может быть загружен несколько раз
+    (клиент присылает обновлённый файл заказа — дедупликация при приёме
+    идёт только по точному хэшу файла). Каждая версия создаёт новую
+    запись CustomerOrder с тем же order_number. В спросе и статистике
+    должна участвовать только последняя версия, иначе один заказ
+    считается дважды-трижды.
+    """
+    stmt = select(
+        CustomerOrder.id,
+        CustomerOrder.customer_id,
+        CustomerOrder.order_number,
+    ).where(
+        CustomerOrder.received_at >= cutoff,
+        CustomerOrder.order_number.isnot(None),
+        func.trim(CustomerOrder.order_number) != "",
+    )
+    versions_by_key: dict[tuple[int, str], list[int]] = {}
+    for order_id, customer_id, order_number in (
+        await session.execute(stmt)
+    ).all():
+        key = (int(customer_id), str(order_number).strip())
+        versions_by_key.setdefault(key, []).append(int(order_id))
+
+    superseded: set[int] = set()
+    for order_ids in versions_by_key.values():
+        if len(order_ids) > 1:
+            order_ids.sort()
+            superseded.update(order_ids[:-1])
+    return superseded
+
+
 async def _load_customer_order_requested_by_oem_windows(
     session: AsyncSession,
     normalized_oem_numbers: list[str],
@@ -2898,22 +2953,31 @@ async def _load_customer_order_requested_by_oem_windows(
         for days in normalized_windows
     }
     max_cutoff = min(cutoffs.values())
+    superseded_order_ids = await _load_superseded_customer_order_ids(
+        session, cutoff=max_cutoff
+    )
     stmt = (
         select(
             CustomerOrderItem.oem,
+            CustomerOrder.id,
             CustomerOrder.received_at,
             CustomerOrderItem.requested_qty,
         )
         .join(CustomerOrder, CustomerOrder.id == CustomerOrderItem.order_id)
         .where(
             CustomerOrder.received_at >= max_cutoff,
+            # Заказы с ошибкой обработки в спрос не попадают.
+            CustomerOrder.status != CUSTOMER_ORDER_STATUS.ERROR,
             CustomerOrderItem.requested_qty.isnot(None),
             CustomerOrderItem.requested_qty > 0,
         )
     )
     result = await session.execute(stmt)
     allowed_oems = set(normalized_oem_numbers)
-    for oem_raw, received_at, requested_qty in result.fetchall():
+    for oem_raw, order_id, received_at, requested_qty in result.fetchall():
+        # Учитываем только последнюю версию заказа клиента.
+        if int(order_id) in superseded_order_ids:
+            continue
         normalized = _normalize_oem(oem_raw)
         if (
             not normalized
@@ -3048,6 +3112,9 @@ async def _load_customer_order_period_metrics_by_oem(
     }
     allowed_oems = set(normalized_oem_numbers)
 
+    superseded_order_ids = await _load_superseded_customer_order_ids(
+        session, cutoff=max_cutoff
+    )
     stmt = (
         select(
             CustomerOrderItem.oem,
@@ -3058,12 +3125,17 @@ async def _load_customer_order_period_metrics_by_oem(
         .join(CustomerOrder, CustomerOrder.id == CustomerOrderItem.order_id)
         .where(
             CustomerOrder.received_at >= max_cutoff,
+            # Заказы с ошибкой обработки не считаем.
+            CustomerOrder.status != CUSTOMER_ORDER_STATUS.ERROR,
             CustomerOrderItem.requested_qty.isnot(None),
             CustomerOrderItem.requested_qty > 0,
         )
     )
     result = await session.execute(stmt)
     for oem_raw, order_id, received_at, requested_price in result.fetchall():
+        # Повторные версии одного заказа клиента считаем одним заказом.
+        if int(order_id) in superseded_order_ids:
+            continue
         normalized = _normalize_oem(oem_raw)
         if (
             not normalized
@@ -5611,6 +5683,22 @@ async def mark_autopurchase_run_items_sent(
         item.sent_customer_id = customer_id
         item.send_result_snapshot = _to_json_safe(
             dict(send_result_snapshot or {})
+        )
+
+    # Контур «план vs факт»: фиксируем фактически отправленные объёмы.
+    try:
+        from dz_fastapi.services.autopurchase_feedback import update_sent_snapshot_quantities
+
+        await update_sent_snapshot_quantities(
+            session,
+            run_id=run_id,
+            sent_items=items,
+        )
+    except Exception as feedback_exc:  # pragma: no cover - defensive
+        logger.warning(
+            "Не удалось обновить снимки план/факт при отправке run_id=%s: %s",
+            run_id,
+            feedback_exc,
         )
 
     all_items_stmt = select(AutoPurchaseRunItem).where(

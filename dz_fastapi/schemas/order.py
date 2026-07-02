@@ -664,6 +664,41 @@ class AutoPurchaseRunItemsStatusUpdateRequest(BaseModel):
     comment: Optional[str] = None
 
 
+class AutoPurchaseFeedbackRow(BaseModel):
+    oem_number: str
+    brand_name: Optional[str] = None
+    created_at: datetime
+    forecast_avg_daily: Optional[float] = None
+    actual_avg_daily: Optional[float] = None
+    forecast_error_pct: Optional[float] = None
+    recommended_qty: int = 0
+    sent_qty: Optional[int] = None
+    actual_sold_qty: Optional[int] = None
+    current_quantity_at_eval: Optional[int] = None
+    outcome: Optional[str] = None
+
+
+class AutoPurchaseFeedbackReport(BaseModel):
+    generated_at: datetime
+    feedback_days: int
+    accuracy_tolerance_pct: float
+    total_snapshots: int = 0
+    pending_snapshots: int = 0
+    evaluated_snapshots: int = 0
+    mape_pct: Optional[float] = None
+    bias_pct: Optional[float] = None
+    outcomes: dict[str, int] = Field(default_factory=dict)
+    top_overforecast: List[AutoPurchaseFeedbackRow] = Field(
+        default_factory=list
+    )
+    top_stockout_again: List[AutoPurchaseFeedbackRow] = Field(
+        default_factory=list
+    )
+    top_underforecast: List[AutoPurchaseFeedbackRow] = Field(
+        default_factory=list
+    )
+
+
 class AutoPurchaseAllocationIn(BaseModel):
     offer_index: int = Field(..., ge=0)
     quantity: int = Field(..., gt=0)

@@ -301,6 +301,26 @@ async def process_autopurchase_runs_task(app: FastAPI):
         logger.info("Processed autopurchase run id=%s", run_id)
 
 
+async def evaluate_autopurchase_forecast_task(app: FastAPI):
+    """Ежедневная сверка «план vs факт» по созревшим снимкам прогноза."""
+    from dz_fastapi.services.autopurchase_feedback import evaluate_due_forecast_snapshots
+
+    async with new_session_from_app(app) as session:
+        try:
+            stats = await evaluate_due_forecast_snapshots(session)
+            if int(stats.get("evaluated") or 0) > 0:
+                logger.info(
+                    "Autopurchase plan/fact evaluation: %s", stats
+                )
+        except Exception as exc:
+            await session.rollback()
+            logger.error(
+                "Autopurchase plan/fact evaluation failed: %s",
+                exc,
+                exc_info=True,
+            )
+
+
 AUTOPURCHASE_NIGHT_RUN_ENABLED = (
     str(os.getenv("AUTOPURCHASE_NIGHT_RUN_ENABLED", "0")).strip().lower()
     in {"1", "true", "yes", "on"}
@@ -388,6 +408,22 @@ def start_scheduler(app: FastAPI):
             "Night autopurchase run disabled via "
             "AUTOPURCHASE_NIGHT_RUN_ENABLED."
         )
+
+    # Контур «план vs факт»: ежедневная оценка созревших снимков прогноза
+    # автозаказа (работает и при ручных запусках).
+    scheduler.add_job(
+        func=evaluate_autopurchase_forecast_task,
+        trigger="cron",
+        args=[app],
+        id="evaluate_autopurchase_forecast",
+        name="Evaluate autopurchase plan vs fact",
+        hour=6,
+        minute=15,
+        second=0,
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
 
     # ── РАСПИСАНИЕ ПО ВРЕМЕННЫМ ОКНАМ (московское время) ────────────────────
     # Все часы — московское время (timezone='Europe/Moscow').

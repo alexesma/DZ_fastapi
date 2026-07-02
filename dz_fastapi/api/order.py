@@ -38,6 +38,7 @@ from dz_fastapi.schemas.order import (
     AutoPurchaseDraftGroupAiExplanationOut,
     AutoPurchaseExcludedItemOut,
     AutoPurchaseExcludeItemRequest,
+    AutoPurchaseFeedbackReport,
     AutoPurchaseItemAllocationsRequest,
     AutoPurchaseMarkSentRequest,
     AutoPurchaseMarkSentResponse,
@@ -1340,6 +1341,20 @@ async def update_autopurchase_run_item_allocations_view(
             else status.HTTP_400_BAD_REQUEST
         )
         raise HTTPException(status_code=status_code, detail=detail) from exc
+
+
+@router.get(
+    "/autopurchase-feedback",
+    response_model=AutoPurchaseFeedbackReport,
+    summary="Сводка «план vs факт» по прогнозам автозаказа",
+)
+async def get_autopurchase_feedback_view(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    from dz_fastapi.services.autopurchase_feedback import get_autopurchase_feedback_report
+
+    return await get_autopurchase_feedback_report(session=session)
 
 
 @router.post(

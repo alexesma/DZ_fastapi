@@ -639,6 +639,45 @@ class AutoPurchaseRunItem(Base):
     sent_customer = relationship("Customer")
 
 
+class AutoPurchaseForecastSnapshot(Base):
+    """Снимок решения автозаказа для контура «план vs факт».
+
+    Пишется при завершении расчёта (строки с потребностью), через
+    AUTOPURCHASE_FEEDBACK_DAYS сверяется с фактическим спросом.
+    Отдельная лёгкая таблица: сами запуски хранятся только 3 последних.
+    """
+
+    __tablename__ = "autopurchaseforecastsnapshot"
+
+    created_at = Column(
+        DateTime(timezone=True), default=now_moscow, nullable=False,
+        index=True,
+    )
+    run_id = Column(Integer, nullable=True, index=True)
+    autopart_id = Column(
+        Integer, ForeignKey("autopart.id"), nullable=True, index=True
+    )
+    oem_number = Column(String(MAX_LIGHT_OEM), nullable=False, index=True)
+    brand_name = Column(String(MAX_LIGHT_NAME_LOCATION), nullable=True)
+
+    # План на момент расчёта.
+    forecast_avg_daily = Column(DECIMAL(10, 2), nullable=True)
+    recommended_qty = Column(Integer, default=0, nullable=False)
+    proposed_qty = Column(Integer, nullable=True)
+    sent_qty = Column(Integer, nullable=True)
+    purchase_price = Column(DECIMAL(10, 2), nullable=True)
+    current_quantity_at_run = Column(Integer, default=0, nullable=False)
+    target_stock = Column(Integer, nullable=True)
+
+    # Факт после оценки.
+    evaluated_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    actual_sold_qty = Column(Integer, nullable=True)
+    actual_avg_daily = Column(DECIMAL(10, 2), nullable=True)
+    forecast_error_pct = Column(DECIMAL(10, 2), nullable=True)
+    current_quantity_at_eval = Column(Integer, nullable=True)
+    outcome = Column(String(32), nullable=True, index=True)
+
+
 class AutoPurchaseTopItem(Base):
     source = Column(String(32), nullable=False, default="file", index=True)
     autopart_id = Column(Integer, ForeignKey("autopart.id"), nullable=True, index=True)
