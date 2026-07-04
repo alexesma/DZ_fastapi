@@ -5,6 +5,7 @@ from decimal import Decimal
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.crud.autopart import crud_autopart
 from dz_fastapi.main import app
 from dz_fastapi.models.autopart import (
@@ -16,10 +17,28 @@ from dz_fastapi.models.autopart import (
 )
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation
+from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.schemas.autopart import AutoPartCreate
 from tests.test_constants import TEST_AUTOPART, TEST_BRAND
 
 logger = logging.getLogger("dz_fastapi")
+
+
+@pytest.fixture(autouse=True)
+def override_current_user_for_autopart_api_tests():
+    async def override_current_user():
+        return User(
+            id=1,
+            name="Autopart Test Admin",
+            email="autopart-admin@example.com",
+            password_hash="not-a-real-hash",
+            role=UserRole.ADMIN,
+            status=UserStatus.ACTIVE,
+        )
+
+    app.dependency_overrides[get_current_user] = override_current_user
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 @pytest.mark.asyncio

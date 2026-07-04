@@ -208,6 +208,7 @@ class CustomerFinanceUpdate(BaseModel):
 
     credit_limit: Optional[Decimal] = Field(default=None, ge=0)
     payment_terms_days: Optional[int] = Field(default=None, ge=0)
+    credit_control_mode: Optional[str] = Field(default=None)
 
 
 class CustomerDebtOut(BaseModel):
@@ -221,8 +222,31 @@ class CustomerDebtOut(BaseModel):
     overdue_amount: Decimal
     credit_limit: Optional[Decimal] = None
     payment_terms_days: int
+    credit_control_mode: str = "off"
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ReconciliationActLineOut(BaseModel):
+    operation_date: date
+    operation_type: str
+    document_number: Optional[str] = None
+    description: str
+    debit: Decimal
+    credit: Decimal
+    balance: Decimal
+
+
+class ReconciliationActOut(BaseModel):
+    customer_id: int
+    customer_name: str
+    date_from: Optional[date] = None
+    date_to: Optional[date] = None
+    opening_balance: Decimal
+    debit_turnover: Decimal
+    credit_turnover: Decimal
+    closing_balance: Decimal
+    lines: List[ReconciliationActLineOut] = []
 
 
 # ─── Provider finance fields ──────────────────────────────────────────────────

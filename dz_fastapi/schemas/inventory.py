@@ -160,6 +160,7 @@ class StockLotOut(BaseModel):
     initial_quantity: int
     remaining_quantity: int
     cost_price: Optional[Decimal] = None
+    marking_codes: Optional[List[str]] = None
     source_receipt_id: Optional[int] = None
     source_receipt_item_id: Optional[int] = None
     source_document_item_id: Optional[int] = None
@@ -510,6 +511,7 @@ class ShipmentDocumentItemLotAllocationOut(BaseModel):
     provider_id: Optional[int] = None
     provider_name: Optional[str] = None
     quantity: int
+    marking_codes: Optional[List[str]] = None
     unit_cost_price: Optional[Decimal] = None
     total_cost_price: Optional[Decimal] = None
     gtd_number: Optional[str] = None
@@ -626,6 +628,7 @@ class ShipmentPostResult(BaseModel):
         default_factory=list,
         description="IDs лотов, затронутых при списании",
     )
+    credit_warning: Optional[dict] = None
 
 
 class ShipmentProfitReportRow(BaseModel):

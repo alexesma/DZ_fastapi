@@ -2,6 +2,7 @@
 
 import logging
 from datetime import date
+from decimal import Decimal
 from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile, status
@@ -55,14 +56,34 @@ from dz_fastapi.schemas.finance import (
     PaymentInvoiceOut,
     PaymentInvoiceUpdate,
     ProviderDebtOut,
+    ReconciliationActLineOut,
+    ReconciliationActOut,
     SupplierPaymentCreate,
     SupplierPaymentOut,
     SupplierPaymentUpdate,
+)
+from dz_fastapi.services.credit_control import (
+    CreditLimitExceeded,
+    assert_customer_credit_available,
+    build_customer_reconciliation_act,
+    render_reconciliation_act_html,
 )
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/finance", tags=["Finance"])
+
+
+def _invoice_pending_amount(data: PaymentInvoiceCreate) -> Decimal:
+    if not data.items:
+        return Decimal(str(data.total_amount or 0))
+    total = Decimal("0.00")
+    for item in data.items:
+        quantity = Decimal(str(item.quantity or 0))
+        unit_price = Decimal(str(item.unit_price or 0))
+        vat_rate = Decimal(str(item.vat_rate or 0))
+        total += unit_price * quantity * (Decimal("1") + vat_rate / Decimal("100"))
+    return total.quantize(Decimal("0.01"))
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -80,48 +101,20 @@ async def create_invoice_endpoint(
     data: PaymentInvoiceCreate,
     session: AsyncSession = Depends(get_session),
 ):
-    # ── Проверка кредитного лимита ──────────────────────────────────────────
     customer_result = await session.execute(
         select(Customer).where(Customer.id == data.customer_id)
     )
     customer = customer_result.scalar_one_or_none()
     if not customer:
         raise HTTPException(status_code=404, detail="Клиент не найден")
-
-    if customer.credit_limit is not None and customer.credit_limit > 0:
-        # Считаем текущий долг (открытые счета)
-        from decimal import Decimal
-
-        from sqlalchemy import func
-
-        from dz_fastapi.models.finance import PaymentInvoice as PI
-
-        debt_result = await session.execute(
-            select(
-                func.coalesce(func.sum(PI.total_amount - PI.paid_amount), 0)
-            ).where(
-                PI.customer_id == data.customer_id,
-                PI.status.in_(
-                    [
-                        InvoiceStatus.SENT,
-                        InvoiceStatus.PARTIALLY_PAID,
-                        InvoiceStatus.OVERDUE,
-                    ]
-                ),
-            )
+    try:
+        await assert_customer_credit_available(
+            session,
+            customer_id=data.customer_id,
+            pending_amount=_invoice_pending_amount(data),
         )
-        current_debt = Decimal(str(debt_result.scalar() or 0))
-        new_invoice_amount = Decimal(str(data.total_amount))
-        if current_debt + new_invoice_amount > customer.credit_limit:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=(
-                    f"Превышен кредитный лимит клиента. "
-                    f"Лимит: {customer.credit_limit:.2f} руб., "
-                    f"текущий долг: {current_debt:.2f} руб., "
-                    f"новый счёт: {new_invoice_amount:.2f} руб."
-                ),
-            )
+    except CreditLimitExceeded as exc:
+        raise HTTPException(status_code=409, detail=exc.to_detail()) from exc
     return await create_invoice(session, data)
 
 
@@ -551,6 +544,75 @@ async def customer_debt_endpoint(
     if not result:
         raise HTTPException(status_code=404, detail="Клиент не найден")
     return result
+
+
+def _reconciliation_act_to_out(act) -> ReconciliationActOut:
+    return ReconciliationActOut(
+        customer_id=act.customer_id,
+        customer_name=act.customer_name,
+        date_from=act.date_from,
+        date_to=act.date_to,
+        opening_balance=act.opening_balance,
+        debit_turnover=act.debit_turnover,
+        credit_turnover=act.credit_turnover,
+        closing_balance=act.closing_balance,
+        lines=[
+            ReconciliationActLineOut(
+                operation_date=line.operation_date,
+                operation_type=line.operation_type,
+                document_number=line.document_number,
+                description=line.description,
+                debit=line.debit,
+                credit=line.credit,
+                balance=line.balance,
+            )
+            for line in act.lines
+        ],
+    )
+
+
+@router.get(
+    "/customers/{customer_id}/reconciliation-act",
+    response_model=ReconciliationActOut,
+    summary="Акт сверки взаиморасчётов с клиентом",
+)
+async def customer_reconciliation_act_endpoint(
+    customer_id: int,
+    date_from: Optional[date] = Query(default=None),
+    date_to: Optional[date] = Query(default=None),
+    session: AsyncSession = Depends(get_session),
+):
+    act = await build_customer_reconciliation_act(
+        session,
+        customer_id=customer_id,
+        date_from=date_from,
+        date_to=date_to,
+    )
+    if act is None:
+        raise HTTPException(status_code=404, detail="Клиент не найден")
+    return _reconciliation_act_to_out(act)
+
+
+@router.get(
+    "/customers/{customer_id}/reconciliation-act/print",
+    response_class=HTMLResponse,
+    summary="Печатная форма акта сверки",
+)
+async def customer_reconciliation_act_print_endpoint(
+    customer_id: int,
+    date_from: Optional[date] = Query(default=None),
+    date_to: Optional[date] = Query(default=None),
+    session: AsyncSession = Depends(get_session),
+):
+    act = await build_customer_reconciliation_act(
+        session,
+        customer_id=customer_id,
+        date_from=date_from,
+        date_to=date_to,
+    )
+    if act is None:
+        raise HTTPException(status_code=404, detail="Клиент не найден")
+    return HTMLResponse(render_reconciliation_act_html(act))
 
 
 @router.get(

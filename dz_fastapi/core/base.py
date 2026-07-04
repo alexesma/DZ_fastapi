@@ -33,6 +33,8 @@ from dz_fastapi.models.inbox_email import EmailRulePattern, InboxEmail, InboxFor
 from dz_fastapi.models.inventory import InventoryItem  # noqa
 from dz_fastapi.models.inventory import (
     InventorySession,
+    ProductMarkingCode,
+    ProductMarkingCodeMovement,
     ReturnFromCustomer,
     ReturnItem,
     ReturnToSupplier,
@@ -191,6 +193,8 @@ __all__ = [
     "ReturnFromCustomer",
     "ReturnToSupplier",
     "ReturnItem",
+    "ProductMarkingCode",
+    "ProductMarkingCodeMovement",
     "Warehouse",
     "StockByLocation",
     "StockLot",

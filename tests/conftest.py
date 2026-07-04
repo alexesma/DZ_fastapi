@@ -30,6 +30,13 @@ from dz_fastapi.models.user import User, UserRole, UserStatus
 logger = logging.getLogger("dz_fastapi")
 
 
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "no_auth_override: keep real auth dependencies for auth/security tests",
+    )
+
+
 async def _reset_database_schema(engine) -> None:
     """Reset test DB to a clean state.
 
@@ -234,7 +241,7 @@ async def async_client(test_session: AsyncSession):
 
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
-async def override_dependencies(test_engine):
+async def override_dependencies(test_engine, request):
     """
     Fixture that automatically overrides dependencies for all tests.
     """
@@ -269,28 +276,25 @@ async def override_dependencies(test_engine):
         async with async_sessionmaker() as session:
             yield session
 
-    # Create and store session factory for scheduler tests
-    app.state.session_factory = async_sessionmaker
-
-    # Default authenticated user for all API tests (router-level auth).
-    # Tests that need a specific user still override get_current_user
-    # themselves.
-    async def override_current_user_default():
+    async def override_get_current_user():
         return User(
-            id=0,
-            name="Test User",
-            email="conftest-default@test.local",
-            password_hash="not-a-real-hash",
+            id=1,
+            name="Test Admin",
+            email="test-admin@example.com",
             role=UserRole.ADMIN,
             status=UserStatus.ACTIVE,
         )
+
+    # Create and store session factory for scheduler tests
+    app.state.session_factory = async_sessionmaker
 
     # Apply dependency overrides
     app.dependency_overrides[get_upload_dir] = override_get_upload_dir
     app.dependency_overrides[get_max_file_size] = override_get_max_file_size
     app.dependency_overrides[get_session] = override_get_session
     app.dependency_overrides[get_async_session] = override_get_session
-    app.dependency_overrides[get_current_user] = override_current_user_default
+    if request.node.get_closest_marker("no_auth_override") is None:
+        app.dependency_overrides[get_current_user] = override_get_current_user
 
     logger.debug("Dependencies overridden for the test")
 

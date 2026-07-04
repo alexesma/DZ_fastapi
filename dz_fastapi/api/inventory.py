@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
+from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.core.db import get_session
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import AutoPart, StorageLocation, autopart_storage_association
@@ -113,6 +114,7 @@ from dz_fastapi.schemas.inventory import (
     TransferRequest,
     TransferResult,
 )
+from dz_fastapi.services.credit_control import CreditLimitExceeded
 from dz_fastapi.services.inventory_stock import _apply_stock_delta as apply_stock_delta
 from dz_fastapi.services.inventory_stock import _consume_fifo as consume_stock_fifo
 from dz_fastapi.services.inventory_stock import (
@@ -140,7 +142,12 @@ from dz_fastapi.services.inventory_stock import (
 
 logger = logging.getLogger(__name__)
 MONEY_PRECISION = Decimal("0.01")
-router = APIRouter(prefix="/inventory", tags=["inventory"])
+# Склад — только для авторизованных: остатки, себестоимость, документы.
+router = APIRouter(
+    prefix="/inventory",
+    tags=["inventory"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 # ─── helpers ───────────────────────────────────────────────────────────────
@@ -2067,6 +2074,7 @@ def _shipment_allocation_to_out(
         provider_id=allocation.provider_id,
         provider_name=provider.name if provider else None,
         quantity=allocation.quantity,
+        marking_codes=allocation.marking_codes,
         unit_cost_price=allocation.unit_cost_price,
         total_cost_price=allocation.total_cost_price,
         gtd_number=lot.gtd_number if lot else None,
@@ -2889,6 +2897,8 @@ async def post_shipment(
 ):
     try:
         result = await post_shipment_document(session, doc_id)
+    except CreditLimitExceeded as exc:
+        raise HTTPException(status_code=409, detail=exc.to_detail()) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     await session.commit()
@@ -2897,6 +2907,7 @@ async def post_shipment(
         movements_created=result["movements_created"],
         reserves_released=result["reserves_released"],
         lots_consumed=result["lot_ids"],
+        credit_warning=result.get("credit_warning"),
     )
 
 
@@ -4178,3 +4189,180 @@ async def bulk_sync_documents(
         updated += 1
     await session.commit()
     return DocumentBulkSyncResult(updated=updated, errors=errors)
+
+
+# ── Маркировка (Честный знак): реестр КИЗ ────────────────────────────────
+
+
+@router.get(
+    "/marking-codes/summary",
+    summary="Сводка по кодам маркировки",
+)
+async def marking_codes_summary(
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.services.marking_codes import get_marking_codes_summary
+
+    return await get_marking_codes_summary(session)
+
+
+@router.get(
+    "/marking-codes",
+    summary="Реестр кодов маркировки",
+)
+async def marking_codes_list(
+    status_filter: Optional[str] = Query(default=None, alias="status"),
+    autopart_id: Optional[int] = Query(default=None),
+    q: Optional[str] = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=1000),
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.services.marking_codes import list_marking_codes
+
+    return await list_marking_codes(
+        session,
+        status=status_filter,
+        autopart_id=autopart_id,
+        query=q,
+        limit=limit,
+    )
+
+
+@router.get(
+    "/marking-codes/{marking_code_id}/movements",
+    summary="История движений кода маркировки",
+)
+async def marking_code_movements(
+    marking_code_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.services.marking_codes import get_marking_code_movements
+
+    return await get_marking_code_movements(
+        session, marking_code_id=marking_code_id
+    )
+
+
+@router.get(
+    "/marking-codes/discrepancies",
+    summary="Расхождения приёмки: число КИЗ не совпадает со штуками",
+)
+async def marking_discrepancies(
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.services.marking_codes import list_receipt_marking_discrepancies
+
+    return await list_receipt_marking_discrepancies(
+        session, limit=limit
+    )
+
+
+# ── ГИС МТ (Честный знак) ────────────────────────────────────────────────
+
+
+@router.get("/gis-mt/status", summary="Статус интеграции с ГИС МТ")
+async def gis_mt_status(
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.services.gis_mt import get_gis_mt_status
+
+    return await get_gis_mt_status(session)
+
+
+@router.put(
+    "/gis-mt/product-group",
+    summary="Задать товарную группу ГИС МТ",
+)
+async def gis_mt_set_product_group(
+    product_group: str = Query(...),
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.services.gis_mt import update_gis_mt_product_group
+
+    return await update_gis_mt_product_group(
+        session, product_group=product_group
+    )
+
+
+@router.post(
+    "/gis-mt/auth/start",
+    summary="Вход в ГИС МТ через облачную подпись (шаг 1: SMS)",
+)
+async def gis_mt_auth_start(
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.services.diadoc_integration import get_diadoc_client_for_session
+    from dz_fastapi.services.gis_mt import start_gis_mt_auth_task
+
+    try:
+        integration, client = await get_diadoc_client_for_session(session)
+        task = await start_gis_mt_auth_task(
+            session,
+            diadoc_client=client,
+            environment=str(integration.environment or "staging"),
+        )
+        return {"task_id": int(task.id), "state": task.state}
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post(
+    "/gis-mt/check",
+    summary="Сверка кодов со статусами в ГИС МТ",
+)
+async def gis_mt_check(
+    ids: Optional[List[int]] = Body(default=None, embed=True),
+    limit: int = Query(default=1000, ge=1, le=5000),
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.services.gis_mt import check_marking_codes_with_gis
+
+    try:
+        return await check_marking_codes_with_gis(
+            session,
+            marking_code_ids=ids,
+            limit=limit,
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post(
+    "/gis-mt/withdraw/start",
+    summary="Вывод кодов из оборота (шаг 1: SMS)",
+)
+async def gis_mt_withdraw_start(
+    ids: List[int] = Body(..., embed=True),
+    action: str = Body(default="OWN_USE", embed=True),
+    document_number: Optional[str] = Body(default=None, embed=True),
+    session: AsyncSession = Depends(get_session),
+):
+    from dz_fastapi.crud.settings import crud_diadoc_integration_settings
+    from dz_fastapi.services.diadoc_integration import get_diadoc_client_for_session
+    from dz_fastapi.services.gis_mt import start_gis_mt_withdraw_task
+
+    try:
+        integration = await crud_diadoc_integration_settings.get_or_create(
+            session
+        )
+        organization_inn = str(integration.organization_inn or "").strip()
+        if not organization_inn:
+            raise ValueError(
+                "Не заполнен ИНН организации в настройках Диадока"
+            )
+        integration, client = await get_diadoc_client_for_session(session)
+        task = await start_gis_mt_withdraw_task(
+            session,
+            diadoc_client=client,
+            environment=str(integration.environment or "staging"),
+            organization_inn=organization_inn,
+            marking_code_ids=ids,
+            action=action,
+            document_number=document_number,
+        )
+        return {"task_id": int(task.id), "state": task.state}
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

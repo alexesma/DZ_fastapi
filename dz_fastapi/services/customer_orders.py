@@ -79,6 +79,7 @@ from dz_fastapi.models.partner import (
     SupplierOrder,
     SupplierOrderItem,
 )
+from dz_fastapi.services.credit_control import assert_customer_credit_available
 from dz_fastapi.services.email import build_email_delivery_kwargs, send_email_with_attachment
 from dz_fastapi.services.google_oauth import refresh_google_access_token
 from dz_fastapi.services.notifications import create_admin_notifications
@@ -2653,6 +2654,11 @@ async def _process_manual_rows(
     order: CustomerOrder,
     parsed_rows: List[ParsedOrderRow],
 ):
+    await assert_customer_credit_available(
+        session,
+        customer_id=config.customer_id,
+    )
+
     (
         expected_prices,
         offers,
@@ -4675,6 +4681,15 @@ async def update_customer_order_item_manual(
             supplier_id = None
     if target_status == CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK:
         supplier_id = None
+
+    if target_status in (
+        CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER,
+        CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK,
+    ):
+        await assert_customer_credit_available(
+            session,
+            customer_id=item.order.customer_id,
+        )
 
     existing_item = None
     existing_order = None

@@ -196,6 +196,8 @@ class DiadocInboundDocumentOut(BaseModel):
     import_error_details: str | None = None
     synced_at: datetime | None = None
     registered_at: datetime | None = None
+    signed_at: datetime | None = None
+    rejected_at: datetime | None = None
     can_register_supplier_message: bool = False
     can_process_supplier_message: bool = False
     supplier_receipt_ids: list[int] = Field(default_factory=list)
@@ -275,6 +277,11 @@ class DiadocCounteragentOut(BaseModel):
     mapped_provider_name: str | None = None
     mapped_customer_id: int | None = None
     mapped_customer_name: str | None = None
+    # Совпадение по ИНН, когда явной привязки ещё нет
+    suggested_provider_id: int | None = None
+    suggested_provider_name: str | None = None
+    suggested_customer_id: int | None = None
+    suggested_customer_name: str | None = None
     raw: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -344,6 +351,12 @@ class DiadocOutgoingDocumentOut(BaseModel):
     message_id: str | None = None
     entity_id: str | None = None
     status: str
+    docflow_status_severity: str | None = None
+    docflow_status_text: str | None = None
+    recipient_response_status: str | None = None
+    revocation_status: str | None = None
+    delivered_at: datetime | None = None
+    status_checked_at: datetime | None = None
     error_details: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     raw_response: dict[str, Any] = Field(default_factory=dict)
@@ -351,6 +364,42 @@ class DiadocOutgoingDocumentOut(BaseModel):
     sent_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DiadocOutboundStatusSyncResult(BaseModel):
+    checked: int = 0
+    updated: int = 0
+    completed: int = 0
+    rejected: int = 0
+    revoked: int = 0
+    errors: list[str] = Field(default_factory=list)
+
+
+class DiadocCloudSignTaskOut(BaseModel):
+    id: int
+    operation: str
+    state: str
+    incoming_document_id: int | None = None
+    outgoing_document_id: int | None = None
+    error_details: str | None = None
+    created_at: datetime
+    completed_at: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DiadocInboundSignStartIn(BaseModel):
+    include_receipt: bool = True
+    # 1 — принято без расхождений, 2 — с расхождениями, 3 — не принято
+    total_code: str = Field(default="1", pattern="^[123]$")
+
+
+class DiadocRevokeStartIn(BaseModel):
+    comment: str | None = Field(default=None, max_length=1000)
+
+
+class DiadocCloudSignConfirmIn(BaseModel):
+    code: str = Field(..., min_length=1, max_length=20)
 
 
 class DiadocShipmentOutboundCreateIn(BaseModel):

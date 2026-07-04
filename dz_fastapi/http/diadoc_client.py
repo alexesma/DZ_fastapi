@@ -1,4 +1,6 @@
+import asyncio
 import json
+import time
 from datetime import date
 from typing import Any
 
@@ -303,3 +305,244 @@ class DiadocClient:
             params=params,
             json_body=message,
         )
+
+    async def post_message_patch(
+        self,
+        *,
+        patch: dict[str, Any],
+        operation_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Дополнение сообщения: ИоП, титул покупателя, аннулирование."""
+        params: dict[str, Any] | None = None
+        if operation_id:
+            params = {"operationId": operation_id}
+        return await self._request_json(
+            "POST",
+            "/V3/PostMessagePatch",
+            params=params,
+            json_body=patch,
+        )
+
+    async def _wait_task_result(
+        self,
+        path: str,
+        task_id: str,
+        *,
+        timeout_seconds: float = 120.0,
+        poll_seconds: float = 2.0,
+    ) -> dict[str, Any]:
+        """Поллинг асинхронной операции Диадока.
+
+        HTTP 204 — операция ещё выполняется (Retry-After в заголовке),
+        HTTP 200 — готово.
+        """
+        deadline = time.monotonic() + timeout_seconds
+        while True:
+            response = await self._request(
+                "GET",
+                path,
+                params={"taskId": task_id},
+            )
+            if response.status_code != 204:
+                return response.json()
+            if time.monotonic() > deadline:
+                raise DiadocApiError(
+                    504,
+                    f"Diadoc async task {path} timed out "
+                    f"after {timeout_seconds}s",
+                )
+            retry_after = response.headers.get("Retry-After")
+            try:
+                delay = min(float(retry_after), 15.0)
+            except (TypeError, ValueError):
+                delay = poll_seconds
+            await asyncio.sleep(max(delay, 1.0))
+
+    async def cloud_sign(
+        self,
+        *,
+        files: list[dict[str, Any]],
+        certificate_thumbprint: str | None = None,
+    ) -> str:
+        """Стартует облачное подписание пакета файлов.
+
+        files: [{"FileName": str, "Content": {"Content": base64}}].
+        Возвращает token операции; пользователю уходит SMS с кодом.
+        """
+        params: dict[str, Any] = {}
+        if certificate_thumbprint:
+            params["certificateThumbprint"] = certificate_thumbprint
+        started = await self._request_json(
+            "POST",
+            "/CloudSign",
+            params=params or None,
+            json_body={"Files": files},
+        )
+        task_id = str(started.get("TaskId") or "").strip()
+        if not task_id:
+            raise DiadocApiError(502, "CloudSign did not return TaskId")
+        result = await self._wait_task_result("/CloudSignResult", task_id)
+        token = str(result.get("Token") or "").strip()
+        if not token:
+            raise DiadocApiError(502, "CloudSignResult did not return Token")
+        return token
+
+    async def cloud_sign_confirm(
+        self,
+        *,
+        token: str,
+        confirmation_code: str,
+    ) -> list[str]:
+        """Подтверждает подписание SMS-кодом.
+
+        Возвращает подписи (base64) в порядке файлов из cloud_sign.
+        """
+        started = await self._request_json(
+            "POST",
+            "/CloudSignConfirm",
+            params={
+                "token": token,
+                "confirmationCode": confirmation_code,
+                "return": "Content",
+            },
+        )
+        task_id = str(started.get("TaskId") or "").strip()
+        if not task_id:
+            raise DiadocApiError(
+                502, "CloudSignConfirm did not return TaskId"
+            )
+        result = await self._wait_task_result(
+            "/CloudSignConfirmResult", task_id
+        )
+        signatures: list[str] = []
+        for item in result.get("Signatures") or []:
+            content = str((item or {}).get("Content") or "").strip()
+            if content:
+                signatures.append(content)
+        if not signatures:
+            raise DiadocApiError(
+                502, "CloudSignConfirmResult returned no signatures"
+            )
+        return signatures
+
+    async def generate_receipt_xml(
+        self,
+        *,
+        box_id_guid: str,
+        message_id: str,
+        attachment_id: str,
+        signer: dict[str, Any],
+    ) -> bytes:
+        """Извещение о получении (ИоП) к сущности документа."""
+        response = await self._request(
+            "POST",
+            "/GenerateReceiptXml",
+            params={
+                "boxId": box_id_guid,
+                "messageId": message_id,
+                "attachmentId": attachment_id,
+            },
+            headers={"Accept": "*/*"},
+            json_body=signer,
+        )
+        return response.content
+
+    async def generate_print_form(
+        self,
+        *,
+        box_id_guid: str,
+        message_id: str,
+        document_id: str,
+        timeout_seconds: float = 90.0,
+    ) -> bytes:
+        """Печатная форма документа (PDF).
+
+        Метод асинхронный на стороне Диадока: пока форма готовится,
+        приходит ответ с Retry-After — повторяем тот же запрос.
+        """
+        deadline = time.monotonic() + timeout_seconds
+        while True:
+            response = await self._request(
+                "GET",
+                "/GeneratePrintForm",
+                params={
+                    "boxId": box_id_guid,
+                    "messageId": message_id,
+                    "documentId": document_id,
+                },
+                headers={"Accept": "*/*"},
+            )
+            content_type = str(
+                response.headers.get("Content-Type") or ""
+            ).lower()
+            retry_after = response.headers.get("Retry-After")
+            if response.content and "json" not in content_type and (
+                not retry_after
+            ):
+                return response.content
+            if time.monotonic() > deadline:
+                raise DiadocApiError(
+                    504,
+                    "Diadoc print form generation timed out",
+                )
+            try:
+                delay = min(float(retry_after), 15.0)
+            except (TypeError, ValueError):
+                delay = 3.0
+            await asyncio.sleep(max(delay, 1.0))
+
+    async def generate_signature_rejection_xml(
+        self,
+        *,
+        box_id_guid: str,
+        message_id: str,
+        attachment_id: str,
+        comment: str | None = None,
+        signer: dict[str, Any] | None = None,
+    ) -> bytes:
+        """Отказ в подписи входящего документа (XML для подписания)."""
+        body: dict[str, Any] = {}
+        if comment:
+            body["Comment"] = comment
+        if signer:
+            body["Signer"] = signer
+        response = await self._request(
+            "POST",
+            "/GenerateSignatureRejectionXml",
+            params={
+                "boxId": box_id_guid,
+                "messageId": message_id,
+                "attachmentId": attachment_id,
+            },
+            headers={"Accept": "*/*"},
+            json_body=body,
+        )
+        return response.content
+
+    async def generate_revocation_request_xml(
+        self,
+        *,
+        box_id_guid: str,
+        message_id: str,
+        attachment_id: str,
+        comment: str | None = None,
+        signer: dict[str, Any] | None = None,
+    ) -> bytes:
+        """Запрос на аннулирование документа."""
+        body: dict[str, Any] = {}
+        if comment:
+            body["Comment"] = comment
+        if signer:
+            body["Signer"] = signer
+        response = await self._request(
+            "POST",
+            "/V2/GenerateRevocationRequestXml",
+            params={
+                "boxId": box_id_guid,
+                "messageId": message_id,
+                "attachmentId": attachment_id,
+            },
+            headers={"Accept": "*/*"},
+            json_body=body,
+        )
+        return response.content

@@ -458,8 +458,19 @@ async def test_clear_dragonzap_basket_endpoint(async_client, test_session, monke
 
 @pytest.mark.asyncio
 async def test_get_offers_by_oem_and_make_name_falls_back_to_site_brand(
-    async_client, monkeypatch
+    async_client, test_session, monkeypatch
 ):
+    current_user = await _create_user(
+        test_session,
+        "orders-offers-fallback@example.com",
+        UserRole.ADMIN,
+    )
+
+    async def override_current_user():
+        return current_user
+
+    app.dependency_overrides[get_current_user] = override_current_user
+
     monkeypatch.setattr(
         "dz_fastapi.api.order.DZSiteClient",
         _FallbackBrandDZSiteClient,

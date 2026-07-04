@@ -5,6 +5,7 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi.responses import HTMLResponse, Response
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.api.deps import require_admin
@@ -14,10 +15,17 @@ from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.partner import crud_customer, crud_provider
 from dz_fastapi.crud.settings import crud_diadoc_integration_settings
 from dz_fastapi.http.diadoc_client import DiadocApiError, DiadocClient
-from dz_fastapi.models.diadoc import DiadocIncomingDocument, DiadocOutgoingDocument
+from dz_fastapi.models.diadoc import (
+    DiadocCloudSignTask,
+    DiadocIncomingDocument,
+    DiadocOutgoingDocument,
+)
 from dz_fastapi.models.inventory import ReturnFromCustomer, ReturnToSupplier
+from dz_fastapi.models.partner import Customer, Provider
 from dz_fastapi.models.user import User
 from dz_fastapi.schemas.diadoc import (
+    DiadocCloudSignConfirmIn,
+    DiadocCloudSignTaskOut,
     DiadocCounteragentListOut,
     DiadocCounteragentOut,
     DiadocCustomerBindingIn,
@@ -29,16 +37,19 @@ from dz_fastapi.schemas.diadoc import (
     DiadocInboundDocumentProcessResult,
     DiadocInboundDocumentRegisterIn,
     DiadocInboundDocumentRegisterResult,
+    DiadocInboundSignStartIn,
     DiadocInboundSyncRequest,
     DiadocInboundSyncResult,
     DiadocOAuthInitRequest,
     DiadocOAuthInitResponse,
     DiadocOrganizationOut,
+    DiadocOutboundStatusSyncResult,
     DiadocOutgoingDocumentCreateIn,
     DiadocOutgoingDocumentOut,
     DiadocProviderBindingIn,
     DiadocReturnFormalizedReadinessOut,
     DiadocReturnOutboundCreateIn,
+    DiadocRevokeStartIn,
     DiadocSettingsUpdate,
     DiadocShipmentFormalizedReadinessOut,
     DiadocShipmentOutboundCreateIn,
@@ -49,6 +60,13 @@ from dz_fastapi.schemas.partner import (
     CustomerExternalReferenceOut,
     ProviderExternalReferenceCreate,
     ProviderExternalReferenceOut,
+)
+from dz_fastapi.services.diadoc_cloud_sign import (
+    confirm_cloud_sign_task,
+    start_incoming_sign_task,
+    start_reject_incoming_task,
+    start_revoke_outgoing_task,
+    start_send_outgoing_task,
 )
 from dz_fastapi.services.diadoc_documents import (
     ensure_diadoc_document_content,
@@ -84,6 +102,10 @@ from dz_fastapi.services.diadoc_outgoing import (
     resolve_customer_by_diadoc_counteragent_box,
     resolve_diadoc_box_for_customer,
     resolve_diadoc_box_for_provider,
+)
+from dz_fastapi.services.diadoc_status import (
+    refresh_diadoc_outgoing_statuses,
+    refresh_outgoing_document_status,
 )
 
 logger = logging.getLogger("dz_fastapi")
@@ -171,6 +193,8 @@ def _incoming_document_to_out(
         import_error_details=document.import_error_details,
         synced_at=document.synced_at,
         registered_at=document.registered_at,
+        signed_at=document.signed_at,
+        rejected_at=document.rejected_at,
         can_register_supplier_message=bool(
             (document.provider_id or 0) > 0 and document.local_file_path
         ),
@@ -264,6 +288,12 @@ def _outgoing_document_to_out(
         message_id=document.message_id,
         entity_id=document.entity_id,
         status=document.status,
+        docflow_status_severity=document.docflow_status_severity,
+        docflow_status_text=document.docflow_status_text,
+        recipient_response_status=document.recipient_response_status,
+        revocation_status=document.revocation_status,
+        delivered_at=document.delivered_at,
+        status_checked_at=document.status_checked_at,
         error_details=document.error_details,
         metadata=document.metadata_json or {},
         raw_response=document.raw_response or {},
@@ -514,6 +544,63 @@ async def list_diadoc_organizations(
         _raise_diadoc_http_error(exc)
 
 
+async def _fill_counteragent_inn_suggestions(
+    session: AsyncSession,
+    items: list[DiadocCounteragentOut],
+) -> None:
+    """Подсказки привязки по ИНН для контрагентов без явной привязки.
+
+    Один запрос по поставщикам и один по клиентам на весь список.
+    """
+    inns = sorted(
+        {
+            str(item.inn or "").strip()
+            for item in items
+            if str(item.inn or "").strip()
+            and (item.mapped_provider_id is None
+                 or item.mapped_customer_id is None)
+        }
+    )
+    if not inns:
+        return
+    provider_rows = (
+        await session.execute(
+            select(Provider.id, Provider.name, Provider.inn).where(
+                Provider.inn.in_(inns)
+            )
+        )
+    ).all()
+    customer_rows = (
+        await session.execute(
+            select(Customer.id, Customer.name, Customer.inn).where(
+                Customer.inn.in_(inns)
+            )
+        )
+    ).all()
+    providers_by_inn: dict[str, tuple[int, str]] = {}
+    for provider_id, name, inn in provider_rows:
+        providers_by_inn.setdefault(
+            str(inn).strip(), (int(provider_id), str(name or ""))
+        )
+    customers_by_inn: dict[str, tuple[int, str]] = {}
+    for customer_id, name, inn in customer_rows:
+        customers_by_inn.setdefault(
+            str(inn).strip(), (int(customer_id), str(name or ""))
+        )
+    for item in items:
+        inn = str(item.inn or "").strip()
+        if not inn:
+            continue
+        if item.mapped_provider_id is None and inn in providers_by_inn:
+            item.suggested_provider_id, item.suggested_provider_name = (
+                providers_by_inn[inn]
+            )
+        if item.mapped_customer_id is None and inn in customers_by_inn:
+            item.suggested_customer_id, item.suggested_customer_name = (
+                customers_by_inn[inn]
+            )
+
+
 @router.get(
     "/counteragents",
     response_model=DiadocCounteragentListOut,
@@ -632,6 +719,7 @@ async def list_diadoc_counteragents(
                     raw=row,
                 )
             )
+        await _fill_counteragent_inn_suggestions(session, items)
         integration.last_sync_at = now_moscow()
         integration.last_error = None
         session.add(integration)
@@ -985,6 +1073,293 @@ async def list_diadoc_outbound_documents_endpoint(
         limit=limit,
     )
     return [_outgoing_document_to_out(row) for row in rows]
+
+
+@router.post(
+    "/sync/outbound-status",
+    response_model=DiadocOutboundStatusSyncResult,
+    status_code=status.HTTP_200_OK,
+    summary="Обновить статусы незавершённых исходящих документов",
+)
+async def sync_diadoc_outbound_statuses(
+    limit: int = Query(default=100, ge=1, le=300),
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    try:
+        integration, client = await get_diadoc_client_for_session(session)
+        result = await refresh_diadoc_outgoing_statuses(
+            session,
+            client=client,
+            environment=normalize_diadoc_environment(
+                integration.environment
+            ),
+            limit=limit,
+        )
+        integration.last_sync_at = now_moscow()
+        session.add(integration)
+        await session.commit()
+        return DiadocOutboundStatusSyncResult(**result)
+    except Exception as exc:
+        _raise_diadoc_http_error(exc)
+
+
+@router.post(
+    "/outbound-documents/{document_id}/refresh-status",
+    response_model=DiadocOutgoingDocumentOut,
+    status_code=status.HTTP_200_OK,
+    summary="Обновить статус одного исходящего документа",
+)
+async def refresh_diadoc_outbound_document_status(
+    document_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    document = await session.get(DiadocOutgoingDocument, document_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    try:
+        integration, client = await get_diadoc_client_for_session(session)
+        if normalize_diadoc_environment(
+            integration.environment
+        ) != normalize_diadoc_environment(document.environment):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Document environment does not match current "
+                    "Diadoc integration environment"
+                ),
+            )
+        document = await refresh_outgoing_document_status(
+            session,
+            client=client,
+            document=document,
+        )
+        return _outgoing_document_to_out(document)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _raise_diadoc_http_error(exc)
+
+
+@router.post(
+    "/inbound-documents/{document_id}/sign/start",
+    response_model=DiadocCloudSignTaskOut,
+    status_code=status.HTTP_200_OK,
+    summary="Подписать входящий УПД облачной подписью (шаг 1: SMS)",
+)
+async def start_sign_inbound_document(
+    document_id: int,
+    payload: DiadocInboundSignStartIn | None = Body(default=None),
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    document = await get_diadoc_incoming_document(
+        session, document_id=document_id
+    )
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    try:
+        integration, client = await get_diadoc_client_for_session(session)
+        if normalize_diadoc_environment(
+            integration.environment
+        ) != normalize_diadoc_environment(document.environment):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Document environment does not match current "
+                    "Diadoc integration environment"
+                ),
+            )
+        options = payload or DiadocInboundSignStartIn()
+        task = await start_incoming_sign_task(
+            session,
+            client=client,
+            integration=integration,
+            document=document,
+            include_receipt=options.include_receipt,
+            total_code=options.total_code,
+        )
+        return DiadocCloudSignTaskOut.model_validate(task)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _raise_diadoc_http_error(exc)
+
+
+@router.post(
+    "/outbound-documents/{document_id}/revoke/start",
+    response_model=DiadocCloudSignTaskOut,
+    status_code=status.HTTP_200_OK,
+    summary="Запросить аннулирование документа (шаг 1: SMS)",
+)
+async def start_revoke_outbound_document(
+    document_id: int,
+    payload: DiadocRevokeStartIn | None = Body(default=None),
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    document = await session.get(DiadocOutgoingDocument, document_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    try:
+        integration, client = await get_diadoc_client_for_session(session)
+        task = await start_revoke_outgoing_task(
+            session,
+            client=client,
+            integration=integration,
+            document=document,
+            comment=(payload.comment if payload else None),
+        )
+        return DiadocCloudSignTaskOut.model_validate(task)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _raise_diadoc_http_error(exc)
+
+
+@router.post(
+    "/outbound-documents/{document_id}/send-signed/start",
+    response_model=DiadocCloudSignTaskOut,
+    status_code=status.HTTP_200_OK,
+    summary="Подписать и отправить черновик (шаг 1: SMS)",
+)
+async def start_send_signed_outbound_document(
+    document_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    document = await session.get(DiadocOutgoingDocument, document_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    try:
+        integration, client = await get_diadoc_client_for_session(session)
+        task = await start_send_outgoing_task(
+            session,
+            client=client,
+            document=document,
+        )
+        return DiadocCloudSignTaskOut.model_validate(task)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _raise_diadoc_http_error(exc)
+
+
+@router.post(
+    "/cloud-sign-tasks/{task_id}/confirm",
+    response_model=DiadocCloudSignTaskOut,
+    status_code=status.HTTP_200_OK,
+    summary="Подтвердить облачную подпись SMS-кодом (шаг 2)",
+)
+async def confirm_cloud_sign_task_endpoint(
+    task_id: int,
+    payload: DiadocCloudSignConfirmIn,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    task = await session.get(DiadocCloudSignTask, task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    try:
+        integration, client = await get_diadoc_client_for_session(session)
+        task = await confirm_cloud_sign_task(
+            session,
+            client=client,
+            task=task,
+            confirmation_code=payload.code,
+        )
+        return DiadocCloudSignTaskOut.model_validate(task)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _raise_diadoc_http_error(exc)
+
+
+@router.get(
+    "/cloud-sign-tasks/{task_id}",
+    response_model=DiadocCloudSignTaskOut,
+    status_code=status.HTTP_200_OK,
+)
+async def get_cloud_sign_task(
+    task_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    task = await session.get(DiadocCloudSignTask, task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return DiadocCloudSignTaskOut.model_validate(task)
+
+
+@router.post(
+    "/inbound-documents/{document_id}/reject/start",
+    response_model=DiadocCloudSignTaskOut,
+    status_code=status.HTTP_200_OK,
+    summary="Отказать в подписи входящего документа (шаг 1: SMS)",
+)
+async def start_reject_inbound_document(
+    document_id: int,
+    payload: DiadocRevokeStartIn,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    document = await get_diadoc_incoming_document(
+        session, document_id=document_id
+    )
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    try:
+        integration, client = await get_diadoc_client_for_session(session)
+        task = await start_reject_incoming_task(
+            session,
+            client=client,
+            integration=integration,
+            document=document,
+            comment=str(payload.comment or ""),
+        )
+        return DiadocCloudSignTaskOut.model_validate(task)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _raise_diadoc_http_error(exc)
+
+
+@router.get(
+    "/print-form",
+    summary="Печатная форма документа (PDF)",
+)
+async def diadoc_print_form(
+    message_id: str = Query(...),
+    entity_id: str = Query(...),
+    box_id_guid: str | None = Query(default=None),
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    try:
+        integration, client = await get_diadoc_client_for_session(session)
+        selected_box_id_guid = _resolve_box_id_guid(
+            integration, box_id_guid
+        )
+        content = await client.generate_print_form(
+            box_id_guid=selected_box_id_guid,
+            message_id=message_id,
+            document_id=entity_id,
+        )
+        filename = quote(f"diadoc_{message_id[:8]}_{entity_id[:8]}.pdf")
+        return Response(
+            content=content,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": (
+                    f"attachment; filename*=UTF-8''{filename}"
+                )
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _raise_diadoc_http_error(exc)
 
 
 @router.post(

@@ -66,6 +66,19 @@ from dz_fastapi.models.inventory import (
     Warehouse,
 )
 from dz_fastapi.models.partner import Provider, SupplierReceipt, SupplierReceiptItem
+from dz_fastapi.services.credit_control import (
+    assert_customer_credit_available,
+    assert_shipment_credit_available,
+    check_customer_credit_policy,
+    check_shipment_credit_policy,
+)
+from dz_fastapi.services.marking_codes import (
+    allocate_marking_codes_for_shipment_allocation,
+    register_receipt_marking_codes,
+    release_marking_codes_for_shipment_allocation,
+    return_marking_codes_from_customer,
+    return_marking_codes_to_supplier,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -677,6 +690,12 @@ async def receive_stock(
                 cost_price=lot_cost_price,
             )
             lot_id = lot.id
+            await register_receipt_marking_codes(
+                session,
+                receipt_item=item,
+                stock_lot=lot,
+                codes=getattr(item, "marking_codes", None),
+            )
         else:
             # Reverse: use the lot's actual
             # remaining qty (some may be consumed)
@@ -1216,6 +1235,19 @@ async def dispatch_stock_order(
         raise LookupError("Складской заказ не найден")
     if order.status == STOCK_ORDER_STATUS.DISPATCHED:
         raise ValueError("Заказ уже отгружен")
+    credit_check = await check_customer_credit_policy(
+        session,
+        customer_id=order.customer_id,
+    )
+    await assert_customer_credit_available(
+        session,
+        customer_id=order.customer_id,
+    )
+    credit_warning = (
+        credit_check.to_detail()
+        if credit_check is not None and credit_check.should_warn
+        else None
+    )
 
     total_movements = 0
     processed_items = 0
@@ -1247,6 +1279,7 @@ async def dispatch_stock_order(
         "stock_order_id": stock_order_id,
         "processed_items": processed_items,
         "movements_created": total_movements,
+        "credit_warning": credit_warning,
     }
 
 
@@ -1515,6 +1548,13 @@ async def post_shipment_document(
         raise ValueError(
             f"Накладная уже в статусе «{doc.status}» — провести нельзя"
         )
+    credit_check = await check_shipment_credit_policy(session, document=doc)
+    await assert_shipment_credit_available(session, document=doc)
+    credit_warning = (
+        credit_check.to_detail()
+        if credit_check is not None and credit_check.should_warn
+        else None
+    )
 
     movements_created = 0
     reserves_released = 0
@@ -1591,20 +1631,26 @@ async def post_shipment_document(
                 costed_quantity += quantity_taken
                 has_known_cost = True
 
-            session.add(
-                ShipmentDocumentItemLotAllocation(
-                    shipment_document_item_id=item.id,
-                    stock_lot_id=movement.stock_lot_id,
-                    stock_movement_id=movement.id,
-                    provider_id=(
-                        source_receipt.provider_id
-                        if source_receipt is not None
-                        else None
-                    ),
-                    quantity=quantity_taken,
-                    unit_cost_price=unit_cost,
-                    total_cost_price=total_cost,
-                )
+            allocation = ShipmentDocumentItemLotAllocation(
+                shipment_document_item_id=item.id,
+                stock_lot_id=movement.stock_lot_id,
+                stock_movement_id=movement.id,
+                provider_id=(
+                    source_receipt.provider_id
+                    if source_receipt is not None
+                    else None
+                ),
+                quantity=quantity_taken,
+                unit_cost_price=unit_cost,
+                total_cost_price=total_cost,
+            )
+            session.add(allocation)
+            await session.flush()
+            await allocate_marking_codes_for_shipment_allocation(
+                session,
+                allocation=allocation,
+                shipment_document_id=doc.id,
+                shipment_document_item_id=item.id,
             )
 
         item.cost_total = _quantize_money(cost_total) if has_known_cost else None
@@ -1631,6 +1677,7 @@ async def post_shipment_document(
         "movements_created": movements_created,
         "reserves_released": reserves_released,
         "lot_ids": list(dict.fromkeys(lot_ids)),  # dedupe, preserve order
+        "credit_warning": credit_warning,
     }
 
 
@@ -1690,6 +1737,10 @@ async def unpost_shipment_document(
                 if mv is not None:
                     movements_created += 1
                 restored_quantity += int(allocation.quantity or 0)
+                await release_marking_codes_for_shipment_allocation(
+                    session,
+                    allocation=allocation,
+                )
                 await session.delete(allocation)
 
         remaining_to_restore = int(item.quantity or 0) - restored_quantity
@@ -1983,6 +2034,13 @@ async def confirm_return_from_customer(
             notes=item.notes or doc.reason or f"Возврат от клиента #{doc.id}",
             stock_lot_id=lot.id,
         )
+        await return_marking_codes_from_customer(
+            session,
+            shipment_item_id=item.shipment_item_id,
+            new_stock_lot=lot,
+            quantity=qty,
+            return_document_id=doc.id,
+        )
 
     doc.status = ReturnDocumentStatus.CONFIRMED
     if doc.approved_at is None:
@@ -2091,6 +2149,15 @@ async def ship_return_to_supplier(
             if first_lot_id is not None:
                 item.lot_id = first_lot_id
         item.autopart_id = int(autopart_id)
+        consumed_lot_ids = [
+            mv.stock_lot_id for mv in movements if mv.stock_lot_id
+        ]
+        await return_marking_codes_to_supplier(
+            session,
+            stock_lot_ids=consumed_lot_ids,
+            quantity=qty,
+            return_document_id=doc.id,
+        )
 
     doc.status = ReturnDocumentStatus.SHIPPED
     doc.shipped_at = now_moscow()

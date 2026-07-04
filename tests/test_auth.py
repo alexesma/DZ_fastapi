@@ -3,6 +3,8 @@ import pytest
 from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.services.auth import get_password_hash
 
+pytestmark = pytest.mark.no_auth_override
+
 
 async def _create_user(
     session,

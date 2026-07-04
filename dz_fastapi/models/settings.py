@@ -106,6 +106,30 @@ class DiadocIntegrationSettings(Base):
     )
 
 
+class GisMtSettings(Base):
+    """Интеграция с ГИС МТ (Честный знак, True API).
+
+    Токен живёт ~10 часов; получаем его через auth/key → подпись данных
+    облачной подписью Диадока → simpleSignIn.
+    """
+
+    __tablename__ = "gismtsettings"
+
+    token = Column(String(4096), nullable=True)
+    token_expires_at = Column(DateTime(timezone=True), nullable=True)
+    # Товарная группа True API (например, autocomponents / tires)
+    product_group = Column(String(64), nullable=True)
+    auth_uuid = Column(String(128), nullable=True)
+    last_error = Column(String(2000), nullable=True)
+    last_check_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        onupdate=now_moscow,
+    )
+
+
 class SystemMetricSnapshot(Base):
     created_at = Column(
         DateTime(timezone=True), default=now_moscow, nullable=False

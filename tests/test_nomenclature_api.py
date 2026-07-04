@@ -1,5 +1,26 @@
 import pytest
 
+from dz_fastapi.api.deps import get_current_user
+from dz_fastapi.main import app
+from dz_fastapi.models.user import User, UserRole, UserStatus
+
+
+@pytest.fixture(autouse=True)
+def override_current_user_for_nomenclature_api_tests():
+    async def override_current_user():
+        return User(
+            id=1,
+            name="Nomenclature Test Admin",
+            email="nomenclature-admin@example.com",
+            password_hash="not-a-real-hash",
+            role=UserRole.ADMIN,
+            status=UserStatus.ACTIVE,
+        )
+
+    app.dependency_overrides[get_current_user] = override_current_user
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
+
 
 @pytest.mark.asyncio
 async def test_nomenclature_catalog_search_routes_are_not_shadowed(

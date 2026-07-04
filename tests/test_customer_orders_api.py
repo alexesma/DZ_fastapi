@@ -298,6 +298,7 @@ async def test_supplier_order_list_rejected_pct_uses_order_value_base(
 
 
 @pytest.mark.asyncio
+@pytest.mark.no_auth_override
 async def test_stock_order_pick_endpoint_updates_progress(
     async_client,
     test_session,

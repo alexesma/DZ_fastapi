@@ -14,7 +14,7 @@ Inventory models:
 
 from enum import StrEnum, unique
 
-from sqlalchemy import DECIMAL, Boolean, Column, DateTime
+from sqlalchemy import DECIMAL, JSON, Boolean, Column, DateTime
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
@@ -69,6 +69,31 @@ class SyncStatus(StrEnum):
     PENDING = "pending"  # ещё не синхронизировано
     SYNCED = "synced"  # синхронизировано
     ERROR = "error"  # ошибка синхронизации
+
+
+@unique
+class MarkingCodeStatus(StrEnum):
+    RECEIVED = "received"
+    IN_STOCK = "in_stock"
+    RESERVED = "reserved"
+    SHIPPED = "shipped"
+    RETURNED_TO_SUPPLIER = "returned_to_supplier"
+    WITHDRAWN = "withdrawn"
+    ERROR = "error"
+
+
+@unique
+class MarkingMovementType(StrEnum):
+    RECEIVED = "received"
+    STOCKED = "stocked"
+    RESERVED = "reserved"
+    SHIPPED = "shipped"
+    UNPOSTED = "unposted"
+    RETURNED_FROM_CUSTOMER = "returned_from_customer"
+    RETURNED_TO_SUPPLIER = "returned_to_supplier"
+    WITHDRAWN = "withdrawn"
+    GIS_MT_REPORTED = "gis_mt_reported"
+    ERROR = "error"
 
 
 @unique
@@ -272,6 +297,11 @@ class StockLot(Base):
         nullable=True,
         comment="Закупочная/учётная себестоимость одной единицы партии",
     )
+    marking_codes = Column(
+        JSON,
+        nullable=True,
+        comment="КИЗ/СИЗ, пришедшие в составе этой партии",
+    )
 
     # ── Источник — строка поступления (для RECEIPT-лотов) ──────────────────
     source_receipt_id = Column(
@@ -327,6 +357,11 @@ class StockLot(Base):
     autopart = relationship("AutoPart", lazy="joined")
     storage_location = relationship("StorageLocation", lazy="joined")
     source_receipt = relationship("SupplierReceipt", lazy="noload")
+    marking_code_rows = relationship(
+        "ProductMarkingCode",
+        back_populates="stock_lot",
+        lazy="noload",
+    )
     movements = relationship(
         "StockMovement",
         back_populates="stock_lot",
@@ -342,6 +377,199 @@ class StockLot(Base):
             "remaining_quantity",
             "received_at",
         ),
+    )
+
+
+class ProductMarkingCode(Base):
+    """Код маркировки (КИЗ/СИЗ) с текущим местом в складской цепочке."""
+
+    __tablename__ = "productmarkingcode"
+
+    code = Column(String(255), nullable=False, unique=True, index=True)
+    status = Column(
+        SAEnum(
+            MarkingCodeStatus,
+            name="markingcodestatus",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=False,
+        default=MarkingCodeStatus.RECEIVED,
+        index=True,
+    )
+
+    autopart_id = Column(
+        Integer,
+        ForeignKey("autopart.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    warehouse_id = Column(
+        Integer,
+        ForeignKey("warehouse.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    storage_location_id = Column(
+        Integer,
+        ForeignKey("storagelocation.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    stock_lot_id = Column(
+        Integer,
+        ForeignKey("stocklot.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    supplier_receipt_id = Column(
+        Integer,
+        ForeignKey("supplierreceipt.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    supplier_receipt_item_id = Column(
+        Integer,
+        ForeignKey("supplierreceiptitem.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    shipment_document_id = Column(
+        Integer,
+        ForeignKey("shipmentdocument.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    shipment_document_item_id = Column(
+        Integer,
+        ForeignKey("shipmentdocumentitem.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    shipment_allocation_id = Column(
+        Integer,
+        ForeignKey("shipmentdocumentitemlotallocation.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    raw_payload = Column(JSON, nullable=True)
+    last_error = Column(Text, nullable=True)
+    received_at = Column(DateTime(timezone=True), nullable=True)
+    shipped_at = Column(DateTime(timezone=True), nullable=True)
+    withdrawn_at = Column(DateTime(timezone=True), nullable=True)
+    # Сверка с ГИС МТ (Честный знак): статус кода по данным API и время
+    gis_status = Column(String(64), nullable=True)
+    gis_checked_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        nullable=False,
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        onupdate=now_moscow,
+        nullable=False,
+    )
+
+    autopart = relationship("AutoPart", lazy="joined")
+    warehouse = relationship("Warehouse", lazy="joined")
+    storage_location = relationship("StorageLocation", lazy="joined")
+    stock_lot = relationship(
+        "StockLot",
+        back_populates="marking_code_rows",
+        lazy="joined",
+    )
+    movements = relationship(
+        "ProductMarkingCodeMovement",
+        back_populates="marking_code",
+        cascade="all, delete-orphan",
+        lazy="noload",
+    )
+
+    __table_args__ = (
+        Index("idx_productmarkingcode_status_lot", "status", "stock_lot_id"),
+        Index(
+            "idx_productmarkingcode_receipt_item",
+            "supplier_receipt_item_id",
+            "status",
+        ),
+    )
+
+
+class ProductMarkingCodeMovement(Base):
+    """Аудиторская история движения КИЗ."""
+
+    __tablename__ = "productmarkingcodemovement"
+
+    marking_code_id = Column(
+        Integer,
+        ForeignKey("productmarkingcode.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    movement_type = Column(
+        SAEnum(
+            MarkingMovementType,
+            name="markingmovementtype",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=False,
+        index=True,
+    )
+    autopart_id = Column(
+        Integer,
+        ForeignKey("autopart.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    stock_lot_id = Column(
+        Integer,
+        ForeignKey("stocklot.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    supplier_receipt_id = Column(
+        Integer,
+        ForeignKey("supplierreceipt.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    supplier_receipt_item_id = Column(
+        Integer,
+        ForeignKey("supplierreceiptitem.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    shipment_document_id = Column(
+        Integer,
+        ForeignKey("shipmentdocument.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    shipment_document_item_id = Column(
+        Integer,
+        ForeignKey("shipmentdocumentitem.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    shipment_allocation_id = Column(
+        Integer,
+        ForeignKey("shipmentdocumentitemlotallocation.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    metadata_json = Column(JSON, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        nullable=False,
+    )
+
+    marking_code = relationship(
+        "ProductMarkingCode",
+        back_populates="movements",
+        lazy="joined",
     )
 
 
@@ -861,6 +1089,11 @@ class ShipmentDocumentItemLotAllocation(Base):
         comment="Поставщик исходной партии на момент отгрузки",
     )
     quantity = Column(Integer, nullable=False)
+    marking_codes = Column(
+        JSON,
+        nullable=True,
+        comment="КИЗ/СИЗ, списанные из этой партии по строке отгрузки",
+    )
     unit_cost_price = Column(
         DECIMAL(12, 4),
         nullable=True,

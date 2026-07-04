@@ -35,6 +35,10 @@ SCHEDULER_SETTING_DEFAULTS = {
         "days": [],
         "times": [],
     },
+    "diadoc_outbound_status": {
+        "days": [],
+        "times": [],
+    },
     "supplier_orders_send": {
         "enabled": False,
         "days": [],

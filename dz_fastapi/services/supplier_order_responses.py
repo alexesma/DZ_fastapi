@@ -332,6 +332,7 @@ class ParsedSupplierResponseRow:
     country_name: Optional[str] = None
     total_price_with_vat: Optional[float] = None
     source_name: Optional[str] = None
+    marking_codes: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -354,6 +355,7 @@ class AppliedSupplierResponseRow:
     country_code: Optional[str] = None
     country_name: Optional[str] = None
     total_price_with_vat: Optional[float] = None
+    marking_codes: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -1690,6 +1692,7 @@ def _apply_global_text_decision_to_order(
                 country_code=None,
                 country_name=None,
                 total_price_with_vat=None,
+                marking_codes=[],
             )
         )
     return updated, applied_rows
@@ -1741,7 +1744,10 @@ def _allowed_attachment_extensions(file_format: object) -> set[str]:
         return {"csv"}
     if normalized == "excel":
         return {"xlsx", "xls"}
-    return {"xlsx", "xls", "csv"}
+    if normalized == "xml":
+        return {"xml"}
+    # По умолчанию принимаем и xml — формализованные УПД из Диадока.
+    return {"xlsx", "xls", "csv", "xml"}
 
 
 _SUBJECT_PREFIX_RE = re.compile(
@@ -1880,6 +1886,71 @@ def _ensure_xlsx_shared_strings(payload: bytes) -> bytes:
         return payload  # не zip — вернём как есть, ошибка поднимется позже
 
 
+def _parse_upd_xml_attachment(
+    payload: bytes,
+    filename: str,
+) -> list[ParsedSupplierResponseRow]:
+    """Формализованный УПД (XML ФНС) → строки поступления.
+
+    Бренд в УПД не передаётся — позиции матчятся по артикулу в разрезе
+    поставщика. Строки без артикула пропускаем (сматчить их не по чему),
+    но логируем, чтобы проблему было видно.
+    """
+    from dz_fastapi.services.upd_xml import looks_like_upd_xml, parse_upd_xml
+
+    if not looks_like_upd_xml(payload, filename):
+        logger.warning(
+            "XML вложение %s не похоже на УПД ФНС — пропускаем",
+            filename,
+        )
+        return []
+    document = parse_upd_xml(payload)
+    if document.items_without_article:
+        logger.warning(
+            "УПД %s: %s строк без артикула пропущено (файл %s)",
+            document.document_number or "<без номера>",
+            document.items_without_article,
+            filename,
+        )
+    rows: list[ParsedSupplierResponseRow] = []
+    for item in document.items:
+        oem_value = _normalize_oem_key(item.oem_number)
+        if not oem_value or oem_value in _INVALID_PARSED_OEM_KEYS:
+            continue
+        price_value = item.price
+        if price_value is None:
+            price_value = _resolve_price_without_vat(
+                item.total_with_vat,
+                item.quantity,
+            )
+        rows.append(
+            ParsedSupplierResponseRow(
+                oem_number=oem_value,
+                brand_name=None,
+                confirmed_quantity=item.quantity,
+                response_price=price_value,
+                response_comment=None,
+                response_status_raw=None,
+                document_number=document.document_number,
+                document_date=document.document_date,
+                gtd_code=item.gtd_code,
+                country_code=item.country_code,
+                country_name=item.country_name,
+                total_price_with_vat=item.total_with_vat,
+                source_name=item.name,
+                marking_codes=list(item.marking_codes or []),
+            )
+        )
+    logger.info(
+        "УПД XML %s: распознано %s позиций (номер %s от %s)",
+        filename,
+        len(rows),
+        document.document_number or "—",
+        document.document_date or "—",
+    )
+    return rows
+
+
 def _parse_supplier_response_attachment(
     payload: bytes,
     filename: str,
@@ -1916,6 +1987,10 @@ def _parse_supplier_response_attachment(
     if payload_type not in {"response", "document"}:
         payload_type = "response"
     ext = _attachment_extension(filename)
+    if ext == "xml":
+        # Формализованный УПД из Диадока — отдельный парсер, настройки
+        # колонок Excel к нему не относятся.
+        return _parse_upd_xml_attachment(payload, filename)
     # Manual column mapping is enabled only when OEM column is provided.
     has_column_layout = _parse_positive_int(oem_col) is not None
     if ext == "csv":
@@ -2990,6 +3065,7 @@ def _build_applied_row_payload(
         country_code=row.country_code,
         country_name=row.country_name,
         total_price_with_vat=row.total_price_with_vat,
+        marking_codes=list(row.marking_codes or []),
     )
 
 
@@ -3291,6 +3367,7 @@ def _build_receipt_items_from_applied_rows(
                 "country_code": row.country_code,
                 "country_name": row.country_name,
                 "total_price_with_vat": row.total_price_with_vat,
+                "marking_codes": list(row.marking_codes or []),
             }
         )
     return items_payload
@@ -3320,6 +3397,7 @@ def _build_unlinked_receipt_items_from_rows(
                 "country_code": row.country_code,
                 "country_name": row.country_name,
                 "total_price_with_vat": row.total_price_with_vat,
+                "marking_codes": list(row.marking_codes or []),
             }
         )
     return items_payload
@@ -3366,6 +3444,7 @@ def _build_full_document_items_payload(
                 "gtd_code": row.gtd_code,
                 "country_code": row.country_code,
                 "country_name": row.country_name,
+                "marking_codes": list(row.marking_codes or []),
             }
             if order_item is not None:
                 entry["oem_number"] = order_item.oem_number
@@ -3400,6 +3479,7 @@ def _build_full_document_items_payload(
                 "oem_number": row.oem_number,
                 "brand_name": row.brand_name,
                 "autopart_name": row.source_name,
+                "marking_codes": list(row.marking_codes or []),
             }
         )
 
@@ -3434,6 +3514,7 @@ def _build_document_items_payload_from_pending_orders(
                     "gtd_code": None,
                     "country_code": None,
                     "country_name": None,
+                    "marking_codes": [],
                     "oem_number": order_item.oem_number,
                     "brand_name": order_item.brand_name,
                     "autopart_name": order_item.autopart_name,
@@ -3562,6 +3643,7 @@ async def _append_document_receipt_items(
                         str(payload.get("country_name") or "").strip() or None
                     ),
                     total_price_with_vat=payload.get("total_price_with_vat"),
+                    marking_codes=payload.get("marking_codes"),
                 )
             )
             added += 1
@@ -3633,6 +3715,7 @@ async def _append_document_receipt_items(
                         str(payload.get("country_name") or "").strip() or None
                     ),
                     total_price_with_vat=payload.get("total_price_with_vat"),
+                    marking_codes=payload.get("marking_codes"),
                 )
             )
             added += 1
@@ -4142,6 +4225,7 @@ async def _append_supplier_receipt_items(
                         str(payload.get("country_name") or "").strip() or None
                     ),
                     total_price_with_vat=payload.get("total_price_with_vat"),
+                    marking_codes=payload.get("marking_codes"),
                 )
             )
             added += 1
@@ -4198,6 +4282,7 @@ async def _append_supplier_receipt_items(
                     str(payload.get("country_name") or "").strip() or None
                 ),
                 total_price_with_vat=payload.get("total_price_with_vat"),
+                marking_codes=payload.get("marking_codes"),
             )
         )
         added += 1

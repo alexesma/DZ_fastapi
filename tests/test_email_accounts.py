@@ -26,6 +26,7 @@ async def _login(async_client, email: str):
 
 
 @pytest.mark.asyncio
+@pytest.mark.no_auth_override
 async def test_email_accounts_requires_admin(async_client, test_session):
     await _create_user(test_session, "manager@example.com", UserRole.MANAGER)
     await _login(async_client, "manager@example.com")

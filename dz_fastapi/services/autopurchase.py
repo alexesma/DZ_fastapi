@@ -240,7 +240,7 @@ AUTOPURCHASE_RECOVERY_STOCKOUT_DAYS = max(
     int(os.getenv("AUTOPURCHASE_RECOVERY_STOCKOUT_DAYS", "45")),
 )
 AUTOPURCHASE_AUTO_SEND_ENABLED = (
-    str(os.getenv("AUTOPURCHASE_AUTO_SEND_ENABLED", "1")).strip().lower()
+    str(os.getenv("AUTOPURCHASE_AUTO_SEND_ENABLED", "0")).strip().lower()
     in {"1", "true", "yes", "on"}
 )
 AUTOPURCHASE_AUTO_SEND_CUSTOMER_NAME = (
@@ -3896,13 +3896,14 @@ async def get_autopurchase_preview(
             session,
             candidate_autopart_ids,
         )
-        auto_send_price_context_by_autopart = (
-            await _load_autopurchase_price_gate_context(
-                session,
-                autopart_ids=candidate_autopart_ids,
-                own_provider_id=int(config_row["provider_id"]),
+        if AUTOPURCHASE_AUTO_SEND_ENABLED:
+            auto_send_price_context_by_autopart = (
+                await _load_autopurchase_price_gate_context(
+                    session,
+                    autopart_ids=candidate_autopart_ids,
+                    own_provider_id=int(config_row["provider_id"]),
+                )
             )
-        )
         # Исторические цены продаж и число заказов по окнам —
         # для ценовых сигналов и блока «Заказы и цены».
         candidate_period_metrics = (
@@ -4522,7 +4523,11 @@ async def get_autopurchase_preview(
                 recommended_order_qty - covered_supply_qty, 0
             )
 
-        if selected_supplier and draft_purchase_order:
+        if (
+            AUTOPURCHASE_AUTO_SEND_ENABLED
+            and selected_supplier
+            and draft_purchase_order
+        ):
             auto_send_allowed, auto_send_reason = (
                 _evaluate_autopurchase_auto_send_gate(
                     row=candidate_row,
@@ -4834,6 +4839,7 @@ async def _send_autopurchase_run_telegram_summary(
     *,
     run_id: int,
     preview: dict[str, Any],
+    session: Optional[AsyncSession] = None,
 ) -> None:
     from dz_fastapi.services.telegram import send_message_to_telegram
 
@@ -4859,7 +4865,35 @@ async def _send_autopurchase_run_telegram_summary(
         f"Заблокировано: {int(preview.get('blocked_count') or 0)} поз.",
         "Открой раздел «Автозаказ», проверь и отправь черновики.",
     ]
-    await send_message_to_telegram("\n".join(lines))
+    summary_text = "\n".join(lines)
+
+    # Колокольчик — основной канал (Telegram в РФ заблокирован).
+    if session is not None:
+        try:
+            from dz_fastapi.services.notifications import create_admin_notifications
+
+            await create_admin_notifications(
+                session=session,
+                title=f"Автозаказ: ночной расчёт #{run_id} готов",
+                message=summary_text,
+                level="info",
+                link="/orders/autopurchase",
+            )
+        except Exception:  # noqa: BLE001
+            logger.warning(
+                "Не удалось создать app-уведомление о ночном "
+                "автозаказе run_id=%s",
+                run_id,
+                exc_info=True,
+            )
+    try:
+        await send_message_to_telegram(summary_text)
+    except Exception:  # noqa: BLE001
+        logger.warning(
+            "Telegram-сводка автозаказа run_id=%s не отправлена "
+            "(вероятно, TG недоступен)",
+            run_id,
+        )
 
 
 def _normalize_autopurchase_top_source(value: Any) -> Optional[str]:
@@ -5154,13 +5188,20 @@ async def execute_next_autopurchase_run(
 
         logger.info("Autopurchase run %s completed successfully", run_id)
 
-        try:
-            await _auto_send_autopurchase_run_items(session, run_id=run_id)
-        except Exception as auto_send_exc:
-            logger.exception(
-                "Autopurchase auto-send unexpected failure run_id=%s: %s",
+        if AUTOPURCHASE_AUTO_SEND_ENABLED:
+            try:
+                await _auto_send_autopurchase_run_items(session, run_id=run_id)
+            except Exception as auto_send_exc:
+                logger.exception(
+                    "Autopurchase auto-send unexpected failure run_id=%s: %s",
+                    run_id,
+                    auto_send_exc,
+                )
+        else:
+            logger.info(
+                "Autopurchase auto-send disabled; run_id=%s left as draft "
+                "orders for manual review",
                 run_id,
-                auto_send_exc,
             )
 
         # Утренняя сводка по ночному (scheduled) расчёту в Telegram.
@@ -5169,6 +5210,7 @@ async def execute_next_autopurchase_run(
                 await _send_autopurchase_run_telegram_summary(
                     run_id=run_id,
                     preview=preview,
+                    session=session,
                 )
             except Exception as notify_exc:
                 logger.warning(

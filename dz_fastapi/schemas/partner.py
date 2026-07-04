@@ -66,6 +66,8 @@ class ClientBase(BaseModel):
 class ProviderBase(ClientBase):
     default_warehouse_id: Optional[int] = None
     email_incoming_price: Optional[EmailStr] = None
+    inn: Optional[str] = Field(default=None, max_length=32)
+    kpp: Optional[str] = Field(default=None, max_length=32)
     is_own_price: Optional[bool] = False
     is_vat_payer: Optional[bool] = False
     autopurchase_blocked: Optional[bool] = False
@@ -88,6 +90,13 @@ class ProviderBase(ClientBase):
     default_delivery_method: Optional[ProviderDeliveryMethod] = (
         ProviderDeliveryMethod.DELIVERED
     )
+
+    @field_validator("inn", "kpp", mode="before")
+    def normalize_provider_tax_fields(cls, v):
+        if v is None:
+            return None
+        value = str(v).strip()
+        return value or None
 
     @field_validator("email_incoming_price", mode="before")
     def validate_email_incoming_price(cls, v):
@@ -121,6 +130,8 @@ class ProviderUpdate(BaseModel):
     description: Optional[str] = None
     comment: Optional[str] = None
     email_incoming_price: Optional[EmailStr] = None
+    inn: Optional[str] = Field(default=None, max_length=32)
+    kpp: Optional[str] = Field(default=None, max_length=32)
     is_virtual: Optional[bool] = None
     is_own_price: Optional[bool] = None
     is_vat_payer: Optional[bool] = None
@@ -149,6 +160,13 @@ class ProviderUpdate(BaseModel):
             return None
         return v
 
+    @field_validator("inn", "kpp", mode="before")
+    def normalize_update_provider_tax_fields(cls, v):
+        if v is None:
+            return None
+        value = str(v).strip()
+        return value or None
+
     @field_validator(
         "supplier_response_filename_pattern",
         "supplier_shipping_doc_filename_pattern",
@@ -167,6 +185,9 @@ class CustomerBase(ClientBase):
     kpp: Optional[str] = Field(default=None, max_length=32)
     legal_address: Optional[str] = None
     postal_address: Optional[str] = None
+    credit_control_mode: str = Field(default="off")
+    credit_limit: Optional[Decimal] = Field(default=None, ge=0)
+    payment_terms_days: int = Field(default=0, ge=0)
 
     @field_validator("email_outgoing_price", mode="before")
     def validate_email_outgoing_price(cls, v):
@@ -187,6 +208,13 @@ class CustomerBase(ClientBase):
             return None
         value = str(v).strip()
         return value or None
+
+    @field_validator("credit_control_mode", mode="before")
+    def normalize_credit_control_mode(cls, v):
+        value = str(v or "off").strip().lower()
+        if value not in {"off", "warn", "block"}:
+            raise ValueError("credit_control_mode must be off, warn or block")
+        return value
 
     model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
@@ -421,6 +449,9 @@ class CustomerResponseShort(BaseModel):
     email_contact: Optional[EmailStr] = None
     description: Optional[str] = None
     comment: Optional[str] = None
+    credit_control_mode: str = "off"
+    credit_limit: Optional[Decimal] = None
+    payment_terms_days: int = 0
     external_references: List[CustomerExternalReferenceOut] = Field(
         default_factory=list
     )

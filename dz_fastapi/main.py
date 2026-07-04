@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from logging.handlers import RotatingFileHandler
 from typing import AsyncIterator
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -17,12 +17,14 @@ from dz_fastapi.api.brand import router as brand_router
 from dz_fastapi.api.cross import router as cross_router
 from dz_fastapi.api.customer_order import router as customer_order_router
 from dz_fastapi.api.dashboard import router as dashboard_router
+from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.api.diadoc import router as diadoc_router
 from dz_fastapi.api.email_account import router as email_account_router
 from dz_fastapi.api.finance import router as finance_router
 from dz_fastapi.api.inbox_email import router as inbox_router
 from dz_fastapi.api.inventory import router as inventory_router
 from dz_fastapi.api.notifications import router as notifications_router
+from dz_fastapi.api.one_c import router as one_c_router
 from dz_fastapi.api.order import router as order_router
 from dz_fastapi.api.order_status_mapping import router as order_status_mapping_router
 from dz_fastapi.api.partner import router as partner_router
@@ -176,22 +178,28 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
+AUTH_REQUIRED = [Depends(get_current_user)]
+
 app.include_router(autopart_router)
 app.include_router(auth_router)
-app.include_router(brand_router)
-app.include_router(cross_router)
-app.include_router(partner_router)
-app.include_router(order_router)
-app.include_router(order_status_mapping_router)
-app.include_router(customer_order_router)
-app.include_router(diadoc_router)
-app.include_router(email_account_router)
-app.include_router(inbox_router)
-app.include_router(notifications_router)
-app.include_router(dashboard_router)
-app.include_router(price_control_router)
-app.include_router(settings_router)
-app.include_router(watchlist_router)
+# Business APIs are private by default. Keep only health, auth endpoints,
+# /site-chat (protected by widget secret), and /1c/exchange BasicAuth outside
+# the common browser-session dependency.
+app.include_router(brand_router, dependencies=AUTH_REQUIRED)
+app.include_router(cross_router, dependencies=AUTH_REQUIRED)
+app.include_router(partner_router, dependencies=AUTH_REQUIRED)
+app.include_router(order_router, dependencies=AUTH_REQUIRED)
+app.include_router(order_status_mapping_router, dependencies=AUTH_REQUIRED)
+app.include_router(customer_order_router, dependencies=AUTH_REQUIRED)
+app.include_router(diadoc_router, dependencies=AUTH_REQUIRED)
+app.include_router(one_c_router)
+app.include_router(email_account_router, dependencies=AUTH_REQUIRED)
+app.include_router(inbox_router, dependencies=AUTH_REQUIRED)
+app.include_router(notifications_router, dependencies=AUTH_REQUIRED)
+app.include_router(dashboard_router, dependencies=AUTH_REQUIRED)
+app.include_router(price_control_router, dependencies=AUTH_REQUIRED)
+app.include_router(settings_router, dependencies=AUTH_REQUIRED)
+app.include_router(watchlist_router, dependencies=AUTH_REQUIRED)
 app.include_router(webchat_router)
 app.include_router(inventory_router)
-app.include_router(finance_router)
+app.include_router(finance_router, dependencies=AUTH_REQUIRED)

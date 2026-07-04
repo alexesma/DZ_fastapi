@@ -157,6 +157,12 @@ class CUSTOMER_ORDER_SHIP_MODE(StrEnum):
     WRITE_REJECT_QTY = "WRITE_REJECT_QTY"
 
 
+class CUSTOMER_CREDIT_CONTROL_MODE(StrEnum):
+    OFF = "off"
+    WARN = "warn"
+    BLOCK = "block"
+
+
 def set_date(mapper, connection, target):
     if not getattr(target, "date", None):
         target.date = now_moscow().date()
@@ -204,6 +210,8 @@ class Provider(Client):
     email_incoming_price = Column(
         String(255), index=True, nullable=True, unique=True
     )
+    inn = Column(String(32), nullable=True, index=True)
+    kpp = Column(String(32), nullable=True, index=True)
     price_lists = relationship("PriceList", back_populates="provider")
     pricelist_configs = relationship(
         "ProviderPriceListConfig",
@@ -334,6 +342,11 @@ class Customer(Client):
 
     credit_limit = Column(DECIMAL(12, 2), nullable=True)
     payment_terms_days = Column(Integer, default=0, nullable=False)
+    credit_control_mode = Column(
+        String(16),
+        default=CUSTOMER_CREDIT_CONTROL_MODE.OFF.value,
+        nullable=False,
+    )
 
     payment_invoices = relationship(
         "PaymentInvoice",
@@ -1045,6 +1058,11 @@ class SupplierReceiptItem(Base):
     received_quantity = Column(Integer, nullable=False, default=0)
     price = Column(DECIMAL(10, 2), nullable=True)
     total_price_with_vat = Column(DECIMAL(12, 2), nullable=True)
+    marking_codes = Column(
+        JSON,
+        nullable=True,
+        comment="КИЗ/СИЗ из входящего УПД для маркированных товаров",
+    )
     gtd_code = Column(String(64), nullable=True)
     country_code = Column(String(16), nullable=True)
     country_name = Column(String(120), nullable=True)
@@ -1345,4 +1363,36 @@ class OrderItem(Base):
     receipt_items = relationship(
         "SupplierReceiptItem",
         back_populates="order_item",
+    )
+
+
+class SalesHistoryMonthly(Base):
+    """Месячная история продаж, загруженная из 1С (разовый импорт).
+
+    Хранится отдельно от операционных данных: используется аналитикой
+    и может подключаться к прогнозу спроса автозаказа.
+    """
+
+    __tablename__ = "saleshistorymonthly"
+
+    period = Column(Date, nullable=False, index=True)
+    oem_number = Column(String(120), nullable=False, index=True)
+    brand_name = Column(String(120), nullable=True)
+    quantity = Column(Integer, nullable=False, default=0)
+    revenue = Column(DECIMAL(14, 2), nullable=True)
+    source = Column(String(32), nullable=False, default="1c")
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        onupdate=now_moscow,
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "period",
+            "oem_number",
+            "brand_name",
+            name="uq_sales_history_period_oem_brand",
+        ),
     )

@@ -24,6 +24,7 @@ from dz_fastapi.models.inventory import (
     ReturnToSupplier,
     ShipmentDocument,
     ShipmentDocumentItem,
+    ShipmentDocumentItemLotAllocation,
     ShipmentDocumentStatus,
 )
 from dz_fastapi.models.partner import (
@@ -1480,6 +1481,9 @@ async def _load_shipment_document(
             selectinload(ShipmentDocument.items).selectinload(
                 ShipmentDocumentItem.lot
             ),
+            selectinload(ShipmentDocument.items)
+            .selectinload(ShipmentDocumentItem.allocations)
+            .selectinload(ShipmentDocumentItemLotAllocation.stock_lot),
             selectinload(ShipmentDocument.customer),
             selectinload(ShipmentDocument.warehouse),
         )
@@ -1495,6 +1499,45 @@ def _shipment_export_file_name(doc: ShipmentDocument) -> str:
 def _shipment_document_number(doc: ShipmentDocument) -> str | None:
     value = str(doc.doc_number or "").strip()
     return value or None
+
+
+def _normalize_marking_codes_for_xml(values: Any) -> list[str]:
+    if values is None:
+        return []
+    if isinstance(values, str):
+        raw_values = [values]
+    else:
+        try:
+            raw_values = list(values)
+        except TypeError:
+            raw_values = [values]
+
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in raw_values:
+        code = str(value or "").strip()
+        if code and code not in seen:
+            seen.add(code)
+            result.append(code)
+    return result
+
+
+def _collect_shipment_item_marking_codes(item: ShipmentDocumentItem) -> list[str]:
+    codes: list[str] = []
+    for allocation in list(getattr(item, "allocations", []) or []):
+        codes.extend(
+            _normalize_marking_codes_for_xml(
+                getattr(allocation, "marking_codes", None)
+            )
+        )
+    if not codes:
+        lot = getattr(item, "lot", None)
+        codes.extend(
+            _normalize_marking_codes_for_xml(
+                getattr(lot, "marking_codes", None)
+            )
+        )
+    return list(dict.fromkeys(codes))
 
 
 def _shipment_formalized_file_name(doc: ShipmentDocument) -> str:
@@ -1734,6 +1777,18 @@ def _build_formalized_utd_user_data_xml(
                     "DeclarationNumber": declaration_number,
                 },
             )
+        marking_codes = _collect_shipment_item_marking_codes(item)
+        if marking_codes:
+            identification_numbers_el = ET.SubElement(
+                item_el,
+                "ItemIdentificationNumbers",
+            )
+            for code in marking_codes:
+                identification_number_el = ET.SubElement(
+                    identification_numbers_el,
+                    "ItemIdentificationNumber",
+                )
+                ET.SubElement(identification_number_el, "Unit").text = code
 
     transfer_attrs = {
         "OperationInfo": str(document.reason or "товары переданы").strip()

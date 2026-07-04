@@ -404,6 +404,7 @@ async def get_customer_debt(
         overdue_amount=Decimal(str(overdue_amount)),
         credit_limit=customer.credit_limit,
         payment_terms_days=customer.payment_terms_days,
+        credit_control_mode=customer.credit_control_mode or "off",
     )
 
 
@@ -425,6 +426,7 @@ async def get_debtors_report(
             Customer.name,
             Customer.credit_limit,
             Customer.payment_terms_days,
+            Customer.credit_control_mode,
             func.coalesce(func.sum(PaymentInvoice.total_amount), 0).label(
                 "total_invoiced"
             ),
@@ -439,6 +441,7 @@ async def get_debtors_report(
             Customer.name,
             Customer.credit_limit,
             Customer.payment_terms_days,
+            Customer.credit_control_mode,
         )
         .having(
             func.sum(PaymentInvoice.total_amount)
@@ -482,6 +485,7 @@ async def get_debtors_report(
                 overdue_amount=overdue_amount,
                 credit_limit=row.credit_limit,
                 payment_terms_days=row.payment_terms_days,
+                credit_control_mode=row.credit_control_mode or "off",
             )
         )
 

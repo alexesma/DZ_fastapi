@@ -439,8 +439,15 @@ async def sync_diadoc_incoming_documents(
         to_document_date=to_document_date,
         sort_direction=sort_direction,
     )
+    documents_payload = list(payload.get("Documents") or [])
     result = {
         "total_from_api": int(payload.get("TotalCount") or 0),
+        "has_more_results": bool(payload.get("HasMoreResults")),
+        "last_index_key": (
+            str(documents_payload[-1].get("IndexKey") or "") or None
+            if documents_payload
+            else None
+        ),
         "synced": 0,
         "created": 0,
         "updated": 0,
@@ -452,7 +459,7 @@ async def sync_diadoc_incoming_documents(
         "provider_unresolved": 0,
         "errors": [],
     }
-    for raw in payload.get("Documents") or []:
+    for raw in documents_payload:
         message_id = str(raw.get("MessageId") or "").strip()
         entity_id = str(raw.get("EntityId") or "").strip()
         if not message_id or not entity_id:

@@ -51,6 +51,10 @@ class DiadocIncomingDocument(Base):
     raw_metadata = Column(JSON, default=dict)
     synced_at = Column(DateTime(timezone=True), default=now_moscow)
     registered_at = Column(DateTime(timezone=True), nullable=True)
+    # Когда мы отправили титул покупателя (подписали входящий документ)
+    signed_at = Column(DateTime(timezone=True), nullable=True)
+    # Когда мы отправили отказ в подписи
+    rejected_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=now_moscow)
     updated_at = Column(
         DateTime(timezone=True),
@@ -112,6 +116,15 @@ class DiadocOutgoingDocument(Base):
     message_id = Column(String(255), nullable=True, index=True)
     entity_id = Column(String(255), nullable=True, index=True)
     status = Column(String(32), nullable=False, default="draft")
+    # Статус документооборота из Диадока (обновляется регламентом):
+    # текст как в вебе Диадока + производный внутренний статус в status.
+    docflow_status_severity = Column(String(32), nullable=True)
+    docflow_status_text = Column(String(500), nullable=True)
+    recipient_response_status = Column(String(120), nullable=True)
+    revocation_status = Column(String(120), nullable=True)
+    delivered_at = Column(DateTime(timezone=True), nullable=True)
+    status_checked_at = Column(DateTime(timezone=True), nullable=True)
+    last_status_payload = Column(JSON, default=dict)
     error_details = Column(String(2000), nullable=True)
     metadata_json = Column("metadata", JSON, default=dict)
     raw_response = Column(JSON, default=dict)
@@ -125,3 +138,48 @@ class DiadocOutgoingDocument(Base):
 
     customer = relationship("Customer", lazy="selectin")
     provider = relationship("Provider", lazy="selectin")
+
+
+class DiadocCloudSignTask(Base):
+    """Задача облачного подписания (двухшаговый флоу с SMS-кодом).
+
+    start: генерируем файлы, отдаём их в CloudSign, сохраняем token —
+    пользователю уходит SMS. confirm: код + token → подписи → действие
+    (титул покупателя / аннулирование / отправка) через PostMessagePatch
+    или PostMessage.
+    """
+
+    __tablename__ = "diadoccloudsigntask"
+
+    environment = Column(String(32), nullable=False, default="staging")
+    # sign_incoming | revoke_outgoing | send_outgoing
+    operation = Column(String(32), nullable=False)
+    # waiting_code | completed | error
+    state = Column(String(32), nullable=False, default="waiting_code")
+    box_id_guid = Column(String(64), nullable=False)
+    message_id = Column(String(255), nullable=True)
+    entity_id = Column(String(255), nullable=True)
+    incoming_document_id = Column(
+        Integer,
+        ForeignKey("diadocincomingdocument.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    outgoing_document_id = Column(
+        Integer,
+        ForeignKey("diadocoutgoingdocument.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    cloud_sign_token = Column(String(512), nullable=True)
+    # [{"file_name", "content_b64", "kind", "parent_entity_id"}]
+    files = Column(JSON, default=list)
+    params = Column(JSON, default=dict)
+    error_details = Column(String(2000), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        onupdate=now_moscow,
+    )
+    completed_at = Column(DateTime(timezone=True), nullable=True)

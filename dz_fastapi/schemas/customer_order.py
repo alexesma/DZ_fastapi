@@ -232,6 +232,7 @@ class CustomerOrderItemResponse(BaseModel):
     price_diff_pct: Optional[float]
     reject_reason_code: Optional[str] = None
     reject_reason_text: Optional[str] = None
+    credit_warning: Optional[dict] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -295,6 +296,7 @@ class CustomerOrderResponse(BaseModel):
     error_details: Optional[str] = None
 
     items: List[CustomerOrderItemResponse] = Field(default_factory=list)
+    credit_warning: Optional[dict] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -629,6 +631,7 @@ class SupplierReceiptItemResponse(BaseModel):
     received_quantity: int
     price: Optional[Decimal] = None
     total_price_with_vat: Optional[Decimal] = None
+    marking_codes: Optional[List[str]] = None
     gtd_code: Optional[str] = None
     country_code: Optional[str] = None
     country_name: Optional[str] = None

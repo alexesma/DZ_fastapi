@@ -49,6 +49,7 @@ from dz_fastapi.schemas.customer_order import (
     SupplierReceiptUpdate,
     SupplierResponseProcessResult,
 )
+from dz_fastapi.services.credit_control import CreditLimitExceeded, check_customer_credit_policy
 from dz_fastapi.services.customer_orders import (
     create_manual_customer_order,
     create_manual_supplier_order,
@@ -694,6 +695,8 @@ async def create_manual_order(
             auto_process=payload.auto_process,
             order_config_id=payload.order_config_id,
         )
+    except CreditLimitExceeded as exc:
+        raise HTTPException(status_code=409, detail=exc.to_detail()) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     order = await crud_customer_order.get_by_id(
@@ -701,7 +704,16 @@ async def create_manual_order(
     )
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    return _serialize_customer_order_for_user(order, current_user)
+    response = _serialize_customer_order_for_user(order, current_user)
+    credit_check = await check_customer_credit_policy(
+        session,
+        customer_id=order.customer_id,
+    )
+    if credit_check is not None and credit_check.should_warn:
+        response = response.model_copy(
+            update={"credit_warning": credit_check.to_detail()}
+        )
+    return response
 
 
 @router.post(
@@ -718,6 +730,8 @@ async def process_manual_order_endpoint(
         order = await process_manual_customer_order(
             session=session, order_id=order_id
         )
+    except CreditLimitExceeded as exc:
+        raise HTTPException(status_code=409, detail=exc.to_detail()) from exc
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
@@ -727,7 +741,16 @@ async def process_manual_order_endpoint(
     )
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    return _serialize_customer_order_for_user(order, current_user)
+    response = _serialize_customer_order_for_user(order, current_user)
+    credit_check = await check_customer_credit_policy(
+        session,
+        customer_id=order.customer_id,
+    )
+    if credit_check is not None and credit_check.should_warn:
+        response = response.model_copy(
+            update={"credit_warning": credit_check.to_detail()}
+        )
+    return response
 
 
 @router.patch(
@@ -748,11 +771,22 @@ async def update_customer_order_item(
             status=payload.status,
             supplier_id=payload.supplier_id,
         )
+    except CreditLimitExceeded as exc:
+        raise HTTPException(status_code=409, detail=exc.to_detail()) from exc
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return _serialize_customer_order_item_for_user(item, current_user)
+    response = _serialize_customer_order_item_for_user(item, current_user)
+    credit_check = await check_customer_credit_policy(
+        session,
+        customer_id=item.order.customer_id if item.order else None,
+    )
+    if credit_check is not None and credit_check.should_warn:
+        response = response.model_copy(
+            update={"credit_warning": credit_check.to_detail()}
+        )
+    return response
 
 
 @router.post(
@@ -964,6 +998,8 @@ async def dispatch_stock_order_endpoint(
         result = await dispatch_stock_order(session, stock_order_id=order_id)
         await session.commit()
         return result
+    except CreditLimitExceeded as exc:
+        raise HTTPException(status_code=409, detail=exc.to_detail()) from exc
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:

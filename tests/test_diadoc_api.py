@@ -10,13 +10,16 @@ from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.settings import crud_diadoc_integration_settings
 from dz_fastapi.models.diadoc import DiadocIncomingDocument
 from dz_fastapi.models.inventory import (
+    LotSourceType,
     ReturnDocumentStatus,
     ReturnFromCustomer,
     ReturnItem,
     ReturnToSupplier,
     ShipmentDocument,
     ShipmentDocumentItem,
+    ShipmentDocumentItemLotAllocation,
     ShipmentDocumentStatus,
+    StockLot,
 )
 from dz_fastapi.models.partner import (
     SUPPLIER_ORDER_STATUS,
@@ -73,6 +76,7 @@ async def _login_admin(async_client, test_session):
 
 
 @pytest.mark.asyncio
+@pytest.mark.no_auth_override
 async def test_diadoc_status_and_init_require_admin(async_client, test_session, monkeypatch):
     response = await async_client.get("/diadoc/status")
     assert response.status_code == 401
@@ -900,12 +904,35 @@ async def test_diadoc_can_create_formalized_utd_from_shipment_document(
     )
     test_session.add(shipment)
     await test_session.flush()
+    shipment_item = ShipmentDocumentItem(
+        document_id=shipment.id,
+        autopart_id=created_autopart.id,
+        quantity=3,
+        price=200.0,
+    )
+    test_session.add(shipment_item)
+    await test_session.flush()
+    stock_lot = StockLot(
+        autopart_id=created_autopart.id,
+        source_type=LotSourceType.RECEIPT,
+        initial_quantity=3,
+        remaining_quantity=0,
+        marking_codes=[
+            "010460123456789021ABC123",
+            "010460123456789021ABC124",
+        ],
+    )
+    test_session.add(stock_lot)
+    await test_session.flush()
     test_session.add(
-        ShipmentDocumentItem(
-            document_id=shipment.id,
-            autopart_id=created_autopart.id,
-            quantity=3,
-            price=200.0,
+        ShipmentDocumentItemLotAllocation(
+            shipment_document_item_id=shipment_item.id,
+            stock_lot_id=stock_lot.id,
+            quantity=2,
+            marking_codes=[
+                "010460123456789021ABC123",
+                "010460123456789021ABC124",
+            ],
         )
     )
     await test_session.commit()
@@ -976,6 +1003,9 @@ async def test_diadoc_can_create_formalized_utd_from_shipment_document(
         assert "<UniversalTransferDocument" in xml_text
         assert 'Function="ДОП"' in xml_text
         assert 'TaxRate="NoVat"' in xml_text
+        assert "<ItemIdentificationNumbers>" in xml_text
+        assert "<Unit>010460123456789021ABC123</Unit>" in xml_text
+        assert "<Unit>010460123456789021ABC124</Unit>" in xml_text
         assert "<Signers>" in xml_text
         return (
             ('<?xml version="1.0" encoding="windows-1251"?>' '<Файл ИдФайл="test-utd" />').encode(

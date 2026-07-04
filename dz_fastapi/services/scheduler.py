@@ -67,6 +67,7 @@ from dz_fastapi.services.customer_orders import (
 )
 from dz_fastapi.services.diadoc_documents import sync_diadoc_incoming_documents
 from dz_fastapi.services.diadoc_integration import get_diadoc_client_for_session
+from dz_fastapi.services.diadoc_status import refresh_diadoc_outgoing_statuses
 from dz_fastapi.services.email import get_emails
 from dz_fastapi.services.inbox_email import cleanup_inbox_emails, fetch_and_store_emails
 from dz_fastapi.services.monitoring import (
@@ -179,6 +180,12 @@ FETCH_INBOX_TASK_TIMEOUT_SEC = _env_int_with_min(
 )
 DIADOC_INBOUND_SYNC_MINUTES = _env_int_with_min(
     "SCHED_DIADOC_INBOUND_EVERY_MINUTES", 15, min_value=5, max_value=59
+)
+DIADOC_OUTBOUND_STATUS_MINUTES = _env_int_with_min(
+    "SCHED_DIADOC_OUTBOUND_STATUS_EVERY_MINUTES",
+    30,
+    min_value=5,
+    max_value=59,
 )
 PRICE_PROVIDER_PROCESS_PARALLELISM = _env_int_with_min(
     "PRICE_PROVIDER_PROCESS_PARALLELISM", 1, min_value=1, max_value=4
@@ -615,6 +622,20 @@ def start_scheduler(app: FastAPI):
         hour="9-18",
         minute=_cron_minute_for_interval(DIADOC_INBOUND_SYNC_MINUTES),
         second=55,
+        replace_existing=True,
+    )
+
+    # ── 8b. Статусы исходящих Диадок-документов ──────────────────────────
+    # Рабочий день 09–19 МСК, каждые N мин
+    scheduler.add_job(
+        func=sync_diadoc_outbound_status_task,
+        trigger="cron",
+        args=[app],
+        id="sync_diadoc_outbound_status",
+        name="Refresh Diadoc outgoing document statuses",
+        hour="9-19",
+        minute=_cron_minute_for_interval(DIADOC_OUTBOUND_STATUS_MINUTES),
+        second=25,
         replace_existing=True,
     )
 
@@ -1323,23 +1344,56 @@ async def sync_diadoc_inbound_task(app: FastAPI):
                     trace.details["skipped_disabled"] = True
                     return
                 integration, client = await get_diadoc_client_for_session(session)
-                result = await sync_diadoc_incoming_documents(
-                    session=session,
-                    client=client,
-                    environment=str(integration.environment or "staging"),
-                    box_id_guid=str(integration.box_id_guid),
-                    filter_category="Any.Inbound",
-                    count=max(
-                        1, min(int(integration.inbound_sync_count or 50), 200)
-                    ),
-                    download_content=bool(integration.inbound_download_content),
-                    register_supplier_message=bool(
-                        integration.inbound_process_enabled
-                    ),
-                    process_supplier_message=bool(
-                        integration.inbound_process_enabled
-                    ),
+                # Пагинация: если за интервал пришло больше документов,
+                # чем помещается в страницу, докручиваем курсором
+                # (до 5 страниц за запуск).
+                page_count = max(
+                    1, min(int(integration.inbound_sync_count or 50), 200)
                 )
+                after_index_key = None
+                combined: dict = {}
+                for _page in range(5):
+                    result = await sync_diadoc_incoming_documents(
+                        session=session,
+                        client=client,
+                        environment=str(
+                            integration.environment or "staging"
+                        ),
+                        box_id_guid=str(integration.box_id_guid),
+                        filter_category="Any.Inbound",
+                        count=page_count,
+                        after_index_key=after_index_key,
+                        download_content=bool(
+                            integration.inbound_download_content
+                        ),
+                        register_supplier_message=bool(
+                            integration.inbound_process_enabled
+                        ),
+                        process_supplier_message=bool(
+                            integration.inbound_process_enabled
+                        ),
+                    )
+                    for key, value in result.items():
+                        if isinstance(value, (int, float)) and key in (
+                            "synced", "created", "updated", "downloaded",
+                            "registered_supplier_messages",
+                            "processed_supplier_messages",
+                            "processing_skipped", "provider_resolved",
+                            "provider_unresolved",
+                        ):
+                            combined[key] = combined.get(key, 0) + value
+                        elif key == "errors":
+                            combined.setdefault("errors", []).extend(value)
+                        else:
+                            combined[key] = value
+                    after_index_key = result.get("last_index_key")
+                    if (
+                        not result.get("has_more_results")
+                        or not after_index_key
+                        or int(result.get("created") or 0) == 0
+                    ):
+                        break
+                result = combined
                 trace.details["summary"] = result
                 integration.last_sync_at = now_moscow()
                 integration.last_error = None
@@ -1376,6 +1430,66 @@ async def sync_diadoc_inbound_task(app: FastAPI):
                     text=(
                         "Ошибка при автоматической синхронизации "
                         f"входящих документов Диадок.\nТекст ошибки: {e}"
+                    ),
+                )
+
+
+async def sync_diadoc_outbound_status_task(app: FastAPI):
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="sync_diadoc_outbound_status",
+        job_name="Refresh Diadoc outgoing statuses",
+    ) as trace:
+        logger.info("Starting sync_diadoc_outbound_status_task")
+        async_session_factory = app.state.session_factory
+        async with async_session_factory() as session:
+            try:
+                should_run, setting = await _should_run_scheduled_job(
+                    session, "diadoc_outbound_status"
+                )
+                if not should_run:
+                    trace.details["skipped_by_scheduler_setting"] = True
+                    return
+                integration = (
+                    await crud_diadoc_integration_settings.get_or_create(
+                        session
+                    )
+                )
+                if not integration.refresh_token:
+                    logger.debug(
+                        "Diadoc outbound status sync skipped: not connected"
+                    )
+                    trace.details["skipped_not_connected"] = True
+                    return
+                integration, client = await get_diadoc_client_for_session(
+                    session
+                )
+                result = await refresh_diadoc_outgoing_statuses(
+                    session,
+                    client=client,
+                    environment=str(integration.environment or "staging"),
+                )
+                trace.details["summary"] = result
+                logger.info(
+                    "Completed sync_diadoc_outbound_status_task summary=%s",
+                    result,
+                )
+                if setting:
+                    await _mark_scheduler_ran(session, setting, now_moscow())
+            except Exception as e:
+                logger.error(
+                    "Error refreshing Diadoc outgoing statuses: %s",
+                    e,
+                    exc_info=True,
+                )
+                trace.details["error"] = str(e)[:2000]
+                await _notify_scheduler_issue(
+                    session,
+                    subject="Ошибка обновления статусов Диадока",
+                    text=(
+                        "Регламент статусов исходящих документов Диадока "
+                        f"завершился с ошибкой: {e}"
                     ),
                 )
 
