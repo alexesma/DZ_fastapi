@@ -8,6 +8,7 @@
 Остальные эндпоинты — ручные выгрузки для бухгалтерии (Excel/XML) и
 управление очередью, доступны только админам.
 """
+import asyncio
 import base64
 import hashlib
 import hmac
@@ -248,7 +249,10 @@ async def export_shipments_xml(
         date_from=date_from,
         date_to=date_to,
     )
-    xml_payload = build_commerceml_sale_xml(shipments)
+    # Экспорт без лимита может быть большим — строим XML вне event loop.
+    xml_payload = await asyncio.to_thread(
+        build_commerceml_sale_xml, shipments
+    )
     return Response(
         content=xml_payload,
         media_type="application/xml; charset=utf-8",

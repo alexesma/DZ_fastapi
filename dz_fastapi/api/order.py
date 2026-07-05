@@ -5,7 +5,7 @@ from datetime import date
 from typing import Any, List, Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 
 from dz_fastapi.analytics.restock_logic import (
     evaluate_supplier_offers,
@@ -88,6 +88,7 @@ from dz_fastapi.services.autopurchase import (
     update_autopurchase_run_items_status,
 )
 from dz_fastapi.services.autopurchase_top import (
+    build_customer_order_period_report_xlsx,
     create_autopurchase_top_item,
     exclude_autopurchase_item,
     import_autopurchase_top_items,
@@ -1069,6 +1070,49 @@ async def list_current_autopurchase_top_items_view(
         days=days,
         limit=limit,
         brand=brand,
+    )
+
+
+@router.get(
+    "/autopurchase-top/customer-order-period-report",
+    summary="Excel-отчёт по заказам клиентов за два периода с остатками",
+)
+async def export_customer_order_period_report_view(
+    period1_from: Optional[date] = Query(default=None),
+    period1_to: Optional[date] = Query(default=None),
+    period2_from: Optional[date] = Query(default=None),
+    period2_to: Optional[date] = Query(default=None),
+    limit: int = Query(default=1000, ge=1, le=10000),
+    brand: Optional[str] = Query(default=None),
+    min_total_qty: int = Query(default=1, ge=0),
+    sort_by: str = Query(default="total_desc"),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        content = await build_customer_order_period_report_xlsx(
+            session=session,
+            period1_from=period1_from,
+            period1_to=period1_to,
+            period2_from=period2_from,
+            period2_to=period2_to,
+            limit=limit,
+            brand=brand,
+            min_total_qty=min_total_qty,
+            sort_by=sort_by,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    filename = f"customer_order_period_report_{int(time.time())}.xlsx"
+    return Response(
+        content=content,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet"
+        ),
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        },
     )
 
 

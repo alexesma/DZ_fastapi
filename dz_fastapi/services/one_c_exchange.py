@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import xml.etree.ElementTree as ET
 from datetime import date, datetime
@@ -253,7 +254,10 @@ async def reset_shipments_sync_status(
     return len(rows)
 
 
-def _df_to_xlsx_bytes(df: pd.DataFrame, sheet_name: str) -> bytes:
+def _rows_to_xlsx_bytes(rows: list[dict], sheet_name: str) -> bytes:
+    """CPU-bound (pandas+openpyxl): вызывать только через to_thread,
+    иначе генерация большого файла блокирует весь event loop."""
+    df = pd.DataFrame(rows)
     buffer = BytesIO()
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
         df.to_excel(writer, index=False, sheet_name=sheet_name)
@@ -308,8 +312,9 @@ async def build_shipments_xlsx(
                     ),
                 }
             )
-    df = pd.DataFrame(rows)
-    return _df_to_xlsx_bytes(df, "Реализации")
+    return await asyncio.to_thread(
+        _rows_to_xlsx_bytes, rows, "Реализации"
+    )
 
 
 async def build_receipts_xlsx(
@@ -367,8 +372,9 @@ async def build_receipts_xlsx(
                     "Страна": item.country_name or item.country_code or "",
                 }
             )
-    df = pd.DataFrame(rows)
-    return _df_to_xlsx_bytes(df, "Поступления")
+    return await asyncio.to_thread(
+        _rows_to_xlsx_bytes, rows, "Поступления"
+    )
 
 
 async def build_counterparties_xlsx(session: AsyncSession) -> bytes:
@@ -417,8 +423,9 @@ async def build_counterparties_xlsx(session: AsyncSession) -> bytes:
                 "Почтовый адрес": "",
             }
         )
-    df = pd.DataFrame(rows)
-    return _df_to_xlsx_bytes(df, "Контрагенты")
+    return await asyncio.to_thread(
+        _rows_to_xlsx_bytes, rows, "Контрагенты"
+    )
 
 
 async def build_nomenclature_xlsx(session: AsyncSession) -> bytes:
@@ -434,20 +441,20 @@ async def build_nomenclature_xlsx(session: AsyncSession) -> bytes:
         .order_by(Brand.name.asc(), AutoPart.oem_number.asc())
     )
     rows = (await session.execute(stmt)).mappings().all()
-    df = pd.DataFrame(
-        [
-            {
-                "Код": f"dz-autopart-{row['id']}",
-                "Артикул": row["oem_number"],
-                "Бренд": row["brand_name"],
-                "Наименование": row["name"] or "",
-                "Штрихкод": row["barcode"] or "",
-                "Ед.": "шт",
-            }
-            for row in rows
-        ]
+    payload_rows = [
+        {
+            "Код": f"dz-autopart-{row['id']}",
+            "Артикул": row["oem_number"],
+            "Бренд": row["brand_name"],
+            "Наименование": row["name"] or "",
+            "Штрихкод": row["barcode"] or "",
+            "Ед.": "шт",
+        }
+        for row in rows
+    ]
+    return await asyncio.to_thread(
+        _rows_to_xlsx_bytes, payload_rows, "Номенклатура"
     )
-    return _df_to_xlsx_bytes(df, "Номенклатура")
 
 
 async def get_one_c_exchange_status(
@@ -531,20 +538,14 @@ def _parse_sales_period(value: Any) -> Optional[date]:
     return parsed.date().replace(day=1)
 
 
-async def import_sales_history_xlsx(
-    session: AsyncSession,
+def _parse_sales_history_payload(
     payload: bytes,
-) -> dict[str, Any]:
-    """Загружает месячную историю продаж из Excel (выгрузка 1С).
+) -> tuple[dict[tuple, dict[str, Any]], int, int]:
+    """CPU-bound разбор Excel: вызывать через to_thread.
 
-    Ожидаемые колонки (регистр не важен): Период/Месяц/Дата,
-    Артикул/OEM, Бренд/Производитель, Количество/Кол-во,
-    Выручка/Сумма (необязательно). Данные агрегируются в месяц и
-    апсертятся по (период, артикул, бренд) — повторная загрузка того
-    же файла безопасна.
+    Возвращает (агрегат по (период, артикул, бренд), пропущено, строк).
     """
     from dz_fastapi.models.autopart import preprocess_oem_number
-    from dz_fastapi.models.partner import SalesHistoryMonthly
 
     df = pd.read_excel(BytesIO(payload))
     columns = _resolve_sales_columns(df)
@@ -593,19 +594,51 @@ async def import_sales_history_xlsx(
         bucket["quantity"] += quantity
         if revenue is not None:
             bucket["revenue"] = (bucket["revenue"] or 0.0) + revenue
+    return aggregated, skipped, int(len(df))
+
+
+async def import_sales_history_xlsx(
+    session: AsyncSession,
+    payload: bytes,
+) -> dict[str, Any]:
+    """Загружает месячную историю продаж из Excel (выгрузка 1С).
+
+    Ожидаемые колонки (регистр не важен): Период/Месяц/Дата,
+    Артикул/OEM, Бренд/Производитель, Количество/Кол-во,
+    Выручка/Сумма (необязательно). Данные агрегируются в месяц и
+    апсертятся по (период, артикул, бренд) — повторная загрузка того
+    же файла безопасна. Разбор файла идёт в отдельном потоке,
+    существующие записи выбираются одним запросом по периодам.
+    """
+    from dz_fastapi.models.partner import SalesHistoryMonthly
+
+    aggregated, skipped, rows_in_file = await asyncio.to_thread(
+        _parse_sales_history_payload, payload
+    )
+
+    periods = sorted({key[0] for key in aggregated})
+    existing_by_key: dict[tuple, SalesHistoryMonthly] = {}
+    if periods:
+        existing_rows = (
+            await session.execute(
+                select(SalesHistoryMonthly).where(
+                    SalesHistoryMonthly.period.in_(periods)
+                )
+            )
+        ).scalars().all()
+        existing_by_key = {
+            (
+                row.period,
+                row.oem_number,
+                str(row.brand_name or ""),
+            ): row
+            for row in existing_rows
+        }
 
     created = 0
     updated = 0
     for (period, oem, brand), values in aggregated.items():
-        existing = (
-            await session.execute(
-                select(SalesHistoryMonthly).where(
-                    SalesHistoryMonthly.period == period,
-                    SalesHistoryMonthly.oem_number == oem,
-                    SalesHistoryMonthly.brand_name == (brand or None),
-                )
-            )
-        ).scalars().first()
+        existing = existing_by_key.get((period, oem, brand))
         if existing is None:
             session.add(
                 SalesHistoryMonthly(
@@ -624,7 +657,7 @@ async def import_sales_history_xlsx(
             updated += 1
     await session.commit()
     return {
-        "rows_in_file": int(len(df)),
+        "rows_in_file": rows_in_file,
         "created": created,
         "updated": updated,
         "skipped": skipped,

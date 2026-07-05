@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import io
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 from typing import Any, Optional
 
 import pandas as pd
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +26,8 @@ from dz_fastapi.models.partner import (
 
 TOP_SOURCE_FILE = "file"
 TOP_SOURCE_CURRENT = "current"
+REPORT_HEADER_FILL = "F6EDC5"
+REPORT_BORDER = Side(style="thin", color="000000")
 
 
 def _normalize_oem(value: Any) -> str:
@@ -61,6 +67,58 @@ def _normalize_brand_filters(value: str | None) -> list[str]:
 
 def _normalize_brand_key(value: Any) -> str:
     return _normalize_text(value).casefold()
+
+
+def _default_periods(today: date) -> tuple[date, date, date, date]:
+    return (
+        date(today.year - 1, 6, 1),
+        date(today.year - 1, 12, 31),
+        date(today.year, 1, 1),
+        today,
+    )
+
+
+def _format_report_date(value: date) -> str:
+    month_names = [
+        "",
+        "января",
+        "февраля",
+        "марта",
+        "апреля",
+        "мая",
+        "июня",
+        "июля",
+        "августа",
+        "сентября",
+        "октября",
+        "ноября",
+        "декабря",
+    ]
+    return f"{value.day} {month_names[value.month]} {value.year} г."
+
+
+def _format_report_period(start: date, end: date) -> str:
+    month_names = [
+        "",
+        "Январь",
+        "Февраль",
+        "Март",
+        "Апрель",
+        "Май",
+        "Июнь",
+        "Июль",
+        "Август",
+        "Сентябрь",
+        "Октябрь",
+        "Ноябрь",
+        "Декабрь",
+    ]
+    if start.day == 1 and end.day >= 28 and start.year == end.year:
+        return (
+            f"{month_names[start.month]} {start.year} г. - "
+            f"{month_names[end.month]} {end.year} г."
+        )
+    return f"{start.strftime('%d.%m.%Y')} - {end.strftime('%d.%m.%Y')}"
 
 
 def _pick_best_name(current: str | None, candidate: Any) -> str | None:
@@ -668,3 +726,231 @@ async def list_current_autopurchase_top_items(
         "total_items": len(rows),
         "rows": rows,
     }
+
+
+async def build_customer_order_period_report_xlsx(
+    session: AsyncSession,
+    *,
+    period1_from: date | None = None,
+    period1_to: date | None = None,
+    period2_from: date | None = None,
+    period2_to: date | None = None,
+    limit: int = 1000,
+    brand: Optional[str] = None,
+    min_total_qty: int = 1,
+    sort_by: str = "total_desc",
+) -> bytes:
+    today = now_moscow().date()
+    default_p1_from, default_p1_to, default_p2_from, default_p2_to = (
+        _default_periods(today)
+    )
+    p1_from = period1_from or default_p1_from
+    p1_to = period1_to or default_p1_to
+    p2_from = period2_from or default_p2_from
+    p2_to = period2_to or default_p2_to
+    if p1_from > p1_to:
+        raise ValueError("Дата начала периода 1 позже даты окончания")
+    if p2_from > p2_to:
+        raise ValueError("Дата начала периода 2 позже даты окончания")
+
+    normalized_limit = max(min(int(limit or 1000), 10000), 1)
+    normalized_min_total_qty = max(int(min_total_qty or 0), 0)
+    normalized_sort_by = _normalize_text(sort_by or "total_desc").lower()
+    normalized_brands = _normalize_brand_filters(brand)
+    order_date = func.date(CustomerOrder.received_at)
+    stmt = (
+        select(
+            order_date.label("order_date"),
+            CustomerOrderItem.oem,
+            CustomerOrderItem.brand,
+            CustomerOrderItem.name,
+            CustomerOrderItem.requested_qty,
+            CustomerOrderItem.requested_price,
+        )
+        .join(CustomerOrder, CustomerOrder.id == CustomerOrderItem.order_id)
+        .where(
+            CustomerOrderItem.requested_qty.isnot(None),
+            CustomerOrderItem.requested_qty > 0,
+            or_(
+                order_date.between(p1_from, p1_to),
+                order_date.between(p2_from, p2_to),
+            ),
+        )
+    )
+    if normalized_brands:
+        stmt = stmt.where(
+            or_(*[
+                func.lower(CustomerOrderItem.brand).contains(item)
+                for item in normalized_brands
+            ])
+        )
+
+    grouped: dict[tuple[str, str], dict[str, Any]] = {}
+    for row in (await session.execute(stmt)).all():
+        oem_number = _normalize_oem(row.oem)
+        if not oem_number:
+            continue
+        brand_name = _normalize_text(row.brand) or ""
+        key = (oem_number, _normalize_brand_key(brand_name))
+        item = grouped.setdefault(
+            key,
+            {
+                "oem_number": oem_number,
+                "brand_name": brand_name or None,
+                "autopart_name": None,
+                "period1_qty": 0,
+                "period2_qty": 0,
+                "period1_amount": Decimal("0"),
+                "period1_price_qty": 0,
+            },
+        )
+        item["autopart_name"] = _pick_best_name(
+            item.get("autopart_name"),
+            row.name,
+        )
+        qty = max(int(row.requested_qty or 0), 0)
+        if not qty:
+            continue
+        row_date = row.order_date
+        if isinstance(row_date, datetime):
+            row_date = row_date.date()
+        elif isinstance(row_date, str):
+            row_date = date.fromisoformat(row_date[:10])
+        requested_price = row.requested_price
+        if p1_from <= row_date <= p1_to:
+            item["period1_qty"] = int(item["period1_qty"]) + qty
+            if requested_price is not None:
+                item["period1_amount"] = Decimal(
+                    item["period1_amount"]
+                ) + Decimal(str(requested_price)) * qty
+                item["period1_price_qty"] = int(item["period1_price_qty"]) + qty
+        elif p2_from <= row_date <= p2_to:
+            item["period2_qty"] = int(item["period2_qty"]) + qty
+
+    stock_by_oem = await _load_latest_own_stock_by_oem(session)
+    rows = [
+        item
+        for item in grouped.values()
+        if (
+            int(item.get("period1_qty") or 0)
+            + int(item.get("period2_qty") or 0)
+        )
+        >= normalized_min_total_qty
+    ]
+
+    def sort_key(item: dict[str, Any]) -> tuple[Any, ...]:
+        if normalized_sort_by == "period1_desc":
+            return (
+                -int(item.get("period1_qty") or 0),
+                str(item.get("brand_name") or ""),
+                str(item.get("oem_number") or ""),
+            )
+        if normalized_sort_by == "period2_desc":
+            return (
+                -int(item.get("period2_qty") or 0),
+                str(item.get("brand_name") or ""),
+                str(item.get("oem_number") or ""),
+            )
+        if normalized_sort_by == "brand_oem":
+            return (
+                str(item.get("brand_name") or ""),
+                str(item.get("oem_number") or ""),
+            )
+        return (
+            -(
+                int(item.get("period1_qty") or 0)
+                + int(item.get("period2_qty") or 0)
+            ),
+            str(item.get("brand_name") or ""),
+            str(item.get("oem_number") or ""),
+        )
+
+    rows = sorted(rows, key=sort_key)[:normalized_limit]
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "TDSheet"
+    ws.sheet_view.showGridLines = False
+
+    ws.merge_cells("A1:G1")
+    ws.merge_cells("A2:G2")
+    ws["A1"] = "Заказы клиентов по периодам с остатками"
+    ws["A2"] = (
+        f"Остатки на дату {_format_report_date(p2_to)}. "
+        f"Период 1: {_format_report_period(p1_from, p1_to)}. "
+        f"Период 2: {_format_report_period(p2_from, p2_to)}"
+    )
+    ws["A1"].font = Font(name="Arial", size=12, bold=True)
+    ws["A2"].font = Font(name="Arial", size=10)
+    ws["A2"].alignment = Alignment(wrap_text=True, vertical="top")
+
+    headers = [
+        "Артикул",
+        "Производитель",
+        "Наименование",
+        "Кол-во на складе(Остаток)",
+        "Кол-во заказанных клиентами позиций за период 1",
+        "Кол-во заказанных клиентами позиций за период 2",
+        "Средняя цена заказа единицы за период 1",
+    ]
+    ws.append([])
+    ws.append(headers)
+    header_row = 4
+    for cell in ws[header_row]:
+        cell.fill = PatternFill("solid", fgColor=REPORT_HEADER_FILL)
+        cell.font = Font(name="Arial", bold=True, size=10)
+        cell.alignment = Alignment(
+            horizontal="center",
+            vertical="center",
+            wrap_text=True,
+        )
+        cell.border = Border(
+            left=REPORT_BORDER,
+            right=REPORT_BORDER,
+            top=REPORT_BORDER,
+            bottom=REPORT_BORDER,
+        )
+    ws.row_dimensions[header_row].height = 52
+
+    for item in rows:
+        period1_qty = int(item.get("period1_qty") or 0)
+        period2_qty = int(item.get("period2_qty") or 0)
+        price_qty = int(item.get("period1_price_qty") or 0)
+        avg_price = None
+        if price_qty > 0:
+            avg_price = float(Decimal(item["period1_amount"]) / price_qty)
+        ws.append(
+            [
+                item.get("oem_number") or "",
+                item.get("brand_name") or "",
+                item.get("autopart_name") or "",
+                stock_by_oem.get(str(item.get("oem_number") or ""), 0),
+                period1_qty,
+                period2_qty,
+                avg_price,
+            ]
+        )
+
+    for row in ws.iter_rows(min_row=5, max_row=ws.max_row, min_col=1, max_col=7):
+        for cell in row:
+            cell.font = Font(name="Arial", size=10)
+            cell.border = Border(
+                left=REPORT_BORDER,
+                right=REPORT_BORDER,
+                top=REPORT_BORDER,
+                bottom=REPORT_BORDER,
+            )
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
+        for idx in range(4, 8):
+            row[idx - 1].alignment = Alignment(horizontal="right", vertical="top")
+            row[idx - 1].number_format = "#,##0.00" if idx == 7 else "#,##0"
+
+    widths = [18, 18, 44, 18, 22, 22, 22]
+    for index, width in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(index)].width = width
+    ws.freeze_panes = "A5"
+    ws.auto_filter.ref = f"A4:G{max(ws.max_row, 4)}"
+
+    output = io.BytesIO()
+    wb.save(output)
+    return output.getvalue()
