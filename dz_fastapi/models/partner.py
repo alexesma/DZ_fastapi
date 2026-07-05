@@ -256,6 +256,13 @@ class Provider(Client):
     order_schedule_days = Column(JSON, default=[])
     order_schedule_times = Column(JSON, default=[])
     order_schedule_enabled = Column(Boolean, default=False)
+    # Рекламации/возвраты поставщику: принимает ли возвраты вообще,
+    # его срок возврата (дней от нашего поступления), список брендов,
+    # которые он НЕ принимает, и email для запросов возврата.
+    return_allowed = Column(Boolean, default=True, nullable=False)
+    return_window_days = Column(Integer, nullable=True)
+    return_blocked_brands = Column(JSON, default=list)
+    return_request_email = Column(String(255), nullable=True)
     supplier_response_allow_shipping_docs = Column(
         Boolean,
         default=True,
@@ -346,6 +353,16 @@ class Customer(Client):
         String(16),
         default=CUSTOMER_CREDIT_CONTROL_MODE.OFF.value,
         nullable=False,
+    )
+    # Рекламации: наш срок приёма возврата от клиента (дней от отгрузки).
+    # None → берём дефолт из настроек.
+    return_window_days = Column(Integer, nullable=True)
+
+    reclamation_emails = relationship(
+        "CustomerReclamationEmail",
+        back_populates="customer",
+        cascade="all, delete-orphan",
+        lazy="selectin",
     )
 
     payment_invoices = relationship(
@@ -1395,4 +1412,316 @@ class SalesHistoryMonthly(Base):
             "brand_name",
             name="uq_sales_history_period_oem_brand",
         ),
+    )
+
+
+@unique
+class RECLAMATION_SOURCE(StrEnum):
+    EMAIL = "email"          # письмо на почту рекламаций
+    LINK = "link"            # ссылка на портал клиента
+    MANUAL = "manual"        # заведено вручную
+
+
+@unique
+class RECLAMATION_TYPE(StrEnum):
+    CUSTOMER_REFUSAL = "customer_refusal"  # отказ клиента (большинство)
+    DEFECT = "defect"                      # брак
+    OTHER = "other"
+
+
+@unique
+class RECLAMATION_STATUS(StrEnum):
+    NEW = "new"                          # только пришла, не распознана
+    RECOGNIZED = "recognized"            # поля извлечены, ждёт проверки
+    CHECKED = "checked"                  # проверена, есть рекомендация
+    WAITING_DOCS = "waiting_docs"        # ждём документы от клиента (брак)
+    WAITING_SUPPLIER = "waiting_supplier"  # отправлен запрос поставщику
+    APPROVED = "approved"                # согласована
+    REJECTED = "rejected"                # отклонена
+    CLOSED = "closed"                    # закрыта
+
+
+@unique
+class RECLAMATION_ITEM_SOURCE(StrEnum):
+    UNKNOWN = "unknown"
+    OUR_STOCK = "our_stock"          # товар был с нашего склада
+    SUPPLIER_TRANSIT = "supplier_transit"  # транзит от поставщика
+
+
+@unique
+class RECLAMATION_ATTACHMENT_KIND(StrEnum):
+    REMOVAL_ORDER = "removal_order"        # заказ-наряд на снятие
+    INSTALLATION_ORDER = "installation_order"  # заказ-наряд на установку
+    DEFECT_REPORT = "defect_report"        # дефектовка
+    PHOTO = "photo"                        # фото запчасти
+    OTHER = "other"
+
+
+@unique
+class EMAIL_OUTBOX_STATUS(StrEnum):
+    PENDING = "pending"    # ждёт отправки релеем
+    SENT = "sent"
+    ERROR = "error"
+    CANCELLED = "cancelled"
+
+
+class CustomerReclamationEmail(Base):
+    """Адрес(а) почты клиента, с которых приходят рекламации.
+
+    У одного клиента может быть несколько адресов; по адресу отправителя
+    входящего письма определяем клиента.
+    """
+
+    __tablename__ = "customerreclamationemail"
+
+    customer_id = Column(
+        Integer,
+        ForeignKey("customer.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    email = Column(String(255), nullable=False, index=True)
+    comment = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
+
+    customer = relationship(
+        "Customer", back_populates="reclamation_emails", lazy="joined"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("email", name="uq_customer_reclamation_email"),
+    )
+
+
+class Reclamation(Base):
+    """Рекламация (претензия) от клиента."""
+
+    __tablename__ = "reclamation"
+
+    source = Column(
+        SAEnum(
+            RECLAMATION_SOURCE,
+            name="reclamationsource",
+            values_callable=lambda enum: [e.value for e in enum],
+        ),
+        nullable=False,
+        default=RECLAMATION_SOURCE.EMAIL,
+    )
+    status = Column(
+        SAEnum(
+            RECLAMATION_STATUS,
+            name="reclamationstatus",
+            values_callable=lambda enum: [e.value for e in enum],
+        ),
+        nullable=False,
+        default=RECLAMATION_STATUS.NEW,
+        index=True,
+    )
+    reclamation_type = Column(
+        SAEnum(
+            RECLAMATION_TYPE,
+            name="reclamationtype",
+            values_callable=lambda enum: [e.value for e in enum],
+        ),
+        nullable=True,
+    )
+
+    customer_id = Column(
+        Integer,
+        ForeignKey("customer.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    # Кем/чем идентифицирован источник
+    sender_email = Column(String(255), nullable=True, index=True)
+    source_link = Column(String(1024), nullable=True)
+
+    # Данные исходного письма (для ответа в тот же тред)
+    email_message_id = Column(String(512), nullable=True, index=True)
+    email_subject = Column(String(998), nullable=True)
+    email_received_at = Column(DateTime(timezone=True), nullable=True)
+    email_body = Column(Text, nullable=True)
+
+    # Распознанные из письма поля (номер/дата документа отгрузки, причина)
+    stated_document_number = Column(String(120), nullable=True)
+    stated_document_date = Column(Date, nullable=True)
+    stated_reason = Column(Text, nullable=True)
+    # Извлечённое AI/регулярками (JSON) — для отладки и правки
+    extracted_data = Column(JSON, default=dict)
+
+    # Итог проверки: чек-лист с объяснением + рекомендация
+    check_result = Column(JSON, default=dict)
+    recommendation = Column(String(64), nullable=True)
+
+    # Решение менеджера
+    resolution = Column(String(64), nullable=True)
+    resolution_comment = Column(Text, nullable=True)
+    resolved_by_user_id = Column(
+        Integer, ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Связь с созданным возвратом от клиента (если согласовали)
+    return_from_customer_id = Column(
+        Integer,
+        ForeignKey("returnfromcustomer.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        onupdate=now_moscow,
+    )
+
+    customer = relationship("Customer", lazy="joined")
+    resolved_by_user = relationship(
+        "User", foreign_keys=[resolved_by_user_id], lazy="noload"
+    )
+    items = relationship(
+        "ReclamationItem",
+        back_populates="reclamation",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    attachments = relationship(
+        "ReclamationAttachment",
+        back_populates="reclamation",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+
+class ReclamationItem(Base):
+    """Позиция рекламации."""
+
+    __tablename__ = "reclamationitem"
+
+    reclamation_id = Column(
+        Integer,
+        ForeignKey("reclamation.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    oem_number = Column(String(120), nullable=True, index=True)
+    brand_name = Column(String(120), nullable=True)
+    autopart_name = Column(String(512), nullable=True)
+    quantity = Column(Integer, nullable=False, default=1)
+    reason = Column(Text, nullable=True)
+
+    # Определённый источник товара и найденные связи (заполняет движок)
+    item_source = Column(
+        SAEnum(
+            RECLAMATION_ITEM_SOURCE,
+            name="reclamationitemsource",
+            values_callable=lambda enum: [e.value for e in enum],
+        ),
+        nullable=False,
+        default=RECLAMATION_ITEM_SOURCE.UNKNOWN,
+    )
+    autopart_id = Column(
+        Integer, ForeignKey("autopart.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    shipment_item_id = Column(
+        Integer,
+        ForeignKey("shipmentdocumentitem.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    stock_lot_id = Column(
+        Integer,
+        ForeignKey("stocklot.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    source_provider_id = Column(
+        Integer,
+        ForeignKey("provider.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    reclamation = relationship(
+        "Reclamation", back_populates="items", lazy="noload"
+    )
+
+
+class ReclamationAttachment(Base):
+    """Вложение рекламации с классификацией типа документа."""
+
+    __tablename__ = "reclamationattachment"
+
+    reclamation_id = Column(
+        Integer,
+        ForeignKey("reclamation.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    kind = Column(
+        SAEnum(
+            RECLAMATION_ATTACHMENT_KIND,
+            name="reclamationattachmentkind",
+            values_callable=lambda enum: [e.value for e in enum],
+        ),
+        nullable=False,
+        default=RECLAMATION_ATTACHMENT_KIND.OTHER,
+    )
+    file_name = Column(String(512), nullable=True)
+    content_type = Column(String(255), nullable=True)
+    local_file_path = Column(String(1024), nullable=True)
+    size_bytes = Column(Integer, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
+
+    reclamation = relationship(
+        "Reclamation", back_populates="attachments", lazy="noload"
+    )
+
+
+class EmailOutbox(Base):
+    """Очередь исходящих писем «от Яндекс-адреса».
+
+    Исходящие SMTP-порты на проде закрыты хостером — письма кладём в
+    очередь, а внешний релей забирает их по HTTPS и отправляет через
+    smtp.yandex.ru. Вложения хранятся на диске (пути в attachments JSON).
+    """
+
+    __tablename__ = "emailoutbox"
+
+    status = Column(
+        SAEnum(
+            EMAIL_OUTBOX_STATUS,
+            name="emailoutboxstatus",
+            values_callable=lambda enum: [e.value for e in enum],
+        ),
+        nullable=False,
+        default=EMAIL_OUTBOX_STATUS.PENDING,
+        index=True,
+    )
+    from_email = Column(String(255), nullable=True)
+    to_email = Column(String(255), nullable=False)
+    subject = Column(String(998), nullable=True)
+    body_text = Column(Text, nullable=True)
+    body_html = Column(Text, nullable=True)
+    # Заголовки для вставки ответа в тред клиента
+    in_reply_to = Column(String(512), nullable=True)
+    references = Column(Text, nullable=True)
+    reply_to = Column(String(255), nullable=True)
+    # [{"file_name", "local_file_path", "content_type"}]
+    attachments = Column(JSON, default=list)
+
+    # Кто породил письмо (для трейсинга/статистики)
+    source_type = Column(String(64), nullable=True, index=True)
+    source_id = Column(Integer, nullable=True, index=True)
+
+    attempts = Column(Integer, default=0, nullable=False)
+    last_error = Column(String(2000), nullable=True)
+    sent_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        onupdate=now_moscow,
     )

@@ -39,6 +39,7 @@ from dz_fastapi.models.partner import (
     CustomerPriceListAutoPartAssociation,
     CustomerPriceListConfig,
     CustomerPriceListSource,
+    CustomerReclamationEmail,
     PriceList,
     Provider,
     ProviderPriceListConfig,
@@ -70,6 +71,8 @@ from dz_fastapi.schemas.partner import (
     CustomerPriceListSourceCreate,
     CustomerPriceListSourceResponse,
     CustomerPriceListSourceUpdate,
+    CustomerReclamationEmailCreate,
+    CustomerReclamationEmailOut,
     CustomerResponse,
     CustomerResponseShort,
     CustomerUpdate,
@@ -2895,4 +2898,88 @@ async def get_today_order_windows(
         "generated_at": _now().isoformat(),
         "windows": data,
     }
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ── Почты клиента для рекламаций ─────────────────────────────────────────
+
+
+@router.get(
+    "/customers/{customer_id}/reclamation-emails",
+    response_model=List[CustomerReclamationEmailOut],
+    tags=["customer", "reclamation"],
+    summary="Список почт клиента для рекламаций",
+)
+async def list_customer_reclamation_emails(
+    customer_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    rows = (
+        await session.execute(
+            select(CustomerReclamationEmail)
+            .where(CustomerReclamationEmail.customer_id == customer_id)
+            .order_by(CustomerReclamationEmail.id.asc())
+        )
+    ).scalars().all()
+    return [CustomerReclamationEmailOut.model_validate(row) for row in rows]
+
+
+@router.post(
+    "/customers/{customer_id}/reclamation-emails",
+    response_model=CustomerReclamationEmailOut,
+    status_code=status.HTTP_201_CREATED,
+    tags=["customer", "reclamation"],
+    summary="Добавить почту клиента для рекламаций",
+)
+async def add_customer_reclamation_email(
+    customer_id: int,
+    payload: CustomerReclamationEmailCreate,
+    session: AsyncSession = Depends(get_session),
+):
+    customer = await session.get(Customer, customer_id)
+    if customer is None:
+        raise HTTPException(status_code=404, detail="Клиент не найден")
+    normalized = str(payload.email).strip().lower()
+    existing = (
+        await session.execute(
+            select(CustomerReclamationEmail).where(
+                CustomerReclamationEmail.email == normalized
+            )
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Этот адрес уже закреплён за клиентом "
+                f"#{existing.customer_id}"
+            ),
+        )
+    row = CustomerReclamationEmail(
+        customer_id=customer_id,
+        email=normalized,
+        comment=(payload.comment or None),
+    )
+    session.add(row)
+    await session.commit()
+    await session.refresh(row)
+    return CustomerReclamationEmailOut.model_validate(row)
+
+
+@router.delete(
+    "/customers/{customer_id}/reclamation-emails/{email_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["customer", "reclamation"],
+    summary="Удалить почту клиента для рекламаций",
+)
+async def delete_customer_reclamation_email(
+    customer_id: int,
+    email_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    row = await session.get(CustomerReclamationEmail, email_id)
+    if row is None or row.customer_id != customer_id:
+        raise HTTPException(status_code=404, detail="Адрес не найден")
+    await session.delete(row)
+    await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

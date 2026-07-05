@@ -90,6 +90,11 @@ class ProviderBase(ClientBase):
     default_delivery_method: Optional[ProviderDeliveryMethod] = (
         ProviderDeliveryMethod.DELIVERED
     )
+    # Рекламации/возвраты поставщику
+    return_allowed: Optional[bool] = True
+    return_window_days: Optional[int] = Field(default=None, ge=0)
+    return_blocked_brands: Optional[List[str]] = None
+    return_request_email: Optional[str] = None
 
     @field_validator("inn", "kpp", mode="before")
     def normalize_provider_tax_fields(cls, v):
@@ -153,6 +158,10 @@ class ProviderUpdate(BaseModel):
     supplier_response_comment_col: Optional[int] = Field(default=None, ge=1)
     supplier_response_status_col: Optional[int] = Field(default=None, ge=1)
     default_delivery_method: Optional[ProviderDeliveryMethod] = None
+    return_allowed: Optional[bool] = None
+    return_window_days: Optional[int] = Field(default=None, ge=0)
+    return_blocked_brands: Optional[List[str]] = None
+    return_request_email: Optional[str] = None
 
     @field_validator("email_contact", "email_incoming_price", mode="before")
     def empty_to_none(cls, v):
@@ -188,6 +197,8 @@ class CustomerBase(ClientBase):
     credit_control_mode: str = Field(default="off")
     credit_limit: Optional[Decimal] = Field(default=None, ge=0)
     payment_terms_days: int = Field(default=0, ge=0)
+    # Рекламации: наш срок приёма возврата от клиента (дней от отгрузки)
+    return_window_days: Optional[int] = Field(default=None, ge=0)
 
     @field_validator("email_outgoing_price", mode="before")
     def validate_email_outgoing_price(cls, v):
@@ -401,6 +412,20 @@ class CustomerExternalReferenceOut(CustomerExternalReferenceBase):
     customer_id: int
     created_at: datetime
     updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CustomerReclamationEmailCreate(BaseModel):
+    email: EmailStr
+    comment: Optional[str] = Field(default=None, max_length=255)
+
+
+class CustomerReclamationEmailOut(BaseModel):
+    id: int
+    customer_id: int
+    email: str
+    comment: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
