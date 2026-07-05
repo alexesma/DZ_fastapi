@@ -631,6 +631,40 @@ class AutoPurchaseTopImportResponse(BaseModel):
     total_active: int = 0
 
 
+class CustomerOrderPeriodReportSummary(BaseModel):
+    period1_qty: int = 0
+    period2_qty: int = 0
+    total_qty: int = 0
+    stock_qty: int = 0
+
+
+class CustomerOrderPeriodReportRow(BaseModel):
+    oem_number: str
+    brand_name: Optional[str] = None
+    autopart_name: Optional[str] = None
+    current_quantity: int = 0
+    period1_qty: int = 0
+    period2_qty: int = 0
+    total_qty: int = 0
+    period1_avg_price: Optional[float] = None
+
+
+class CustomerOrderPeriodReportResponse(BaseModel):
+    period1_from: date
+    period1_to: date
+    period2_from: date
+    period2_to: date
+    brand: Optional[str] = None
+    limit: int = 1000
+    min_total_qty: int = 1
+    sort_by: str = "total_desc"
+    total_items: int = 0
+    summary: CustomerOrderPeriodReportSummary = Field(
+        default_factory=CustomerOrderPeriodReportSummary
+    )
+    rows: List[CustomerOrderPeriodReportRow] = Field(default_factory=list)
+
+
 class AutoPurchaseRunItemOut(AutoPurchasePreviewRow):
     id: int
     run_id: int

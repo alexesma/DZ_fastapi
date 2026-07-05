@@ -728,7 +728,7 @@ async def list_current_autopurchase_top_items(
     }
 
 
-async def build_customer_order_period_report_xlsx(
+async def build_customer_order_period_report_data(
     session: AsyncSession,
     *,
     period1_from: date | None = None,
@@ -739,7 +739,7 @@ async def build_customer_order_period_report_xlsx(
     brand: Optional[str] = None,
     min_total_qty: int = 1,
     sort_by: str = "total_desc",
-) -> bytes:
+) -> dict[str, Any]:
     today = now_moscow().date()
     default_p1_from, default_p1_to, default_p2_from, default_p2_to = (
         _default_periods(today)
@@ -828,7 +828,7 @@ async def build_customer_order_period_report_xlsx(
             item["period2_qty"] = int(item["period2_qty"]) + qty
 
     stock_by_oem = await _load_latest_own_stock_by_oem(session)
-    rows = [
+    raw_rows = [
         item
         for item in grouped.values()
         if (
@@ -865,7 +865,77 @@ async def build_customer_order_period_report_xlsx(
             str(item.get("oem_number") or ""),
         )
 
-    rows = sorted(rows, key=sort_key)[:normalized_limit]
+    raw_rows = sorted(raw_rows, key=sort_key)[:normalized_limit]
+    rows: list[dict[str, Any]] = []
+    for item in raw_rows:
+        period1_qty = int(item.get("period1_qty") or 0)
+        period2_qty = int(item.get("period2_qty") or 0)
+        price_qty = int(item.get("period1_price_qty") or 0)
+        avg_price = None
+        if price_qty > 0:
+            avg_price = float(Decimal(item["period1_amount"]) / price_qty)
+        oem_number = str(item.get("oem_number") or "")
+        rows.append(
+            {
+                "oem_number": oem_number,
+                "brand_name": item.get("brand_name"),
+                "autopart_name": item.get("autopart_name"),
+                "current_quantity": stock_by_oem.get(oem_number, 0),
+                "period1_qty": period1_qty,
+                "period2_qty": period2_qty,
+                "total_qty": period1_qty + period2_qty,
+                "period1_avg_price": avg_price,
+            }
+        )
+
+    return {
+        "period1_from": p1_from,
+        "period1_to": p1_to,
+        "period2_from": p2_from,
+        "period2_to": p2_to,
+        "brand": brand,
+        "limit": normalized_limit,
+        "min_total_qty": normalized_min_total_qty,
+        "sort_by": normalized_sort_by,
+        "total_items": len(rows),
+        "summary": {
+            "period1_qty": sum(int(row["period1_qty"]) for row in rows),
+            "period2_qty": sum(int(row["period2_qty"]) for row in rows),
+            "total_qty": sum(int(row["total_qty"]) for row in rows),
+            "stock_qty": sum(int(row["current_quantity"]) for row in rows),
+        },
+        "rows": rows,
+    }
+
+
+async def build_customer_order_period_report_xlsx(
+    session: AsyncSession,
+    *,
+    period1_from: date | None = None,
+    period1_to: date | None = None,
+    period2_from: date | None = None,
+    period2_to: date | None = None,
+    limit: int = 1000,
+    brand: Optional[str] = None,
+    min_total_qty: int = 1,
+    sort_by: str = "total_desc",
+) -> bytes:
+    data = await build_customer_order_period_report_data(
+        session=session,
+        period1_from=period1_from,
+        period1_to=period1_to,
+        period2_from=period2_from,
+        period2_to=period2_to,
+        limit=limit,
+        brand=brand,
+        min_total_qty=min_total_qty,
+        sort_by=sort_by,
+    )
+    p1_from = data["period1_from"]
+    p1_to = data["period1_to"]
+    p2_from = data["period2_from"]
+    p2_to = data["period2_to"]
+    rows = data["rows"]
 
     wb = Workbook()
     ws = wb.active
@@ -913,21 +983,15 @@ async def build_customer_order_period_report_xlsx(
     ws.row_dimensions[header_row].height = 52
 
     for item in rows:
-        period1_qty = int(item.get("period1_qty") or 0)
-        period2_qty = int(item.get("period2_qty") or 0)
-        price_qty = int(item.get("period1_price_qty") or 0)
-        avg_price = None
-        if price_qty > 0:
-            avg_price = float(Decimal(item["period1_amount"]) / price_qty)
         ws.append(
             [
                 item.get("oem_number") or "",
                 item.get("brand_name") or "",
                 item.get("autopart_name") or "",
-                stock_by_oem.get(str(item.get("oem_number") or ""), 0),
-                period1_qty,
-                period2_qty,
-                avg_price,
+                item.get("current_quantity") or 0,
+                item.get("period1_qty") or 0,
+                item.get("period2_qty") or 0,
+                item.get("period1_avg_price"),
             ]
         )
 

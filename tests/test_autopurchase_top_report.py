@@ -14,7 +14,10 @@ from dz_fastapi.models.partner import (
     Provider,
     ProviderPriceListConfig,
 )
-from dz_fastapi.services.autopurchase_top import build_customer_order_period_report_xlsx
+from dz_fastapi.services.autopurchase_top import (
+    build_customer_order_period_report_data,
+    build_customer_order_period_report_xlsx,
+)
 
 
 @pytest.mark.asyncio
@@ -102,6 +105,28 @@ async def test_customer_order_period_report_uses_requested_qty_and_stock(
         ]
     )
     await test_session.commit()
+
+    report_data = await build_customer_order_period_report_data(
+        test_session,
+        period1_from=datetime(2025, 6, 1).date(),
+        period1_to=datetime(2025, 12, 31).date(),
+        period2_from=datetime(2026, 1, 1).date(),
+        period2_to=datetime(2026, 7, 1).date(),
+    )
+    assert report_data["summary"]["period1_qty"] == 5
+    assert report_data["summary"]["period2_qty"] == 7
+    assert report_data["summary"]["total_qty"] == 12
+    assert report_data["summary"]["stock_qty"] == 12
+    assert report_data["total_items"] == 1
+    assert report_data["rows"][0]["oem_number"] == created_autopart.oem_number
+    assert report_data["rows"][0]["current_quantity"] == 12
+    assert report_data["rows"][0]["period1_qty"] == 5
+    assert report_data["rows"][0]["period2_qty"] == 7
+    assert report_data["rows"][0]["total_qty"] == 12
+    assert report_data["rows"][0]["period1_avg_price"] == pytest.approx(
+        110.0,
+        abs=0.01,
+    )
 
     content = await build_customer_order_period_report_xlsx(
         test_session,

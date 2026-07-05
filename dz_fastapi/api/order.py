@@ -58,6 +58,7 @@ from dz_fastapi.schemas.order import (
     AutoPurchaseTopItemUpdate,
     ConfirmedOfferOut,
     ConfirmedOffersResponse,
+    CustomerOrderPeriodReportResponse,
     OrderItemOut,
     OrderOut,
     OrderPositionOut,
@@ -88,6 +89,7 @@ from dz_fastapi.services.autopurchase import (
     update_autopurchase_run_items_status,
 )
 from dz_fastapi.services.autopurchase_top import (
+    build_customer_order_period_report_data,
     build_customer_order_period_report_xlsx,
     create_autopurchase_top_item,
     exclude_autopurchase_item,
@@ -1071,6 +1073,39 @@ async def list_current_autopurchase_top_items_view(
         limit=limit,
         brand=brand,
     )
+
+
+@router.get(
+    "/autopurchase-top/customer-order-period-report/preview",
+    response_model=CustomerOrderPeriodReportResponse,
+    summary="Предпросмотр отчёта по заказам клиентов за два периода",
+)
+async def preview_customer_order_period_report_view(
+    period1_from: Optional[date] = Query(default=None),
+    period1_to: Optional[date] = Query(default=None),
+    period2_from: Optional[date] = Query(default=None),
+    period2_to: Optional[date] = Query(default=None),
+    limit: int = Query(default=1000, ge=1, le=10000),
+    brand: Optional[str] = Query(default=None),
+    min_total_qty: int = Query(default=1, ge=0),
+    sort_by: str = Query(default="total_desc"),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await build_customer_order_period_report_data(
+            session=session,
+            period1_from=period1_from,
+            period1_to=period1_to,
+            period2_from=period2_from,
+            period2_to=period2_to,
+            limit=limit,
+            brand=brand,
+            min_total_qty=min_total_qty,
+            sort_by=sort_by,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get(
