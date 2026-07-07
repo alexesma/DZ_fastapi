@@ -53,6 +53,7 @@ from dz_fastapi.services.credit_control import CreditLimitExceeded, check_custom
 from dz_fastapi.services.customer_orders import (
     create_manual_customer_order,
     create_manual_supplier_order,
+    forward_latest_customer_order_for_config,
     process_customer_orders,
     process_manual_customer_order,
     retry_customer_order,
@@ -874,6 +875,41 @@ async def retry_config_errors(
         link="/customer-orders",
     )
     return result
+
+
+@router.post(
+    "/configs/{config_id}/forward-latest",
+    status_code=status.HTTP_200_OK,
+)
+async def forward_latest_order_for_config(
+    config_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        order = await forward_latest_customer_order_for_config(
+            session=session,
+            config_id=config_id,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    await _notify_current_user(
+        session,
+        current_user,
+        title="Заказ клиента переотправлен",
+        message=(
+            f"Последний заказ #{order.id} по конфигурации #{config_id} "
+            "переотправлен на email."
+        ),
+        level=AppNotificationLevel.SUCCESS,
+        link=f"/customer-orders/{order.id}",
+    )
+    return {"status": "ok", "config_id": config_id, "order_id": order.id}
 
 
 @router.post(

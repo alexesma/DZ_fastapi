@@ -2380,9 +2380,9 @@ async def _send_forwarded_customer_order_email(
     session: AsyncSession,
     config: CustomerOrderConfig,
     order: CustomerOrder,
-) -> None:
+) -> bool:
     if not bool(getattr(config, "forward_customer_order_enabled", False)):
-        return
+        return False
 
     to_email = str(
         getattr(config, "forward_customer_order_email", "") or ""
@@ -2406,9 +2406,19 @@ async def _send_forwarded_customer_order_email(
             link="/customer-orders",
             commit=True,
         )
-        return
+        return False
 
     try:
+        loaded_order = (
+            await session.execute(
+                select(CustomerOrder)
+                .options(selectinload(CustomerOrder.items))
+                .where(CustomerOrder.id == order.id)
+            )
+        ).scalar_one_or_none()
+        if loaded_order is not None:
+            order = loaded_order
+
         out_account = None
         account_id = getattr(
             config, "forward_customer_order_email_account_id", None
@@ -2468,6 +2478,7 @@ async def _send_forwarded_customer_order_email(
             link="/customer-orders",
             commit=True,
         )
+        return True
     except Exception as exc:
         logger.error(
             "Failed to forward customer order email: order_id=%s config_id=%s: %s",
@@ -2489,6 +2500,43 @@ async def _send_forwarded_customer_order_email(
             link="/customer-orders",
             commit=True,
         )
+        return False
+
+
+async def forward_latest_customer_order_for_config(
+    session: AsyncSession,
+    *,
+    config_id: int,
+) -> CustomerOrder:
+    config = await crud_customer_order_config.get_by_id(
+        session=session,
+        config_id=config_id,
+    )
+    if config is None:
+        raise LookupError("Config not found")
+    if not bool(getattr(config, "forward_customer_order_enabled", False)):
+        raise ValueError("Переотправка заказа клиента выключена")
+    if not str(getattr(config, "forward_customer_order_email", "") or "").strip():
+        raise ValueError("Не указан email получателя для переотправки")
+
+    order = (
+        await session.execute(
+            select(CustomerOrder)
+            .options(selectinload(CustomerOrder.items))
+            .where(CustomerOrder.order_config_id == config_id)
+            .order_by(CustomerOrder.id.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if order is None:
+        raise LookupError(
+            "Для этой конфигурации ещё нет импортированных заказов клиента"
+        )
+
+    sent = await _send_forwarded_customer_order_email(session, config, order)
+    if not sent:
+        raise RuntimeError("Не удалось переотправить заказ клиента")
+    return order
 
 
 async def _send_order_import_notification(

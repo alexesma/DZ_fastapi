@@ -639,6 +639,21 @@ def start_scheduler(app: FastAPI):
         replace_existing=True,
     )
 
+    # ── 8c. Приём рекламаций из почты ────────────────────────────────────
+    # Рабочий день 09–19 МСК, каждые 15 мин (задача сама выходит, если
+    # не настроен ящик с назначением «reclamation»).
+    scheduler.add_job(
+        func=sync_reclamations_task,
+        trigger="cron",
+        args=[app],
+        id="sync_reclamations",
+        name="Sync reclamations mailbox",
+        hour="9-19",
+        minute="*/15",
+        second=35,
+        replace_existing=True,
+    )
+
     # ── 9. Watchlist — проверка сайта ─────────────────────────────────────
     # Ночь 01–07 МСК (guard в задаче дополнительно ограничивает по настройкам)
     scheduler.add_job(
@@ -1432,6 +1447,34 @@ async def sync_diadoc_inbound_task(app: FastAPI):
                         f"входящих документов Диадок.\nТекст ошибки: {e}"
                     ),
                 )
+
+
+async def sync_reclamations_task(app: FastAPI):
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="sync_reclamations",
+        job_name="Sync reclamations mailbox",
+    ) as trace:
+        async_session_factory = app.state.session_factory
+        async with async_session_factory() as session:
+            try:
+                from dz_fastapi.services.reclamations import sync_reclamation_mailbox
+
+                result = await sync_reclamation_mailbox(session)
+                trace.details["summary"] = result
+                if int(result.get("created") or 0) > 0:
+                    logger.info(
+                        "Reclamations sync: created %s new",
+                        result["created"],
+                    )
+            except Exception as e:
+                logger.error(
+                    "Error syncing reclamations mailbox: %s",
+                    e,
+                    exc_info=True,
+                )
+                trace.details["error"] = str(e)[:2000]
 
 
 async def sync_diadoc_outbound_status_task(app: FastAPI):

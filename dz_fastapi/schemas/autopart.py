@@ -201,10 +201,23 @@ class AutopartOfferRow(BaseModel):
     is_own_price: bool = False
 
 
+class AutopartOwnStockRow(BaseModel):
+    autopart_id: int
+    oem_number: str
+    brand_name: Optional[str] = None
+    name: Optional[str] = None
+    price: float
+    quantity: int
+    pricelist_id: int
+    pricelist_date: Optional[date] = None
+    is_requested_oem: bool = False
+
+
 class AutopartOffersResponse(BaseModel):
     oem_number: str
     offers: List[AutopartOfferRow] = Field(default_factory=list)
     historical_offers: List[AutopartOfferRow] = Field(default_factory=list)
+    our_stock_rows: List[AutopartOwnStockRow] = Field(default_factory=list)
     # Есть ли позиция в нашей номенклатуре
     in_nomenclature: bool = False
     nomenclature_autopart_id: Optional[int] = None

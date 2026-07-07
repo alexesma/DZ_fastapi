@@ -62,6 +62,7 @@ from dz_fastapi.schemas.autopart import (
     AutoPartCreate,
     AutoPartDetailResponse,
     AutoPartLookupItem,
+    AutopartOwnStockRow,
     AutopartOfferRow,
     AutopartOffersResponse,
     AutopartOrderRequest,
@@ -81,7 +82,12 @@ from dz_fastapi.schemas.autopart import (
     StorageLocationUpdate,
 )
 from dz_fastapi.schemas.inventory import WarehouseCreate, WarehouseOut, WarehouseUpdate
-from dz_fastapi.services.crosses import delete_cross_relation, get_cross_row, save_cross_relation
+from dz_fastapi.services.crosses import (
+    delete_cross_relation,
+    get_cross_row,
+    load_bidirectional_cross_members,
+    save_cross_relation,
+)
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
 from dz_fastapi.services.process import (
     assign_brand,
@@ -396,10 +402,87 @@ async def get_autopart_offers(
             nomenclature_brand_name = nom_result["brand_name"]
             nomenclature_name = nom_result["AutoPart"].name
 
+    our_stock_rows: list[AutopartOwnStockRow] = []
+    if not partial:
+        exact_autopart_rows = (
+            await session.execute(
+                select(AutoPart.id)
+                .where(AutoPart.oem_number == normalized_oem)
+            )
+        ).scalars().all()
+        stock_autopart_ids = set(int(row_id) for row_id in exact_autopart_rows)
+        if stock_autopart_ids:
+            cross_items = await load_bidirectional_cross_members(
+                session,
+                seed_autopart_ids=stock_autopart_ids,
+            )
+            stock_autopart_ids.update(
+                int(item.autopart_id) for item in cross_items
+            )
+
+        if stock_autopart_ids:
+            own_stock_stmt = (
+                select(
+                    AutoPart.id.label("autopart_id"),
+                    AutoPart.oem_number.label("oem_number"),
+                    AutoPart.name.label("autopart_name"),
+                    Brand.name.label("brand_name"),
+                    PriceListAutoPartAssociation.price.label("price"),
+                    PriceListAutoPartAssociation.quantity.label("quantity"),
+                    PriceList.id.label("pricelist_id"),
+                    PriceList.date.label("pricelist_date"),
+                )
+                .select_from(latest_pricelists)
+                .join(
+                    PriceList,
+                    PriceList.id == latest_pricelists.c.pricelist_id,
+                )
+                .join(Provider, Provider.id == PriceList.provider_id)
+                .join(
+                    PriceListAutoPartAssociation,
+                    PriceListAutoPartAssociation.pricelist_id == PriceList.id,
+                )
+                .join(
+                    AutoPart,
+                    AutoPart.id == PriceListAutoPartAssociation.autopart_id,
+                )
+                .join(Brand, Brand.id == AutoPart.brand_id)
+                .where(latest_pricelists.c.latest_rn == 1)
+                .where(Provider.is_own_price.is_(True))
+                .where(AutoPart.id.in_(stock_autopart_ids))
+                .order_by(
+                    case((AutoPart.oem_number == normalized_oem, 0), else_=1),
+                    Brand.name.asc(),
+                    AutoPart.oem_number.asc(),
+                    PriceListAutoPartAssociation.quantity.desc(),
+                    PriceListAutoPartAssociation.price.asc(),
+                )
+            )
+            for row in (await session.execute(own_stock_stmt)).mappings().all():
+                price_value = row.get("price")
+                our_stock_rows.append(
+                    AutopartOwnStockRow(
+                        autopart_id=row["autopart_id"],
+                        oem_number=row["oem_number"],
+                        brand_name=row.get("brand_name"),
+                        name=row.get("autopart_name"),
+                        price=(
+                            float(price_value)
+                            if price_value is not None
+                            else 0.0
+                        ),
+                        quantity=int(row.get("quantity") or 0),
+                        pricelist_id=row["pricelist_id"],
+                        pricelist_date=row.get("pricelist_date"),
+                        is_requested_oem=row["oem_number"] == normalized_oem,
+                    )
+                )
+
     return AutopartOffersResponse(
         oem_number=normalized_oem,
         offers=offers,
         historical_offers=historical_offers,
+        our_stock_rows=our_stock_rows,
         in_nomenclature=in_nomenclature,
         nomenclature_autopart_id=nomenclature_autopart_id,
         nomenclature_brand_name=nomenclature_brand_name,
