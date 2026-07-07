@@ -2317,7 +2317,7 @@ def _build_customer_order_forward_attachment_bytes(
     total_qty: int,
     total_sum: float,
 ) -> bytes:
-    order_datetime = order.created_at or now_moscow()
+    order_datetime = order.received_at or now_moscow()
     order_datetime_text = order_datetime.strftime("%d.%m.%Y %H:%M:%S")
     row_lines = "".join(
         (
