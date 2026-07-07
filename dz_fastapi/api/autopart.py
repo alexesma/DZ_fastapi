@@ -22,7 +22,7 @@ from fastapi import (
 from plotly.colors import qualitative
 from plotly.subplots import make_subplots
 from pydantic import conint
-from sqlalchemy import case, func
+from sqlalchemy import case, func, or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -403,7 +403,7 @@ async def get_autopart_offers(
             nomenclature_name = nom_result["AutoPart"].name
 
     our_stock_rows: list[AutopartOwnStockRow] = []
-    if not partial:
+    if normalized_oem:
         exact_autopart_rows = (
             await session.execute(
                 select(AutoPart.id)
@@ -411,6 +411,20 @@ async def get_autopart_offers(
             )
         ).scalars().all()
         stock_autopart_ids = set(int(row_id) for row_id in exact_autopart_rows)
+        cross_seed_rows = (
+            await session.execute(
+                select(
+                    AutoPartCross.source_autopart_id,
+                    AutoPartCross.cross_autopart_id,
+                ).where(AutoPartCross.cross_oem_number == normalized_oem)
+            )
+        ).all()
+        for source_id, cross_autopart_id in cross_seed_rows:
+            if source_id is not None:
+                stock_autopart_ids.add(int(source_id))
+            if cross_autopart_id is not None:
+                stock_autopart_ids.add(int(cross_autopart_id))
+
         if stock_autopart_ids:
             cross_items = await load_bidirectional_cross_members(
                 session,
@@ -421,6 +435,28 @@ async def get_autopart_offers(
             )
 
         if stock_autopart_ids:
+            own_partition_key = func.coalesce(
+                PriceList.provider_config_id, PriceList.provider_id
+            ).label("own_partition_key")
+            latest_own_pricelists = (
+                select(
+                    PriceList.id.label("pricelist_id"),
+                    func.row_number()
+                    .over(
+                        partition_by=own_partition_key,
+                        order_by=(PriceList.date.desc(), PriceList.id.desc()),
+                    )
+                    .label("latest_rn"),
+                )
+                .select_from(PriceList)
+                .join(Provider, Provider.id == PriceList.provider_id)
+                .where(
+                    PriceList.is_active.is_(True),
+                    Provider.is_own_price.is_(True),
+                )
+                .subquery()
+            )
+
             own_stock_stmt = (
                 select(
                     AutoPart.id.label("autopart_id"),
@@ -432,10 +468,10 @@ async def get_autopart_offers(
                     PriceList.id.label("pricelist_id"),
                     PriceList.date.label("pricelist_date"),
                 )
-                .select_from(latest_pricelists)
+                .select_from(latest_own_pricelists)
                 .join(
                     PriceList,
-                    PriceList.id == latest_pricelists.c.pricelist_id,
+                    PriceList.id == latest_own_pricelists.c.pricelist_id,
                 )
                 .join(Provider, Provider.id == PriceList.provider_id)
                 .join(
@@ -447,11 +483,23 @@ async def get_autopart_offers(
                     AutoPart.id == PriceListAutoPartAssociation.autopart_id,
                 )
                 .join(Brand, Brand.id == AutoPart.brand_id)
-                .where(latest_pricelists.c.latest_rn == 1)
+                .where(latest_own_pricelists.c.latest_rn == 1)
                 .where(Provider.is_own_price.is_(True))
                 .where(AutoPart.id.in_(stock_autopart_ids))
                 .order_by(
-                    case((AutoPart.oem_number == normalized_oem, 0), else_=1),
+                    case(
+                        (AutoPart.oem_number == normalized_oem, 0),
+                        (
+                            or_(
+                                AutoPart.id.in_(
+                                    [int(row_id) for row_id in exact_autopart_rows]
+                                ),
+                                AutoPart.oem_number == normalized_oem,
+                            ),
+                            1,
+                        ),
+                        else_=2,
+                    ),
                     Brand.name.asc(),
                     AutoPart.oem_number.asc(),
                     PriceListAutoPartAssociation.quantity.desc(),

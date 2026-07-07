@@ -2381,6 +2381,10 @@ async def _send_forwarded_customer_order_email(
     config: CustomerOrderConfig,
     order: CustomerOrder,
 ) -> bool:
+    config_id = int(getattr(config, "id", 0) or 0)
+    order_id = int(getattr(order, "id", 0) or 0)
+    order_label = str(order_id or "")
+
     if not bool(getattr(config, "forward_customer_order_enabled", False)):
         return False
 
@@ -2391,15 +2395,15 @@ async def _send_forwarded_customer_order_email(
         logger.warning(
             "Customer order forwarding enabled without recipient: "
             "config_id=%s order_id=%s",
-            config.id,
-            order.id,
+            config_id,
+            order_id,
         )
         await _notify_admins(
             session,
             title="Переотправка заказа клиента не выполнена",
             message=(
-                f"Конфиг заказа: {config.id}\n"
-                f"Заказ: {order.order_number or order.id}\n"
+                f"Конфиг заказа: {config_id}\n"
+                f"Заказ: {order_label}\n"
                 "Причина: не указан email получателя."
             ),
             level=AppNotificationLevel.WARNING,
@@ -2418,6 +2422,8 @@ async def _send_forwarded_customer_order_email(
         ).scalar_one_or_none()
         if loaded_order is not None:
             order = loaded_order
+        order_id = int(order.id)
+        order_label = str(order.order_number or order_id)
 
         out_account = None
         account_id = getattr(
@@ -2441,11 +2447,11 @@ async def _send_forwarded_customer_order_email(
             total_qty=total_qty,
             total_sum=total_sum,
         )
-        filename = _customer_order_forward_attachment_filename(order.id)
-        subject = f"Заказ клиента {order.order_number or order.id}"
+        filename = _customer_order_forward_attachment_filename(order_id)
+        subject = f"Заказ клиента {order_label}"
         body = (
             "Во вложении заказ клиента для обработки.\n"
-            f"ID заказа в системе: {order.id}\n"
+            f"ID заказа в системе: {order_id}\n"
             f"Строк: {len(rows)}\n"
             f"Итого количество: {total_qty}\n"
             f"Итого сумма: {total_sum:.2f} RUR"
@@ -2461,16 +2467,16 @@ async def _send_forwarded_customer_order_email(
         )
         logger.info(
             "Forwarded customer order email sent: order_id=%s config_id=%s to=%s",
-            order.id,
-            config.id,
+            order_id,
+            config_id,
             to_email,
         )
         await _notify_admins(
             session,
             title="Заказ клиента переотправлен",
             message=(
-                f"Конфиг заказа: {config.id}\n"
-                f"Заказ: {order.order_number or order.id}\n"
+                f"Конфиг заказа: {config_id}\n"
+                f"Заказ: {order_label}\n"
                 f"Получатель: {to_email}\n"
                 f"Строк: {len(rows)}"
             ),
@@ -2482,8 +2488,8 @@ async def _send_forwarded_customer_order_email(
     except Exception as exc:
         logger.error(
             "Failed to forward customer order email: order_id=%s config_id=%s: %s",
-            order.id,
-            config.id,
+            order_id,
+            config_id,
             exc,
             exc_info=True,
         )
@@ -2491,8 +2497,8 @@ async def _send_forwarded_customer_order_email(
             session,
             title="Ошибка переотправки заказа клиента",
             message=(
-                f"Конфиг заказа: {config.id}\n"
-                f"Заказ: {order.order_number or order.id}\n"
+                f"Конфиг заказа: {config_id}\n"
+                f"Заказ: {order_label}\n"
                 f"Получатель: {to_email}\n"
                 f"Ошибка: {exc}"
             ),
@@ -2507,7 +2513,7 @@ async def forward_latest_customer_order_for_config(
     session: AsyncSession,
     *,
     config_id: int,
-) -> CustomerOrder:
+) -> dict[str, int | str | None]:
     config = await crud_customer_order_config.get_by_id(
         session=session,
         config_id=config_id,
@@ -2532,11 +2538,13 @@ async def forward_latest_customer_order_for_config(
         raise LookupError(
             "Для этой конфигурации ещё нет импортированных заказов клиента"
         )
+    order_id = int(order.id)
+    order_label = str(order.order_number or order_id)
 
     sent = await _send_forwarded_customer_order_email(session, config, order)
     if not sent:
         raise RuntimeError("Не удалось переотправить заказ клиента")
-    return order
+    return {"id": order_id, "order_number": order_label}
 
 
 async def _send_order_import_notification(

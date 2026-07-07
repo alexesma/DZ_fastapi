@@ -887,7 +887,7 @@ async def forward_latest_order_for_config(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        order = await forward_latest_customer_order_for_config(
+        forwarded_order = await forward_latest_customer_order_for_config(
             session=session,
             config_id=config_id,
         )
@@ -903,13 +903,19 @@ async def forward_latest_order_for_config(
         current_user,
         title="Заказ клиента переотправлен",
         message=(
-            f"Последний заказ #{order.id} по конфигурации #{config_id} "
+            f"Последний заказ #{forwarded_order['id']} "
+            f"по конфигурации #{config_id} "
             "переотправлен на email."
         ),
         level=AppNotificationLevel.SUCCESS,
-        link=f"/customer-orders/{order.id}",
+        link=f"/customer-orders/{forwarded_order['id']}",
     )
-    return {"status": "ok", "config_id": config_id, "order_id": order.id}
+    return {
+        "status": "ok",
+        "config_id": config_id,
+        "order_id": forwarded_order["id"],
+        "order_number": forwarded_order["order_number"],
+    }
 
 
 @router.post(
