@@ -211,6 +211,16 @@ class AutopartOwnStockRow(BaseModel):
     pricelist_id: int
     pricelist_date: Optional[date] = None
     is_requested_oem: bool = False
+    # Кросс найден по данным сайта (не подтверждён в нашей системе кроссов)
+    unverified_cross: bool = False
+
+
+class OwnStockByOemsRequest(BaseModel):
+    oems: List[str] = Field(default_factory=list)
+
+
+class OwnStockByOemsResponse(BaseModel):
+    rows: List[AutopartOwnStockRow] = Field(default_factory=list)
 
 
 class AutopartOffersResponse(BaseModel):

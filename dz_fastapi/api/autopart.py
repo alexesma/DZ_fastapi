@@ -76,6 +76,8 @@ from dz_fastapi.schemas.autopart import (
     CrossOut,
     HonestSignCategoryCreate,
     HonestSignCategoryOut,
+    OwnStockByOemsRequest,
+    OwnStockByOemsResponse,
     StorageLocationCreate,
     StorageLocationOut,
     StorageLocationResponse,
@@ -551,6 +553,105 @@ async def get_autopart_offers(
         nomenclature_brand_name=nomenclature_brand_name,
         nomenclature_name=nomenclature_name,
     )
+
+
+@router.post(
+    "/autoparts/own-stock/by-oems/",
+    tags=["autopart", "offer"],
+    summary="Наличие в нашем прайсе по списку OEM (для сайтовых кроссов)",
+    response_model=OwnStockByOemsResponse,
+)
+async def get_own_stock_by_oems(
+    payload: OwnStockByOemsRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    """Возвращает позиции нашего прайса (is_own_price) по точному совпадению
+    OEM-номеров. Используется, чтобы подмешать в «Наше наличие» кроссы,
+    найденные на сайте (их нет в нашей таблице кроссов), с пометкой
+    «кросс не проверен»."""
+    normalized_oems = {
+        preprocess_oem_number(value)
+        for value in (payload.oems or [])
+        if value and preprocess_oem_number(value)
+    }
+    if not normalized_oems:
+        return OwnStockByOemsResponse(rows=[])
+
+    own_partition_key = func.coalesce(
+        PriceList.provider_config_id, PriceList.provider_id
+    ).label("own_partition_key")
+    latest_own_pricelists = (
+        select(
+            PriceList.id.label("pricelist_id"),
+            func.row_number()
+            .over(
+                partition_by=own_partition_key,
+                order_by=(PriceList.date.desc(), PriceList.id.desc()),
+            )
+            .label("latest_rn"),
+        )
+        .select_from(PriceList)
+        .join(Provider, Provider.id == PriceList.provider_id)
+        .where(
+            PriceList.is_active.is_(True),
+            Provider.is_own_price.is_(True),
+        )
+        .subquery()
+    )
+    stock_stmt = (
+        select(
+            AutoPart.id.label("autopart_id"),
+            AutoPart.oem_number.label("oem_number"),
+            AutoPart.name.label("autopart_name"),
+            Brand.name.label("brand_name"),
+            PriceListAutoPartAssociation.price.label("price"),
+            PriceListAutoPartAssociation.quantity.label("quantity"),
+            PriceList.id.label("pricelist_id"),
+            PriceList.date.label("pricelist_date"),
+        )
+        .select_from(latest_own_pricelists)
+        .join(
+            PriceList,
+            PriceList.id == latest_own_pricelists.c.pricelist_id,
+        )
+        .join(Provider, Provider.id == PriceList.provider_id)
+        .join(
+            PriceListAutoPartAssociation,
+            PriceListAutoPartAssociation.pricelist_id == PriceList.id,
+        )
+        .join(
+            AutoPart,
+            AutoPart.id == PriceListAutoPartAssociation.autopart_id,
+        )
+        .join(Brand, Brand.id == AutoPart.brand_id)
+        .where(latest_own_pricelists.c.latest_rn == 1)
+        .where(Provider.is_own_price.is_(True))
+        .where(AutoPart.oem_number.in_(normalized_oems))
+        .order_by(
+            Brand.name.asc(),
+            AutoPart.oem_number.asc(),
+            PriceListAutoPartAssociation.quantity.desc(),
+            PriceListAutoPartAssociation.price.asc(),
+        )
+    )
+    rows: list[AutopartOwnStockRow] = []
+    for row in (await session.execute(stock_stmt)).mappings().all():
+        price_value = row.get("price")
+        rows.append(
+            AutopartOwnStockRow(
+                autopart_id=row["autopart_id"],
+                oem_number=row["oem_number"],
+                brand_name=row.get("brand_name"),
+                name=row.get("autopart_name"),
+                price=float(price_value) if price_value is not None else 0.0,
+                quantity=int(row.get("quantity") or 0),
+                pricelist_id=row["pricelist_id"],
+                pricelist_date=row.get("pricelist_date"),
+                is_requested_oem=False,
+                unverified_cross=True,
+            )
+        )
+    return OwnStockByOemsResponse(rows=rows)
 
 
 @router.get(
