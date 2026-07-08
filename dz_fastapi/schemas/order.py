@@ -647,6 +647,8 @@ class CustomerOrderPeriodReportRow(BaseModel):
     period2_qty: int = 0
     total_qty: int = 0
     period1_avg_price: Optional[float] = None
+    period2_avg_price: Optional[float] = None
+    excluded_from_autopurchase: bool = False
 
 
 class CustomerOrderPeriodReportResponse(BaseModel):

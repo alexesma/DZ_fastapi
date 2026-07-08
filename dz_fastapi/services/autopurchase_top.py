@@ -802,6 +802,8 @@ async def build_customer_order_period_report_data(
                 "period2_qty": 0,
                 "period1_amount": Decimal("0"),
                 "period1_price_qty": 0,
+                "period2_amount": Decimal("0"),
+                "period2_price_qty": 0,
             },
         )
         item["autopart_name"] = _pick_best_name(
@@ -826,8 +828,14 @@ async def build_customer_order_period_report_data(
                 item["period1_price_qty"] = int(item["period1_price_qty"]) + qty
         elif p2_from <= row_date <= p2_to:
             item["period2_qty"] = int(item["period2_qty"]) + qty
+            if requested_price is not None:
+                item["period2_amount"] = Decimal(
+                    item["period2_amount"]
+                ) + Decimal(str(requested_price)) * qty
+                item["period2_price_qty"] = int(item["period2_price_qty"]) + qty
 
     stock_by_oem = await _load_latest_own_stock_by_oem(session)
+    exclusions = await _load_active_exclusions(session)
     raw_rows = [
         item
         for item in grouped.values()
@@ -870,11 +878,18 @@ async def build_customer_order_period_report_data(
     for item in raw_rows:
         period1_qty = int(item.get("period1_qty") or 0)
         period2_qty = int(item.get("period2_qty") or 0)
-        price_qty = int(item.get("period1_price_qty") or 0)
-        avg_price = None
-        if price_qty > 0:
-            avg_price = float(Decimal(item["period1_amount"]) / price_qty)
+        price_qty1 = int(item.get("period1_price_qty") or 0)
+        avg_price1 = None
+        if price_qty1 > 0:
+            avg_price1 = float(Decimal(item["period1_amount"]) / price_qty1)
+        price_qty2 = int(item.get("period2_price_qty") or 0)
+        avg_price2 = None
+        if price_qty2 > 0:
+            avg_price2 = float(Decimal(item["period2_amount"]) / price_qty2)
         oem_number = str(item.get("oem_number") or "")
+        exclusion = exclusions.get(
+            _exclusion_key(oem_number, item.get("brand_name"))
+        )
         rows.append(
             {
                 "oem_number": oem_number,
@@ -884,7 +899,9 @@ async def build_customer_order_period_report_data(
                 "period1_qty": period1_qty,
                 "period2_qty": period2_qty,
                 "total_qty": period1_qty + period2_qty,
-                "period1_avg_price": avg_price,
+                "period1_avg_price": avg_price1,
+                "period2_avg_price": avg_price2,
+                "excluded_from_autopurchase": exclusion is not None,
             }
         )
 
@@ -961,7 +978,7 @@ async def build_customer_order_period_report_xlsx(
         "Кол-во на складе(Остаток)",
         "Кол-во заказанных клиентами позиций за период 1",
         "Кол-во заказанных клиентами позиций за период 2",
-        "Средняя цена заказа единицы за период 1",
+        "Средняя цена заказа единицы за период 2",
     ]
     ws.append([])
     ws.append(headers)
@@ -991,7 +1008,7 @@ async def build_customer_order_period_report_xlsx(
                 item.get("current_quantity") or 0,
                 item.get("period1_qty") or 0,
                 item.get("period2_qty") or 0,
-                item.get("period1_avg_price"),
+                item.get("period2_avg_price"),
             ]
         )
 
