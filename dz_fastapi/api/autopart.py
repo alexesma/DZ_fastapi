@@ -410,13 +410,28 @@ async def get_autopart_offers(
                 .where(AutoPart.oem_number == normalized_oem)
             )
         ).scalars().all()
-        stock_autopart_ids = set(int(row_id) for row_id in exact_autopart_rows)
+        exact_ids = set(int(row_id) for row_id in exact_autopart_rows)
+        stock_autopart_ids = set(exact_ids)
+        # Собираем кроссы искомой позиции в ЛЮБОМ направлении и независимо
+        # от is_bidirectional: как случай «искомый номер — это кросс-сторона»
+        # (cross_oem_number совпал), так и «искомая позиция — источник кросса»
+        # (source_autopart_id/cross_autopart_id указывают на неё). Иначе
+        # односторонние кроссы нашего прайса не попадали бы в наличие.
+        cross_conditions = [AutoPartCross.cross_oem_number == normalized_oem]
+        if exact_ids:
+            exact_id_list = list(exact_ids)
+            cross_conditions.append(
+                AutoPartCross.source_autopart_id.in_(exact_id_list)
+            )
+            cross_conditions.append(
+                AutoPartCross.cross_autopart_id.in_(exact_id_list)
+            )
         cross_seed_rows = (
             await session.execute(
                 select(
                     AutoPartCross.source_autopart_id,
                     AutoPartCross.cross_autopart_id,
-                ).where(AutoPartCross.cross_oem_number == normalized_oem)
+                ).where(or_(*cross_conditions))
             )
         ).all()
         for source_id, cross_autopart_id in cross_seed_rows:
