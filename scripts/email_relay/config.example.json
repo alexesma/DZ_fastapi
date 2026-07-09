@@ -1,0 +1,21 @@
+{
+  "api_base_url": "https://dragonzap.online/api",
+  "auth_email": "relay-bot@dragonzap.online",
+  "auth_password": "СМЕНИ_МЕНЯ",
+  "poll_interval_seconds": 30,
+  "batch_limit": 25,
+  "verify_tls": true,
+  "request_timeout_seconds": 30,
+  "worker_id": null,
+  "claim_lease_seconds": 300,
+  "smtp_accounts": {
+    "reclamations@yandex.ru": {
+      "host": "smtp.yandex.ru",
+      "port": 465,
+      "use_ssl": true,
+      "username": "reclamations@yandex.ru",
+      "password": "ПАРОЛЬ_ПРИЛОЖЕНИЯ_ЯНДЕКС"
+    }
+  },
+  "default_smtp": null
+}

@@ -127,6 +127,11 @@ async def test_customer_order_period_report_uses_requested_qty_and_stock(
         110.0,
         abs=0.01,
     )
+    assert report_data["rows"][0]["period2_avg_price"] == pytest.approx(
+        140.0,
+        abs=0.01,
+    )
+    assert report_data["rows"][0]["excluded_from_autopurchase"] is False
 
     content = await build_customer_order_period_report_xlsx(
         test_session,
@@ -143,8 +148,9 @@ async def test_customer_order_period_report_uses_requested_qty_and_stock(
     assert "Период 1: Июнь 2025 г. - Декабрь 2025 г." in sheet["A2"].value
     assert sheet["A4"].value == "Артикул"
     assert sheet["E4"].value == "Кол-во заказанных клиентами позиций за период 1"
+    assert sheet["G4"].value == "Средняя цена заказа единицы за период 2"
     assert sheet["A5"].value == created_autopart.oem_number
     assert sheet["D5"].value == 12
     assert sheet["E5"].value == 5
     assert sheet["F5"].value == 7
-    assert sheet["G5"].value == pytest.approx(110.0, abs=0.01)
+    assert sheet["G5"].value == pytest.approx(140.0, abs=0.01)

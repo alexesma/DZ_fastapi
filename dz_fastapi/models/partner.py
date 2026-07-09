@@ -1719,6 +1719,9 @@ class EmailOutbox(Base):
     attempts = Column(Integer, default=0, nullable=False)
     last_error = Column(String(2000), nullable=True)
     sent_at = Column(DateTime(timezone=True), nullable=True)
+    # Захват письма воркером-релеем (чтобы несколько машин не отправили дважды)
+    claimed_by = Column(String(128), nullable=True)
+    claimed_at = Column(DateTime(timezone=True), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), default=now_moscow)
     updated_at = Column(
         DateTime(timezone=True),

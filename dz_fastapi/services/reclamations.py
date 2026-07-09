@@ -25,6 +25,7 @@ from dz_fastapi.models.partner import (
     RECLAMATION_ITEM_SOURCE,
     RECLAMATION_SOURCE,
     RECLAMATION_STATUS,
+    RECLAMATION_TYPE,
     Customer,
     CustomerReclamationEmail,
     Reclamation,
@@ -525,16 +526,31 @@ async def list_reclamations(
     status: Optional[str] = None,
     customer_id: Optional[int] = None,
     without_customer: bool = False,
+    order: str = "newest",
     limit: int = 100,
 ) -> list[dict[str, Any]]:
+    # Порядок очереди: oldest — FIFO (сначала старые, что «висят» дольше),
+    # newest — сначала свежие.
+    order_by = (
+        Reclamation.email_received_at.asc().nullsfirst()
+        if str(order or "newest").lower() == "oldest"
+        else Reclamation.id.desc()
+    )
     stmt = (
         select(Reclamation, Customer.name)
         .outerjoin(Customer, Customer.id == Reclamation.customer_id)
-        .order_by(Reclamation.id.desc())
+        .order_by(order_by)
         .limit(max(1, min(int(limit or 100), 500)))
     )
     if status:
-        stmt = stmt.where(Reclamation.status == status)
+        # Допускаем несколько статусов через запятую (для очереди-этапов)
+        statuses = [
+            part.strip() for part in str(status).split(",") if part.strip()
+        ]
+        if len(statuses) == 1:
+            stmt = stmt.where(Reclamation.status == statuses[0])
+        elif statuses:
+            stmt = stmt.where(Reclamation.status.in_(statuses))
     if customer_id is not None:
         stmt = stmt.where(Reclamation.customer_id == int(customer_id))
     if without_customer:
@@ -615,8 +631,93 @@ async def assign_reclamation_customer(
     return rec
 
 
-async def sync_reclamation_mailbox(session: AsyncSession) -> dict[str, Any]:
-    """Читает ящик рекламаций (purpose=reclamation) и создаёт рекламации."""
+_VALID_STATUSES = {s.value for s in RECLAMATION_STATUS}
+_VALID_TYPES = {t.value for t in RECLAMATION_TYPE}
+_VALID_ITEM_SOURCES = {s.value for s in RECLAMATION_ITEM_SOURCE}
+# Решения, которые автоматически проставляют финальный статус
+_RESOLUTION_STATUS = {
+    "approved": RECLAMATION_STATUS.APPROVED,
+    "rejected": RECLAMATION_STATUS.REJECTED,
+}
+
+
+async def update_reclamation(
+    session: AsyncSession,
+    *,
+    reclamation_id: int,
+    status: Optional[str] = None,
+    reclamation_type: Optional[str] = None,
+    resolution: Optional[str] = None,
+    resolution_comment: Optional[str] = None,
+    resolved_by_user_id: Optional[int] = None,
+) -> Reclamation:
+    """Меняет статус/тип/решение рекламации (действия из карточки)."""
+    rec = await session.get(Reclamation, reclamation_id)
+    if rec is None:
+        raise ValueError("Рекламация не найдена")
+
+    if reclamation_type is not None:
+        if reclamation_type and reclamation_type not in _VALID_TYPES:
+            raise ValueError(f"Недопустимый тип: {reclamation_type}")
+        rec.reclamation_type = reclamation_type or None
+
+    if resolution is not None:
+        rec.resolution = resolution or None
+        rec.resolution_comment = resolution_comment
+        if resolution:
+            rec.resolved_at = now_moscow()
+            rec.resolved_by_user_id = resolved_by_user_id
+            # Решение задаёт финальный статус, если статус явно не передан
+            if status is None and resolution in _RESOLUTION_STATUS:
+                rec.status = _RESOLUTION_STATUS[resolution]
+        else:
+            rec.resolved_at = None
+            rec.resolved_by_user_id = None
+    elif resolution_comment is not None:
+        rec.resolution_comment = resolution_comment
+
+    if status is not None:
+        if status not in _VALID_STATUSES:
+            raise ValueError(f"Недопустимый статус: {status}")
+        rec.status = status
+
+    session.add(rec)
+    await session.commit()
+    await session.refresh(rec)
+    return rec
+
+
+async def update_reclamation_item(
+    session: AsyncSession,
+    *,
+    reclamation_id: int,
+    item_id: int,
+    item_source: Optional[str] = None,
+    reason: Optional[str] = None,
+    quantity: Optional[int] = None,
+) -> Reclamation:
+    """Правит позицию рекламации: источник (наш склад/транзит), причину,
+    количество. Возвращает саму рекламацию с перезагруженными позициями."""
+    item = await session.get(ReclamationItem, item_id)
+    if item is None or int(item.reclamation_id) != int(reclamation_id):
+        raise ValueError("Позиция рекламации не найдена")
+    if item_source is not None:
+        if item_source not in _VALID_ITEM_SOURCES:
+            raise ValueError(f"Недопустимый источник: {item_source}")
+        item.item_source = item_source
+    if reason is not None:
+        item.reason = reason or None
+    if quantity is not None:
+        item.quantity = max(1, int(quantity))
+    session.add(item)
+    await session.commit()
+    rec = await session.get(Reclamation, reclamation_id)
+    await session.refresh(rec)
+    return rec
+
+
+async def get_reclamation_account(session: AsyncSession):
+    """Возвращает активный почтовый ящик с назначением reclamation(s)."""
     from dz_fastapi.models.email_account import EmailAccount
 
     accounts = (
@@ -624,12 +725,16 @@ async def sync_reclamation_mailbox(session: AsyncSession) -> dict[str, Any]:
             select(EmailAccount).where(EmailAccount.is_active.is_(True))
         )
     ).scalars().all()
-    account = None
     for acc in accounts:
         purposes = [str(p).lower() for p in (acc.purposes or [])]
         if "reclamation" in purposes or "reclamations" in purposes:
-            account = acc
-            break
+            return acc
+    return None
+
+
+async def sync_reclamation_mailbox(session: AsyncSession) -> dict[str, Any]:
+    """Читает ящик рекламаций (purpose=reclamation) и создаёт рекламации."""
+    account = await get_reclamation_account(session)
     if account is None:
         return {
             "fetched": 0,
