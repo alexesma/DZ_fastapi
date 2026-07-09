@@ -65,6 +65,7 @@ from dz_fastapi.services.customer_orders import (
 from dz_fastapi.services.inventory_stock import dispatch_stock_order
 from dz_fastapi.services.notifications import create_notification
 from dz_fastapi.services.supplier_order_responses import process_supplier_response_messages
+from dz_fastapi.services.supplier_receipt_upd import send_supplier_receipt_upd_email
 from dz_fastapi.services.supplier_workflow import (
     add_supplier_receipt_items,
     create_manual_supplier_receipt,
@@ -112,6 +113,41 @@ async def _notify_current_user(
         logger.exception(
             "Failed to create app notification for user %s",
             current_user.id,
+        )
+
+
+async def _send_supplier_receipt_upd_if_enabled(
+    session: AsyncSession,
+    current_user: User,
+    receipt_id: int,
+) -> None:
+    try:
+        result = await send_supplier_receipt_upd_email(
+            session,
+            receipt_id=receipt_id,
+            force=False,
+        )
+    except Exception as exc:
+        await _notify_current_user(
+            session,
+            current_user,
+            title="УПД поставщика не отправлен",
+            message=f"Документ #{receipt_id}: {exc}",
+            level=AppNotificationLevel.WARNING,
+            link="/documents/incoming",
+        )
+        return
+    if result.get("sent"):
+        await _notify_current_user(
+            session,
+            current_user,
+            title="УПД поставщика отправлен",
+            message=(
+                f"Документ #{receipt_id} отправлен на "
+                f"{result.get('to_email')}."
+            ),
+            level=AppNotificationLevel.SUCCESS,
+            link="/documents/incoming",
         )
 
 
@@ -1408,6 +1444,11 @@ async def create_supplier_receipt_endpoint(
         level=AppNotificationLevel.SUCCESS,
         link="/customer-orders/receipts",
     )
+    await _send_supplier_receipt_upd_if_enabled(
+        session,
+        current_user,
+        receipt.id,
+    )
     return SupplierReceiptResponse.model_validate(
         serialize_supplier_receipt(receipt)
     )
@@ -1442,6 +1483,41 @@ async def post_supplier_receipt_endpoint(
     return SupplierReceiptResponse.model_validate(
         serialize_supplier_receipt(receipt)
     )
+
+
+@router.post(
+    "/supplier-receipts/{receipt_id}/send-upd-email",
+    status_code=status.HTTP_200_OK,
+)
+async def send_supplier_receipt_upd_email_endpoint(
+    receipt_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        result = await send_supplier_receipt_upd_email(
+            session,
+            receipt_id=receipt_id,
+            force=True,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    await _notify_current_user(
+        session,
+        current_user,
+        title="УПД поставщика отправлен",
+        message=(
+            f"Документ #{receipt_id} отправлен на "
+            f"{result.get('to_email')}."
+        ),
+        level=AppNotificationLevel.SUCCESS,
+        link="/documents/incoming",
+    )
+    return result
 
 
 @router.post(
@@ -1526,6 +1602,11 @@ async def create_manual_supplier_receipt_endpoint(
         )
     except (LookupError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await _send_supplier_receipt_upd_if_enabled(
+        session,
+        current_user,
+        receipt.id,
+    )
     return SupplierReceiptResponse.model_validate(
         serialize_supplier_receipt(receipt)
     )

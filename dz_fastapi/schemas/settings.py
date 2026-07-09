@@ -66,6 +66,9 @@ class CustomerOrderInboxSettingsOut(BaseModel):
     supplier_response_stale_days: int = 7
     supplier_order_stub_enabled: bool = True
     supplier_order_stub_email: Optional[str] = "info@dragonzap.ru"
+    supplier_receipt_upd_email_enabled: bool = False
+    supplier_receipt_upd_email: Optional[str] = None
+    supplier_receipt_upd_email_account_id: Optional[int] = None
     updated_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
@@ -79,6 +82,9 @@ class CustomerOrderInboxSettingsUpdate(BaseModel):
     supplier_response_stale_days: Optional[int] = None
     supplier_order_stub_enabled: Optional[bool] = None
     supplier_order_stub_email: Optional[str] = None
+    supplier_receipt_upd_email_enabled: Optional[bool] = None
+    supplier_receipt_upd_email: Optional[str] = None
+    supplier_receipt_upd_email_account_id: Optional[int] = None
 
 
 class SystemMetricSnapshotOut(BaseModel):

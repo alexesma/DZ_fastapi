@@ -163,6 +163,9 @@ class CRUDCustomerOrderInboxSettings:
             supplier_response_stale_days=7,
             supplier_order_stub_enabled=True,
             supplier_order_stub_email="info@dragonzap.ru",
+            supplier_receipt_upd_email_enabled=False,
+            supplier_receipt_upd_email=None,
+            supplier_receipt_upd_email_account_id=None,
         )
         session.add(setting)
         await session.commit()

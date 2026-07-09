@@ -188,6 +188,14 @@ async def update_customer_order_inbox_settings(
     if "supplier_order_stub_email" in data:
         value = str(data.get("supplier_order_stub_email") or "").strip()
         data["supplier_order_stub_email"] = value or "info@dragonzap.ru"
+    if "supplier_receipt_upd_email" in data:
+        value = str(data.get("supplier_receipt_upd_email") or "").strip()
+        data["supplier_receipt_upd_email"] = value or None
+    if "supplier_receipt_upd_email_account_id" in data:
+        account_id = data.get("supplier_receipt_upd_email_account_id")
+        data["supplier_receipt_upd_email_account_id"] = (
+            int(account_id) if account_id else None
+        )
     setting = await crud_customer_order_inbox_settings.update(
         session=session, data=data
     )

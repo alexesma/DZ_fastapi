@@ -59,6 +59,16 @@ class CustomerOrderInboxSettings(Base):
         String(255),
         default="info@dragonzap.ru",
     )
+    supplier_receipt_upd_email_enabled = Column(Boolean, default=False)
+    supplier_receipt_upd_email = Column(String(255), nullable=True)
+    supplier_receipt_upd_email_account_id = Column(
+        Integer, ForeignKey("emailaccount.id"), nullable=True
+    )
+    supplier_receipt_upd_email_account = relationship(
+        "EmailAccount",
+        foreign_keys=[supplier_receipt_upd_email_account_id],
+        lazy="selectin",
+    )
     updated_at = Column(
         DateTime(timezone=True),
         default=now_moscow,

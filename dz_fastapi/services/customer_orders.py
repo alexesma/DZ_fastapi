@@ -2278,7 +2278,7 @@ def _build_supplier_order_body_html(
 
 
 def _customer_order_forward_attachment_filename(order_id: int) -> str:
-    return f"Заказ_клиента_{int(order_id):010d}.xls"
+    return f"Заказ_клиента_{int(order_id):010d}.xlsx"
 
 
 def _build_customer_order_forward_rows(
@@ -2317,63 +2317,93 @@ def _build_customer_order_forward_attachment_bytes(
     total_qty: int,
     total_sum: float,
 ) -> bytes:
+    # Раньше отдавали HTML-таблицу с расширением .xls — 1С такой файл не
+    # загружает. Теперь формируем НАСТОЯЩИЙ .xlsx (openpyxl) с числовыми
+    # ячейками количества/цены/суммы.
     order_datetime = order.received_at or now_moscow()
     order_datetime_text = order_datetime.strftime("%d.%m.%Y %H:%M:%S")
-    row_lines = "".join(
-        (
-            "<tr>"
-            f'<td>{escape(str(row["index"]))}</td>'
-            f'<td>{escape(str(row["brand"] or ""))}</td>'
-            f'<td>{escape(str(row["oem"] or ""))}</td>'
-            f'<td>{escape(str(row["comment"] or ""))}</td>'
-            f'<td>{escape(str(row["name"] or ""))}</td>'
-            f'<td>{escape(str(row["note"] or ""))}</td>'
-            f'<td>{escape(str(row["qty"] or ""))}</td>'
-            f'<td>{escape(str(row["price"] or ""))}</td>'
-            f'<td>{escape(str(row["sum"] or ""))}</td>'
-            f'<td>{escape(str(row["price_code"] or ""))}</td>'
-            "</tr>"
-        )
-        for row in rows
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "TDSheet"
+
+    headers = [
+        "№",
+        "Производитель",
+        "Номер детали",
+        "Комментарий",
+        "Наименование",
+        "Примечание",
+        "Кол-во",
+        "Цена",
+        "Сумма",
+        "Прайс",
+    ]
+    column_widths = [6.0, 15.5, 14.0, 12.0, 26.0, 12.0, 8.0, 11.0, 12.0, 10.0]
+    for index, width in enumerate(column_widths, start=1):
+        sheet.column_dimensions[get_column_letter(index)].width = width
+
+    font_title = Font(name="Arial", size=12, bold=True)
+    font_bold = Font(name="Arial", size=10, bold=True)
+    font_main = Font(name="Arial", size=10)
+    align_left = Alignment(horizontal="left", vertical="center")
+    align_right = Alignment(horizontal="right", vertical="center")
+    align_center = Alignment(
+        horizontal="center", vertical="center", wrap_text=True
     )
-    html = (
-        "<html><head><meta charset=\"utf-8\"></head><body>"
-        "<div>"
-        f"<p><b>Заказ клиента № {escape(str(order.order_number or order.id))}</b></p>"
-        '<table cellspacing="0" cellpadding="2">'
-        f"<tr><td><b>Дата</b></td><td>{escape(order_datetime_text)}</td></tr>"
-        f"<tr><td><b>ID заказа</b></td><td>{escape(str(order.id))}</td></tr>"
-        "</table>"
-        "<br/>"
-        '<table border="1" cellpadding="4" cellspacing="0" '
-        'style="border-collapse: collapse;">'
-        "<thead>"
-        "<tr>"
-        "<th>№</th>"
-        "<th>Производитель</th>"
-        "<th>Номер детали</th>"
-        "<th>Комментарий</th>"
-        "<th>Наименование</th>"
-        "<th>Примечание</th>"
-        "<th>Кол-во</th>"
-        "<th>Цена</th>"
-        "<th>Сумма</th>"
-        "<th>Прайс</th>"
-        "</tr>"
-        "</thead>"
-        f"<tbody>{row_lines}</tbody>"
-        "<tfoot>"
-        f'<tr><td colspan="6"><b>Итого:</b></td>'
-        f"<td>{escape(str(total_qty))}</td>"
-        "<td>RUR</td>"
-        f'<td>{escape(f"{total_sum:.2f}")}</td>'
-        "<td></td></tr>"
-        "</tfoot>"
-        "</table>"
-        "</div>"
-        "</body></html>"
-    )
-    return html.encode("utf-8")
+    thin = Side(style="thin", color="000000")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    sheet["A1"] = f"Заказ клиента № {order.order_number or order.id}"
+    sheet["A1"].font = font_title
+    sheet["A2"] = f"Дата: {order_datetime_text}"
+    sheet["A2"].font = font_main
+    sheet["A3"] = f"ID заказа: {order.id}"
+    sheet["A3"].font = font_main
+
+    header_row = 5
+    for col_index, title in enumerate(headers, start=1):
+        cell = sheet.cell(row=header_row, column=col_index, value=title)
+        cell.font = font_bold
+        cell.alignment = align_center
+        cell.border = border
+
+    numeric_columns = {7, 8, 9}  # Кол-во, Цена, Сумма
+    current_row = header_row + 1
+    for row in rows:
+        values = [
+            row.get("index"),
+            row.get("brand") or "",
+            row.get("oem") or "",
+            row.get("comment") or "",
+            row.get("name") or "",
+            row.get("note") or "",
+            row.get("qty") or 0,
+            row.get("price"),
+            row.get("sum"),
+            row.get("price_code") or "",
+        ]
+        for col_index, value in enumerate(values, start=1):
+            cell = sheet.cell(row=current_row, column=col_index, value=value)
+            cell.font = font_main
+            cell.border = border
+            cell.alignment = (
+                align_right if col_index in numeric_columns else align_left
+            )
+        current_row += 1
+
+    sheet.cell(row=current_row, column=1, value="Итого:").font = font_bold
+    sheet.cell(row=current_row, column=7, value=total_qty).font = font_bold
+    sheet.cell(row=current_row, column=8, value="RUR").font = font_bold
+    sheet.cell(
+        row=current_row, column=9, value=round(float(total_sum), 2)
+    ).font = font_bold
+    for col_index in range(1, len(headers) + 1):
+        sheet.cell(row=current_row, column=col_index).border = border
+
+    output = BytesIO()
+    workbook.save(output)
+    return output.getvalue()
 
 
 async def _send_forwarded_customer_order_email(
