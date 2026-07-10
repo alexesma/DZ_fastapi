@@ -6,6 +6,7 @@ from dz_fastapi.core.db import get_session
 from dz_fastapi.crud.watchlist import crud_price_watch_item
 from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.inventory import StockLot
 from dz_fastapi.models.partner import (
     PriceList,
     PriceListAutoPartAssociation,
@@ -18,6 +19,7 @@ from dz_fastapi.schemas.watchlist import (
     PriceWatchItemUpdate,
     PriceWatchListPage,
 )
+from dz_fastapi.services.autopurchase import _resolve_autopurchase_provider_config
 
 router = APIRouter()
 
@@ -84,6 +86,149 @@ async def _get_saved_provider_offer(item, session: AsyncSession):
     }
 
 
+async def _load_own_stock_info(items, session: AsyncSession) -> dict:
+    """Закупка, наша текущая цена и остаток для позиций watchlist.
+
+    Позиция сопоставляется с карточкой по нормализованному OEM и бренду.
+    Цена последней закупки — из последней партии StockLot (fallback —
+    закупочная цена карточки), текущая цена и остаток — из активного
+    прайса нашего собственного поставщика.
+    """
+    if not items:
+        return {}
+    key_by_item_id = {}
+    normalized_oems = set()
+    for item in items:
+        normalized = preprocess_oem_number(item.oem)
+        key_by_item_id[item.id] = (
+            normalized,
+            str(item.brand or "").strip().lower(),
+        )
+        normalized_oems.add(normalized)
+
+    autopart_stmt = (
+        select(
+            AutoPart.id,
+            AutoPart.oem_number,
+            func.lower(Brand.name).label("brand_lower"),
+            AutoPart.purchase_price,
+        )
+        .join(Brand, Brand.id == AutoPart.brand_id)
+        .where(AutoPart.oem_number.in_(normalized_oems))
+    )
+    autopart_by_key = {}
+    for ap_id, oem, brand_lower, purchase_price in (
+        await session.execute(autopart_stmt)
+    ).all():
+        autopart_by_key[(oem, brand_lower)] = {
+            "autopart_id": int(ap_id),
+            "card_purchase_price": float(purchase_price or 0) or None,
+        }
+    autopart_ids = [
+        row["autopart_id"] for row in autopart_by_key.values()
+    ]
+    if not autopart_ids:
+        return {}
+
+    last_lot_by_autopart = {}
+    lot_stmt = (
+        select(
+            StockLot.autopart_id,
+            StockLot.cost_price,
+            StockLot.received_at,
+        )
+        .where(
+            StockLot.autopart_id.in_(autopart_ids),
+            StockLot.cost_price.is_not(None),
+            StockLot.cost_price > 0,
+        )
+        .order_by(StockLot.autopart_id.asc(), StockLot.received_at.desc())
+        .distinct(StockLot.autopart_id)
+    )
+    for ap_id, cost_price, received_at in (
+        await session.execute(lot_stmt)
+    ).all():
+        last_lot_by_autopart[int(ap_id)] = {
+            "price": float(cost_price),
+            "received_at": received_at,
+        }
+
+    lot_qty_by_autopart = {}
+    lot_qty_stmt = (
+        select(
+            StockLot.autopart_id,
+            func.sum(StockLot.remaining_quantity),
+        )
+        .where(
+            StockLot.autopart_id.in_(autopart_ids),
+            StockLot.remaining_quantity > 0,
+        )
+        .group_by(StockLot.autopart_id)
+    )
+    for ap_id, qty in (await session.execute(lot_qty_stmt)).all():
+        lot_qty_by_autopart[int(ap_id)] = int(qty or 0)
+
+    own_offer_by_autopart = {}
+    try:
+        config_row = await _resolve_autopurchase_provider_config(session)
+    except ValueError:
+        config_row = None
+    if config_row:
+        own_pricelist_id = (
+            await session.execute(
+                select(PriceList.id)
+                .where(
+                    PriceList.provider_config_id
+                    == int(config_row["provider_config_id"]),
+                    PriceList.is_active.is_(True),
+                )
+                .order_by(PriceList.date.desc(), PriceList.id.desc())
+                .limit(1)
+            )
+        ).scalar()
+        if own_pricelist_id:
+            own_stmt = select(
+                PriceListAutoPartAssociation.autopart_id,
+                PriceListAutoPartAssociation.price,
+                PriceListAutoPartAssociation.quantity,
+            ).where(
+                PriceListAutoPartAssociation.pricelist_id == own_pricelist_id,
+                PriceListAutoPartAssociation.autopart_id.in_(autopart_ids),
+            )
+            for ap_id, price, quantity in (
+                await session.execute(own_stmt)
+            ).all():
+                own_offer_by_autopart[int(ap_id)] = {
+                    "price": float(price or 0) or None,
+                    "quantity": int(quantity or 0),
+                }
+
+    info_by_item_id = {}
+    for item_id, key in key_by_item_id.items():
+        autopart = autopart_by_key.get(key)
+        if not autopart:
+            continue
+        ap_id = autopart["autopart_id"]
+        last_lot = last_lot_by_autopart.get(ap_id)
+        own_offer = own_offer_by_autopart.get(ap_id)
+        stock_quantity = (
+            own_offer["quantity"]
+            if own_offer is not None
+            else lot_qty_by_autopart.get(ap_id)
+        )
+        info_by_item_id[item_id] = {
+            "last_purchase_price": (
+                last_lot["price"]
+                if last_lot
+                else autopart["card_purchase_price"]
+            ),
+            "last_purchase_at": last_lot["received_at"] if last_lot else None,
+            "current_price": own_offer["price"] if own_offer else None,
+            "stock_quantity": stock_quantity,
+        }
+    return info_by_item_id
+
+
 @router.get(
     "/watchlist",
     tags=["watchlist"],
@@ -99,6 +244,7 @@ async def list_watch_items(
     items, total = await crud_price_watch_item.list(
         session=session, page=page, page_size=page_size, search=search
     )
+    stock_info = await _load_own_stock_info(items, session)
     output_items = []
     for item in items:
         payload = PriceWatchItemOut.model_validate(item)
@@ -106,6 +252,12 @@ async def list_watch_items(
             item,
             session,
         )
+        item_stock = stock_info.get(item.id)
+        if item_stock:
+            payload.last_purchase_price = item_stock["last_purchase_price"]
+            payload.last_purchase_at = item_stock["last_purchase_at"]
+            payload.current_price = item_stock["current_price"]
+            payload.stock_quantity = item_stock["stock_quantity"]
         output_items.append(payload)
     return PriceWatchListPage(
         items=output_items,

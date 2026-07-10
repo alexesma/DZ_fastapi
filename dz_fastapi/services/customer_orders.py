@@ -4631,6 +4631,7 @@ async def send_supplier_orders(
             provider_name = (
                 provider.name if provider and provider.name else "Поставщик"
             )
+            attachment_filename = _supplier_order_attachment_filename(order.id)
             body = _build_supplier_order_body_html(
                 order=order,
                 rows=rows,
@@ -4650,12 +4651,21 @@ async def send_supplier_orders(
                     f"{escape(original_recipient_label)}</p>"
                     f"{body}"
                 )
+            logger.info(
+                "Sending supplier order email: order_id=%s to=%s "
+                "filename=%s attachment_size=%s attachment_head=%s",
+                order.id,
+                to_email,
+                attachment_filename,
+                len(attachment_bytes),
+                attachment_bytes[:8].hex(),
+            )
             await _send_email_attachment_async(
                 to_email,
                 subject,
                 body,
                 attachment_bytes,
-                _supplier_order_attachment_filename(order.id),
+                attachment_filename,
                 True,
                 **smtp_kwargs,
             )
