@@ -91,6 +91,9 @@ class DashboardOrderMarginRow(BaseModel):
     period_start: datetime
     customer_id: int
     customer_name: str
+    ordered_quantity: int = 0
+    order_total: float = 0.0
+    unpriced_order_quantity: int = 0
     quantity: int = 0
     revenue_total: float = 0.0
     cost_total: float = 0.0

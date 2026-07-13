@@ -436,27 +436,13 @@ async def get_order_margin(
         .join(CustomerOrder, CustomerOrder.id == CustomerOrderItem.order_id)
         .join(Customer, Customer.id == CustomerOrder.customer_id)
         .outerjoin(AutoPart, AutoPart.id == CustomerOrderItem.autopart_id)
-        .where(
-            CustomerOrder.received_at >= start_at,
-            CustomerOrderItem.status.in_(
-                (
-                    CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK,
-                    CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER,
-                )
-            ),
-        )
+        .where(CustomerOrder.received_at >= start_at)
         .order_by(CustomerOrder.received_at.asc())
     )
     grouped: dict[tuple[object, int], dict] = {}
     for row in (await session.execute(stmt)).all():
         requested_qty = max(int(row.requested_qty or 0), 0)
-        reject_qty = max(int(row.reject_qty or 0), 0)
-        quantity = (
-            max(int(row.ship_qty or 0), 0)
-            if row.ship_qty is not None
-            else max(requested_qty - reject_qty, 0)
-        )
-        if quantity <= 0:
+        if requested_qty <= 0:
             continue
         received_at = row.received_at or generated_at
         if received_at.tzinfo is None:
@@ -471,6 +457,9 @@ async def get_order_margin(
                 ).replace(tzinfo=generated_at.tzinfo),
                 "customer_id": int(row.customer_id),
                 "customer_name": row.customer_name or f"#{row.customer_id}",
+                "ordered_quantity": 0,
+                "order_total": 0.0,
+                "unpriced_order_quantity": 0,
                 "quantity": 0,
                 "revenue_total": 0.0,
                 "cost_total": 0.0,
@@ -478,6 +467,29 @@ async def get_order_margin(
                 "uncosted_quantity": 0,
             },
         )
+        order_price = (
+            float(row.requested_price)
+            if row.requested_price is not None
+            else float(row.matched_price or 0)
+        )
+        item["ordered_quantity"] += requested_qty
+        item["order_total"] += requested_qty * order_price
+        if order_price <= 0:
+            item["unpriced_order_quantity"] += requested_qty
+
+        if row.status not in (
+            CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK,
+            CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER,
+        ):
+            continue
+        reject_qty = max(int(row.reject_qty or 0), 0)
+        quantity = (
+            max(int(row.ship_qty or 0), 0)
+            if row.ship_qty is not None
+            else max(requested_qty - reject_qty, 0)
+        )
+        if quantity <= 0:
+            continue
         sale_price = float(row.requested_price or 0)
         catalog_cost = float(row.purchase_price or 0) or float(
             row.wholesale_price or 0
@@ -498,9 +510,10 @@ async def get_order_margin(
 
     rows = []
     for item in grouped.values():
+        item["order_total"] = round(item["order_total"], 2)
         item["revenue_total"] = round(item["revenue_total"], 2)
         item["cost_total"] = round(item["cost_total"], 2)
-        if item["uncosted_quantity"] == 0:
+        if item["quantity"] > 0 and item["uncosted_quantity"] == 0:
             gross_profit = round(
                 item["revenue_total"] - item["cost_total"], 2
             )
@@ -519,8 +532,9 @@ async def get_order_margin(
         "generated_at": generated_at,
         "source": "customer_orders_estimate",
         "note": (
-            "Расчётная маржа по исполненным строкам заказов клиентов; "
-            "она используется только когда нет проведённых отгрузок."
+            "Сумма заказов рассчитана по всем входящим строкам. "
+            "Маржа является оценкой только по обработанным строкам "
+            "с известной себестоимостью."
         ),
         "rows": rows,
     }

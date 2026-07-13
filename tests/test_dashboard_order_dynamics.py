@@ -137,12 +137,58 @@ async def test_order_margin_uses_fulfilled_customer_order_rows(
     assert result["source"] == "customer_orders_estimate"
     assert len(result["rows"]) == 1
     row = result["rows"][0]
+    assert row["ordered_quantity"] == 3
+    assert row["order_total"] == 300.0
+    assert row["unpriced_order_quantity"] == 0
     assert row["quantity"] == 2
     assert row["revenue_total"] == 200.0
     assert row["cost_total"] == 120.0
     assert row["gross_profit"] == 80.0
     assert row["margin_percent"] == 40.0
     assert row["uncosted_quantity"] == 0
+
+
+@pytest.mark.asyncio
+async def test_order_margin_includes_unprocessed_rows_in_order_totals(
+    test_session,
+    created_customers,
+):
+    customer_order = CustomerOrder(
+        customer_id=created_customers[0].id,
+        received_at=now_moscow() - timedelta(days=1),
+    )
+    test_session.add(customer_order)
+    await test_session.flush()
+    test_session.add_all(
+        [
+            CustomerOrderItem(
+                order_id=customer_order.id,
+                oem="ORDERED-1",
+                brand="BRAND",
+                requested_qty=4,
+                requested_price=125,
+                status=CUSTOMER_ORDER_ITEM_STATUS.NEW,
+            ),
+            CustomerOrderItem(
+                order_id=customer_order.id,
+                oem="ORDERED-2",
+                brand="BRAND",
+                requested_qty=2,
+                status=CUSTOMER_ORDER_ITEM_STATUS.NEW,
+            ),
+        ]
+    )
+    await test_session.commit()
+
+    result = await get_order_margin(days=30, session=test_session)
+
+    assert len(result["rows"]) == 1
+    row = result["rows"][0]
+    assert row["ordered_quantity"] == 6
+    assert row["order_total"] == 500.0
+    assert row["unpriced_order_quantity"] == 2
+    assert row["quantity"] == 0
+    assert row["gross_profit"] is None
 
 
 def test_inventory_unit_cost_falls_back_to_own_pricelist_price():
