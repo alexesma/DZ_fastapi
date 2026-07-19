@@ -12,14 +12,14 @@ Reclamation.recommendation (код). Ничего не отправляет и �
 это делает этап 5. Статусы new/recognized переводит в checked.
 """
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, time, timedelta
 from typing import Any, Optional
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from dz_fastapi.core.time import now_moscow
+from dz_fastapi.core.time import MOSCOW_TZ, now_moscow
 from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
 from dz_fastapi.models.inventory import (
     ShipmentDocument,
@@ -36,6 +36,7 @@ from dz_fastapi.models.partner import (
     Provider,
     Reclamation,
 )
+from dz_fastapi.services.holidays import get_effective_holiday_set, next_business_day
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -64,7 +65,7 @@ REC_REQUEST_SUPPLIER = "request_supplier"
 REC_MANUAL = "manual"
 
 RECOMMENDATION_TEXT = {
-    REC_APPROVE: "Можно согласовать возврат — отгрузка найдена, в сроке",
+    REC_APPROVE: "Можно согласовать возврат — срок возврата не истёк",
     REC_REJECT: "Рекомендуется отклонить — вне срока возврата",
     REC_REQUEST_DOCUMENTS: (
         "Брак: не хватает документов — запросить у клиента"
@@ -74,6 +75,8 @@ RECOMMENDATION_TEXT = {
     ),
     REC_MANUAL: "Требуется ручная проверка",
 }
+
+ORDER_RETURN_CUTOFF = time(hour=15)
 
 # Приоритет рекомендаций (чем меньше — тем «важнее»/раньше в цепочке)
 _REC_PRIORITY = {
@@ -91,6 +94,38 @@ def _as_date(value: Any) -> Optional[date]:
     if isinstance(value, date):
         return value
     return None
+
+
+def _order_return_start_date(
+    order: dict[str, Any],
+    holiday_set: set[date],
+) -> Optional[date]:
+    received_at = order.get("received_at")
+    if isinstance(received_at, datetime):
+        if received_at.tzinfo is None:
+            received_moscow = received_at.replace(tzinfo=MOSCOW_TZ)
+        else:
+            received_moscow = received_at.astimezone(MOSCOW_TZ)
+        if received_moscow.time().replace(tzinfo=None) < ORDER_RETURN_CUTOFF:
+            return received_moscow.date()
+        return next_business_day(received_moscow.date(), holiday_set)
+    return _as_date(order.get("order_date"))
+
+
+def _elapsed_return_days(
+    start_date: date,
+    end_date: date,
+    holiday_set: set[date],
+) -> tuple[int, int]:
+    """Календарные дни периода за вычетом праздничных дат."""
+    calendar_days = max(0, (end_date - start_date).days)
+    excluded_holidays = 0
+    candidate = start_date + timedelta(days=1)
+    while candidate <= end_date:
+        if candidate in holiday_set:
+            excluded_holidays += 1
+        candidate += timedelta(days=1)
+    return max(0, calendar_days - excluded_holidays), excluded_holidays
 
 
 def _brand_blocked(provider: Provider, brand_name: Optional[str]) -> bool:
@@ -243,6 +278,7 @@ async def _check_item(
     customer: Optional[Customer],
     window_days: int,
     today: date,
+    holiday_set: set[date],
 ) -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
     autopart_id = item.autopart_id or await _resolve_autopart_id(
@@ -269,6 +305,10 @@ async def _check_item(
         "shipment_date": None,
         "shipment_doc_number": None,
         "days_since_shipment": None,
+        "return_reference_source": None,
+        "return_start_date": None,
+        "days_since_return_start": None,
+        "holiday_days_excluded": 0,
         "return_window_days": window_days,
         "within_window": None,
         "supplier_id": None,
@@ -314,6 +354,7 @@ async def _check_item(
             autopart_id=autopart_id,
         )
 
+    return_start_date = None
     if shipment is None:
         if customer_order is not None:
             order_date = result["customer_order_date"] or "—"
@@ -332,7 +373,7 @@ async def _check_item(
             })
             shipment_detail = (
                 "Заказ найден, но проведённой отгрузки в системе нет — "
-                "срок возврата нужно проверить вручную"
+                "срок возврата считается от времени заказа"
             )
         else:
             shipment_detail = (
@@ -345,37 +386,62 @@ async def _check_item(
             "status": "warn" if customer_order is not None else "fail",
             "detail": shipment_detail,
         })
-        result["verdict"] = REC_MANUAL
-        return result
-
-    ship_date = _as_date(shipment["doc_date"])
-    result["shipment_found"] = True
-    result["shipment_date"] = (
-        ship_date.isoformat() if ship_date else None
-    )
-    result["shipment_doc_number"] = shipment["doc_number"]
-    checks.append({
-        "key": "shipment",
-        "label": "Отгрузка клиенту",
-        "status": "ok",
-        "detail": (
-            f"Отгружено {ship_date.strftime('%d.%m.%Y') if ship_date else '—'}"
-            f" (документ {shipment['doc_number'] or '—'})"
-        ),
-    })
+        if customer_order is None:
+            result["verdict"] = REC_MANUAL
+            return result
+        return_start_date = _order_return_start_date(
+            customer_order,
+            holiday_set,
+        )
+        result["return_reference_source"] = "customer_order"
+    else:
+        ship_date = _as_date(shipment["doc_date"])
+        result["shipment_found"] = True
+        result["shipment_date"] = (
+            ship_date.isoformat() if ship_date else None
+        )
+        result["shipment_doc_number"] = shipment["doc_number"]
+        checks.append({
+            "key": "shipment",
+            "label": "Отгрузка клиенту",
+            "status": "ok",
+            "detail": (
+                f"Отгружено "
+                f"{ship_date.strftime('%d.%m.%Y') if ship_date else '—'}"
+                f" (документ {shipment['doc_number'] or '—'})"
+            ),
+        })
+        return_start_date = ship_date
+        result["return_reference_source"] = "shipment"
 
     within_window = None
-    if ship_date is not None:
-        days_since = (today - ship_date).days
-        result["days_since_shipment"] = days_since
+    if return_start_date is not None:
+        days_since, holiday_days_excluded = _elapsed_return_days(
+            return_start_date,
+            today,
+            holiday_set,
+        )
+        result["return_start_date"] = return_start_date.isoformat()
+        result["days_since_return_start"] = days_since
+        result["holiday_days_excluded"] = holiday_days_excluded
+        if shipment is not None:
+            result["days_since_shipment"] = days_since
         within_window = days_since <= window_days
         result["within_window"] = within_window
+        reference_text = (
+            "от даты отгрузки"
+            if shipment is not None
+            else "от даты заказа по правилу 15:00 МСК"
+        )
         checks.append({
             "key": "window",
             "label": "Срок возврата",
             "status": "ok" if within_window else "fail",
             "detail": (
-                f"Прошло {days_since} дн. из {window_days} — "
+                f"Начало {return_start_date.strftime('%d.%m.%Y')} "
+                f"({reference_text}). Прошло {days_since} дн. "
+                f"(праздников исключено: {holiday_days_excluded}) "
+                f"из {window_days} — "
                 + ("в сроке" if within_window else "срок истёк")
             ),
         })
@@ -386,6 +452,8 @@ async def _check_item(
             await _supplier_for_shipment_item(
                 session, shipment_item_id=shipment["shipment_item_id"]
             )
+            if shipment is not None
+            else None
         )
         provider = (
             await session.get(Provider, supplier_id)
@@ -410,8 +478,13 @@ async def _check_item(
         result["supplier_brand_blocked"] = brand_blocked
         sup_window = provider.return_window_days
         sup_window_ok = True
-        if sup_window is not None and result["days_since_shipment"] is not None:
-            sup_window_ok = result["days_since_shipment"] <= int(sup_window)
+        if (
+            sup_window is not None
+            and result["days_since_return_start"] is not None
+        ):
+            sup_window_ok = (
+                result["days_since_return_start"] <= int(sup_window)
+            )
 
         if not allowed:
             checks.append({
@@ -505,6 +578,10 @@ async def run_reclamation_check(
         window_days = int(customer.return_window_days)
 
     today = now_moscow().date()
+    holiday_set = await get_effective_holiday_set(
+        session,
+        range(today.year - 5, today.year + 2),
+    )
     rec_type = str(getattr(rec.reclamation_type, "value", rec.reclamation_type))
 
     item_results: list[dict[str, Any]] = []
@@ -516,6 +593,7 @@ async def run_reclamation_check(
                 customer=customer,
                 window_days=window_days,
                 today=today,
+                holiday_set=holiday_set,
             )
         )
 

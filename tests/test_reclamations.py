@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +11,11 @@ from dz_fastapi.models.partner import (
     CustomerOrderItem,
     Reclamation,
 )
-from dz_fastapi.services.reclamation_check import run_reclamation_check
+from dz_fastapi.services.reclamation_check import (
+    _elapsed_return_days,
+    _order_return_start_date,
+    run_reclamation_check,
+)
 from dz_fastapi.services.reclamations import (
     _match_oems_in_text,
     classify_attachment_kind,
@@ -78,10 +82,40 @@ def test_classify_attachment_kind():
     assert classify_attachment_kind("письмо.txt") == "other"
 
 
+def test_order_return_start_date_uses_moscow_cutoff_and_workday():
+    before_cutoff = datetime(2026, 7, 17, 11, 59, tzinfo=UTC)
+    after_cutoff = datetime(2026, 7, 17, 12, 0, tzinfo=UTC)
+
+    holiday_set = {date(2026, 7, 20)}
+
+    assert _order_return_start_date(
+        {"received_at": before_cutoff}, holiday_set
+    ) == date(2026, 7, 17)
+    assert _order_return_start_date(
+        {"received_at": after_cutoff}, holiday_set
+    ) == date(2026, 7, 21)
+
+
+def test_elapsed_return_days_excludes_holidays():
+    elapsed, excluded = _elapsed_return_days(
+        date(2026, 1, 1),
+        date(2026, 1, 6),
+        {date(2026, 1, 2), date(2026, 1, 5)},
+    )
+
+    assert elapsed == 3
+    assert excluded == 2
+
+
 @pytest.mark.asyncio
 async def test_match_oem_uses_customer_order_history(
     test_session: AsyncSession,
+    monkeypatch,
 ):
+    monkeypatch.setattr(
+        "dz_fastapi.services.reclamation_check.now_moscow",
+        lambda: datetime(2026, 7, 21, 9, 0, tzinfo=UTC),
+    )
     customer = Customer(
         name="Reclamation customer",
         email_contact="reclamation-customer@example.com",
@@ -92,6 +126,8 @@ async def test_match_oem_uses_customer_order_history(
     order = CustomerOrder(
         customer_id=customer.id,
         order_number="ORDER-948",
+        order_date=date(2026, 7, 17),
+        received_at=datetime(2026, 7, 17, 12, 0, tzinfo=UTC),
     )
     test_session.add(order)
     await test_session.flush()
@@ -143,4 +179,6 @@ async def test_match_oem_uses_customer_order_history(
     assert item_check["customer_order_number"] == "ORDER-948"
     assert item_check["customer_order_requested_qty"] == 1
     assert item_check["shipment_found"] is False
-    assert item_check["verdict"] == "manual"
+    assert item_check["return_reference_source"] == "customer_order"
+    assert item_check["return_start_date"] == "2026-07-20"
+    assert item_check["verdict"] == "approve"
