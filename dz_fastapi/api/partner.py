@@ -947,6 +947,7 @@ def build_customer_response_short(customer: Customer) -> CustomerResponseShort:
         credit_control_mode=customer.credit_control_mode or "off",
         credit_limit=customer.credit_limit,
         payment_terms_days=customer.payment_terms_days or 0,
+        return_window_days=customer.return_window_days,
         external_references=[
             CustomerExternalReferenceOut.model_validate(reference)
             for reference in (customer.external_references or [])
@@ -1005,6 +1006,7 @@ async def build_customer_response_short_aggregated(
         credit_control_mode=customer.credit_control_mode or "off",
         credit_limit=customer.credit_limit,
         payment_terms_days=customer.payment_terms_days or 0,
+        return_window_days=customer.return_window_days,
         external_references=[
             CustomerExternalReferenceOut.model_validate(reference)
             for reference in (customer.external_references or [])

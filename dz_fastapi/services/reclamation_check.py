@@ -15,7 +15,7 @@ import logging
 from datetime import date, datetime
 from typing import Any, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -31,6 +31,8 @@ from dz_fastapi.models.partner import (
     RECLAMATION_STATUS,
     RECLAMATION_TYPE,
     Customer,
+    CustomerOrder,
+    CustomerOrderItem,
     Provider,
     Reclamation,
 )
@@ -153,6 +155,70 @@ async def _find_latest_shipment(
     }
 
 
+async def _find_latest_customer_order(
+    session: AsyncSession,
+    *,
+    customer_id: int,
+    oem_number: Optional[str],
+    autopart_id: Optional[int],
+) -> Optional[dict[str, Any]]:
+    normalized = preprocess_oem_number(oem_number or "")
+    normalized_order_oem = func.upper(
+        func.regexp_replace(
+            CustomerOrderItem.oem,
+            "[^A-Za-z0-9]",
+            "",
+            "g",
+        )
+    )
+    matches = []
+    if autopart_id is not None:
+        matches.append(CustomerOrderItem.autopart_id == autopart_id)
+    if normalized:
+        matches.append(normalized_order_oem == normalized)
+    if not matches:
+        return None
+
+    row = (
+        await session.execute(
+            select(
+                CustomerOrder.id,
+                CustomerOrder.order_number,
+                CustomerOrder.order_date,
+                CustomerOrder.received_at,
+                CustomerOrderItem.requested_qty,
+                CustomerOrderItem.ship_qty,
+                CustomerOrderItem.autopart_id,
+            )
+            .join(
+                CustomerOrderItem,
+                CustomerOrderItem.order_id == CustomerOrder.id,
+            )
+            .where(
+                CustomerOrder.customer_id == customer_id,
+                or_(*matches),
+            )
+            .order_by(
+                CustomerOrder.order_date.desc().nullslast(),
+                CustomerOrder.received_at.desc(),
+                CustomerOrder.id.desc(),
+            )
+            .limit(1)
+        )
+    ).first()
+    if row is None:
+        return None
+    return {
+        "order_id": int(row.id),
+        "order_number": row.order_number,
+        "order_date": row.order_date,
+        "received_at": row.received_at,
+        "requested_qty": int(row.requested_qty or 0),
+        "ship_qty": int(row.ship_qty or 0),
+        "autopart_id": int(row.autopart_id) if row.autopart_id else None,
+    }
+
+
 async def _supplier_for_shipment_item(
     session: AsyncSession, *, shipment_item_id: int
 ) -> Optional[int]:
@@ -193,6 +259,12 @@ async def _check_item(
         "quantity": int(item.quantity or 0),
         "item_source": item_source,
         "autopart_id": autopart_id,
+        "customer_order_found": False,
+        "customer_order_id": None,
+        "customer_order_number": None,
+        "customer_order_date": None,
+        "customer_order_requested_qty": None,
+        "customer_order_ship_qty": None,
         "shipment_found": False,
         "shipment_date": None,
         "shipment_doc_number": None,
@@ -208,6 +280,33 @@ async def _check_item(
     }
 
     shipment = None
+    customer_order = None
+    if customer is not None:
+        customer_order = await _find_latest_customer_order(
+            session,
+            customer_id=int(customer.id),
+            oem_number=item.oem_number,
+            autopart_id=autopart_id,
+        )
+    if customer_order is not None:
+        order_date = _as_date(customer_order["order_date"]) or _as_date(
+            customer_order["received_at"]
+        )
+        result.update(
+            {
+                "customer_order_found": True,
+                "customer_order_id": customer_order["order_id"],
+                "customer_order_number": customer_order["order_number"],
+                "customer_order_date": (
+                    order_date.isoformat() if order_date else None
+                ),
+                "customer_order_requested_qty": customer_order[
+                    "requested_qty"
+                ],
+                "customer_order_ship_qty": customer_order["ship_qty"],
+            }
+        )
+
     if customer is not None and autopart_id is not None:
         shipment = await _find_latest_shipment(
             session,
@@ -216,14 +315,35 @@ async def _check_item(
         )
 
     if shipment is None:
+        if customer_order is not None:
+            order_date = result["customer_order_date"] or "—"
+            order_label = customer_order["order_number"] or (
+                f"#{customer_order['order_id']}"
+            )
+            checks.append({
+                "key": "customer_order",
+                "label": "Заказ клиента",
+                "status": "ok",
+                "detail": (
+                    f"Найден заказ {order_label} "
+                    f"от {order_date}: заказано {customer_order['requested_qty']} шт., "
+                    f"подтверждено к отгрузке {customer_order['ship_qty']} шт."
+                ),
+            })
+            shipment_detail = (
+                "Заказ найден, но проведённой отгрузки в системе нет — "
+                "срок возврата нужно проверить вручную"
+            )
+        else:
+            shipment_detail = (
+                "Ни заказ клиента, ни проведённая отгрузка этой позиции "
+                "не найдены — проверьте артикул вручную"
+            )
         checks.append({
             "key": "shipment",
             "label": "Отгрузка клиенту",
-            "status": "fail",
-            "detail": (
-                "Проведённая отгрузка этой позиции клиенту не найдена — "
-                "проверьте вручную"
-            ),
+            "status": "warn" if customer_order is not None else "fail",
+            "detail": shipment_detail,
         })
         result["verdict"] = REC_MANUAL
         return result
@@ -368,6 +488,12 @@ async def run_reclamation_check(
     ).scalar_one_or_none()
     if rec is None:
         raise ValueError("Рекламация не найдена")
+
+    # Повторяем распознавание для уже загруженных писем: правила могли быть
+    # улучшены после первичного приёма, а Message-ID не даст создать дубль.
+    from dz_fastapi.services.reclamations import recognize_reclamation_items
+
+    await recognize_reclamation_items(session, rec)
 
     customer = (
         await session.get(Customer, rec.customer_id)

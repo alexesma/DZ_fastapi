@@ -27,6 +27,8 @@ from dz_fastapi.models.partner import (
     RECLAMATION_STATUS,
     RECLAMATION_TYPE,
     Customer,
+    CustomerOrder,
+    CustomerOrderItem,
     CustomerReclamationEmail,
     Reclamation,
     ReclamationAttachment,
@@ -160,11 +162,12 @@ async def _match_oems_in_text(
     session: AsyncSession,
     text: str,
     limit: int = 10,
+    customer_id: Optional[int] = None,
 ) -> list[dict[str, Any]]:
-    """Ищет в тексте токены, совпадающие с артикулами в номенклатуре."""
+    """Ищет артикулы в номенклатуре и прошлых заказах клиента."""
     tokens = {
         preprocess_oem_number(tok)
-        for tok in re.findall(r"[A-Za-zА-Яа-я0-9][\w\-./]{3,}", text or "")
+        for tok in re.findall(r"[A-Za-z0-9][A-Za-z0-9\-./]{3,}", text or "")
     }
     tokens = {t for t in tokens if t and len(t) >= 4}
     if not tokens:
@@ -179,14 +182,126 @@ async def _match_oems_in_text(
             .limit(limit)
         )
     ).all()
-    return [
+    result = [
         {
             "autopart_id": int(r[0]),
             "oem_number": r[1],
             "autopart_name": r[2],
+            "brand_name": None,
         }
         for r in rows
     ]
+    matched_oems = {str(item["oem_number"]) for item in result}
+    remaining = tokens - matched_oems
+
+    if remaining:
+        normalized_order_oem = func.upper(
+            func.regexp_replace(
+                CustomerOrderItem.oem,
+                "[^A-Za-z0-9]",
+                "",
+                "g",
+            )
+        )
+        order_stmt = (
+            select(
+                CustomerOrderItem.autopart_id,
+                normalized_order_oem.label("oem_number"),
+                CustomerOrderItem.name,
+                CustomerOrderItem.brand,
+            )
+            .join(
+                CustomerOrder,
+                CustomerOrder.id == CustomerOrderItem.order_id,
+            )
+            .where(normalized_order_oem.in_(remaining))
+            .order_by(
+                CustomerOrder.received_at.desc(),
+                CustomerOrderItem.id.desc(),
+            )
+        )
+        if customer_id is not None:
+            order_stmt = order_stmt.where(
+                CustomerOrder.customer_id == customer_id
+            )
+        order_rows = (await session.execute(order_stmt)).all()
+        for row in order_rows:
+            normalized = str(row.oem_number or "")
+            if not normalized or normalized in matched_oems:
+                continue
+            result.append(
+                {
+                    "autopart_id": (
+                        int(row.autopart_id) if row.autopart_id else None
+                    ),
+                    "oem_number": normalized,
+                    "autopart_name": row.name,
+                    "brand_name": row.brand,
+                }
+            )
+            matched_oems.add(normalized)
+            if len(result) >= limit:
+                break
+
+    # Смешанный буквенно-цифровой номер достаточно характерен для артикула.
+    # Сохраняем его для ручной проверки, даже если номенклатура ещё не создана.
+    for token in sorted(tokens - matched_oems):
+        if not (re.search(r"[A-Z]", token) and re.search(r"\d", token)):
+            continue
+        if len(token) < 6 or len(token) > 24:
+            continue
+        if len(re.findall(r"\d", token)) < 3:
+            continue
+        result.append(
+            {
+                "autopart_id": None,
+                "oem_number": token,
+                "autopart_name": None,
+                "brand_name": None,
+            }
+        )
+        if len(result) >= limit:
+            break
+
+    return result
+
+
+async def recognize_reclamation_items(
+    session: AsyncSession,
+    reclamation: Reclamation,
+) -> int:
+    """Дополняет позиции карточки по сохранённому письму и истории заказов."""
+    existing_oems = {
+        preprocess_oem_number(item.oem_number or "")
+        for item in (reclamation.items or [])
+        if item.oem_number
+    }
+    matched = await _match_oems_in_text(
+        session,
+        f"{reclamation.email_subject or ''}\n{reclamation.email_body or ''}",
+        customer_id=reclamation.customer_id,
+    )
+    created = 0
+    for item in matched:
+        normalized = preprocess_oem_number(item["oem_number"] or "")
+        if not normalized or normalized in existing_oems:
+            continue
+        reclamation.items.append(
+            ReclamationItem(
+                oem_number=normalized,
+                brand_name=item.get("brand_name"),
+                autopart_name=item.get("autopart_name"),
+                autopart_id=item.get("autopart_id"),
+                quantity=1,
+                item_source=RECLAMATION_ITEM_SOURCE.UNKNOWN,
+            )
+        )
+        existing_oems.add(normalized)
+        created += 1
+    if created:
+        session.add(reclamation)
+        await session.flush()
+    return created
 
 
 async def resolve_customer_by_email(
@@ -297,13 +412,16 @@ async def ingest_reclamation_email(
 
     # Позиции по найденным артикулам в тексте
     matched = await _match_oems_in_text(
-        session, f"{email.subject}\n{email.body_text}"
+        session,
+        f"{email.subject}\n{email.body_text}",
+        customer_id=customer_id,
     )
     for item in matched:
         session.add(
             ReclamationItem(
                 reclamation_id=reclamation.id,
                 oem_number=item["oem_number"],
+                brand_name=item.get("brand_name"),
                 autopart_name=item["autopart_name"],
                 autopart_id=item["autopart_id"],
                 quantity=1,
@@ -478,13 +596,16 @@ async def create_manual_reclamation(
     session.add(reclamation)
     await session.flush()
     matched = await _match_oems_in_text(
-        session, f"{subject or ''}\n{body or ''}"
+        session,
+        f"{subject or ''}\n{body or ''}",
+        customer_id=customer_id,
     )
     for item in matched:
         session.add(
             ReclamationItem(
                 reclamation_id=reclamation.id,
                 oem_number=item["oem_number"],
+                brand_name=item.get("brand_name"),
                 autopart_name=item["autopart_name"],
                 autopart_id=item["autopart_id"],
                 quantity=1,

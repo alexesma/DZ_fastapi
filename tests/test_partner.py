@@ -514,6 +514,43 @@ async def test_update_customer_success(
 
 
 @pytest.mark.asyncio
+async def test_update_customer_saves_credit_and_return_terms(
+    test_session: AsyncSession,
+    async_client: AsyncClient,
+    created_customers: list[Customer],
+):
+    customer = created_customers[0]
+    response = await async_client.get(f"/customers/{customer.id}/")
+    payload = response.json()
+    payload.update(
+        {
+            "credit_control_mode": "warn",
+            "credit_limit": "125000.00",
+            "payment_terms_days": 21,
+            "return_window_days": 14,
+        }
+    )
+
+    update_response = await async_client.patch(
+        f"/customers/{customer.id}/",
+        json=payload,
+    )
+
+    assert update_response.status_code == 200, update_response.text
+    updated = update_response.json()
+    assert updated["credit_control_mode"] == "warn"
+    assert updated["credit_limit"] == "125000.00"
+    assert updated["payment_terms_days"] == 21
+    assert updated["return_window_days"] == 14
+
+    get_response = await async_client.get(f"/customers/{customer.id}/")
+    assert get_response.status_code == 200, get_response.text
+    saved = get_response.json()
+    assert saved["payment_terms_days"] == 21
+    assert saved["return_window_days"] == 14
+
+
+@pytest.mark.asyncio
 async def test_update_customer_no_data(
     test_session: AsyncSession,
     async_client: AsyncClient,

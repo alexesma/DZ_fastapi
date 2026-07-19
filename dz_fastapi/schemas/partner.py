@@ -477,6 +477,7 @@ class CustomerResponseShort(BaseModel):
     credit_control_mode: str = "off"
     credit_limit: Optional[Decimal] = None
     payment_terms_days: int = 0
+    return_window_days: Optional[int] = None
     external_references: List[CustomerExternalReferenceOut] = Field(
         default_factory=list
     )
