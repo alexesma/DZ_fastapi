@@ -413,11 +413,9 @@ async def fetch_reclamation_emails(
 
     host = getattr(account, "imap_host", None)
     if not host:
-        logger.warning(
-            "У ящика рекламаций id=%s нет imap_host",
-            getattr(account, "id", "?"),
+        raise RuntimeError(
+            "У почтового ящика рекламаций не указан IMAP-сервер"
         )
-        return []
     since = (now_moscow() - timedelta(days=days)).date()
     folder = (getattr(account, "imap_folder", None) or "INBOX").strip()
     try:
@@ -439,7 +437,10 @@ async def fetch_reclamation_emails(
             getattr(account, "id", "?"),
             exc,
         )
-        return []
+        raise RuntimeError(
+            "Не удалось прочитать почтовый ящик рекламаций "
+            f"{getattr(account, 'email', '')}: {exc}"
+        ) from exc
 
 
 async def create_manual_reclamation(

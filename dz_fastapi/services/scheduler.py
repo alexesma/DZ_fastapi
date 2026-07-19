@@ -1475,6 +1475,7 @@ async def sync_reclamations_task(app: FastAPI):
                     exc_info=True,
                 )
                 trace.details["error"] = str(e)[:2000]
+                raise
 
 
 async def sync_diadoc_outbound_status_task(app: FastAPI):

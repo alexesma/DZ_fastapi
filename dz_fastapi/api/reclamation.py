@@ -1,16 +1,18 @@
 """API рекламаций (претензий клиентов)."""
 import logging
+import os
 from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.core.db import get_session
-from dz_fastapi.models.partner import Customer, Reclamation
+from dz_fastapi.models.partner import Customer, Reclamation, ReclamationAttachment
 from dz_fastapi.models.user import User
 from dz_fastapi.schemas.reclamation import (
     EmailOutboxOut,
@@ -184,6 +186,38 @@ async def reclamations_get(
         customer = await session.get(Customer, rec.customer_id)
         customer_name = getattr(customer, "name", None)
     return _detail_from_model(rec, customer_name)
+
+
+@router.get(
+    "/{reclamation_id}/attachments/{attachment_id}/download",
+    summary="Скачать вложение рекламации",
+)
+async def reclamations_download_attachment(
+    reclamation_id: int,
+    attachment_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    attachment = await session.get(ReclamationAttachment, attachment_id)
+    if (
+        attachment is None
+        or int(attachment.reclamation_id) != reclamation_id
+        or not attachment.local_file_path
+    ):
+        raise HTTPException(status_code=404, detail="Вложение не найдено")
+
+    file_path = os.path.abspath(attachment.local_file_path)
+    allowed_root = os.path.abspath("uploads/reclamation_attachments")
+    if (
+        os.path.commonpath((file_path, allowed_root)) != allowed_root
+        or not os.path.isfile(file_path)
+    ):
+        raise HTTPException(status_code=404, detail="Файл вложения не найден")
+
+    return FileResponse(
+        file_path,
+        media_type=attachment.content_type or "application/octet-stream",
+        filename=attachment.file_name or os.path.basename(file_path),
+    )
 
 
 @router.post(
