@@ -88,39 +88,57 @@ class ApiClient:
     def _url(self, path: str) -> str:
         return f"{self.config.api_base_url}{path}"
 
+    def _request_with_transport_retry(self, method: str, path: str, **kwargs):
+        attempts = 3
+        for attempt in range(1, attempts + 1):
+            try:
+                return self.session.request(
+                    method,
+                    self._url(path),
+                    timeout=self.config.request_timeout,
+                    **kwargs,
+                )
+            except (requests.ConnectionError, requests.Timeout) as exc:
+                if attempt >= attempts:
+                    raise
+                delay = 2 ** (attempt - 1)
+                logger.warning(
+                    "Временный обрыв HTTPS при запросе %s. "
+                    "Повтор %d/%d через %d с: %s",
+                    path,
+                    attempt + 1,
+                    attempts,
+                    delay,
+                    exc,
+                )
+                time.sleep(delay)
+        raise RuntimeError("Недостижимый код повтора HTTP-запроса")
+
     def login(self) -> None:
-        resp = self.session.post(
-            self._url("/auth/login"),
+        resp = self._request_with_transport_retry(
+            "POST",
+            "/auth/login",
             json={
                 "email": self.config.auth_email,
                 "password": self.config.auth_password,
             },
-            timeout=self.config.request_timeout,
         )
         resp.raise_for_status()
         logger.info("Авторизация в API успешна (%s)", self.config.auth_email)
 
     def _get_with_retry(self, path: str, **kwargs):
-        resp = self.session.get(
-            self._url(path), timeout=self.config.request_timeout, **kwargs
-        )
+        resp = self._request_with_transport_retry("GET", path, **kwargs)
         if resp.status_code == 401:
             self.login()
-            resp = self.session.get(
-                self._url(path), timeout=self.config.request_timeout, **kwargs
-            )
+            resp = self._request_with_transport_retry("GET", path, **kwargs)
         resp.raise_for_status()
         return resp
 
     def _post_with_retry(self, path: str, **kwargs):
-        resp = self.session.post(
-            self._url(path), timeout=self.config.request_timeout, **kwargs
-        )
+        resp = self._request_with_transport_retry("POST", path, **kwargs)
         if resp.status_code == 401:
             self.login()
-            resp = self.session.post(
-                self._url(path), timeout=self.config.request_timeout, **kwargs
-            )
+            resp = self._request_with_transport_retry("POST", path, **kwargs)
         resp.raise_for_status()
         return resp
 
@@ -135,14 +153,14 @@ class ApiClient:
         """Атомарно захватить письма за этим воркером (безопасно при
         нескольких машинах). Если сервер старый и эндпоинта нет (404) —
         откатываемся на pending."""
-        resp = self.session.post(
-            self._url("/email-outbox/claim"),
+        resp = self._request_with_transport_retry(
+            "POST",
+            "/email-outbox/claim",
             params={
                 "worker": self.config.worker_id,
                 "limit": self.config.batch_limit,
                 "lease_seconds": self.config.claim_lease_seconds,
             },
-            timeout=self.config.request_timeout,
         )
         if resp.status_code == 401:
             self.login()
@@ -310,8 +328,13 @@ def main() -> int:
     while True:
         try:
             process_once(client, config)
-        except requests.RequestException:
-            logger.exception("Сетевая ошибка при опросе очереди")
+        except requests.RequestException as exc:
+            logger.warning(
+                "Сервер временно недоступен после повторных попыток: %s. "
+                "Следующий опрос через %d с.",
+                exc,
+                config.poll_interval_seconds,
+            )
         except Exception:  # noqa: BLE001
             logger.exception("Непредвиденная ошибка в цикле релея")
         time.sleep(config.poll_interval_seconds)

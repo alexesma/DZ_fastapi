@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,18 +12,23 @@ from dz_fastapi.models.partner import (
     CustomerOrderItem,
     Reclamation,
 )
+from dz_fastapi.services.reclamation_attachment_parser import parse_torg2_sheet
 from dz_fastapi.services.reclamation_check import (
     _elapsed_return_days,
     _order_return_start_date,
     run_reclamation_check,
 )
+from dz_fastapi.services.reclamation_replies import build_customer_reply_template
 from dz_fastapi.services.reclamations import (
+    ReclamationInboundAttachment,
+    ReclamationInboundEmail,
     _match_oems_in_text,
     classify_attachment_kind,
     classify_reclamation_type,
     extract_fields,
     extract_links,
     extract_sender_email,
+    ingest_reclamation_email,
 )
 
 
@@ -80,6 +86,151 @@ def test_classify_attachment_kind():
     assert classify_attachment_kind("Дефектовка.docx") == "defect_report"
     assert classify_attachment_kind("photo_1.jpg") == "photo"
     assert classify_attachment_kind("письмо.txt") == "other"
+
+
+class _FakeSheet:
+    def __init__(self, values):
+        self._values = values
+        self.nrows = max(row for row, _ in values) + 1
+        self.ncols = max(col for _, col in values) + 1
+
+    def cell_value(self, row, col):
+        return self._values.get((row, col), "")
+
+
+def test_parse_torg2_sheet_extracts_document_item_and_reason():
+    sheet = _FakeSheet(
+        {
+            (1, 80): "Унифицированная форма № ТОРГ-2",
+            (25, 37): "УПД №2801 от 25.06.26",
+            (106, 4): "Товар (наименование)",
+            (110, 4): (
+                "14775PCX000 HONDA 14775PCX000 HONDA "
+                "Седло пружины клапана HONDA"
+            ),
+            (112, 4): "Фактически оказалось",
+            (116, 4): "14775PCX000",
+            (116, 17): "8",
+            (116, 24): "479.00",
+            (116, 32): "3832.00",
+            (136, 0): "Подробное описание дефектов",
+            (138, 0): "14775PCX000 - Отказ клиента.",
+            (140, 0): "Заключение комиссии",
+        }
+    )
+
+    parsed = parse_torg2_sheet(sheet)
+
+    assert parsed == {
+        "parser": "torg2_xls",
+        "document_number": "2801",
+        "document_date": "2026-06-25",
+        "reason": "Отказ клиента",
+        "items": [
+            {
+                "oem_number": "14775PCX000",
+                "reason": "Отказ клиента",
+                "quantity": 8,
+                "unit_price": 479.0,
+                "line_sum": 3832.0,
+                "brand_name": "HONDA",
+                "autopart_name": "Седло пружины клапана HONDA",
+            }
+        ],
+    }
+
+
+def test_approved_reply_uses_customer_facing_return_instructions():
+    reclamation = SimpleNamespace(
+        id=15,
+        email_subject="Возврат детали",
+        stated_document_number="123984",
+        stated_document_date=date(2026, 7, 7),
+        resolution_comment="Внутренняя причина не должна попасть клиенту",
+        items=[
+            SimpleNamespace(
+                brand_name="HONDA",
+                oem_number="14775PCX000",
+                autopart_name="Трубка вентиляции",
+                quantity=1,
+            )
+        ],
+    )
+
+    subject, body = build_customer_reply_template(reclamation, "approved")
+
+    assert subject == "Re: Возврат детали"
+    assert "Возврат по вашей рекламации по документу 123984" in body
+    assert "от 07.07.2026 согласован" in body
+    assert "Позиции к возврату:" in body
+    assert "HONDA 14775PCX000 — 1 шт." in body
+    assert "передать товар нашему водителю" in body
+    assert "Комментарий:" not in body
+    assert reclamation.resolution_comment not in body
+
+
+@pytest.mark.asyncio
+async def test_ingest_reclamation_uses_structured_attachment_data(
+    test_session: AsyncSession,
+    monkeypatch,
+):
+    customer = Customer(
+        name="Attachment reclamation customer",
+        email_contact="returns@example.com",
+        type_prices="Wholesale",
+    )
+    test_session.add(customer)
+    await test_session.commit()
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.reclamations.parse_reclamation_attachment",
+        lambda _filename, _payload: {
+            "parser": "torg2_xls",
+            "document_number": "2801",
+            "document_date": "2026-06-25",
+            "reason": "Отказ клиента",
+            "items": [
+                {
+                    "oem_number": "14775PCX000",
+                    "brand_name": "HONDA",
+                    "autopart_name": "Седло пружины клапана HONDA",
+                    "quantity": 8,
+                    "reason": "Отказ клиента",
+                    "unit_price": 479.0,
+                    "line_sum": 3832.0,
+                }
+            ],
+        },
+    )
+
+    reclamation = await ingest_reclamation_email(
+        test_session,
+        ReclamationInboundEmail(
+            from_="returns@example.com",
+            subject="Акт расхождений",
+            body_text="Просим рассмотреть возврат во вложении.",
+            message_id="<torg2-test@example.com>",
+            attachments=[
+                ReclamationInboundAttachment(
+                    filename="akt00136.xls",
+                    payload=b"test-xls",
+                    content_type="application/vnd.ms-excel",
+                )
+            ],
+        ),
+    )
+
+    assert reclamation is not None
+    assert reclamation.customer_id == customer.id
+    assert reclamation.stated_document_number == "2801"
+    assert reclamation.stated_document_date == date(2026, 6, 25)
+    assert reclamation.stated_reason == "Отказ клиента"
+    assert reclamation.reclamation_type == "customer_refusal"
+    assert len(reclamation.items) == 1
+    assert reclamation.items[0].oem_number == "14775PCX000"
+    assert reclamation.items[0].brand_name == "HONDA"
+    assert reclamation.items[0].quantity == 8
+    assert reclamation.items[0].reason == "Отказ клиента"
 
 
 def test_order_return_start_date_uses_moscow_cutoff_and_workday():

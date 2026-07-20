@@ -34,6 +34,7 @@ from dz_fastapi.models.partner import (
     ReclamationAttachment,
     ReclamationItem,
 )
+from dz_fastapi.services.reclamation_attachment_parser import parse_reclamation_attachment
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -381,12 +382,53 @@ async def ingest_reclamation_email(
     sender = extract_sender_email(email.from_)
     customer_id = await resolve_customer_by_email(session, sender)
     fields = extract_fields(email.subject, email.body_text)
+    attachment_extractions = [
+        parsed
+        for attachment in (email.attachments or [])
+        if (
+            parsed := parse_reclamation_attachment(
+                attachment.filename,
+                attachment.payload,
+            )
+        )
+    ]
+    attachment_document = next(
+        (
+            parsed
+            for parsed in attachment_extractions
+            if parsed.get("document_number")
+        ),
+        {},
+    )
+    attachment_reason = next(
+        (
+            str(parsed.get("reason") or "").strip()
+            for parsed in attachment_extractions
+            if parsed.get("reason")
+        ),
+        "",
+    )
+    document_number = (
+        attachment_document.get("document_number")
+        or fields.get("document_number")
+    )
+    document_date_value = (
+        attachment_document.get("document_date")
+        or fields.get("document_date")
+    )
     doc_date = None
-    if fields.get("document_date"):
+    if document_date_value:
         try:
-            doc_date = date.fromisoformat(fields["document_date"])
+            doc_date = date.fromisoformat(str(document_date_value))
         except ValueError:
             doc_date = None
+    reclamation_type = fields.get("reclamation_type")
+    if not reclamation_type and attachment_reason:
+        reclamation_type = classify_reclamation_type(attachment_reason)
+
+    extracted_data = dict(fields)
+    if attachment_extractions:
+        extracted_data["attachments"] = attachment_extractions
 
     reclamation = Reclamation(
         source=RECLAMATION_SOURCE.EMAIL,
@@ -395,7 +437,7 @@ async def ingest_reclamation_email(
             if customer_id
             else RECLAMATION_STATUS.NEW
         ),
-        reclamation_type=fields.get("reclamation_type"),
+        reclamation_type=reclamation_type,
         customer_id=customer_id,
         sender_email=sender or None,
         source_link=(fields["links"][0] if fields.get("links") else None),
@@ -403,9 +445,10 @@ async def ingest_reclamation_email(
         email_subject=(email.subject or "")[:998] or None,
         email_received_at=email.received_at or now_moscow(),
         email_body=email.body_text or None,
-        stated_document_number=fields.get("document_number"),
+        stated_document_number=document_number,
         stated_document_date=doc_date,
-        extracted_data=fields,
+        stated_reason=attachment_reason or None,
+        extracted_data=extracted_data,
     )
     session.add(reclamation)
     await session.flush()
@@ -416,15 +459,69 @@ async def ingest_reclamation_email(
         f"{email.subject}\n{email.body_text}",
         customer_id=customer_id,
     )
-    for item in matched:
+    candidates = {
+        preprocess_oem_number(item["oem_number"]): {
+            **item,
+            "quantity": 1,
+            "reason": None,
+        }
+        for item in matched
+        if preprocess_oem_number(item.get("oem_number") or "")
+    }
+    attachment_items = [
+        item
+        for parsed in attachment_extractions
+        for item in (parsed.get("items") or [])
+        if preprocess_oem_number(item.get("oem_number") or "")
+    ]
+    if attachment_items:
+        attachment_oems = "\n".join(
+            str(item.get("oem_number") or "") for item in attachment_items
+        )
+        resolved_attachment_items = await _match_oems_in_text(
+            session,
+            attachment_oems,
+            customer_id=customer_id,
+        )
+        resolved_by_oem = {
+            preprocess_oem_number(item["oem_number"]): item
+            for item in resolved_attachment_items
+        }
+        for parsed_item in attachment_items:
+            normalized = preprocess_oem_number(
+                parsed_item.get("oem_number") or ""
+            )
+            candidate = dict(resolved_by_oem.get(normalized, {}))
+            candidate.update(
+                {
+                    key: value
+                    for key, value in candidates.get(normalized, {}).items()
+                    if value is not None
+                }
+            )
+            candidate["oem_number"] = normalized
+            for field_name in (
+                "brand_name",
+                "autopart_name",
+                "reason",
+            ):
+                if parsed_item.get(field_name):
+                    candidate[field_name] = parsed_item[field_name]
+            candidate["quantity"] = max(
+                1, int(parsed_item.get("quantity") or 1)
+            )
+            candidates[normalized] = candidate
+
+    for item in candidates.values():
         session.add(
             ReclamationItem(
                 reclamation_id=reclamation.id,
                 oem_number=item["oem_number"],
                 brand_name=item.get("brand_name"),
-                autopart_name=item["autopart_name"],
-                autopart_id=item["autopart_id"],
-                quantity=1,
+                autopart_name=item.get("autopart_name"),
+                autopart_id=item.get("autopart_id"),
+                quantity=item.get("quantity") or 1,
+                reason=item.get("reason"),
                 item_source=RECLAMATION_ITEM_SOURCE.UNKNOWN,
             )
         )
@@ -456,7 +553,7 @@ async def ingest_reclamation_email(
         "Создана рекламация #%s (клиент=%s, позиций=%s, вложений=%s)",
         reclamation.id,
         customer_id,
-        len(matched),
+        len(candidates),
         len(email.attachments or []),
     )
     return reclamation
