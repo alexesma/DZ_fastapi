@@ -19,6 +19,7 @@ from dz_fastapi.schemas.reclamation import (
     ReclamationAssignCustomerIn,
     ReclamationCreateIn,
     ReclamationDetail,
+    ReclamationFrozaDecisionIn,
     ReclamationItemUpdateIn,
     ReclamationReplyIn,
     ReclamationRow,
@@ -30,6 +31,11 @@ from dz_fastapi.schemas.reclamation import (
 )
 from dz_fastapi.services.email_outbox import list_outbox_for_source
 from dz_fastapi.services.reclamation_check import run_reclamation_check
+from dz_fastapi.services.reclamation_froza import (
+    FrozaPortalError,
+    refresh_froza_status,
+    send_froza_decision,
+)
 from dz_fastapi.services.reclamation_replies import (
     OUTBOX_SOURCE_CUSTOMER,
     OUTBOX_SOURCE_SUPPLIER,
@@ -366,6 +372,48 @@ async def reclamations_check(
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return await _reload_detail(session, reclamation_id)
+
+
+@router.post(
+    "/{reclamation_id}/froza/refresh",
+    response_model=ReclamationDetail,
+    summary="Проверить текущее состояние рекламации во Froza",
+)
+async def reclamations_froza_refresh(
+    reclamation_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        await refresh_froza_status(
+            session,
+            reclamation_id=reclamation_id,
+        )
+    except FrozaPortalError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    return await _reload_detail(session, reclamation_id)
+
+
+@router.post(
+    "/{reclamation_id}/froza/send-decision",
+    response_model=ReclamationDetail,
+    summary="Передать сохранённое решение по рекламации во Froza",
+)
+async def reclamations_froza_send_decision(
+    reclamation_id: int,
+    payload: ReclamationFrozaDecisionIn,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        await send_froza_decision(
+            session,
+            reclamation_id=reclamation_id,
+            user_id=getattr(current_user, "id", None),
+            comment=payload.comment,
+        )
+    except FrozaPortalError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
     return await _reload_detail(session, reclamation_id)
 
 

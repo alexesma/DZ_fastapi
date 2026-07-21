@@ -1,6 +1,8 @@
+import json
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
+import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,12 +13,20 @@ from dz_fastapi.models.partner import (
     CustomerOrder,
     CustomerOrderItem,
     Reclamation,
+    ReclamationItem,
 )
 from dz_fastapi.services.reclamation_attachment_parser import parse_torg2_sheet
 from dz_fastapi.services.reclamation_check import (
     _elapsed_return_days,
     _order_return_start_date,
     run_reclamation_check,
+)
+from dz_fastapi.services.reclamation_froza import (
+    FrozaPortalClient,
+    FrozaPortalError,
+    build_froza_snapshot,
+    parse_froza_question_url,
+    send_froza_decision,
 )
 from dz_fastapi.services.reclamation_replies import build_customer_reply_template
 from dz_fastapi.services.reclamations import (
@@ -51,6 +61,171 @@ def test_extract_links():
         "https://portal.client.ru/rekl/123",
         "http://portal.client.ru/rekl/123",
     ]
+
+
+def _froza_payload(*, state="pending", quantity=1, oem="14775PCX000"):
+    return {
+        "id": 824111,
+        "order": {
+            "quantity": quantity,
+            "price": 479,
+            "detail": {
+                "num": oem,
+                "makeName": "HONDA",
+                "description": "Трубка вентиляции",
+            },
+            "invoice": {
+                "number": "3230",
+                "date": "2026-07-20T00:00:00+03:00",
+            },
+        },
+        "quantity": quantity,
+        "waitingResponse": state == "pending",
+        "archived": state == "archived",
+        "isSupplierAgreedReturn": state == "approved",
+        "isSupplierRejectedReturn": state == "rejected",
+        "isFullReturnAgree": False,
+        "messages": [{"text": "Отказ клиента"}],
+    }
+
+
+def test_parse_froza_question_url_accepts_only_expected_form():
+    ref = parse_froza_question_url(
+        "https://froza.ru/supplier/one-question/"
+        "?token=0123456789abcdef0123456789abcdef&id=824111"
+    )
+
+    assert ref.question_id == 824111
+    assert ref.token == "0123456789abcdef0123456789abcdef"
+
+    with pytest.raises(FrozaPortalError):
+        parse_froza_question_url(
+            "https://example.com/supplier/one-question/"
+            "?token=0123456789abcdef0123456789abcdef&id=824111"
+        )
+
+
+def test_build_froza_snapshot_does_not_include_token():
+    snapshot = build_froza_snapshot(_froza_payload())
+
+    assert snapshot["question_id"] == 824111
+    assert snapshot["state"] == "pending"
+    assert snapshot["oem_number"] == "14775PCX000"
+    assert "token" not in snapshot
+
+
+@pytest.mark.asyncio
+async def test_froza_client_uses_expected_accept_contract():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200, json={"success": True})
+
+    async with httpx.AsyncClient(
+        base_url="https://froza.ru",
+        transport=httpx.MockTransport(handler),
+    ) as http_client:
+        client = FrozaPortalClient(client=http_client)
+        ref = parse_froza_question_url(
+            "https://froza.ru/supplier/one-question/"
+            "?token=0123456789abcdef0123456789abcdef&id=824111"
+        )
+        await client.submit_decision(ref, decision="approved")
+
+    assert requests[0].method == "POST"
+    assert requests[0].url.path.endswith("/824111")
+    assert json.loads(requests[0].read()) == {"maxRedirects": 0}
+
+
+class _FakeFrozaClient:
+    def __init__(self, payloads):
+        self.payloads = list(payloads)
+        self.submissions = []
+
+    async def get_question(self, _ref):
+        return self.payloads.pop(0)
+
+    async def submit_decision(self, _ref, *, decision, comment=None):
+        self.submissions.append((decision, comment))
+        return {"success": True}
+
+
+@pytest.mark.asyncio
+async def test_send_froza_decision_verifies_and_records_result(
+    test_session: AsyncSession,
+):
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.LINK,
+        status=RECLAMATION_STATUS.APPROVED,
+        resolution="approved",
+        source_link=(
+            "https://froza.ru/supplier/one-question/"
+            "?token=0123456789abcdef0123456789abcdef&id=824111"
+        ),
+        items=[
+            ReclamationItem(
+                oem_number="14775-PCX-000",
+                brand_name="HONDA",
+                quantity=1,
+            )
+        ],
+    )
+    test_session.add(reclamation)
+    await test_session.commit()
+    fake_client = _FakeFrozaClient(
+        [_froza_payload(), _froza_payload(state="approved")]
+    )
+
+    _, snapshot, already_sent = await send_froza_decision(
+        test_session,
+        reclamation_id=reclamation.id,
+        user_id=7,
+        client=fake_client,
+    )
+
+    assert already_sent is False
+    assert snapshot["state"] == "approved"
+    assert fake_client.submissions == [("approved", None)]
+    await test_session.refresh(reclamation)
+    assert reclamation.extracted_data["froza"]["state"] == "approved"
+    assert reclamation.extracted_data["froza"]["sent_by_user_id"] == 7
+    assert "token" not in reclamation.extracted_data["froza"]
+
+
+@pytest.mark.asyncio
+async def test_send_froza_decision_blocks_quantity_mismatch(
+    test_session: AsyncSession,
+):
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.LINK,
+        status=RECLAMATION_STATUS.APPROVED,
+        resolution="approved",
+        source_link=(
+            "https://froza.ru/supplier/one-question/"
+            "?token=0123456789abcdef0123456789abcdef&id=824111"
+        ),
+        items=[
+            ReclamationItem(
+                oem_number="14775PCX000",
+                brand_name="HONDA",
+                quantity=1,
+            )
+        ],
+    )
+    test_session.add(reclamation)
+    await test_session.commit()
+    fake_client = _FakeFrozaClient([_froza_payload(quantity=12)])
+
+    with pytest.raises(FrozaPortalError, match="Количество"):
+        await send_froza_decision(
+            test_session,
+            reclamation_id=reclamation.id,
+            user_id=7,
+            client=fake_client,
+        )
+
+    assert fake_client.submissions == []
 
 
 def test_classify_reclamation_type():

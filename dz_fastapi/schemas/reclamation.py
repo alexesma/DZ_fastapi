@@ -113,6 +113,10 @@ class ReclamationReplyIn(BaseModel):
     body_text: Optional[str] = None
 
 
+class ReclamationFrozaDecisionIn(BaseModel):
+    comment: Optional[str] = Field(default=None, max_length=4000)
+
+
 class EmailOutboxOut(BaseModel):
     id: int
     status: str
