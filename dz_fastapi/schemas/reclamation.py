@@ -117,6 +117,18 @@ class ReclamationFrozaDecisionIn(BaseModel):
     comment: Optional[str] = Field(default=None, max_length=4000)
 
 
+class ReclamationArmtekDecisionIn(BaseModel):
+    comment: Optional[str] = Field(default=None, max_length=4000)
+
+
+class ReclamationArmtekSyncResult(BaseModel):
+    found: int = 0
+    created: int = 0
+    updated: int = 0
+    skipped: int = 0
+    supplier_id: Optional[str] = None
+
+
 class EmailOutboxOut(BaseModel):
     id: int
     status: str
@@ -154,6 +166,8 @@ class ReclamationSyncResult(BaseModel):
     skipped: int = 0
     account_email: Optional[str] = None
     note: Optional[str] = None
+    armtek: list[dict[str, Any]] = Field(default_factory=list)
+    armtek_errors: list[str] = Field(default_factory=list)
 
 
 class ReclamationSummary(BaseModel):

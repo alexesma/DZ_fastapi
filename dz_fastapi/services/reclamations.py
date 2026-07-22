@@ -748,17 +748,21 @@ async def list_reclamations(
     order: str = "newest",
     limit: int = 100,
 ) -> list[dict[str, Any]]:
-    # Порядок очереди: oldest — FIFO (сначала старые, что «висят» дольше),
-    # newest — сначала свежие.
+    # Для ручных заявок дата письма может отсутствовать, поэтому используем
+    # дату создания как резервную и id для стабильного порядка.
+    sort_date = func.coalesce(
+        Reclamation.email_received_at,
+        Reclamation.created_at,
+    )
     order_by = (
-        Reclamation.email_received_at.asc().nullsfirst()
+        (sort_date.asc(), Reclamation.id.asc())
         if str(order or "newest").lower() == "oldest"
-        else Reclamation.id.desc()
+        else (sort_date.desc(), Reclamation.id.desc())
     )
     stmt = (
         select(Reclamation, Customer.name)
         .outerjoin(Customer, Customer.id == Reclamation.customer_id)
-        .order_by(order_by)
+        .order_by(*order_by)
         .limit(max(1, min(int(limit or 100), 500)))
     )
     if status:
@@ -966,14 +970,48 @@ async def sync_reclamation_mailbox(session: AsyncSession) -> dict[str, Any]:
         }
 
     emails = await fetch_reclamation_emails(account)
+    from dz_fastapi.services.reclamation_armtek import (
+        ArmtekPortalError,
+        is_armtek_portal_notice,
+        sync_armtek_open_returns,
+    )
+
     created = 0
+    skipped = 0
+    armtek_results: list[dict[str, Any]] = []
+    armtek_errors: list[str] = []
     for email in emails:
+        sender = extract_sender_email(email.from_)
+        if is_armtek_portal_notice(sender=sender, body=email.body_text):
+            customer_id = await resolve_customer_by_email(session, sender)
+            try:
+                result = await sync_armtek_open_returns(
+                    session,
+                    customer_id=customer_id,
+                    sender_email=sender,
+                    email_received_at=email.received_at,
+                )
+            except ArmtekPortalError as exc:
+                logger.error(
+                    "Не удалось синхронизировать возвраты Armtek: %s",
+                    exc,
+                )
+                armtek_errors.append(str(exc))
+                skipped += 1
+            else:
+                armtek_results.append(result)
+                created += int(result.get("created") or 0)
+            continue
         rec = await ingest_reclamation_email(session, email)
         if rec is not None:
             created += 1
+        else:
+            skipped += 1
     return {
         "fetched": len(emails),
         "created": created,
-        "skipped": len(emails) - created,
+        "skipped": skipped,
         "account_email": account.email,
+        "armtek": armtek_results,
+        "armtek_errors": armtek_errors,
     }

@@ -121,3 +121,43 @@ async def test_watchlist_daily_notification_marks_items_after_notification(
     assert sent["title"] == "Подходящая цена: сводка по найденным позициям"
     assert "CCC 333" in sent["message"]
     assert item.last_notified_site_at is not None
+
+
+@pytest.mark.asyncio
+async def test_watchlist_daily_notification_skips_offer_above_limit(
+    test_session,
+    monkeypatch,
+):
+    monkeypatch.setenv("WATCHLIST_NOTIFY_MODE", "daily")
+    item = await crud_price_watch_item.create(
+        test_session,
+        brand="DDD",
+        oem="444",
+        max_price=100.0,
+    )
+    item.last_seen_site_at = now_moscow()
+    item.last_seen_site_price = 150.0
+    item.last_seen_site_qty = 4
+    item.last_seen_site_offers = [
+        {"price": 150.0, "qty": 4, "supplier_name": "S1"}
+    ]
+    test_session.add(item)
+    await test_session.commit()
+
+    notified = False
+
+    async def fake_notify_admin_all(**_kwargs):
+        nonlocal notified
+        notified = True
+        return []
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.watchlist.notify_admin_all",
+        fake_notify_admin_all,
+    )
+
+    await send_watchlist_daily_notifications(test_session)
+    await test_session.refresh(item)
+
+    assert notified is False
+    assert item.last_notified_site_at is None

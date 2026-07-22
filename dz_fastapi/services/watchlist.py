@@ -56,15 +56,13 @@ async def handle_provider_pricelist_watch(
             continue
         if quantity <= 0:
             continue
-        if item.max_price is not None and price > item.max_price:
-            continue
 
         item.last_seen_provider_at = now
         item.last_seen_provider_price = price
         item.last_seen_provider_id = provider.id
         item.last_seen_provider_config_id = provider_config.id
         item.last_seen_provider_pricelist_id = pricelist_id
-        if _notify_immediately():
+        if _price_reached(item, price) and _notify_immediately():
             should_notify = (
                 not item.last_notified_provider_at
                 or item.last_notified_provider_at.date() != now.date()
@@ -108,6 +106,14 @@ def _should_notify(
     return last_notified < last_seen
 
 
+def _price_reached(item, price: float | None) -> bool:
+    if price is None:
+        return False
+    if item.max_price is None:
+        return True
+    return float(price) <= float(item.max_price)
+
+
 async def send_watchlist_daily_notifications(session: AsyncSession):
     watch_items = await crud_price_watch_item.get_all(session)
     if not watch_items:
@@ -117,14 +123,19 @@ async def send_watchlist_daily_notifications(session: AsyncSession):
     provider_items = [
         item
         for item in watch_items
-        if _should_notify(
+        if _price_reached(item, item.last_seen_provider_price)
+        and _should_notify(
             item.last_seen_provider_at, item.last_notified_provider_at
         )
     ]
     site_items = [
         item
         for item in watch_items
-        if _should_notify(item.last_seen_site_at, item.last_notified_site_at)
+        if _price_reached(item, item.last_seen_site_price)
+        and _should_notify(
+            item.last_seen_site_at,
+            item.last_notified_site_at,
+        )
     ]
 
     if not provider_items and not site_items:
@@ -145,9 +156,11 @@ async def send_watchlist_daily_notifications(session: AsyncSession):
     provider_by_id = {item.id: item for item in provider_items}
     site_by_id = {item.id: item for item in site_items}
     site_offer_map = {
-        item.id: list(item.last_seen_site_offers or [])[
-            :TOP_SITE_OFFERS_LIMIT
-        ]
+        item.id: [
+            offer
+            for offer in list(item.last_seen_site_offers or [])
+            if _price_reached(item, offer.get("price"))
+        ][:TOP_SITE_OFFERS_LIMIT]
         for item in site_items
         if item.last_seen_site_offers
     }

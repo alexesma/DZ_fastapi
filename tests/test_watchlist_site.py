@@ -80,3 +80,65 @@ async def test_watchlist_site_creates_admin_notification(async_client, test_sess
         "hash_key": "hash-1",
         "system_hash": None,
     }
+
+
+@pytest.mark.asyncio
+async def test_watchlist_site_saves_offer_above_limit_without_notification(
+    async_client,
+    test_session,
+    monkeypatch,
+):
+    monkeypatch.setenv("WATCHLIST_NOTIFY_MODE", "immediate")
+    monkeypatch.setenv("KEY_FOR_WEBSITE", "test")
+    response = await async_client.post(
+        "/watchlist",
+        json={
+            "brand": "SITEBRAND",
+            "oem": "EXPENSIVE123",
+            "max_price": 200.0,
+        },
+    )
+    assert response.status_code == 201
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get_offers(self, oem, brand, without_cross=True):
+            return [
+                {
+                    "cost": "250",
+                    "qnt": "3",
+                    "price_name": "S1",
+                }
+            ]
+
+    notified = False
+
+    async def fake_notify_admin_all(**_kwargs):
+        nonlocal notified
+        notified = True
+        return []
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.watchlist_site.DZSiteClient",
+        lambda *args, **kwargs: FakeClient(),
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.watchlist_site.notify_admin_all",
+        fake_notify_admin_all,
+    )
+
+    await check_watchlist_site(test_session)
+
+    watch_response = await async_client.get(
+        "/watchlist", params={"page": 1, "page_size": 10}
+    )
+    item = watch_response.json()["items"][0]
+    assert item["last_seen_site_price"] == 250.0
+    assert item["last_seen_site_qty"] == 3
+    assert len(item["last_seen_site_offers"]) == 1
+    assert notified is False

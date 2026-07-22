@@ -16,6 +16,8 @@ from dz_fastapi.models.partner import Customer, Reclamation, ReclamationAttachme
 from dz_fastapi.models.user import User
 from dz_fastapi.schemas.reclamation import (
     EmailOutboxOut,
+    ReclamationArmtekDecisionIn,
+    ReclamationArmtekSyncResult,
     ReclamationAssignCustomerIn,
     ReclamationCreateIn,
     ReclamationDetail,
@@ -30,6 +32,13 @@ from dz_fastapi.schemas.reclamation import (
     ReplyTemplateOut,
 )
 from dz_fastapi.services.email_outbox import list_outbox_for_source
+from dz_fastapi.services.reclamation_armtek import (
+    ARMTEK_NOTICE_SENDER,
+    ArmtekPortalError,
+    refresh_armtek_status,
+    send_armtek_decision,
+    sync_armtek_open_returns,
+)
 from dz_fastapi.services.reclamation_check import run_reclamation_check
 from dz_fastapi.services.reclamation_froza import (
     FrozaPortalError,
@@ -50,6 +59,7 @@ from dz_fastapi.services.reclamations import (
     create_manual_reclamation,
     get_reclamations_summary,
     list_reclamations,
+    resolve_customer_by_email,
     sync_reclamation_mailbox,
     update_reclamation,
     update_reclamation_item,
@@ -413,6 +423,69 @@ async def reclamations_froza_send_decision(
             comment=payload.comment,
         )
     except FrozaPortalError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    return await _reload_detail(session, reclamation_id)
+
+
+@router.post(
+    "/armtek/sync",
+    response_model=ReclamationArmtekSyncResult,
+    summary="Загрузить открытые возвраты из Armtek",
+)
+async def reclamations_armtek_sync(
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        customer_id = await resolve_customer_by_email(
+            session,
+            ARMTEK_NOTICE_SENDER,
+        )
+        return await sync_armtek_open_returns(
+            session,
+            customer_id=customer_id,
+        )
+    except ArmtekPortalError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+
+@router.post(
+    "/{reclamation_id}/armtek/refresh",
+    response_model=ReclamationDetail,
+    summary="Проверить текущее состояние рекламации в Armtek",
+)
+async def reclamations_armtek_refresh(
+    reclamation_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        await refresh_armtek_status(
+            session,
+            reclamation_id=reclamation_id,
+        )
+    except ArmtekPortalError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    return await _reload_detail(session, reclamation_id)
+
+
+@router.post(
+    "/{reclamation_id}/armtek/send-decision",
+    response_model=ReclamationDetail,
+    summary="Передать сохранённое решение по рекламации в Armtek",
+)
+async def reclamations_armtek_send_decision(
+    reclamation_id: int,
+    payload: ReclamationArmtekDecisionIn,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        await send_armtek_decision(
+            session,
+            reclamation_id=reclamation_id,
+            user_id=getattr(current_user, "id", None),
+            comment=payload.comment,
+        )
+    except ArmtekPortalError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
     return await _reload_detail(session, reclamation_id)
 

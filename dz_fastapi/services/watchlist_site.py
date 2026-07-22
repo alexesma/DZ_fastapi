@@ -278,8 +278,12 @@ async def check_watchlist_site(session):
             if not offers:
                 continue
 
-            best_offer = _collect_top_offers(offers, None, limit=1)
-            if best_offer:
+            top_offers = _collect_top_offers(
+                offers,
+                None,
+                limit=TOP_SITE_OFFERS_LIMIT,
+            )
+            if top_offers:
                 try:
                     if site_provider is None:
                         site_provider = await _get_site_provider(session)
@@ -287,8 +291,8 @@ async def check_watchlist_site(session):
                         session=session,
                         item=item,
                         provider=site_provider,
-                        best_price=best_offer[0]["price"],
-                        best_qty=best_offer[0]["qty"],
+                        best_price=top_offers[0]["price"],
+                        best_qty=top_offers[0]["qty"],
                         created_at=now,
                     )
                 except Exception as e:
@@ -297,21 +301,22 @@ async def check_watchlist_site(session):
                         f"{item.oem}: {e}"
                     )
 
-            top_offers = _collect_top_offers(
-                offers,
-                item.max_price,
-                limit=TOP_SITE_OFFERS_LIMIT,
-            )
             if not top_offers:
                 continue
+
             best_price = top_offers[0]["price"]
             best_qty = top_offers[0]["qty"]
-
             item.last_seen_site_at = now
             item.last_seen_site_price = best_price
             item.last_seen_site_qty = best_qty
             item.last_seen_site_offers = top_offers
-            if _notify_immediately():
+
+            suitable_offers = _collect_top_offers(
+                offers,
+                item.max_price,
+                limit=TOP_SITE_OFFERS_LIMIT,
+            )
+            if suitable_offers and _notify_immediately():
                 should_notify = (
                     not item.last_notified_site_at
                     or item.last_notified_site_at.date() != now.date()
@@ -322,7 +327,9 @@ async def check_watchlist_site(session):
                         f"{_norm(item.brand)} {_norm(item.oem)}",
                         f"Топ {TOP_SITE_OFFERS_LIMIT} предложения:",
                     ]
-                    message_lines.extend(format_top_offer_lines(top_offers))
+                    message_lines.extend(
+                        format_top_offer_lines(suitable_offers)
+                    )
                     message = "\n".join(message_lines)
                     try:
                         await notify_admin_all(
