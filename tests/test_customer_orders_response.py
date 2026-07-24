@@ -39,6 +39,7 @@ from dz_fastapi.services.customer_orders import (
     _build_supplier_order_recipient,
     _customer_order_auto_reply_enabled,
     _customer_order_reply_override_email,
+    _parse_xls_order,
     _supplier_order_override_email,
     send_supplier_orders,
 )
@@ -80,6 +81,81 @@ def test_apply_response_updates_excel_writes_ship_price_when_configured():
 
     assert result_ws.cell(row=2, column=2).value == 3
     assert result_ws.cell(row=2, column=4).value == 3131.0
+
+
+def test_parse_xls_uses_excel_row_number_for_response(monkeypatch):
+    frame = pd.DataFrame(
+        [
+            [None, None, None, None, None, None, None],
+            ["Заказ № 27876", None, None, None, None, None, None],
+            [None, None, None, None, None, None, None],
+            ["Покупатель", None, None, None, None, None, None],
+            ["Поставщик", None, None, None, None, None, None],
+            [None, None, None, None, None, None, None],
+            ["№", "БРЕНД", "АРТИКУЛ", "КОЛИЧ", "НАИМЕНОВАНИЕ", "ЗАКУПКА", "ОТВЕТ"],
+            [1, "DRAGONZAP", "DZTEST", 2, "Деталь", 100, None],
+        ]
+    )
+    monkeypatch.setattr(pd, "read_excel", lambda *args, **kwargs: frame)
+    config = SimpleNamespace(
+        order_start_row=8,
+        order_date_column=None,
+        order_date_row=None,
+        order_number_column=None,
+        order_number_row=None,
+        oem_col=2,
+        brand_col=1,
+        name_col=4,
+        qty_col=3,
+        price_col=5,
+        ship_qty_col=6,
+        ship_price_col=None,
+        reject_qty_col=None,
+        ship_mode=CUSTOMER_ORDER_SHIP_MODE.WRITE_SHIP_QTY,
+    )
+
+    rows, _, _, workbook = _parse_xls_order(b"xls", config)
+
+    assert len(rows) == 1
+    assert rows[0].row_index == 8
+    output = _apply_response_updates_excel(
+        workbook,
+        config,
+        [
+            SimpleNamespace(
+                row_index=rows[0].row_index,
+                ship_qty=1,
+                reject_qty=1,
+                requested_price=100,
+            )
+        ],
+    )
+    result = load_workbook(output)
+    assert result.active.cell(row=8, column=7).value == 1
+    assert result.active.cell(row=7, column=7).value == "ОТВЕТ"
+
+
+def test_parse_xls_reports_changed_column_layout(monkeypatch):
+    frame = pd.DataFrame([[None] * 7])
+    monkeypatch.setattr(pd, "read_excel", lambda *args, **kwargs: frame)
+    config = SimpleNamespace(
+        order_start_row=8,
+        order_date_column=None,
+        order_date_row=None,
+        order_number_column=None,
+        order_number_row=None,
+        oem_col=6,
+        brand_col=3,
+        name_col=1,
+        qty_col=10,
+        price_col=14,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=r"Формат XLS изменился.*Количество=K.*Цена=O",
+    ):
+        _parse_xls_order(b"xls", config)
 
 
 def test_apply_response_updates_csv_leaves_ship_price_blank_for_reject():

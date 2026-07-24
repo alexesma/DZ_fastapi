@@ -14,6 +14,7 @@ from sqlalchemy.orm import selectinload
 
 from dz_fastapi.models.partner import EmailOutbox, Provider, Reclamation
 from dz_fastapi.services.email_outbox import enqueue_email
+from dz_fastapi.services.reclamation_froza import is_froza_question_url
 from dz_fastapi.services.reclamations import get_reclamation_account
 
 logger = logging.getLogger("dz_fastapi")
@@ -122,6 +123,12 @@ async def enqueue_customer_reply(
     kind: Optional[str] = None,
 ) -> EmailOutbox:
     rec = await _load_reclamation(session, reclamation_id)
+    if is_froza_question_url(rec.source_link):
+        raise ValueError(
+            "Для рекламации Froza ответ передаётся через портал, а не "
+            "электронной почтой. Используйте действие «Ответить клиенту "
+            "во Froza»."
+        )
     if not rec.sender_email:
         raise ValueError("У рекламации нет адреса отправителя для ответа")
 

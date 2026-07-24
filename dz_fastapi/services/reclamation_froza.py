@@ -56,6 +56,15 @@ def parse_froza_question_url(source_link: str | None) -> FrozaQuestionRef:
     return FrozaQuestionRef(token=token, question_id=question_id)
 
 
+def is_froza_question_url(source_link: str | None) -> bool:
+    """Проверяет, что ссылка ведёт на поддерживаемую форму Froza."""
+    try:
+        parse_froza_question_url(source_link)
+    except FrozaPortalError:
+        return False
+    return True
+
+
 def froza_question_state(payload: dict[str, Any]) -> str:
     if payload.get("isSupplierRejectedReturn"):
         return "rejected"

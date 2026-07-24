@@ -41,7 +41,10 @@ from dz_fastapi.services.reclamation_froza import (
     parse_froza_question_url,
     send_froza_decision,
 )
-from dz_fastapi.services.reclamation_replies import build_customer_reply_template
+from dz_fastapi.services.reclamation_replies import (
+    build_customer_reply_template,
+    enqueue_customer_reply,
+)
 from dz_fastapi.services.reclamations import (
     ReclamationInboundAttachment,
     ReclamationInboundEmail,
@@ -514,8 +517,31 @@ async def test_send_froza_decision_blocks_quantity_mismatch(
             user_id=7,
             client=fake_client,
         )
-
     assert fake_client.submissions == []
+
+
+@pytest.mark.asyncio
+async def test_customer_email_reply_is_blocked_for_froza(
+    test_session: AsyncSession,
+):
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.LINK,
+        status=RECLAMATION_STATUS.CHECKED,
+        sender_email="postvozvrat@froza.ru",
+        source_link=(
+            "https://froza.ru/supplier/one-question/"
+            "?token=c88da2a1924bd3661ba4fda977ca0e52&id=823408"
+        ),
+    )
+    test_session.add(reclamation)
+    await test_session.commit()
+
+    with pytest.raises(ValueError, match="через портал"):
+        await enqueue_customer_reply(
+            test_session,
+            reclamation_id=reclamation.id,
+            body_text="Согласовано",
+        )
 
 
 def test_classify_reclamation_type():

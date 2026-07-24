@@ -1088,6 +1088,32 @@ def _parse_xls_order(
     config: CustomerOrderConfig,
 ) -> Tuple[List[ParsedOrderRow], Optional[date], Optional[str], BytesIO]:
     df = pd.read_excel(BytesIO(file_bytes), header=None, engine="xlrd")
+    configured_columns = (
+        ("OEM", config.oem_col),
+        ("Бренд", config.brand_col),
+        ("Количество", config.qty_col),
+        ("Наименование", config.name_col),
+        ("Цена", config.price_col),
+        ("Дата заказа", config.order_date_column),
+        ("Номер заказа", config.order_number_column),
+    )
+    missing_columns = [
+        f"{name}={get_column_letter(int(column) + 1)}"
+        for name, column in configured_columns
+        if column is not None and int(column) not in df.columns
+    ]
+    if missing_columns:
+        available = (
+            f"A–{get_column_letter(len(df.columns))}"
+            if len(df.columns)
+            else "нет колонок"
+        )
+        raise ValueError(
+            "Формат XLS изменился: в файле доступны колонки "
+            f"{available}, но настройка ожидает "
+            f"{', '.join(missing_columns)}"
+        )
+
     parsed_rows: List[ParsedOrderRow] = []
     order_date: Optional[date] = None
     order_number: Optional[str] = None
@@ -1141,7 +1167,9 @@ def _parse_xls_order(
                 requested_price = _safe_float(value)
         parsed_rows.append(
             ParsedOrderRow(
-                row_index=idx,
+                # XLS преобразуется в XLSX перед заполнением ответа, поэтому
+                # здесь нужна нумерация строк Excel, начинающаяся с единицы.
+                row_index=idx + 1,
                 oem=str(oem).strip(),
                 brand=str(brand).strip(),
                 name=name,
