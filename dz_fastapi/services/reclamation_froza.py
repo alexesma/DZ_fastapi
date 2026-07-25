@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import html
 import re
 from dataclasses import dataclass
 from typing import Any, Optional
@@ -35,7 +36,7 @@ class FrozaQuestionRef:
 
 def parse_froza_question_url(source_link: str | None) -> FrozaQuestionRef:
     """Разбирает только штатную HTTPS-ссылку формы Froza."""
-    parsed = urlparse(str(source_link or "").strip())
+    parsed = urlparse(html.unescape(str(source_link or "")).strip())
     if (
         parsed.scheme.lower() != "https"
         or (parsed.hostname or "").lower() not in FROZA_ALLOWED_HOSTS

@@ -81,6 +81,18 @@ def test_extract_links():
     ]
 
 
+def test_extract_links_decodes_html_entities():
+    links = extract_links(
+        "https://froza.ru/supplier/one-question/"
+        "?token=0123456789abcdef0123456789abcdef&amp;id=824111"
+    )
+
+    assert links == [
+        "https://froza.ru/supplier/one-question/"
+        "?token=0123456789abcdef0123456789abcdef&id=824111"
+    ]
+
+
 @pytest.mark.asyncio
 async def test_existing_reclamation_recovers_froza_link_from_html(
     test_session: AsyncSession,
@@ -104,7 +116,7 @@ async def test_existing_reclamation_recovers_froza_link_from_html(
             body_html=(
                 '<a href="https://froza.ru/suppliers">Личный кабинет</a>'
                 '<a href="https://froza.ru/supplier/one-question/'
-                '?token=secret&id=823408">Подтвердить возврат</a>'
+                '?token=secret&amp;id=823408">Подтвердить возврат</a>'
             ),
             message_id="<froza-173@example.test>",
         ),
@@ -429,6 +441,12 @@ def test_parse_froza_question_url_accepts_only_expected_form():
 
     assert ref.question_id == 824111
     assert ref.token == "0123456789abcdef0123456789abcdef"
+
+    encoded_ref = parse_froza_question_url(
+        "https://froza.ru/supplier/one-question/"
+        "?token=0123456789abcdef0123456789abcdef&amp;id=824111"
+    )
+    assert encoded_ref == ref
 
     with pytest.raises(FrozaPortalError):
         parse_froza_question_url(

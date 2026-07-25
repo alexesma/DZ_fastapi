@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import html
 import logging
 import os
 import re
@@ -106,7 +107,8 @@ def extract_sender_email(raw: str) -> str:
 def extract_links(text: str) -> list[str]:
     seen: set[str] = set()
     result: list[str] = []
-    for m in _URL_RE.finditer(str(text or "")):
+    decoded_text = html.unescape(str(text or ""))
+    for m in _URL_RE.finditer(decoded_text):
         url = m.group(0).rstrip(".,);")
         if url not in seen:
             seen.add(url)
@@ -392,10 +394,21 @@ async def ingest_reclamation_email(
             )
         ).scalar_one_or_none()
         if existing is not None:
+            normalized_existing_link = html.unescape(
+                str(existing.source_link or "")
+            ).strip()
+            link_changed = (
+                bool(normalized_existing_link)
+                and normalized_existing_link != existing.source_link
+            )
+            if link_changed:
+                existing.source_link = normalized_existing_link
             if not existing.source_link and source_link:
+                existing.source_link = source_link
+                link_changed = True
+            if link_changed:
                 extracted_data = dict(existing.extracted_data or {})
                 extracted_data["links"] = fields.get("links") or []
-                existing.source_link = source_link
                 existing.extracted_data = extracted_data
                 session.add(existing)
                 await session.commit()
