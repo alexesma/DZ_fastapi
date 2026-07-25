@@ -1102,13 +1102,30 @@ async def auto_detect_and_process(
         auto_detected=True,
     )
 
-    result, error = await _process_email_by_rule(
-        session,
-        inbox_email=inbox_email,
-        rule_type=rule_type,
-        fetched_msg=fetched_msg,
-        account=account,
-    )
+    if rule_type == "price_list":
+        # Общий сборщик Inbox только сохраняет и классифицирует прайсы.
+        # Фактическую тяжёлую обработку выполняет специализированный
+        # download_price_provider_task: иначе одно письмо одновременно
+        # запускалось двумя регламентами и конкурировало за advisory-lock.
+        result, error = (
+            {
+                "action": "price_list",
+                "status": "queued",
+                "note": (
+                    "Письмо сохранено. Прайс обработает специализированный "
+                    "регламент поставщиков."
+                ),
+            },
+            None,
+        )
+    else:
+        result, error = await _process_email_by_rule(
+            session,
+            inbox_email=inbox_email,
+            rule_type=rule_type,
+            fetched_msg=fetched_msg,
+            account=account,
+        )
     await mark_processed(
         session, email=inbox_email, result=result, error=error
     )
@@ -2007,6 +2024,7 @@ async def _process_price_list(
                     price_col=None,
                     session=session,
                     include_autoparts_response=False,
+                    source_filename=os.path.basename(filepath),
                 )
                 processed_configs.append(config.id)
             except Exception as e:

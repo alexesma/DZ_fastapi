@@ -6,6 +6,7 @@ import pytest
 
 from dz_fastapi.services.email import (
     GMAIL_API_SEND_URL,
+    _attachment_name_matches_pattern,
     _price_email_since_date,
     _scheduled_price_email_since_date,
     build_email_delivery_kwargs,
@@ -14,6 +15,25 @@ from dz_fastapi.services.email import (
     send_email_message,
     send_email_with_attachment,
 )
+
+
+def test_attachment_pattern_keeps_flexible_matching_by_default():
+    assert _attachment_name_matches_pattern(
+        "price_2026-07-25.xlsx",
+        "price",
+    )
+
+
+def test_attachment_pattern_supports_opt_in_exact_matching():
+    assert _attachment_name_matches_pattern("Cosmo.xlsx", "=Cosmo.xlsx")
+    assert not _attachment_name_matches_pattern(
+        "Cosmo Nal.xlsx",
+        "=Cosmo.xlsx",
+    )
+    assert not _attachment_name_matches_pattern(
+        "Cosmo.xlsx",
+        "=Cosmo Nal.xlsx",
+    )
 
 
 def test_build_email_delivery_kwargs_gmail_api():

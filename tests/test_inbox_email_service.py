@@ -8,6 +8,79 @@ import pytest
 from dz_fastapi.services import inbox_email as inbox_email_service
 
 
+@pytest.mark.asyncio
+async def test_auto_detected_pricelist_is_queued_for_dedicated_scheduler(
+    monkeypatch,
+):
+    captured = {}
+    inbox_email = SimpleNamespace(
+        id=42,
+        email_account_id=6,
+        from_email="price@example.com",
+        subject="Price",
+        attachment_info=[{"name": "price.xlsx"}],
+        has_attachments=True,
+    )
+
+    async def fake_find_matching_pattern(*_args, **_kwargs):
+        return None
+
+    async def fake_detect_rule(*_args, **_kwargs):
+        return "price_list"
+
+    async def fake_update_rule(*_args, **_kwargs):
+        return None
+
+    async def fake_mark_processed(_session, *, email, result, error):
+        captured.update(
+            {
+                "email": email,
+                "result": result,
+                "error": error,
+            }
+        )
+
+    async def forbidden_process(*_args, **_kwargs):
+        raise AssertionError("Inbox must not process provider pricelists")
+
+    monkeypatch.setattr(
+        inbox_email_service,
+        "find_matching_pattern",
+        fake_find_matching_pattern,
+    )
+    monkeypatch.setattr(
+        inbox_email_service,
+        "_detect_rule_from_existing_configs",
+        fake_detect_rule,
+    )
+    monkeypatch.setattr(
+        inbox_email_service,
+        "update_inbox_email_rule",
+        fake_update_rule,
+    )
+    monkeypatch.setattr(
+        inbox_email_service,
+        "mark_processed",
+        fake_mark_processed,
+    )
+    monkeypatch.setattr(
+        inbox_email_service,
+        "_process_email_by_rule",
+        forbidden_process,
+    )
+
+    processed = await inbox_email_service.auto_detect_and_process(
+        session=SimpleNamespace(),
+        inbox_email=inbox_email,
+        fetched_msg=SimpleNamespace(),
+    )
+
+    assert processed is True
+    assert captured["email"] is inbox_email
+    assert captured["error"] is None
+    assert captured["result"]["status"] == "queued"
+
+
 def test_cleanup_orphan_inbox_attachment_files_sync(tmp_path):
     base = tmp_path / "uploads" / "inbox_attachments" / "3" / "20260416"
     base.mkdir(parents=True, exist_ok=True)

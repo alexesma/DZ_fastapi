@@ -1004,6 +1004,7 @@ async def _process_one(item, app: FastAPI, sem: asyncio.Semaphore):
                             session=session,
                             return_stats=True,
                             include_autoparts_response=False,
+                            source_filename=os.path.basename(filepath),
                         )
                         trace.details.update(
                             {

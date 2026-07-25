@@ -265,11 +265,18 @@ def _attachment_name_matches_pattern(filename: str, pattern: str) -> bool:
     Поставщик может слать прайс то .xlsx, то .zip с тем же базовым именем —
     сравнение без расширения позволяет принять архив под тем же шаблоном
     (на уровне обработки zip/rar уже распаковываются).
+
+    Префикс ``=`` включает строгое совпадение полного имени. Это позволяет
+    развести похожие файлы вроде ``Cosmo.xlsx`` и ``Cosmo Nal.xlsx``, не
+    меняя прежнее гибкое поведение остальных конфигураций.
     """
     filename_norm = normalize_str(filename or "").lower()
     pattern_norm = normalize_str(pattern or "").lower()
     if not pattern_norm:
         return True
+    if pattern_norm.startswith("="):
+        exact_name = pattern_norm[1:].strip()
+        return bool(exact_name) and filename_norm == exact_name
     if pattern_norm in filename_norm or filename_norm in pattern_norm:
         return True
     file_base = _strip_file_extension(filename_norm)
@@ -1553,9 +1560,9 @@ async def download_new_price_provider(
             getattr(provider_conf, "filename_pattern", None)
             or provider_conf.name_price
         )
-        normalized_pattern = normalize_str(raw_pattern or "")
-        if not normalized_pattern or normalized_pattern in normalize_str(
-            att.filename
+        if _attachment_name_matches_pattern(
+            att.filename or "",
+            raw_pattern or "",
         ):
             logger.debug("Имя вложения совпало")
             filepath = os.path.join(DOWNLOAD_FOLDER, att.filename)

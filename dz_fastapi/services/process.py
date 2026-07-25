@@ -98,6 +98,7 @@ from dz_fastapi.services.email import (
     describe_email_delivery,
     send_email_with_attachment,
 )
+from dz_fastapi.services.pricelist_guard import guard_automatic_provider_pricelist
 from dz_fastapi.services.utils import (
     brand_filters,
     normalize_markup,
@@ -921,6 +922,8 @@ async def process_provider_pricelist(
     session: AsyncSession,
     return_stats: bool = False,
     include_autoparts_response: bool = True,
+    enforce_anomaly_guard: bool = True,
+    source_filename: str | None = None,
 ):
     logger.debug(
         f"Зашли в process_provider_pricelist "
@@ -1005,6 +1008,24 @@ async def process_provider_pricelist(
         stats.get("rows_dedup_removed"),
         stats.get("rows_after_filters"),
     )
+
+    if enforce_anomaly_guard:
+        anomaly = await guard_automatic_provider_pricelist(
+            session=session,
+            provider=provider,
+            provider_config=provider_list_conf,
+            items=deduplicated_data,
+            source_filename=source_filename,
+        )
+        if anomaly.blocked:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Подозрительное обновление прайса заблокировано. "
+                    "Администратору отправлено предупреждение. После проверки "
+                    "файл можно принять через ручную загрузку."
+                ),
+            )
 
     pricelist_in = PriceListCreate(
         provider_id=provider.id,

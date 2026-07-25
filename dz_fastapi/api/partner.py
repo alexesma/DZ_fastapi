@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from datetime import date
 from math import ceil
 from typing import List, Optional
@@ -1860,6 +1861,8 @@ async def upload_provider_pricelist(
         price_col=price_col,
         session=session,
         return_stats=True,
+        enforce_anomaly_guard=False,
+        source_filename=file.filename,
     )
 
     return PriceListResponse.model_validate(pricelist).model_copy(
@@ -2639,6 +2642,8 @@ async def download_provider_pricelist(
             session=session,
             return_stats=True,
             include_autoparts_response=False,
+            enforce_anomaly_guard=False,
+            source_filename=os.path.basename(filepath),
         )
         return {
             "detail": (
