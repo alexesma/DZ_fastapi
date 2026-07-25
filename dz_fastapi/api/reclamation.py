@@ -16,6 +16,7 @@ from dz_fastapi.models.partner import Customer, Reclamation, ReclamationAttachme
 from dz_fastapi.models.user import User
 from dz_fastapi.schemas.reclamation import (
     EmailOutboxOut,
+    ReclamationApplyAndReplyIn,
     ReclamationArmtekDecisionIn,
     ReclamationArmtekSyncResult,
     ReclamationAssignCustomerIn,
@@ -49,6 +50,7 @@ from dz_fastapi.services.reclamation_replies import (
     OUTBOX_SOURCE_CUSTOMER,
     OUTBOX_SOURCE_SUPPLIER,
     REPLY_KINDS,
+    apply_and_enqueue_customer_reply,
     build_customer_reply_template,
     enqueue_customer_reply,
     enqueue_supplier_request,
@@ -286,6 +288,7 @@ async def _reload_detail(session: AsyncSession, reclamation_id: int):
 async def reclamations_reply_template(
     reclamation_id: int,
     kind: str = Query(default="ack"),
+    resolution_comment: Optional[str] = Query(default=None, max_length=4000),
     session: AsyncSession = Depends(get_session),
 ):
     if kind not in REPLY_KINDS:
@@ -299,7 +302,11 @@ async def reclamations_reply_template(
     ).scalar_one_or_none()
     if rec is None:
         raise HTTPException(status_code=404, detail="Рекламация не найдена")
-    subject, body_text = build_customer_reply_template(rec, kind)
+    subject, body_text = build_customer_reply_template(
+        rec,
+        kind,
+        resolution_comment=resolution_comment,
+    )
     return ReplyTemplateOut(kind=kind, subject=subject, body_text=body_text)
 
 
@@ -320,6 +327,32 @@ async def reclamations_reply(
             subject=payload.subject,
             body_text=payload.body_text,
             kind=payload.kind,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return row
+
+
+@router.post(
+    "/{reclamation_id}/apply-and-reply",
+    response_model=EmailOutboxOut,
+    summary="Применить действие и поставить ответ клиенту в очередь",
+)
+async def reclamations_apply_and_reply(
+    reclamation_id: int,
+    payload: ReclamationApplyAndReplyIn,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        row = await apply_and_enqueue_customer_reply(
+            session,
+            reclamation_id=reclamation_id,
+            action=payload.action,
+            resolution_comment=payload.resolution_comment,
+            resolved_by_user_id=getattr(current_user, "id", None),
+            subject=payload.subject,
+            body_text=payload.body_text,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

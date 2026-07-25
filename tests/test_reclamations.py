@@ -42,6 +42,7 @@ from dz_fastapi.services.reclamation_froza import (
     send_froza_decision,
 )
 from dz_fastapi.services.reclamation_replies import (
+    apply_and_enqueue_customer_reply,
     build_customer_reply_template,
     enqueue_customer_reply,
 )
@@ -78,6 +79,44 @@ def test_extract_links():
         "https://portal.client.ru/rekl/123",
         "http://portal.client.ru/rekl/123",
     ]
+
+
+@pytest.mark.asyncio
+async def test_existing_reclamation_recovers_froza_link_from_html(
+    test_session: AsyncSession,
+):
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.APPROVED,
+        email_message_id="<froza-173@example.test>",
+        sender_email="postvozvrat@froza.ru",
+        extracted_data={},
+    )
+    test_session.add(reclamation)
+    await test_session.commit()
+
+    result = await ingest_reclamation_email(
+        test_session,
+        ReclamationInboundEmail(
+            from_="postvozvrat@froza.ru",
+            subject="Просьба согласовать возврат",
+            body_text="Для подтверждения перейдите по ссылке.",
+            body_html=(
+                '<a href="https://froza.ru/suppliers">Личный кабинет</a>'
+                '<a href="https://froza.ru/supplier/one-question/'
+                '?token=secret&id=823408">Подтвердить возврат</a>'
+            ),
+            message_id="<froza-173@example.test>",
+        ),
+    )
+
+    assert result is None
+    await test_session.refresh(reclamation)
+    assert reclamation.source_link == (
+        "https://froza.ru/supplier/one-question/"
+        "?token=secret&id=823408"
+    )
+    assert len(reclamation.extracted_data["links"]) == 2
 
 
 @pytest.mark.asyncio
@@ -658,6 +697,172 @@ def test_approved_reply_uses_customer_facing_return_instructions():
     assert "передать товар нашему водителю" in body
     assert "Комментарий:" not in body
     assert reclamation.resolution_comment not in body
+
+
+def test_rejected_reply_includes_customer_facing_reason():
+    reclamation = SimpleNamespace(
+        id=16,
+        email_subject="Возврат детали",
+        stated_document_number=None,
+        stated_document_date=None,
+        resolution_comment="Истёк установленный срок возврата",
+        items=[
+            SimpleNamespace(
+                brand_name="TOYOTA",
+                oem_number="9031362001",
+                autopart_name="Сальник",
+                quantity=1,
+            )
+        ],
+    )
+
+    subject, body = build_customer_reply_template(reclamation, "rejected")
+
+    assert subject == "Re: Возврат детали"
+    assert "согласовать возврат" in body
+    assert "Причина отказа: Истёк установленный срок возврата." in body
+    assert "TOYOTA 9031362001 — 1 шт." in body
+
+
+def test_request_documents_reply_includes_required_service_documents():
+    reclamation = SimpleNamespace(
+        id=17,
+        email_subject="Рекламация по браку",
+        stated_document_number="551",
+        stated_document_date=date(2026, 7, 20),
+        resolution_comment=None,
+        check_result={
+            "documents": {
+                "missing_labels": [
+                    "Заказ-наряд на установку",
+                    "Дефектовка",
+                ]
+            }
+        },
+        items=[
+            SimpleNamespace(
+                brand_name="TOYOTA",
+                oem_number="9031362001",
+                autopart_name="Сальник",
+                quantity=1,
+            )
+        ],
+    )
+
+    _, body = build_customer_reply_template(
+        reclamation,
+        "request_documents",
+    )
+
+    assert "Заказ-наряд на установку" in body
+    assert "Заказ-наряд на снятие" in body
+    assert "Акт дефектовки" in body
+    assert "После получения документов" in body
+
+
+@pytest.mark.asyncio
+async def test_resolve_and_reply_saves_decision_and_email_atomically(
+    test_session: AsyncSession,
+):
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.CHECKED,
+        sender_email="returns@example.com",
+        email_subject="Возврат детали",
+        items=[
+            ReclamationItem(
+                oem_number="9031362001",
+                brand_name="TOYOTA",
+                quantity=1,
+            )
+        ],
+    )
+    test_session.add(reclamation)
+    await test_session.commit()
+
+    outbox = await apply_and_enqueue_customer_reply(
+        test_session,
+        reclamation_id=reclamation.id,
+        action="rejected",
+        resolution_comment="Товар утратил товарный вид",
+        resolved_by_user_id=None,
+    )
+
+    await test_session.refresh(reclamation)
+    assert reclamation.status == RECLAMATION_STATUS.REJECTED
+    assert reclamation.resolution == "rejected"
+    assert reclamation.resolution_comment == "Товар утратил товарный вид"
+    assert outbox.to_email == "returns@example.com"
+    assert "Причина отказа: Товар утратил товарный вид." in outbox.body_text
+
+
+@pytest.mark.asyncio
+async def test_resolve_and_reply_requires_rejection_reason(
+    test_session: AsyncSession,
+):
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.CHECKED,
+        sender_email="returns@example.com",
+    )
+    test_session.add(reclamation)
+    await test_session.commit()
+
+    with pytest.raises(ValueError, match="обязательно укажите причину"):
+        await apply_and_enqueue_customer_reply(
+            test_session,
+            reclamation_id=reclamation.id,
+            action="rejected",
+            resolution_comment="",
+            resolved_by_user_id=None,
+        )
+
+    await test_session.refresh(reclamation)
+    assert reclamation.resolution is None
+    assert reclamation.status == RECLAMATION_STATUS.CHECKED
+
+
+@pytest.mark.asyncio
+async def test_apply_and_reply_requests_documents_atomically(
+    test_session: AsyncSession,
+):
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.CHECKED,
+        sender_email="returns@example.com",
+        email_subject="Рекламация по браку",
+        check_result={
+            "documents": {
+                "missing_labels": [
+                    "Заказ-наряд на снятие",
+                    "Акт дефектовки",
+                ]
+            }
+        },
+        items=[
+            ReclamationItem(
+                oem_number="9031362001",
+                brand_name="TOYOTA",
+                quantity=1,
+            )
+        ],
+    )
+    test_session.add(reclamation)
+    await test_session.commit()
+
+    outbox = await apply_and_enqueue_customer_reply(
+        test_session,
+        reclamation_id=reclamation.id,
+        action="request_documents",
+        resolution_comment=None,
+        resolved_by_user_id=None,
+    )
+
+    await test_session.refresh(reclamation)
+    assert reclamation.status == RECLAMATION_STATUS.WAITING_DOCS
+    assert reclamation.resolution is None
+    assert "Заказ-наряд на снятие" in outbox.body_text
+    assert "Акт дефектовки" in outbox.body_text
 
 
 @pytest.mark.asyncio

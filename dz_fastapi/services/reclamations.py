@@ -89,6 +89,7 @@ class ReclamationInboundEmail:
     from_: str
     subject: str = ""
     body_text: str = ""
+    body_html: str = ""
     message_id: Optional[str] = None
     received_at: Optional[datetime] = None
     uid: Optional[str] = None
@@ -111,6 +112,19 @@ def extract_links(text: str) -> list[str]:
             seen.add(url)
             result.append(url)
     return result
+
+
+def _preferred_source_link(links: list[str]) -> Optional[str]:
+    """Prefer actionable portal links over generic site/account links."""
+    for link in links:
+        lowered = link.lower()
+        if "froza.ru/supplier/one-question/" in lowered:
+            return link
+    for link in links:
+        lowered = link.lower()
+        if "srm.armtek.ru/returns-management/" in lowered:
+            return link
+    return links[0] if links else None
 
 
 def _parse_doc_date(text: str) -> Optional[date]:
@@ -363,25 +377,41 @@ async def ingest_reclamation_email(
     email: ReclamationInboundEmail,
 ) -> Optional[Reclamation]:
     """Создаёт рекламацию из письма (идемпотентно по Message-ID)."""
+    body_for_extraction = "\n".join(
+        part for part in (email.body_text, email.body_html) if part
+    )
+    fields = extract_fields(email.subject, body_for_extraction)
+    source_link = _preferred_source_link(fields.get("links") or [])
+
     if email.message_id:
         existing = (
             await session.execute(
-                select(Reclamation.id).where(
+                select(Reclamation).where(
                     Reclamation.email_message_id == email.message_id
                 )
             )
         ).scalar_one_or_none()
         if existing is not None:
+            if not existing.source_link and source_link:
+                extracted_data = dict(existing.extracted_data or {})
+                extracted_data["links"] = fields.get("links") or []
+                existing.source_link = source_link
+                existing.extracted_data = extracted_data
+                session.add(existing)
+                await session.commit()
+                logger.info(
+                    "Восстановлена ссылка портала для рекламации #%s",
+                    existing.id,
+                )
             logger.debug(
                 "Рекламация по письму %s уже создана (#%s)",
                 email.message_id,
-                existing,
+                existing.id,
             )
             return None
 
     sender = extract_sender_email(email.from_)
     customer_id = await resolve_customer_by_email(session, sender)
-    fields = extract_fields(email.subject, email.body_text)
     attachment_extractions = [
         parsed
         for attachment in (email.attachments or [])
@@ -440,11 +470,11 @@ async def ingest_reclamation_email(
         reclamation_type=reclamation_type,
         customer_id=customer_id,
         sender_email=sender or None,
-        source_link=(fields["links"][0] if fields.get("links") else None),
+        source_link=source_link,
         email_message_id=email.message_id,
         email_subject=(email.subject or "")[:998] or None,
         email_received_at=email.received_at or now_moscow(),
-        email_body=email.body_text or None,
+        email_body=email.body_text or email.body_html or None,
         stated_document_number=document_number,
         stated_document_date=doc_date,
         stated_reason=attachment_reason or None,
@@ -456,7 +486,7 @@ async def ingest_reclamation_email(
     # Позиции по найденным артикулам в тексте
     matched = await _match_oems_in_text(
         session,
-        f"{email.subject}\n{email.body_text}",
+        f"{email.subject}\n{body_for_extraction}",
         customer_id=customer_id,
     )
     candidates = {
@@ -603,11 +633,8 @@ def _fetch_reclamation_imap_sync(
                 ReclamationInboundEmail(
                     from_=str(getattr(msg, "from_", "") or ""),
                     subject=str(getattr(msg, "subject", "") or ""),
-                    body_text=str(
-                        getattr(msg, "text", None)
-                        or getattr(msg, "html", "")
-                        or ""
-                    ),
+                    body_text=str(getattr(msg, "text", None) or ""),
+                    body_html=str(getattr(msg, "html", None) or ""),
                     message_id=message_id or (
                         str(msg.uid) if msg.uid else None
                     ),
@@ -885,8 +912,17 @@ async def update_reclamation(
         rec.reclamation_type = reclamation_type or None
 
     if resolution is not None:
+        if (
+            resolution == "rejected"
+            and not str(resolution_comment or "").strip()
+        ):
+            raise ValueError("Для отказа обязательно укажите причину")
         rec.resolution = resolution or None
-        rec.resolution_comment = resolution_comment
+        rec.resolution_comment = (
+            str(resolution_comment).strip()
+            if resolution_comment is not None
+            else None
+        )
         if resolution:
             rec.resolved_at = now_moscow()
             rec.resolved_by_user_id = resolved_by_user_id
@@ -982,7 +1018,10 @@ async def sync_reclamation_mailbox(session: AsyncSession) -> dict[str, Any]:
     armtek_errors: list[str] = []
     for email in emails:
         sender = extract_sender_email(email.from_)
-        if is_armtek_portal_notice(sender=sender, body=email.body_text):
+        message_body = "\n".join(
+            part for part in (email.body_text, email.body_html) if part
+        )
+        if is_armtek_portal_notice(sender=sender, body=message_body):
             customer_id = await resolve_customer_by_email(session, sender)
             try:
                 result = await sync_armtek_open_returns(

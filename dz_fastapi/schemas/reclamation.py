@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -109,6 +109,13 @@ class ReclamationReplyIn(BaseModel):
     # kind: ack | approved | rejected | request_documents — берёт шаблон,
     # если subject/body не заданы явно
     kind: Optional[str] = None
+    subject: Optional[str] = Field(default=None, max_length=998)
+    body_text: Optional[str] = None
+
+
+class ReclamationApplyAndReplyIn(BaseModel):
+    action: Literal["approved", "rejected", "request_documents"]
+    resolution_comment: Optional[str] = Field(default=None, max_length=4000)
     subject: Optional[str] = Field(default=None, max_length=998)
     body_text: Optional[str] = None
 
