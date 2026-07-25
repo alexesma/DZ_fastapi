@@ -759,16 +759,20 @@ async def fetch_and_store_emails(
 
     if email_account_id is not None:
         account = await crud_email_account.get(session, email_account_id)
-        accounts = [account]
+        account_ids = [int(account.id)] if account.is_active else []
     else:
         accounts = await crud_email_account.get_multi(session)
-        accounts = [a for a in accounts if a.is_active]
+        account_ids = [int(a.id) for a in accounts if a.is_active]
 
     total_fetched = 0
     total_stored = 0
     total_auto_processed = 0
 
-    for account in accounts:
+    for account_id in account_ids:
+        # Keep ORM instances local to one account. A rollback while processing
+        # one message expires every loaded instance in the session; reloading
+        # by id avoids synchronous lazy refreshes and MissingGreenlet.
+        account = await crud_email_account.get(session, account_id)
         try:
             messages = await asyncio.wait_for(
                 fetch_inbox_for_account(account, days=days),
@@ -779,13 +783,13 @@ async def fetch_and_store_emails(
             logger.error(
                 "IMAP total fetch timeout for account id=%s after %ss — "
                 "skipping account",
-                account.id,
+                account_id,
                 IMAP_FETCH_PER_ACCOUNT_TIMEOUT,
             )
             continue
         except Exception as e:
             logger.error(
-                "Failed to fetch inbox for account id=%s: %s", account.id, e
+                "Failed to fetch inbox for account id=%s: %s", account_id, e
             )
             continue
 
@@ -796,7 +800,7 @@ async def fetch_and_store_emails(
             if uid:
                 existing_email = await _get_existing_inbox_email_by_uid(
                     session,
-                    email_account_id=account.id,
+                    email_account_id=account_id,
                     uid=uid,
                     folder=folder,
                 )
@@ -807,7 +811,7 @@ async def fetch_and_store_emails(
                                 session,
                                 inbox_email=existing_email,
                                 msg=msg,
-                                account_id=account.id,
+                                account_id=account_id,
                             )
                         )
                     )
@@ -816,7 +820,7 @@ async def fetch_and_store_emails(
                             "Restored attachment files for inbox email "
                             "id=%s account_id=%s uid=%s",
                             existing_email.id,
-                            account.id,
+                            account_id,
                             uid,
                         )
                         await session.commit()
@@ -832,13 +836,13 @@ async def fetch_and_store_emails(
             # File I/O is done before opening the DB
             # transaction to keep it short
             att_info = await _build_attachment_info_for_message(
-                msg, account_id=account.id
+                msg, account_id=account_id
             )
 
             try:
                 inbox_email = await create_inbox_email(
                     session,
-                    email_account_id=account.id,
+                    email_account_id=account_id,
                     uid=uid,
                     folder=folder,
                     from_email=from_email,
@@ -867,10 +871,13 @@ async def fetch_and_store_emails(
                     "Failed to store/process inbox "
                     "email uid=%s account_id=%s: %s",
                     uid,
-                    account.id,
+                    account_id,
                     msg_err,
                 )
                 await session.rollback()
+                # Rollback expires ORM state even with expire_on_commit=False.
+                # Refresh before the next message uses this account again.
+                account = await crud_email_account.get(session, account_id)
 
     return FetchInboxResponse(
         fetched=total_fetched,
