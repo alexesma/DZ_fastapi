@@ -53,6 +53,7 @@ from dz_fastapi.services.reclamations import (
     classify_attachment_kind,
     classify_reclamation_type,
     extract_fields,
+    extract_froza_email_item,
     extract_links,
     extract_sender_email,
     ingest_reclamation_email,
@@ -91,6 +92,62 @@ def test_extract_links_decodes_html_entities():
         "https://froza.ru/supplier/one-question/"
         "?token=0123456789abcdef0123456789abcdef&id=824111"
     ]
+
+
+def test_extract_froza_email_item_reads_quantity_and_position():
+    item = extract_froza_email_item(
+        """
+        Товар: РЕЗИНКА ГЛУШИТЕЛЯ
+        Артикул: DZ1200015K00
+        Производитель: DragonZap
+        Количество: 4
+
+        Причина возврата: Отказ клиента
+        Комментарий: Деталь не устанавливалась.
+        """
+    )
+
+    assert item == {
+        "oem_number": "DZ1200015K00",
+        "brand_name": "DragonZap",
+        "autopart_name": "РЕЗИНКА ГЛУШИТЕЛЯ",
+        "quantity": 4,
+        "reason": "Отказ клиента",
+        "comment": "Деталь не устанавливалась.",
+    }
+
+
+@pytest.mark.asyncio
+async def test_ingest_froza_email_stores_stated_quantity(
+    test_session: AsyncSession,
+):
+    reclamation = await ingest_reclamation_email(
+        test_session,
+        ReclamationInboundEmail(
+            from_="postvozvrat@froza.ru",
+            subject="Просьба согласовать возврат",
+            body_text=(
+                "Товар: РЕЗИНКА ГЛУШИТЕЛЯ\n"
+                "Артикул: DZ1200015K00\n"
+                "Производитель: DragonZap\n"
+                "Количество: 4\n"
+                "Причина возврата: Отказ клиента\n"
+            ),
+            body_html=(
+                '<a href="https://froza.ru/supplier/one-question/'
+                '?token=0123456789abcdef0123456789abcdef&amp;id=827199">'
+                "Согласовать</a>"
+            ),
+            message_id="<froza-quantity@example.test>",
+        ),
+    )
+
+    assert reclamation is not None
+    assert len(reclamation.items) == 1
+    assert reclamation.items[0].oem_number == "DZ1200015K00"
+    assert reclamation.items[0].brand_name == "DragonZap"
+    assert reclamation.items[0].quantity == 4
+    assert reclamation.extracted_data["froza_email_item"]["quantity"] == 4
 
 
 @pytest.mark.asyncio
@@ -575,6 +632,59 @@ async def test_send_froza_decision_blocks_quantity_mismatch(
             client=fake_client,
         )
     assert fake_client.submissions == []
+
+
+@pytest.mark.asyncio
+async def test_send_froza_decision_repairs_default_quantity_from_email(
+    test_session: AsyncSession,
+):
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.APPROVED,
+        resolution="approved",
+        email_body=(
+            "Товар: РЕЗИНКА ГЛУШИТЕЛЯ\n"
+            "Артикул: DZ1200015K00\n"
+            "Производитель: DragonZap\n"
+            "Количество: 4\n"
+        ),
+        source_link=(
+            "https://froza.ru/supplier/one-question/"
+            "?token=0123456789abcdef0123456789abcdef&id=827199"
+        ),
+        items=[
+            ReclamationItem(
+                oem_number="DZ1200015K00",
+                brand_name="DragonZap",
+                quantity=1,
+            )
+        ],
+    )
+    test_session.add(reclamation)
+    await test_session.commit()
+    fake_client = _FakeFrozaClient(
+        [
+            _froza_payload(quantity=4, oem="DZ1200015K00"),
+            _froza_payload(
+                state="approved",
+                quantity=4,
+                oem="DZ1200015K00",
+            ),
+        ]
+    )
+
+    _, snapshot, already_sent = await send_froza_decision(
+        test_session,
+        reclamation_id=reclamation.id,
+        user_id=7,
+        client=fake_client,
+    )
+
+    assert already_sent is False
+    assert snapshot["state"] == "approved"
+    assert fake_client.submissions == [("approved", None)]
+    await test_session.refresh(reclamation, attribute_names=["items"])
+    assert reclamation.items[0].quantity == 4
 
 
 @pytest.mark.asyncio

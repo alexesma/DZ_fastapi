@@ -45,6 +45,11 @@ RECLAMATION_ATTACHMENTS_DIR = os.path.join(
 
 _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 _URL_RE = re.compile(r"https?://[^\s<>\"')]+", re.IGNORECASE)
+_FROZA_ITEM_FIELD_RE = re.compile(
+    r"(?im)^\s*"
+    r"(Товар|Артикул|Производитель|Количество|Причина возврата|Комментарий)"
+    r"\s*:\s*(.*?)\s*$"
+)
 # «№ УТ-1042», «номер УТ-1042 от 15.06.2026», «счёт 123 от 01.02.26»
 _DOC_NUMBER_RE = re.compile(
     r"(?:№|номер|док(?:умент)?[а-я]*|счет|счёт|накладн\w*|отгрузк\w*|"
@@ -114,6 +119,64 @@ def extract_links(text: str) -> list[str]:
             seen.add(url)
             result.append(url)
     return result
+
+
+def extract_froza_email_item(text: str) -> Optional[dict[str, Any]]:
+    """Извлекает единственную позицию из стандартного письма Froza."""
+    normalized = html.unescape(str(text or "")).replace("\xa0", " ")
+    normalized = re.sub(
+        r"(?i)<br\s*/?>|</(?:p|div|li|tr|td|h[1-6])\s*>",
+        "\n",
+        normalized,
+    )
+    normalized = re.sub(r"<[^>]+>", "", normalized)
+    fields = {
+        match.group(1).strip().casefold(): match.group(2).strip()
+        for match in _FROZA_ITEM_FIELD_RE.finditer(normalized)
+        if match.group(2).strip()
+    }
+    oem_number = preprocess_oem_number(fields.get("артикул") or "")
+    quantity_match = re.search(r"\d+", fields.get("количество") or "")
+    if not oem_number or quantity_match is None:
+        return None
+    quantity = int(quantity_match.group(0))
+    if quantity <= 0:
+        return None
+    return {
+        "oem_number": oem_number,
+        "brand_name": fields.get("производитель") or None,
+        "autopart_name": fields.get("товар") or None,
+        "quantity": quantity,
+        "reason": fields.get("причина возврата") or None,
+        "comment": fields.get("комментарий") or None,
+    }
+
+
+def apply_froza_email_item(reclamation: Reclamation) -> bool:
+    """Исправляет техническое количество 1 по сохранённому письму Froza."""
+    parsed = extract_froza_email_item(reclamation.email_body or "")
+    if parsed is None:
+        return False
+    parsed_oem = preprocess_oem_number(parsed["oem_number"])
+    matching_items = [
+        item
+        for item in (reclamation.items or [])
+        if preprocess_oem_number(item.oem_number or "") == parsed_oem
+    ]
+    if len(matching_items) != 1:
+        return False
+
+    item = matching_items[0]
+    changed = False
+    if int(item.quantity or 0) != int(parsed["quantity"]):
+        item.quantity = int(parsed["quantity"])
+        changed = True
+    for field_name in ("brand_name", "autopart_name", "reason"):
+        parsed_value = parsed.get(field_name)
+        if parsed_value and not getattr(item, field_name, None):
+            setattr(item, field_name, parsed_value)
+            changed = True
+    return changed
 
 
 def _preferred_source_link(links: list[str]) -> Optional[str]:
@@ -288,6 +351,7 @@ async def recognize_reclamation_items(
     reclamation: Reclamation,
 ) -> int:
     """Дополняет позиции карточки по сохранённому письму и истории заказов."""
+    structured_item_updated = apply_froza_email_item(reclamation)
     existing_oems = {
         preprocess_oem_number(item.oem_number or "")
         for item in (reclamation.items or [])
@@ -315,7 +379,7 @@ async def recognize_reclamation_items(
         )
         existing_oems.add(normalized)
         created += 1
-    if created:
+    if created or structured_item_updated:
         session.add(reclamation)
         await session.flush()
     return created
@@ -511,6 +575,24 @@ async def ingest_reclamation_email(
         for item in matched
         if preprocess_oem_number(item.get("oem_number") or "")
     }
+    froza_email_item = extract_froza_email_item(body_for_extraction)
+    if froza_email_item is not None:
+        normalized = preprocess_oem_number(froza_email_item["oem_number"])
+        candidate = dict(candidates.get(normalized, {}))
+        candidate.update(
+            {
+                key: value
+                for key, value in froza_email_item.items()
+                if key != "comment" and value is not None
+            }
+        )
+        candidates[normalized] = candidate
+        extracted_data = {
+            **extracted_data,
+            "froza_email_item": froza_email_item,
+        }
+        reclamation.extracted_data = extracted_data
+
     attachment_items = [
         item
         for parsed in attachment_extractions

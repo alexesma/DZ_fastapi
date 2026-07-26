@@ -16,6 +16,7 @@ from sqlalchemy.orm import selectinload
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import preprocess_oem_number
 from dz_fastapi.models.partner import Reclamation
+from dz_fastapi.services.reclamations import apply_froza_email_item
 
 FROZA_BASE_URL = "https://froza.ru"
 FROZA_ALLOWED_HOSTS = {"froza.ru", "www.froza.ru"}
@@ -291,6 +292,7 @@ async def refresh_froza_status(
     portal_client = client or FrozaPortalClient()
     payload = await portal_client.get_question(ref)
     snapshot = build_froza_snapshot(payload)
+    apply_froza_email_item(reclamation)
     blocking_reasons = _validate_reclamation_match(reclamation, snapshot)
     await _store_snapshot(
         session,
@@ -324,6 +326,7 @@ async def send_froza_decision(
     portal_client = client or FrozaPortalClient()
     payload = await portal_client.get_question(ref)
     snapshot = build_froza_snapshot(payload)
+    apply_froza_email_item(reclamation)
     blocking_reasons = _validate_reclamation_match(reclamation, snapshot)
     if blocking_reasons:
         await _store_snapshot(
