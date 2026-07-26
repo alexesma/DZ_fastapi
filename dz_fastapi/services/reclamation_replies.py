@@ -25,7 +25,13 @@ OUTBOX_SOURCE_CUSTOMER = "reclamation"
 OUTBOX_SOURCE_SUPPLIER = "reclamation_supplier"
 
 # Шаблоны ответа клиенту по виду решения
-REPLY_KINDS = ("ack", "approved", "rejected", "request_documents")
+REPLY_KINDS = (
+    "ack",
+    "approved",
+    "rejected",
+    "request_documents",
+    "shortage_confirmed",
+)
 
 
 def _items_block(rec: Reclamation) -> str:
@@ -95,7 +101,17 @@ def build_customer_reply_template(
     )
     reason = str(reason or "").strip()
 
-    if kind == "approved":
+    if kind == "shortage_confirmed":
+        body = (
+            f"Здравствуйте!\n\n"
+            f"Недовоз {doc} подтверждаем.\n\n"
+            f"Недопоставленные позиции:\n{items}\n\n"
+            f"Просим учесть указанное недопоставленное количество при "
+            f"оформлении приёмки.\n"
+            f"Приносим извинения за доставленные неудобства.\n\n"
+            f"С уважением,\nотдел рекламаций"
+        )
+    elif kind == "approved":
         body = (
             f"Здравствуйте!\n\n"
             f"Возврат по вашей рекламации {doc} согласован.\n\n"
@@ -144,7 +160,10 @@ async def _load_reclamation(session: AsyncSession, reclamation_id: int):
         await session.execute(
             select(Reclamation)
             .where(Reclamation.id == reclamation_id)
-            .options(selectinload(Reclamation.items))
+            .options(
+                selectinload(Reclamation.items),
+                selectinload(Reclamation.attachments),
+            )
         )
     ).scalar_one_or_none()
     if rec is None:
@@ -186,6 +205,13 @@ async def _enqueue_loaded_customer_reply(
     commit: bool,
 ) -> EmailOutbox:
     _ensure_email_reply_allowed(rec)
+    if (
+        kind == "shortage_confirmed"
+        and rec.shortage_status != "confirmed"
+    ):
+        raise ValueError(
+            "Сначала подтвердите факт недовоза ответственным сотрудником"
+        )
     account = await get_reclamation_account(session)
     from_email = getattr(account, "email", None)
 
@@ -288,14 +314,21 @@ async def enqueue_supplier_request(
     reclamation_id: int,
 ) -> list[EmailOutbox]:
     rec = await _load_reclamation(session, reclamation_id)
+    check_by_item = {
+        int(item.get("item_id")): item
+        for item in ((rec.check_result or {}).get("items") or [])
+        if item.get("item_id") is not None
+    }
 
     # Группируем транзитные позиции по поставщику
     by_provider: dict[int, list] = {}
     for it in rec.items or []:
         source = str(getattr(it.item_source, "value", it.item_source))
-        if source != "supplier_transit" or not it.source_provider_id:
+        checked_item = check_by_item.get(int(it.id), {})
+        provider_id = it.source_provider_id or checked_item.get("supplier_id")
+        if source != "supplier_transit" or not provider_id:
             continue
-        by_provider.setdefault(int(it.source_provider_id), []).append(it)
+        by_provider.setdefault(int(provider_id), []).append(it)
 
     if not by_provider:
         raise ValueError(
@@ -317,22 +350,68 @@ async def enqueue_supplier_request(
         for it in items:
             parts = [p for p in (it.brand_name, it.oem_number) if p]
             title = " ".join(parts) if parts else (it.autopart_name or "позиция")
-            lines.append(f"  • {title} — {int(it.quantity or 1)} шт.")
-        doc = _doc_phrase(rec)
+            checked_item = check_by_item.get(int(it.id), {})
+            order_date = checked_item.get("customer_order_date")
+            order_number = checked_item.get("customer_order_number")
+            order_label = ""
+            if order_number or order_date:
+                order_label = (
+                    f"; заказ {order_number or 'без номера'}"
+                    f" от {order_date or 'дата не определена'}"
+                )
+            item_name = (
+                f" — {it.autopart_name}" if it.autopart_name else ""
+            )
+            lines.append(
+                f"  • {title}{item_name}; "
+                f"{int(it.quantity or 1)} шт.{order_label}"
+            )
+        reason = (
+            next(
+                (
+                    str(item.reason).strip()
+                    for item in items
+                    if str(item.reason or "").strip()
+                ),
+                "",
+            )
+            or str(rec.stated_reason or "").strip()
+            or "Причина не указана"
+        )
+        customer_name = getattr(rec.customer, "name", None) or "клиент"
         body = (
             f"Здравствуйте!\n\n"
-            f"Клиент вернул товар {doc}, поставленный транзитом от вас. "
-            f"Просим согласовать возврат следующих позиций:\n"
+            f"Просим согласовать возврат товара, поставленного через вашу "
+            f"компанию для клиента {customer_name}.\n\n"
+            f"Причина возврата: {reason}.\n"
+            f"Документ клиента: {_doc_phrase(rec)}.\n\n"
+            f"Позиции к согласованию:\n"
             f"{chr(10).join(lines)}\n\n"
-            f"Просьба подтвердить возможность и условия возврата.\n\n"
+            f"Просим подтвердить возможность возврата и сообщить условия "
+            f"передачи товара.\n\n"
             f"С уважением,\nотдел рекламаций"
         )
+        rec_type = str(
+            getattr(rec.reclamation_type, "value", rec.reclamation_type)
+        )
+        attachments = []
+        if rec_type == "defect":
+            attachments = [
+                {
+                    "file_name": attachment.file_name,
+                    "local_file_path": attachment.local_file_path,
+                    "content_type": attachment.content_type,
+                }
+                for attachment in (rec.attachments or [])
+                if attachment.local_file_path
+            ]
         row = await enqueue_email(
             session,
             to_email=provider.return_request_email,
             from_email=from_email,
             subject=f"Запрос на возврат по рекламации № {rec.id}",
             body_text=body,
+            attachments=attachments,
             reply_to=from_email,
             source_type=OUTBOX_SOURCE_SUPPLIER,
             source_id=int(rec.id),

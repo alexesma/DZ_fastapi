@@ -18,9 +18,11 @@ from typing import Any, Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
+from dz_fastapi.models.notification import AppNotification, AppNotificationLevel
 from dz_fastapi.models.partner import (
     RECLAMATION_ATTACHMENT_KIND,
     RECLAMATION_ITEM_SOURCE,
@@ -31,10 +33,13 @@ from dz_fastapi.models.partner import (
     CustomerOrder,
     CustomerOrderItem,
     CustomerReclamationEmail,
+    Provider,
     Reclamation,
     ReclamationAttachment,
     ReclamationItem,
 )
+from dz_fastapi.models.user import User, UserStatus
+from dz_fastapi.services.notifications import create_notification
 from dz_fastapi.services.reclamation_attachment_parser import parse_reclamation_attachment
 
 logger = logging.getLogger("dz_fastapi")
@@ -49,6 +54,35 @@ _FROZA_ITEM_FIELD_RE = re.compile(
     r"(?im)^\s*"
     r"(Товар|Артикул|Производитель|Количество|Причина возврата|Комментарий)"
     r"\s*:\s*(.*?)\s*$"
+)
+_GREENLIGHT_BOILERPLATE_MARKER = "основные причины формирования возвратов"
+_GREENLIGHT_REASON_PATTERN = (
+    r"(?:Отказ от товара по инициативе клиента|"
+    r"НЕКОМПЛЕКТ(?:\s*\([^)]*\))?|"
+    r"Штрихкод на товаре отсутствует(?:\s*\([^)]*\))?|"
+    r"QR код на товаре(?:\s*\([^)]*\))?|"
+    r"НЕТОВАРНЫЙ ВИД УПАКОВКИ(?:\s*\([^)]*\))?|"
+    r"НЕКОНДИЦИЯ(?:\s*\([^)]*\))?|"
+    r"Отсутствует/Повреждена контрольная марка ЧЗ|"
+    r"Отказ от товара\s*-\s*Недовоз в поставке|"
+    r"ЗАМЕНА НОМЕРА/БРЕНДА(?:\s*\([^)]*\))?)"
+)
+_GREENLIGHT_ROW_RE = re.compile(
+    r"(?P<document_number>\d{1,30})\s+"
+    r"(?P<document_date>\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\s+"
+    r"(?P<oem_number>[A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9./-]{4,})\s+"
+    r"(?P<position_data>.+?)\s+"
+    rf"(?P<reason>{_GREENLIGHT_REASON_PATTERN})"
+    r"(?=\s+(?:\d{1,30}\s+\d{1,2}[./-]\d{1,2}[./-]\d{2,4})|$)",
+    re.IGNORECASE,
+)
+_SHORTAGE_LINE_RE = re.compile(
+    r"^\s*(?P<name>.+?)\s+"
+    r"(?P<display_oem>[A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9./-]{4,})\s+"
+    r"(?P<canonical_oem>[A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9./-]{4,})\s+"
+    r"(?P<brand>[A-Za-zА-Яа-я][A-Za-zА-Яа-я0-9./-]{1,})\s*"
+    r"[—–-]\s*(?P<quantity>\d+)\s*шт\.?\s*$",
+    re.IGNORECASE | re.MULTILINE,
 )
 # «№ УТ-1042», «номер УТ-1042 от 15.06.2026», «счёт 123 от 01.02.26»
 _DOC_NUMBER_RE = re.compile(
@@ -152,6 +186,116 @@ def extract_froza_email_item(text: str) -> Optional[dict[str, Any]]:
     }
 
 
+def _plain_email_text(text: str) -> str:
+    normalized = html.unescape(str(text or "")).replace("\xa0", " ")
+    normalized = re.sub(
+        r"(?i)<br\s*/?>|</(?:p|div|li|tr|td|th|h[1-6])\s*>",
+        "\n",
+        normalized,
+    )
+    return re.sub(r"<[^>]+>", "", normalized)
+
+
+def _parse_email_date(value: str) -> Optional[date]:
+    normalized = str(value or "").replace("/", ".").replace("-", ".")
+    for date_format in ("%d.%m.%Y", "%d.%m.%y"):
+        try:
+            return datetime.strptime(normalized, date_format).date()
+        except ValueError:
+            continue
+    return None
+
+
+def extract_greenlight_return_items(text: str) -> list[dict[str, Any]]:
+    """Разбирает строки возврата до справочного блока письма Гринлайт."""
+    plain_text = _plain_email_text(text)
+    if (
+        "номер документа поступления" not in plain_text.casefold()
+        or "причина возврата" not in plain_text.casefold()
+    ):
+        return []
+    operational_text = re.split(
+        _GREENLIGHT_BOILERPLATE_MARKER,
+        plain_text,
+        maxsplit=1,
+        flags=re.IGNORECASE,
+    )[0]
+    compact_text = re.sub(r"\s+", " ", operational_text).strip()
+
+    result: list[dict[str, Any]] = []
+    for match in _GREENLIGHT_ROW_RE.finditer(compact_text):
+        position_data = match.group("position_data").strip()
+        amount_match = re.match(
+            r"^(?P<label>.+?)\s+"
+            r"(?P<quantity>\d+)\s+"
+            r"(?P<amount>\d[\d\s]*(?:[.,]\d{1,2})?)$",
+            position_data,
+        )
+        if amount_match is None:
+            continue
+        label_parts = amount_match.group("label").split()
+        if len(label_parts) < 2:
+            continue
+        quantity = int(amount_match.group("quantity"))
+        oem_number = preprocess_oem_number(match.group("oem_number"))
+        if not oem_number or quantity <= 0:
+            continue
+        document_date = _parse_email_date(match.group("document_date"))
+        amount_raw = re.sub(r"\s+", "", amount_match.group("amount"))
+        try:
+            amount = float(amount_raw.replace(",", "."))
+        except ValueError:
+            amount = None
+        result.append(
+            {
+                "document_number": match.group("document_number"),
+                "document_date": (
+                    document_date.isoformat() if document_date else None
+                ),
+                "oem_number": oem_number,
+                "autopart_name": " ".join(label_parts[:-1]),
+                "brand_name": label_parts[-1],
+                "quantity": quantity,
+                "total_amount": amount,
+                "reason": match.group("reason").strip(),
+            }
+        )
+    return result
+
+
+def extract_shortage_items(text: str) -> list[dict[str, Any]]:
+    """Извлекает позиции из блока «Недовоз» в письме клиента."""
+    plain_text = _plain_email_text(text)
+    match = re.search(r"(?im)^\s*Недовоз\s*:\s*$", plain_text)
+    if match is None:
+        return []
+    shortage_block = plain_text[match.end():]
+    shortage_block = re.split(
+        r"(?im)^\s*(?:ООО|ИП|С уважением\b)",
+        shortage_block,
+        maxsplit=1,
+    )[0]
+
+    items: list[dict[str, Any]] = []
+    for row in _SHORTAGE_LINE_RE.finditer(shortage_block):
+        display_oem = preprocess_oem_number(row.group("display_oem"))
+        canonical_oem = preprocess_oem_number(row.group("canonical_oem"))
+        oem_number = canonical_oem or display_oem
+        quantity = int(row.group("quantity"))
+        if not oem_number or quantity <= 0:
+            continue
+        items.append(
+            {
+                "oem_number": oem_number,
+                "brand_name": row.group("brand").strip(),
+                "autopart_name": row.group("name").strip(" .,:;"),
+                "quantity": quantity,
+                "reason": "Недовоз",
+            }
+        )
+    return items
+
+
 def apply_froza_email_item(reclamation: Reclamation) -> bool:
     """Исправляет техническое количество 1 по сохранённому письму Froza."""
     parsed = extract_froza_email_item(reclamation.email_body or "")
@@ -207,13 +351,20 @@ def _parse_doc_date(text: str) -> Optional[date]:
 
 RECLAMATION_TYPE_DEFECT = "defect"
 RECLAMATION_TYPE_REFUSAL = "customer_refusal"
+RECLAMATION_TYPE_SHORTAGE = "shortage"
 
 
 def classify_reclamation_type(text: str) -> Optional[str]:
     lowered = str(text or "").lower()
-    if any(kw in lowered for kw in _DEFECT_KEYWORDS):
+    operational_text = lowered.split(
+        _GREENLIGHT_BOILERPLATE_MARKER,
+        1,
+    )[0]
+    if "недовоз" in operational_text or "недопостав" in operational_text:
+        return RECLAMATION_TYPE_SHORTAGE
+    if any(kw in operational_text for kw in _DEFECT_KEYWORDS):
         return RECLAMATION_TYPE_DEFECT
-    if any(kw in lowered for kw in _REFUSAL_KEYWORDS):
+    if any(kw in operational_text for kw in _REFUSAL_KEYWORDS):
         return RECLAMATION_TYPE_REFUSAL
     return None
 
@@ -221,6 +372,32 @@ def classify_reclamation_type(text: str) -> Optional[str]:
 def extract_fields(subject: str, body: str) -> dict[str, Any]:
     """Регулярное извлечение полей из письма (первый слой распознавания)."""
     text = f"{subject}\n{body}"
+    shortage_items = extract_shortage_items(body)
+    if shortage_items:
+        doc_match = _DOC_NUMBER_RE.search(text)
+        doc_number = (
+            doc_match.group(1).strip(" .,:;") if doc_match else None
+        )
+        doc_date = _parse_doc_date(text)
+        return {
+            "document_number": doc_number,
+            "document_date": doc_date.isoformat() if doc_date else None,
+            "reclamation_type": RECLAMATION_TYPE_SHORTAGE,
+            "links": extract_links(body),
+            "shortage_items": shortage_items,
+        }
+    greenlight_items = extract_greenlight_return_items(body)
+    if greenlight_items:
+        first_item = greenlight_items[0]
+        return {
+            "document_number": first_item.get("document_number"),
+            "document_date": first_item.get("document_date"),
+            "reclamation_type": classify_reclamation_type(
+                first_item.get("reason") or ""
+            ),
+            "links": extract_links(body),
+            "greenlight_items": greenlight_items,
+        }
     doc_number = None
     m = _DOC_NUMBER_RE.search(text)
     if m:
@@ -352,33 +529,168 @@ async def recognize_reclamation_items(
 ) -> int:
     """Дополняет позиции карточки по сохранённому письму и истории заказов."""
     structured_item_updated = apply_froza_email_item(reclamation)
-    existing_oems = {
-        preprocess_oem_number(item.oem_number or "")
-        for item in (reclamation.items or [])
-        if item.oem_number
-    }
+    greenlight_items = extract_greenlight_return_items(
+        reclamation.email_body or ""
+    )
+    shortage_items = extract_shortage_items(reclamation.email_body or "")
+    structured_items = shortage_items or greenlight_items
     matched = await _match_oems_in_text(
         session,
         f"{reclamation.email_subject or ''}\n{reclamation.email_body or ''}",
         customer_id=reclamation.customer_id,
     )
+    resolved_by_oem = {
+        preprocess_oem_number(item["oem_number"]): item
+        for item in matched
+    }
     created = 0
-    for item in matched:
-        normalized = preprocess_oem_number(item["oem_number"] or "")
-        if not normalized or normalized in existing_oems:
-            continue
-        reclamation.items.append(
-            ReclamationItem(
-                oem_number=normalized,
-                brand_name=item.get("brand_name"),
-                autopart_name=item.get("autopart_name"),
-                autopart_id=item.get("autopart_id"),
-                quantity=1,
-                item_source=RECLAMATION_ITEM_SOURCE.UNKNOWN,
+    if structured_items:
+        expected_oems = {
+            preprocess_oem_number(item["oem_number"])
+            for item in structured_items
+        }
+        for existing_item in list(reclamation.items or []):
+            existing_oem = preprocess_oem_number(
+                existing_item.oem_number or ""
             )
+            item_source = str(
+                getattr(
+                    existing_item.item_source,
+                    "value",
+                    existing_item.item_source,
+                )
+            )
+            is_unlinked_auto_item = (
+                item_source == RECLAMATION_ITEM_SOURCE.UNKNOWN.value
+                and existing_item.shipment_item_id is None
+                and existing_item.stock_lot_id is None
+                and existing_item.source_provider_id is None
+            )
+            if existing_oem not in expected_oems and is_unlinked_auto_item:
+                reclamation.items.remove(existing_item)
+                structured_item_updated = True
+
+        existing_by_oem = {
+            preprocess_oem_number(item.oem_number or ""): item
+            for item in (reclamation.items or [])
+            if item.oem_number
+        }
+        for parsed_item in structured_items:
+            normalized = preprocess_oem_number(parsed_item["oem_number"])
+            existing_item = existing_by_oem.get(normalized)
+            resolved_item = resolved_by_oem.get(normalized, {})
+            if existing_item is None:
+                existing_item = ReclamationItem(
+                    oem_number=normalized,
+                    brand_name=(
+                        parsed_item.get("brand_name")
+                        or resolved_item.get("brand_name")
+                    ),
+                    autopart_name=(
+                        resolved_item.get("autopart_name")
+                        or parsed_item.get("autopart_name")
+                    ),
+                    autopart_id=resolved_item.get("autopart_id"),
+                    quantity=parsed_item.get("quantity") or 1,
+                    reason=parsed_item.get("reason"),
+                    item_source=RECLAMATION_ITEM_SOURCE.UNKNOWN,
+                )
+                reclamation.items.append(existing_item)
+                existing_by_oem[normalized] = existing_item
+                created += 1
+                continue
+
+            updates = {
+                "quantity": parsed_item.get("quantity") or 1,
+                "reason": parsed_item.get("reason"),
+            }
+            if not existing_item.brand_name:
+                updates["brand_name"] = (
+                    parsed_item.get("brand_name")
+                    or resolved_item.get("brand_name")
+                )
+            if not existing_item.autopart_name:
+                updates["autopart_name"] = (
+                    resolved_item.get("autopart_name")
+                    or parsed_item.get("autopart_name")
+                )
+            if existing_item.autopart_id is None:
+                updates["autopart_id"] = resolved_item.get("autopart_id")
+            for field_name, value in updates.items():
+                if value is not None and getattr(
+                    existing_item, field_name
+                ) != value:
+                    setattr(existing_item, field_name, value)
+                    structured_item_updated = True
+
+        fields = extract_fields(
+            reclamation.email_subject or "",
+            reclamation.email_body or "",
         )
-        existing_oems.add(normalized)
-        created += 1
+        first_item = structured_items[0]
+        reclamation.stated_document_number = fields.get("document_number")
+        document_date = fields.get("document_date")
+        reclamation.stated_document_date = (
+            date.fromisoformat(document_date) if document_date else None
+        )
+        reclamation.stated_reason = first_item.get("reason")
+        reclamation.reclamation_type = fields.get("reclamation_type")
+        extracted_data = dict(reclamation.extracted_data or {})
+        extracted_key = (
+            "shortage_items" if shortage_items else "greenlight_items"
+        )
+        extracted_data[extracted_key] = structured_items
+        reclamation.extracted_data = extracted_data
+        structured_item_updated = True
+    else:
+        document_oem = preprocess_oem_number(
+            reclamation.stated_document_number or ""
+        )
+        if document_oem:
+            for existing_item in list(reclamation.items or []):
+                item_source = str(
+                    getattr(
+                        existing_item.item_source,
+                        "value",
+                        existing_item.item_source,
+                    )
+                )
+                if (
+                    preprocess_oem_number(existing_item.oem_number or "")
+                    == document_oem
+                    and item_source
+                    == RECLAMATION_ITEM_SOURCE.UNKNOWN.value
+                    and existing_item.shipment_item_id is None
+                    and existing_item.stock_lot_id is None
+                    and existing_item.source_provider_id is None
+                ):
+                    reclamation.items.remove(existing_item)
+                    structured_item_updated = True
+        existing_oems = {
+            preprocess_oem_number(item.oem_number or "")
+            for item in (reclamation.items or [])
+            if item.oem_number
+        }
+        for item in matched:
+            normalized = preprocess_oem_number(item["oem_number"] or "")
+            if (
+                not normalized
+                or normalized == document_oem
+                or normalized in existing_oems
+            ):
+                continue
+            reclamation.items.append(
+                ReclamationItem(
+                    oem_number=normalized,
+                    brand_name=item.get("brand_name"),
+                    autopart_name=item.get("autopart_name"),
+                    autopart_id=item.get("autopart_id"),
+                    quantity=1,
+                    item_source=RECLAMATION_ITEM_SOURCE.UNKNOWN,
+                )
+            )
+            existing_oems.add(normalized)
+            created += 1
     if created or structured_item_updated:
         session.add(reclamation)
         await session.flush()
@@ -554,7 +866,22 @@ async def ingest_reclamation_email(
         email_body=email.body_text or email.body_html or None,
         stated_document_number=document_number,
         stated_document_date=doc_date,
-        stated_reason=attachment_reason or None,
+        stated_reason=(
+            attachment_reason
+            or next(
+                (
+                    str(item.get("reason") or "").strip()
+                    for item in (
+                        fields.get("shortage_items")
+                        or fields.get("greenlight_items")
+                        or []
+                    )
+                    if item.get("reason")
+                ),
+                "",
+            )
+            or None
+        ),
         extracted_data=extracted_data,
     )
     session.add(reclamation)
@@ -575,6 +902,41 @@ async def ingest_reclamation_email(
         for item in matched
         if preprocess_oem_number(item.get("oem_number") or "")
     }
+    document_oem = preprocess_oem_number(document_number or "")
+    if document_oem:
+        candidates.pop(document_oem, None)
+    structured_items = (
+        fields.get("shortage_items")
+        or fields.get("greenlight_items")
+        or []
+    )
+    if structured_items:
+        resolved_by_oem = {
+            preprocess_oem_number(item["oem_number"]): item
+            for item in matched
+        }
+        candidates = {}
+        for parsed_item in structured_items:
+            normalized = preprocess_oem_number(
+                parsed_item.get("oem_number") or ""
+            )
+            candidate = dict(resolved_by_oem.get(normalized, {}))
+            candidate.update(
+                {
+                    key: value
+                    for key, value in parsed_item.items()
+                    if key
+                    in {
+                        "oem_number",
+                        "brand_name",
+                        "autopart_name",
+                        "quantity",
+                        "reason",
+                    }
+                    and value is not None
+                }
+            )
+            candidates[normalized] = candidate
     froza_email_item = extract_froza_email_item(body_for_extraction)
     if froza_email_item is not None:
         normalized = preprocess_oem_number(froza_email_item["oem_number"])
@@ -1049,6 +1411,7 @@ async def update_reclamation_item(
     item_source: Optional[str] = None,
     reason: Optional[str] = None,
     quantity: Optional[int] = None,
+    source_provider_id: Optional[int] = None,
 ) -> Reclamation:
     """Правит позицию рекламации: источник (наш склад/транзит), причину,
     количество. Возвращает саму рекламацию с перезагруженными позициями."""
@@ -1063,11 +1426,296 @@ async def update_reclamation_item(
         item.reason = reason or None
     if quantity is not None:
         item.quantity = max(1, int(quantity))
+    if source_provider_id is not None:
+        provider = await session.get(Provider, source_provider_id)
+        if provider is None:
+            raise ValueError("Поставщик не найден")
+        item.source_provider_id = int(source_provider_id)
+        item.item_source = RECLAMATION_ITEM_SOURCE.SUPPLIER_TRANSIT
     session.add(item)
     await session.commit()
     rec = await session.get(Reclamation, reclamation_id)
     await session.refresh(rec)
     return rec
+
+
+async def assign_shortage_reviewer(
+    session: AsyncSession,
+    *,
+    reclamation_id: int,
+    user_id: int,
+) -> Reclamation:
+    """Назначает сотрудника для проверки факта недовоза."""
+    rec = (
+        await session.execute(
+            select(Reclamation)
+            .where(Reclamation.id == reclamation_id)
+            .options(
+                selectinload(Reclamation.customer),
+                selectinload(Reclamation.items),
+            )
+        )
+    ).scalar_one_or_none()
+    if rec is None:
+        raise ValueError("Рекламация не найдена")
+    rec_type = str(
+        getattr(rec.reclamation_type, "value", rec.reclamation_type)
+    )
+    if rec_type != RECLAMATION_TYPE_SHORTAGE:
+        raise ValueError("Назначение доступно только для недовоза")
+
+    user = await session.get(User, user_id)
+    if user is None or user.status != UserStatus.ACTIVE:
+        raise ValueError("Выбранный сотрудник не найден или не активен")
+
+    rec.shortage_assigned_to_user_id = int(user.id)
+    rec.shortage_assigned_at = now_moscow()
+    rec.shortage_status = "pending_confirmation"
+    rec.shortage_confirmed_by_user_id = None
+    rec.shortage_confirmed_at = None
+    rec.shortage_comment = None
+    rec.shortage_snoozed_until = None
+    session.add(rec)
+    await session.flush()
+
+    await _mark_shortage_notifications_read(
+        session,
+        reclamation_id=reclamation_id,
+    )
+    payload = _shortage_notification_payload(rec)
+    await create_notification(
+        session,
+        user_id=int(user.id),
+        title=f"Проверьте недовоз по рекламации #{rec.id}",
+        message=(
+            f"Клиент: {getattr(rec.customer, 'name', None) or 'не указан'}. "
+            f"Документ: {rec.stated_document_number or 'не указан'}. "
+            f"Позиций: {len(rec.items or [])}."
+        ),
+        level=AppNotificationLevel.WARNING,
+        link=f"/reclamations?openId={rec.id}",
+        payload=payload,
+        commit=False,
+    )
+    await session.commit()
+    await session.refresh(rec)
+    return rec
+
+
+async def confirm_shortage(
+    session: AsyncSession,
+    *,
+    reclamation_id: int,
+    confirmed: bool,
+    comment: Optional[str],
+    user_id: int,
+) -> Reclamation:
+    """Фиксирует проверку недовоза и сотрудника, принявшего решение."""
+    rec = await session.get(Reclamation, reclamation_id)
+    if rec is None:
+        raise ValueError("Рекламация не найдена")
+    rec_type = str(
+        getattr(rec.reclamation_type, "value", rec.reclamation_type)
+    )
+    if rec_type != RECLAMATION_TYPE_SHORTAGE:
+        raise ValueError("Подтверждение доступно только для недовоза")
+
+    clean_comment = str(comment or "").strip()
+    checked_at = now_moscow()
+    rec.shortage_status = "confirmed" if confirmed else "not_confirmed"
+    rec.shortage_confirmed_by_user_id = int(user_id)
+    rec.shortage_confirmed_at = checked_at
+    rec.shortage_comment = clean_comment or None
+    rec.shortage_snoozed_until = None
+    rec.resolution = "approved" if confirmed else "rejected"
+    rec.resolution_comment = (
+        clean_comment
+        or (
+            "Недовоз подтверждён ответственным сотрудником"
+            if confirmed
+            else "Недовоз не подтверждён ответственным сотрудником"
+        )
+    )
+    rec.resolved_by_user_id = int(user_id)
+    rec.resolved_at = checked_at
+    rec.status = (
+        RECLAMATION_STATUS.APPROVED
+        if confirmed
+        else RECLAMATION_STATUS.REJECTED
+    )
+    session.add(rec)
+    await _mark_shortage_notifications_read(
+        session,
+        reclamation_id=reclamation_id,
+    )
+    await session.commit()
+    await session.refresh(rec)
+    return rec
+
+
+def _shortage_notification_payload(
+    reclamation: Reclamation,
+) -> dict[str, Any]:
+    check_items = {
+        int(item.get("item_id")): item
+        for item in (
+            (reclamation.check_result or {}).get("items") or []
+        )
+        if item.get("item_id") is not None
+    }
+    items = []
+    for item in reclamation.items or []:
+        check = check_items.get(int(item.id), {})
+        candidates = check.get("supplier_candidates") or []
+        supplier_names = [
+            candidate.get("provider_name")
+            or f"ID {candidate.get('provider_id')}"
+            for candidate in candidates
+            if candidate.get("provider_id")
+        ]
+        items.append(
+            {
+                "item_id": int(item.id),
+                "brand_name": item.brand_name,
+                "oem_number": item.oem_number,
+                "autopart_name": item.autopart_name,
+                "quantity": int(item.quantity or 1),
+                "order_date": check.get("customer_order_date"),
+                "order_number": check.get("customer_order_number"),
+                "supplier_id": check.get("supplier_id"),
+                "supplier_name": check.get("supplier_name"),
+                "supplier_names": supplier_names,
+            }
+        )
+    return {
+        "notification_type": "reclamation_shortage",
+        "reclamation_id": int(reclamation.id),
+        "customer_id": reclamation.customer_id,
+        "customer_name": (
+            getattr(reclamation.customer, "name", None)
+            if reclamation.customer
+            else None
+        ),
+        "document_number": reclamation.stated_document_number,
+        "document_date": (
+            reclamation.stated_document_date.isoformat()
+            if reclamation.stated_document_date
+            else None
+        ),
+        "reason": reclamation.stated_reason or "Недовоз",
+        "positions_count": len(items),
+        "items": items,
+    }
+
+
+async def _mark_shortage_notifications_read(
+    session: AsyncSession,
+    *,
+    reclamation_id: int,
+    user_id: Optional[int] = None,
+) -> None:
+    stmt = select(AppNotification).where(
+        AppNotification.read_at.is_(None),
+        AppNotification.link == f"/reclamations?openId={reclamation_id}",
+    )
+    if user_id is not None:
+        stmt = stmt.where(AppNotification.user_id == user_id)
+    rows = (await session.execute(stmt)).scalars().all()
+    read_at = now_moscow()
+    for notification in rows:
+        payload = notification.payload or {}
+        if (
+            payload.get("notification_type") == "reclamation_shortage"
+            and int(payload.get("reclamation_id") or 0)
+            == int(reclamation_id)
+        ):
+            notification.read_at = read_at
+            session.add(notification)
+
+
+async def postpone_shortage_review(
+    session: AsyncSession,
+    *,
+    reclamation_id: int,
+    minutes: int,
+    user_id: int,
+) -> Reclamation:
+    if minutes not in {15, 30, 60}:
+        raise ValueError("Можно отложить только на 15, 30 или 60 минут")
+    rec = (
+        await session.execute(
+            select(Reclamation)
+            .where(Reclamation.id == reclamation_id)
+            .options(
+                selectinload(Reclamation.customer),
+                selectinload(Reclamation.items),
+            )
+        )
+    ).scalar_one_or_none()
+    if rec is None:
+        raise ValueError("Рекламация не найдена")
+    if rec.shortage_status in {"confirmed", "not_confirmed"}:
+        raise ValueError("Проверка недовоза уже завершена")
+
+    remind_at = now_moscow() + timedelta(minutes=minutes)
+    rec.shortage_status = "pending_confirmation"
+    rec.shortage_snoozed_until = remind_at
+    session.add(rec)
+    await _mark_shortage_notifications_read(
+        session,
+        reclamation_id=reclamation_id,
+        user_id=user_id,
+    )
+    await create_notification(
+        session,
+        user_id=user_id,
+        title=f"Напоминание: недовоз по рекламации #{rec.id}",
+        message=(
+            f"Клиент: {getattr(rec.customer, 'name', None) or 'не указан'}. "
+            f"Проверьте комплектацию отгрузки."
+        ),
+        level=AppNotificationLevel.WARNING,
+        link=f"/reclamations?openId={rec.id}",
+        payload=_shortage_notification_payload(rec),
+        available_at=remind_at,
+        commit=False,
+    )
+    await session.commit()
+    await session.refresh(rec)
+    return rec
+
+
+async def add_shortage_evidence(
+    session: AsyncSession,
+    *,
+    reclamation_id: int,
+    filename: str,
+    payload: bytes,
+    content_type: Optional[str],
+) -> ReclamationAttachment:
+    rec = await session.get(Reclamation, reclamation_id)
+    if rec is None:
+        raise ValueError("Рекламация не найдена")
+    if not payload:
+        raise ValueError("Файл доказательства пуст")
+    inbound = ReclamationInboundAttachment(
+        filename=filename,
+        payload=payload,
+        content_type=content_type,
+    )
+    file_path = _save_attachment_to_disk(reclamation_id, inbound)
+    attachment = ReclamationAttachment(
+        reclamation_id=reclamation_id,
+        kind=RECLAMATION_ATTACHMENT_KIND.SHORTAGE_EVIDENCE,
+        file_name=filename,
+        content_type=content_type,
+        local_file_path=file_path,
+        size_bytes=len(payload),
+    )
+    session.add(attachment)
+    await session.commit()
+    await session.refresh(attachment)
+    return attachment
 
 
 async def get_reclamation_account(session: AsyncSession):

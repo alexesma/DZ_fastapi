@@ -21,11 +21,13 @@ from sqlalchemy.orm import selectinload
 
 from dz_fastapi.core.time import MOSCOW_TZ, now_moscow
 from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
+from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.inventory import (
     ShipmentDocument,
     ShipmentDocumentItem,
     ShipmentDocumentItemLotAllocation,
     ShipmentDocumentStatus,
+    StockLot,
 )
 from dz_fastapi.models.partner import (
     RECLAMATION_STATUS,
@@ -35,6 +37,7 @@ from dz_fastapi.models.partner import (
     CustomerOrderItem,
     Provider,
     Reclamation,
+    SupplierReceipt,
 )
 from dz_fastapi.services.holidays import get_effective_holiday_set, next_business_day
 
@@ -147,11 +150,34 @@ async def _resolve_autopart_id(
     normalized = preprocess_oem_number(oem_number)
     if not normalized:
         return None
-    stmt = select(AutoPart.id).where(AutoPart.oem_number == normalized)
-    rows = (await session.execute(stmt)).scalars().all()
+    rows = (
+        await session.execute(
+            select(AutoPart.id, Brand.name)
+            .join(Brand, Brand.id == AutoPart.brand_id)
+            .where(AutoPart.oem_number == normalized)
+        )
+    ).all()
     if not rows:
         return None
-    return int(rows[0])
+    normalized_brand = _normalize_brand_name(brand_name)
+    if normalized_brand:
+        exact = [
+            row for row in rows
+            if _normalize_brand_name(row.name) == normalized_brand
+        ]
+        if exact:
+            return int(exact[0].id)
+    if len(rows) == 1:
+        return int(rows[0].id)
+    return None
+
+
+def _normalize_brand_name(value: Optional[str]) -> str:
+    return "".join(
+        character
+        for character in str(value or "").upper()
+        if character.isalnum()
+    )
 
 
 async def _find_latest_shipment(
@@ -195,6 +221,7 @@ async def _find_latest_customer_order(
     *,
     customer_id: int,
     oem_number: Optional[str],
+    brand_name: Optional[str],
     autopart_id: Optional[int],
 ) -> Optional[dict[str, Any]]:
     normalized = preprocess_oem_number(oem_number or "")
@@ -214,7 +241,7 @@ async def _find_latest_customer_order(
     if not matches:
         return None
 
-    row = (
+    rows = (
         await session.execute(
             select(
                 CustomerOrder.id,
@@ -224,6 +251,8 @@ async def _find_latest_customer_order(
                 CustomerOrderItem.requested_qty,
                 CustomerOrderItem.ship_qty,
                 CustomerOrderItem.autopart_id,
+                CustomerOrderItem.supplier_id,
+                CustomerOrderItem.brand,
             )
             .join(
                 CustomerOrderItem,
@@ -238,11 +267,28 @@ async def _find_latest_customer_order(
                 CustomerOrder.received_at.desc(),
                 CustomerOrder.id.desc(),
             )
-            .limit(1)
+            .limit(100)
         )
-    ).first()
-    if row is None:
+    ).all()
+    if not rows:
         return None
+    normalized_brand = _normalize_brand_name(brand_name)
+    exact_rows = [
+        row for row in rows
+        if (
+            normalized_brand
+            and _normalize_brand_name(row.brand) == normalized_brand
+        )
+    ]
+    if exact_rows:
+        row = exact_rows[0]
+    else:
+        candidate_brands = {
+            _normalize_brand_name(row.brand) for row in rows if row.brand
+        }
+        if len(candidate_brands) > 1:
+            return None
+        row = rows[0]
     return {
         "order_id": int(row.id),
         "order_number": row.order_number,
@@ -251,24 +297,56 @@ async def _find_latest_customer_order(
         "requested_qty": int(row.requested_qty or 0),
         "ship_qty": int(row.ship_qty or 0),
         "autopart_id": int(row.autopart_id) if row.autopart_id else None,
+        "supplier_id": int(row.supplier_id) if row.supplier_id else None,
     }
 
 
-async def _supplier_for_shipment_item(
+async def _suppliers_for_shipment_item(
     session: AsyncSession, *, shipment_item_id: int
-) -> Optional[int]:
-    provider_id = (
+) -> list[dict[str, Any]]:
+    provider_id = func.coalesce(
+        ShipmentDocumentItemLotAllocation.provider_id,
+        SupplierReceipt.provider_id,
+    )
+    rows = (
         await session.execute(
-            select(ShipmentDocumentItemLotAllocation.provider_id)
+            select(
+                provider_id.label("provider_id"),
+                func.sum(
+                    ShipmentDocumentItemLotAllocation.quantity
+                ).label("quantity"),
+            )
+            .outerjoin(
+                StockLot,
+                StockLot.id
+                == ShipmentDocumentItemLotAllocation.stock_lot_id,
+            )
+            .outerjoin(
+                SupplierReceipt,
+                SupplierReceipt.id == StockLot.source_receipt_id,
+            )
             .where(
                 ShipmentDocumentItemLotAllocation.shipment_document_item_id
                 == shipment_item_id,
-                ShipmentDocumentItemLotAllocation.provider_id.isnot(None),
+                provider_id.isnot(None),
             )
-            .limit(1)
+            .group_by(provider_id)
+            .order_by(
+                func.sum(
+                    ShipmentDocumentItemLotAllocation.quantity
+                ).desc()
+            )
         )
-    ).scalar_one_or_none()
-    return int(provider_id) if provider_id is not None else None
+    ).all()
+    return [
+        {
+            "provider_id": int(row.provider_id),
+            "quantity": int(row.quantity or 0),
+            "source": "shipment_lot",
+        }
+        for row in rows
+        if row.provider_id is not None
+    ]
 
 
 async def _check_item(
@@ -313,6 +391,9 @@ async def _check_item(
         "within_window": None,
         "supplier_id": None,
         "supplier_name": None,
+        "supplier_source": None,
+        "supplier_candidates": [],
+        "supplier_ambiguous": False,
         "supplier_return_allowed": None,
         "supplier_brand_blocked": False,
         "checks": checks,
@@ -326,6 +407,7 @@ async def _check_item(
             session,
             customer_id=int(customer.id),
             oem_number=item.oem_number,
+            brand_name=item.brand_name,
             autopart_id=autopart_id,
         )
     if customer_order is not None:
@@ -353,6 +435,80 @@ async def _check_item(
             customer_id=int(customer.id),
             autopart_id=autopart_id,
         )
+
+    supplier_candidates: list[dict[str, Any]] = []
+    if item.source_provider_id:
+        supplier_candidates.append(
+            {
+                "provider_id": int(item.source_provider_id),
+                "quantity": int(item.quantity or 0),
+                "source": "manual",
+            }
+        )
+    else:
+        shipment_suppliers = []
+        if shipment is not None:
+            shipment_suppliers = await _suppliers_for_shipment_item(
+                session,
+                shipment_item_id=shipment["shipment_item_id"],
+            )
+            supplier_candidates.extend(shipment_suppliers)
+        if (
+            not shipment_suppliers
+            and customer_order
+            and customer_order.get("supplier_id")
+        ):
+            supplier_candidates.append(
+                {
+                    "provider_id": int(customer_order["supplier_id"]),
+                    "quantity": int(customer_order["ship_qty"] or 0),
+                    "source": "customer_order",
+                }
+            )
+
+    candidate_by_provider: dict[int, dict[str, Any]] = {}
+    source_priority = {"manual": 0, "shipment_lot": 1, "customer_order": 2}
+    for candidate in supplier_candidates:
+        provider_id = int(candidate["provider_id"])
+        existing = candidate_by_provider.get(provider_id)
+        if (
+            existing is None
+            or source_priority.get(candidate["source"], 99)
+            < source_priority.get(existing["source"], 99)
+        ):
+            candidate_by_provider[provider_id] = candidate
+    resolved_candidates = []
+    for candidate in candidate_by_provider.values():
+        provider = await session.get(Provider, candidate["provider_id"])
+        resolved_candidates.append(
+            {
+                **candidate,
+                "provider_name": getattr(provider, "name", None),
+            }
+        )
+    resolved_candidates.sort(
+        key=lambda value: (
+            source_priority.get(value["source"], 99),
+            -int(value.get("quantity") or 0),
+        )
+    )
+    result["supplier_candidates"] = resolved_candidates
+    result["supplier_ambiguous"] = len(resolved_candidates) > 1
+    if len(resolved_candidates) == 1:
+        supplier = resolved_candidates[0]
+        result["supplier_id"] = supplier["provider_id"]
+        result["supplier_name"] = supplier["provider_name"]
+        result["supplier_source"] = supplier["source"]
+        if item.source_provider_id is None:
+            item.source_provider_id = supplier["provider_id"]
+            if (
+                supplier["source"] == "customer_order"
+                and item_source == "unknown"
+            ):
+                item.item_source = "supplier_transit"
+                item_source = "supplier_transit"
+                result["item_source"] = item_source
+            session.add(item)
 
     return_start_date = None
     if shipment is None:
@@ -448,13 +604,24 @@ async def _check_item(
 
     # Источник позиции
     if item_source == "supplier_transit":
-        supplier_id = item.source_provider_id or (
-            await _supplier_for_shipment_item(
-                session, shipment_item_id=shipment["shipment_item_id"]
+        supplier_id = result["supplier_id"]
+        if result["supplier_ambiguous"] and not item.source_provider_id:
+            provider_names = ", ".join(
+                candidate.get("provider_name")
+                or f"ID {candidate['provider_id']}"
+                for candidate in resolved_candidates
             )
-            if shipment is not None
-            else None
-        )
+            checks.append({
+                "key": "supplier",
+                "label": "Поставщик (транзит)",
+                "status": "warn",
+                "detail": (
+                    "Найдено несколько возможных поставщиков: "
+                    f"{provider_names}. Выберите поставщика вручную"
+                ),
+            })
+            result["verdict"] = REC_MANUAL
+            return result
         provider = (
             await session.get(Provider, supplier_id)
             if supplier_id
@@ -624,6 +791,15 @@ async def run_reclamation_check(
         candidate_codes,
         key=lambda code: _REC_PRIORITY.get(code, 99),
     )
+    recommendation_summary = RECOMMENDATION_TEXT.get(
+        recommendation_code, ""
+    )
+    if rec_type == RECLAMATION_TYPE.SHORTAGE.value:
+        recommendation_code = REC_MANUAL
+        recommendation_summary = (
+            "Недовоз требует подтверждения сотрудником, который может "
+            "проверить фактическую комплектацию отгрузки"
+        )
 
     check_result = {
         "checked_at": now_moscow().isoformat(),
@@ -632,7 +808,7 @@ async def run_reclamation_check(
         "documents": documents,
         "items": item_results,
         "recommendation_code": recommendation_code,
-        "summary": RECOMMENDATION_TEXT.get(recommendation_code, ""),
+        "summary": recommendation_summary,
     }
 
     rec.check_result = check_result

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -10,6 +10,8 @@ class AppNotificationResponse(BaseModel):
     message: str
     level: str
     link: Optional[str] = None
+    payload: Optional[dict[str, Any]] = None
+    available_at: Optional[datetime] = None
     created_at: datetime
     read_at: Optional[datetime] = None
 

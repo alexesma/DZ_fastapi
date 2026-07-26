@@ -71,6 +71,15 @@ class ReclamationDetail(BaseModel):
     resolution: Optional[str] = None
     resolution_comment: Optional[str] = None
     resolved_at: Optional[datetime] = None
+    shortage_assigned_to_user_id: Optional[int] = None
+    shortage_assigned_to_user_name: Optional[str] = None
+    shortage_assigned_at: Optional[datetime] = None
+    shortage_status: Optional[str] = None
+    shortage_confirmed_by_user_id: Optional[int] = None
+    shortage_confirmed_by_user_name: Optional[str] = None
+    shortage_confirmed_at: Optional[datetime] = None
+    shortage_comment: Optional[str] = None
+    shortage_snoozed_until: Optional[datetime] = None
     return_from_customer_id: Optional[int] = None
     created_at: Optional[datetime] = None
     items: list[ReclamationItemOut] = Field(default_factory=list)
@@ -103,11 +112,30 @@ class ReclamationItemUpdateIn(BaseModel):
     item_source: Optional[str] = None
     reason: Optional[str] = None
     quantity: Optional[int] = Field(default=None, ge=1)
+    source_provider_id: Optional[int] = None
+
+
+class ReclamationAssigneeOut(BaseModel):
+    id: int
+    name: Optional[str] = None
+    email: str
+
+
+class ReclamationShortageAssignIn(BaseModel):
+    user_id: int
+
+
+class ReclamationShortageConfirmIn(BaseModel):
+    confirmed: bool
+    comment: Optional[str] = Field(default=None, max_length=4000)
+
+
+class ReclamationShortagePostponeIn(BaseModel):
+    minutes: Literal[15, 30, 60]
 
 
 class ReclamationReplyIn(BaseModel):
-    # kind: ack | approved | rejected | request_documents — берёт шаблон,
-    # если subject/body не заданы явно
+    # kind берёт готовый шаблон, если subject/body не заданы явно.
     kind: Optional[str] = None
     subject: Optional[str] = Field(default=None, max_length=998)
     body_text: Optional[str] = None

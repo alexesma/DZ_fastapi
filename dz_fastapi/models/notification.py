@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, ForeignKey, String, Text
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import relationship
 
 from dz_fastapi.core.db import Base
@@ -28,6 +28,8 @@ class AppNotification(Base):
         default=AppNotificationLevel.INFO,
     )
     link = Column(String(255), nullable=True)
+    payload = Column(JSON, nullable=True)
+    available_at = Column(DateTime(timezone=True), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), default=now_moscow)
     read_at = Column(DateTime(timezone=True), nullable=True)
 

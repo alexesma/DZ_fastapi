@@ -4,7 +4,7 @@ import os
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,19 +13,23 @@ from sqlalchemy.orm import selectinload
 from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.core.db import get_session
 from dz_fastapi.models.partner import Customer, Reclamation, ReclamationAttachment
-from dz_fastapi.models.user import User
+from dz_fastapi.models.user import User, UserStatus
 from dz_fastapi.schemas.reclamation import (
     EmailOutboxOut,
     ReclamationApplyAndReplyIn,
     ReclamationArmtekDecisionIn,
     ReclamationArmtekSyncResult,
     ReclamationAssignCustomerIn,
+    ReclamationAssigneeOut,
     ReclamationCreateIn,
     ReclamationDetail,
     ReclamationFrozaDecisionIn,
     ReclamationItemUpdateIn,
     ReclamationReplyIn,
     ReclamationRow,
+    ReclamationShortageAssignIn,
+    ReclamationShortageConfirmIn,
+    ReclamationShortagePostponeIn,
     ReclamationStats,
     ReclamationSummary,
     ReclamationSyncResult,
@@ -57,10 +61,14 @@ from dz_fastapi.services.reclamation_replies import (
 )
 from dz_fastapi.services.reclamation_stats import get_reclamation_statistics
 from dz_fastapi.services.reclamations import (
+    add_shortage_evidence,
     assign_reclamation_customer,
+    assign_shortage_reviewer,
+    confirm_shortage,
     create_manual_reclamation,
     get_reclamations_summary,
     list_reclamations,
+    postpone_shortage_review,
     resolve_customer_by_email,
     sync_reclamation_mailbox,
     update_reclamation,
@@ -77,6 +85,14 @@ router = APIRouter(
 
 
 def _detail_from_model(rec: Reclamation, customer_name: Optional[str]):
+    assigned_user = getattr(rec, "shortage_assigned_to_user", None)
+    confirmed_user = getattr(rec, "shortage_confirmed_by_user", None)
+
+    def user_name(user: Optional[User]) -> Optional[str]:
+        if user is None:
+            return None
+        return user.name or user.email
+
     return ReclamationDetail(
         id=int(rec.id),
         source=str(getattr(rec.source, "value", rec.source)),
@@ -102,6 +118,15 @@ def _detail_from_model(rec: Reclamation, customer_name: Optional[str]):
         resolution=rec.resolution,
         resolution_comment=rec.resolution_comment,
         resolved_at=rec.resolved_at,
+        shortage_assigned_to_user_id=rec.shortage_assigned_to_user_id,
+        shortage_assigned_to_user_name=user_name(assigned_user),
+        shortage_assigned_at=rec.shortage_assigned_at,
+        shortage_status=rec.shortage_status,
+        shortage_confirmed_by_user_id=rec.shortage_confirmed_by_user_id,
+        shortage_confirmed_by_user_name=user_name(confirmed_user),
+        shortage_confirmed_at=rec.shortage_confirmed_at,
+        shortage_comment=rec.shortage_comment,
+        shortage_snoozed_until=rec.shortage_snoozed_until,
         return_from_customer_id=rec.return_from_customer_id,
         created_at=rec.created_at,
         items=list(rec.items or []),
@@ -129,6 +154,27 @@ async def reclamations_stats(
         date_to=date_to,
         top_limit=top_limit,
     )
+
+
+@router.get(
+    "/assignees",
+    response_model=list[ReclamationAssigneeOut],
+    summary="Активные сотрудники для назначения проверки",
+)
+async def reclamations_assignees(
+    session: AsyncSession = Depends(get_session),
+):
+    users = (
+        await session.execute(
+            select(User)
+            .where(User.status == UserStatus.ACTIVE)
+            .order_by(User.name.asc().nullslast(), User.email.asc())
+        )
+    ).scalars().all()
+    return [
+        ReclamationAssigneeOut(id=user.id, name=user.name, email=user.email)
+        for user in users
+    ]
 
 
 @router.get("", response_model=list[ReclamationRow])
@@ -270,7 +316,9 @@ async def reclamations_assign_customer(
 async def _reload_detail(session: AsyncSession, reclamation_id: int):
     rec = (
         await session.execute(
-            select(Reclamation).where(Reclamation.id == reclamation_id)
+            select(Reclamation)
+            .where(Reclamation.id == reclamation_id)
+            .execution_options(populate_existing=True)
         )
     ).scalar_one()
     customer_name = None
@@ -278,6 +326,122 @@ async def _reload_detail(session: AsyncSession, reclamation_id: int):
         customer = await session.get(Customer, rec.customer_id)
         customer_name = getattr(customer, "name", None)
     return _detail_from_model(rec, customer_name)
+
+
+@router.post(
+    "/{reclamation_id}/shortage/assign",
+    response_model=ReclamationDetail,
+    summary="Назначить сотрудника для проверки недовоза",
+)
+async def reclamations_assign_shortage(
+    reclamation_id: int,
+    payload: ReclamationShortageAssignIn,
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        await run_reclamation_check(
+            session,
+            reclamation_id=reclamation_id,
+        )
+        await assign_shortage_reviewer(
+            session,
+            reclamation_id=reclamation_id,
+            user_id=payload.user_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return await _reload_detail(session, reclamation_id)
+
+
+@router.post(
+    "/{reclamation_id}/shortage/confirm",
+    response_model=ReclamationDetail,
+    summary="Подтвердить или опровергнуть недовоз",
+)
+async def reclamations_confirm_shortage(
+    reclamation_id: int,
+    payload: ReclamationShortageConfirmIn,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        await confirm_shortage(
+            session,
+            reclamation_id=reclamation_id,
+            confirmed=payload.confirmed,
+            comment=payload.comment,
+            user_id=int(current_user.id),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return await _reload_detail(session, reclamation_id)
+
+
+@router.post(
+    "/{reclamation_id}/shortage/postpone",
+    response_model=ReclamationDetail,
+    summary="Отложить проверку недовоза",
+)
+async def reclamations_postpone_shortage(
+    reclamation_id: int,
+    payload: ReclamationShortagePostponeIn,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        await postpone_shortage_review(
+            session,
+            reclamation_id=reclamation_id,
+            minutes=payload.minutes,
+            user_id=int(current_user.id),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return await _reload_detail(session, reclamation_id)
+
+
+@router.post(
+    "/{reclamation_id}/shortage/evidence",
+    response_model=ReclamationDetail,
+    summary="Приложить фото или видео проверки отгрузки",
+)
+async def reclamations_upload_shortage_evidence(
+    reclamation_id: int,
+    files: list[UploadFile] = File(...),
+    session: AsyncSession = Depends(get_session),
+):
+    if not files or len(files) > 5:
+        raise HTTPException(
+            status_code=400,
+            detail="Приложите от 1 до 5 файлов",
+        )
+    for upload in files:
+        content_type = str(upload.content_type or "").lower()
+        if not (
+            content_type.startswith("image/")
+            or content_type.startswith("video/")
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Разрешены только фото и видео",
+            )
+        content = await upload.read()
+        if len(content) > 50 * 1024 * 1024:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Файл {upload.filename} больше 50 МБ",
+            )
+        try:
+            await add_shortage_evidence(
+                session,
+                reclamation_id=reclamation_id,
+                filename=upload.filename or "evidence",
+                payload=content,
+                content_type=upload.content_type,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return await _reload_detail(session, reclamation_id)
 
 
 @router.get(
@@ -570,6 +734,7 @@ async def reclamations_update_item(
             item_source=data.get("item_source"),
             reason=data.get("reason"),
             quantity=data.get("quantity"),
+            source_provider_id=data.get("source_provider_id"),
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

@@ -1508,6 +1508,7 @@ class RECLAMATION_SOURCE(StrEnum):
 class RECLAMATION_TYPE(StrEnum):
     CUSTOMER_REFUSAL = "customer_refusal"  # отказ клиента (большинство)
     DEFECT = "defect"                      # брак
+    SHORTAGE = "shortage"                  # недовоз
     OTHER = "other"
 
 
@@ -1536,6 +1537,7 @@ class RECLAMATION_ATTACHMENT_KIND(StrEnum):
     INSTALLATION_ORDER = "installation_order"  # заказ-наряд на установку
     DEFECT_REPORT = "defect_report"        # дефектовка
     PHOTO = "photo"                        # фото запчасти
+    SHORTAGE_EVIDENCE = "shortage_evidence"  # фото/видео отгрузки
     OTHER = "other"
 
 
@@ -1644,6 +1646,24 @@ class Reclamation(Base):
     )
     resolved_at = Column(DateTime(timezone=True), nullable=True)
 
+    # Проверка недовоза ответственным сотрудником
+    shortage_assigned_to_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    shortage_assigned_at = Column(DateTime(timezone=True), nullable=True)
+    shortage_status = Column(String(32), nullable=True, index=True)
+    shortage_confirmed_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    shortage_confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    shortage_comment = Column(Text, nullable=True)
+    shortage_snoozed_until = Column(DateTime(timezone=True), nullable=True)
+
     # Связь с созданным возвратом от клиента (если согласовали)
     return_from_customer_id = Column(
         Integer,
@@ -1662,6 +1682,16 @@ class Reclamation(Base):
     customer = relationship("Customer", lazy="joined")
     resolved_by_user = relationship(
         "User", foreign_keys=[resolved_by_user_id], lazy="noload"
+    )
+    shortage_assigned_to_user = relationship(
+        "User",
+        foreign_keys=[shortage_assigned_to_user_id],
+        lazy="joined",
+    )
+    shortage_confirmed_by_user = relationship(
+        "User",
+        foreign_keys=[shortage_confirmed_by_user_id],
+        lazy="joined",
     )
     items = relationship(
         "ReclamationItem",

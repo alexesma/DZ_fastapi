@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.api.deps import get_current_user
@@ -30,6 +30,10 @@ async def list_notifications(
     unread_count_stmt = select(func.count(AppNotification.id)).where(
         AppNotification.user_id == current_user.id,
         AppNotification.read_at.is_(None),
+        or_(
+            AppNotification.available_at.is_(None),
+            AppNotification.available_at <= now_moscow(),
+        ),
     )
     unread_count = int(
         (await session.execute(unread_count_stmt)).scalar() or 0
@@ -37,7 +41,13 @@ async def list_notifications(
 
     stmt = (
         select(AppNotification)
-        .where(AppNotification.user_id == current_user.id)
+        .where(
+            AppNotification.user_id == current_user.id,
+            or_(
+                AppNotification.available_at.is_(None),
+                AppNotification.available_at <= now_moscow(),
+            ),
+        )
         .order_by(
             AppNotification.created_at.desc(),
             AppNotification.id.desc(),
@@ -89,6 +99,10 @@ async def mark_all_notifications_read(
         select(AppNotification).where(
             AppNotification.user_id == current_user.id,
             AppNotification.read_at.is_(None),
+            or_(
+                AppNotification.available_at.is_(None),
+                AppNotification.available_at <= now_moscow(),
+            ),
         )
     )
     items = result.scalars().all()

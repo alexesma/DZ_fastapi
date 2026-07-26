@@ -1,4 +1,6 @@
 from collections.abc import Iterable
+from datetime import datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +17,8 @@ async def create_notification(
     message: str,
     level: str = AppNotificationLevel.INFO,
     link: str | None = None,
+    payload: dict[str, Any] | None = None,
+    available_at: datetime | None = None,
     commit: bool = True,
 ) -> AppNotification:
     notification = AppNotification(
@@ -23,6 +27,8 @@ async def create_notification(
         message=message,
         level=level,
         link=link,
+        payload=payload,
+        available_at=available_at,
     )
     session.add(notification)
     if commit:
@@ -41,6 +47,8 @@ async def create_notifications_for_users(
     message: str,
     level: str = AppNotificationLevel.INFO,
     link: str | None = None,
+    payload: dict[str, Any] | None = None,
+    available_at: datetime | None = None,
     commit: bool = True,
 ) -> list[AppNotification]:
     notifications: list[AppNotification] = []
@@ -52,6 +60,8 @@ async def create_notifications_for_users(
                 message=message,
                 level=level,
                 link=link,
+                payload=payload,
+                available_at=available_at,
             )
         )
     if not notifications:
