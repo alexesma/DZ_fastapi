@@ -133,6 +133,8 @@ class ReclamationInboundEmail:
     message_id: Optional[str] = None
     received_at: Optional[datetime] = None
     uid: Optional[str] = None
+    email_account_id: Optional[int] = None
+    folder: Optional[str] = None
     attachments: list[ReclamationInboundAttachment] = field(
         default_factory=list
     )
@@ -782,16 +784,61 @@ async def ingest_reclamation_email(
             if not existing.source_link and source_link:
                 existing.source_link = source_link
                 link_changed = True
+            mailbox_changed = False
+            if email.uid:
+                extracted_data = dict(existing.extracted_data or {})
+                mailbox_data = dict(extracted_data.get("mailbox") or {})
+                next_mailbox_data = {
+                    **mailbox_data,
+                    "email_account_id": email.email_account_id,
+                    "folder": email.folder or "INBOX",
+                    "uid": str(email.uid),
+                }
+                if next_mailbox_data != mailbox_data:
+                    extracted_data["mailbox"] = next_mailbox_data
+                    existing.extracted_data = extracted_data
+                    mailbox_changed = True
             if link_changed:
                 extracted_data = dict(existing.extracted_data or {})
                 extracted_data["links"] = fields.get("links") or []
                 existing.extracted_data = extracted_data
+            if link_changed or mailbox_changed:
                 session.add(existing)
                 await session.commit()
                 logger.info(
-                    "Восстановлена ссылка портала для рекламации #%s",
+                    "Обновлены данные исходного письма рекламации #%s",
                     existing.id,
                 )
+            mailbox_status = (
+                (existing.extracted_data or {})
+                .get("mailbox", {})
+                .get("answered_flag_status")
+            )
+            if email.uid and mailbox_status != "marked":
+                from dz_fastapi.models.partner import EMAIL_OUTBOX_STATUS, EmailOutbox
+                from dz_fastapi.services.email_outbox import mark_reclamation_source_answered
+
+                sent_reply = (
+                    await session.execute(
+                        select(EmailOutbox)
+                        .where(
+                            EmailOutbox.source_type == "reclamation",
+                            EmailOutbox.source_id == existing.id,
+                            EmailOutbox.status
+                            == EMAIL_OUTBOX_STATUS.SENT,
+                        )
+                        .order_by(EmailOutbox.id.desc())
+                        .limit(1)
+                    )
+                ).scalar_one_or_none()
+                if sent_reply is not None:
+                    await mark_reclamation_source_answered(
+                        session,
+                        reclamation_id=int(existing.id),
+                        outbox_id=int(sent_reply.id),
+                        from_email=sent_reply.from_email,
+                        sent_at=sent_reply.sent_at,
+                    )
             logger.debug(
                 "Рекламация по письму %s уже создана (#%s)",
                 email.message_id,
@@ -848,6 +895,12 @@ async def ingest_reclamation_email(
     extracted_data = dict(fields)
     if attachment_extractions:
         extracted_data["attachments"] = attachment_extractions
+    if email.uid:
+        extracted_data["mailbox"] = {
+            "email_account_id": email.email_account_id,
+            "folder": email.folder or "INBOX",
+            "uid": str(email.uid),
+        }
 
     reclamation = Reclamation(
         source=RECLAMATION_SOURCE.EMAIL,
@@ -1118,7 +1171,7 @@ async def fetch_reclamation_emails(
     since = (now_moscow() - timedelta(days=days)).date()
     folder = (getattr(account, "imap_folder", None) or "INBOX").strip()
     try:
-        return await asyncio.wait_for(
+        emails = await asyncio.wait_for(
             asyncio.to_thread(
                 _fetch_reclamation_imap_sync,
                 host,
@@ -1130,6 +1183,10 @@ async def fetch_reclamation_emails(
             ),
             timeout=120,
         )
+        for item in emails:
+            item.email_account_id = getattr(account, "id", None)
+            item.folder = folder
+        return emails
     except Exception as exc:  # noqa: BLE001
         logger.error(
             "Ошибка чтения ящика рекламаций id=%s: %s",

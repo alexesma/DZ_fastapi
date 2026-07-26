@@ -14,7 +14,11 @@
       "port": 465,
       "use_ssl": true,
       "username": "reclamations@yandex.ru",
-      "password": "ПАРОЛЬ_ПРИЛОЖЕНИЯ_ЯНДЕКС"
+      "password": "ПАРОЛЬ_ПРИЛОЖЕНИЯ_ЯНДЕКС",
+      "save_to_sent": true,
+      "imap_host": "imap.yandex.ru",
+      "imap_port": 993,
+      "sent_folder": "Sent"
     }
   },
   "default_smtp": null

@@ -26,6 +26,7 @@
 """
 import argparse
 import base64
+import imaplib
 import json
 import logging
 import os
@@ -246,6 +247,43 @@ def send_via_smtp(smtp_cfg: dict, from_email: str, to_email: str,
             pass
 
 
+def save_copy_to_sent(
+    smtp_cfg: dict,
+    from_email: str,
+    message: MIMEMultipart,
+) -> None:
+    if not bool(smtp_cfg.get("save_to_sent", True)):
+        return
+    smtp_host = str(smtp_cfg.get("host") or "smtp.yandex.ru")
+    imap_host = str(
+        smtp_cfg.get("imap_host")
+        or smtp_host.replace("smtp.", "imap.", 1)
+    )
+    imap_port = int(smtp_cfg.get("imap_port", 993))
+    sent_folder = str(smtp_cfg.get("sent_folder") or "Sent")
+    username = str(smtp_cfg.get("username") or from_email)
+    password = smtp_cfg["password"]
+
+    mailbox = imaplib.IMAP4_SSL(imap_host, imap_port, timeout=30)
+    try:
+        mailbox.login(username, password)
+        status, _ = mailbox.append(
+            sent_folder,
+            r"(\Seen)",
+            imaplib.Time2Internaldate(time.time()),
+            message.as_bytes(),
+        )
+        if status != "OK":
+            raise RuntimeError(
+                f"IMAP APPEND в папку {sent_folder!r} вернул {status}"
+            )
+    finally:
+        try:
+            mailbox.logout()
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def process_once(client: ApiClient, config: RelayConfig,
                  dry_run: bool = False) -> int:
     # dry-run только смотрит (pending, без захвата); рабочий цикл — claim.
@@ -285,6 +323,19 @@ def process_once(client: ApiClient, config: RelayConfig,
                 item["to_email"],
                 message,
             )
+            try:
+                save_copy_to_sent(
+                    smtp_cfg,
+                    from_email or smtp_cfg.get("username"),
+                    message,
+                )
+            except Exception:  # noqa: BLE001
+                # SMTP уже прошёл: не возвращаем письмо в очередь, иначе
+                # следующий цикл отправит клиенту дубль.
+                logger.exception(
+                    "Письмо #%s отправлено, но копия не сохранена в Sent",
+                    outbox_id,
+                )
             client.mark_sent(outbox_id)
             sent += 1
             logger.info(

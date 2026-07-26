@@ -8,6 +8,7 @@
 Здесь — постановка письма в очередь и контракт для релея:
 list_pending / mark_sent / mark_error.
 """
+import asyncio
 import logging
 from datetime import timedelta
 from typing import Any, Optional
@@ -159,6 +160,14 @@ async def mark_outbox_sent(
     session.add(row)
     await session.commit()
     await session.refresh(row)
+    if row.source_type == "reclamation" and row.source_id:
+        await mark_reclamation_source_answered(
+            session,
+            reclamation_id=int(row.source_id),
+            outbox_id=int(row.id),
+            from_email=row.from_email,
+            sent_at=row.sent_at,
+        )
     return row
 
 
@@ -172,6 +181,10 @@ async def mark_outbox_error(
     row = await session.get(EmailOutbox, outbox_id)
     if row is None:
         raise ValueError("Письмо не найдено")
+    if row.status == EMAIL_OUTBOX_STATUS.SENT:
+        # SMTP мог пройти, а HTTP-ответ mark-sent потеряться. Никогда не
+        # возвращаем уже отправленное письмо в очередь: иначе уйдёт дубль.
+        return row
     row.attempts = int(row.attempts or 0) + 1
     row.last_error = (error or "")[:2000]
     # Снимаем захват: письмо снова свободно для повторного взятия релеем
@@ -186,6 +199,99 @@ async def mark_outbox_error(
     await session.commit()
     await session.refresh(row)
     return row
+
+
+def _flag_source_email_answered_sync(
+    *,
+    host: str,
+    port: int,
+    email: str,
+    password: str,
+    folder: str,
+    uid: str,
+) -> None:
+    from dz_fastapi.services.email import _create_mailbox
+
+    mailbox_client = _create_mailbox(host, port, True).login(email, password)
+    with mailbox_client as mailbox:
+        mailbox.folder.set(folder)
+        mailbox.flag(uid, [r"\Seen", r"\Answered"], True)
+
+
+async def mark_reclamation_source_answered(
+    session: AsyncSession,
+    *,
+    reclamation_id: int,
+    outbox_id: int,
+    from_email: Optional[str],
+    sent_at,
+) -> None:
+    from dz_fastapi.models.email_account import EmailAccount
+    from dz_fastapi.models.partner import Reclamation
+
+    reclamation = await session.get(Reclamation, reclamation_id)
+    if reclamation is None:
+        return
+    extracted_data = dict(reclamation.extracted_data or {})
+    mailbox_data = dict(extracted_data.get("mailbox") or {})
+    mailbox_data.update(
+        {
+            "reply_outbox_id": outbox_id,
+            "reply_sent_at": sent_at.isoformat() if sent_at else None,
+        }
+    )
+    uid = str(mailbox_data.get("uid") or "").strip()
+    account_id = mailbox_data.get("email_account_id")
+    account = (
+        await session.get(EmailAccount, int(account_id))
+        if account_id
+        else None
+    )
+    if account is None and from_email:
+        account = (
+            await session.execute(
+                select(EmailAccount).where(
+                    EmailAccount.email == from_email,
+                    EmailAccount.is_active.is_(True),
+                )
+            )
+        ).scalar_one_or_none()
+    if account is None or not uid:
+        mailbox_data["answered_flag_status"] = "unavailable"
+        mailbox_data["answered_flag_error"] = (
+            "Не сохранён UID исходного письма или почтовый аккаунт"
+        )
+    else:
+        try:
+            await asyncio.wait_for(
+                asyncio.to_thread(
+                    _flag_source_email_answered_sync,
+                    host=str(account.imap_host or ""),
+                    port=int(account.imap_port or 993),
+                    email=str(account.email),
+                    password=str(account.password),
+                    folder=str(mailbox_data.get("folder") or "INBOX"),
+                    uid=uid,
+                ),
+                timeout=20,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Ответ отправлен, но исходное письмо рекламации #%s "
+                "не помечено Answered: %s",
+                reclamation_id,
+                exc,
+            )
+            mailbox_data["answered_flag_status"] = "error"
+            mailbox_data["answered_flag_error"] = str(exc)[:1000]
+        else:
+            mailbox_data["answered_flag_status"] = "marked"
+            mailbox_data["answered_flagged_at"] = now_moscow().isoformat()
+            mailbox_data.pop("answered_flag_error", None)
+    extracted_data["mailbox"] = mailbox_data
+    reclamation.extracted_data = extracted_data
+    session.add(reclamation)
+    await session.commit()
 
 
 async def cancel_outbox(

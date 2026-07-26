@@ -9,8 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.email_account import EmailAccount
 from dz_fastapi.models.notification import AppNotification
 from dz_fastapi.models.partner import (
+    EMAIL_OUTBOX_STATUS,
     RECLAMATION_ATTACHMENT_KIND,
     RECLAMATION_ITEM_SOURCE,
     RECLAMATION_SOURCE,
@@ -18,12 +20,14 @@ from dz_fastapi.models.partner import (
     Customer,
     CustomerOrder,
     CustomerOrderItem,
+    EmailOutbox,
     Provider,
     Reclamation,
     ReclamationAttachment,
     ReclamationItem,
 )
 from dz_fastapi.models.user import User, UserRole, UserStatus
+from dz_fastapi.services.email_outbox import mark_outbox_error, mark_outbox_sent
 from dz_fastapi.services.reclamation_armtek import (
     ARMTEK_APPROVED_STATUS,
     ArmtekPortalClient,
@@ -230,6 +234,9 @@ async def test_ingest_shortage_excludes_document_number_from_items(
             subject="Недовоз",
             body_text=_shortage_email_body(),
             message_id="<shortage@example.test>",
+            uid="7788",
+            email_account_id=6,
+            folder="INBOX",
         ),
     )
 
@@ -238,6 +245,11 @@ async def test_ingest_shortage_excludes_document_number_from_items(
     assert reclamation.stated_document_number == "3391"
     assert reclamation.stated_document_date == date(2026, 7, 24)
     assert reclamation.stated_reason == "Недовоз"
+    assert reclamation.extracted_data["mailbox"] == {
+        "email_account_id": 6,
+        "folder": "INBOX",
+        "uid": "7788",
+    }
     assert [item.oem_number for item in reclamation.items] == [
         "1113986500"
     ]
@@ -1361,6 +1373,75 @@ async def test_supplier_return_request_contains_order_context_and_defect_files(
     assert "заказ ORD-15 от 2026-07-20" in rows[0].body_text
     assert "Причина возврата: Течь детали." in rows[0].body_text
     assert rows[0].attachments[0]["file_name"] == "defect.pdf"
+
+
+@pytest.mark.asyncio
+async def test_mark_sent_marks_source_email_answered_without_duplicate_retry(
+    test_session: AsyncSession,
+    monkeypatch,
+):
+    account = EmailAccount(
+        name="Reclamations",
+        email="reclamations@example.com",
+        password="secret",
+        imap_host="imap.example.com",
+        imap_port=993,
+        imap_folder="INBOX",
+        purposes=["reclamation"],
+        is_active=True,
+    )
+    test_session.add(account)
+    await test_session.flush()
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.APPROVED,
+        extracted_data={
+            "mailbox": {
+                "email_account_id": account.id,
+                "folder": "INBOX",
+                "uid": "12345",
+            }
+        },
+    )
+    test_session.add(reclamation)
+    await test_session.flush()
+    outbox = EmailOutbox(
+        status=EMAIL_OUTBOX_STATUS.PENDING,
+        from_email=account.email,
+        to_email="customer@example.com",
+        source_type="reclamation",
+        source_id=reclamation.id,
+    )
+    test_session.add(outbox)
+    await test_session.commit()
+    flagged = {}
+
+    def fake_flag(**kwargs):
+        flagged.update(kwargs)
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.email_outbox."
+        "_flag_source_email_answered_sync",
+        fake_flag,
+    )
+
+    await mark_outbox_sent(test_session, outbox_id=outbox.id)
+    await test_session.refresh(reclamation)
+
+    assert flagged["uid"] == "12345"
+    assert flagged["folder"] == "INBOX"
+    mailbox = reclamation.extracted_data["mailbox"]
+    assert mailbox["answered_flag_status"] == "marked"
+    assert mailbox["reply_outbox_id"] == outbox.id
+
+    await mark_outbox_error(
+        test_session,
+        outbox_id=outbox.id,
+        error="HTTP response lost",
+        retry=True,
+    )
+    await test_session.refresh(outbox)
+    assert outbox.status == EMAIL_OUTBOX_STATUS.SENT
 
 
 @pytest.mark.asyncio
