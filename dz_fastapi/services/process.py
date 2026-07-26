@@ -1016,6 +1016,8 @@ async def process_provider_pricelist(
             provider_config=provider_list_conf,
             items=deduplicated_data,
             source_filename=source_filename,
+            file_content=file_content,
+            file_extension=file_extension,
         )
         if anomaly.blocked:
             raise HTTPException(

@@ -1438,6 +1438,48 @@ class ProviderPriceListConfigOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ProviderPricelistReviewRejectIn(BaseModel):
+    reason: str = Field(min_length=3, max_length=4000)
+
+    @field_validator("reason")
+    @classmethod
+    def strip_reason(cls, value: str) -> str:
+        return value.strip()
+
+
+class ProviderPricelistReviewApproveIn(BaseModel):
+    reason: Optional[str] = Field(default=None, max_length=4000)
+
+    @field_validator("reason")
+    @classmethod
+    def strip_optional_reason(cls, value: Optional[str]) -> Optional[str]:
+        normalized = str(value or "").strip()
+        return normalized or None
+
+
+class ProviderPricelistReviewOut(BaseModel):
+    id: int
+    provider_id: int
+    provider_config_id: int
+    previous_pricelist_id: Optional[int] = None
+    published_pricelist_id: Optional[int] = None
+    source_filename: str
+    file_sha256: str
+    status: str
+    reasons: List[str] = Field(default_factory=list)
+    metrics: Dict[str, Any] = Field(default_factory=dict)
+    examples: List[Dict[str, Any]] = Field(default_factory=list)
+    decision_reason: Optional[str] = None
+    processing_error: Optional[str] = None
+    created_at: datetime
+    decided_at: Optional[datetime] = None
+    decided_by_user_id: Optional[int] = None
+    decided_by_name: Optional[str] = None
+    config_name: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ProviderPriceListConfigOption(BaseModel):
     id: int
     provider_id: int

@@ -1,8 +1,13 @@
+import asyncio
+import hashlib
 import logging
+import os
+import re
 import statistics
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
+from uuid import uuid4
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +21,7 @@ from dz_fastapi.models.partner import (
     PriceListAutoPartAssociation,
     Provider,
     ProviderPriceListConfig,
+    ProviderPricelistReview,
 )
 from dz_fastapi.services.notifications import create_admin_notifications
 from dz_fastapi.services.utils import normalize_mixed_cyrillic
@@ -29,6 +35,7 @@ ITEM_PRICE_CHANGE_LIMIT = 0.10
 CHANGED_ITEMS_SHARE_LIMIT = 0.20
 
 PRICELIST_ALERT_TITLE_PREFIX = "Прайс заблокирован:"
+PRICELIST_REVIEW_DIR = os.path.join("uploads", "pricelist_reviews")
 
 
 @dataclass(frozen=True)
@@ -69,6 +76,160 @@ def build_candidate_price_map(items: list[dict]) -> dict[tuple[str, str], float]
         if current is None or price < current:
             result[key] = price
     return result
+
+
+def build_review_examples(
+    items: list[dict],
+    previous_prices: dict[tuple[str, str], float],
+    *,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """Pick useful examples, preferring new positions and distinct brands."""
+    candidates: list[dict[str, Any]] = []
+    seen_keys: set[tuple[str, str]] = set()
+    for item in items:
+        key = _normalise_key(item.get("brand"), item.get("oem_number"))
+        price = _money_float(item.get("price"))
+        if key is None or price is None or key in seen_keys:
+            continue
+        seen_keys.add(key)
+        previous_price = previous_prices.get(key)
+        change_percent = None
+        if previous_price:
+            change_percent = round(
+                (price - previous_price) / previous_price * 100,
+                2,
+            )
+        candidates.append(
+            {
+                "brand": str(item.get("brand") or "").strip(),
+                "oem_number": str(item.get("oem_number") or "").strip(),
+                "name": str(item.get("name") or "").strip() or None,
+                "quantity": int(item.get("quantity") or 0),
+                "price": round(price, 2),
+                "previous_price": previous_price,
+                "price_change_percent": change_percent,
+                "change_type": (
+                    "new"
+                    if previous_price is None
+                    else "price_changed"
+                    if change_percent
+                    else "unchanged"
+                ),
+            }
+        )
+
+    ordered = sorted(
+        candidates,
+        key=lambda row: (
+            0 if row["change_type"] == "new" else 1,
+            -abs(row.get("price_change_percent") or 0),
+            row["brand"],
+            row["oem_number"],
+        ),
+    )
+    result: list[dict[str, Any]] = []
+    selected_ids: set[tuple[str, str]] = set()
+    selected_brands: set[str] = set()
+
+    for row in ordered:
+        brand_key = row["brand"].casefold()
+        if brand_key in selected_brands:
+            continue
+        result.append(row)
+        selected_brands.add(brand_key)
+        selected_ids.add((brand_key, row["oem_number"]))
+        if len(result) >= limit:
+            return result
+
+    for row in ordered:
+        row_id = (row["brand"].casefold(), row["oem_number"])
+        if row_id in selected_ids:
+            continue
+        result.append(row)
+        selected_ids.add(row_id)
+        if len(result) >= limit:
+            break
+    return result
+
+
+def _safe_source_filename(filename: str | None, extension: str | None) -> str:
+    fallback_extension = str(extension or "bin").strip(".").lower() or "bin"
+    raw = os.path.basename(str(filename or "").strip())
+    if not raw:
+        raw = f"pricelist.{fallback_extension}"
+    safe = re.sub(r"[^A-Za-zА-Яа-я0-9._ -]", "_", raw)
+    return safe[:240] or f"pricelist.{fallback_extension}"
+
+
+async def _store_review_file(path: str, payload: bytes) -> None:
+    def _write() -> None:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "wb") as file_handle:
+            file_handle.write(payload)
+
+    await asyncio.to_thread(_write)
+
+
+async def _create_pricelist_review(
+    *,
+    session: AsyncSession,
+    provider: Provider,
+    provider_config: ProviderPriceListConfig,
+    result: PricelistAnomalyResult,
+    items: list[dict],
+    previous_prices: dict[tuple[str, str], float],
+    file_content: bytes,
+    file_extension: str | None,
+    source_filename: str | None,
+) -> tuple[ProviderPricelistReview, bool]:
+    checksum = hashlib.sha256(file_content).hexdigest()
+    existing = (
+        await session.execute(
+            select(ProviderPricelistReview)
+            .where(
+                ProviderPricelistReview.provider_config_id
+                == provider_config.id,
+                ProviderPricelistReview.file_sha256 == checksum,
+                ProviderPricelistReview.status.in_(
+                    ("pending", "processing")
+                ),
+            )
+            .order_by(ProviderPricelistReview.id.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        return existing, False
+
+    safe_filename = _safe_source_filename(source_filename, file_extension)
+    relative_path = os.path.join(
+        PRICELIST_REVIEW_DIR,
+        str(provider.id),
+        f"{uuid4().hex}_{safe_filename}",
+    )
+    await _store_review_file(relative_path, file_content)
+    review = ProviderPricelistReview(
+        provider_id=provider.id,
+        provider_config_id=provider_config.id,
+        previous_pricelist_id=result.metrics.get("previous_pricelist_id"),
+        source_filename=safe_filename,
+        file_path=relative_path,
+        file_extension=(
+            str(file_extension or os.path.splitext(safe_filename)[1])
+            .strip(".")
+            .lower()
+            or "bin"
+        ),
+        file_sha256=checksum,
+        status="pending",
+        reasons=list(result.reasons),
+        metrics=dict(result.metrics),
+        examples=build_review_examples(items, previous_prices),
+    )
+    session.add(review)
+    await session.flush()
+    return review, True
 
 
 def calculate_pricelist_anomaly(
@@ -240,6 +401,8 @@ async def guard_automatic_provider_pricelist(
     provider_config: ProviderPriceListConfig,
     items: list[dict],
     source_filename: str | None = None,
+    file_content: bytes | None = None,
+    file_extension: str | None = None,
 ) -> PricelistAnomalyResult:
     previous_id, previous_prices = await _load_previous_price_map(
         session,
@@ -253,14 +416,46 @@ async def guard_automatic_provider_pricelist(
     if not result.blocked:
         return result
 
+    review = None
+    review_created = False
+    if file_content is not None:
+        review, review_created = await _create_pricelist_review(
+            session=session,
+            provider=provider,
+            provider_config=provider_config,
+            result=result,
+            items=items,
+            previous_prices=previous_prices,
+            file_content=file_content,
+            file_extension=file_extension,
+            source_filename=source_filename,
+        )
+
+    if review is not None and not review_created:
+        logger.warning(
+            "Blocked duplicate anomalous provider pricelist: "
+            "provider_id=%s config_id=%s review_id=%s source=%s",
+            provider.id,
+            provider_config.id,
+            review.id,
+            source_filename,
+        )
+        return result
+
     reason_text = "\n".join(f"• {reason}" for reason in result.reasons)
+    next_step = (
+        "Откройте проверку в карточке поставщика: исходный файл можно "
+        "скачать, затем принять и опубликовать либо отклонить с причиной."
+        if review is not None
+        else "После проверки файл можно загрузить вручную."
+    )
     message = (
         f"Поставщик: {provider.name}\n"
         f"Конфигурация: {provider_config.name_price or provider_config.id}\n"
         f"Файл: {source_filename or 'не указан'}\n\n"
         f"{reason_text}\n\n"
         "Файл не опубликован, история цен и остатков не изменена. "
-        "После проверки его можно загрузить вручную."
+        f"{next_step}"
     )
     await create_admin_notifications(
         session,
@@ -271,7 +466,10 @@ async def guard_automatic_provider_pricelist(
         ),
         message=message,
         level=AppNotificationLevel.ERROR,
-        link=f"/providers/{provider.id}/edit",
+        link=(
+            f"/providers/{provider.id}/edit"
+            + (f"?pricelist_review={review.id}" if review else "")
+        ),
         commit=True,
     )
     logger.warning(

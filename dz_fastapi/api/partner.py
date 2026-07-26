@@ -6,6 +6,7 @@ from math import ceil
 from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse
 from httpx import Response
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -17,8 +18,10 @@ from dz_fastapi.analytics.price_history import (
     analyze_autopart_popularity,
     get_pricelist_change_summary,
 )
+from dz_fastapi.api.deps import require_admin
 from dz_fastapi.api.validators import change_brand_name, change_customer_name
 from dz_fastapi.core.db import get_session
+from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.autopart import crud_warehouse
 from dz_fastapi.crud.email_account import crud_email_account
 from dz_fastapi.crud.partner import (
@@ -44,7 +47,9 @@ from dz_fastapi.models.partner import (
     PriceList,
     Provider,
     ProviderPriceListConfig,
+    ProviderPricelistReview,
 )
+from dz_fastapi.models.user import User
 from dz_fastapi.schemas.autopart import AutoPartResponse
 from dz_fastapi.schemas.customer_order import (
     SupplierResponseImportErrorItem,
@@ -97,6 +102,9 @@ from dz_fastapi.schemas.partner import (
     ProviderPriceListConfigOption,
     ProviderPriceListConfigOut,
     ProviderPriceListConfigUpdate,
+    ProviderPricelistReviewApproveIn,
+    ProviderPricelistReviewOut,
+    ProviderPricelistReviewRejectIn,
     ProviderResponse,
     ProviderUpdate,
     SupplierResponseConfigCreate,
@@ -2661,6 +2669,284 @@ async def download_provider_pricelist(
         raise HTTPException(
             status_code=500, detail="Error during download and processing"
         )
+
+
+def _pricelist_review_out(
+    review: ProviderPricelistReview,
+) -> ProviderPricelistReviewOut:
+    return ProviderPricelistReviewOut.model_validate(review).model_copy(
+        update={
+            "decided_by_name": (
+                getattr(review.decided_by, "name", None)
+                or getattr(review.decided_by, "email", None)
+            ),
+            "config_name": (
+                getattr(review.provider_config, "name_price", None)
+                or f"Конфигурация #{review.provider_config_id}"
+            ),
+        }
+    )
+
+
+async def _get_pricelist_review(
+    session: AsyncSession,
+    *,
+    provider_id: int,
+    review_id: int,
+    for_update: bool = False,
+) -> ProviderPricelistReview:
+    statement = (
+        select(ProviderPricelistReview)
+        .where(
+            ProviderPricelistReview.id == review_id,
+            ProviderPricelistReview.provider_id == provider_id,
+        )
+        .options(
+            selectinload(ProviderPricelistReview.provider_config),
+            selectinload(ProviderPricelistReview.decided_by),
+        )
+        .execution_options(populate_existing=True)
+    )
+    if for_update:
+        statement = statement.with_for_update(of=ProviderPricelistReview)
+    review = (await session.execute(statement)).scalar_one_or_none()
+    if review is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Проверяемый прайс не найден",
+        )
+    return review
+
+
+def _pricelist_review_file_path(review: ProviderPricelistReview) -> str:
+    review_root = os.path.realpath(
+        os.path.join("uploads", "pricelist_reviews")
+    )
+    file_path = os.path.realpath(review.file_path)
+    if (
+        file_path != review_root
+        and not file_path.startswith(review_root + os.sep)
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Некорректный путь файла проверки",
+        )
+    if not os.path.isfile(file_path):
+        raise HTTPException(
+            status_code=404,
+            detail="Сохранённый файл проверки не найден",
+        )
+    return file_path
+
+
+def _read_pricelist_review_file(file_path: str) -> bytes:
+    with open(file_path, "rb") as file_handle:
+        return file_handle.read()
+
+
+@router.get(
+    "/providers/{provider_id}/pricelist-reviews",
+    response_model=List[ProviderPricelistReviewOut],
+    summary="Прайсы поставщика, ожидающие проверки, и история решений",
+)
+async def list_provider_pricelist_reviews(
+    provider_id: int,
+    limit: int = Query(default=50, ge=1, le=100),
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    reviews = (
+        (
+            await session.execute(
+                select(ProviderPricelistReview)
+                .where(ProviderPricelistReview.provider_id == provider_id)
+                .options(
+                    selectinload(
+                        ProviderPricelistReview.provider_config
+                    ),
+                    selectinload(ProviderPricelistReview.decided_by),
+                )
+                .order_by(
+                    ProviderPricelistReview.created_at.desc(),
+                    ProviderPricelistReview.id.desc(),
+                )
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [_pricelist_review_out(review) for review in reviews]
+
+
+@router.get(
+    "/providers/{provider_id}/pricelist-reviews/{review_id}/download",
+    summary="Скачать заблокированный прайс без публикации",
+)
+async def download_provider_pricelist_review(
+    provider_id: int,
+    review_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    review = await _get_pricelist_review(
+        session,
+        provider_id=provider_id,
+        review_id=review_id,
+    )
+    return FileResponse(
+        _pricelist_review_file_path(review),
+        filename=review.source_filename,
+        media_type="application/octet-stream",
+    )
+
+
+@router.post(
+    "/providers/{provider_id}/pricelist-reviews/{review_id}/reject",
+    response_model=ProviderPricelistReviewOut,
+    summary="Отклонить подозрительное обновление прайса",
+)
+async def reject_provider_pricelist_review(
+    provider_id: int,
+    review_id: int,
+    payload: ProviderPricelistReviewRejectIn,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    review = await _get_pricelist_review(
+        session,
+        provider_id=provider_id,
+        review_id=review_id,
+        for_update=True,
+    )
+    if review.status != "pending":
+        raise HTTPException(
+            status_code=409,
+            detail="По этому прайсу решение уже принято",
+        )
+    review.status = "rejected"
+    review.decision_reason = payload.reason
+    review.decided_at = now_moscow()
+    review.decided_by_user_id = current_user.id
+    review.processing_error = None
+    session.add(review)
+    await session.commit()
+    return _pricelist_review_out(
+        await _get_pricelist_review(
+            session,
+            provider_id=provider_id,
+            review_id=review_id,
+        )
+    )
+
+
+@router.post(
+    "/providers/{provider_id}/pricelist-reviews/{review_id}/approve",
+    response_model=ProviderPricelistReviewOut,
+    summary="Принять и опубликовать заблокированный прайс",
+)
+async def approve_provider_pricelist_review(
+    provider_id: int,
+    review_id: int,
+    payload: ProviderPricelistReviewApproveIn,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    review = await _get_pricelist_review(
+        session,
+        provider_id=provider_id,
+        review_id=review_id,
+        for_update=True,
+    )
+    if review.status != "pending":
+        raise HTTPException(
+            status_code=409,
+            detail="По этому прайсу решение уже принято или он обрабатывается",
+        )
+    file_path = _pricelist_review_file_path(review)
+    review.status = "processing"
+    review.processing_error = None
+    session.add(review)
+    await session.commit()
+
+    try:
+        provider = await crud_provider.get_by_id(
+            provider_id=provider_id,
+            session=session,
+        )
+        provider_config = await crud_provider_pricelist_config.get_by_id(
+            config_id=review.provider_config_id,
+            session=session,
+        )
+        file_content = await asyncio.to_thread(
+            _read_pricelist_review_file,
+            file_path,
+        )
+        pricelist, _ = await process_provider_pricelist(
+            provider=provider,
+            file_content=file_content,
+            file_extension=review.file_extension,
+            provider_list_conf=provider_config,
+            use_stored_params=True,
+            start_row=None,
+            oem_col=None,
+            brand_col=None,
+            name_col=None,
+            multiplicity_col=None,
+            qty_col=None,
+            price_col=None,
+            session=session,
+            return_stats=True,
+            include_autoparts_response=False,
+            enforce_anomaly_guard=False,
+            source_filename=review.source_filename,
+        )
+    except Exception as exc:
+        await session.rollback()
+        failed_review = await _get_pricelist_review(
+            session,
+            provider_id=provider_id,
+            review_id=review_id,
+            for_update=True,
+        )
+        failed_review.status = "pending"
+        failed_review.processing_error = str(exc)[:4000]
+        session.add(failed_review)
+        await session.commit()
+        logger.exception(
+            "Failed to approve provider pricelist review id=%s",
+            review_id,
+        )
+        if isinstance(exc, HTTPException):
+            raise
+        raise HTTPException(
+            status_code=500,
+            detail="Не удалось опубликовать проверяемый прайс",
+        ) from exc
+
+    approved_review = await _get_pricelist_review(
+        session,
+        provider_id=provider_id,
+        review_id=review_id,
+        for_update=True,
+    )
+    approved_review.status = "approved"
+    approved_review.published_pricelist_id = int(pricelist.id)
+    approved_review.decision_reason = (
+        payload.reason or "Изменение проверено и подтверждено"
+    )
+    approved_review.decided_at = now_moscow()
+    approved_review.decided_by_user_id = current_user.id
+    approved_review.processing_error = None
+    session.add(approved_review)
+    await session.commit()
+    return _pricelist_review_out(
+        await _get_pricelist_review(
+            session,
+            provider_id=provider_id,
+            review_id=review_id,
+        )
+    )
 
 
 @router.get(

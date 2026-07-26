@@ -10,6 +10,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dz_fastapi.api import partner as partner_api
 from dz_fastapi.crud.partner import crud_customer_pricelist, crud_pricelist, crud_provider
 from dz_fastapi.main import app
 from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
@@ -27,7 +28,9 @@ from dz_fastapi.models.partner import (
     Provider,
     ProviderExternalReference,
     ProviderPriceListConfig,
+    ProviderPricelistReview,
 )
+from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.schemas.autopart import AutoPartPricelist
 from dz_fastapi.schemas.partner import (
     CustomerResponse,
@@ -665,6 +668,149 @@ async def test_update_provider_pricelist_config(
     assert data["name_price"] == "UPDATED_PRICE"
     assert data["min_delivery_day"] == 2
     assert data["max_delivery_day"] == 5
+
+
+@pytest.mark.asyncio
+async def test_provider_pricelist_review_workflow(
+    created_providers: list[Provider],
+    created_pricelist_config: ProviderPriceListConfig,
+    async_client: AsyncClient,
+    test_session: AsyncSession,
+    tmp_path,
+    monkeypatch,
+):
+    provider = created_providers[0]
+    admin = User(
+        id=1,
+        name="Test Admin",
+        email="test-admin@example.com",
+        password_hash="not-used",
+        role=UserRole.ADMIN,
+        status=UserStatus.ACTIVE,
+    )
+    test_session.add(admin)
+
+    review_file = tmp_path / "blocked-price.xlsx"
+    review_file.write_bytes(b"exact blocked pricelist")
+    examples = [
+        {
+            "brand": f"BRAND {index}",
+            "oem_number": f"OEM{index}",
+            "name": f"Position {index}",
+            "quantity": index,
+            "price": float(index * 100),
+            "change_type": "new",
+        }
+        for index in range(1, 11)
+    ]
+    rejected_review = ProviderPricelistReview(
+        provider_id=provider.id,
+        provider_config_id=created_pricelist_config.id,
+        source_filename="blocked-price.xlsx",
+        file_path=str(review_file),
+        file_extension="xlsx",
+        file_sha256="a" * 64,
+        status="pending",
+        reasons=["Количество позиций изменилось на +43.1%."],
+        metrics={
+            "previous_positions": 100,
+            "candidate_positions": 143,
+        },
+        examples=examples,
+    )
+    approved_review = ProviderPricelistReview(
+        provider_id=provider.id,
+        provider_config_id=created_pricelist_config.id,
+        source_filename="approved-price.xlsx",
+        file_path=str(review_file),
+        file_extension="xlsx",
+        file_sha256="b" * 64,
+        status="pending",
+        reasons=["Медианная цена изменилась на +12.0%."],
+        metrics={
+            "previous_positions": 100,
+            "candidate_positions": 100,
+        },
+        examples=examples,
+    )
+    test_session.add_all([rejected_review, approved_review])
+    await test_session.commit()
+
+    monkeypatch.setattr(
+        partner_api,
+        "_pricelist_review_file_path",
+        lambda review: str(review_file),
+    )
+
+    list_response = await async_client.get(
+        f"/providers/{provider.id}/pricelist-reviews"
+    )
+    assert list_response.status_code == 200, list_response.text
+    listed = list_response.json()
+    assert len(listed) == 2
+    assert len(listed[0]["examples"]) == 10
+    assert listed[0]["config_name"] == "PRICE_CONFIG"
+
+    download_response = await async_client.get(
+        f"/providers/{provider.id}/pricelist-reviews/"
+        f"{rejected_review.id}/download"
+    )
+    assert download_response.status_code == 200, download_response.text
+    assert download_response.content == b"exact blocked pricelist"
+    assert "blocked-price.xlsx" in download_response.headers[
+        "content-disposition"
+    ]
+
+    reject_response = await async_client.post(
+        f"/providers/{provider.id}/pricelist-reviews/"
+        f"{rejected_review.id}/reject",
+        json={"reason": "Поставщик прислал неполный файл"},
+    )
+    assert reject_response.status_code == 200, reject_response.text
+    rejected = reject_response.json()
+    assert rejected["status"] == "rejected"
+    assert rejected["decision_reason"] == "Поставщик прислал неполный файл"
+    assert rejected["decided_by_name"] == "Test Admin"
+    assert rejected["decided_at"] is not None
+    assert rejected["published_pricelist_id"] is None
+
+    async def fake_process_provider_pricelist(**kwargs):
+        pricelist = PriceList(
+            provider_id=kwargs["provider"].id,
+            provider_config_id=kwargs["provider_list_conf"].id,
+            date=date.today(),
+            is_active=True,
+        )
+        kwargs["session"].add(pricelist)
+        await kwargs["session"].flush()
+        return pricelist, {"rows_after_filters": 143}
+
+    monkeypatch.setattr(
+        partner_api,
+        "process_provider_pricelist",
+        fake_process_provider_pricelist,
+    )
+    approve_response = await async_client.post(
+        f"/providers/{provider.id}/pricelist-reviews/"
+        f"{approved_review.id}/approve",
+        json={"reason": "Рост ассортимента подтверждён поставщиком"},
+    )
+    assert approve_response.status_code == 200, approve_response.text
+    approved = approve_response.json()
+    assert approved["status"] == "approved"
+    assert approved["decision_reason"] == (
+        "Рост ассортимента подтверждён поставщиком"
+    )
+    assert approved["decided_by_name"] == "Test Admin"
+    assert approved["decided_at"] is not None
+    assert approved["published_pricelist_id"] is not None
+
+    duplicate_response = await async_client.post(
+        f"/providers/{provider.id}/pricelist-reviews/"
+        f"{approved_review.id}/approve",
+        json={},
+    )
+    assert duplicate_response.status_code == 409
 
 
 @pytest.mark.asyncio

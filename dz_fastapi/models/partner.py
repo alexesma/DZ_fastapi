@@ -566,6 +566,88 @@ class ProviderPriceListConfig(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    pricelist_reviews = relationship(
+        "ProviderPricelistReview",
+        back_populates="provider_config",
+        cascade="all, delete-orphan",
+        lazy="noload",
+    )
+
+
+class ProviderPricelistReview(Base):
+    """Заблокированный guard-ом прайс и история решения администратора."""
+
+    __tablename__ = "providerpricelistreview"
+
+    provider_id = Column(
+        Integer,
+        ForeignKey("provider.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    provider_config_id = Column(
+        Integer,
+        ForeignKey("providerpricelistconfig.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    previous_pricelist_id = Column(
+        Integer,
+        ForeignKey("pricelist.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    published_pricelist_id = Column(
+        Integer,
+        ForeignKey("pricelist.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    source_filename = Column(String(512), nullable=False)
+    file_path = Column(Text, nullable=False)
+    file_extension = Column(String(32), nullable=False)
+    file_sha256 = Column(String(64), nullable=False)
+    status = Column(String(24), nullable=False, default="pending", index=True)
+    reasons = Column(JSON, nullable=False, default=list)
+    metrics = Column(JSON, nullable=False, default=dict)
+    examples = Column(JSON, nullable=False, default=list)
+    decision_reason = Column(Text, nullable=True)
+    processing_error = Column(Text, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=now_moscow,
+    )
+    decided_at = Column(DateTime(timezone=True), nullable=True)
+    decided_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    provider = relationship("Provider", lazy="selectin")
+    provider_config = relationship(
+        "ProviderPriceListConfig",
+        back_populates="pricelist_reviews",
+        lazy="selectin",
+    )
+    previous_pricelist = relationship(
+        "PriceList",
+        foreign_keys=[previous_pricelist_id],
+        lazy="noload",
+    )
+    published_pricelist = relationship(
+        "PriceList",
+        foreign_keys=[published_pricelist_id],
+        lazy="noload",
+    )
+    decided_by = relationship("User", lazy="selectin")
+
+    __table_args__ = (
+        Index(
+            "ix_provider_pricelist_review_provider_created",
+            "provider_id",
+            "created_at",
+        ),
+    )
 
 
 class SupplierResponseConfig(Base):

@@ -1,4 +1,4 @@
-from dz_fastapi.services.pricelist_guard import calculate_pricelist_anomaly
+from dz_fastapi.services.pricelist_guard import build_review_examples, calculate_pricelist_anomaly
 
 
 def _prices(count: int, price: float = 100.0):
@@ -69,3 +69,32 @@ def test_pricelist_guard_blocks_when_over_20_percent_change_over_10_percent():
     assert result.blocked is True
     assert result.metrics["changed_items_percent"] == 21.0
     assert any("совпадающих позиций" in reason for reason in result.reasons)
+
+
+def test_review_examples_prefer_new_positions_and_distinct_brands():
+    items = [
+        {
+            "brand": f"BRAND {index}",
+            "oem_number": f"NEW{index}",
+            "name": f"Position {index}",
+            "quantity": index + 1,
+            "price": 100 + index,
+        }
+        for index in range(12)
+    ]
+    items.extend(
+        {
+            "brand": "BRAND 0",
+            "oem_number": f"EXTRA{index}",
+            "name": "Duplicate brand",
+            "quantity": 1,
+            "price": 50,
+        }
+        for index in range(5)
+    )
+
+    examples = build_review_examples(items, {}, limit=10)
+
+    assert len(examples) == 10
+    assert len({row["brand"] for row in examples}) == 10
+    assert all(row["change_type"] == "new" for row in examples)
