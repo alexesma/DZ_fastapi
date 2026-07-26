@@ -27,7 +27,11 @@ from dz_fastapi.models.partner import (
     ReclamationItem,
 )
 from dz_fastapi.models.user import User, UserRole, UserStatus
-from dz_fastapi.services.email_outbox import mark_outbox_error, mark_outbox_sent
+from dz_fastapi.services.email_outbox import (
+    _flag_source_email_answered_sync,
+    mark_outbox_error,
+    mark_outbox_sent,
+)
 from dz_fastapi.services.reclamation_armtek import (
     ARMTEK_APPROVED_STATUS,
     ArmtekPortalClient,
@@ -369,17 +373,39 @@ async def test_recognize_greenlight_email_removes_spurious_document_item(
 async def test_ingest_froza_email_stores_stated_quantity(
     test_session: AsyncSession,
 ):
+    brand = Brand(name="FROZA DOCUMENT NUMBER TEST")
+    test_session.add(brand)
+    await test_session.flush()
+    test_session.add_all(
+        [
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="9030107024",
+                name="Кольцо уплотнительное",
+            ),
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="3320",
+                name="Патрубок",
+            ),
+        ]
+    )
+    await test_session.commit()
+
     reclamation = await ingest_reclamation_email(
         test_session,
         ReclamationInboundEmail(
             from_="postvozvrat@froza.ru",
             subject="Просьба согласовать возврат",
             body_text=(
-                "Товар: РЕЗИНКА ГЛУШИТЕЛЯ\n"
-                "Артикул: DZ1200015K00\n"
-                "Производитель: DragonZap\n"
-                "Количество: 4\n"
+                "Номер входящего документа: 3320\n"
+                "Дата входящего документа: 23.07.2026\n"
+                "Товар: КОЛЬЦО\n"
+                "Артикул: 9030107024\n"
+                "Производитель: TOYOTA\n"
+                "Количество: 6\n"
                 "Причина возврата: Отказ клиента\n"
+                "Комментарий: Отказ клиента\n"
             ),
             body_html=(
                 '<a href="https://froza.ru/supplier/one-question/'
@@ -391,11 +417,63 @@ async def test_ingest_froza_email_stores_stated_quantity(
     )
 
     assert reclamation is not None
+    assert reclamation.stated_document_number == "3320"
+    assert reclamation.stated_document_date == date(2026, 7, 23)
+    assert reclamation.stated_reason == "Отказ клиента"
+    assert reclamation.reclamation_type == "customer_refusal"
     assert len(reclamation.items) == 1
-    assert reclamation.items[0].oem_number == "DZ1200015K00"
-    assert reclamation.items[0].brand_name == "DragonZap"
-    assert reclamation.items[0].quantity == 4
-    assert reclamation.extracted_data["froza_email_item"]["quantity"] == 4
+    assert reclamation.items[0].oem_number == "9030107024"
+    assert reclamation.items[0].brand_name == "TOYOTA"
+    assert reclamation.items[0].autopart_name == "Кольцо уплотнительное"
+    assert reclamation.items[0].quantity == 6
+    assert reclamation.extracted_data["froza_email_item"]["quantity"] == 6
+
+
+@pytest.mark.asyncio
+async def test_recheck_froza_removes_spurious_document_item(
+    test_session: AsyncSession,
+):
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.RECOGNIZED,
+        stated_document_number="3320",
+        email_body=(
+            "Номер входящего документа: 3320\n"
+            "Дата входящего документа: 23.07.2026\n"
+            "Товар: КОЛЬЦО\n"
+            "Артикул: 9030107024\n"
+            "Производитель: TOYOTA\n"
+            "Количество: 6\n"
+            "Причина возврата: Отказ клиента\n"
+            "Комментарий: Отказ клиента\n"
+        ),
+        items=[
+            ReclamationItem(
+                oem_number="3320",
+                autopart_name="Патрубок",
+                quantity=1,
+                item_source=RECLAMATION_ITEM_SOURCE.UNKNOWN,
+            ),
+            ReclamationItem(
+                oem_number="9030107024",
+                autopart_name="Кольцо уплотнительное",
+                quantity=6,
+                item_source=RECLAMATION_ITEM_SOURCE.UNKNOWN,
+            ),
+        ],
+    )
+    test_session.add(reclamation)
+    await test_session.commit()
+
+    await recognize_reclamation_items(test_session, reclamation)
+    await test_session.commit()
+
+    assert [item.oem_number for item in reclamation.items] == [
+        "9030107024"
+    ]
+    assert reclamation.items[0].quantity == 6
+    assert reclamation.items[0].reason == "Отказ клиента"
+    assert reclamation.extracted_data["froza_email_item"]["quantity"] == 6
 
 
 @pytest.mark.asyncio
@@ -1442,6 +1520,52 @@ async def test_mark_sent_marks_source_email_answered_without_duplicate_retry(
     )
     await test_session.refresh(outbox)
     assert outbox.status == EMAIL_OUTBOX_STATUS.SENT
+
+
+def test_source_email_is_marked_read_answered_and_flagged(monkeypatch):
+    captured = {}
+
+    class FakeFolder:
+        def set(self, folder):
+            captured["folder"] = folder
+
+    class FakeMailbox:
+        folder = FakeFolder()
+
+        def login(self, email, password):
+            captured["email"] = email
+            captured["password"] = password
+            return self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def flag(self, uid, flags, value):
+            captured["uid"] = uid
+            captured["flags"] = flags
+            captured["value"] = value
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.email._create_mailbox",
+        lambda host, port, ssl: FakeMailbox(),
+    )
+
+    _flag_source_email_answered_sync(
+        host="imap.example.com",
+        port=993,
+        email="reclamations@example.com",
+        password="secret",
+        folder="INBOX",
+        uid="12345",
+    )
+
+    assert captured["folder"] == "INBOX"
+    assert captured["uid"] == "12345"
+    assert captured["flags"] == [r"\Seen", r"\Answered", r"\Flagged"]
+    assert captured["value"] is True
 
 
 @pytest.mark.asyncio

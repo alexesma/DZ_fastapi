@@ -55,6 +55,12 @@ _FROZA_ITEM_FIELD_RE = re.compile(
     r"(Товар|Артикул|Производитель|Количество|Причина возврата|Комментарий)"
     r"\s*:\s*(.*?)\s*$"
 )
+_FROZA_DOCUMENT_NUMBER_RE = re.compile(
+    r"(?im)^\s*Номер\s+входящего\s+документа\s*:\s*(.*?)\s*$"
+)
+_FROZA_DOCUMENT_DATE_RE = re.compile(
+    r"(?im)^\s*Дата\s+входящего\s+документа\s*:\s*(.*?)\s*$"
+)
 _GREENLIGHT_BOILERPLATE_MARKER = "основные причины формирования возвратов"
 _GREENLIGHT_REASON_PATTERN = (
     r"(?:Отказ от товара по инициативе клиента|"
@@ -374,6 +380,29 @@ def classify_reclamation_type(text: str) -> Optional[str]:
 def extract_fields(subject: str, body: str) -> dict[str, Any]:
     """Регулярное извлечение полей из письма (первый слой распознавания)."""
     text = f"{subject}\n{body}"
+    froza_item = extract_froza_email_item(body)
+    if froza_item is not None:
+        plain_body = _plain_email_text(body)
+        number_match = _FROZA_DOCUMENT_NUMBER_RE.search(plain_body)
+        date_match = _FROZA_DOCUMENT_DATE_RE.search(plain_body)
+        document_date = _parse_email_date(
+            date_match.group(1).strip() if date_match else ""
+        )
+        return {
+            "document_number": (
+                number_match.group(1).strip(" .,:;")
+                if number_match
+                else None
+            ),
+            "document_date": (
+                document_date.isoformat() if document_date else None
+            ),
+            "reclamation_type": classify_reclamation_type(
+                froza_item.get("reason") or ""
+            ),
+            "links": extract_links(body),
+            "froza_email_item": froza_item,
+        }
     shortage_items = extract_shortage_items(body)
     if shortage_items:
         doc_match = _DOC_NUMBER_RE.search(text)
@@ -530,12 +559,19 @@ async def recognize_reclamation_items(
     reclamation: Reclamation,
 ) -> int:
     """Дополняет позиции карточки по сохранённому письму и истории заказов."""
+    froza_item = extract_froza_email_item(reclamation.email_body or "")
     structured_item_updated = apply_froza_email_item(reclamation)
     greenlight_items = extract_greenlight_return_items(
         reclamation.email_body or ""
     )
     shortage_items = extract_shortage_items(reclamation.email_body or "")
-    structured_items = shortage_items or greenlight_items
+    # Стандартное письмо Froza содержит ровно одну позицию. Общий поиск чисел
+    # здесь недопустим: номер входящего документа может совпасть с OEM в базе.
+    structured_items = (
+        ([froza_item] if froza_item is not None else [])
+        or shortage_items
+        or greenlight_items
+    )
     matched = await _match_oems_in_text(
         session,
         f"{reclamation.email_subject or ''}\n{reclamation.email_body or ''}",
@@ -639,9 +675,15 @@ async def recognize_reclamation_items(
         reclamation.reclamation_type = fields.get("reclamation_type")
         extracted_data = dict(reclamation.extracted_data or {})
         extracted_key = (
-            "shortage_items" if shortage_items else "greenlight_items"
+            "froza_email_item"
+            if froza_item is not None
+            else "shortage_items"
+            if shortage_items
+            else "greenlight_items"
         )
-        extracted_data[extracted_key] = structured_items
+        extracted_data[extracted_key] = (
+            froza_item if froza_item is not None else structured_items
+        )
         reclamation.extracted_data = extracted_data
         structured_item_updated = True
     else:
@@ -993,20 +1035,38 @@ async def ingest_reclamation_email(
     froza_email_item = extract_froza_email_item(body_for_extraction)
     if froza_email_item is not None:
         normalized = preprocess_oem_number(froza_email_item["oem_number"])
-        candidate = dict(candidates.get(normalized, {}))
+        # Froza присылает одну структурированную позицию. Не смешиваем её с
+        # общим поиском чисел, иначе номер документа может стать второй деталью.
+        resolved_by_oem = {
+            preprocess_oem_number(item["oem_number"]): item
+            for item in matched
+        }
+        candidate = dict(resolved_by_oem.get(normalized, {}))
         candidate.update(
             {
                 key: value
                 for key, value in froza_email_item.items()
-                if key != "comment" and value is not None
+                if key not in {"comment", "autopart_name"}
+                and value is not None
             }
         )
-        candidates[normalized] = candidate
+        candidate["autopart_name"] = (
+            candidate.get("autopart_name")
+            or froza_email_item.get("autopart_name")
+        )
+        candidates = {normalized: candidate}
         extracted_data = {
             **extracted_data,
             "froza_email_item": froza_email_item,
         }
         reclamation.extracted_data = extracted_data
+        reclamation.stated_reason = froza_email_item.get("reason")
+        reclamation.reclamation_type = (
+            classify_reclamation_type(
+                froza_email_item.get("reason") or ""
+            )
+            or reclamation.reclamation_type
+        )
 
     attachment_items = [
         item

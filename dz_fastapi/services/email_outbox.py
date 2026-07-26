@@ -215,7 +215,11 @@ def _flag_source_email_answered_sync(
     mailbox_client = _create_mailbox(host, port, True).login(email, password)
     with mailbox_client as mailbox:
         mailbox.folder.set(folder)
-        mailbox.flag(uid, [r"\Seen", r"\Answered"], True)
+        mailbox.flag(
+            uid,
+            [r"\Seen", r"\Answered", r"\Flagged"],
+            True,
+        )
 
 
 async def mark_reclamation_source_answered(
