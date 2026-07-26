@@ -74,6 +74,7 @@ from dz_fastapi.services.reclamations import (
     extract_fields,
     extract_froza_email_item,
     extract_greenlight_return_items,
+    extract_inline_return_items,
     extract_links,
     extract_sender_email,
     extract_shortage_items,
@@ -206,6 +207,126 @@ def test_extract_shortage_item_and_document():
     assert fields["document_number"] == "3391"
     assert fields["document_date"] == "2026-07-24"
     assert fields["reclamation_type"] == "shortage"
+
+
+def _avtoformula_return_body() -> str:
+    return """
+    Добрый день!
+    Согласно действующим договоренностям между нашими компаниями
+    мы хотим вернуть товар надлежащего качества
+    по причине отказа конечного покупателя
+
+    19115RGA000 HONDA КРЫШКА БАЧКА ОМЫВАТЕЛЯ ПЛАСТИКОВАЯ
+    в количестве 1
+    по документу №3091 от 10.07.26
+    """
+
+
+def _quoted_return_body() -> str:
+    return """
+    <div>Добрый день</div>
+    <div>Клиент хочет вернуть. Просьба согласовать возврат</div>
+    <div>Тема: 1575A082;</div>
+    <blockquote>
+      <div>1575A082 - 3</div>
+      <div>Накладная от 16.07</div>
+      <p style="margin:0cm 0cm 0.0001pt 0cm">
+        Причина – конструктивные отличия
+      </p>
+      <div>С уважением ООО "АвтоПартс" DragonZap</div>
+    </blockquote>
+    """
+
+
+def test_extract_inline_return_items_uses_explicit_quantity():
+    avtoformula = extract_inline_return_items(_avtoformula_return_body())
+    quoted = extract_inline_return_items(_quoted_return_body())
+
+    assert avtoformula == [
+        {
+            "oem_number": "19115RGA000",
+            "brand_name": "HONDA",
+            "autopart_name": "КРЫШКА БАЧКА ОМЫВАТЕЛЯ ПЛАСТИКОВАЯ",
+            "quantity": 1,
+            "reason": "отказа конечного покупателя",
+        }
+    ]
+    assert quoted == [
+        {
+            "oem_number": "1575A082",
+            "quantity": 3,
+            "reason": "конструктивные отличия",
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_ingest_avtoformula_ignores_document_date_as_position(
+    test_session: AsyncSession,
+):
+    brand = Brand(name="AVTOFORMULA RETURN TEST")
+    test_session.add(brand)
+    await test_session.flush()
+    test_session.add_all(
+        [
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="19115RGA000",
+                name="Крышка бачка омывателя",
+            ),
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="100726",
+                name="Ложное совпадение с датой",
+            ),
+        ]
+    )
+    await test_session.commit()
+
+    reclamation = await ingest_reclamation_email(
+        test_session,
+        ReclamationInboundEmail(
+            from_="sulimenko_i@avtoformula.ru",
+            subject="Возврат товара",
+            body_text=_avtoformula_return_body(),
+            message_id="<avtoformula-return@example.test>",
+        ),
+    )
+
+    assert reclamation is not None
+    assert reclamation.stated_document_number == "3091"
+    assert reclamation.stated_document_date == date(2026, 7, 10)
+    assert reclamation.reclamation_type == "customer_refusal"
+    assert len(reclamation.items) == 1
+    assert reclamation.items[0].oem_number == "19115RGA000"
+    assert reclamation.items[0].quantity == 1
+    assert reclamation.items[0].brand_name == "HONDA"
+
+
+@pytest.mark.asyncio
+async def test_recheck_quoted_return_removes_html_and_signature_tokens(
+    test_session: AsyncSession,
+):
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.RECOGNIZED,
+        email_body=_quoted_return_body(),
+        items=[
+            ReclamationItem(oem_number="1575A082", quantity=1),
+            ReclamationItem(oem_number="1607", quantity=1),
+            ReclamationItem(oem_number="DRAGONZAP", quantity=1),
+            ReclamationItem(oem_number="00001PT", quantity=1),
+        ],
+    )
+    test_session.add(reclamation)
+    await test_session.commit()
+
+    await recognize_reclamation_items(test_session, reclamation)
+    await test_session.commit()
+
+    assert [item.oem_number for item in reclamation.items] == ["1575A082"]
+    assert reclamation.items[0].quantity == 3
+    assert reclamation.items[0].reason == "конструктивные отличия"
 
 
 @pytest.mark.asyncio
@@ -1351,7 +1472,7 @@ async def test_reclamation_check_resolves_supplier_from_customer_order(
     reclamation = Reclamation(
         source=RECLAMATION_SOURCE.EMAIL,
         status=RECLAMATION_STATUS.RECOGNIZED,
-        reclamation_type="shortage",
+        reclamation_type="customer_refusal",
         customer=customer,
         items=[
             ReclamationItem(
@@ -1376,9 +1497,33 @@ async def test_reclamation_check_resolves_supplier_from_customer_order(
     assert checked_item["supplier_name"] == "Поставщик заказа"
     assert checked_item["supplier_source"] == "customer_order"
     assert checked_item["customer_order_date"] == "2026-07-20"
+    assert checked_item["verdict"] == "approve"
+    assert checked_item["supplier_action"] == "request_supplier"
+    assert reclamation.check_result["recommendation_code"] == "approve"
+    assert (
+        reclamation.check_result["supplier_action_code"]
+        == "request_supplier"
+    )
     assert item.source_provider_id == provider.id
     assert str(getattr(item.item_source, "value", item.item_source)) == (
         "supplier_transit"
+    )
+
+    provider.return_allowed = False
+    reclamation.status = RECLAMATION_STATUS.WAITING_SUPPLIER
+    await test_session.commit()
+    await run_reclamation_check(
+        test_session,
+        reclamation_id=reclamation.id,
+    )
+
+    assert reclamation.check_result["recommendation_code"] == "approve"
+    assert reclamation.check_result["supplier_action_code"] == "unavailable"
+    assert reclamation.status == RECLAMATION_STATUS.CHECKED
+    assert reclamation.check_result["items"][0]["verdict"] == "approve"
+    assert (
+        reclamation.check_result["items"][0]["supplier_action"]
+        == "unavailable"
     )
 
 
@@ -1433,6 +1578,7 @@ async def test_supplier_return_request_contains_order_context_and_defect_files(
             {
                 "item_id": reclamation.items[0].id,
                 "supplier_id": provider.id,
+                "supplier_action": "request_supplier",
                 "customer_order_number": "ORD-15",
                 "customer_order_date": "2026-07-20",
             }
@@ -1446,6 +1592,8 @@ async def test_supplier_return_request_contains_order_context_and_defect_files(
     )
 
     assert len(rows) == 1
+    await test_session.refresh(reclamation)
+    assert reclamation.status == RECLAMATION_STATUS.CHECKED
     assert rows[0].to_email == "returns@supplier.example"
     assert "HONDA 19501R6FG00 — Патрубок; 2 шт." in rows[0].body_text
     assert "заказ ORD-15 от 2026-07-20" in rows[0].body_text

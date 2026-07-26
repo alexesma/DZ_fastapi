@@ -67,6 +67,11 @@ REC_REQUEST_DOCUMENTS = "request_documents"
 REC_REQUEST_SUPPLIER = "request_supplier"
 REC_MANUAL = "manual"
 
+SUPPLIER_NOT_REQUIRED = "not_required"
+SUPPLIER_REQUEST = "request_supplier"
+SUPPLIER_UNAVAILABLE = "unavailable"
+SUPPLIER_MANUAL = "manual"
+
 RECOMMENDATION_TEXT = {
     REC_APPROVE: "Можно согласовать возврат — срок возврата не истёк",
     REC_REJECT: "Рекомендуется отклонить — вне срока возврата",
@@ -396,6 +401,11 @@ async def _check_item(
         "supplier_ambiguous": False,
         "supplier_return_allowed": None,
         "supplier_brand_blocked": False,
+        "supplier_action": (
+            SUPPLIER_NOT_REQUIRED
+            if item_source == "our_stock"
+            else SUPPLIER_MANUAL
+        ),
         "checks": checks,
         "verdict": REC_MANUAL,
     }
@@ -602,6 +612,15 @@ async def _check_item(
             ),
         })
 
+    # Решение клиенту зависит от его срока и документов, а не от того,
+    # согласует ли поставщик обратный возврат нам.
+    if within_window is False:
+        result["verdict"] = REC_REJECT
+    elif within_window is True:
+        result["verdict"] = REC_APPROVE
+    else:
+        result["verdict"] = REC_MANUAL
+
     # Источник позиции
     if item_source == "supplier_transit":
         supplier_id = result["supplier_id"]
@@ -620,7 +639,7 @@ async def _check_item(
                     f"{provider_names}. Выберите поставщика вручную"
                 ),
             })
-            result["verdict"] = REC_MANUAL
+            result["supplier_action"] = SUPPLIER_MANUAL
             return result
         provider = (
             await session.get(Provider, supplier_id)
@@ -636,7 +655,7 @@ async def _check_item(
                 "status": "warn",
                 "detail": "Поставщик не определён — уточните вручную",
             })
-            result["verdict"] = REC_MANUAL
+            result["supplier_action"] = SUPPLIER_MANUAL
             return result
 
         allowed = bool(provider.return_allowed)
@@ -660,7 +679,7 @@ async def _check_item(
                 "status": "fail",
                 "detail": f"Поставщик {provider.name} не принимает возвраты",
             })
-            result["verdict"] = REC_REJECT
+            result["supplier_action"] = SUPPLIER_UNAVAILABLE
         elif brand_blocked:
             checks.append({
                 "key": "supplier",
@@ -671,7 +690,7 @@ async def _check_item(
                     f"{provider.name}"
                 ),
             })
-            result["verdict"] = REC_REJECT
+            result["supplier_action"] = SUPPLIER_UNAVAILABLE
         elif not sup_window_ok:
             checks.append({
                 "key": "supplier",
@@ -681,7 +700,7 @@ async def _check_item(
                     f"Вне срока возврата поставщика ({sup_window} дн.)"
                 ),
             })
-            result["verdict"] = REC_REJECT
+            result["supplier_action"] = SUPPLIER_UNAVAILABLE
         else:
             checks.append({
                 "key": "supplier",
@@ -692,7 +711,7 @@ async def _check_item(
                     "согласования"
                 ),
             })
-            result["verdict"] = REC_REQUEST_SUPPLIER
+            result["supplier_action"] = SUPPLIER_REQUEST
         return result
 
     # Наш склад / источник не указан
@@ -704,12 +723,6 @@ async def _check_item(
             "detail": "Не указан (наш склад / транзит) — уточните в позиции",
         })
 
-    if within_window is False:
-        result["verdict"] = REC_REJECT
-    elif within_window is True:
-        result["verdict"] = REC_APPROVE
-    else:
-        result["verdict"] = REC_MANUAL
     return result
 
 
@@ -801,6 +814,46 @@ async def run_reclamation_check(
             "проверить фактическую комплектацию отгрузки"
         )
 
+    supplier_action_counts = {
+        code: sum(
+            1
+            for item_result in item_results
+            if item_result.get("supplier_action") == code
+        )
+        for code in (
+            SUPPLIER_REQUEST,
+            SUPPLIER_UNAVAILABLE,
+            SUPPLIER_MANUAL,
+            SUPPLIER_NOT_REQUIRED,
+        )
+    }
+    if supplier_action_counts[SUPPLIER_REQUEST]:
+        supplier_action_code = SUPPLIER_REQUEST
+        supplier_summary = (
+            "Нужно запросить согласование у поставщика: "
+            f"{supplier_action_counts[SUPPLIER_REQUEST]} поз."
+        )
+        if supplier_action_counts[SUPPLIER_UNAVAILABLE]:
+            supplier_summary += (
+                " Не принимается поставщиком: "
+                f"{supplier_action_counts[SUPPLIER_UNAVAILABLE]} поз."
+            )
+    elif supplier_action_counts[SUPPLIER_UNAVAILABLE]:
+        supplier_action_code = SUPPLIER_UNAVAILABLE
+        supplier_summary = (
+            "Поставщик не принимает возврат: "
+            f"{supplier_action_counts[SUPPLIER_UNAVAILABLE]} поз."
+        )
+    elif supplier_action_counts[SUPPLIER_MANUAL]:
+        supplier_action_code = SUPPLIER_MANUAL
+        supplier_summary = (
+            "Источник или поставщик требует ручной проверки: "
+            f"{supplier_action_counts[SUPPLIER_MANUAL]} поз."
+        )
+    else:
+        supplier_action_code = SUPPLIER_NOT_REQUIRED
+        supplier_summary = "Согласование с поставщиком не требуется"
+
     check_result = {
         "checked_at": now_moscow().isoformat(),
         "type": rec_type,
@@ -809,12 +862,26 @@ async def run_reclamation_check(
         "items": item_results,
         "recommendation_code": recommendation_code,
         "summary": recommendation_summary,
+        "supplier_action_code": supplier_action_code,
+        "supplier_summary": supplier_summary,
+        "supplier_action_counts": supplier_action_counts,
     }
 
     rec.check_result = check_result
     rec.recommendation = recommendation_code
-    if rec.status in (RECLAMATION_STATUS.NEW, RECLAMATION_STATUS.RECOGNIZED):
-        rec.status = RECLAMATION_STATUS.CHECKED
+    if rec.status in (
+        RECLAMATION_STATUS.NEW,
+        RECLAMATION_STATUS.RECOGNIZED,
+        RECLAMATION_STATUS.WAITING_SUPPLIER,
+    ):
+        if rec.resolution == "approved":
+            rec.status = RECLAMATION_STATUS.APPROVED
+        elif rec.resolution == "rejected":
+            rec.status = RECLAMATION_STATUS.REJECTED
+        elif recommendation_code == REC_REQUEST_DOCUMENTS:
+            rec.status = RECLAMATION_STATUS.WAITING_DOCS
+        else:
+            rec.status = RECLAMATION_STATUS.CHECKED
 
     session.add(rec)
     await session.commit()

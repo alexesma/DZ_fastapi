@@ -312,6 +312,7 @@ async def enqueue_supplier_request(
     session: AsyncSession,
     *,
     reclamation_id: int,
+    commit: bool = True,
 ) -> list[EmailOutbox]:
     rec = await _load_reclamation(session, reclamation_id)
     check_by_item = {
@@ -326,7 +327,10 @@ async def enqueue_supplier_request(
         source = str(getattr(it.item_source, "value", it.item_source))
         checked_item = check_by_item.get(int(it.id), {})
         provider_id = it.source_provider_id or checked_item.get("supplier_id")
+        supplier_action = checked_item.get("supplier_action")
         if source != "supplier_transit" or not provider_id:
+            continue
+        if supplier_action not in (None, "request_supplier"):
             continue
         by_provider.setdefault(int(provider_id), []).append(it)
 
@@ -415,6 +419,7 @@ async def enqueue_supplier_request(
             reply_to=from_email,
             source_type=OUTBOX_SOURCE_SUPPLIER,
             source_id=int(rec.id),
+            commit=False,
         )
         created.append(row)
 
@@ -423,4 +428,8 @@ async def enqueue_supplier_request(
             "У поставщиков транзитных позиций не заполнен email для запросов"
             " возврата (return_request_email)."
         )
+    if commit:
+        await session.commit()
+        for row in created:
+            await session.refresh(row)
     return created

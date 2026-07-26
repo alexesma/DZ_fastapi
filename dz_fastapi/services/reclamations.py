@@ -90,6 +90,29 @@ _SHORTAGE_LINE_RE = re.compile(
     r"[—–-]\s*(?P<quantity>\d+)\s*шт\.?\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
+_INLINE_RETURN_WITH_BRAND_RE = re.compile(
+    r"^\s*(?P<oem>[A-Za-zА-Яа-я0-9]"
+    r"[A-Za-zА-Яа-я0-9./-]{4,})\s+"
+    r"(?P<brand>[A-Za-zА-Яа-я][A-Za-zА-Яа-я0-9./-]{1,})\s+"
+    r"(?P<name>[^\r\n]+?)\s*\r?\n"
+    r"\s*в\s+количестве\s+(?P<quantity>\d+)"
+    r"(?:\s*шт\.?)?\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+_INLINE_RETURN_QUANTITY_RE = re.compile(
+    r"^\s*(?P<oem>[A-Za-zА-Яа-я0-9]"
+    r"[A-Za-zА-Яа-я0-9./-]{4,})\s*"
+    r"[-—–]\s*(?P<quantity>\d+)(?:\s*шт\.?)?\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+_INLINE_RETURN_REASON_RE = re.compile(
+    r"^\s*Причина\s*[:—–-]\s*(?P<reason>[^\r\n]+)",
+    re.IGNORECASE | re.MULTILINE,
+)
+_INLINE_RETURN_REASON_PHRASE_RE = re.compile(
+    r"\bпо\s+причине\s+(?P<reason>[^\r\n]+)",
+    re.IGNORECASE,
+)
 # «№ УТ-1042», «номер УТ-1042 от 15.06.2026», «счёт 123 от 01.02.26»
 _DOC_NUMBER_RE = re.compile(
     r"(?:№|номер|док(?:умент)?[а-я]*|счет|счёт|накладн\w*|отгрузк\w*|"
@@ -304,6 +327,49 @@ def extract_shortage_items(text: str) -> list[dict[str, Any]]:
     return items
 
 
+def extract_inline_return_items(text: str) -> list[dict[str, Any]]:
+    """Извлекает явно записанные позиции из свободного текста письма."""
+    plain_text = _plain_email_text(text)
+    reason_match = (
+        _INLINE_RETURN_REASON_RE.search(plain_text)
+        or _INLINE_RETURN_REASON_PHRASE_RE.search(plain_text)
+    )
+    reason = (
+        reason_match.group("reason").strip(" .,:;")
+        if reason_match
+        else None
+    )
+    items_by_oem: dict[str, dict[str, Any]] = {}
+
+    for row in _INLINE_RETURN_WITH_BRAND_RE.finditer(plain_text):
+        oem_number = preprocess_oem_number(row.group("oem"))
+        quantity = int(row.group("quantity"))
+        if not oem_number or quantity <= 0:
+            continue
+        items_by_oem[oem_number] = {
+            "oem_number": oem_number,
+            "brand_name": row.group("brand").strip(),
+            "autopart_name": row.group("name").strip(" .,:;"),
+            "quantity": quantity,
+            "reason": reason,
+        }
+
+    for row in _INLINE_RETURN_QUANTITY_RE.finditer(plain_text):
+        oem_number = preprocess_oem_number(row.group("oem"))
+        quantity = int(row.group("quantity"))
+        if not oem_number or quantity <= 0:
+            continue
+        current = items_by_oem.get(oem_number, {})
+        items_by_oem[oem_number] = {
+            **current,
+            "oem_number": oem_number,
+            "quantity": quantity,
+            "reason": current.get("reason") or reason,
+        }
+
+    return list(items_by_oem.values())
+
+
 def apply_froza_email_item(reclamation: Reclamation) -> bool:
     """Исправляет техническое количество 1 по сохранённому письму Froza."""
     parsed = extract_froza_email_item(reclamation.email_body or "")
@@ -428,6 +494,23 @@ def extract_fields(subject: str, body: str) -> dict[str, Any]:
             ),
             "links": extract_links(body),
             "greenlight_items": greenlight_items,
+        }
+    inline_items = extract_inline_return_items(body)
+    if inline_items:
+        doc_match = _DOC_NUMBER_RE.search(text)
+        doc_number = (
+            doc_match.group(1).strip(" .,:;") if doc_match else None
+        )
+        doc_date = _parse_doc_date(text)
+        first_item = inline_items[0]
+        return {
+            "document_number": doc_number,
+            "document_date": doc_date.isoformat() if doc_date else None,
+            "reclamation_type": classify_reclamation_type(
+                first_item.get("reason") or text
+            ),
+            "links": extract_links(body),
+            "inline_items": inline_items,
         }
     doc_number = None
     m = _DOC_NUMBER_RE.search(text)
@@ -565,12 +648,14 @@ async def recognize_reclamation_items(
         reclamation.email_body or ""
     )
     shortage_items = extract_shortage_items(reclamation.email_body or "")
+    inline_items = extract_inline_return_items(reclamation.email_body or "")
     # Стандартное письмо Froza содержит ровно одну позицию. Общий поиск чисел
     # здесь недопустим: номер входящего документа может совпасть с OEM в базе.
     structured_items = (
         ([froza_item] if froza_item is not None else [])
         or shortage_items
         or greenlight_items
+        or inline_items
     )
     matched = await _match_oems_in_text(
         session,
@@ -680,6 +765,8 @@ async def recognize_reclamation_items(
             else "shortage_items"
             if shortage_items
             else "greenlight_items"
+            if greenlight_items
+            else "inline_items"
         )
         extracted_data[extracted_key] = (
             froza_item if froza_item is not None else structured_items
@@ -969,6 +1056,7 @@ async def ingest_reclamation_email(
                     for item in (
                         fields.get("shortage_items")
                         or fields.get("greenlight_items")
+                        or fields.get("inline_items")
                         or []
                     )
                     if item.get("reason")
@@ -1003,6 +1091,7 @@ async def ingest_reclamation_email(
     structured_items = (
         fields.get("shortage_items")
         or fields.get("greenlight_items")
+        or fields.get("inline_items")
         or []
     )
     if structured_items:
