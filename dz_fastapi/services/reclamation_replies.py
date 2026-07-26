@@ -6,6 +6,7 @@
   которые пришли транзитом.
 """
 import logging
+from datetime import date, datetime
 from typing import Optional
 
 from sqlalchemy import select
@@ -50,6 +51,37 @@ def _doc_phrase(rec: Reclamation) -> str:
             phrase += f" от {rec.stated_document_date.strftime('%d.%m.%Y')}"
         return phrase
     return "по вашему обращению"
+
+
+def _display_date(value: object) -> Optional[str]:
+    if isinstance(value, datetime):
+        return value.strftime("%d.%m.%Y")
+    if isinstance(value, date):
+        return value.strftime("%d.%m.%Y")
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        return date.fromisoformat(raw[:10]).strftime("%d.%m.%Y")
+    except ValueError:
+        return raw
+
+
+def _supplier_reference(checked_item: dict) -> str:
+    document_number = str(
+        checked_item.get("supplier_document_number") or ""
+    ).strip()
+    document_date = _display_date(
+        checked_item.get("supplier_document_date")
+    )
+    if document_number:
+        reference = f"документ поставки № {document_number}"
+        if document_date:
+            reference += f" от {document_date}"
+        return reference
+
+    order_date = _display_date(checked_item.get("customer_order_date"))
+    return f"дата заказа {order_date}" if order_date else ""
 
 
 def _missing_document_labels(rec: Reclamation) -> list[str]:
@@ -355,20 +387,14 @@ async def enqueue_supplier_request(
             parts = [p for p in (it.brand_name, it.oem_number) if p]
             title = " ".join(parts) if parts else (it.autopart_name or "позиция")
             checked_item = check_by_item.get(int(it.id), {})
-            order_date = checked_item.get("customer_order_date")
-            order_number = checked_item.get("customer_order_number")
-            order_label = ""
-            if order_number or order_date:
-                order_label = (
-                    f"; заказ {order_number or 'без номера'}"
-                    f" от {order_date or 'дата не определена'}"
-                )
+            reference = _supplier_reference(checked_item)
+            reference_label = f"; {reference}" if reference else ""
             item_name = (
                 f" — {it.autopart_name}" if it.autopart_name else ""
             )
             lines.append(
                 f"  • {title}{item_name}; "
-                f"{int(it.quantity or 1)} шт.{order_label}"
+                f"{int(it.quantity or 1)} шт.{reference_label}"
             )
         reason = (
             next(
@@ -382,17 +408,14 @@ async def enqueue_supplier_request(
             or str(rec.stated_reason or "").strip()
             or "Причина не указана"
         )
-        customer_name = getattr(rec.customer, "name", None) or "клиент"
         body = (
             f"Здравствуйте!\n\n"
-            f"Просим согласовать возврат товара, поставленного через вашу "
-            f"компанию для клиента {customer_name}.\n\n"
+            f"Просим согласовать возврат товара, поставленного вашей "
+            f"компанией.\n\n"
             f"Причина возврата: {reason}.\n"
-            f"Документ клиента: {_doc_phrase(rec)}.\n\n"
-            f"Позиции к согласованию:\n"
+            f"\nПозиции к согласованию:\n"
             f"{chr(10).join(lines)}\n\n"
-            f"Просим подтвердить возможность возврата и сообщить условия "
-            f"передачи товара.\n\n"
+            f"Просим подтвердить возможность возврата.\n\n"
             f"С уважением,\nотдел рекламаций"
         )
         rec_type = str(

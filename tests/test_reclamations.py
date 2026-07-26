@@ -10,6 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.email_account import EmailAccount
+from dz_fastapi.models.inventory import (
+    LotSourceType,
+    ShipmentDocument,
+    ShipmentDocumentItem,
+    ShipmentDocumentItemLotAllocation,
+    ShipmentDocumentStatus,
+    StockLot,
+)
 from dz_fastapi.models.notification import AppNotification
 from dz_fastapi.models.partner import (
     EMAIL_OUTBOX_STATUS,
@@ -25,6 +33,7 @@ from dz_fastapi.models.partner import (
     Reclamation,
     ReclamationAttachment,
     ReclamationItem,
+    SupplierReceipt,
 )
 from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.services.email_outbox import (
@@ -1528,6 +1537,85 @@ async def test_reclamation_check_resolves_supplier_from_customer_order(
 
 
 @pytest.mark.asyncio
+async def test_reclamation_check_exposes_supplier_receipt_document(
+    test_session: AsyncSession,
+    created_autopart: AutoPart,
+):
+    customer = Customer(name="Клиент документа поставки")
+    provider = Provider(
+        name="Поставщик документа",
+        return_allowed=True,
+        return_window_days=30,
+    )
+    test_session.add_all([customer, provider])
+    await test_session.flush()
+    receipt = SupplierReceipt(
+        provider_id=provider.id,
+        document_number="УПД-777",
+        document_date=date(2026, 7, 22),
+    )
+    test_session.add(receipt)
+    await test_session.flush()
+    stock_lot = StockLot(
+        autopart_id=created_autopart.id,
+        source_type=LotSourceType.RECEIPT,
+        initial_quantity=1,
+        remaining_quantity=0,
+        source_receipt_id=receipt.id,
+    )
+    shipment = ShipmentDocument(
+        doc_number="РН-100",
+        doc_date=datetime(2026, 7, 24, 12, 0, tzinfo=UTC),
+        status=ShipmentDocumentStatus.POSTED,
+        customer_id=customer.id,
+    )
+    test_session.add_all([stock_lot, shipment])
+    await test_session.flush()
+    shipment_item = ShipmentDocumentItem(
+        document_id=shipment.id,
+        autopart_id=created_autopart.id,
+        quantity=1,
+    )
+    test_session.add(shipment_item)
+    await test_session.flush()
+    test_session.add(
+        ShipmentDocumentItemLotAllocation(
+            shipment_document_item_id=shipment_item.id,
+            stock_lot_id=stock_lot.id,
+            provider_id=provider.id,
+            quantity=1,
+        )
+    )
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.RECOGNIZED,
+        reclamation_type="customer_refusal",
+        customer_id=customer.id,
+        items=[
+            ReclamationItem(
+                autopart_id=created_autopart.id,
+                oem_number=created_autopart.oem_number,
+                brand_name="TEST",
+                quantity=1,
+                item_source=RECLAMATION_ITEM_SOURCE.SUPPLIER_TRANSIT,
+            )
+        ],
+    )
+    test_session.add(reclamation)
+    await test_session.commit()
+
+    await run_reclamation_check(
+        test_session,
+        reclamation_id=reclamation.id,
+    )
+
+    checked_item = reclamation.check_result["items"][0]
+    assert checked_item["supplier_id"] == provider.id
+    assert checked_item["supplier_document_number"] == "УПД-777"
+    assert checked_item["supplier_document_date"] == "2026-07-22"
+
+
+@pytest.mark.asyncio
 async def test_supplier_return_request_contains_order_context_and_defect_files(
     test_session: AsyncSession,
     tmp_path,
@@ -1556,7 +1644,15 @@ async def test_supplier_return_request_contains_order_context_and_defect_files(
                 reason="Течь детали",
                 item_source=RECLAMATION_ITEM_SOURCE.SUPPLIER_TRANSIT,
                 source_provider_id=provider.id,
-            )
+            ),
+            ReclamationItem(
+                oem_number="1575A082",
+                brand_name="MITSUBISHI",
+                autopart_name="Прокладка",
+                quantity=3,
+                item_source=RECLAMATION_ITEM_SOURCE.SUPPLIER_TRANSIT,
+                source_provider_id=provider.id,
+            ),
         ],
         attachments=[
             ReclamationAttachment(
@@ -1570,7 +1666,8 @@ async def test_supplier_return_request_contains_order_context_and_defect_files(
     )
     test_session.add_all([provider, customer])
     await test_session.flush()
-    reclamation.items[0].source_provider_id = provider.id
+    for item in reclamation.items:
+        item.source_provider_id = provider.id
     test_session.add(reclamation)
     await test_session.commit()
     reclamation.check_result = {
@@ -1581,7 +1678,18 @@ async def test_supplier_return_request_contains_order_context_and_defect_files(
                 "supplier_action": "request_supplier",
                 "customer_order_number": "ORD-15",
                 "customer_order_date": "2026-07-20",
-            }
+                "supplier_document_number": "УПД-42",
+                "supplier_document_date": "2026-07-18",
+            },
+            {
+                "item_id": reclamation.items[1].id,
+                "supplier_id": provider.id,
+                "supplier_action": "request_supplier",
+                "customer_order_number": "ORD-16",
+                "customer_order_date": "2026-07-21",
+                "supplier_document_number": None,
+                "supplier_document_date": None,
+            },
         ]
     }
     await test_session.commit()
@@ -1596,8 +1704,25 @@ async def test_supplier_return_request_contains_order_context_and_defect_files(
     assert reclamation.status == RECLAMATION_STATUS.CHECKED
     assert rows[0].to_email == "returns@supplier.example"
     assert "HONDA 19501R6FG00 — Патрубок; 2 шт." in rows[0].body_text
-    assert "заказ ORD-15 от 2026-07-20" in rows[0].body_text
+    assert (
+        "документ поставки № УПД-42 от 18.07.2026"
+        in rows[0].body_text
+    )
+    assert (
+        "MITSUBISHI 1575A082 — Прокладка; 3 шт.; "
+        "дата заказа 21.07.2026"
+    ) in rows[0].body_text
     assert "Причина возврата: Течь детали." in rows[0].body_text
+    assert "Клиент возврата" not in rows[0].body_text
+    assert "Документ клиента" not in rows[0].body_text
+    assert "DOC-15" not in rows[0].body_text
+    assert "ORD-15" not in rows[0].body_text
+    assert "ORD-16" not in rows[0].body_text
+    assert (
+        "Просим подтвердить возможность возврата."
+        in rows[0].body_text
+    )
+    assert "условия передачи товара" not in rows[0].body_text
     assert rows[0].attachments[0]["file_name"] == "defect.pdf"
 
 

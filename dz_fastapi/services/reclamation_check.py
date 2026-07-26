@@ -317,9 +317,10 @@ async def _suppliers_for_shipment_item(
         await session.execute(
             select(
                 provider_id.label("provider_id"),
-                func.sum(
-                    ShipmentDocumentItemLotAllocation.quantity
-                ).label("quantity"),
+                ShipmentDocumentItemLotAllocation.quantity,
+                SupplierReceipt.id.label("receipt_id"),
+                SupplierReceipt.document_number,
+                SupplierReceipt.document_date,
             )
             .outerjoin(
                 StockLot,
@@ -335,23 +336,44 @@ async def _suppliers_for_shipment_item(
                 == shipment_item_id,
                 provider_id.isnot(None),
             )
-            .group_by(provider_id)
             .order_by(
-                func.sum(
-                    ShipmentDocumentItemLotAllocation.quantity
-                ).desc()
+                SupplierReceipt.document_date.desc().nullslast(),
+                SupplierReceipt.id.desc().nullslast(),
             )
         )
     ).all()
-    return [
-        {
-            "provider_id": int(row.provider_id),
-            "quantity": int(row.quantity or 0),
-            "source": "shipment_lot",
-        }
-        for row in rows
-        if row.provider_id is not None
-    ]
+    by_provider: dict[int, dict[str, Any]] = {}
+    for row in rows:
+        if row.provider_id is None:
+            continue
+        resolved_provider_id = int(row.provider_id)
+        candidate = by_provider.setdefault(
+            resolved_provider_id,
+            {
+                "provider_id": resolved_provider_id,
+                "quantity": 0,
+                "source": "shipment_lot",
+                "supplier_document_number": None,
+                "supplier_document_date": None,
+            },
+        )
+        candidate["quantity"] += int(row.quantity or 0)
+        if (
+            candidate["supplier_document_number"] is None
+            and row.document_number
+        ):
+            candidate["supplier_document_number"] = str(
+                row.document_number
+            )
+            candidate["supplier_document_date"] = (
+                row.document_date.isoformat()
+                if row.document_date
+                else None
+            )
+    return sorted(
+        by_provider.values(),
+        key=lambda candidate: -int(candidate.get("quantity") or 0),
+    )
 
 
 async def _check_item(
@@ -397,6 +419,8 @@ async def _check_item(
         "supplier_id": None,
         "supplier_name": None,
         "supplier_source": None,
+        "supplier_document_number": None,
+        "supplier_document_date": None,
         "supplier_candidates": [],
         "supplier_ambiguous": False,
         "supplier_return_allowed": None,
@@ -446,23 +470,33 @@ async def _check_item(
             autopart_id=autopart_id,
         )
 
+    shipment_suppliers = []
+    if shipment is not None:
+        shipment_suppliers = await _suppliers_for_shipment_item(
+            session,
+            shipment_item_id=shipment["shipment_item_id"],
+        )
+
     supplier_candidates: list[dict[str, Any]] = []
     if item.source_provider_id:
+        receipt_context = next(
+            (
+                candidate
+                for candidate in shipment_suppliers
+                if candidate["provider_id"] == int(item.source_provider_id)
+            ),
+            {},
+        )
         supplier_candidates.append(
             {
+                **receipt_context,
                 "provider_id": int(item.source_provider_id),
                 "quantity": int(item.quantity or 0),
                 "source": "manual",
             }
         )
     else:
-        shipment_suppliers = []
-        if shipment is not None:
-            shipment_suppliers = await _suppliers_for_shipment_item(
-                session,
-                shipment_item_id=shipment["shipment_item_id"],
-            )
-            supplier_candidates.extend(shipment_suppliers)
+        supplier_candidates.extend(shipment_suppliers)
         if (
             not shipment_suppliers
             and customer_order
@@ -509,6 +543,12 @@ async def _check_item(
         result["supplier_id"] = supplier["provider_id"]
         result["supplier_name"] = supplier["provider_name"]
         result["supplier_source"] = supplier["source"]
+        result["supplier_document_number"] = supplier.get(
+            "supplier_document_number"
+        )
+        result["supplier_document_date"] = supplier.get(
+            "supplier_document_date"
+        )
         if item.source_provider_id is None:
             item.source_provider_id = supplier["provider_id"]
             if (
