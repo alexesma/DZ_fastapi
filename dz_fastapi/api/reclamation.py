@@ -1,8 +1,11 @@
 """API рекламаций (претензий клиентов)."""
+import html
 import logging
 import os
+import re
 from datetime import date
 from typing import Optional
+from urllib.parse import urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
@@ -10,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from dz_fastapi.api.deps import get_current_user
+from dz_fastapi.api.deps import get_current_user, require_reclamation_access
 from dz_fastapi.core.db import get_session
 from dz_fastapi.models.partner import Customer, Reclamation, ReclamationAttachment
 from dz_fastapi.models.user import User, UserStatus
@@ -44,6 +47,7 @@ from dz_fastapi.services.reclamation_armtek import (
     send_armtek_decision,
     sync_armtek_open_returns,
 )
+from dz_fastapi.services.reclamation_audit import record_reclamation_event
 from dz_fastapi.services.reclamation_check import run_reclamation_check
 from dz_fastapi.services.reclamation_froza import (
     FrozaPortalError,
@@ -80,8 +84,69 @@ logger = logging.getLogger("dz_fastapi")
 router = APIRouter(
     prefix="/reclamations",
     tags=["reclamation"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_reclamation_access)],
 )
+
+_PORTAL_URL_RE = re.compile(
+    r"https://(?:www\.)?(?:froza\.ru|srm\.armtek\.ru)/"
+    r"[^\s<>\"']+",
+    re.IGNORECASE,
+)
+
+
+def _public_source_link(source_link: Optional[str]) -> Optional[str]:
+    """Return a portal address without bearer-like query parameters."""
+    value = html.unescape(str(source_link or "")).strip()
+    if not value:
+        return None
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return None
+    if parsed.scheme.lower() != "https":
+        return None
+    host = (parsed.hostname or "").lower()
+    if host in {"froza.ru", "www.froza.ru", "srm.armtek.ru"}:
+        return urlunsplit(
+            (parsed.scheme, parsed.netloc, parsed.path, "", "")
+        )
+    return value
+
+
+def _redact_portal_tokens(value):
+    if isinstance(value, dict):
+        return {
+            key: _redact_portal_tokens(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact_portal_tokens(item) for item in value]
+    if not isinstance(value, str):
+        return value
+
+    def replace_url(match: re.Match) -> str:
+        public_url = _public_source_link(match.group(0))
+        return public_url or "[скрытая ссылка портала]"
+
+    return _PORTAL_URL_RE.sub(replace_url, value)
+
+
+async def _audit_api_action(
+    session: AsyncSession,
+    *,
+    reclamation_id: int,
+    event_type: str,
+    current_user: User,
+    details: Optional[dict] = None,
+) -> None:
+    await record_reclamation_event(
+        session,
+        reclamation_id=reclamation_id,
+        event_type=event_type,
+        actor_user_id=int(current_user.id),
+        details=details,
+    )
+    await session.commit()
 
 
 def _detail_from_model(rec: Reclamation, customer_name: Optional[str]):
@@ -105,14 +170,14 @@ def _detail_from_model(rec: Reclamation, customer_name: Optional[str]):
         customer_id=rec.customer_id,
         customer_name=customer_name,
         sender_email=rec.sender_email,
-        source_link=rec.source_link,
+        source_link=_public_source_link(rec.source_link),
         email_subject=rec.email_subject,
-        email_body=rec.email_body,
+        email_body=_redact_portal_tokens(rec.email_body),
         email_received_at=rec.email_received_at,
         stated_document_number=rec.stated_document_number,
         stated_document_date=rec.stated_document_date,
         stated_reason=rec.stated_reason,
-        extracted_data=rec.extracted_data or {},
+        extracted_data=_redact_portal_tokens(rec.extracted_data or {}),
         check_result=rec.check_result or {},
         recommendation=rec.recommendation,
         resolution=rec.resolution,
@@ -131,6 +196,20 @@ def _detail_from_model(rec: Reclamation, customer_name: Optional[str]):
         created_at=rec.created_at,
         items=list(rec.items or []),
         attachments=list(rec.attachments or []),
+        events=[
+            {
+                "id": event.id,
+                "event_type": event.event_type,
+                "actor_user_id": event.actor_user_id,
+                "actor_user_name": (
+                    getattr(event.actor_user, "name", None)
+                    or getattr(event.actor_user, "email", None)
+                ),
+                "details": event.details or {},
+                "created_at": event.created_at,
+            }
+            for event in (rec.events or [])
+        ],
     )
 
 
@@ -205,6 +284,7 @@ async def reclamations_list(
 async def reclamations_create(
     payload: ReclamationCreateIn,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     rec = await create_manual_reclamation(
         session,
@@ -214,11 +294,14 @@ async def reclamations_create(
         body=payload.body,
         source_link=payload.source_link,
     )
-    customer_name = None
-    if rec.customer_id:
-        customer = await session.get(Customer, rec.customer_id)
-        customer_name = getattr(customer, "name", None)
-    return _detail_from_model(rec, customer_name)
+    await _audit_api_action(
+        session,
+        reclamation_id=int(rec.id),
+        event_type="created_manually",
+        current_user=current_user,
+        details={"customer_id": payload.customer_id},
+    )
+    return await _reload_detail(session, int(rec.id))
 
 
 @router.post(
@@ -242,7 +325,17 @@ async def reclamations_get(
     reclamation_id: int,
     session: AsyncSession = Depends(get_session),
 ):
-    rec = await session.get(Reclamation, reclamation_id)
+    rec = (
+        await session.execute(
+            select(Reclamation)
+            .where(Reclamation.id == reclamation_id)
+            .options(
+                selectinload(Reclamation.items),
+                selectinload(Reclamation.attachments),
+                selectinload(Reclamation.events),
+            )
+        )
+    ).scalar_one_or_none()
     if rec is None:
         raise HTTPException(status_code=404, detail="Рекламация не найдена")
     customer_name = None
@@ -293,9 +386,10 @@ async def reclamations_assign_customer(
     reclamation_id: int,
     payload: ReclamationAssignCustomerIn,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     try:
-        rec = await assign_reclamation_customer(
+        await assign_reclamation_customer(
             session,
             reclamation_id=reclamation_id,
             customer_id=payload.customer_id,
@@ -303,14 +397,17 @@ async def reclamations_assign_customer(
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    customer = await session.get(Customer, rec.customer_id)
-    # перезагружаем связи
-    rec = (
-        await session.execute(
-            select(Reclamation).where(Reclamation.id == reclamation_id)
-        )
-    ).scalar_one()
-    return _detail_from_model(rec, getattr(customer, "name", None))
+    await _audit_api_action(
+        session,
+        reclamation_id=reclamation_id,
+        event_type="customer_assigned",
+        current_user=current_user,
+        details={
+            "customer_id": payload.customer_id,
+            "remember_email": payload.remember_email,
+        },
+    )
+    return await _reload_detail(session, reclamation_id)
 
 
 async def _reload_detail(session: AsyncSession, reclamation_id: int):
@@ -318,6 +415,11 @@ async def _reload_detail(session: AsyncSession, reclamation_id: int):
         await session.execute(
             select(Reclamation)
             .where(Reclamation.id == reclamation_id)
+            .options(
+                selectinload(Reclamation.items),
+                selectinload(Reclamation.attachments),
+                selectinload(Reclamation.events),
+            )
             .execution_options(populate_existing=True)
         )
     ).scalar_one()
@@ -337,6 +439,7 @@ async def reclamations_assign_shortage(
     reclamation_id: int,
     payload: ReclamationShortageAssignIn,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     try:
         await run_reclamation_check(
@@ -350,6 +453,13 @@ async def reclamations_assign_shortage(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await _audit_api_action(
+        session,
+        reclamation_id=reclamation_id,
+        event_type="shortage_reviewer_assigned",
+        current_user=current_user,
+        details={"assigned_user_id": payload.user_id},
+    )
     return await _reload_detail(session, reclamation_id)
 
 
@@ -374,6 +484,16 @@ async def reclamations_confirm_shortage(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await _audit_api_action(
+        session,
+        reclamation_id=reclamation_id,
+        event_type="shortage_confirmed",
+        current_user=current_user,
+        details={
+            "confirmed": payload.confirmed,
+            "comment": payload.comment,
+        },
+    )
     return await _reload_detail(session, reclamation_id)
 
 
@@ -397,6 +517,13 @@ async def reclamations_postpone_shortage(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await _audit_api_action(
+        session,
+        reclamation_id=reclamation_id,
+        event_type="shortage_postponed",
+        current_user=current_user,
+        details={"minutes": payload.minutes},
+    )
     return await _reload_detail(session, reclamation_id)
 
 
@@ -409,6 +536,7 @@ async def reclamations_upload_shortage_evidence(
     reclamation_id: int,
     files: list[UploadFile] = File(...),
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     if not files or len(files) > 5:
         raise HTTPException(
@@ -441,6 +569,13 @@ async def reclamations_upload_shortage_evidence(
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await _audit_api_action(
+        session,
+        reclamation_id=reclamation_id,
+        event_type="shortage_evidence_uploaded",
+        current_user=current_user,
+        details={"files": [upload.filename for upload in files]},
+    )
     return await _reload_detail(session, reclamation_id)
 
 
@@ -483,6 +618,7 @@ async def reclamations_reply(
     reclamation_id: int,
     payload: ReclamationReplyIn,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     try:
         row = await enqueue_customer_reply(
@@ -494,6 +630,13 @@ async def reclamations_reply(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await _audit_api_action(
+        session,
+        reclamation_id=reclamation_id,
+        event_type="customer_reply_queued",
+        current_user=current_user,
+        details={"outbox_id": int(row.id), "kind": payload.kind},
+    )
     return row
 
 
@@ -520,6 +663,17 @@ async def reclamations_apply_and_reply(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await _audit_api_action(
+        session,
+        reclamation_id=reclamation_id,
+        event_type="decision_and_reply_queued",
+        current_user=current_user,
+        details={
+            "outbox_id": int(row.id),
+            "action": payload.action,
+            "resolution_comment": payload.resolution_comment,
+        },
+    )
     return row
 
 
@@ -531,6 +685,7 @@ async def reclamations_apply_and_reply(
 async def reclamations_notify_supplier(
     reclamation_id: int,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     try:
         rows = await enqueue_supplier_request(
@@ -538,6 +693,13 @@ async def reclamations_notify_supplier(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await _audit_api_action(
+        session,
+        reclamation_id=reclamation_id,
+        event_type="supplier_request_queued",
+        current_user=current_user,
+        details={"outbox_ids": [int(row.id) for row in rows]},
+    )
     return rows
 
 
@@ -572,6 +734,7 @@ async def reclamations_emails(
 async def reclamations_check(
     reclamation_id: int,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     try:
         await run_reclamation_check(
@@ -579,6 +742,12 @@ async def reclamations_check(
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await _audit_api_action(
+        session,
+        reclamation_id=reclamation_id,
+        event_type="check_run",
+        current_user=current_user,
+    )
     return await _reload_detail(session, reclamation_id)
 
 
@@ -590,6 +759,7 @@ async def reclamations_check(
 async def reclamations_froza_refresh(
     reclamation_id: int,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     try:
         await refresh_froza_status(
@@ -598,6 +768,12 @@ async def reclamations_froza_refresh(
         )
     except FrozaPortalError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
+    await _audit_api_action(
+        session,
+        reclamation_id=reclamation_id,
+        event_type="froza_refreshed",
+        current_user=current_user,
+    )
     return await _reload_detail(session, reclamation_id)
 
 
@@ -621,6 +797,13 @@ async def reclamations_froza_send_decision(
         )
     except FrozaPortalError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
+    await _audit_api_action(
+        session,
+        reclamation_id=reclamation_id,
+        event_type="froza_decision_sent",
+        current_user=current_user,
+        details={"resolution": (await session.get(Reclamation, reclamation_id)).resolution},
+    )
     return await _reload_detail(session, reclamation_id)
 
 
@@ -653,6 +836,7 @@ async def reclamations_armtek_sync(
 async def reclamations_armtek_refresh(
     reclamation_id: int,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     try:
         await refresh_armtek_status(
@@ -661,6 +845,12 @@ async def reclamations_armtek_refresh(
         )
     except ArmtekPortalError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
+    await _audit_api_action(
+        session,
+        reclamation_id=reclamation_id,
+        event_type="armtek_refreshed",
+        current_user=current_user,
+    )
     return await _reload_detail(session, reclamation_id)
 
 
@@ -684,6 +874,13 @@ async def reclamations_armtek_send_decision(
         )
     except ArmtekPortalError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
+    await _audit_api_action(
+        session,
+        reclamation_id=reclamation_id,
+        event_type="armtek_decision_sent",
+        current_user=current_user,
+        details={"resolution": (await session.get(Reclamation, reclamation_id)).resolution},
+    )
     return await _reload_detail(session, reclamation_id)
 
 
@@ -711,6 +908,13 @@ async def reclamations_update(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await _audit_api_action(
+        session,
+        reclamation_id=reclamation_id,
+        event_type="reclamation_updated",
+        current_user=current_user,
+        details=data,
+    )
     return await _reload_detail(session, reclamation_id)
 
 
@@ -724,6 +928,7 @@ async def reclamations_update_item(
     item_id: int,
     payload: ReclamationItemUpdateIn,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     data = payload.model_dump(exclude_unset=True)
     try:
@@ -738,4 +943,11 @@ async def reclamations_update_item(
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await _audit_api_action(
+        session,
+        reclamation_id=reclamation_id,
+        event_type="item_updated",
+        current_user=current_user,
+        details={"item_id": item_id, **data},
+    )
     return await _reload_detail(session, reclamation_id)

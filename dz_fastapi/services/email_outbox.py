@@ -9,7 +9,9 @@
 list_pending / mark_sent / mark_error.
 """
 import asyncio
+import base64
 import logging
+import os
 from datetime import timedelta
 from typing import Any, Optional
 
@@ -18,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.partner import EMAIL_OUTBOX_STATUS, EmailOutbox
+from dz_fastapi.services.reclamation_audit import record_reclamation_event
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -25,6 +28,127 @@ MAX_SEND_ATTEMPTS = 5
 # Аренда захвата: если воркер «умер», не отметив письмо, через это время
 # письмо снова доступно для захвата другим воркером.
 DEFAULT_CLAIM_LEASE_SECONDS = 300
+MAX_RELAY_ATTACHMENT_BYTES = max(
+    1,
+    int(os.getenv("EMAIL_RELAY_MAX_ATTACHMENT_MB", "25")),
+) * 1024 * 1024
+MAX_RELAY_TOTAL_ATTACHMENT_BYTES = max(
+    1,
+    int(os.getenv("EMAIL_RELAY_MAX_TOTAL_ATTACHMENT_MB", "50")),
+) * 1024 * 1024
+
+
+def _allowed_attachment_roots() -> list[str]:
+    configured = [
+        value.strip()
+        for value in str(
+            os.getenv("EMAIL_OUTBOX_ATTACHMENT_ROOTS") or ""
+        ).split(os.pathsep)
+        if value.strip()
+    ]
+    configured.append("uploads")
+    return [os.path.realpath(value) for value in configured]
+
+
+def _safe_attachment_path(value: object) -> str | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    resolved = os.path.realpath(raw)
+    for root in _allowed_attachment_roots():
+        try:
+            if os.path.commonpath((resolved, root)) == root:
+                return resolved
+        except ValueError:
+            continue
+    return None
+
+
+def serialize_outbox_for_relay(row: EmailOutbox) -> dict[str, Any]:
+    """Builds a relay payload without exposing local filesystem paths."""
+    serialized_attachments: list[dict[str, Any]] = []
+    attachment_errors: list[str] = []
+    total_size = 0
+    for raw_attachment in list(row.attachments or []):
+        attachment = dict(raw_attachment or {})
+        filename = str(
+            attachment.get("filename")
+            or attachment.get("file_name")
+            or "attachment"
+        )
+        content_base64 = attachment.get("content_base64")
+        if content_base64:
+            try:
+                payload = base64.b64decode(content_base64, validate=True)
+            except (ValueError, TypeError):
+                attachment_errors.append(
+                    f"{filename}: повреждено содержимое base64"
+                )
+                continue
+        else:
+            local_path = _safe_attachment_path(
+                attachment.get("local_file_path")
+            )
+            if local_path is None:
+                attachment_errors.append(
+                    f"{filename}: недопустимый путь к файлу"
+                )
+                continue
+            try:
+                size = os.path.getsize(local_path)
+                if size > MAX_RELAY_ATTACHMENT_BYTES:
+                    attachment_errors.append(
+                        f"{filename}: файл больше допустимого размера"
+                    )
+                    continue
+                with open(local_path, "rb") as file_handle:
+                    payload = file_handle.read(
+                        MAX_RELAY_ATTACHMENT_BYTES + 1
+                    )
+            except OSError as exc:
+                attachment_errors.append(f"{filename}: {exc}")
+                continue
+            if len(payload) > MAX_RELAY_ATTACHMENT_BYTES:
+                attachment_errors.append(
+                    f"{filename}: файл больше допустимого размера"
+                )
+                continue
+            content_base64 = base64.b64encode(payload).decode("ascii")
+
+        total_size += len(payload)
+        if total_size > MAX_RELAY_TOTAL_ATTACHMENT_BYTES:
+            attachment_errors.append(
+                "Общий размер вложений превышает допустимый лимит"
+            )
+            break
+        serialized_attachments.append(
+            {
+                "filename": filename,
+                "content_type": attachment.get("content_type"),
+                "content_base64": content_base64,
+            }
+        )
+
+    return {
+        "id": row.id,
+        "status": str(getattr(row.status, "value", row.status)),
+        "from_email": row.from_email,
+        "to_email": row.to_email,
+        "subject": row.subject,
+        "body_text": row.body_text,
+        "body_html": row.body_html,
+        "in_reply_to": row.in_reply_to,
+        "references": row.references,
+        "reply_to": row.reply_to,
+        "source_type": row.source_type,
+        "source_id": row.source_id,
+        "attempts": int(row.attempts or 0),
+        "last_error": row.last_error,
+        "sent_at": row.sent_at,
+        "created_at": row.created_at,
+        "attachments": serialized_attachments,
+        "attachment_errors": attachment_errors,
+    }
 
 
 async def enqueue_email(
@@ -158,6 +282,17 @@ async def mark_outbox_sent(
     row.claimed_by = None
     row.claimed_at = None
     session.add(row)
+    if row.source_type in {"reclamation", "reclamation_supplier"} and row.source_id:
+        await record_reclamation_event(
+            session,
+            reclamation_id=int(row.source_id),
+            event_type="email_sent",
+            details={
+                "outbox_id": int(row.id),
+                "recipient": row.to_email,
+                "source_type": row.source_type,
+            },
+        )
     await session.commit()
     await session.refresh(row)
     if row.source_type == "reclamation" and row.source_id:
@@ -196,6 +331,22 @@ async def mark_outbox_error(
     else:
         row.status = EMAIL_OUTBOX_STATUS.ERROR
     session.add(row)
+    if (
+        row.status == EMAIL_OUTBOX_STATUS.ERROR
+        and row.source_type in {"reclamation", "reclamation_supplier"}
+        and row.source_id
+    ):
+        await record_reclamation_event(
+            session,
+            reclamation_id=int(row.source_id),
+            event_type="email_send_failed",
+            details={
+                "outbox_id": int(row.id),
+                "recipient": row.to_email,
+                "source_type": row.source_type,
+                "error": row.last_error,
+            },
+        )
     await session.commit()
     await session.refresh(row)
     return row

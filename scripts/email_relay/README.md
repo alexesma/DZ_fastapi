@@ -9,8 +9,8 @@
 
 ```
 DZ_fastapi (прод)                     relay.py (твой ПК)
-  очередь EmailOutbox   <── HTTPS ──   1. POST /auth/login
-                                       2. GET  /email-outbox/pending
+  очередь EmailOutbox   <── HTTPS ──   1. сервисный токен в HTTPS-заголовке
+                                       2. POST /email-outbox/claim
    smtp.yandex.ru:465   <── SMTP ───   3. отправка письма
                         ── HTTPS ──>   4. POST /email-outbox/{id}/mark-sent | /mark-error
 ```
@@ -30,7 +30,7 @@ cp config.example.json config.json
 | Поле | Что это |
 |------|---------|
 | `api_base_url` | Базовый URL API. Через nginx это обычно `https://dragonzap.online/api`. |
-| `auth_email` / `auth_password` | Учётка пользователя приложения, от имени которого релей ходит в API. Заведи отдельного пользователя (например `relay-bot@…`), одобри его в админке. |
+| `relay_api_token` | Отдельный длинный сервисный токен. Он должен совпадать с `EMAIL_RELAY_API_TOKEN` в `.env` сервера и не является паролем пользователя. |
 | `poll_interval_seconds` | Как часто опрашивать очередь (по умолчанию 30 с). |
 | `batch_limit` | Сколько писем забирать за раз. |
 | `verify_tls` | Проверять TLS-сертификат API (оставь `true`). |

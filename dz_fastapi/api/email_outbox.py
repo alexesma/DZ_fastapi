@@ -13,15 +13,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dz_fastapi.api.deps import get_current_user
+from dz_fastapi.api.deps import require_email_relay, require_reclamation_access
 from dz_fastapi.core.db import get_session
 from dz_fastapi.models.partner import EmailOutbox
-from dz_fastapi.schemas.reclamation import EmailOutboxOut, OutboxMarkErrorIn
+from dz_fastapi.schemas.reclamation import EmailOutboxOut, OutboxMarkErrorIn, RelayEmailOutboxOut
 from dz_fastapi.services.email_outbox import (
     claim_pending_outbox,
     list_pending_outbox,
     mark_outbox_error,
     mark_outbox_sent,
+    serialize_outbox_for_relay,
 )
 
 logger = logging.getLogger("dz_fastapi")
@@ -29,39 +30,42 @@ logger = logging.getLogger("dz_fastapi")
 router = APIRouter(
     prefix="/email-outbox",
     tags=["email-outbox"],
-    dependencies=[Depends(get_current_user)],
 )
 
 
 @router.get(
     "/pending",
-    response_model=list[EmailOutboxOut],
+    response_model=list[RelayEmailOutboxOut],
     summary="Письма, ожидающие отправки (для релея)",
 )
 async def outbox_pending(
     limit: int = Query(default=50, ge=1, le=200),
+    _: None = Depends(require_email_relay),
     session: AsyncSession = Depends(get_session),
 ):
-    return await list_pending_outbox(session, limit=limit)
+    rows = await list_pending_outbox(session, limit=limit)
+    return [serialize_outbox_for_relay(row) for row in rows]
 
 
 @router.post(
     "/claim",
-    response_model=list[EmailOutboxOut],
+    response_model=list[RelayEmailOutboxOut],
     summary="Атомарно захватить письма для отправки (для релея)",
 )
 async def outbox_claim(
     worker: str = Query(..., min_length=1, max_length=128),
     limit: int = Query(default=25, ge=1, le=200),
     lease_seconds: int = Query(default=300, ge=30, le=3600),
+    _: None = Depends(require_email_relay),
     session: AsyncSession = Depends(get_session),
 ):
-    return await claim_pending_outbox(
+    rows = await claim_pending_outbox(
         session,
         worker=worker,
         limit=limit,
         lease_seconds=lease_seconds,
     )
+    return [serialize_outbox_for_relay(row) for row in rows]
 
 
 @router.get(
@@ -72,6 +76,7 @@ async def outbox_claim(
 async def outbox_list(
     status_filter: Optional[str] = Query(default=None, alias="status"),
     limit: int = Query(default=100, ge=1, le=500),
+    _=Depends(require_reclamation_access),
     session: AsyncSession = Depends(get_session),
 ):
     stmt = (
@@ -92,6 +97,7 @@ async def outbox_list(
 )
 async def outbox_mark_sent(
     outbox_id: int,
+    _: None = Depends(require_email_relay),
     session: AsyncSession = Depends(get_session),
 ):
     try:
@@ -108,6 +114,7 @@ async def outbox_mark_sent(
 async def outbox_mark_error(
     outbox_id: int,
     payload: OutboxMarkErrorIn,
+    _: None = Depends(require_email_relay),
     session: AsyncSession = Depends(get_session),
 ):
     try:

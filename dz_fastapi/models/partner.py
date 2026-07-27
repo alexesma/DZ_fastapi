@@ -1573,7 +1573,11 @@ class CustomerReclamationEmail(Base):
     )
 
     __table_args__ = (
-        UniqueConstraint("email", name="uq_customer_reclamation_email"),
+        UniqueConstraint(
+            "customer_id",
+            "email",
+            name="uq_customer_reclamation_customer_email",
+        ),
     )
 
 
@@ -1705,6 +1709,13 @@ class Reclamation(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    events = relationship(
+        "ReclamationEvent",
+        back_populates="reclamation",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="ReclamationEvent.id.desc()",
+    )
 
 
 class ReclamationItem(Base):
@@ -1789,6 +1800,120 @@ class ReclamationAttachment(Base):
 
     reclamation = relationship(
         "Reclamation", back_populates="attachments", lazy="noload"
+    )
+
+
+class ReclamationEvent(Base):
+    """Неизменяемая история действий и автоматических событий."""
+
+    __tablename__ = "reclamationevent"
+
+    reclamation_id = Column(
+        Integer,
+        ForeignKey("reclamation.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    event_type = Column(String(64), nullable=False, index=True)
+    actor_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    details = Column(JSON, default=dict, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        nullable=False,
+        index=True,
+    )
+
+    reclamation = relationship(
+        "Reclamation", back_populates="events", lazy="noload"
+    )
+    actor_user = relationship("User", lazy="joined")
+
+
+class ReclamationMailboxState(Base):
+    """UID-курсор отдельной папки ящика рекламаций."""
+
+    __tablename__ = "reclamationmailboxstate"
+
+    email_account_id = Column(
+        Integer,
+        ForeignKey("emailaccount.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    folder = Column(String(255), nullable=False, default="INBOX")
+    last_uid = Column(BigInteger, nullable=False, default=0)
+    last_checked_at = Column(DateTime(timezone=True), nullable=True)
+    last_error = Column(String(2000), nullable=True)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        onupdate=now_moscow,
+        nullable=False,
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "email_account_id",
+            "folder",
+            name="uq_reclamation_mailbox_state_account_folder",
+        ),
+    )
+
+
+class ReclamationMailMessage(Base):
+    """Результат обработки входящего письма для идемпотентности и повтора."""
+
+    __tablename__ = "reclamationmailmessage"
+
+    email_account_id = Column(
+        Integer,
+        ForeignKey("emailaccount.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    folder = Column(String(255), nullable=False, default="INBOX")
+    uid = Column(String(64), nullable=False)
+    message_id = Column(String(512), nullable=True, index=True)
+    reclamation_id = Column(
+        Integer,
+        ForeignKey("reclamation.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    sender_email = Column(String(255), nullable=True, index=True)
+    subject = Column(String(998), nullable=True)
+    received_at = Column(DateTime(timezone=True), nullable=True)
+    body_text = Column(Text, nullable=True)
+    body_html = Column(Text, nullable=True)
+    processing_status = Column(
+        String(32),
+        nullable=False,
+        default="pending",
+        index=True,
+    )
+    processing_error = Column(String(4000), nullable=True)
+    attempts = Column(Integer, nullable=False, default=0)
+    parser_version = Column(String(32), nullable=False, default="rules-v2")
+    created_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        nullable=False,
+    )
+    processed_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "email_account_id",
+            "folder",
+            "uid",
+            name="uq_reclamation_mail_message_account_folder_uid",
+        ),
     )
 
 

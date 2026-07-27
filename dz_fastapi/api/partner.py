@@ -3236,17 +3236,15 @@ async def add_customer_reclamation_email(
     existing = (
         await session.execute(
             select(CustomerReclamationEmail).where(
-                CustomerReclamationEmail.email == normalized
+                CustomerReclamationEmail.customer_id == customer_id,
+                CustomerReclamationEmail.email == normalized,
             )
         )
     ).scalar_one_or_none()
     if existing is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Этот адрес уже закреплён за клиентом "
-                f"#{existing.customer_id}"
-            ),
+            detail="Этот адрес уже добавлен этому клиенту",
         )
     row = CustomerReclamationEmail(
         customer_id=customer_id,

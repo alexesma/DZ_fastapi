@@ -37,10 +37,13 @@ from dz_fastapi.models.partner import (
     Reclamation,
     ReclamationAttachment,
     ReclamationItem,
+    ReclamationMailboxState,
+    ReclamationMailMessage,
 )
-from dz_fastapi.models.user import User, UserStatus
-from dz_fastapi.services.notifications import create_notification
+from dz_fastapi.models.user import User, UserRole, UserStatus
+from dz_fastapi.services.notifications import create_notification, create_notifications_for_users
 from dz_fastapi.services.reclamation_attachment_parser import parse_reclamation_attachment
+from dz_fastapi.services.reclamation_audit import record_reclamation_event
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -113,6 +116,26 @@ _INLINE_RETURN_REASON_PHRASE_RE = re.compile(
     r"\bпо\s+причине\s+(?P<reason>[^\r\n]+)",
     re.IGNORECASE,
 )
+_INLINE_RETURN_SIMPLE_REASON_RE = re.compile(
+    r"^\s*(?:>\s*)*(?P<reason>"
+    r"Неверное вложение|Пересорт|Отказ клиента|Несоответствие товара"
+    r")\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+_INLINE_PRODUCT_SENTENCE_RE = re.compile(
+    r"\bпо\s+товару\s+"
+    r"(?P<oem>[A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9./-]{4,})\s+"
+    r"(?P<brand>[A-Za-zА-Яа-я][A-Za-zА-Яа-я0-9./-]{1,})\s+"
+    r"(?P<details>[\s\S]{0,1200}?)"
+    r"\bв\s+количестве\s+(?P<quantity>\d+)\s*шт\.?",
+    re.IGNORECASE,
+)
+_INLINE_ARTICLE_QUANTITY_RE = re.compile(
+    r"^\s*(?:>\s*)*Арт(?:икул)?\.?\s*[:№]?\s*"
+    r"(?P<oem>[A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9./-]{4,})\s*"
+    r"[—–-]\s*(?P<quantity>\d+)\s*шт\.?\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
 # «№ УТ-1042», «номер УТ-1042 от 15.06.2026», «счёт 123 от 01.02.26»
 _DOC_NUMBER_RE = re.compile(
     r"(?:№|номер|док(?:умент)?[а-я]*|счет|счёт|накладн\w*|отгрузк\w*|"
@@ -127,6 +150,7 @@ _DOC_DATE_RE = re.compile(
 _DEFECT_KEYWORDS = (
     "брак", "деформ", "трещин", "не работает", "неисправ", "течет",
     "течёт", "стук", "дефект", "скрип", "люфт", "гул",
+    "неверное вложение", "несоответств",
 )
 _REFUSAL_KEYWORDS = (
     "отказ", "не подош", "не подходит", "не нужн", "передумал",
@@ -160,6 +184,8 @@ class ReclamationInboundEmail:
     body_text: str = ""
     body_html: str = ""
     message_id: Optional[str] = None
+    in_reply_to: Optional[str] = None
+    references: Optional[str] = None
     received_at: Optional[datetime] = None
     uid: Optional[str] = None
     email_account_id: Optional[int] = None
@@ -184,6 +210,44 @@ def extract_links(text: str) -> list[str]:
             seen.add(url)
             result.append(url)
     return result
+
+
+_MESSAGE_ID_RE = re.compile(r"<[^<>\s]+>")
+
+
+def _message_ids(*values: Optional[str]) -> set[str]:
+    result: set[str] = set()
+    for value in values:
+        raw = str(value or "").strip()
+        if not raw:
+            continue
+        matches = _MESSAGE_ID_RE.findall(raw)
+        if matches:
+            result.update(matches)
+        else:
+            result.update(part for part in raw.split() if part)
+    return result
+
+
+def _normalized_thread_subject(value: Optional[str]) -> str:
+    subject = html.unescape(str(value or "")).strip()
+    subject = re.sub(
+        r"^(?:(?:re|fw|fwd|ответ)\s*:\s*)+",
+        "",
+        subject,
+        flags=re.IGNORECASE,
+    )
+    return re.sub(r"\s+", " ", subject).casefold()
+
+
+def _header_value(headers: dict, *names: str) -> Optional[str]:
+    for name in names:
+        value = headers.get(name)
+        if isinstance(value, (tuple, list)):
+            value = " ".join(str(item) for item in value if item)
+        if value:
+            return str(value)
+    return None
 
 
 def extract_froza_email_item(text: str) -> Optional[dict[str, Any]]:
@@ -333,6 +397,7 @@ def extract_inline_return_items(text: str) -> list[dict[str, Any]]:
     reason_match = (
         _INLINE_RETURN_REASON_RE.search(plain_text)
         or _INLINE_RETURN_REASON_PHRASE_RE.search(plain_text)
+        or _INLINE_RETURN_SIMPLE_REASON_RE.search(plain_text)
     )
     reason = (
         reason_match.group("reason").strip(" .,:;")
@@ -340,6 +405,33 @@ def extract_inline_return_items(text: str) -> list[dict[str, Any]]:
         else None
     )
     items_by_oem: dict[str, dict[str, Any]] = {}
+
+    for row in _INLINE_PRODUCT_SENTENCE_RE.finditer(plain_text):
+        oem_number = preprocess_oem_number(row.group("oem"))
+        quantity = int(row.group("quantity"))
+        if not oem_number or quantity <= 0:
+            continue
+        details = row.group("details").strip(" .,:;")
+        parsed_reason = reason
+        if "несоответств" in details.casefold():
+            parsed_reason = "Несоответствие товара"
+        items_by_oem[oem_number] = {
+            "oem_number": oem_number,
+            "brand_name": row.group("brand").strip(),
+            "quantity": quantity,
+            "reason": parsed_reason,
+        }
+
+    for row in _INLINE_ARTICLE_QUANTITY_RE.finditer(plain_text):
+        oem_number = preprocess_oem_number(row.group("oem"))
+        quantity = int(row.group("quantity"))
+        if not oem_number or quantity <= 0:
+            continue
+        items_by_oem[oem_number] = {
+            "oem_number": oem_number,
+            "quantity": quantity,
+            "reason": reason,
+        }
 
     for row in _INLINE_RETURN_WITH_BRAND_RE.finditer(plain_text):
         oem_number = preprocess_oem_number(row.group("oem"))
@@ -368,6 +460,30 @@ def extract_inline_return_items(text: str) -> list[dict[str, Any]]:
         }
 
     return list(items_by_oem.values())
+
+
+def _plain_oem_candidate_text(text: str) -> str:
+    """Убирает служебные фрагменты, которые часто похожи на OEM."""
+    plain_text = _plain_email_text(text)
+    plain_text = re.sub(r"https?://\S+|www\.\S+", " ", plain_text)
+    plain_text = re.sub(
+        r"\b[\w.+-]+@[\w.-]+\.[A-Za-zА-Яа-я]{2,}\b",
+        " ",
+        plain_text,
+    )
+    plain_text = re.sub(
+        r"\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b",
+        " ",
+        plain_text,
+    )
+    plain_text = re.sub(r"\b\d{1,2}:\d{2}(?::\d{2})?\b", " ", plain_text)
+    plain_text = re.sub(
+        r"(?i)\b(?:сф|сч[её]т|накладн\w*|документ\w*|акт\w*)"
+        r"\s*(?:№|#)?\s*[A-Za-zА-Яа-я0-9/-]+",
+        " ",
+        plain_text,
+    )
+    return plain_text
 
 
 def apply_froza_email_item(reclamation: Reclamation) -> bool:
@@ -534,8 +650,10 @@ async def _match_oems_in_text(
     text: str,
     limit: int = 10,
     customer_id: Optional[int] = None,
+    customer_ids: Optional[list[int]] = None,
 ) -> list[dict[str, Any]]:
     """Ищет артикулы в номенклатуре и прошлых заказах клиента."""
+    text = _plain_oem_candidate_text(text)
     tokens = {
         preprocess_oem_number(tok)
         for tok in re.findall(r"[A-Za-z0-9][A-Za-z0-9\-./]{3,}", text or "")
@@ -591,9 +709,16 @@ async def _match_oems_in_text(
                 CustomerOrderItem.id.desc(),
             )
         )
+        scoped_customer_ids = {
+            int(value)
+            for value in (customer_ids or [])
+            if value is not None
+        }
         if customer_id is not None:
+            scoped_customer_ids.add(int(customer_id))
+        if scoped_customer_ids:
             order_stmt = order_stmt.where(
-                CustomerOrder.customer_id == customer_id
+                CustomerOrder.customer_id.in_(scoped_customer_ids)
             )
         order_rows = (await session.execute(order_stmt)).all()
         for row in order_rows:
@@ -832,28 +957,119 @@ async def resolve_customer_by_email(
     session: AsyncSession,
     sender_email: str,
 ) -> Optional[int]:
-    """Определяет клиента по адресу: сначала список почт рекламаций,
-    затем контактный email клиента."""
+    """Возвращает клиента, только если адрес соответствует одному юрлицу."""
+    customer_ids = await resolve_customer_ids_by_email(
+        session,
+        sender_email,
+    )
+    return customer_ids[0] if len(customer_ids) == 1 else None
+
+
+async def resolve_customer_ids_by_email(
+    session: AsyncSession,
+    sender_email: str,
+) -> list[int]:
+    """Возвращает все юрлица, использующие адрес для рекламаций."""
     email = str(sender_email or "").strip().lower()
     if not email:
-        return None
-    row = (
+        return []
+    rows = (
         await session.execute(
             select(CustomerReclamationEmail.customer_id).where(
                 CustomerReclamationEmail.email == email
             )
         )
-    ).scalar_one_or_none()
-    if row is not None:
-        return int(row)
-    customer_id = (
+    ).scalars().all()
+    customer_ids = {int(row) for row in rows}
+    contact_rows = (
         await session.execute(
             select(Customer.id).where(
                 func.lower(Customer.email_contact) == email
             )
         )
-    ).scalar_one_or_none()
-    return int(customer_id) if customer_id is not None else None
+    ).scalars().all()
+    customer_ids.update(int(row) for row in contact_rows)
+    return sorted(customer_ids)
+
+
+def _structured_items_from_fields(
+    fields: dict[str, Any],
+) -> list[dict[str, Any]]:
+    froza_item = fields.get("froza_email_item")
+    if isinstance(froza_item, dict):
+        return [froza_item]
+    return list(
+        fields.get("shortage_items")
+        or fields.get("greenlight_items")
+        or fields.get("inline_items")
+        or []
+    )
+
+
+async def _resolve_customer_from_orders(
+    session: AsyncSession,
+    *,
+    customer_ids: list[int],
+    oem_numbers: set[str],
+    document_number: Optional[str],
+) -> Optional[int]:
+    """Выбирает юрлицо только при однозначном совпадении заказа."""
+    if len(customer_ids) == 1:
+        return customer_ids[0]
+    if not customer_ids:
+        return None
+
+    document = str(document_number or "").strip()
+    if document:
+        document_customer_ids = set(
+            (
+                await session.execute(
+                    select(CustomerOrder.customer_id)
+                    .where(
+                        CustomerOrder.customer_id.in_(customer_ids),
+                        func.upper(CustomerOrder.order_number)
+                        == document.upper(),
+                    )
+                    .distinct()
+                )
+            ).scalars().all()
+        )
+        if len(document_customer_ids) == 1:
+            return int(next(iter(document_customer_ids)))
+
+    normalized_oems = {
+        preprocess_oem_number(value) for value in oem_numbers if value
+    }
+    normalized_oems.discard("")
+    if not normalized_oems:
+        return None
+    normalized_order_oem = func.upper(
+        func.regexp_replace(
+            CustomerOrderItem.oem,
+            "[^A-Za-z0-9]",
+            "",
+            "g",
+        )
+    )
+    item_customer_ids = set(
+        (
+            await session.execute(
+                select(CustomerOrder.customer_id)
+                .join(
+                    CustomerOrderItem,
+                    CustomerOrderItem.order_id == CustomerOrder.id,
+                )
+                .where(
+                    CustomerOrder.customer_id.in_(customer_ids),
+                    normalized_order_oem.in_(normalized_oems),
+                )
+                .distinct()
+            )
+        ).scalars().all()
+    )
+    if len(item_customer_ids) == 1:
+        return int(next(iter(item_customer_ids)))
+    return None
 
 
 def classify_attachment_kind(filename: Optional[str]) -> str:
@@ -881,6 +1097,195 @@ def _save_attachment_to_disk(
     return rel_path
 
 
+async def _find_thread_reclamation(
+    session: AsyncSession,
+    *,
+    email: ReclamationInboundEmail,
+    sender_email: str,
+    fields: dict[str, Any],
+) -> Optional[Reclamation]:
+    reference_ids = _message_ids(email.in_reply_to, email.references)
+    if reference_ids:
+        variants = set(reference_ids)
+        variants.update(value.strip("<>") for value in reference_ids)
+        referenced = (
+            await session.execute(
+                select(Reclamation)
+                .where(Reclamation.email_message_id.in_(variants))
+                .options(selectinload(Reclamation.items))
+                .order_by(Reclamation.id.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if referenced is not None:
+            return referenced
+
+    normalized_subject = _normalized_thread_subject(email.subject)
+    structured_oems = {
+        preprocess_oem_number(item.get("oem_number") or "")
+        for item in _structured_items_from_fields(fields)
+    }
+    structured_oems.discard("")
+    if not sender_email or not normalized_subject or not structured_oems:
+        return None
+
+    candidates = (
+        (
+            await session.execute(
+                select(Reclamation)
+                .where(Reclamation.sender_email == sender_email)
+                .options(selectinload(Reclamation.items))
+                .order_by(Reclamation.email_received_at.desc().nullslast())
+                .limit(50)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    received_date = (
+        email.received_at.date() if email.received_at is not None else None
+    )
+    for candidate in candidates:
+        if (
+            _normalized_thread_subject(candidate.email_subject)
+            != normalized_subject
+        ):
+            continue
+        candidate_date = (
+            candidate.email_received_at.date()
+            if candidate.email_received_at is not None
+            else None
+        )
+        if (
+            received_date is not None
+            and candidate_date is not None
+            and abs((received_date - candidate_date).days) > 60
+        ):
+            continue
+        candidate_oems = {
+            preprocess_oem_number(item.oem_number or "")
+            for item in (candidate.items or [])
+        }
+        if structured_oems & candidate_oems:
+            return candidate
+    return None
+
+
+async def _append_thread_message(
+    session: AsyncSession,
+    *,
+    reclamation: Reclamation,
+    email: ReclamationInboundEmail,
+) -> bool:
+    extracted_data = dict(reclamation.extracted_data or {})
+    thread_messages = list(extracted_data.get("thread_messages") or [])
+    message_id = str(email.message_id or "").strip() or None
+    if message_id and any(
+        str(item.get("message_id") or "").strip() == message_id
+        for item in thread_messages
+    ):
+        return False
+
+    readable_body = email.body_text or _plain_email_text(email.body_html)
+    thread_messages.append(
+        {
+            "direction": "incoming",
+            "message_id": message_id,
+            "in_reply_to": email.in_reply_to,
+            "references": email.references,
+            "from_email": extract_sender_email(email.from_),
+            "subject": email.subject or None,
+            "received_at": (
+                email.received_at.isoformat() if email.received_at else None
+            ),
+            "body": readable_body[:50000] or None,
+        }
+    )
+    extracted_data["thread_messages"] = thread_messages[-50:]
+    reclamation.extracted_data = extracted_data
+    session.add(reclamation)
+
+    for attachment in email.attachments or []:
+        try:
+            path = _save_attachment_to_disk(reclamation.id, attachment)
+        except Exception:  # noqa: BLE001
+            logger.warning(
+                "Не удалось сохранить вложение ответа по рекламации #%s",
+                reclamation.id,
+            )
+            path = None
+        session.add(
+            ReclamationAttachment(
+                reclamation_id=reclamation.id,
+                kind=classify_attachment_kind(attachment.filename),
+                file_name=attachment.filename,
+                content_type=attachment.content_type,
+                local_file_path=path,
+                size_bytes=len(attachment.payload or b""),
+            )
+        )
+
+    await record_reclamation_event(
+        session,
+        reclamation_id=int(reclamation.id),
+        event_type="thread_message_received",
+        details={
+            "from_email": extract_sender_email(email.from_),
+            "subject": email.subject,
+            "message_id": message_id,
+            "attachments_count": len(email.attachments or []),
+        },
+    )
+    notify_user_ids: set[int] = set()
+    if reclamation.shortage_assigned_to_user_id:
+        notify_user_ids.add(int(reclamation.shortage_assigned_to_user_id))
+    role_user_ids = (
+        await session.execute(
+            select(User.id).where(
+                User.status == UserStatus.ACTIVE,
+                User.role.in_(
+                    [UserRole.ADMIN, UserRole.RECLAMATION]
+                ),
+            )
+        )
+    ).scalars().all()
+    notify_user_ids.update(int(user_id) for user_id in role_user_ids)
+    await create_notifications_for_users(
+        session,
+        user_ids=notify_user_ids,
+        title=f"Новый ответ по рекламации #{reclamation.id}",
+        message=(
+            f"{extract_sender_email(email.from_) or 'Клиент'}: "
+            f"{email.subject or 'без темы'}"
+        ),
+        level=AppNotificationLevel.INFO,
+        link=f"/reclamations?openId={reclamation.id}",
+        payload={
+            "notification_type": "reclamation_thread_reply",
+            "reclamation_id": int(reclamation.id),
+        },
+        commit=False,
+    )
+    await session.commit()
+
+    if email.attachments and reclamation.status == RECLAMATION_STATUS.WAITING_DOCS:
+        try:
+            from dz_fastapi.services.reclamation_check import run_reclamation_check
+
+            await run_reclamation_check(
+                session,
+                reclamation_id=int(reclamation.id),
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Не удалось автоматически перепроверить рекламацию #%s "
+                "после получения документов: %s",
+                reclamation.id,
+                exc,
+            )
+    return True
+
+
 async def ingest_reclamation_email(
     session: AsyncSession,
     email: ReclamationInboundEmail,
@@ -891,6 +1296,7 @@ async def ingest_reclamation_email(
     )
     fields = extract_fields(email.subject, body_for_extraction)
     source_link = _preferred_source_link(fields.get("links") or [])
+    sender = extract_sender_email(email.from_)
 
     if email.message_id:
         existing = (
@@ -975,8 +1381,27 @@ async def ingest_reclamation_email(
             )
             return None
 
-    sender = extract_sender_email(email.from_)
-    customer_id = await resolve_customer_by_email(session, sender)
+    thread_reclamation = await _find_thread_reclamation(
+        session,
+        email=email,
+        sender_email=sender,
+        fields=fields,
+    )
+    if thread_reclamation is not None:
+        appended = await _append_thread_message(
+            session,
+            reclamation=thread_reclamation,
+            email=email,
+        )
+        logger.info(
+            "Письмо %s %s с рекламацией #%s как продолжение переписки",
+            email.message_id or email.uid,
+            "связано" if appended else "уже было связано",
+            thread_reclamation.id,
+        )
+        return None
+
+    customer_ids = await resolve_customer_ids_by_email(session, sender)
     attachment_extractions = [
         parsed
         for attachment in (email.attachments or [])
@@ -987,6 +1412,23 @@ async def ingest_reclamation_email(
             )
         )
     ]
+    structured_items = _structured_items_from_fields(fields)
+    customer_match_oems = {
+        preprocess_oem_number(item.get("oem_number") or "")
+        for item in structured_items
+    }
+    customer_match_oems.update(
+        preprocess_oem_number(item.get("oem_number") or "")
+        for parsed in attachment_extractions
+        for item in (parsed.get("items") or [])
+    )
+    customer_match_oems.discard("")
+    customer_id = await _resolve_customer_from_orders(
+        session,
+        customer_ids=customer_ids,
+        oem_numbers=customer_match_oems,
+        document_number=fields.get("document_number"),
+    )
     attachment_document = next(
         (
             parsed
@@ -1022,6 +1464,21 @@ async def ingest_reclamation_email(
         reclamation_type = classify_reclamation_type(attachment_reason)
 
     extracted_data = dict(fields)
+    if len(customer_ids) > 1:
+        customer_rows = (
+            await session.execute(
+                select(Customer.id, Customer.name)
+                .where(Customer.id.in_(customer_ids))
+                .order_by(Customer.name, Customer.id)
+            )
+        ).all()
+        extracted_data["customer_candidates"] = [
+            {"id": int(row.id), "name": row.name}
+            for row in customer_rows
+        ]
+        extracted_data["customer_resolution"] = (
+            "matched_by_order" if customer_id else "ambiguous"
+        )
     if attachment_extractions:
         extracted_data["attachments"] = attachment_extractions
     if email.uid:
@@ -1075,7 +1532,23 @@ async def ingest_reclamation_email(
         session,
         f"{email.subject}\n{body_for_extraction}",
         customer_id=customer_id,
+        customer_ids=customer_ids,
     )
+    if customer_id is None and len(customer_ids) > 1:
+        customer_id = await _resolve_customer_from_orders(
+            session,
+            customer_ids=customer_ids,
+            oem_numbers={
+                preprocess_oem_number(item.get("oem_number") or "")
+                for item in matched
+            },
+            document_number=document_number,
+        )
+        if customer_id is not None:
+            reclamation.customer_id = customer_id
+            reclamation.status = RECLAMATION_STATUS.RECOGNIZED
+            extracted_data["customer_resolution"] = "matched_by_order"
+            reclamation.extracted_data = extracted_data
     candidates = {
         preprocess_oem_number(item["oem_number"]): {
             **item,
@@ -1088,12 +1561,6 @@ async def ingest_reclamation_email(
     document_oem = preprocess_oem_number(document_number or "")
     if document_oem:
         candidates.pop(document_oem, None)
-    structured_items = (
-        fields.get("shortage_items")
-        or fields.get("greenlight_items")
-        or fields.get("inline_items")
-        or []
-    )
     if structured_items:
         resolved_by_oem = {
             preprocess_oem_number(item["oem_number"]): item
@@ -1171,6 +1638,7 @@ async def ingest_reclamation_email(
             session,
             attachment_oems,
             customer_id=customer_id,
+            customer_ids=customer_ids,
         )
         resolved_by_oem = {
             preprocess_oem_number(item["oem_number"]): item
@@ -1236,6 +1704,17 @@ async def ingest_reclamation_email(
             )
         )
 
+    await record_reclamation_event(
+        session,
+        reclamation_id=int(reclamation.id),
+        event_type="created_from_email",
+        details={
+            "sender_email": sender,
+            "subject": email.subject,
+            "items_count": len(candidates),
+            "attachments_count": len(email.attachments or []),
+        },
+    )
     await session.commit()
     await session.refresh(reclamation)
     logger.info(
@@ -1255,6 +1734,8 @@ def _fetch_reclamation_imap_sync(
     folder: str,
     port: int,
     since_date: date,
+    last_uid: int = 0,
+    limit: int = 200,
 ) -> list[ReclamationInboundEmail]:
     """Читает ящик рекламаций (тело + Message-ID + вложения)."""
     from imap_tools import AND
@@ -1265,11 +1746,18 @@ def _fetch_reclamation_imap_sync(
     mb = _create_mailbox(host, port, True).login(email, password)
     with mb as mailbox:
         mailbox.folder.set(folder)
+        criteria = (
+            f"UID {int(last_uid) + 1}:*"
+            if int(last_uid or 0) > 0
+            else AND(date_gte=since_date, all=True)
+        )
         for msg in mailbox.fetch(
-            AND(date_gte=since_date, all=True),
+            criteria,
             charset="utf-8",
             mark_seen=False,
         ):
+            if len(result) >= max(1, int(limit)):
+                break
             sender = str(getattr(msg, "from_", "") or "").lower()
             if extract_sender_email(sender) == str(email or "").lower():
                 continue  # пропускаем свои же исходящие
@@ -1282,12 +1770,21 @@ def _fetch_reclamation_imap_sync(
                 for att in (msg.attachments or [])
             ]
             headers = getattr(msg, "headers", {}) or {}
-            message_id = None
-            mid = headers.get("message-id") or headers.get("Message-ID")
-            if isinstance(mid, (tuple, list)) and mid:
-                message_id = str(mid[0])
-            elif mid:
-                message_id = str(mid)
+            message_id = _header_value(
+                headers,
+                "message-id",
+                "Message-ID",
+            )
+            in_reply_to = _header_value(
+                headers,
+                "in-reply-to",
+                "In-Reply-To",
+            )
+            references = _header_value(
+                headers,
+                "references",
+                "References",
+            )
             result.append(
                 ReclamationInboundEmail(
                     from_=str(getattr(msg, "from_", "") or ""),
@@ -1297,6 +1794,8 @@ def _fetch_reclamation_imap_sync(
                     message_id=message_id or (
                         str(msg.uid) if msg.uid else None
                     ),
+                    in_reply_to=in_reply_to,
+                    references=references,
                     received_at=getattr(msg, "date", None),
                     uid=str(msg.uid) if msg.uid else None,
                     attachments=attachments,
@@ -1308,6 +1807,9 @@ def _fetch_reclamation_imap_sync(
 async def fetch_reclamation_emails(
     account,
     days: int = 7,
+    *,
+    last_uid: int = 0,
+    limit: int = 200,
 ) -> list[ReclamationInboundEmail]:
     """IMAP-чтение ящика рекламаций (в отдельном потоке)."""
     import asyncio
@@ -1318,6 +1820,8 @@ async def fetch_reclamation_emails(
             "У почтового ящика рекламаций не указан IMAP-сервер"
         )
     since = (now_moscow() - timedelta(days=days)).date()
+    account_id = int(account.id)
+    account_email = str(account.email)
     folder = (getattr(account, "imap_folder", None) or "INBOX").strip()
     try:
         emails = await asyncio.wait_for(
@@ -1329,22 +1833,36 @@ async def fetch_reclamation_emails(
                 folder,
                 int(getattr(account, "imap_port", 993) or 993),
                 since,
+                int(last_uid or 0),
+                int(limit),
             ),
-            timeout=120,
+            timeout=max(
+                30,
+                int(
+                    os.getenv(
+                        "RECLAMATION_IMAP_TIMEOUT_SEC",
+                        "180",
+                    )
+                ),
+            ),
         )
         for item in emails:
-            item.email_account_id = getattr(account, "id", None)
+            item.email_account_id = account_id
             item.folder = folder
+            if item.message_id == item.uid and item.uid:
+                item.message_id = (
+                    f"imap:{account_id}:{folder}:{item.uid}"
+                )
         return emails
     except Exception as exc:  # noqa: BLE001
         logger.error(
             "Ошибка чтения ящика рекламаций id=%s: %s",
-            getattr(account, "id", "?"),
+            account_id,
             exc,
         )
         raise RuntimeError(
             "Не удалось прочитать почтовый ящик рекламаций "
-            f"{getattr(account, 'email', '')}: {exc}"
+            f"{account_email}: {exc}"
         ) from exc
 
 
@@ -1526,7 +2044,8 @@ async def assign_reclamation_customer(
         exists = (
             await session.execute(
                 select(CustomerReclamationEmail.id).where(
-                    CustomerReclamationEmail.email == email
+                    CustomerReclamationEmail.customer_id == customer_id,
+                    CustomerReclamationEmail.email == email,
                 )
             )
         ).scalar_one_or_none()
@@ -1941,20 +2460,56 @@ async def get_reclamation_account(session: AsyncSession):
 
 
 async def sync_reclamation_mailbox(session: AsyncSession) -> dict[str, Any]:
-    """Читает ящик рекламаций (purpose=reclamation) и создаёт рекламации."""
+    """Инкрементально читает ящик и изолирует результат каждого письма."""
     account = await get_reclamation_account(session)
     if account is None:
         return {
             "fetched": 0,
             "created": 0,
             "skipped": 0,
+            "errors": 0,
             "note": (
                 "Не найден активный почтовый ящик с назначением "
                 "«reclamation». Добавьте его в разделе Почтовые ящики."
             ),
         }
 
-    emails = await fetch_reclamation_emails(account)
+    account_id = int(account.id)
+    account_email = str(account.email)
+    folder = (getattr(account, "imap_folder", None) or "INBOX").strip()
+    mailbox_state = (
+        await session.execute(
+            select(ReclamationMailboxState).where(
+                ReclamationMailboxState.email_account_id == account_id,
+                ReclamationMailboxState.folder == folder,
+            )
+        )
+    ).scalar_one_or_none()
+    if mailbox_state is None:
+        mailbox_state = ReclamationMailboxState(
+            email_account_id=account_id,
+            folder=folder,
+            last_uid=0,
+        )
+        session.add(mailbox_state)
+        await session.commit()
+        await session.refresh(mailbox_state)
+        await session.refresh(account)
+
+    mailbox_state_id = int(mailbox_state.id)
+    previous_uid = int(mailbox_state.last_uid or 0)
+    emails = await fetch_reclamation_emails(
+        account,
+        days=max(
+            1,
+            int(os.getenv("RECLAMATION_IMAP_INITIAL_DAYS", "7")),
+        ),
+        last_uid=previous_uid,
+        limit=max(
+            1,
+            int(os.getenv("RECLAMATION_IMAP_BATCH_LIMIT", "200")),
+        ),
+    )
     from dz_fastapi.services.reclamation_armtek import (
         ArmtekPortalError,
         is_armtek_portal_notice,
@@ -1963,43 +2518,164 @@ async def sync_reclamation_mailbox(session: AsyncSession) -> dict[str, Any]:
 
     created = 0
     skipped = 0
+    errors = 0
     armtek_results: list[dict[str, Any]] = []
     armtek_errors: list[str] = []
+    max_uid = previous_uid
     for email in emails:
+        uid = str(email.uid or email.message_id or "").strip()
+        if not uid:
+            logger.warning(
+                "Письмо рекламации без UID/Message-ID пропущено: %s",
+                email.subject,
+            )
+            skipped += 1
+            continue
+        try:
+            max_uid = max(max_uid, int(uid))
+        except ValueError:
+            pass
+
+        mail_row = (
+            await session.execute(
+                select(ReclamationMailMessage).where(
+                    ReclamationMailMessage.email_account_id == account_id,
+                    ReclamationMailMessage.folder == folder,
+                    ReclamationMailMessage.uid == uid,
+                )
+            )
+        ).scalar_one_or_none()
+        if mail_row and mail_row.processing_status in {
+            "processed",
+            "skipped",
+        }:
+            skipped += 1
+            continue
+        if mail_row is None:
+            mail_row = ReclamationMailMessage(
+                email_account_id=account_id,
+                folder=folder,
+                uid=uid,
+            )
+        mail_row.message_id = email.message_id
+        mail_row.sender_email = extract_sender_email(email.from_)
+        mail_row.subject = email.subject
+        mail_row.received_at = email.received_at
+        mail_row.body_text = email.body_text
+        mail_row.body_html = email.body_html
+        mail_row.processing_status = "processing"
+        mail_row.processing_error = None
+        mail_row.attempts = int(mail_row.attempts or 0) + 1
+        session.add(mail_row)
+        await session.commit()
+        await session.refresh(mail_row)
+        mail_row_id = int(mail_row.id)
+
         sender = extract_sender_email(email.from_)
         message_body = "\n".join(
             part for part in (email.body_text, email.body_html) if part
         )
-        if is_armtek_portal_notice(sender=sender, body=message_body):
-            customer_id = await resolve_customer_by_email(session, sender)
-            try:
+        try:
+            reclamation_id: int | None = None
+            if is_armtek_portal_notice(sender=sender, body=message_body):
+                customer_id = await resolve_customer_by_email(session, sender)
                 result = await sync_armtek_open_returns(
                     session,
                     customer_id=customer_id,
                     sender_email=sender,
                     email_received_at=email.received_at,
                 )
-            except ArmtekPortalError as exc:
-                logger.error(
-                    "Не удалось синхронизировать возвраты Armtek: %s",
-                    exc,
-                )
-                armtek_errors.append(str(exc))
-                skipped += 1
-            else:
                 armtek_results.append(result)
                 created += int(result.get("created") or 0)
-            continue
-        rec = await ingest_reclamation_email(session, email)
-        if rec is not None:
-            created += 1
-        else:
-            skipped += 1
+            else:
+                rec = await ingest_reclamation_email(session, email)
+                if rec is not None:
+                    reclamation_id = int(rec.id)
+                    created += 1
+                else:
+                    skipped += 1
+
+            mail_row = await session.get(
+                ReclamationMailMessage,
+                mail_row_id,
+            )
+            if mail_row is not None:
+                mail_row.reclamation_id = reclamation_id
+                mail_row.processing_status = (
+                    "processed" if reclamation_id else "skipped"
+                )
+                mail_row.processed_at = now_moscow()
+                session.add(mail_row)
+                await session.commit()
+        except Exception as exc:  # noqa: BLE001
+            await session.rollback()
+            errors += 1
+            error_text = str(exc)[:4000]
+            if isinstance(exc, ArmtekPortalError):
+                armtek_errors.append(error_text)
+            logger.exception(
+                "Ошибка обработки письма рекламации account_id=%s "
+                "folder=%s uid=%s",
+                account_id,
+                folder,
+                uid,
+            )
+            mail_row = await session.get(
+                ReclamationMailMessage,
+                mail_row_id,
+            )
+            if mail_row is not None:
+                mail_row.processing_status = "error"
+                mail_row.processing_error = error_text
+                mail_row.processed_at = now_moscow()
+                session.add(mail_row)
+            user_ids = (
+                await session.execute(
+                    select(User.id).where(
+                        User.status == UserStatus.ACTIVE,
+                        User.role.in_(
+                            [UserRole.ADMIN, UserRole.RECLAMATION]
+                        ),
+                    )
+                )
+            ).scalars().all()
+            await create_notifications_for_users(
+                session,
+                user_ids=user_ids,
+                title="Не обработано письмо рекламации",
+                message=(
+                    f"{sender or 'Неизвестный отправитель'} · "
+                    f"{email.subject or 'без темы'}: {error_text[:500]}"
+                ),
+                level=AppNotificationLevel.ERROR,
+                link="/reclamations",
+                payload={
+                    "notification_type": "reclamation_mail_error",
+                    "mail_message_id": mail_row_id,
+                    "uid": uid,
+                },
+                commit=False,
+            )
+            await session.commit()
+
+    mailbox_state = await session.get(
+        ReclamationMailboxState,
+        mailbox_state_id,
+    )
+    if mailbox_state is not None:
+        mailbox_state.last_uid = max_uid
+        mailbox_state.last_checked_at = now_moscow()
+        mailbox_state.last_error = (
+            f"Ошибок обработки писем: {errors}" if errors else None
+        )
+        session.add(mailbox_state)
+        await session.commit()
     return {
         "fetched": len(emails),
         "created": created,
         "skipped": skipped,
-        "account_email": account.email,
+        "errors": errors,
+        "account_email": account_email,
         "armtek": armtek_results,
         "armtek_errors": armtek_errors,
     }

@@ -29,6 +29,17 @@ class ReclamationAttachmentOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ReclamationEventOut(BaseModel):
+    id: int
+    event_type: str
+    actor_user_id: Optional[int] = None
+    actor_user_name: Optional[str] = None
+    details: dict[str, Any] = Field(default_factory=dict)
+    created_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ReclamationRow(BaseModel):
     id: int
     source: str
@@ -84,6 +95,7 @@ class ReclamationDetail(BaseModel):
     created_at: Optional[datetime] = None
     items: list[ReclamationItemOut] = Field(default_factory=list)
     attachments: list[ReclamationAttachmentOut] = Field(default_factory=list)
+    events: list[ReclamationEventOut] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -184,6 +196,18 @@ class EmailOutboxOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class RelayAttachmentOut(BaseModel):
+    filename: str
+    content_type: Optional[str] = None
+    content_base64: str
+
+
+class RelayEmailOutboxOut(EmailOutboxOut):
+    body_html: Optional[str] = None
+    attachments: list[RelayAttachmentOut] = Field(default_factory=list)
+    attachment_errors: list[str] = Field(default_factory=list)
+
+
 class OutboxMarkErrorIn(BaseModel):
     error: str
     retry: bool = True
@@ -199,6 +223,7 @@ class ReclamationSyncResult(BaseModel):
     fetched: int = 0
     created: int = 0
     skipped: int = 0
+    errors: int = 0
     account_email: Optional[str] = None
     note: Optional[str] = None
     armtek: list[dict[str, Any]] = Field(default_factory=list)

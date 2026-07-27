@@ -1,4 +1,7 @@
-from fastapi import Cookie, Depends, HTTPException
+import os
+import secrets
+
+from fastapi import Cookie, Depends, Header, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.config import settings
@@ -32,3 +35,36 @@ async def require_admin(
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
+
+
+async def require_reclamation_access(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if current_user.role not in {
+        UserRole.ADMIN,
+        UserRole.RECLAMATION,
+    }:
+        raise HTTPException(
+            status_code=403,
+            detail="Reclamation access required",
+        )
+    return current_user
+
+
+async def require_email_relay(
+    x_email_relay_token: str | None = Header(
+        default=None,
+        alias="X-Email-Relay-Token",
+    ),
+) -> None:
+    expected = str(os.getenv("EMAIL_RELAY_API_TOKEN") or "").strip()
+    if not expected:
+        raise HTTPException(
+            status_code=503,
+            detail="EMAIL_RELAY_API_TOKEN is not configured",
+        )
+    if not x_email_relay_token or not secrets.compare_digest(
+        x_email_relay_token,
+        expected,
+    ):
+        raise HTTPException(status_code=401, detail="Invalid relay token")

@@ -25,8 +25,7 @@ from dz_fastapi.models.partner import (
 ARMTEK_NOTICE_SENDER = "cross@armtek.ru"
 ARMTEK_PORTAL_HOST = "srm.armtek.ru"
 ARMTEK_OPEN_RETURNS_PATH = "/returns-management/opened"
-ARMTEK_AUTH_SYSTEM = "AUTH_MICROSERVICE_V1_OAUTH"
-ARMTEK_AUTH_TOKEN = "bcvf54ERFGEjfhfJHG"
+DEFAULT_ARMTEK_AUTH_SYSTEM = "AUTH_MICROSERVICE_V1_OAUTH"
 ARMTEK_APPROVED_STATUS = "Подтверждено поставщиком"
 ARMTEK_REJECTED_STATUS = "Отказ поставщика"
 
@@ -40,6 +39,8 @@ class ArmtekPortalConfig:
     login: str
     password: str
     supplier_id: str | None = None
+    auth_system: str = DEFAULT_ARMTEK_AUTH_SYSTEM
+    auth_token: str = ""
     oauth_base_url: str = "https://oauth.armtek.ru/rest/ru"
     srm_base_url: str = "https://srm.armtek.ru/rest/ru"
 
@@ -47,14 +48,20 @@ class ArmtekPortalConfig:
     def from_env(cls) -> "ArmtekPortalConfig":
         login = str(os.getenv("ARMTEK_SRM_LOGIN") or "").strip()
         password = str(os.getenv("ARMTEK_SRM_PASSWORD") or "")
-        if not login or not password:
+        auth_token = str(os.getenv("ARMTEK_AUTH_TOKEN") or "").strip()
+        if not login or not password or not auth_token:
             raise ArmtekPortalError(
                 "Armtek не настроен: задайте ARMTEK_SRM_LOGIN и "
-                "ARMTEK_SRM_PASSWORD"
+                "ARMTEK_SRM_PASSWORD, ARMTEK_AUTH_TOKEN"
             )
         return cls(
             login=login,
             password=password,
+            auth_system=(
+                str(os.getenv("ARMTEK_AUTH_SYSTEM") or "").strip()
+                or DEFAULT_ARMTEK_AUTH_SYSTEM
+            ),
+            auth_token=auth_token,
             supplier_id=(
                 str(os.getenv("ARMTEK_SRM_SUPPLIER_ID") or "").strip()
                 or None
@@ -299,13 +306,17 @@ class ArmtekPortalClient:
         return payload
 
     async def authenticate(self) -> None:
+        if not self.config.auth_token:
+            raise ArmtekPortalError(
+                "Armtek не настроен: отсутствует ARMTEK_AUTH_TOKEN"
+            )
         payload = await self._request(
             "POST",
             f"{self.config.oauth_base_url}/auth-microservice/v1/auth/login",
             auth=False,
             headers={
-                "X-AUTH-SYSTEM": ARMTEK_AUTH_SYSTEM,
-                "X-AUTH-TOKEN": ARMTEK_AUTH_TOKEN,
+                "X-AUTH-SYSTEM": self.config.auth_system,
+                "X-AUTH-TOKEN": self.config.auth_token,
             },
             json={
                 "login": self.config.login,

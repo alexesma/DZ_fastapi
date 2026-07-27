@@ -7,8 +7,8 @@
 компьютере) забирает их по HTTPS и отправляет через smtp.yandex.ru:465.
 
 Цикл:
-  1. POST /auth/login              — получить сессию (кука ставится сервером);
-  2. GET  /email-outbox/pending    — забрать письма к отправке;
+  1. передать X-Email-Relay-Token  — сервисная авторизация;
+  2. POST /email-outbox/claim      — атомарно забрать письма к отправке;
   3. отправить через SMTP с нужного from-адреса;
   4. POST /email-outbox/{id}/mark-sent  или  /mark-error.
 
@@ -18,11 +18,8 @@
   python relay.py --config config.json --once     # один проход
   python relay.py --config config.json --dry-run  # показать, но не отправлять
 
-Несколько машин: можно запускать этот скрипт на 2–3 компьютерах против одной
-очереди, НО пока нет серверного «claim», две машины могут отправить одно и то
-же письмо дважды. До появления claim-эндпоинта запускай ОДИН экземпляр за раз
-(либо на разных машинах — по разным from-адресам через smtp_accounts, если
-письма делятся по отправителю). См. README.md.
+Несколько машин можно запускать против одной очереди: серверный claim
+атомарно закрепляет письма за конкретным worker_id.
 """
 import argparse
 import base64
@@ -48,8 +45,7 @@ logger = logging.getLogger("email_relay")
 class RelayConfig:
     def __init__(self, data: dict):
         self.api_base_url = str(data["api_base_url"]).rstrip("/")
-        self.auth_email = data["auth_email"]
-        self.auth_password = data["auth_password"]
+        self.relay_api_token = str(data["relay_api_token"]).strip()
         self.poll_interval_seconds = int(data.get("poll_interval_seconds", 30))
         self.batch_limit = int(data.get("batch_limit", 25))
         self.verify_tls = bool(data.get("verify_tls", True))
@@ -85,6 +81,9 @@ class ApiClient:
         self.config = config
         self.session = requests.Session()
         self.session.verify = config.verify_tls
+        self.session.headers["X-Email-Relay-Token"] = (
+            config.relay_api_token
+        )
 
     def _url(self, path: str) -> str:
         return f"{self.config.api_base_url}{path}"
@@ -116,30 +115,15 @@ class ApiClient:
         raise RuntimeError("Недостижимый код повтора HTTP-запроса")
 
     def login(self) -> None:
-        resp = self._request_with_transport_retry(
-            "POST",
-            "/auth/login",
-            json={
-                "email": self.config.auth_email,
-                "password": self.config.auth_password,
-            },
-        )
-        resp.raise_for_status()
-        logger.info("Авторизация в API успешна (%s)", self.config.auth_email)
+        logger.info("Сервисный токен релея настроен")
 
     def _get_with_retry(self, path: str, **kwargs):
         resp = self._request_with_transport_retry("GET", path, **kwargs)
-        if resp.status_code == 401:
-            self.login()
-            resp = self._request_with_transport_retry("GET", path, **kwargs)
         resp.raise_for_status()
         return resp
 
     def _post_with_retry(self, path: str, **kwargs):
         resp = self._request_with_transport_retry("POST", path, **kwargs)
-        if resp.status_code == 401:
-            self.login()
-            resp = self._request_with_transport_retry("POST", path, **kwargs)
         resp.raise_for_status()
         return resp
 
@@ -163,9 +147,6 @@ class ApiClient:
                 "lease_seconds": self.config.claim_lease_seconds,
             },
         )
-        if resp.status_code == 401:
-            self.login()
-            return self.claim()
         if resp.status_code == 404:
             logger.warning(
                 "Эндпоинт /email-outbox/claim недоступен — использую "
@@ -294,6 +275,13 @@ def process_once(client: ApiClient, config: RelayConfig,
     sent = 0
     for item in items:
         outbox_id = item["id"]
+        attachment_errors = item.get("attachment_errors") or []
+        if attachment_errors:
+            msg = "; ".join(str(error) for error in attachment_errors)
+            logger.error("Письмо #%s: %s", outbox_id, msg)
+            if not dry_run:
+                client.mark_error(outbox_id, msg, retry=False)
+            continue
         from_email = item.get("from_email")
         smtp_cfg = config.smtp_for(from_email)
         if not smtp_cfg:

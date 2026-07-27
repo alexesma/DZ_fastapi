@@ -1,12 +1,16 @@
+import base64
 import json
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 import httpx
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dz_fastapi.api.deps import require_email_relay, require_reclamation_access
+from dz_fastapi.api.reclamation import _redact_portal_tokens
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.email_account import EmailAccount
@@ -28,11 +32,15 @@ from dz_fastapi.models.partner import (
     Customer,
     CustomerOrder,
     CustomerOrderItem,
+    CustomerReclamationEmail,
     EmailOutbox,
     Provider,
     Reclamation,
     ReclamationAttachment,
+    ReclamationEvent,
     ReclamationItem,
+    ReclamationMailboxState,
+    ReclamationMailMessage,
     SupplierReceipt,
 )
 from dz_fastapi.models.user import User, UserRole, UserStatus
@@ -40,6 +48,7 @@ from dz_fastapi.services.email_outbox import (
     _flag_source_email_answered_sync,
     mark_outbox_error,
     mark_outbox_sent,
+    serialize_outbox_for_relay,
 )
 from dz_fastapi.services.reclamation_armtek import (
     ARMTEK_APPROVED_STATUS,
@@ -75,6 +84,7 @@ from dz_fastapi.services.reclamation_replies import (
 from dz_fastapi.services.reclamations import (
     ReclamationInboundAttachment,
     ReclamationInboundEmail,
+    _append_thread_message,
     _match_oems_in_text,
     assign_shortage_reviewer,
     classify_attachment_kind,
@@ -91,6 +101,7 @@ from dz_fastapi.services.reclamations import (
     list_reclamations,
     postpone_shortage_review,
     recognize_reclamation_items,
+    sync_reclamation_mailbox,
 )
 
 
@@ -247,6 +258,28 @@ def _quoted_return_body() -> str:
     """
 
 
+def _avtoformula_torg2_body() -> str:
+    return """
+    <div>Добрый день, заявка Вами ранее согласована.</div>
+    <div style="color:#2d81f7" class="127273px">
+      По товару AL200271 ALLRING Кольцо уплотнительное MERCEDES
+      A0259976648 / A025997664805 обнаружено несоответствие
+      в количестве 2 шт.
+    </div>
+    <div>При приемке по накладной №2964 от 06.07.26</div>
+    """
+
+
+def _unispart_return_body() -> str:
+    return """
+    Добрый день!
+    Прошу принять возврат
+    > Арт. 06H905199C — 1 шт.
+    > СФ 3254
+    > Неверное вложение
+    """
+
+
 def test_extract_inline_return_items_uses_explicit_quantity():
     avtoformula = extract_inline_return_items(_avtoformula_return_body())
     quoted = extract_inline_return_items(_quoted_return_body())
@@ -267,6 +300,173 @@ def test_extract_inline_return_items_uses_explicit_quantity():
             "reason": "конструктивные отличия",
         }
     ]
+    assert extract_inline_return_items(_avtoformula_torg2_body()) == [
+        {
+            "oem_number": "AL200271",
+            "brand_name": "ALLRING",
+            "quantity": 2,
+            "reason": "Несоответствие товара",
+        }
+    ]
+    assert extract_inline_return_items(_unispart_return_body()) == [
+        {
+            "oem_number": "06H905199C",
+            "quantity": 1,
+            "reason": "Неверное вложение",
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_ingest_torg2_html_ignores_css_and_document_tokens(
+    test_session: AsyncSession,
+):
+    brand = Brand(name="TORG2 HTML TEST")
+    test_session.add(brand)
+    await test_session.flush()
+    test_session.add_all(
+        [
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="AL200271",
+                name="Уплотнительное кольцо",
+            ),
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="127273PX",
+                name="CSS class",
+            ),
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="2D81F7",
+                name="CSS color",
+            ),
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="2964",
+                name="Номер накладной",
+            ),
+        ]
+    )
+    await test_session.commit()
+
+    reclamation = await ingest_reclamation_email(
+        test_session,
+        ReclamationInboundEmail(
+            from_="sulimenko_i@avtoformula.ru",
+            subject="Акт ТОРГ-2",
+            body_html=_avtoformula_torg2_body(),
+            message_id="<torg2-html@example.test>",
+        ),
+    )
+
+    assert reclamation is not None
+    assert [item.oem_number for item in reclamation.items] == ["AL200271"]
+    assert reclamation.items[0].quantity == 2
+    assert reclamation.items[0].reason == "Несоответствие товара"
+
+
+@pytest.mark.asyncio
+async def test_shared_reclamation_email_resolves_legal_entity_by_order(
+    test_session: AsyncSession,
+):
+    first_customer = Customer(name="UNISPART Москва")
+    matched_customer = Customer(name="UNISPART Казань")
+    brand = Brand(name="UNISPART RETURN TEST")
+    test_session.add_all([first_customer, matched_customer, brand])
+    await test_session.flush()
+    shared_email = "vozvrat_unispart@mail.ru"
+    test_session.add_all(
+        [
+            CustomerReclamationEmail(
+                customer_id=first_customer.id,
+                email=shared_email,
+            ),
+            CustomerReclamationEmail(
+                customer_id=matched_customer.id,
+                email=shared_email,
+            ),
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="06H905199C",
+                name="Наконечник свечи",
+            ),
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="3254",
+                name="Ложное совпадение с СФ",
+            ),
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="2026",
+                name="Ложное совпадение с годом",
+            ),
+            CustomerOrder(
+                customer_id=matched_customer.id,
+                order_number="ORDER-UNISPART",
+                order_date=date(2026, 7, 24),
+                received_at=datetime(2026, 7, 24, 9, 0, tzinfo=UTC),
+                items=[
+                    CustomerOrderItem(
+                        oem="06H905199C",
+                        brand="VAG",
+                        requested_qty=1,
+                        ship_qty=1,
+                    )
+                ],
+            ),
+        ]
+    )
+    await test_session.commit()
+
+    reclamation = await ingest_reclamation_email(
+        test_session,
+        ReclamationInboundEmail(
+            from_=shared_email,
+            subject="Возврат 06H905199C",
+            body_text=_unispart_return_body(),
+            message_id="<unispart-root@example.test>",
+            received_at=datetime(2026, 7, 24, 10, 0, tzinfo=UTC),
+        ),
+    )
+
+    assert reclamation is not None
+    assert reclamation.customer_id == matched_customer.id
+    assert reclamation.extracted_data["customer_resolution"] == (
+        "matched_by_order"
+    )
+    assert len(reclamation.extracted_data["customer_candidates"]) == 2
+    assert [item.oem_number for item in reclamation.items] == ["06H905199C"]
+    assert reclamation.items[0].quantity == 1
+    assert reclamation.items[0].reason == "Неверное вложение"
+    assert reclamation.reclamation_type == "defect"
+
+    linked = await ingest_reclamation_email(
+        test_session,
+        ReclamationInboundEmail(
+            from_=shared_email,
+            subject="Re: Возврат 06H905199C",
+            body_text="Добрый день! Коллеги! Ответ ожидаем.",
+            message_id="<unispart-reply@example.test>",
+            in_reply_to="<our-reply@example.test>",
+            references=(
+                "<unispart-root@example.test> <our-reply@example.test>"
+            ),
+            received_at=datetime(2026, 7, 27, 8, 0, tzinfo=UTC),
+        ),
+    )
+
+    assert linked is None
+    reclamations = (
+        await test_session.execute(select(Reclamation))
+    ).scalars().all()
+    assert len(reclamations) == 1
+    thread_messages = reclamation.extracted_data["thread_messages"]
+    assert len(thread_messages) == 1
+    assert thread_messages[0]["message_id"] == (
+        "<unispart-reply@example.test>"
+    )
+    assert "Ответ ожидаем" in thread_messages[0]["body"]
 
 
 @pytest.mark.asyncio
@@ -773,6 +973,7 @@ async def test_armtek_client_uses_login_and_returns_contract():
             config=ArmtekPortalConfig(
                 login="user@example.com",
                 password="secret",
+                auth_token="test-auth-token",
             ),
             client=http_client,
         )
@@ -1784,6 +1985,15 @@ async def test_mark_sent_marks_source_email_answered_without_duplicate_retry(
     mailbox = reclamation.extracted_data["mailbox"]
     assert mailbox["answered_flag_status"] == "marked"
     assert mailbox["reply_outbox_id"] == outbox.id
+    sent_event = (
+        await test_session.execute(
+            select(ReclamationEvent).where(
+                ReclamationEvent.reclamation_id == reclamation.id,
+                ReclamationEvent.event_type == "email_sent",
+            )
+        )
+    ).scalar_one()
+    assert sent_event.details["outbox_id"] == outbox.id
 
     await mark_outbox_error(
         test_session,
@@ -2110,3 +2320,271 @@ async def test_match_oem_uses_customer_order_history(
     assert item_check["return_reference_source"] == "customer_order"
     assert item_check["return_start_date"] == "2026-07-20"
     assert item_check["verdict"] == "approve"
+
+
+def test_relay_payload_embeds_safe_attachment_without_local_path(
+    tmp_path,
+    monkeypatch,
+):
+    attachment_path = tmp_path / "defect.pdf"
+    attachment_path.write_bytes(b"document-payload")
+    monkeypatch.setenv("EMAIL_OUTBOX_ATTACHMENT_ROOTS", str(tmp_path))
+    outbox = EmailOutbox(
+        id=17,
+        status=EMAIL_OUTBOX_STATUS.PENDING,
+        to_email="customer@example.com",
+        body_text="Ответ",
+        attachments=[
+            {
+                "file_name": "defect.pdf",
+                "local_file_path": str(attachment_path),
+                "content_type": "application/pdf",
+            }
+        ],
+    )
+
+    payload = serialize_outbox_for_relay(outbox)
+
+    assert payload["attachment_errors"] == []
+    assert payload["attachments"] == [
+        {
+            "filename": "defect.pdf",
+            "content_type": "application/pdf",
+            "content_base64": base64.b64encode(
+                b"document-payload"
+            ).decode("ascii"),
+        }
+    ]
+    assert "local_file_path" not in json.dumps(payload)
+
+
+@pytest.mark.asyncio
+async def test_reclamation_access_is_limited_to_dedicated_roles():
+    for role in (UserRole.ADMIN, UserRole.RECLAMATION):
+        user = SimpleNamespace(role=role)
+        assert await require_reclamation_access(user) is user
+
+    with pytest.raises(HTTPException) as exc_info:
+        await require_reclamation_access(
+            SimpleNamespace(role=UserRole.MANAGER)
+        )
+    assert exc_info.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_email_relay_uses_service_token(monkeypatch):
+    monkeypatch.setenv("EMAIL_RELAY_API_TOKEN", "relay-secret")
+
+    await require_email_relay("relay-secret")
+    with pytest.raises(HTTPException) as exc_info:
+        await require_email_relay("wrong")
+    assert exc_info.value.status_code == 401
+
+
+def test_api_redacts_portal_tokens_from_nested_email_data():
+    payload = {
+        "links": [
+            "https://froza.ru/supplier/one-question/"
+            "?token=0123456789abcdef&id=42"
+        ],
+        "thread_messages": [
+            {
+                "body": (
+                    '<a href="https://froza.ru/supplier/one-question/'
+                    '?token=secret&amp;id=43">ответить</a>'
+                )
+            }
+        ],
+    }
+
+    public_payload = _redact_portal_tokens(payload)
+    serialized = json.dumps(public_payload)
+
+    assert "token=" not in serialized
+    assert "id=42" not in serialized
+    assert "id=43" not in serialized
+    assert "https://froza.ru/supplier/one-question/" in serialized
+
+
+@pytest.mark.asyncio
+async def test_manual_reclamation_api_returns_fresh_audit_and_redacted_link(
+    async_client,
+    test_session: AsyncSession,
+):
+    test_session.add(
+        User(
+            id=1,
+            name="Test Admin",
+            email="test-admin@example.com",
+            password_hash="not-used",
+            role=UserRole.ADMIN,
+            status=UserStatus.ACTIVE,
+        )
+    )
+    await test_session.commit()
+
+    response = await async_client.post(
+        "/reclamations",
+        json={
+            "subject": "Ручная рекламация",
+            "body": (
+                "https://froza.ru/supplier/one-question/"
+                "?token=secret&id=42"
+            ),
+            "source_link": (
+                "https://froza.ru/supplier/one-question/"
+                "?token=secret&id=42"
+            ),
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["source_link"] == (
+        "https://froza.ru/supplier/one-question/"
+    )
+    assert "token=" not in payload["email_body"]
+    assert payload["events"][0]["event_type"] == "created_manually"
+    assert payload["events"][0]["actor_user_name"] == "Test Admin"
+
+
+@pytest.mark.asyncio
+async def test_reclamation_sync_isolates_bad_email_and_advances_uid(
+    test_session: AsyncSession,
+    monkeypatch,
+):
+    account = EmailAccount(
+        name="Reclamation incremental",
+        email="reclamation-incremental@example.com",
+        password="secret",
+        imap_host="imap.example.com",
+        imap_port=993,
+        imap_folder="INBOX",
+        purposes=["reclamation"],
+        is_active=True,
+    )
+    test_session.add(account)
+    await test_session.commit()
+    fetched_with = {}
+    emails = [
+        ReclamationInboundEmail(
+            from_="bad@example.com",
+            subject="Повреждённое письмо",
+            body_text="bad",
+            message_id="<bad@example.com>",
+            uid="101",
+        ),
+        ReclamationInboundEmail(
+            from_="good@example.com",
+            subject="Возврат 14775PCX000",
+            body_text="14775PCX000 - 1 шт.",
+            message_id="<good@example.com>",
+            uid="102",
+        ),
+    ]
+
+    async def fake_fetch(_account, days=7, *, last_uid=0, limit=200):
+        fetched_with.update(
+            {"days": days, "last_uid": last_uid, "limit": limit}
+        )
+        return emails
+
+    async def fake_ingest(session, email):
+        if email.uid == "101":
+            raise ValueError("broken parser")
+        rec = Reclamation(
+            source=RECLAMATION_SOURCE.EMAIL,
+            status=RECLAMATION_STATUS.RECOGNIZED,
+            sender_email=email.from_,
+            email_message_id=email.message_id,
+            email_subject=email.subject,
+        )
+        session.add(rec)
+        await session.commit()
+        await session.refresh(rec)
+        return rec
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.reclamations.fetch_reclamation_emails",
+        fake_fetch,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.reclamations.ingest_reclamation_email",
+        fake_ingest,
+    )
+
+    result = await sync_reclamation_mailbox(test_session)
+
+    assert fetched_with["last_uid"] == 0
+    assert result["fetched"] == 2
+    assert result["created"] == 1
+    assert result["errors"] == 1
+    rows = (
+        await test_session.execute(
+            select(ReclamationMailMessage).order_by(
+                ReclamationMailMessage.uid
+            )
+        )
+    ).scalars().all()
+    assert [row.processing_status for row in rows] == [
+        "error",
+        "processed",
+    ]
+    assert rows[0].processing_error == "broken parser"
+    state = (
+        await test_session.execute(select(ReclamationMailboxState))
+    ).scalar_one()
+    assert state.last_uid == 102
+
+
+@pytest.mark.asyncio
+async def test_thread_reply_creates_notification_and_audit_event(
+    test_session: AsyncSession,
+):
+    operator = User(
+        name="Рекламации",
+        email="reclamation-role@example.com",
+        password_hash="not-used",
+        role=UserRole.RECLAMATION,
+        status=UserStatus.ACTIVE,
+    )
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.CHECKED,
+        sender_email="customer@example.com",
+        email_subject="Возврат 14775PCX000",
+        extracted_data={},
+    )
+    test_session.add_all([operator, reclamation])
+    await test_session.commit()
+
+    appended = await _append_thread_message(
+        test_session,
+        reclamation=reclamation,
+        email=ReclamationInboundEmail(
+            from_="customer@example.com",
+            subject="Re: Возврат 14775PCX000",
+            body_text="Документы отправим сегодня",
+            message_id="<follow-up@example.com>",
+        ),
+    )
+
+    assert appended is True
+    event = (
+        await test_session.execute(
+            select(ReclamationEvent).where(
+                ReclamationEvent.reclamation_id == reclamation.id
+            )
+        )
+    ).scalar_one()
+    assert event.event_type == "thread_message_received"
+    notification = (
+        await test_session.execute(
+            select(AppNotification).where(
+                AppNotification.user_id == operator.id
+            )
+        )
+    ).scalar_one()
+    assert notification.link == (
+        f"/reclamations?openId={reclamation.id}"
+    )

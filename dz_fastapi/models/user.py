@@ -12,6 +12,7 @@ from dz_fastapi.core.time import now_moscow
 class UserRole(str, Enum):
     ADMIN = "admin"
     MANAGER = "manager"
+    RECLAMATION = "reclamation"
 
 
 class UserStatus(str, Enum):
