@@ -14,6 +14,7 @@ import os
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
+from html.parser import HTMLParser
 from typing import Any, Optional
 
 from sqlalchemy import func, select
@@ -138,7 +139,7 @@ _INLINE_ARTICLE_QUANTITY_RE = re.compile(
 )
 # «№ УТ-1042», «номер УТ-1042 от 15.06.2026», «счёт 123 от 01.02.26»
 _DOC_NUMBER_RE = re.compile(
-    r"(?:№|номер|док(?:умент)?[а-я]*|счет|счёт|накладн\w*|отгрузк\w*|"
+    r"(?:№|номер|док(?:умент)?[а-я]*|сф|счет|счёт|накладн\w*|отгрузк\w*|"
     r"реализац\w*|утд?|уут?)\s*[:#№]?\s*([A-Za-zА-Яа-я0-9][\w\-/]{1,40})",
     re.IGNORECASE,
 )
@@ -240,6 +241,30 @@ def _normalized_thread_subject(value: Optional[str]) -> str:
     return re.sub(r"\s+", " ", subject).casefold()
 
 
+def _looks_like_thread_followup(email: ReclamationInboundEmail) -> bool:
+    subject = html.unescape(str(email.subject or "")).strip()
+    if re.match(
+        r"^(?:re|fw|fwd|ответ)\s*:",
+        subject,
+        flags=re.IGNORECASE,
+    ):
+        return True
+    body = _plain_email_text(email.body_text or email.body_html)
+    head = re.sub(r"\s+", " ", body[:2000]).casefold()
+    return any(
+        marker in head
+        for marker in (
+            "ответ ожидаем",
+            "ожидаем ответ",
+            "напоминаем",
+            "повторно направляем",
+            "повторный запрос",
+            "есть ли решение",
+            "просим дать ответ",
+        )
+    )
+
+
 def _header_value(headers: dict, *names: str) -> Optional[str]:
     for name in names:
         value = headers.get(name)
@@ -284,11 +309,178 @@ def extract_froza_email_item(text: str) -> Optional[dict[str, Any]]:
 def _plain_email_text(text: str) -> str:
     normalized = html.unescape(str(text or "")).replace("\xa0", " ")
     normalized = re.sub(
+        r"(?is)<(?:style|script)\b[^>]*>.*?</(?:style|script)\s*>",
+        " ",
+        normalized,
+    )
+    normalized = re.sub(
         r"(?i)<br\s*/?>|</(?:p|div|li|tr|td|th|h[1-6])\s*>",
         "\n",
         normalized,
     )
     return re.sub(r"<[^>]+>", "", normalized)
+
+
+class _HtmlTableRowsParser(HTMLParser):
+    """Collects visible cells without treating CSS as email content."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.rows: list[list[str]] = []
+        self._table_depth = 0
+        self._row: Optional[list[str]] = None
+        self._cell_parts: Optional[list[str]] = None
+
+    def handle_starttag(
+        self,
+        tag: str,
+        attrs: list[tuple[str, Optional[str]]],
+    ) -> None:
+        tag = tag.casefold()
+        if tag == "table":
+            self._table_depth += 1
+        elif tag == "tr" and self._table_depth:
+            self._row = []
+        elif (
+            tag in {"td", "th"}
+            and self._table_depth
+            and self._row is not None
+        ):
+            self._cell_parts = []
+        elif tag == "br" and self._cell_parts is not None:
+            self._cell_parts.append("\n")
+
+    def handle_data(self, data: str) -> None:
+        if self._cell_parts is not None:
+            self._cell_parts.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        tag = tag.casefold()
+        if tag in {"td", "th"} and self._cell_parts is not None:
+            value = re.sub(
+                r"\s+",
+                " ",
+                "".join(self._cell_parts).replace("\xa0", " "),
+            ).strip()
+            if self._row is not None:
+                self._row.append(value)
+            self._cell_parts = None
+        elif tag == "tr" and self._row is not None:
+            if any(self._row):
+                self.rows.append(self._row)
+            self._row = None
+            self._cell_parts = None
+        elif tag == "table" and self._table_depth:
+            self._table_depth -= 1
+
+
+def _return_table_column(value: str) -> Optional[str]:
+    normalized = re.sub(
+        r"[^a-zа-я0-9]+",
+        "",
+        str(value or "").casefold().replace("ё", "е"),
+    )
+    if normalized in {"артикул", "oem", "номердетали"}:
+        return "oem_number"
+    if "производител" in normalized or normalized == "бренд":
+        return "brand_name"
+    if (
+        "наименован" in normalized
+        or "номенклатур" in normalized
+        or normalized == "товар"
+    ):
+        return "autopart_name"
+    if normalized in {"колво", "количество", "количествошт"}:
+        return "quantity"
+    if "номернакладн" in normalized or "номердокумент" in normalized:
+        return "document_number"
+    if "дата" in normalized and (
+        "накладн" in normalized or "документ" in normalized
+    ):
+        return "document_date"
+    return None
+
+
+def extract_html_return_table_items(text: str) -> list[dict[str, Any]]:
+    """Extracts rows from return tables with explicit article columns."""
+    source = str(text or "")
+    if "<table" not in source.casefold():
+        return []
+
+    parser = _HtmlTableRowsParser()
+    try:
+        parser.feed(source)
+        parser.close()
+    except Exception:  # noqa: BLE001
+        logger.debug(
+            "Failed to parse reclamation HTML table",
+            exc_info=True,
+        )
+        return []
+
+    header_map: dict[int, str] = {}
+    items_by_oem: dict[str, dict[str, Any]] = {}
+    for row in parser.rows:
+        detected = {
+            index: column
+            for index, value in enumerate(row)
+            if (column := _return_table_column(value))
+        }
+        detected_columns = set(detected.values())
+        if (
+            "oem_number" in detected_columns
+            and "quantity" in detected_columns
+            and detected_columns
+            & {"brand_name", "autopart_name"}
+        ):
+            header_map = detected
+            continue
+        if not header_map:
+            continue
+
+        values = {
+            column: row[index].strip()
+            for index, column in header_map.items()
+            if index < len(row) and row[index].strip()
+        }
+        oem_number = preprocess_oem_number(
+            values.get("oem_number") or ""
+        )
+        quantity_match = re.search(
+            r"\d+(?:[.,]\d+)?",
+            values.get("quantity") or "",
+        )
+        if not oem_number or quantity_match is None:
+            continue
+        quantity = int(
+            float(quantity_match.group(0).replace(",", "."))
+        )
+        if quantity <= 0:
+            continue
+
+        document_date = _parse_email_date(
+            values.get("document_date") or ""
+        )
+        item = {
+            "oem_number": oem_number,
+            "brand_name": values.get("brand_name") or None,
+            "autopart_name": values.get("autopart_name") or None,
+            "quantity": quantity,
+            "document_number": (
+                values.get("document_number") or None
+            ),
+            "document_date": (
+                document_date.isoformat() if document_date else None
+            ),
+        }
+        existing = items_by_oem.get(oem_number)
+        if existing is None:
+            items_by_oem[oem_number] = item
+        else:
+            existing["quantity"] = (
+                int(existing.get("quantity") or 0) + quantity
+            )
+    return list(items_by_oem.values())
 
 
 def _parse_email_date(value: str) -> Optional[date]:
@@ -585,6 +777,16 @@ def extract_fields(subject: str, body: str) -> dict[str, Any]:
             "links": extract_links(body),
             "froza_email_item": froza_item,
         }
+    html_table_items = extract_html_return_table_items(body)
+    if html_table_items:
+        first_item = html_table_items[0]
+        return {
+            "document_number": first_item.get("document_number"),
+            "document_date": first_item.get("document_date"),
+            "reclamation_type": classify_reclamation_type(text),
+            "links": extract_links(body),
+            "html_table_items": html_table_items,
+        }
     shortage_items = extract_shortage_items(body)
     if shortage_items:
         doc_match = _DOC_NUMBER_RE.search(text)
@@ -769,6 +971,9 @@ async def recognize_reclamation_items(
     """Дополняет позиции карточки по сохранённому письму и истории заказов."""
     froza_item = extract_froza_email_item(reclamation.email_body or "")
     structured_item_updated = apply_froza_email_item(reclamation)
+    html_table_items = extract_html_return_table_items(
+        reclamation.email_body or ""
+    )
     greenlight_items = extract_greenlight_return_items(
         reclamation.email_body or ""
     )
@@ -778,6 +983,7 @@ async def recognize_reclamation_items(
     # здесь недопустим: номер входящего документа может совпасть с OEM в базе.
     structured_items = (
         ([froza_item] if froza_item is not None else [])
+        or html_table_items
         or shortage_items
         or greenlight_items
         or inline_items
@@ -887,6 +1093,8 @@ async def recognize_reclamation_items(
         extracted_key = (
             "froza_email_item"
             if froza_item is not None
+            else "html_table_items"
+            if html_table_items
             else "shortage_items"
             if shortage_items
             else "greenlight_items"
@@ -999,7 +1207,8 @@ def _structured_items_from_fields(
     if isinstance(froza_item, dict):
         return [froza_item]
     return list(
-        fields.get("shortage_items")
+        fields.get("html_table_items")
+        or fields.get("shortage_items")
         or fields.get("greenlight_items")
         or fields.get("inline_items")
         or []
@@ -1126,7 +1335,7 @@ async def _find_thread_reclamation(
         for item in _structured_items_from_fields(fields)
     }
     structured_oems.discard("")
-    if not sender_email or not normalized_subject or not structured_oems:
+    if not sender_email or not structured_oems:
         return None
 
     candidates = (
@@ -1145,12 +1354,11 @@ async def _find_thread_reclamation(
     received_date = (
         email.received_at.date() if email.received_at is not None else None
     )
+    document_number = str(fields.get("document_number") or "").strip()
+    document_matches: list[Reclamation] = []
+    followup_matches: list[Reclamation] = []
+    is_followup = _looks_like_thread_followup(email)
     for candidate in candidates:
-        if (
-            _normalized_thread_subject(candidate.email_subject)
-            != normalized_subject
-        ):
-            continue
         candidate_date = (
             candidate.email_received_at.date()
             if candidate.email_received_at is not None
@@ -1166,8 +1374,29 @@ async def _find_thread_reclamation(
             preprocess_oem_number(item.oem_number or "")
             for item in (candidate.items or [])
         }
-        if structured_oems & candidate_oems:
+        if not structured_oems & candidate_oems:
+            continue
+        if (
+            normalized_subject
+            and _normalized_thread_subject(candidate.email_subject)
+            == normalized_subject
+        ):
             return candidate
+        candidate_document = str(
+            candidate.stated_document_number or ""
+        ).strip()
+        if (
+            document_number
+            and candidate_document
+            and candidate_document.casefold() == document_number.casefold()
+        ):
+            document_matches.append(candidate)
+        if is_followup:
+            followup_matches.append(candidate)
+    if len(document_matches) == 1:
+        return document_matches[0]
+    if len(followup_matches) == 1:
+        return followup_matches[0]
     return None
 
 
@@ -1511,7 +1740,8 @@ async def ingest_reclamation_email(
                 (
                     str(item.get("reason") or "").strip()
                     for item in (
-                        fields.get("shortage_items")
+                        fields.get("html_table_items")
+                        or fields.get("shortage_items")
                         or fields.get("greenlight_items")
                         or fields.get("inline_items")
                         or []

@@ -93,6 +93,7 @@ from dz_fastapi.services.reclamations import (
     extract_fields,
     extract_froza_email_item,
     extract_greenlight_return_items,
+    extract_html_return_table_items,
     extract_inline_return_items,
     extract_links,
     extract_sender_email,
@@ -280,6 +281,196 @@ def _unispart_return_body() -> str:
     """
 
 
+def _stimulsoft_return_table_body() -> str:
+    return """
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          .s45dcf81a { font: 12pt Arial; }
+          .s3cac4f59 { text-align: left; }
+          .s42391a67 { text-align: right; }
+          .s44f86ec3 { font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <p>Просим принять на возврат следующие позиции.</p>
+        <table>
+          <tr>
+            <th>Дата пр. накладной</th>
+            <th>Номер накладной</th>
+            <th>Артикул</th>
+            <th>Производитель</th>
+            <th>Товар</th>
+            <th>Цена, руб</th>
+            <th>Кол-во</th>
+            <th>Сумма (вкл. НДС)</th>
+          </tr>
+          <tr>
+            <td>25.06.2026</td>
+            <td>2802</td>
+            <td>3541A199</td>
+            <td>MITSUBISHI</td>
+            <td>Втулка хвостовика переднего редуктора</td>
+            <td>1 526,00</td>
+            <td>1</td>
+            <td>1 526,00</td>
+          </tr>
+        </table>
+      </body>
+    </html>
+    """
+
+
+def test_extract_stimulsoft_return_table_uses_explicit_article_column():
+    items = extract_html_return_table_items(
+        _stimulsoft_return_table_body()
+    )
+
+    assert items == [
+        {
+            "oem_number": "3541A199",
+            "brand_name": "MITSUBISHI",
+            "autopart_name": "Втулка хвостовика переднего редуктора",
+            "quantity": 1,
+            "document_number": "2802",
+            "document_date": "2026-06-25",
+        }
+    ]
+
+
+def test_extract_stimulsoft_return_table_keeps_all_product_rows():
+    body = """
+    <style>.s11d02722 { text-align: left; }</style>
+    <p>Просим принять на возврат следующие позиции.</p>
+    <table>
+      <tr>
+        <th>Дата пр. накладной</th><th>Номер накладной</th>
+        <th>Артикул</th><th>Производитель</th><th>Товар</th>
+        <th>Цена, руб</th><th>Кол-во</th><th>Сумма</th>
+      </tr>
+      <tr>
+        <td>14.07.2026</td><td>3135</td><td>3412012105</td>
+        <td>DRAGONZAP</td><td>Ремень</td><td>50,00</td>
+        <td>1</td><td>50,00</td>
+      </tr>
+      <tr>
+        <td>14.07.2026</td><td>3135</td><td>5PK1255</td>
+        <td>ContiTech</td><td>Ремень Поликлиновой</td>
+        <td>2 831,00</td><td>1</td><td>2 831,00</td>
+      </tr>
+      <tr>
+        <td>14.07.2026</td><td>3135</td><td>N000000006533</td>
+        <td>MERCEDES-BENZ</td><td>КРЫШКА ЗАПОРНАЯ</td>
+        <td>98,00</td><td>1</td><td>98,00</td>
+      </tr>
+    </table>
+    """
+
+    items = extract_html_return_table_items(body)
+
+    assert [item["oem_number"] for item in items] == [
+        "3412012105",
+        "5PK1255",
+        "N000000006533",
+    ]
+    assert [item["quantity"] for item in items] == [1, 1, 1]
+    assert {item["document_number"] for item in items} == {"3135"}
+
+
+@pytest.mark.asyncio
+async def test_ingest_stimulsoft_return_table_ignores_css_and_brand_tokens(
+    test_session: AsyncSession,
+):
+    brand = Brand(name="STIMULSOFT RETURN TEST")
+    test_session.add(brand)
+    await test_session.flush()
+    test_session.add_all(
+        [
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="3541A199",
+                name="Втулка хвостовика переднего редуктора",
+            ),
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="MITSUBISHI",
+                name="MD611150",
+            ),
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="S3CAC4F59",
+                name="CSS class",
+            ),
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="S42391A67",
+                name="CSS class",
+            ),
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="S44F86EC3",
+                name="CSS class",
+            ),
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="S45DCF81A",
+                name="CSS class",
+            ),
+        ]
+    )
+    await test_session.commit()
+
+    reclamation = await ingest_reclamation_email(
+        test_session,
+        ReclamationInboundEmail(
+            from_="return-table@example.test",
+            subject='Кор. прихода №КП0011361 от 28.07.2026',
+            body_html=_stimulsoft_return_table_body(),
+            message_id="<stimulsoft-return@example.test>",
+        ),
+    )
+
+    assert reclamation is not None
+    assert reclamation.stated_document_number == "2802"
+    assert reclamation.stated_document_date == date(2026, 6, 25)
+    assert reclamation.reclamation_type == "customer_refusal"
+    assert [item.oem_number for item in reclamation.items] == ["3541A199"]
+    assert reclamation.items[0].brand_name == "MITSUBISHI"
+    assert reclamation.items[0].quantity == 1
+
+
+@pytest.mark.asyncio
+async def test_recheck_stimulsoft_table_removes_previous_false_items(
+    test_session: AsyncSession,
+):
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.RECOGNIZED,
+        email_subject='Кор. прихода №КП0011361 от 28.07.2026',
+        email_body=_stimulsoft_return_table_body(),
+        items=[
+            ReclamationItem(oem_number="3541A199", quantity=1),
+            ReclamationItem(oem_number="MITSUBISHI", quantity=1),
+            ReclamationItem(oem_number="S3CAC4F59", quantity=1),
+            ReclamationItem(oem_number="S42391A67", quantity=1),
+            ReclamationItem(oem_number="S44F86EC3", quantity=1),
+            ReclamationItem(oem_number="S45DCF81A", quantity=1),
+        ],
+    )
+    test_session.add(reclamation)
+    await test_session.commit()
+
+    await recognize_reclamation_items(test_session, reclamation)
+    await test_session.commit()
+
+    assert [item.oem_number for item in reclamation.items] == ["3541A199"]
+    assert reclamation.items[0].brand_name == "MITSUBISHI"
+    assert reclamation.items[0].quantity == 1
+    assert reclamation.stated_document_number == "2802"
+    assert reclamation.stated_document_date == date(2026, 6, 25)
+
+
 def test_extract_inline_return_items_uses_explicit_quantity():
     avtoformula = extract_inline_return_items(_avtoformula_return_body())
     quoted = extract_inline_return_items(_quoted_return_body())
@@ -315,6 +506,10 @@ def test_extract_inline_return_items_uses_explicit_quantity():
             "reason": "Неверное вложение",
         }
     ]
+    assert extract_fields(
+        "",
+        _unispart_return_body(),
+    )["document_number"] == "3254"
 
 
 @pytest.mark.asyncio
@@ -467,6 +662,69 @@ async def test_shared_reclamation_email_resolves_legal_entity_by_order(
         "<unispart-reply@example.test>"
     )
     assert "Ответ ожидаем" in thread_messages[0]["body"]
+
+
+@pytest.mark.asyncio
+async def test_followup_without_mail_headers_links_by_sender_and_oem(
+    test_session: AsyncSession,
+):
+    customer = Customer(name="UNISPART THREAD FALLBACK")
+    brand = Brand(name="UNISPART THREAD BRAND")
+    test_session.add_all([customer, brand])
+    await test_session.flush()
+    sender = "vozvrat-thread@example.test"
+    test_session.add_all(
+        [
+            CustomerReclamationEmail(
+                customer_id=customer.id,
+                email=sender,
+            ),
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="06H905199C",
+                name="Наконечник свечи",
+            ),
+        ]
+    )
+    await test_session.commit()
+
+    original = await ingest_reclamation_email(
+        test_session,
+        ReclamationInboundEmail(
+            from_=sender,
+            subject="Заявка на возврат",
+            body_text=_unispart_return_body(),
+            message_id="<thread-fallback-root@example.test>",
+            received_at=datetime(2026, 7, 24, 9, 0, tzinfo=UTC),
+        ),
+    )
+    assert original is not None
+    assert original.stated_document_number == "3254"
+
+    linked = await ingest_reclamation_email(
+        test_session,
+        ReclamationInboundEmail(
+            from_=sender,
+            subject="Напоминание: решение по заявке",
+            body_text=(
+                "Добрый день! Коллеги! Ответ ожидаем.\n\n"
+                + _unispart_return_body()
+            ),
+            message_id="<thread-fallback-reply@example.test>",
+            received_at=datetime(2026, 7, 27, 8, 0, tzinfo=UTC),
+        ),
+    )
+
+    assert linked is None
+    reclamations = (
+        await test_session.execute(select(Reclamation))
+    ).scalars().all()
+    assert len(reclamations) == 1
+    assert len(original.extracted_data["thread_messages"]) == 1
+    assert (
+        original.extracted_data["thread_messages"][0]["message_id"]
+        == "<thread-fallback-reply@example.test>"
+    )
 
 
 @pytest.mark.asyncio
