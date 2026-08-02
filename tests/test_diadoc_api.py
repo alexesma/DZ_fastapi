@@ -1288,6 +1288,8 @@ async def test_diadoc_customer_return_readiness_requires_confirmed_status(
         customer_id=customer.id,
         shipment_document_id=shipment.id,
         source_diadoc_outgoing_document_id=source_upd.id,
+        source_document_number=shipment.doc_number,
+        source_document_date=shipment.doc_date.date(),
         reason="Возврат по согласованию",
     )
     test_session.add(return_doc)
@@ -1404,6 +1406,8 @@ async def test_diadoc_can_create_formalized_ukd_from_customer_return(
         customer_id=customer.id,
         shipment_document_id=shipment.id,
         source_diadoc_outgoing_document_id=source_upd.id,
+        source_document_number=shipment.doc_number,
+        source_document_date=shipment.doc_date.date(),
         reason="Возврат товара от клиента",
     )
     test_session.add(return_doc)
