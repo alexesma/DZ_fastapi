@@ -13,6 +13,7 @@ from dz_fastapi.services.scheduler import (
     _notify_scheduler_issue,
     _should_run_scheduled_job,
     download_price_provider_task,
+    process_new_provider_emails,
 )
 
 
@@ -39,6 +40,90 @@ async def test_scheduler_logs_skip(async_client, test_session, monkeypatch):
     assert response.status_code == 200
     data = response.json()
     assert len(data) >= 1
+
+
+@pytest.mark.asyncio
+async def test_provider_price_summary_keeps_provider_error_details(
+    test_session,
+    monkeypatch,
+):
+    provider = SimpleNamespace(id=937, name="COSMOPART")
+    provider_config = SimpleNamespace(id=41, name_price="Cosmo.xlsx")
+
+    async def fake_get_emails(*, session):
+        return [(provider, "/tmp/Cosmo.xlsx", provider_config)]
+
+    async def fake_process_one(item, app, sem):
+        raise RuntimeError()
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.scheduler.get_emails",
+        fake_get_emails,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.scheduler._process_one",
+        fake_process_one,
+    )
+
+    summary = await process_new_provider_emails(
+        test_session,
+        SimpleNamespace(),
+    )
+
+    assert summary["errors"] == 1
+    assert summary["error_details"] == [
+        {
+            "provider_id": 937,
+            "provider_name": "COSMOPART",
+            "provider_config_id": 41,
+            "provider_config_name": "Cosmo.xlsx",
+            "source_filename": "Cosmo.xlsx",
+            "error_type": "RuntimeError",
+            "error": "RuntimeError()",
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_provider_price_summary_separates_review_from_errors(
+    test_session,
+    monkeypatch,
+):
+    provider = SimpleNamespace(id=937, name="COSMOPART")
+    provider_config = SimpleNamespace(id=53, name_price="Cosmo CS")
+
+    async def fake_get_emails(*, session):
+        return [(provider, "/tmp/Cosmo CS.xlsx", provider_config)]
+
+    async def fake_process_one(item, app, sem):
+        return {
+            "status": "needs_review",
+            "provider_id": 937,
+            "provider_name": "COSMOPART",
+            "provider_config_id": 53,
+            "provider_config_name": "Cosmo CS",
+            "source_filename": "Cosmo CS.xlsx",
+            "message": "Требуется проверка администратора",
+        }
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.scheduler.get_emails",
+        fake_get_emails,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.scheduler._process_one",
+        fake_process_one,
+    )
+
+    summary = await process_new_provider_emails(
+        test_session,
+        SimpleNamespace(),
+    )
+
+    assert summary["successful"] == 0
+    assert summary["errors"] == 0
+    assert summary["review_required"] == 1
+    assert summary["review_details"][0]["provider_config_id"] == 53
 
 
 @pytest.mark.asyncio

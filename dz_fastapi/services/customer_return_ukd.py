@@ -71,6 +71,9 @@ def _gross_unit_price(item: dict[str, Any]) -> Decimal | None:
     total = _as_decimal(item.get("total_with_vat"))
     if total is not None:
         return (total / quantity).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    gross = _as_decimal(item.get("unit_price"))
+    if gross is not None:
+        return gross.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     net = _as_decimal(item.get("unit_price_without_vat"))
     vat_rate = _as_decimal(item.get("vat_rate")) or DEFAULT_WHOLESALE_VAT_RATE
     if net is None:
@@ -242,7 +245,8 @@ async def create_customer_return_draft_from_reclamation(
     reclamation: Reclamation,
     extraction: dict[str, Any],
 ) -> ReturnFromCustomer | None:
-    if extraction.get("parser") != "customer_return_upd_xlsx":
+    parser = str(extraction.get("parser") or "").strip()
+    if parser not in {"customer_return_upd_xlsx", "torg2_xls"}:
         return None
     source_hash = str(extraction.get("source_sha256") or "").strip() or None
     if source_hash:
@@ -286,17 +290,37 @@ async def create_customer_return_draft_from_reclamation(
         shipment_document_id=shipment.id if shipment else None,
         source_diadoc_outgoing_document_id=source_upd.id if source_upd else None,
         warehouse_id=shipment.warehouse_id if shipment else None,
-        source_kind="customer_return_upd_xlsx",
+        source_kind=parser,
         external_document_number=(
-            str(extraction.get("document_number") or "").strip() or None
+            str(
+                extraction.get("external_document_number")
+                or (
+                    extraction.get("document_number")
+                    if parser == "customer_return_upd_xlsx"
+                    else ""
+                )
+                or ""
+            ).strip()
+            or None
         ),
-        external_document_date=_as_date(extraction.get("document_date")),
+        external_document_date=_as_date(
+            extraction.get("external_document_date")
+            or (
+                extraction.get("document_date")
+                if parser == "customer_return_upd_xlsx"
+                else None
+            )
+        ),
         source_document_number=source_number,
         source_document_date=source_date,
         source_file_name=str(extraction.get("filename") or "").strip() or None,
         source_file_sha256=source_hash,
         reason=str(extraction.get("reason") or "Возврат товара").strip(),
-        notes="Черновик создан автоматически из документа возврата клиента.",
+        notes=(
+            "Черновик создан автоматически из акта ТОРГ-2 клиента."
+            if parser == "torg2_xls"
+            else "Черновик создан автоматически из документа возврата клиента."
+        ),
         status=ReturnDocumentStatus.CREATED,
     )
     session.add(draft)

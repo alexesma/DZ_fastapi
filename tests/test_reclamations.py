@@ -98,8 +98,10 @@ from dz_fastapi.services.reclamations import (
     ReclamationInboundEmail,
     _append_thread_message,
     _match_oems_in_text,
+    _plain_oem_candidate_text,
     assign_shortage_reviewer,
     classify_attachment_kind,
+    classify_reclamation_service_email,
     classify_reclamation_type,
     cleanup_closed_reclamation_files,
     confirm_shortage,
@@ -523,6 +525,37 @@ def test_extract_inline_return_items_uses_explicit_quantity():
         "",
         _unispart_return_body(),
     )["document_number"] == "3254"
+
+
+def test_oem_candidate_text_ignores_inline_image_content_ids():
+    cleaned = _plain_oem_candidate_text(
+        "NL344 - 1 шт. [cid:image002.jpg@01DD20D5.43820420]"
+    )
+
+    assert "NL344" in cleaned
+    assert "IMAGE002JPG" not in cleaned.upper().replace(".", "")
+    assert "01DD20D543820420" not in cleaned.upper().replace(".", "")
+
+
+def test_classify_reclamation_service_email_is_conservative():
+    assert classify_reclamation_service_email(
+        sender="opt@stparts.ru",
+        subject=(
+            "АВТОПАРТС УПД №3515 от 31.07.2026 успешно загружено "
+            "в базу STparts.ru"
+        ),
+        body="",
+    ) == "document_delivery_confirmation"
+    assert classify_reclamation_service_email(
+        sender="sverka@froza.ru",
+        subject="Сверка FROZA за период 01.04.26-30.06.26",
+        body="Ответ на отправленный акт сверки ожидается 5 рабочих дней.",
+    ) == "reconciliation_statement"
+    assert classify_reclamation_service_email(
+        sender="vozvrat@artzap.art",
+        subject="Согласование возврата",
+        body="NL344 - 1 шт. отказ клиента",
+    ) is None
 
 
 @pytest.mark.asyncio
@@ -1711,6 +1744,10 @@ def test_parse_torg2_sheet_extracts_document_item_and_reason():
         "parser": "torg2_xls",
         "document_number": "2801",
         "document_date": "2026-06-25",
+        "original_document_number": "2801",
+        "original_document_date": "2026-06-25",
+        "external_document_number": None,
+        "external_document_date": None,
         "reason": "Отказ клиента",
         "items": [
             {
@@ -1724,6 +1761,52 @@ def test_parse_torg2_sheet_extracts_document_item_and_reason():
             }
         ],
     }
+
+
+def test_parse_torg2_sheet_extracts_return_table_and_act_basis():
+    sheet = _FakeSheet(
+        {
+            (0, 80): "Унифицированная форма № ТОРГ-2",
+            (3, 8): "А К Т (ТОРГ-2)",
+            (3, 29): 866018.0,
+            (3, 50): "31.07.2026",
+            (11, 1): "Товарная накладная",
+            (11, 25): "3441 от 27 июля 2026 г.",
+            (19, 1): "Товар (наименование)",
+            (19, 17): "Артикул",
+            (19, 53): "Возврат",
+            (23, 1): "371205X00A NISSAN Болт крепления",
+            (23, 17): "371205X00A",
+            (23, 25): 1.0,
+            (23, 32): 77.0,
+            (23, 53): 1.0,
+            (23, 60): 77.0,
+            (27, 1): "Причина возврата:",
+            (27, 17): "Отказ поставщика",
+            (28, 1): "Заключение комиссии",
+        }
+    )
+
+    parsed = parse_torg2_sheet(sheet)
+
+    assert parsed is not None
+    assert parsed["document_number"] == "3441"
+    assert parsed["document_date"] == "2026-07-27"
+    assert parsed["external_document_number"] == "866018"
+    assert parsed["external_document_date"] == "2026-07-31"
+    assert parsed["reason"] == "Отказ поставщика"
+    assert parsed["items"] == [
+        {
+            "oem_number": "371205X00A",
+            "reason": "Отказ поставщика",
+            "quantity": 1,
+            "unit_price": 77.0,
+            "line_sum": 77.0,
+            "total_with_vat": "77.00",
+            "brand_name": "NISSAN",
+            "autopart_name": "Болт крепления",
+        }
+    ]
 
 
 def test_parse_customer_return_upd_xlsx_extracts_source_and_vat_22():
@@ -2004,6 +2087,58 @@ async def test_customer_return_source_must_match_transfer_basis_exactly(
             shipment_document_id=wrong_shipment.id,
             source_diadoc_outgoing_document_id=wrong_upd.id,
         )
+
+
+@pytest.mark.asyncio
+async def test_torg2_creates_safe_customer_return_draft(
+    test_session: AsyncSession,
+    created_customers,
+):
+    customer = created_customers[0]
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.RECOGNIZED,
+        customer_id=customer.id,
+        sender_email="returns@stparts.example",
+    )
+    test_session.add(reclamation)
+    await test_session.flush()
+
+    draft = await create_customer_return_draft_from_reclamation(
+        test_session,
+        reclamation=reclamation,
+        extraction={
+            "parser": "torg2_xls",
+            "source_sha256": "c" * 64,
+            "filename": "return-act.xls",
+            "original_document_number": "3441",
+            "original_document_date": "2026-07-27",
+            "external_document_number": "866018",
+            "external_document_date": "2026-07-31",
+            "reason": "Отказ поставщика",
+            "items": [
+                {
+                    "oem_number": "371205X00A",
+                    "brand_name": "NISSAN",
+                    "autopart_name": "Болт крепления",
+                    "quantity": 1,
+                    "unit_price": 77,
+                    "total_with_vat": "77.00",
+                }
+            ],
+        },
+    )
+
+    assert draft is not None
+    assert draft.source_kind == "torg2_xls"
+    assert draft.source_document_number == "3441"
+    assert draft.source_document_date == date(2026, 7, 27)
+    assert draft.external_document_number == "866018"
+    assert draft.external_document_date == date(2026, 7, 31)
+    assert draft.shipment_document_id is None
+    assert len(draft.items) == 1
+    assert draft.items[0].oem_number == "371205X00A"
+    assert draft.items[0].price == 77
 
 
 def test_approved_reply_uses_customer_facing_return_instructions():
@@ -2453,7 +2588,7 @@ async def test_supplier_return_request_contains_order_context_and_defect_files(
 
     assert len(rows) == 1
     await test_session.refresh(reclamation)
-    assert reclamation.status == RECLAMATION_STATUS.CHECKED
+    assert reclamation.status == RECLAMATION_STATUS.WAITING_SUPPLIER
     assert rows[0].to_email == "returns@supplier.example"
     assert "HONDA 19501R6FG00 — Патрубок; 2 шт." in rows[0].body_text
     assert (
@@ -2476,6 +2611,52 @@ async def test_supplier_return_request_contains_order_context_and_defect_files(
     )
     assert "условия передачи товара" not in rows[0].body_text
     assert rows[0].attachments[0]["file_name"] == "defect.pdf"
+
+    for item in reclamation.items:
+        item.reason = None
+        test_session.add(item)
+    reclamation.stated_reason = None
+    test_session.add(reclamation)
+    await test_session.commit()
+
+    fallback_rows = await enqueue_supplier_request(
+        test_session,
+        reclamation_id=reclamation.id,
+    )
+    assert "Причина возврата: Отказ клиента." in fallback_rows[0].body_text
+
+
+@pytest.mark.asyncio
+async def test_waiting_supplier_tab_restores_status_from_existing_outbox(
+    test_session: AsyncSession,
+):
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.CHECKED,
+        sender_email="customer@example.com",
+    )
+    test_session.add(reclamation)
+    await test_session.flush()
+    test_session.add(
+        EmailOutbox(
+            status=EMAIL_OUTBOX_STATUS.PENDING,
+            from_email="returns@example.com",
+            to_email="supplier@example.com",
+            subject="Запрос возврата",
+            source_type="reclamation_supplier",
+            source_id=reclamation.id,
+        )
+    )
+    await test_session.commit()
+
+    rows = await list_reclamations(
+        test_session,
+        status=RECLAMATION_STATUS.WAITING_SUPPLIER,
+    )
+
+    await test_session.refresh(reclamation)
+    assert reclamation.status == RECLAMATION_STATUS.WAITING_SUPPLIER
+    assert [row["id"] for row in rows] == [reclamation.id]
 
 
 @pytest.mark.asyncio
@@ -2810,6 +2991,74 @@ async def test_recognize_prefers_saved_attachment_reason_over_email_text(
 
     assert reclamation.stated_reason == "Отказ клиента"
     assert reclamation.reclamation_type == "customer_refusal"
+
+
+@pytest.mark.asyncio
+async def test_recheck_reparses_saved_torg2_and_creates_return_draft(
+    test_session: AsyncSession,
+    created_customers,
+    monkeypatch,
+    tmp_path,
+):
+    source_file = tmp_path / "return-act.xls"
+    source_file.write_bytes(b"legacy-torg2")
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.RECOGNIZED,
+        customer_id=created_customers[0].id,
+        email_subject="Возврат готов к передаче",
+        email_body="Документ возврата во вложении",
+        extracted_data={
+            "attachments": [
+                {
+                    "parser": "torg2_xls",
+                    "filename": source_file.name,
+                    "items": [],
+                }
+            ]
+        },
+        attachments=[
+            ReclamationAttachment(
+                kind=RECLAMATION_ATTACHMENT_KIND.OTHER,
+                file_name=source_file.name,
+                local_file_path=str(source_file),
+                size_bytes=source_file.stat().st_size,
+            )
+        ],
+    )
+    test_session.add(reclamation)
+    await test_session.commit()
+    monkeypatch.setattr(
+        "dz_fastapi.services.reclamations.parse_reclamation_attachment",
+        lambda _filename, _payload: {
+            "parser": "torg2_xls",
+            "filename": source_file.name,
+            "original_document_number": "3441",
+            "original_document_date": "2026-07-27",
+            "external_document_number": "866018",
+            "external_document_date": "2026-07-31",
+            "reason": "Отказ поставщика",
+            "items": [
+                {
+                    "oem_number": "371205X00A",
+                    "brand_name": "NISSAN",
+                    "autopart_name": "Болт крепления",
+                    "quantity": 1,
+                    "unit_price": 77,
+                    "total_with_vat": "77.00",
+                    "reason": "Отказ поставщика",
+                }
+            ],
+        },
+    )
+
+    created = await recognize_reclamation_items(test_session, reclamation)
+    await test_session.commit()
+
+    assert created == 1
+    assert [item.oem_number for item in reclamation.items] == ["371205X00A"]
+    assert reclamation.stated_reason == "Отказ поставщика"
+    assert reclamation.return_from_customer_id is not None
 
 
 @pytest.mark.asyncio
@@ -3202,6 +3451,101 @@ async def test_reclamation_sync_isolates_bad_email_and_advances_uid(
         await test_session.execute(select(ReclamationMailboxState))
     ).scalar_one()
     assert state.last_uid == 102
+
+
+@pytest.mark.asyncio
+async def test_reclamation_sync_skips_service_mail_without_creating_cards(
+    test_session: AsyncSession,
+    monkeypatch,
+):
+    account = EmailAccount(
+        name="Reclamation service mail",
+        email="reclamation-service@example.com",
+        password="secret",
+        imap_host="imap.example.com",
+        imap_port=993,
+        imap_folder="INBOX",
+        purposes=["reclamation"],
+        is_active=True,
+    )
+    admin = User(
+        name="Service mail admin",
+        email="service-mail-admin@example.com",
+        password_hash="not-used",
+        role=UserRole.ADMIN,
+        status=UserStatus.ACTIVE,
+    )
+    existing_service_card = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.NEW,
+        sender_email="opt@stparts.ru",
+        email_subject=(
+            "АВТОПАРТС УПД №3500 успешно загружено в базу STparts.ru"
+        ),
+    )
+    test_session.add_all([account, admin, existing_service_card])
+    await test_session.commit()
+    emails = [
+        ReclamationInboundEmail(
+            from_="opt@stparts.ru",
+            subject=(
+                "АВТОПАРТС УПД №3515 от 31.07.2026 успешно загружено "
+                "в базу STparts.ru"
+            ),
+            uid="201",
+        ),
+        ReclamationInboundEmail(
+            from_="sverka@froza.ru",
+            subject="Сверка FROZA за период 01.04.26-30.06.26",
+            body_text="Ответ на отправленный акт сверки ожидается 5 рабочих дней.",
+            uid="202",
+        ),
+    ]
+
+    async def fake_fetch(_account, days=7, *, last_uid=0, limit=200):
+        return emails
+
+    async def fail_ingest(*_args, **_kwargs):
+        raise AssertionError("Служебное письмо не должно стать рекламацией")
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.reclamations.fetch_reclamation_emails",
+        fake_fetch,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.reclamations.ingest_reclamation_email",
+        fail_ingest,
+    )
+
+    result = await sync_reclamation_mailbox(test_session)
+
+    assert result["created"] == 0
+    assert result["skipped"] == 2
+    assert result["archived_service"] == 1
+    await test_session.refresh(existing_service_card)
+    assert existing_service_card.status == RECLAMATION_STATUS.CLOSED
+    assert existing_service_card.extracted_data["service_mail_type"] == (
+        "document_delivery_confirmation"
+    )
+    rows = (
+        await test_session.execute(
+            select(ReclamationMailMessage).order_by(ReclamationMailMessage.uid)
+        )
+    ).scalars().all()
+    assert [row.processing_status for row in rows] == ["skipped", "skipped"]
+    assert rows[0].parser_version.startswith("service:document")
+    assert rows[1].parser_version.startswith("service:reconciliation")
+    reclamations = (
+        await test_session.execute(select(Reclamation))
+    ).scalars().all()
+    assert reclamations == [existing_service_card]
+    assert await list_reclamations(test_session) == []
+    notifications = (
+        await test_session.execute(select(AppNotification))
+    ).scalars().all()
+    assert len(notifications) == 1
+    assert notifications[0].title == "Получен акт сверки"
+    assert notifications[0].link == "/inbox"
 
 
 @pytest.mark.asyncio

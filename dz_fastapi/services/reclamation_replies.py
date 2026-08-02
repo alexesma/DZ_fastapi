@@ -406,7 +406,7 @@ async def enqueue_supplier_request(
                 "",
             )
             or str(rec.stated_reason or "").strip()
-            or "Причина не указана"
+            or "Отказ клиента"
         )
         body = (
             f"Здравствуйте!\n\n"
@@ -451,6 +451,8 @@ async def enqueue_supplier_request(
             "У поставщиков транзитных позиций не заполнен email для запросов"
             " возврата (return_request_email)."
         )
+    rec.status = RECLAMATION_STATUS.WAITING_SUPPLIER
+    session.add(rec)
     if commit:
         await session.commit()
         for row in created:

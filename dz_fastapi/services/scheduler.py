@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 import aiofiles
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -1004,24 +1004,66 @@ async def _process_one(item, app: FastAPI, sem: asyncio.Semaphore):
                                 provider_conf.id if provider_conf else None,
                                 rss_before,
                             )
-                        pricelist, stats = await process_provider_pricelist(
-                            provider=provider,
-                            file_content=file_content,
-                            file_extension=file_extension,
-                            provider_list_conf=provider_conf,
-                            use_stored_params=True,
-                            start_row=None,
-                            oem_col=None,
-                            brand_col=None,
-                            name_col=None,
-                            multiplicity_col=None,
-                            qty_col=None,
-                            price_col=None,
-                            session=session,
-                            return_stats=True,
-                            include_autoparts_response=False,
-                            source_filename=os.path.basename(filepath),
-                        )
+                        try:
+                            pricelist, stats = await process_provider_pricelist(
+                                provider=provider,
+                                file_content=file_content,
+                                file_extension=file_extension,
+                                provider_list_conf=provider_conf,
+                                use_stored_params=True,
+                                start_row=None,
+                                oem_col=None,
+                                brand_col=None,
+                                name_col=None,
+                                multiplicity_col=None,
+                                qty_col=None,
+                                price_col=None,
+                                session=session,
+                                return_stats=True,
+                                include_autoparts_response=False,
+                                source_filename=os.path.basename(filepath),
+                            )
+                        except HTTPException as exc:
+                            detail = str(exc.detail or "")
+                            if (
+                                exc.status_code == 409
+                                and "Подозрительное обновление прайса"
+                                in detail
+                            ):
+                                trace.details.update(
+                                    {
+                                        "__trace_status": "needs_review",
+                                        "review_required": True,
+                                        "review_message": detail,
+                                    }
+                                )
+                                logger.warning(
+                                    "Provider pricelist requires admin review: "
+                                    "provider_id=%s config_id=%s file=%s",
+                                    provider.id,
+                                    provider_conf.id if provider_conf else None,
+                                    os.path.basename(filepath),
+                                )
+                                return {
+                                    "status": "needs_review",
+                                    "provider_id": provider.id,
+                                    "provider_name": provider.name,
+                                    "provider_config_id": (
+                                        provider_conf.id
+                                        if provider_conf
+                                        else None
+                                    ),
+                                    "provider_config_name": (
+                                        provider_conf.name_price
+                                        if provider_conf
+                                        else None
+                                    ),
+                                    "source_filename": os.path.basename(
+                                        filepath
+                                    ),
+                                    "message": detail,
+                                }
+                            raise
                         trace.details.update(
                             {
                                 "pricelist_id": getattr(pricelist, "id", None),
@@ -1053,6 +1095,14 @@ async def _process_one(item, app: FastAPI, sem: asyncio.Semaphore):
                                 provider.name,
                             )
                             await send_price_list_task(app)
+                        return {
+                            "status": "success",
+                            "provider_id": provider.id,
+                            "provider_config_id": (
+                                provider_conf.id if provider_conf else None
+                            ),
+                            "source_filename": os.path.basename(filepath),
+                        }
             except Exception as e:
                 logger.error(
                     f"Ошибка обработки прайса для провайдера {provider.id}: "
@@ -2078,6 +2128,9 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
             "downloaded": 0,
             "successful": 0,
             "errors": 0,
+            "review_required": 0,
+            "error_details": [],
+            "review_details": [],
             "processing_seconds": 0.0,
             "total_seconds": time.perf_counter() - start_time,
         }
@@ -2108,19 +2161,50 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
     )
     successful = 0
     errors = 0
-    for result in results:
-        if isinstance(result, Exception):
+    review_required = 0
+    error_details: list[dict[str, object]] = []
+    review_details: list[dict[str, object]] = []
+    for item, result in zip(downloaded, results):
+        if isinstance(result, BaseException):
             errors += 1
-            logger.error(
-                f"Ошибка обработки прайс-листа: {result}", exc_info=True
+            provider, filepath, provider_conf = item
+            error_text = str(result).strip() or repr(result).strip()
+            if not error_text:
+                error_text = type(result).__name__
+            error_details.append(
+                {
+                    "provider_id": getattr(provider, "id", None),
+                    "provider_name": getattr(provider, "name", None),
+                    "provider_config_id": getattr(provider_conf, "id", None),
+                    "provider_config_name": getattr(
+                        provider_conf,
+                        "name_price",
+                        None,
+                    ),
+                    "source_filename": os.path.basename(str(filepath or "")),
+                    "error_type": type(result).__name__,
+                    "error": error_text[:2000],
+                }
             )
+            logger.error(
+                "Ошибка обработки прайс-листа provider_id=%s config_id=%s "
+                "file=%s: %s",
+                getattr(provider, "id", None),
+                getattr(provider_conf, "id", None),
+                os.path.basename(str(filepath or "")),
+                error_text,
+            )
+        elif isinstance(result, dict) and result.get("status") == "needs_review":
+            review_required += 1
+            review_details.append(result)
         else:
             successful += 1
 
     total_time = time.perf_counter() - start_time
     logger.info(
         f"process_new_provider_emails завершена за {total_time:.2f} секунд. "
-        f"Успешно: {successful}, Ошибок: {errors}"
+        f"Успешно: {successful}, На проверку: {review_required}, "
+        f"Ошибок: {errors}"
     )
     rss_after = _process_rss_mb()
     if rss_after is not None:
@@ -2132,6 +2216,9 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
         "downloaded": len(downloaded),
         "successful": successful,
         "errors": errors,
+        "review_required": review_required,
+        "error_details": error_details,
+        "review_details": review_details,
         "processing_seconds": process_end - process_start,
         "total_seconds": total_time,
     }
@@ -2198,6 +2285,27 @@ async def download_price_provider_task(app: FastAPI):
                 trace.details["email_processing_summary"] = email_summary
                 if int(email_summary.get("errors") or 0) > 0:
                     trace.details["__trace_status"] = "error"
+                    provider_errors = list(
+                        email_summary.get("error_details") or []
+                    )
+                    trace.details["provider_errors"] = provider_errors
+                    trace.details["error"] = "; ".join(
+                        (
+                            f"{row.get('provider_name') or 'Поставщик'} "
+                            f"(config_id={row.get('provider_config_id')}), "
+                            f"{row.get('source_filename') or 'файл не указан'}: "
+                            f"{row.get('error') or row.get('error_type') or 'Ошибка'}"
+                        )
+                        for row in provider_errors[:10]
+                    ) or (
+                        f"Не обработано прайсов: "
+                        f"{int(email_summary.get('errors') or 0)}"
+                    )
+                elif int(email_summary.get("review_required") or 0) > 0:
+                    trace.details["__trace_status"] = "needs_review"
+                    trace.details["review_required"] = email_summary.get(
+                        "review_details"
+                    )
                 schedule.last_checked_at = now_moscow()
                 session.add(schedule)
                 await session.commit()
