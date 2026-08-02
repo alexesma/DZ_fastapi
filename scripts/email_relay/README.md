@@ -1,9 +1,13 @@
-# SMTP-релей очереди рекламаций (EmailOutbox)
+# Релей почты и Telegram (EmailOutbox + TelegramOutbox)
 
 На проде исходящие SMTP-порты закрыты хостером, а ответы клиентам должны
 уходить **с адреса Яндекс-ящика**. Поэтому приложение только кладёт письма в
 очередь (`EmailOutbox`), а фактически отправляет их этот скрипт — с машины, где
 порт 465 открыт (твой компьютер / отдельный ПК).
+
+Тот же процесс забирает Telegram-уведомления по HTTPS и отправляет их в
+Bot API с локального компьютера. Токен бота хранится только в `config.json`
+релея и не передаётся серверу.
 
 ## Как это работает
 
@@ -13,6 +17,10 @@ DZ_fastapi (прод)                     relay.py (твой ПК)
                                        2. POST /email-outbox/claim
    smtp.yandex.ru:465   <── SMTP ───   3. отправка письма
                         ── HTTPS ──>   4. POST /email-outbox/{id}/mark-sent | /mark-error
+
+  очередь TelegramOutbox <── HTTPS ──  5. POST /telegram-outbox/claim
+   api.telegram.org      <── HTTPS ──  6. сообщение или документ
+                         ── HTTPS ──>  7. mark-sent | mark-error
 ```
 
 ## Установка
@@ -34,6 +42,10 @@ cp config.example.json config.json
 | `poll_interval_seconds` | Как часто опрашивать очередь (по умолчанию 30 с). |
 | `batch_limit` | Сколько писем забирать за раз. |
 | `verify_tls` | Проверять TLS-сертификат API (оставь `true`). |
+| `telegram.enabled` | Включить обработку очереди Telegram этим релеем. |
+| `telegram.bot_token` | Токен Telegram-бота. Хранится только локально. |
+| `telegram.api_base_url` | Bot API, обычно `https://api.telegram.org`. |
+| `telegram.proxy_url` | Необязательный HTTP(S)-прокси для Telegram. |
 | `smtp_accounts` | Карта `from-адрес → SMTP/IMAP-настройки`. Ключ — это адрес, с которого письмо должно уйти (адрес ящика рекламаций). |
 | `default_smtp` | Запасные SMTP-настройки, если `from` письма не совпал ни с одним ключом. `null` — не отправлять такие. |
 
@@ -61,6 +73,17 @@ python relay.py --config config.json --once
 # Постоянный цикл (демон):
 python relay.py --config config.json
 ```
+
+На сервере должен быть задан режим очереди:
+
+```env
+TELEGRAM_DELIVERY_MODE=relay
+TELEGRAM_TO=-1001234567890
+```
+
+В режиме `relay` переменная `TELEGRAM_TOKEN` серверу для исходящих сообщений
+не нужна. Для возврата к прямой отправке укажи
+`TELEGRAM_DELIVERY_MODE=direct` и настрой токен на сервере.
 
 ### Автозапуск
 
@@ -92,3 +115,6 @@ python relay.py --config config.json
   (видно в карточке рекламации → «Переписка»).
 - Нет SMTP-настроек для `from` → `mark-error` без ретрая (нужно поправить
   `config.json`).
+- Telegram `429` и ошибки `5xx` повторяются автоматически. Ошибки токена,
+  `chat_id` или формата сообщения переводятся в `error` без бессмысленных
+  повторов.

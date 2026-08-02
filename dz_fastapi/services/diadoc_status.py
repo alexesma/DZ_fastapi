@@ -17,6 +17,7 @@ from dz_fastapi.core.time import now_moscow
 from dz_fastapi.http.diadoc_client import DiadocApiError, DiadocClient
 from dz_fastapi.models.diadoc import DiadocOutgoingDocument
 from dz_fastapi.services.diadoc_documents import _ticks_to_datetime
+from dz_fastapi.services.diadoc_transport import extract_transport_status
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -36,7 +37,8 @@ def derive_outgoing_status_fields(
 
     Возвращает dict с ключами: status, docflow_status_severity,
     docflow_status_text, recipient_response_status, revocation_status,
-    delivered_at.
+    delivered_at, а для перевозочных документов — ещё и статус ГИС ЭПД
+    (transport_*). У неперевозочных документов transport_* остаются None.
     """
     docflow = payload.get("DocflowStatus") or {}
     primary = docflow.get("PrimaryStatus") or {}
@@ -78,6 +80,8 @@ def derive_outgoing_status_fields(
     else:
         status = current_status or "sent"
 
+    transport = extract_transport_status(payload) or {}
+
     return {
         "status": status,
         "docflow_status_severity": severity,
@@ -85,6 +89,11 @@ def derive_outgoing_status_fields(
         "recipient_response_status": recipient_response,
         "revocation_status": revocation,
         "delivered_at": delivered_at,
+        "transport_status_named_id": transport.get("status_named_id"),
+        "transport_status_type": transport.get("status_type"),
+        "transport_status_text": transport.get("status_text"),
+        "transport_mintrans_id": transport.get("mintrans_id"),
+        "transport_carriage_id": transport.get("carriage_id"),
     }
 
 
@@ -140,6 +149,16 @@ async def refresh_outgoing_document_status(
     document.docflow_status_text = fields["docflow_status_text"]
     document.recipient_response_status = fields["recipient_response_status"]
     document.revocation_status = fields["revocation_status"]
+    # Статус ГИС ЭПД перезаписываем только когда он реально пришёл: у
+    # обычных УПД его нет, и затирать ранее полученный статус нельзя.
+    if fields["transport_status_named_id"] or fields["transport_status_text"]:
+        document.transport_status_named_id = fields[
+            "transport_status_named_id"
+        ]
+        document.transport_status_type = fields["transport_status_type"]
+        document.transport_status_text = fields["transport_status_text"]
+        document.transport_mintrans_id = fields["transport_mintrans_id"]
+        document.transport_carriage_id = fields["transport_carriage_id"]
     if fields["delivered_at"] is not None:
         document.delivered_at = fields["delivered_at"]
     document.status_checked_at = now_moscow()

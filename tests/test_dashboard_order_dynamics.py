@@ -46,19 +46,25 @@ async def test_order_dynamics_aggregates_daily_and_partner_totals(
 
     test_session.add_all(
         [
+            # Адресуемая строка: мы её обработали и приняли в работу.
             CustomerOrderItem(
                 order_id=customer_order.id,
                 oem="OEM-1",
                 brand="BRAND",
                 requested_qty=2,
                 requested_price=100,
+                status=CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK,
             ),
+            # Позиции нет ни в одном источнике — в адресуемый спрос она не
+            # входит, иначе покрытие делилось бы на неисполнимый спрос.
             CustomerOrderItem(
                 order_id=customer_order.id,
                 oem="OEM-2",
                 brand="BRAND",
                 requested_qty=3,
                 matched_price=150,
+                status=CUSTOMER_ORDER_ITEM_STATUS.REJECTED,
+                reject_reason_code="NO_OFFER",
             ),
             SupplierOrderItem(
                 supplier_order_id=supplier_order.id,
@@ -85,11 +91,15 @@ async def test_order_dynamics_aggregates_daily_and_partner_totals(
     assert result["summary"] == {
         "customer_order_count": 1,
         "customer_qty": 5,
+        # Из 5 шт. адресуемы только 2: строка NO_OFFER не в счёт.
+        "customer_addressable_qty": 2,
         "customer_sum": 650.0,
         "supplier_order_count": 2,
         "supplier_qty": 10,
         "supplier_sum": 620.0,
-        "purchase_coverage_pct": 200.0,
+        # Покрытие считается от адресуемого спроса: 10 / 2 = 500%,
+        # а не 10 / 5 = 200% по всему спросу.
+        "purchase_coverage_pct": 500.0,
     }
     populated_day = next(
         row for row in result["daily"] if row["customer_order_count"]

@@ -1,6 +1,6 @@
 """Pydantic schemas for Inventory and StockMovement."""
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional
 
@@ -488,6 +488,7 @@ class ShipmentDocumentItemCreate(BaseModel):
     quantity: int = Field(..., gt=0)
     storage_location_id: Optional[int] = None
     price: Optional[PriceDecimal] = None
+    vat_rate: Decimal = Field(default=Decimal("22.00"), ge=0, le=100)
     reserve_id: Optional[int] = Field(
         None,
         description="Резерв, который будет снят при проведении",
@@ -499,6 +500,7 @@ class ShipmentDocumentItemUpdate(BaseModel):
     quantity: Optional[int] = Field(None, gt=0)
     storage_location_id: Optional[int] = None
     price: Optional[PriceDecimal] = None
+    vat_rate: Optional[Decimal] = Field(default=None, ge=0, le=100)
     reserve_id: Optional[int] = None
     notes: Optional[str] = None
 
@@ -527,6 +529,7 @@ class ShipmentDocumentItemOut(BaseModel):
     storage_location_id: Optional[int] = None
     quantity: int
     price: Optional[Decimal] = None
+    vat_rate: Decimal = Decimal("22.00")
     cost_price: Optional[Decimal] = None
     cost_total: Optional[Decimal] = None
     reserve_id: Optional[int] = None
@@ -668,6 +671,8 @@ class ReturnItemCreate(BaseModel):
     lot_id: Optional[int] = None
     quantity: int = Field(..., gt=0)
     price: Optional[PriceDecimal] = None
+    vat_rate: Decimal = Field(default=Decimal("22.00"), ge=0, le=100)
+    price_includes_vat: bool = True
     gtd_number: Optional[str] = Field(None, max_length=64)
     country_code: Optional[str] = Field(None, max_length=16)
     country_name: Optional[str] = Field(None, max_length=120)
@@ -688,6 +693,8 @@ class ReturnItemUpdate(BaseModel):
     lot_id: Optional[int] = None
     quantity: Optional[int] = Field(None, gt=0)
     price: Optional[PriceDecimal] = None
+    vat_rate: Optional[Decimal] = Field(default=None, ge=0, le=100)
+    price_includes_vat: Optional[bool] = None
     gtd_number: Optional[str] = Field(None, max_length=64)
     country_code: Optional[str] = Field(None, max_length=16)
     country_name: Optional[str] = Field(None, max_length=120)
@@ -711,6 +718,8 @@ class ReturnItemOut(BaseModel):
     lot_id: Optional[int] = None
     quantity: int
     price: Optional[Decimal] = None
+    vat_rate: Decimal = Decimal("22.00")
+    price_includes_vat: bool = True
     gtd_number: Optional[str] = None
     country_code: Optional[str] = None
     country_name: Optional[str] = None
@@ -756,6 +765,13 @@ class ReturnFromCustomerOut(BaseModel):
     customer_id: Optional[int] = None
     customer_name: Optional[str] = None
     shipment_document_id: Optional[int] = None
+    source_diadoc_outgoing_document_id: Optional[int] = None
+    source_kind: Optional[str] = None
+    external_document_number: Optional[str] = None
+    external_document_date: Optional[date] = None
+    source_document_number: Optional[str] = None
+    source_document_date: Optional[date] = None
+    source_file_name: Optional[str] = None
     warehouse_id: Optional[int] = None
     warehouse_name: Optional[str] = None
     diadoc_outgoing_document_id: Optional[int] = None

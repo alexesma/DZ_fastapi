@@ -1,11 +1,13 @@
 import base64
 import json
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
+from io import BytesIO
 from types import SimpleNamespace
 
 import httpx
 import pytest
 from fastapi import HTTPException
+from openpyxl import Workbook
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,9 +15,11 @@ from dz_fastapi.api.deps import require_email_relay, require_reclamation_access
 from dz_fastapi.api.reclamation import _redact_portal_tokens
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.diadoc import DiadocOutgoingDocument
 from dz_fastapi.models.email_account import EmailAccount
 from dz_fastapi.models.inventory import (
     LotSourceType,
+    ReturnDocumentStatus,
     ShipmentDocument,
     ShipmentDocumentItem,
     ShipmentDocumentItemLotAllocation,
@@ -44,6 +48,11 @@ from dz_fastapi.models.partner import (
     SupplierReceipt,
 )
 from dz_fastapi.models.user import User, UserRole, UserStatus
+from dz_fastapi.services.customer_return_ukd import (
+    build_customer_return_draft_status,
+    create_customer_return_draft_from_reclamation,
+    link_customer_return_source,
+)
 from dz_fastapi.services.email_outbox import (
     _flag_source_email_answered_sync,
     mark_outbox_error,
@@ -62,7 +71,10 @@ from dz_fastapi.services.reclamation_armtek import (
     send_armtek_decision,
     sync_armtek_open_returns,
 )
-from dz_fastapi.services.reclamation_attachment_parser import parse_torg2_sheet
+from dz_fastapi.services.reclamation_attachment_parser import (
+    parse_customer_return_upd_xlsx,
+    parse_torg2_sheet,
+)
 from dz_fastapi.services.reclamation_check import (
     _elapsed_return_days,
     _order_return_start_date,
@@ -89,6 +101,7 @@ from dz_fastapi.services.reclamations import (
     assign_shortage_reviewer,
     classify_attachment_kind,
     classify_reclamation_type,
+    cleanup_closed_reclamation_files,
     confirm_shortage,
     extract_fields,
     extract_froza_email_item,
@@ -1713,6 +1726,286 @@ def test_parse_torg2_sheet_extracts_document_item_and_reason():
     }
 
 
+def test_parse_customer_return_upd_xlsx_extracts_source_and_vat_22():
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet["A1"] = "Универсальный передаточный документ"
+    sheet["A2"] = "Счет-фактура №"
+    sheet["B2"] = "КП0011666"
+    sheet["C2"] = "от"
+    sheet["D2"] = "31 июля 2026"
+    sheet["A3"] = "Статус:"
+    sheet["B3"] = 2
+    sheet["A4"] = "Продавец"
+    sheet["B4"] = 'ООО "КОСМОПАРТ"'
+    sheet["A5"] = "Покупатель"
+    sheet["B5"] = 'ООО "АВТОПАРТС"'
+    sheet["A6"] = "Основание передачи"
+    sheet["B6"] = "Возврат по счету-фактуре № 3194 от 16.07.2026"
+    sheet["A8"] = "№ п/п"
+    sheet.cell(11, 1, 1)
+    sheet.cell(11, 3, "3800001")
+    sheet.cell(11, 9, "Болт крепления | LEMFORDER | 3800001")
+    sheet.cell(11, 39, 2)
+    sheet.cell(11, 42, 1959.02)
+    sheet.cell(11, 46, 3918.03)
+    sheet.cell(11, 53, "22%")
+    sheet.cell(11, 57, 861.97)
+    sheet.cell(11, 60, 4780)
+    sheet.cell(11, 64, "156")
+    sheet.cell(11, 67, "КИТАЙ")
+    sheet.cell(11, 69, "10216170/070120/0002198")
+    payload = BytesIO()
+    workbook.save(payload)
+
+    parsed = parse_customer_return_upd_xlsx(payload.getvalue())
+
+    assert parsed is not None
+    assert parsed["document_number"] == "КП0011666"
+    assert parsed["document_date"] == "2026-07-31"
+    assert parsed["original_document_number"] == "3194"
+    assert parsed["original_document_date"] == "2026-07-16"
+    assert parsed["document_status"] == 2
+    assert parsed["items"] == [
+        {
+            "oem_number": "3800001",
+            "brand_name": "LEMFORDER",
+            "autopart_name": "Болт крепления",
+            "quantity": 2,
+            "unit_price_without_vat": "1959.02",
+            "subtotal_without_vat": "3918.03",
+            "vat_rate": "22",
+            "vat_amount": "861.97",
+            "total_with_vat": "4780.00",
+            "country_code": "156",
+            "country_name": "КИТАЙ",
+            "gtd_number": "10216170/070120/0002198",
+            "reason": "Возврат товара по документу клиента",
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_customer_return_document_creates_safe_deduplicated_ukd_draft(
+    test_session: AsyncSession,
+    created_customers,
+    created_autopart,
+):
+    customer = created_customers[0]
+    customer.inn = "7727444805"
+    customer.kpp = "773101001"
+    test_session.add(customer)
+    shipment = ShipmentDocument(
+        doc_number="3194",
+        doc_date=datetime(2026, 7, 16, tzinfo=UTC),
+        status=ShipmentDocumentStatus.POSTED,
+        customer_id=customer.id,
+    )
+    test_session.add(shipment)
+    await test_session.flush()
+    shipment_item = ShipmentDocumentItem(
+        document_id=shipment.id,
+        autopart_id=created_autopart.id,
+        quantity=5,
+        price=244,
+        vat_rate=22,
+    )
+    test_session.add(shipment_item)
+    source_upd = DiadocOutgoingDocument(
+        environment="production",
+        from_box_id_guid="our-box",
+        to_box_id_guid="customer-box",
+        customer_id=customer.id,
+        source_type="shipment_document",
+        source_id=shipment.id,
+        type_named_id="UniversalTransferDocument",
+        file_name="upd.xml",
+        document_number="3194",
+        document_date=date(2026, 7, 16),
+        local_file_path="uploads/diadoc_outgoing/upd.xml",
+        is_draft=False,
+        status="sent",
+        message_id="message-upd-3194",
+        entity_id="entity-upd-3194",
+    )
+    test_session.add(source_upd)
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.RECOGNIZED,
+        customer_id=customer.id,
+        sender_email="returns@cosmo.example",
+    )
+    test_session.add(reclamation)
+    await test_session.flush()
+    test_session.add(
+        ReclamationItem(
+            reclamation_id=reclamation.id,
+            oem_number=created_autopart.oem_number,
+            autopart_id=created_autopart.id,
+            quantity=2,
+        )
+    )
+    await test_session.flush()
+    extraction = {
+        "parser": "customer_return_upd_xlsx",
+        "source_sha256": "a" * 64,
+        "filename": "Возврат.xlsx",
+        "document_number": "КП0011666",
+        "document_date": "2026-07-31",
+        "original_document_number": "3194",
+        "original_document_date": "2026-07-16",
+        "seller_inn": customer.inn,
+        "seller_kpp": customer.kpp,
+        "items": [
+            {
+                "oem_number": created_autopart.oem_number,
+                "brand_name": created_autopart.brand.name,
+                "autopart_name": created_autopart.name,
+                "quantity": 2,
+                "vat_rate": "22.00",
+                "total_with_vat": "488.00",
+            }
+        ],
+    }
+
+    draft = await create_customer_return_draft_from_reclamation(
+        test_session,
+        reclamation=reclamation,
+        extraction=extraction,
+    )
+    assert draft is not None
+    assert draft.shipment_document_id == shipment.id
+    assert draft.source_diadoc_outgoing_document_id == source_upd.id
+    assert draft.status == ReturnDocumentStatus.CREATED
+    assert len(draft.items) == 1
+    draft.status = ReturnDocumentStatus.CONFIRMED
+    test_session.add(draft)
+    await test_session.flush()
+
+    status = await build_customer_return_draft_status(
+        test_session,
+        return_id=draft.id,
+    )
+    assert status["ready_to_issue"] is True
+    assert status["source_basis_verified"] is True
+    assert status["items"][0]["quantity_before"] == 5
+    assert status["items"][0]["quantity_after"] == 3
+    assert status["items"][0]["vat_rate"] == "22.00"
+
+    duplicate_reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.RECOGNIZED,
+        customer_id=customer.id,
+        sender_email="returns@cosmo.example",
+    )
+    test_session.add(duplicate_reclamation)
+    await test_session.flush()
+    duplicate = await create_customer_return_draft_from_reclamation(
+        test_session,
+        reclamation=duplicate_reclamation,
+        extraction=extraction,
+    )
+    assert duplicate is not None
+    assert duplicate.id == draft.id
+    assert duplicate_reclamation.return_from_customer_id == draft.id
+
+
+@pytest.mark.asyncio
+async def test_customer_return_source_must_match_transfer_basis_exactly(
+    test_session: AsyncSession,
+    created_customers,
+    created_autopart,
+):
+    customer = created_customers[0]
+    customer.inn = "7727444805"
+    customer.kpp = "773101001"
+    test_session.add(customer)
+    wrong_shipment = ShipmentDocument(
+        doc_number="3194",
+        doc_date=datetime(2026, 7, 17, tzinfo=UTC),
+        status=ShipmentDocumentStatus.POSTED,
+        customer_id=customer.id,
+    )
+    test_session.add(wrong_shipment)
+    await test_session.flush()
+    test_session.add(
+        ShipmentDocumentItem(
+            document_id=wrong_shipment.id,
+            autopart_id=created_autopart.id,
+            quantity=5,
+            price=244,
+            vat_rate=22,
+        )
+    )
+    wrong_upd = DiadocOutgoingDocument(
+        environment="production",
+        from_box_id_guid="our-box",
+        to_box_id_guid="customer-box",
+        customer_id=customer.id,
+        source_type="shipment_document",
+        source_id=wrong_shipment.id,
+        type_named_id="UniversalTransferDocument",
+        file_name="wrong-upd.xml",
+        document_number="3194",
+        document_date=date(2026, 7, 17),
+        local_file_path="uploads/diadoc_outgoing/wrong-upd.xml",
+        is_draft=False,
+        status="sent",
+        message_id="message-wrong-upd",
+        entity_id="entity-wrong-upd",
+    )
+    test_session.add(wrong_upd)
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.RECOGNIZED,
+        customer_id=customer.id,
+        sender_email="returns@cosmo.example",
+    )
+    test_session.add(reclamation)
+    await test_session.flush()
+
+    draft = await create_customer_return_draft_from_reclamation(
+        test_session,
+        reclamation=reclamation,
+        extraction={
+            "parser": "customer_return_upd_xlsx",
+            "source_sha256": "b" * 64,
+            "document_number": "КП0011666",
+            "document_date": "2026-07-31",
+            "original_document_number": "3194",
+            "original_document_date": "2026-07-16",
+            "seller_inn": customer.inn,
+            "seller_kpp": customer.kpp,
+            "items": [
+                {
+                    "oem_number": created_autopart.oem_number,
+                    "quantity": 2,
+                    "vat_rate": "22.00",
+                    "total_with_vat": "488.00",
+                }
+            ],
+        },
+    )
+
+    assert draft is not None
+    assert draft.source_document_number == "3194"
+    assert draft.source_document_date == date(2026, 7, 16)
+    assert draft.shipment_document_id is None
+    assert draft.source_diadoc_outgoing_document_id is None
+    status = await build_customer_return_draft_status(
+        test_session,
+        return_id=draft.id,
+    )
+    assert status["source_basis_verified"] is False
+    with pytest.raises(ValueError, match="не совпадает с основанием передачи"):
+        await link_customer_return_source(
+            test_session,
+            return_id=draft.id,
+            shipment_document_id=wrong_shipment.id,
+            source_diadoc_outgoing_document_id=wrong_upd.id,
+        )
+
+
 def test_approved_reply_uses_customer_facing_return_instructions():
     reclamation = SimpleNamespace(
         id=15,
@@ -2453,7 +2746,10 @@ async def test_ingest_reclamation_uses_structured_attachment_data(
         ReclamationInboundEmail(
             from_="returns@example.com",
             subject="Акт расхождений",
-            body_text="Просим рассмотреть возврат во вложении.",
+            body_text=(
+                "Просим рассмотреть возврат во вложении. "
+                "Форма содержит служебную колонку Брак."
+            ),
             message_id="<torg2-test@example.com>",
             attachments=[
                 ReclamationInboundAttachment(
@@ -2476,6 +2772,119 @@ async def test_ingest_reclamation_uses_structured_attachment_data(
     assert reclamation.items[0].brand_name == "HONDA"
     assert reclamation.items[0].quantity == 8
     assert reclamation.items[0].reason == "Отказ клиента"
+
+
+@pytest.mark.asyncio
+async def test_recognize_prefers_saved_attachment_reason_over_email_text(
+    test_session: AsyncSession,
+):
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.RECOGNIZED,
+        reclamation_type="defect",
+        email_subject="Акт расхождений",
+        email_body="В форме присутствует служебная колонка Брак.",
+        stated_reason="Брак",
+        items=[],
+        extracted_data={
+            "attachments": [
+                {
+                    "parser": "torg2_xls",
+                    "reason": "Отказ клиента",
+                    "items": [
+                        {
+                            "oem_number": "19115RGA000",
+                            "reason": "Отказ клиента",
+                            "quantity": 1,
+                        }
+                    ],
+                }
+            ]
+        },
+    )
+    test_session.add(reclamation)
+    await test_session.flush()
+
+    await recognize_reclamation_items(test_session, reclamation)
+    await test_session.commit()
+
+    assert reclamation.stated_reason == "Отказ клиента"
+    assert reclamation.reclamation_type == "customer_refusal"
+
+
+@pytest.mark.asyncio
+async def test_cleanup_removes_only_old_closed_reclamation_files(
+    test_session: AsyncSession,
+    monkeypatch,
+    tmp_path,
+):
+    storage_root = tmp_path / "reclamation_attachments"
+    closed_dir = storage_root / "closed"
+    active_dir = storage_root / "active"
+    closed_dir.mkdir(parents=True)
+    active_dir.mkdir(parents=True)
+    closed_file = closed_dir / "old-photo.jpg"
+    active_file = active_dir / "active-photo.jpg"
+    closed_file.write_bytes(b"old")
+    active_file.write_bytes(b"active")
+    old_date = datetime.now(UTC) - timedelta(days=181)
+
+    closed = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.CLOSED,
+        updated_at=old_date,
+        attachments=[
+            ReclamationAttachment(
+                kind=RECLAMATION_ATTACHMENT_KIND.PHOTO,
+                file_name=closed_file.name,
+                local_file_path=str(closed_file),
+            )
+        ],
+    )
+    active = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.APPROVED,
+        updated_at=old_date,
+        attachments=[
+            ReclamationAttachment(
+                kind=RECLAMATION_ATTACHMENT_KIND.PHOTO,
+                file_name=active_file.name,
+                local_file_path=str(active_file),
+            )
+        ],
+    )
+    test_session.add_all([closed, active])
+    await test_session.commit()
+    closed_attachment_id = closed.attachments[0].id
+    active_attachment_id = active.attachments[0].id
+    monkeypatch.setattr(
+        "dz_fastapi.services.reclamations.RECLAMATION_ATTACHMENTS_DIR",
+        str(storage_root),
+    )
+
+    result = await cleanup_closed_reclamation_files(
+        test_session,
+        max_days=180,
+    )
+
+    closed_attachment = await test_session.get(
+        ReclamationAttachment,
+        closed_attachment_id,
+    )
+    active_attachment = await test_session.get(
+        ReclamationAttachment,
+        active_attachment_id,
+    )
+    assert result == {
+        "candidates": 1,
+        "removed": 1,
+        "missing": 0,
+        "skipped": 0,
+    }
+    assert closed_attachment.local_file_path is None
+    assert not closed_file.exists()
+    assert active_attachment.local_file_path == str(active_file)
+    assert active_file.exists()
 
 
 def test_order_return_start_date_uses_moscow_cutoff_and_workday():

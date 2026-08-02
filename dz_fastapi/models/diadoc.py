@@ -122,6 +122,14 @@ class DiadocOutgoingDocument(Base):
     docflow_status_text = Column(String(500), nullable=True)
     recipient_response_status = Column(String(120), nullable=True)
     revocation_status = Column(String(120), nullable=True)
+    # Внешний документооборот с ГИС ЭПД (перевозочные документы).
+    # Заполняется только для ЭТрН/ЭПЛ/заказ-заявки; сам документооборот
+    # ведётся в 1С, мы храним статус для отображения.
+    transport_status_named_id = Column(String(64), nullable=True)
+    transport_status_type = Column(String(32), nullable=True)
+    transport_status_text = Column(String(500), nullable=True)
+    transport_mintrans_id = Column(String(120), nullable=True, index=True)
+    transport_carriage_id = Column(String(120), nullable=True)
     delivered_at = Column(DateTime(timezone=True), nullable=True)
     status_checked_at = Column(DateTime(timezone=True), nullable=True)
     last_status_payload = Column(JSON, default=dict)

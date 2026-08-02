@@ -6,9 +6,12 @@ import logging
 import os
 import re
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
+from io import BytesIO
 from typing import Any, Optional
 
 import xlrd
+from openpyxl import load_workbook
 
 logger = logging.getLogger("dz_fastapi")
 
@@ -24,6 +27,12 @@ _SOURCE_DOCUMENT_RE = re.compile(
 )
 _ITEM_REASON_RE = re.compile(
     r"^\s*([A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9./-]{3,39})\s*" r"[-–—]\s*(.+?)\s*$"
+)
+_RETURN_BASIS_RE = re.compile(
+    r"возврат\s+по\s+(?:сч[её]ту-фактуре|упд)\s*"
+    r"(?:no|№)?\s*([A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9_./-]{0,79})\s+от\s+"
+    r"(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})",
+    re.IGNORECASE,
 )
 
 
@@ -59,6 +68,167 @@ def _number(value: Any) -> Optional[float]:
         return float(text)
     except ValueError:
         return None
+
+
+def _decimal_text(value: Any) -> Optional[str]:
+    number = _number(value)
+    if number is None:
+        return None
+    try:
+        return format(Decimal(str(number)).quantize(Decimal("0.01")), "f")
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def _xlsx_value_after_label(ws: Any, label: str) -> Any:
+    normalized_label = label.casefold()
+    for row in ws.iter_rows():
+        for cell in row:
+            if _clean_text(cell.value).casefold() != normalized_label:
+                continue
+            for candidate in row[cell.column:]:
+                if _clean_text(candidate.value):
+                    return candidate.value
+    return None
+
+
+def _xlsx_full_text(ws: Any) -> str:
+    return "\n".join(
+        " ".join(_clean_text(cell.value) for cell in row if _clean_text(cell.value))
+        for row in ws.iter_rows()
+    )
+
+
+def _parse_russian_long_date(value: Any) -> Optional[date]:
+    text = _clean_text(value).lower().replace(" г.", "").replace(" г", "")
+    months = {
+        "января": 1,
+        "февраля": 2,
+        "марта": 3,
+        "апреля": 4,
+        "мая": 5,
+        "июня": 6,
+        "июля": 7,
+        "августа": 8,
+        "сентября": 9,
+        "октября": 10,
+        "ноября": 11,
+        "декабря": 12,
+    }
+    match = re.fullmatch(r"(\d{1,2})\s+([а-яё]+)\s+(\d{4})", text)
+    if not match or match.group(2) not in months:
+        return _parse_date(text)
+    try:
+        return date(int(match.group(3)), months[match.group(2)], int(match.group(1)))
+    except ValueError:
+        return None
+
+
+def _split_inn_kpp(value: Any) -> tuple[Optional[str], Optional[str]]:
+    numbers = re.findall(r"\d{9,12}", _clean_text(value))
+    return (
+        numbers[0] if numbers else None,
+        numbers[1] if len(numbers) > 1 else None,
+    )
+
+
+def parse_customer_return_upd_xlsx(payload: bytes) -> Optional[dict[str, Any]]:
+    """Parse a buyer-issued return UPD without treating it as our UKD."""
+    workbook = load_workbook(BytesIO(payload), read_only=False, data_only=True)
+    for ws in workbook.worksheets:
+        full_text = _xlsx_full_text(ws)
+        lowered = full_text.casefold()
+        if (
+            "универсальный передаточный" not in lowered
+            or "основание передачи" not in lowered
+            or "возврат по" not in lowered
+        ):
+            continue
+
+        basis_match = _RETURN_BASIS_RE.search(full_text)
+        if not basis_match:
+            continue
+        original_date = _parse_date(basis_match.group(2))
+
+        document_number = _clean_text(_xlsx_value_after_label(ws, "Счет-фактура №"))
+        document_date = _parse_russian_long_date(
+            _xlsx_value_after_label(ws, "от")
+        )
+        status_value = _clean_text(_xlsx_value_after_label(ws, "Статус:"))
+        if status_value != "2":
+            continue
+
+        seller_name = _clean_text(_xlsx_value_after_label(ws, "Продавец"))
+        buyer_name = _clean_text(_xlsx_value_after_label(ws, "Покупатель"))
+        seller_inn, seller_kpp = _split_inn_kpp(
+            _xlsx_value_after_label(ws, "ИНН / КПП продавца")
+        )
+        buyer_inn, buyer_kpp = _split_inn_kpp(
+            _xlsx_value_after_label(ws, "ИНН / КПП покупателя")
+        )
+
+        header_row = None
+        for row_index in range(1, min(ws.max_row, MAX_SHEET_ROWS) + 1):
+            if _clean_text(ws.cell(row_index, 1).value) == "№ п/п":
+                header_row = row_index
+                break
+        if header_row is None:
+            continue
+
+        items: list[dict[str, Any]] = []
+        for row_index in range(header_row + 3, min(ws.max_row, MAX_SHEET_ROWS) + 1):
+            sequence = _number(ws.cell(row_index, 1).value)
+            if sequence is None:
+                if "всего к оплате" in _clean_text(ws.cell(row_index, 9).value).casefold():
+                    break
+                continue
+            oem = _normalize_oem(_clean_text(ws.cell(row_index, 3).value))
+            quantity = _number(ws.cell(row_index, 39).value)  # AM
+            if not oem or quantity is None or quantity <= 0:
+                continue
+            product = _clean_text(ws.cell(row_index, 9).value)  # I
+            product_parts = [part.strip() for part in product.split("|")]
+            brand_name = product_parts[1] if len(product_parts) >= 3 else None
+            item_name = product_parts[0] if product_parts else product
+            vat_text = _clean_text(ws.cell(row_index, 53).value)  # BA
+            vat_match = re.search(r"\d+(?:[.,]\d+)?", vat_text)
+            vat_rate = vat_match.group(0).replace(",", ".") if vat_match else "22.00"
+            items.append(
+                {
+                    "oem_number": oem,
+                    "brand_name": brand_name,
+                    "autopart_name": item_name or None,
+                    "quantity": int(quantity),
+                    "unit_price_without_vat": _decimal_text(ws.cell(row_index, 42).value),  # AP
+                    "subtotal_without_vat": _decimal_text(ws.cell(row_index, 46).value),  # AT
+                    "vat_rate": vat_rate,
+                    "vat_amount": _decimal_text(ws.cell(row_index, 57).value),  # BE
+                    "total_with_vat": _decimal_text(ws.cell(row_index, 60).value),  # BH
+                    "country_code": _clean_text(ws.cell(row_index, 64).value) or None,  # BL
+                    "country_name": _clean_text(ws.cell(row_index, 67).value) or None,  # BO
+                    "gtd_number": _clean_text(ws.cell(row_index, 69).value) or None,  # BQ
+                    "reason": "Возврат товара по документу клиента",
+                }
+            )
+        if not items:
+            continue
+        return {
+            "parser": "customer_return_upd_xlsx",
+            "document_number": document_number or None,
+            "document_date": document_date.isoformat() if document_date else None,
+            "original_document_number": basis_match.group(1).strip(),
+            "original_document_date": original_date.isoformat() if original_date else None,
+            "document_status": 2,
+            "seller_name": seller_name or None,
+            "seller_inn": seller_inn,
+            "seller_kpp": seller_kpp,
+            "buyer_name": buyer_name or None,
+            "buyer_inn": buyer_inn,
+            "buyer_kpp": buyer_kpp,
+            "reason": "Возврат товара по документу клиента",
+            "items": items,
+        }
+    return None
 
 
 def _sheet_rows(sheet: Any) -> list[list[tuple[int, Any, str]]]:
@@ -202,7 +372,7 @@ def parse_reclamation_attachment(
 ) -> Optional[dict[str, Any]]:
     """Returns structured data only for known, confidently detected files."""
     extension = os.path.splitext(str(filename or ""))[1].lower()
-    if extension != ".xls" or not payload:
+    if extension not in {".xls", ".xlsx"} or not payload:
         return None
     if len(payload) > MAX_RECLAMATION_ATTACHMENT_BYTES:
         logger.warning(
@@ -210,6 +380,19 @@ def parse_reclamation_attachment(
             filename,
             len(payload),
         )
+        return None
+    if extension == ".xlsx":
+        try:
+            parsed = parse_customer_return_upd_xlsx(payload)
+            if parsed:
+                parsed["filename"] = filename
+                return parsed
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Failed to parse XLSX reclamation attachment %s: %s",
+                filename,
+                exc,
+            )
         return None
     try:
         workbook = xlrd.open_workbook(

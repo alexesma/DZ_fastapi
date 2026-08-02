@@ -7,6 +7,13 @@
   "request_timeout_seconds": 30,
   "worker_id": null,
   "claim_lease_seconds": 300,
+  "telegram": {
+    "enabled": true,
+    "bot_token": "ТОКЕН_БОТА_ТОЛЬКО_НА_КОМПЬЮТЕРЕ_РЕЛЕЯ",
+    "api_base_url": "https://api.telegram.org",
+    "request_timeout_seconds": 45,
+    "proxy_url": null
+  },
   "smtp_accounts": {
     "reclamations@yandex.ru": {
       "host": "smtp.yandex.ru",

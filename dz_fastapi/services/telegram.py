@@ -7,6 +7,9 @@ TELEGRAM_REQUEST_TIMEOUT = ClientTimeout(total=30)
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_TO")
+TELEGRAM_DELIVERY_MODE = (
+    os.getenv("TELEGRAM_DELIVERY_MODE") or "relay"
+).strip().lower()
 # Прокси для обхода блокировки Telegram в РФ. Поддерживает http(s):// и
 # socks5:// (для socks нужен aiohttp-socks). Пусто — без прокси.
 TELEGRAM_PROXY_URL = (os.getenv("TELEGRAM_PROXY_URL") or "").strip() or None
@@ -36,6 +39,25 @@ async def send_file_to_telegram(
     :param filename: имя файла (например, 'report.xlsx')
     :param caption: сообщение к файлу
     """
+    if TELEGRAM_DELIVERY_MODE == "relay":
+        from dz_fastapi.core.db import get_async_session
+        from dz_fastapi.services.telegram_outbox import enqueue_telegram_document
+
+        session_factory = get_async_session()
+        async with session_factory() as session:
+            return await enqueue_telegram_document(
+                session,
+                chat_id=chat_id,
+                file_bytes=file_bytes,
+                file_name=file_name,
+                caption=caption,
+                content_type=(
+                    "application/vnd.openxmlformats-officedocument."
+                    "spreadsheetml.sheet"
+                ),
+            )
+    if TELEGRAM_DELIVERY_MODE != "direct":
+        raise Exception("TELEGRAM_DELIVERY_MODE must be relay or direct")
     if not TELEGRAM_BOT_TOKEN:
         raise Exception("TELEGRAM_TOKEN is not configured")
     data = aiohttp.FormData()
@@ -68,11 +90,25 @@ async def send_message_to_telegram(
     chat_id: str | None = None,
     parse_mode: str | None = None,
 ):
-    if not TELEGRAM_BOT_TOKEN:
-        raise Exception("TELEGRAM_TOKEN is not configured")
     chat_id = chat_id or TELEGRAM_CHAT_ID
     if not chat_id:
         raise Exception("TELEGRAM_TO is not configured")
+    if TELEGRAM_DELIVERY_MODE == "relay":
+        from dz_fastapi.core.db import get_async_session
+        from dz_fastapi.services.telegram_outbox import enqueue_telegram_message
+
+        session_factory = get_async_session()
+        async with session_factory() as session:
+            return await enqueue_telegram_message(
+                session,
+                chat_id=chat_id,
+                text=text,
+                parse_mode=parse_mode,
+            )
+    if TELEGRAM_DELIVERY_MODE != "direct":
+        raise Exception("TELEGRAM_DELIVERY_MODE must be relay or direct")
+    if not TELEGRAM_BOT_TOKEN:
+        raise Exception("TELEGRAM_TOKEN is not configured")
     payload = {
         "chat_id": chat_id,
         "text": text,

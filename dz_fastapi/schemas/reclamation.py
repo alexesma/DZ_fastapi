@@ -176,6 +176,49 @@ class ReclamationArmtekSyncResult(BaseModel):
     supplier_id: Optional[str] = None
 
 
+class CustomerReturnUkdDraftItemOut(BaseModel):
+    return_item_id: int
+    shipment_item_id: Optional[int] = None
+    brand_name: Optional[str] = None
+    oem_number: Optional[str] = None
+    name: Optional[str] = None
+    return_quantity: int = 0
+    source_quantity: Optional[int] = None
+    previously_corrected_quantity: int = 0
+    quantity_before: Optional[int] = None
+    quantity_after: Optional[int] = None
+    gross_unit_price: Optional[str] = None
+    vat_rate: str = "22.00"
+    blockers: list[str] = Field(default_factory=list)
+
+
+class CustomerReturnUkdDraftOut(BaseModel):
+    return_id: int
+    status: str
+    external_document_number: Optional[str] = None
+    external_document_date: Optional[date] = None
+    source_document_number: Optional[str] = None
+    source_document_date: Optional[date] = None
+    shipment_document_id: Optional[int] = None
+    source_diadoc_outgoing_document_id: Optional[int] = None
+    source_basis_verified: bool = False
+    ukd_outgoing_document_id: Optional[int] = None
+    ready_to_issue: bool = False
+    blockers: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    items: list[CustomerReturnUkdDraftItemOut] = Field(default_factory=list)
+
+
+class CustomerReturnUkdDecisionIn(BaseModel):
+    decision: Literal["approved", "rejected"]
+    comment: Optional[str] = Field(default=None, max_length=4000)
+
+
+class CustomerReturnUkdLinkIn(BaseModel):
+    shipment_document_id: int = Field(gt=0)
+    source_diadoc_outgoing_document_id: int = Field(gt=0)
+
+
 class EmailOutboxOut(BaseModel):
     id: int
     status: str

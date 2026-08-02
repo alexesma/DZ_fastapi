@@ -34,6 +34,10 @@ from dz_fastapi.models.partner import (
     ProviderExternalReference,
 )
 from dz_fastapi.models.settings import DiadocIntegrationSettings
+from dz_fastapi.services.customer_return_ukd import (
+    DEFAULT_WHOLESALE_VAT_RATE,
+    build_customer_return_draft_status,
+)
 
 DIADOC_OUTGOING_DIR = os.getenv(
     "DIADOC_OUTGOING_DIR",
@@ -212,6 +216,32 @@ def _format_decimal(value: Any, places: int = 2) -> str:
         rounding=ROUND_HALF_UP,
     )
     return f"{normalized:.{places}f}"
+
+
+def _gross_price_vat_parts(
+    gross_unit_price: Any,
+    quantity: Any,
+    vat_rate: Any = DEFAULT_WHOLESALE_VAT_RATE,
+) -> tuple[Decimal, Decimal, Decimal, Decimal]:
+    """Return net unit price, net total, VAT and gross total."""
+    gross_unit = Decimal(str(gross_unit_price or 0))
+    qty = Decimal(str(quantity or 0))
+    rate = Decimal(str(vat_rate or DEFAULT_WHOLESALE_VAT_RATE))
+    divisor = Decimal("1") + rate / Decimal("100")
+    net_unit = (gross_unit / divisor).quantize(
+        Decimal("0.01"),
+        rounding=ROUND_HALF_UP,
+    )
+    net_total = (net_unit * qty).quantize(
+        Decimal("0.01"),
+        rounding=ROUND_HALF_UP,
+    )
+    gross_total = (gross_unit * qty).quantize(
+        Decimal("0.01"),
+        rounding=ROUND_HALF_UP,
+    )
+    vat_total = gross_total - net_total
+    return net_unit, net_total, vat_total, gross_total
 
 
 def _split_full_name(value: str | None) -> tuple[str, str, str]:
@@ -715,6 +745,8 @@ async def _load_customer_return_document(
         .options(
             selectinload(ReturnFromCustomer.customer),
             selectinload(ReturnFromCustomer.shipment_document),
+            selectinload(ReturnFromCustomer.source_diadoc_outgoing_document),
+            selectinload(ReturnFromCustomer.diadoc_outgoing_document),
             selectinload(ReturnFromCustomer.warehouse),
             selectinload(ReturnFromCustomer.items)
             .selectinload(ReturnItem.autopart)
@@ -819,6 +851,11 @@ async def build_customer_return_formalized_readiness(
     missing_required_fields: list[str] = []
     warnings: list[str] = []
     recommended_actions: list[str] = []
+    draft_status = await build_customer_return_draft_status(
+        session,
+        return_id=return_id,
+    )
+    missing_required_fields.extend(draft_status["blockers"])
 
     has_counteragent_binding = False
     if customer is not None and getattr(customer, "id", None) is not None:
@@ -838,6 +875,10 @@ async def build_customer_return_formalized_readiness(
     if source_document is None:
         missing_required_fields.append(
             "У возврата не привязана исходная отгрузка."
+        )
+    if document.source_diadoc_outgoing_document_id is None:
+        recommended_actions.append(
+            "Привяжите исходную реализацию и нашу исходящую УПД."
         )
     if source_document is not None and _is_blank_text(
         getattr(source_document, "doc_number", None)
@@ -933,7 +974,9 @@ async def build_customer_return_formalized_readiness(
         "document_id": int(document.id),
         "status": str(document.status.value),
         "ready_formalized": not missing_required_fields,
-        "missing_required_fields": missing_required_fields,
+        "missing_required_fields": list(
+            dict.fromkeys(missing_required_fields)
+        ),
         "warnings": warnings,
         "recommended_actions": recommended_actions,
         "customer_id": (
@@ -1193,16 +1236,13 @@ def _build_formalized_ukd_user_data_xml(
     original_document_date: date,
     operation_content: str,
     correction_base_name: str,
+    line_states: dict[int, dict[str, Any]] | None = None,
 ) -> bytes:
     document_date = document.doc_date.date().strftime("%d.%m.%Y")
     current_document_number = str(
         document.doc_number or f"RETURN-{document.id}"
     ).strip()
     seller_name = _build_document_creator_name(integration, seller_org_payload)
-    total = Decimal("0")
-    for item in items:
-        total += Decimal(str(item.price)) * Decimal(str(item.quantity or 0))
-
     root_attrs = {
         "DocumentDate": document_date,
         "DocumentNumber": current_document_number,
@@ -1261,15 +1301,6 @@ def _build_formalized_ukd_user_data_xml(
     )
     ET.SubElement(
         event_el,
-        "CorrectionBase",
-        {
-            "BaseDocumentName": correction_base_name,
-            "BaseDocumentNumber": current_document_number,
-            "BaseDocumentDate": document_date,
-        },
-    )
-    ET.SubElement(
-        event_el,
         "TransferDocDetails",
         {
             "BaseDocumentName": original_document_name,
@@ -1277,14 +1308,53 @@ def _build_formalized_ukd_user_data_xml(
             "BaseDocumentDate": original_document_date.strftime("%d.%m.%Y"),
         },
     )
+    correction_number = str(
+        getattr(document, "external_document_number", None)
+        or current_document_number
+    ).strip()
+    correction_date = (
+        getattr(document, "external_document_date", None)
+        or document.doc_date.date()
+    )
+    ET.SubElement(
+        event_el,
+        "CorrectionBase",
+        {
+            "BaseDocumentName": correction_base_name,
+            "BaseDocumentNumber": correction_number,
+            "BaseDocumentDate": correction_date.strftime("%d.%m.%Y"),
+        },
+    )
 
+    total_dec_net = Decimal("0")
+    total_dec_vat = Decimal("0")
+    total_dec_gross = Decimal("0")
     table_el = ET.SubElement(root, "Table")
+    items_el = ET.SubElement(table_el, "Items")
     for idx, item in enumerate(items, start=1):
-        quantity = Decimal(str(item.quantity or 0))
-        price = Decimal(str(item.price))
-        subtotal = price * quantity
+        state = (line_states or {}).get(int(item.id), {})
+        return_quantity = Decimal(str(item.quantity or 0))
+        quantity_before = Decimal(
+            str(state.get("quantity_before", return_quantity))
+        )
+        quantity_after = Decimal(str(state.get("quantity_after", 0)))
+        vat_rate = Decimal(
+            str(item.vat_rate or DEFAULT_WHOLESALE_VAT_RATE)
+        )
+        net_price, original_net, original_vat, original_gross = (
+            _gross_price_vat_parts(item.price, quantity_before, vat_rate)
+        )
+        _, corrected_net, corrected_vat, corrected_gross = (
+            _gross_price_vat_parts(item.price, quantity_after, vat_rate)
+        )
+        net_dec = original_net - corrected_net
+        vat_dec = original_vat - corrected_vat
+        gross_dec = original_gross - corrected_gross
+        total_dec_net += net_dec
+        total_dec_vat += vat_dec
+        total_dec_gross += gross_dec
         item_el = ET.SubElement(
-            table_el,
+            items_el,
             "Item",
             {
                 "OriginalNumber": str(idx),
@@ -1297,6 +1367,23 @@ def _build_formalized_ukd_user_data_xml(
 
         ET.SubElement(
             item_el,
+            "UnitName",
+            {
+                "OriginalValue": _DEFAULT_ITEM_UNIT_NAME,
+                "CorrectedValue": _DEFAULT_ITEM_UNIT_NAME,
+            },
+        )
+        tax_rate_label = f"{_format_quantity_text(vat_rate)}%"
+        ET.SubElement(
+            item_el,
+            "TaxRate",
+            {
+                "OriginalValue": tax_rate_label,
+                "CorrectedValue": tax_rate_label,
+            },
+        )
+        ET.SubElement(
+            item_el,
             "Unit",
             {
                 "OriginalValue": _DEFAULT_ITEM_UNIT_CODE,
@@ -1305,22 +1392,13 @@ def _build_formalized_ukd_user_data_xml(
         )
         ET.SubElement(
             item_el,
-            "UnitName",
-            {
-                "OriginalValue": _DEFAULT_ITEM_UNIT_NAME,
-                "CorrectedValue": _DEFAULT_ITEM_UNIT_NAME,
-            },
-        )
-        ET.SubElement(
-            item_el,
             "Quantity",
             {
-                "OriginalValue": _format_quantity_text(quantity),
-                "CorrectedValue": "0",
+                "OriginalValue": _format_quantity_text(quantity_before),
+                "CorrectedValue": _format_quantity_text(quantity_after),
             },
         )
-        price_text = _format_decimal(price)
-        subtotal_text = _format_decimal(subtotal)
+        price_text = _format_decimal(net_price)
         ET.SubElement(
             item_el,
             "Price",
@@ -1329,45 +1407,38 @@ def _build_formalized_ukd_user_data_xml(
                 "CorrectedValue": price_text,
             },
         )
+        subtotal_el = ET.SubElement(
+            item_el,
+            "Subtotal",
+            {
+                "OriginalValue": _format_decimal(original_gross),
+                "CorrectedValue": _format_decimal(corrected_gross),
+            },
+        )
+        ET.SubElement(subtotal_el, "AmountsDec").text = _format_decimal(
+            gross_dec
+        )
         subtotal_without_vat_el = ET.SubElement(
             item_el,
             "SubtotalWithVatExcluded",
             {
-                "OriginalValue": subtotal_text,
-                "CorrectedValue": "0.00",
+                "OriginalValue": _format_decimal(original_net),
+                "CorrectedValue": _format_decimal(corrected_net),
             },
         )
         ET.SubElement(
             subtotal_without_vat_el,
             "AmountsDec",
-        ).text = subtotal_text
-        subtotal_el = ET.SubElement(
+        ).text = _format_decimal(net_dec)
+        vat_el = ET.SubElement(
             item_el,
-            "Subtotal",
+            "Vat",
             {
-                "OriginalValue": subtotal_text,
-                "CorrectedValue": "0.00",
+                "OriginalValue": _format_decimal(original_vat),
+                "CorrectedValue": _format_decimal(corrected_vat),
             },
         )
-        ET.SubElement(subtotal_el, "AmountsDec").text = subtotal_text
-        ET.SubElement(
-            item_el,
-            "TaxRate",
-            {
-                "OriginalValue": _DEFAULT_NO_VAT_LABEL,
-                "CorrectedValue": _DEFAULT_NO_VAT_LABEL,
-            },
-        )
-        vat_el = ET.SubElement(item_el, "Vat")
-        ET.SubElement(vat_el, "AmountsDec").text = "0.00"
-        ET.SubElement(
-            item_el,
-            "WithoutVat",
-            {
-                "OriginalValue": "true",
-                "CorrectedValue": "true",
-            },
-        )
+        ET.SubElement(vat_el, "AmountsDec").text = _format_decimal(vat_dec)
 
         item_lot = getattr(item, "lot", None)
         source_lot = getattr(getattr(item, "shipment_item", None), "lot", None)
@@ -1385,17 +1456,24 @@ def _build_formalized_ukd_user_data_xml(
             ),
         )
 
-    zero_text = "0.00"
-    total_text = _format_decimal(total)
-    totals_inc_el = ET.SubElement(table_el, "TotalsInc")
-    ET.SubElement(totals_inc_el, "TotalWithVatExcluded").text = zero_text
-    ET.SubElement(totals_inc_el, "Vat").text = zero_text
-    ET.SubElement(totals_inc_el, "Total").text = zero_text
-
-    totals_dec_el = ET.SubElement(table_el, "TotalsDec")
-    ET.SubElement(totals_dec_el, "TotalWithVatExcluded").text = total_text
-    ET.SubElement(totals_dec_el, "Vat").text = zero_text
-    ET.SubElement(totals_dec_el, "Total").text = total_text
+    ET.SubElement(
+        table_el,
+        "TotalsInc",
+        {
+            "TotalWithVatExcluded": "0.00",
+            "Vat": "0.00",
+            "Total": "0.00",
+        },
+    )
+    ET.SubElement(
+        table_el,
+        "TotalsDec",
+        {
+            "TotalWithVatExcluded": _format_decimal(total_dec_net),
+            "Vat": _format_decimal(total_dec_vat),
+            "Total": _format_decimal(total_dec_gross),
+        },
+    )
 
     return ET.tostring(root, encoding="utf-8", xml_declaration=True)
 
@@ -1678,11 +1756,19 @@ def _build_formalized_utd_user_data_xml(
     customer = getattr(document, "customer", None)
     items = list(getattr(document, "items", []) or [])
 
-    total = Decimal("0")
+    total_net = Decimal("0")
+    total_vat = Decimal("0")
+    total_gross = Decimal("0")
     for item in items:
-        price = Decimal(str(getattr(item, "price", None)))
         quantity = Decimal(str(getattr(item, "quantity", 0) or 0))
-        total += price * quantity
+        _, net, vat, gross = _gross_price_vat_parts(
+            getattr(item, "price", None),
+            quantity,
+            getattr(item, "vat_rate", DEFAULT_WHOLESALE_VAT_RATE),
+        )
+        total_net += net
+        total_vat += vat
+        total_gross += gross
 
     root = ET.Element(
         _UTD_TYPE_NAMED_ID,
@@ -1732,15 +1818,28 @@ def _build_formalized_utd_user_data_xml(
         root,
         "Table",
         {
-            "TotalWithVatExcluded": _format_decimal(total),
-            "WithoutVat": "true",
-            "Total": _format_decimal(total),
+            "TotalWithVatExcluded": _format_decimal(total_net),
+            "Vat": _format_decimal(total_vat),
+            "Total": _format_decimal(total_gross),
         },
     )
     for item in items:
-        price = Decimal(str(getattr(item, "price", None)))
         quantity = Decimal(str(getattr(item, "quantity", 0) or 0))
-        subtotal = price * quantity
+        vat_rate = Decimal(
+            str(
+                getattr(
+                    item,
+                    "vat_rate",
+                    DEFAULT_WHOLESALE_VAT_RATE,
+                )
+                or DEFAULT_WHOLESALE_VAT_RATE
+            )
+        )
+        net_price, net, vat, gross = _gross_price_vat_parts(
+            getattr(item, "price", None),
+            quantity,
+            vat_rate,
+        )
         autopart = getattr(item, "autopart", None)
         product_name = (
             str(getattr(autopart, "name", "") or "").strip()
@@ -1751,17 +1850,17 @@ def _build_formalized_utd_user_data_xml(
             table_el,
             "Item",
             {
-                "TaxRate": "NoVat",
+                "TaxRate": "TwentyTwoPercent",
                 "Product": product_name,
                 "Unit": _DEFAULT_ITEM_UNIT_CODE,
                 "UnitName": _DEFAULT_ITEM_UNIT_NAME,
                 "Quantity": _format_decimal(quantity, places=3)
                 .rstrip("0")
                 .rstrip("."),
-                "Price": _format_decimal(price),
-                "SubtotalWithVatExcluded": _format_decimal(subtotal),
-                "WithoutVat": "true",
-                "Subtotal": _format_decimal(subtotal),
+                "Price": _format_decimal(net_price),
+                "SubtotalWithVatExcluded": _format_decimal(net),
+                "Vat": _format_decimal(vat),
+                "Subtotal": _format_decimal(gross),
             },
         )
         lot = getattr(item, "lot", None)
@@ -1941,18 +2040,31 @@ async def build_formalized_diadoc_payload_from_customer_return(
         raise ValueError(
             "Only confirmed customer returns can be sent as formalized UKD"
         )
+    draft_status = await build_customer_return_draft_status(
+        session,
+        return_id=return_id,
+    )
+    if not draft_status["ready_to_issue"]:
+        raise ValueError("; ".join(draft_status["blockers"]))
 
     source_document = getattr(document, "shipment_document", None)
     if source_document is None:
         raise ValueError("Customer return has no source shipment document")
+    source_upd = getattr(document, "source_diadoc_outgoing_document", None)
     source_number = str(
-        getattr(source_document, "doc_number", "") or ""
+        getattr(source_upd, "document_number", None)
+        or getattr(source_document, "doc_number", "")
+        or ""
     ).strip()
     if not source_number:
         raise ValueError(
             "Source shipment document number is required for formalized UKD"
         )
-    source_doc_date = getattr(source_document, "doc_date", None)
+    source_doc_date = getattr(source_upd, "document_date", None) or getattr(
+        source_document,
+        "doc_date",
+        None,
+    )
     if source_doc_date is None:
         raise ValueError(
             "Source shipment document date is required for formalized UKD"
@@ -2019,11 +2131,20 @@ async def build_formalized_diadoc_payload_from_customer_return(
         buyer_fallback_address=getattr(customer, "legal_address", None),
         original_document_name="Исходная отгрузка",
         original_document_number=source_number,
-        original_document_date=source_doc_date.date(),
+        original_document_date=(
+            source_doc_date
+            if isinstance(source_doc_date, date)
+            and not hasattr(source_doc_date, "date")
+            else source_doc_date.date()
+        ),
         operation_content=(
             str(document.reason or "").strip() or "Возврат товара от клиента"
         ),
         correction_base_name="Возврат от клиента",
+        line_states={
+            int(row["return_item_id"]): row
+            for row in draft_status["items"]
+        },
     )
     generated_xml, generated_file_name = await client.generate_title_xml(
         box_id_guid=integration.box_id_guid or "",
@@ -2052,6 +2173,11 @@ async def build_formalized_diadoc_payload_from_customer_return(
         "metadata": {
             "DocumentKind": "FormalizedUniversalCorrectionDocument",
             "GeneratedBy": "GenerateTitleXml",
+            "SourceOutgoingDocumentId": str(
+                document.source_diadoc_outgoing_document_id
+            ),
+            "SourceMessageId": str(getattr(source_upd, "message_id", "") or ""),
+            "SourceEntityId": str(getattr(source_upd, "entity_id", "") or ""),
         },
     }
 

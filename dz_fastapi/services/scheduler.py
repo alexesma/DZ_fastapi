@@ -89,6 +89,7 @@ from dz_fastapi.services.placed_orders import (
 )
 from dz_fastapi.services.price_control import run_price_control
 from dz_fastapi.services.process import process_customer_pricelist, process_provider_pricelist
+from dz_fastapi.services.reclamations import cleanup_closed_reclamation_files
 from dz_fastapi.services.runtime_memory import process_rss_mb, trim_process_memory
 from dz_fastapi.services.supplier_order_responses import process_supplier_response_messages
 from dz_fastapi.services.supplier_workflow import mark_auto_refused_supplier_items
@@ -101,6 +102,9 @@ EMAIL_PASSWORD_ORDER = os.getenv("EMAIL_PASSWORD_ORDERS")
 EMAIL_HOST_ORDER = os.getenv("EMAIL_HOST_ORDERS")
 PRICELIST_STALE_ALERT_RETENTION_DAYS = int(
     os.getenv("PRICELIST_STALE_ALERT_RETENTION_DAYS", "7")
+)
+RECLAMATION_ATTACHMENT_RETENTION_DAYS = int(
+    os.getenv("RECLAMATION_ATTACHMENT_RETENTION_DAYS", "180")
 )
 CLEANUP_OLD_PRICELISTS_CATCH_UP_MINUTES = int(
     os.getenv("CLEANUP_OLD_PRICELISTS_CATCH_UP_MINUTES", "360")
@@ -846,6 +850,18 @@ def start_scheduler(app: FastAPI):
         name="Cleanup old inbox emails",
         hour=4,
         minute=0,
+        replace_existing=True,
+    )
+
+    # 04:10 — файлы только у давно закрытых рекламаций; аудит остаётся в БД.
+    scheduler.add_job(
+        func=cleanup_reclamation_files_task,
+        trigger="cron",
+        args=[app],
+        id="cleanup_reclamation_files",
+        name="Cleanup old closed reclamation files",
+        hour=4,
+        minute=10,
         replace_existing=True,
     )
 
@@ -2643,6 +2659,28 @@ async def cleanup_inbox_emails_task(app: FastAPI):
             )
         except Exception as e:
             logger.error("Error in cleanup_inbox_emails_task: %s", e)
+
+
+async def cleanup_reclamation_files_task(app: FastAPI):
+    """Удаляет старые файлы только у закрытых рекламаций."""
+    async_session_factory = app.state.session_factory
+    async with async_session_factory() as session:
+        try:
+            result = await cleanup_closed_reclamation_files(
+                session,
+                max_days=RECLAMATION_ATTACHMENT_RETENTION_DAYS,
+            )
+            logger.info(
+                "cleanup_reclamation_files_task: retention_days=%s result=%s",
+                RECLAMATION_ATTACHMENT_RETENTION_DAYS,
+                result,
+            )
+        except Exception as e:
+            logger.error(
+                "Error in cleanup_reclamation_files_task: %s",
+                e,
+                exc_info=True,
+            )
 
 
 async def auto_refuse_supplier_items_task(app: FastAPI):

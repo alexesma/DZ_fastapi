@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Внешний SMTP-релей для очереди EmailOutbox (DZ_fastapi).
+"""Внешний релей EmailOutbox и TelegramOutbox (DZ_fastapi).
 
 На проде исходящие SMTP-порты закрыты хостером, а ответы клиентам должны
 уходить С адреса Яндекс-ящика. Приложение кладёт письма в очередь, а этот
@@ -10,7 +10,8 @@
   1. передать X-Email-Relay-Token  — сервисная авторизация;
   2. POST /email-outbox/claim      — атомарно забрать письма к отправке;
   3. отправить через SMTP с нужного from-адреса;
-  4. POST /email-outbox/{id}/mark-sent  или  /mark-error.
+  4. POST /email-outbox/{id}/mark-sent  или  /mark-error;
+  5. таким же образом обработать /telegram-outbox через Telegram Bot API.
 
 Запуск:
   pip install -r requirements.txt
@@ -63,6 +64,26 @@ class RelayConfig:
         }
         # запасной аккаунт, если from не совпал ни с одним ключом
         self.default_smtp = data.get("default_smtp")
+        telegram = data.get("telegram") or {}
+        self.telegram_enabled = bool(
+            telegram.get("enabled", bool(telegram.get("bot_token")))
+        )
+        self.telegram_bot_token = str(
+            telegram.get("bot_token") or ""
+        ).strip()
+        self.telegram_api_base_url = str(
+            telegram.get("api_base_url") or "https://api.telegram.org"
+        ).rstrip("/")
+        self.telegram_timeout = int(
+            telegram.get("request_timeout_seconds") or 45
+        )
+        self.telegram_proxy_url = str(
+            telegram.get("proxy_url") or ""
+        ).strip() or None
+        if self.telegram_enabled and not self.telegram_bot_token:
+            raise ValueError(
+                "telegram.enabled=true, но telegram.bot_token не задан"
+            )
 
     def smtp_for(self, from_email: str | None):
         key = str(from_email or "").strip().lower()
@@ -162,6 +183,48 @@ class ApiClient:
     def mark_error(self, outbox_id: int, error: str, retry: bool = True) -> None:
         self._post_with_retry(
             f"/email-outbox/{outbox_id}/mark-error",
+            json={"error": error[:2000], "retry": retry},
+        )
+
+    def telegram_pending(self) -> list[dict]:
+        resp = self._get_with_retry(
+            "/telegram-outbox/pending",
+            params={"limit": self.config.batch_limit},
+        )
+        return resp.json()
+
+    def telegram_claim(self) -> list[dict]:
+        resp = self._request_with_transport_retry(
+            "POST",
+            "/telegram-outbox/claim",
+            params={
+                "worker": self.config.worker_id,
+                "limit": self.config.batch_limit,
+                "lease_seconds": self.config.claim_lease_seconds,
+            },
+        )
+        if resp.status_code == 404:
+            logger.warning(
+                "Эндпоинт /telegram-outbox/claim недоступен — "
+                "использую /pending"
+            )
+            return self.telegram_pending()
+        resp.raise_for_status()
+        return resp.json()
+
+    def telegram_mark_sent(self, outbox_id: int) -> None:
+        self._post_with_retry(
+            f"/telegram-outbox/{outbox_id}/mark-sent"
+        )
+
+    def telegram_mark_error(
+        self,
+        outbox_id: int,
+        error: str,
+        retry: bool = True,
+    ) -> None:
+        self._post_with_retry(
+            f"/telegram-outbox/{outbox_id}/mark-error",
             json={"error": error[:2000], "retry": retry},
         )
 
@@ -338,8 +401,148 @@ def process_once(client: ApiClient, config: RelayConfig,
     return sent
 
 
+class TelegramSendError(RuntimeError):
+    def __init__(self, message: str, *, retryable: bool = True):
+        super().__init__(message)
+        self.retryable = retryable
+
+
+def send_to_telegram(config: RelayConfig, item: dict) -> None:
+    method = "sendDocument" if item.get("document_base64") else "sendMessage"
+    url = (
+        f"{config.telegram_api_base_url}/bot"
+        f"{config.telegram_bot_token}/{method}"
+    )
+    proxies = None
+    if config.telegram_proxy_url:
+        proxies = {
+            "http": config.telegram_proxy_url,
+            "https": config.telegram_proxy_url,
+        }
+
+    try:
+        if method == "sendDocument":
+            payload = base64.b64decode(
+                item["document_base64"],
+                validate=True,
+            )
+            response = requests.post(
+                url,
+                data={
+                    "chat_id": item["chat_id"],
+                    "caption": item.get("caption") or "",
+                },
+                files={
+                    "document": (
+                        item.get("document_name") or "document.bin",
+                        payload,
+                        item.get("document_content_type")
+                        or "application/octet-stream",
+                    )
+                },
+                timeout=config.telegram_timeout,
+                proxies=proxies,
+            )
+        else:
+            data = {
+                "chat_id": item["chat_id"],
+                "text": item.get("text") or "",
+            }
+            if item.get("parse_mode"):
+                data["parse_mode"] = item["parse_mode"]
+            response = requests.post(
+                url,
+                data=data,
+                timeout=config.telegram_timeout,
+                proxies=proxies,
+            )
+    except (requests.ConnectionError, requests.Timeout) as exc:
+        raise TelegramSendError(str(exc), retryable=True) from exc
+    except (ValueError, TypeError) as exc:
+        raise TelegramSendError(
+            f"Повреждён Telegram-документ: {exc}",
+            retryable=False,
+        ) from exc
+
+    try:
+        response_data = response.json()
+    except ValueError:
+        response_data = {}
+    if response.ok and response_data.get("ok", True):
+        return
+    description = str(
+        response_data.get("description") or response.text or response.status_code
+    )
+    retryable = response.status_code == 429 or response.status_code >= 500
+    raise TelegramSendError(
+        f"Telegram HTTP {response.status_code}: {description}",
+        retryable=retryable,
+    )
+
+
+def process_telegram_once(
+    client: ApiClient,
+    config: RelayConfig,
+    dry_run: bool = False,
+) -> int:
+    if not config.telegram_enabled:
+        return 0
+    items = (
+        client.telegram_pending() if dry_run else client.telegram_claim()
+    )
+    if not items:
+        return 0
+    logger.info("Получено Telegram-сообщений к отправке: %d", len(items))
+    sent = 0
+    for item in items:
+        outbox_id = item["id"]
+        document_error = item.get("document_error")
+        if document_error:
+            logger.error("Telegram #%s: %s", outbox_id, document_error)
+            if not dry_run:
+                client.telegram_mark_error(
+                    outbox_id,
+                    str(document_error),
+                    retry=False,
+                )
+            continue
+        if dry_run:
+            logger.info(
+                "[dry-run] Telegram #%s → %s: %s",
+                outbox_id,
+                item.get("chat_id"),
+                item.get("document_name") or item.get("text"),
+            )
+            continue
+        try:
+            send_to_telegram(config, item)
+            client.telegram_mark_sent(outbox_id)
+            sent += 1
+            logger.info(
+                "Отправлено Telegram #%s → %s",
+                outbox_id,
+                item.get("chat_id"),
+            )
+        except TelegramSendError as exc:
+            logger.exception("Ошибка отправки Telegram #%s", outbox_id)
+            try:
+                client.telegram_mark_error(
+                    outbox_id,
+                    str(exc),
+                    retry=exc.retryable,
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception(
+                    "Не удалось отметить ошибку Telegram #%s",
+                    outbox_id,
+                )
+    return sent
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="SMTP-релей EmailOutbox")
+    parser = argparse.ArgumentParser(
+        description="Релей EmailOutbox и TelegramOutbox"
+    )
     parser.add_argument("--config", required=True, help="путь к config.json")
     parser.add_argument("--once", action="store_true", help="один проход")
     parser.add_argument(
@@ -358,6 +561,7 @@ def main() -> int:
 
     if args.once or args.dry_run:
         process_once(client, config, dry_run=args.dry_run)
+        process_telegram_once(client, config, dry_run=args.dry_run)
         return 0
 
     logger.info(
@@ -367,6 +571,7 @@ def main() -> int:
     while True:
         try:
             process_once(client, config)
+            process_telegram_once(client, config)
         except requests.RequestException as exc:
             logger.warning(
                 "Сервер временно недоступен после повторных попыток: %s. "

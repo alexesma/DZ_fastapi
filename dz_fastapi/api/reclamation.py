@@ -15,9 +15,18 @@ from sqlalchemy.orm import selectinload
 
 from dz_fastapi.api.deps import get_current_user, require_reclamation_access
 from dz_fastapi.core.db import get_session
-from dz_fastapi.models.partner import Customer, Reclamation, ReclamationAttachment
+from dz_fastapi.core.time import now_moscow
+from dz_fastapi.models.partner import (
+    RECLAMATION_STATUS,
+    Customer,
+    Reclamation,
+    ReclamationAttachment,
+)
 from dz_fastapi.models.user import User, UserStatus
 from dz_fastapi.schemas.reclamation import (
+    CustomerReturnUkdDecisionIn,
+    CustomerReturnUkdDraftOut,
+    CustomerReturnUkdLinkIn,
     EmailOutboxOut,
     ReclamationApplyAndReplyIn,
     ReclamationArmtekDecisionIn,
@@ -38,6 +47,12 @@ from dz_fastapi.schemas.reclamation import (
     ReclamationSyncResult,
     ReclamationUpdateIn,
     ReplyTemplateOut,
+)
+from dz_fastapi.services.customer_return_ukd import (
+    build_customer_return_draft_status,
+    decide_customer_return_draft,
+    link_customer_return_source,
+    rematch_customer_return_draft,
 )
 from dz_fastapi.services.email_outbox import list_outbox_for_source
 from dz_fastapi.services.reclamation_armtek import (
@@ -343,6 +358,168 @@ async def reclamations_get(
         customer = await session.get(Customer, rec.customer_id)
         customer_name = getattr(customer, "name", None)
     return _detail_from_model(rec, customer_name)
+
+
+@router.get(
+    "/{reclamation_id}/ukd-draft",
+    response_model=CustomerReturnUkdDraftOut,
+    summary="Состояние черновика УКД по рекламации",
+)
+async def reclamations_ukd_draft(
+    reclamation_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    rec = await session.get(Reclamation, reclamation_id)
+    if rec is None:
+        raise HTTPException(status_code=404, detail="Рекламация не найдена")
+    if rec.return_from_customer_id is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Для рекламации ещё не создан черновик УКД",
+        )
+    try:
+        return await build_customer_return_draft_status(
+            session,
+            return_id=int(rec.return_from_customer_id),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post(
+    "/{reclamation_id}/ukd-draft/rematch",
+    response_model=CustomerReturnUkdDraftOut,
+    summary="Повторно найти исходящую УПД и её строки",
+)
+async def reclamations_ukd_draft_rematch(
+    reclamation_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    rec = await session.get(Reclamation, reclamation_id)
+    if rec is None or rec.return_from_customer_id is None:
+        raise HTTPException(status_code=404, detail="Черновик УКД не найден")
+    try:
+        await rematch_customer_return_draft(
+            session,
+            return_id=int(rec.return_from_customer_id),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await _audit_api_action(
+        session,
+        reclamation_id=reclamation_id,
+        event_type="ukd_draft_rematched",
+        current_user=current_user,
+        details={"return_from_customer_id": rec.return_from_customer_id},
+    )
+    return await build_customer_return_draft_status(
+        session,
+        return_id=int(rec.return_from_customer_id),
+    )
+
+
+@router.post(
+    "/{reclamation_id}/ukd-draft/link-source",
+    response_model=CustomerReturnUkdDraftOut,
+    summary="Вручную привязать реализацию и исходящую УПД",
+)
+async def reclamations_ukd_draft_link_source(
+    reclamation_id: int,
+    payload: CustomerReturnUkdLinkIn,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    rec = await session.get(Reclamation, reclamation_id)
+    if rec is None or rec.return_from_customer_id is None:
+        raise HTTPException(status_code=404, detail="Черновик УКД не найден")
+    try:
+        await link_customer_return_source(
+            session,
+            return_id=int(rec.return_from_customer_id),
+            shipment_document_id=payload.shipment_document_id,
+            source_diadoc_outgoing_document_id=(
+                payload.source_diadoc_outgoing_document_id
+            ),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await _audit_api_action(
+        session,
+        reclamation_id=reclamation_id,
+        event_type="ukd_source_linked",
+        current_user=current_user,
+        details={
+            "return_from_customer_id": rec.return_from_customer_id,
+            "shipment_document_id": payload.shipment_document_id,
+            "source_diadoc_outgoing_document_id": (
+                payload.source_diadoc_outgoing_document_id
+            ),
+        },
+    )
+    return await build_customer_return_draft_status(
+        session,
+        return_id=int(rec.return_from_customer_id),
+    )
+
+
+@router.post(
+    "/{reclamation_id}/ukd-draft/decision",
+    response_model=CustomerReturnUkdDraftOut,
+    summary="Согласовать или отклонить возврат из документа клиента",
+)
+async def reclamations_ukd_draft_decision(
+    reclamation_id: int,
+    payload: CustomerReturnUkdDecisionIn,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    rec = await session.get(Reclamation, reclamation_id)
+    if rec is None or rec.return_from_customer_id is None:
+        raise HTTPException(status_code=404, detail="Черновик УКД не найден")
+    comment = str(payload.comment or "").strip()
+    if payload.decision == "rejected" and not comment:
+        raise HTTPException(
+            status_code=400,
+            detail="Для отказа обязательно укажите причину",
+        )
+    try:
+        await decide_customer_return_draft(
+            session,
+            return_id=int(rec.return_from_customer_id),
+            decision=payload.decision,
+        )
+    except (LookupError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    rec.resolution = payload.decision
+    rec.resolution_comment = comment or (
+        "Возврат согласован по документу клиента"
+        if payload.decision == "approved"
+        else None
+    )
+    rec.resolved_by_user_id = int(current_user.id)
+    rec.resolved_at = now_moscow()
+    rec.status = (
+        RECLAMATION_STATUS.APPROVED
+        if payload.decision == "approved"
+        else RECLAMATION_STATUS.REJECTED
+    )
+    session.add(rec)
+    await _audit_api_action(
+        session,
+        reclamation_id=reclamation_id,
+        event_type="ukd_return_decided",
+        current_user=current_user,
+        details={
+            "return_from_customer_id": rec.return_from_customer_id,
+            "decision": payload.decision,
+            "comment": comment or None,
+        },
+    )
+    return await build_customer_return_draft_status(
+        session,
+        return_id=int(rec.return_from_customer_id),
+    )
 
 
 @router.get(

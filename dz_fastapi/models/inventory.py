@@ -12,9 +12,10 @@ Inventory models:
   - ShipmentDocumentItem — строка накладной на отгрузку
 """
 
+from decimal import Decimal
 from enum import StrEnum, unique
 
-from sqlalchemy import DECIMAL, JSON, Boolean, Column, DateTime
+from sqlalchemy import DECIMAL, JSON, Boolean, Column, Date, DateTime
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
@@ -1014,6 +1015,12 @@ class ShipmentDocumentItem(Base):
     price = Column(
         DECIMAL(10, 2), nullable=True, comment="Цена реализации за единицу"
     )
+    vat_rate = Column(
+        DECIMAL(5, 2),
+        nullable=False,
+        default=Decimal("22.00"),
+        comment="Снимок ставки НДС на момент реализации",
+    )
     cost_price = Column(
         DECIMAL(12, 4),
         nullable=True,
@@ -1182,6 +1189,20 @@ class ReturnFromCustomer(Base):
         nullable=True,
         index=True,
     )
+    source_diadoc_outgoing_document_id = Column(
+        Integer,
+        ForeignKey("diadocoutgoingdocument.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="Наша исходящая УПД, которую корректирует возврат",
+    )
+    source_kind = Column(String(64), nullable=True, index=True)
+    external_document_number = Column(String(120), nullable=True, index=True)
+    external_document_date = Column(Date, nullable=True, index=True)
+    source_document_number = Column(String(120), nullable=True, index=True)
+    source_document_date = Column(Date, nullable=True, index=True)
+    source_file_name = Column(String(512), nullable=True)
+    source_file_sha256 = Column(String(64), nullable=True, unique=True, index=True)
     warehouse_id = Column(
         Integer,
         ForeignKey("warehouse.id", ondelete="SET NULL"),
@@ -1232,6 +1253,12 @@ class ReturnFromCustomer(Base):
     created_by_user = relationship("User", foreign_keys=[created_by_user_id])
     diadoc_outgoing_document = relationship(
         "DiadocOutgoingDocument",
+        foreign_keys=[diadoc_outgoing_document_id],
+        lazy="joined",
+    )
+    source_diadoc_outgoing_document = relationship(
+        "DiadocOutgoingDocument",
+        foreign_keys=[source_diadoc_outgoing_document_id],
         lazy="joined",
     )
     items = relationship(
@@ -1415,6 +1442,13 @@ class ReturnItem(Base):
     )
     quantity = Column(Integer, nullable=False)
     price = Column(DECIMAL(10, 2), nullable=True)
+    vat_rate = Column(
+        DECIMAL(5, 2),
+        nullable=False,
+        default=Decimal("22.00"),
+        comment="Снимок ставки НДС исходной реализации",
+    )
+    price_includes_vat = Column(Boolean, nullable=False, default=True)
     gtd_number = Column(String(64), nullable=True)
     country_code = Column(String(16), nullable=True)
     country_name = Column(String(120), nullable=True)

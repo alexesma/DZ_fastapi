@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.crud.settings import crud_diadoc_integration_settings
-from dz_fastapi.models.diadoc import DiadocIncomingDocument
+from dz_fastapi.models.diadoc import DiadocIncomingDocument, DiadocOutgoingDocument
 from dz_fastapi.models.inventory import (
     LotSourceType,
     ReturnDocumentStatus,
@@ -1002,7 +1002,8 @@ async def test_diadoc_can_create_formalized_utd_from_shipment_document(
         xml_text = kwargs["user_data_xml"].decode("utf-8")
         assert "<UniversalTransferDocument" in xml_text
         assert 'Function="ДОП"' in xml_text
-        assert 'TaxRate="NoVat"' in xml_text
+        assert 'TaxRate="TwentyTwoPercent"' in xml_text
+        assert 'Vat="' in xml_text
         assert "<ItemIdentificationNumbers>" in xml_text
         assert "<Unit>010460123456789021ABC123</Unit>" in xml_text
         assert "<Unit>010460123456789021ABC124</Unit>" in xml_text
@@ -1259,12 +1260,34 @@ async def test_diadoc_customer_return_readiness_requires_confirmed_status(
     )
     test_session.add(shipment_item)
     await test_session.flush()
+    source_upd = DiadocOutgoingDocument(
+        environment="staging",
+        from_box_id_guid="box-guid",
+        to_box_id_guid="customer-counteragent-guid-return-1",
+        customer_id=customer.id,
+        source_type="shipment_document",
+        source_id=shipment.id,
+        type_named_id="UniversalTransferDocument",
+        document_function="СЧФДОП",
+        document_version="utd970_05_03_01",
+        file_name="source-upd.xml",
+        document_number=shipment.doc_number,
+        document_date=shipment.doc_date.date(),
+        local_file_path="uploads/diadoc_outgoing/source-upd.xml",
+        is_draft=False,
+        message_id="source-upd-message-1",
+        entity_id="source-upd-entity-1",
+        status="sent",
+    )
+    test_session.add(source_upd)
+    await test_session.flush()
     return_doc = ReturnFromCustomer(
         doc_number="RET-CUST-READY-1",
         doc_date=now_moscow(),
         status=ReturnDocumentStatus.APPROVED,
         customer_id=customer.id,
         shipment_document_id=shipment.id,
+        source_diadoc_outgoing_document_id=source_upd.id,
         reason="Возврат по согласованию",
     )
     test_session.add(return_doc)
@@ -1353,12 +1376,34 @@ async def test_diadoc_can_create_formalized_ukd_from_customer_return(
     )
     test_session.add(shipment_item)
     await test_session.flush()
+    source_upd = DiadocOutgoingDocument(
+        environment="staging",
+        from_box_id_guid="box-guid",
+        to_box_id_guid="customer-counteragent-guid-return-1",
+        customer_id=customer.id,
+        source_type="shipment_document",
+        source_id=shipment.id,
+        type_named_id="UniversalTransferDocument",
+        document_function="СЧФДОП",
+        document_version="utd970_05_03_01",
+        file_name="source-upd-customer.xml",
+        document_number=shipment.doc_number,
+        document_date=shipment.doc_date.date(),
+        local_file_path="uploads/diadoc_outgoing/source-upd-customer.xml",
+        is_draft=False,
+        message_id="source-upd-message-customer-1",
+        entity_id="source-upd-entity-customer-1",
+        status="sent",
+    )
+    test_session.add(source_upd)
+    await test_session.flush()
     return_doc = ReturnFromCustomer(
         doc_number="RET-CUST-1",
         doc_date=now_moscow(),
         status=ReturnDocumentStatus.CONFIRMED,
         customer_id=customer.id,
         shipment_document_id=shipment.id,
+        source_diadoc_outgoing_document_id=source_upd.id,
         reason="Возврат товара от клиента",
     )
     test_session.add(return_doc)
@@ -1464,6 +1509,10 @@ async def test_diadoc_can_create_formalized_ukd_from_customer_return(
         assert 'Function="ДИС"' in xml_text
         assert 'BaseDocumentNumber="SHIP-RET-1"' in xml_text
         assert "Возврат товара от клиента" in xml_text
+        assert "<Items><Item" in xml_text
+        assert 'TaxRate OriginalValue="22%" CorrectedValue="22%"' in xml_text
+        assert 'Quantity OriginalValue="3" CorrectedValue="2"' in xml_text
+        assert 'TotalsDec TotalWithVatExcluded="163.93" Vat="36.07" Total="200.00"' in xml_text
         return (
             (
                 '<?xml version="1.0" encoding="windows-1251"?>'
@@ -1524,6 +1573,13 @@ async def test_diadoc_can_create_formalized_ukd_from_customer_return(
 
     await test_session.refresh(return_doc)
     assert return_doc.diadoc_outgoing_document_id == data["id"]
+
+    duplicate = await async_client.post(
+        f"/diadoc/outbound-documents/from-customer-return/{return_doc.id}",
+        json={"send_mode": "draft"},
+    )
+    assert duplicate.status_code == 400
+    assert "уже создан" in duplicate.json()["detail"]
 
 
 @pytest.mark.asyncio

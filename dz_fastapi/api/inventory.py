@@ -2108,6 +2108,7 @@ def _shipment_item_to_out(
         storage_location_id=item.storage_location_id,
         quantity=item.quantity,
         price=item.price,
+        vat_rate=item.vat_rate,
         cost_price=item.cost_price,
         cost_total=cost_total,
         reserve_id=item.reserve_id,
@@ -2255,6 +2256,7 @@ async def create_shipment_document(
             storage_location_id=item_data.storage_location_id,
             quantity=item_data.quantity,
             price=item_data.price,
+            vat_rate=item_data.vat_rate,
             reserve_id=item_data.reserve_id,
             notes=item_data.notes,
         )
@@ -2792,6 +2794,7 @@ async def add_shipment_item(
         storage_location_id=data.storage_location_id,
         quantity=data.quantity,
         price=data.price,
+        vat_rate=data.vat_rate,
         reserve_id=data.reserve_id,
         notes=data.notes,
     )
@@ -2975,6 +2978,8 @@ def _return_item_to_out(item: ReturnItem) -> ReturnItemOut:
         lot_id=item.lot_id,
         quantity=item.quantity,
         price=item.price,
+        vat_rate=item.vat_rate,
+        price_includes_vat=item.price_includes_vat,
         gtd_number=item.gtd_number,
         country_code=item.country_code,
         country_name=item.country_name,
@@ -3005,6 +3010,15 @@ def _customer_return_to_out(doc: ReturnFromCustomer) -> ReturnFromCustomerOut:
         customer_id=doc.customer_id,
         customer_name=customer.name if customer else None,
         shipment_document_id=doc.shipment_document_id,
+        source_diadoc_outgoing_document_id=(
+            doc.source_diadoc_outgoing_document_id
+        ),
+        source_kind=doc.source_kind,
+        external_document_number=doc.external_document_number,
+        external_document_date=doc.external_document_date,
+        source_document_number=doc.source_document_number,
+        source_document_date=doc.source_document_date,
+        source_file_name=doc.source_file_name,
         warehouse_id=doc.warehouse_id,
         warehouse_name=warehouse.name if warehouse else None,
         diadoc_outgoing_document_id=doc.diadoc_outgoing_document_id,
@@ -3209,6 +3223,7 @@ async def _populate_return_item_from_payload(
         if "storage_location_id" in explicit:
             item.storage_location_id = explicit.get("storage_location_id")
         item.price = explicit.get("price", shipment_item.price)
+        item.vat_rate = explicit.get("vat_rate", shipment_item.vat_rate)
         item.oem_number = (
             getattr(
                 getattr(shipment_item, "autopart", None), "oem_number", None

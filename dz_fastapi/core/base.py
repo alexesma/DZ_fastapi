@@ -97,6 +97,7 @@ from dz_fastapi.models.partner import (
     SupplierReceipt,
     SupplierReceiptItem,
     SupplierResponseConfig,
+    TelegramOutbox,
 )
 from dz_fastapi.models.price_control import (
     CustomerPriceListOverride,
@@ -137,6 +138,7 @@ __all__ = [
     "CustomerExternalReference",
     "CustomerReclamationEmail",
     "EmailOutbox",
+    "TelegramOutbox",
     "Reclamation",
     "ReclamationAttachment",
     "ReclamationEvent",

@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 import html
 import logging
 import os
@@ -42,6 +43,7 @@ from dz_fastapi.models.partner import (
     ReclamationMailMessage,
 )
 from dz_fastapi.models.user import User, UserRole, UserStatus
+from dz_fastapi.services.customer_return_ukd import create_customer_return_draft_from_reclamation
 from dz_fastapi.services.notifications import create_notification, create_notifications_for_users
 from dz_fastapi.services.reclamation_attachment_parser import parse_reclamation_attachment
 from dz_fastapi.services.reclamation_audit import record_reclamation_event
@@ -751,6 +753,21 @@ def classify_reclamation_type(text: str) -> Optional[str]:
     return None
 
 
+def _structured_attachment_reason(
+    extracted_data: Optional[dict[str, Any]],
+) -> str:
+    """Return the explicit reason parsed from an attachment, if available."""
+    for parsed in (extracted_data or {}).get("attachments") or []:
+        reason = str(parsed.get("reason") or "").strip()
+        if reason:
+            return reason
+        for item in parsed.get("items") or []:
+            reason = str(item.get("reason") or "").strip()
+            if reason:
+                return reason
+    return ""
+
+
 def extract_fields(subject: str, body: str) -> dict[str, Any]:
     """Регулярное извлечение полей из письма (первый слой распознавания)."""
     text = f"{subject}\n{body}"
@@ -969,6 +986,9 @@ async def recognize_reclamation_items(
     reclamation: Reclamation,
 ) -> int:
     """Дополняет позиции карточки по сохранённому письму и истории заказов."""
+    attachment_reason = _structured_attachment_reason(
+        reclamation.extracted_data
+    )
     froza_item = extract_froza_email_item(reclamation.email_body or "")
     structured_item_updated = apply_froza_email_item(reclamation)
     html_table_items = extract_html_return_table_items(
@@ -1087,8 +1107,14 @@ async def recognize_reclamation_items(
         reclamation.stated_document_date = (
             date.fromisoformat(document_date) if document_date else None
         )
-        reclamation.stated_reason = first_item.get("reason")
-        reclamation.reclamation_type = fields.get("reclamation_type")
+        preferred_reason = attachment_reason or str(
+            first_item.get("reason") or ""
+        ).strip()
+        reclamation.stated_reason = preferred_reason or None
+        reclamation.reclamation_type = (
+            classify_reclamation_type(preferred_reason)
+            or fields.get("reclamation_type")
+        )
         extracted_data = dict(reclamation.extracted_data or {})
         extracted_key = (
             "froza_email_item"
@@ -1155,6 +1181,15 @@ async def recognize_reclamation_items(
             )
             existing_oems.add(normalized)
             created += 1
+    if attachment_reason:
+        attachment_type = classify_reclamation_type(attachment_reason)
+        if reclamation.stated_reason != attachment_reason:
+            reclamation.stated_reason = attachment_reason
+            structured_item_updated = True
+        if attachment_type and reclamation.reclamation_type != attachment_type:
+            reclamation.reclamation_type = attachment_type
+            structured_item_updated = True
+
     if created or structured_item_updated:
         session.add(reclamation)
         await session.flush()
@@ -1631,16 +1666,18 @@ async def ingest_reclamation_email(
         return None
 
     customer_ids = await resolve_customer_ids_by_email(session, sender)
-    attachment_extractions = [
-        parsed
-        for attachment in (email.attachments or [])
-        if (
-            parsed := parse_reclamation_attachment(
-                attachment.filename,
-                attachment.payload,
-            )
+    attachment_extractions = []
+    for attachment in email.attachments or []:
+        parsed = parse_reclamation_attachment(
+            attachment.filename,
+            attachment.payload,
         )
-    ]
+        if not parsed:
+            continue
+        parsed["source_sha256"] = hashlib.sha256(
+            attachment.payload or b""
+        ).hexdigest()
+        attachment_extractions.append(parsed)
     structured_items = _structured_items_from_fields(fields)
     customer_match_oems = {
         preprocess_oem_number(item.get("oem_number") or "")
@@ -1688,9 +1725,13 @@ async def ingest_reclamation_email(
             doc_date = date.fromisoformat(str(document_date_value))
         except ValueError:
             doc_date = None
-    reclamation_type = fields.get("reclamation_type")
-    if not reclamation_type and attachment_reason:
-        reclamation_type = classify_reclamation_type(attachment_reason)
+    # The structured reason from a known attachment format is more reliable
+    # than generic form headings such as "Брак" found in the sheet text.
+    reclamation_type = (
+        classify_reclamation_type(attachment_reason)
+        if attachment_reason
+        else None
+    ) or fields.get("reclamation_type")
 
     extracted_data = dict(fields)
     if len(customer_ids) > 1:
@@ -1912,6 +1953,37 @@ async def ingest_reclamation_email(
                 item_source=RECLAMATION_ITEM_SOURCE.UNKNOWN,
             )
         )
+
+    await session.flush()
+    return_document_extraction = next(
+        (
+            parsed
+            for parsed in attachment_extractions
+            if parsed.get("parser") == "customer_return_upd_xlsx"
+        ),
+        None,
+    )
+    if return_document_extraction is not None:
+        draft = await create_customer_return_draft_from_reclamation(
+            session,
+            reclamation=reclamation,
+            extraction=return_document_extraction,
+        )
+        if draft is not None:
+            await record_reclamation_event(
+                session,
+                reclamation_id=int(reclamation.id),
+                event_type="ukd_draft_created",
+                details={
+                    "return_from_customer_id": int(draft.id),
+                    "external_document_number": draft.external_document_number,
+                    "source_document_number": draft.source_document_number,
+                    "matched_shipment_document_id": draft.shipment_document_id,
+                    "matched_source_upd_id": (
+                        draft.source_diadoc_outgoing_document_id
+                    ),
+                },
+            )
 
     # Вложения
     for att in email.attachments or []:
@@ -2908,4 +2980,79 @@ async def sync_reclamation_mailbox(session: AsyncSession) -> dict[str, Any]:
         "account_email": account_email,
         "armtek": armtek_results,
         "armtek_errors": armtek_errors,
+    }
+
+
+async def cleanup_closed_reclamation_files(
+    session: AsyncSession,
+    *,
+    max_days: int = 180,
+) -> dict[str, int]:
+    """Remove old files from closed cases while retaining their audit rows."""
+    retention_days = max(1, int(max_days))
+    cutoff = now_moscow() - timedelta(days=retention_days)
+    attachments = (
+        await session.execute(
+            select(ReclamationAttachment)
+            .join(
+                Reclamation,
+                Reclamation.id == ReclamationAttachment.reclamation_id,
+            )
+            .where(
+                Reclamation.status == RECLAMATION_STATUS.CLOSED,
+                Reclamation.updated_at < cutoff,
+                ReclamationAttachment.local_file_path.isnot(None),
+            )
+        )
+    ).scalars().all()
+
+    storage_root = os.path.abspath(RECLAMATION_ATTACHMENTS_DIR)
+    removed = 0
+    missing = 0
+    skipped = 0
+    for attachment in attachments:
+        file_path = os.path.abspath(attachment.local_file_path or "")
+        try:
+            inside_storage = (
+                os.path.commonpath([storage_root, file_path]) == storage_root
+            )
+        except ValueError:
+            inside_storage = False
+        if not inside_storage:
+            skipped += 1
+            logger.warning(
+                "Skip reclamation attachment outside storage root: id=%s path=%s",
+                attachment.id,
+                attachment.local_file_path,
+            )
+            continue
+
+        try:
+            os.remove(file_path)
+            removed += 1
+        except FileNotFoundError:
+            missing += 1
+        except OSError:
+            skipped += 1
+            logger.warning(
+                "Failed to remove old reclamation attachment: id=%s path=%s",
+                attachment.id,
+                file_path,
+                exc_info=True,
+            )
+            continue
+
+        attachment.local_file_path = None
+        session.add(attachment)
+        try:
+            os.rmdir(os.path.dirname(file_path))
+        except OSError:
+            pass
+
+    await session.commit()
+    return {
+        "candidates": len(attachments),
+        "removed": removed,
+        "missing": missing,
+        "skipped": skipped,
     }

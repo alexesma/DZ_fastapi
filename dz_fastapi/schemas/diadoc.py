@@ -355,6 +355,12 @@ class DiadocOutgoingDocumentOut(BaseModel):
     docflow_status_text: str | None = None
     recipient_response_status: str | None = None
     revocation_status: str | None = None
+    # Статус ГИС ЭПД: заполнен только у перевозочных документов
+    transport_status_named_id: str | None = None
+    transport_status_type: str | None = None
+    transport_status_text: str | None = None
+    transport_mintrans_id: str | None = None
+    transport_carriage_id: str | None = None
     delivered_at: datetime | None = None
     status_checked_at: datetime | None = None
     error_details: str | None = None

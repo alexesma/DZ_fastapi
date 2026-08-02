@@ -1549,6 +1549,14 @@ class EMAIL_OUTBOX_STATUS(StrEnum):
     CANCELLED = "cancelled"
 
 
+@unique
+class TELEGRAM_OUTBOX_STATUS(StrEnum):
+    PENDING = "pending"
+    SENT = "sent"
+    ERROR = "error"
+    CANCELLED = "cancelled"
+
+
 class CustomerReclamationEmail(Base):
     """Адрес(а) почты клиента, с которых приходят рекламации.
 
@@ -1957,6 +1965,43 @@ class EmailOutbox(Base):
     last_error = Column(String(2000), nullable=True)
     sent_at = Column(DateTime(timezone=True), nullable=True)
     # Захват письма воркером-релеем (чтобы несколько машин не отправили дважды)
+    claimed_by = Column(String(128), nullable=True)
+    claimed_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        onupdate=now_moscow,
+    )
+
+
+class TelegramOutbox(Base):
+    """Очередь Telegram для внешнего HTTPS-релея."""
+
+    __tablename__ = "telegramoutbox"
+
+    status = Column(
+        SAEnum(
+            TELEGRAM_OUTBOX_STATUS,
+            name="telegramoutboxstatus",
+            values_callable=lambda enum: [e.value for e in enum],
+        ),
+        nullable=False,
+        default=TELEGRAM_OUTBOX_STATUS.PENDING,
+        index=True,
+    )
+    chat_id = Column(String(255), nullable=False)
+    text = Column(Text, nullable=True)
+    parse_mode = Column(String(32), nullable=True)
+    document_name = Column(String(512), nullable=True)
+    document_path = Column(String(1024), nullable=True)
+    document_content_type = Column(String(255), nullable=True)
+    caption = Column(Text, nullable=True)
+    source_type = Column(String(64), nullable=True, index=True)
+    source_id = Column(Integer, nullable=True, index=True)
+    attempts = Column(Integer, default=0, nullable=False)
+    last_error = Column(String(2000), nullable=True)
+    sent_at = Column(DateTime(timezone=True), nullable=True)
     claimed_by = Column(String(128), nullable=True)
     claimed_at = Column(DateTime(timezone=True), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), default=now_moscow)

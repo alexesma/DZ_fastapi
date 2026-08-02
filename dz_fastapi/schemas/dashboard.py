@@ -46,6 +46,7 @@ class DashboardDailyOrderRow(BaseModel):
     customer_order_count: int = 0
     customer_position_count: int = 0
     customer_qty: int = 0
+    customer_addressable_qty: int = 0
     customer_sum: float = 0.0
     supplier_order_count: int = 0
     supplier_position_count: int = 0
@@ -65,6 +66,7 @@ class DashboardPartnerOrderRow(BaseModel):
 class DashboardOrderDynamicsSummary(BaseModel):
     customer_order_count: int = 0
     customer_qty: int = 0
+    customer_addressable_qty: int = 0
     customer_sum: float = 0.0
     supplier_order_count: int = 0
     supplier_qty: int = 0
@@ -94,8 +96,15 @@ class DashboardOrderMarginRow(BaseModel):
     ordered_quantity: int = 0
     order_total: float = 0.0
     unpriced_order_quantity: int = 0
+    addressable_quantity: int = 0
+    addressable_total: float = 0.0
+    declined_quantity: int = 0
+    declined_total: float = 0.0
+    no_offer_quantity: int = 0
+    no_offer_total: float = 0.0
     quantity: int = 0
     revenue_total: float = 0.0
+    costed_revenue_total: float = 0.0
     cost_total: float = 0.0
     gross_profit: Optional[float] = None
     margin_percent: Optional[float] = None
