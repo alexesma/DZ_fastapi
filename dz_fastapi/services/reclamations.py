@@ -155,11 +155,15 @@ _DOC_DATE_RE = re.compile(
 _DEFECT_KEYWORDS = (
     "брак", "деформ", "трещин", "не работает", "неисправ", "течет",
     "течёт", "стук", "дефект", "скрип", "люфт", "гул",
-    "неверное вложение", "несоответств",
+    "несоответств",
 )
 _REFUSAL_KEYWORDS = (
     "отказ", "не подош", "не подходит", "не нужн", "передумал",
-    "ошиб", "пересорт", "не тот", "перезаказ", "возврат",
+    "ошиб", "не тот", "перезаказ", "возврат",
+)
+_MIS_SORT_KEYWORDS = (
+    "пересорт",
+    "неверное вложение",
 )
 
 # Классификация вложений по имени файла
@@ -779,6 +783,7 @@ def _parse_doc_date(text: str) -> Optional[date]:
 RECLAMATION_TYPE_DEFECT = "defect"
 RECLAMATION_TYPE_REFUSAL = "customer_refusal"
 RECLAMATION_TYPE_SHORTAGE = "shortage"
+RECLAMATION_TYPE_MIS_SORT = "mis_sort"
 
 
 def classify_reclamation_type(text: str) -> Optional[str]:
@@ -789,6 +794,8 @@ def classify_reclamation_type(text: str) -> Optional[str]:
     )[0]
     if "недовоз" in operational_text or "недопостав" in operational_text:
         return RECLAMATION_TYPE_SHORTAGE
+    if any(kw in operational_text for kw in _MIS_SORT_KEYWORDS):
+        return RECLAMATION_TYPE_MIS_SORT
     if any(kw in operational_text for kw in _DEFECT_KEYWORDS):
         return RECLAMATION_TYPE_DEFECT
     if any(kw in operational_text for kw in _REFUSAL_KEYWORDS):

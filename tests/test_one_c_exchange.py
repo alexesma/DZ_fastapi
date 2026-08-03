@@ -84,6 +84,24 @@ def test_commerceml_xml_without_customer():
     assert counterparty.find("ИНН") is None
 
 
+def test_commerceml_xml_uses_customer_article_with_physical_stock_id():
+    shipment = _shipment_stub()
+    item = shipment.items[0]
+    item.customer_oem = "DZ-CROSS-001"
+    item.customer_brand = "DRAGONZAP"
+    item.customer_name = "Клиентское наименование"
+
+    root = ET.fromstring(build_commerceml_sale_xml([shipment]))
+    good = root.find("Документ/Товары/Товар")
+
+    assert good.findtext("Ид") == "dz-autopart-77"
+    assert good.findtext("Артикул") == "DZ-CROSS-001"
+    assert (
+        good.findtext("Наименование")
+        == "DRAGONZAP DZ-CROSS-001 Клиентское наименование"
+    )
+
+
 def test_commerceml_xml_empty_list():
     payload = build_commerceml_sale_xml([])
     root = ET.fromstring(payload)

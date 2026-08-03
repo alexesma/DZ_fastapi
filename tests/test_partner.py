@@ -15,6 +15,7 @@ from dz_fastapi.crud.partner import crud_customer_pricelist, crud_pricelist, cru
 from dz_fastapi.main import app
 from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.cross import AutoPartCross
 from dz_fastapi.models.email_account import EmailAccount
 from dz_fastapi.models.inventory import Warehouse
 from dz_fastapi.models.partner import (
@@ -1813,6 +1814,55 @@ def test_collapse_duplicate_excel_rows_removes_identical_rows():
     assert int(key_mask.sum()) == 1
 
 
+def test_collapse_duplicate_rows_prefers_own_dragonzap_stock():
+    rows = pd.DataFrame(
+        [
+            {
+                "autopart_id": 101,
+                "brand": "DRAGONZAP",
+                "oem_number": "DZ-001",
+                "price": 120,
+                "quantity": 46,
+                "is_own_price": True,
+            },
+            {
+                "autopart_id": 202,
+                "brand": "DRAGONZAP",
+                "oem_number": "DZ001",
+                "price": 90,
+                "quantity": 10,
+                "is_own_price": False,
+            },
+            {
+                "autopart_id": 303,
+                "brand": "TOYOTA",
+                "oem_number": "T-001",
+                "price": 120,
+                "quantity": 5,
+                "is_own_price": True,
+            },
+            {
+                "autopart_id": 404,
+                "brand": "TOYOTA",
+                "oem_number": "T001",
+                "price": 90,
+                "quantity": 5,
+                "is_own_price": False,
+            },
+        ]
+    )
+
+    collapsed = process_service._collapse_duplicate_rows(
+        rows,
+        prefer_min_price=True,
+    )
+
+    by_brand = collapsed.set_index("brand")
+    assert int(by_brand.loc["DRAGONZAP", "autopart_id"]) == 101
+    assert int(by_brand.loc["DRAGONZAP", "quantity"]) == 46
+    assert int(by_brand.loc["TOYOTA", "autopart_id"]) == 404
+
+
 @pytest.mark.asyncio
 async def test_customer_pricelist_source_min_price_filter(
     test_session: AsyncSession,
@@ -2097,6 +2147,102 @@ def test_customer_pricelist_source_masking_does_not_touch_own_price():
 
     assert int(masked.iloc[0]["quantity"]) == 7
     assert abs(float(masked.iloc[0]["price"]) - 110.275) < 0.001
+
+
+@pytest.mark.asyncio
+async def test_dragonzap_cross_alias_uses_cheapest_stock_item_and_masks_qty(
+    test_session: AsyncSession,
+):
+    dz_brand = Brand(name="DRAGONZAP")
+    other_brand = Brand(name="CHERY")
+    test_session.add_all([dz_brand, other_brand])
+    await test_session.flush()
+    source_expensive = AutoPart(
+        brand_id=dz_brand.id,
+        oem_number="DZ-SOURCE-A",
+        name="Source A",
+    )
+    source_cheap = AutoPart(
+        brand_id=dz_brand.id,
+        oem_number="DZ-SOURCE-B",
+        name="Source B",
+    )
+    dz_alias = AutoPart(
+        brand_id=dz_brand.id,
+        oem_number="DZ-ALIAS",
+        name="Client alias",
+    )
+    foreign_alias = AutoPart(
+        brand_id=other_brand.id,
+        oem_number="CHERY-ALIAS",
+        name="Foreign alias",
+    )
+    test_session.add_all(
+        [source_expensive, source_cheap, dz_alias, foreign_alias]
+    )
+    await test_session.flush()
+    test_session.add_all(
+        [
+            AutoPartCross(
+                source_autopart_id=source_expensive.id,
+                cross_brand_id=dz_brand.id,
+                cross_oem_number=dz_alias.oem_number,
+                cross_autopart_id=dz_alias.id,
+                is_bidirectional=True,
+            ),
+            AutoPartCross(
+                source_autopart_id=source_cheap.id,
+                cross_brand_id=dz_brand.id,
+                cross_oem_number=dz_alias.oem_number,
+                cross_autopart_id=dz_alias.id,
+                is_bidirectional=True,
+            ),
+            AutoPartCross(
+                source_autopart_id=source_expensive.id,
+                cross_brand_id=other_brand.id,
+                cross_oem_number=foreign_alias.oem_number,
+                cross_autopart_id=foreign_alias.id,
+                is_bidirectional=True,
+            ),
+        ]
+    )
+    await test_session.flush()
+
+    source_df = pd.DataFrame(
+        [
+            {
+                "autopart_id": source_expensive.id,
+                "brand": "DRAGONZAP",
+                "oem_number": source_expensive.oem_number,
+                "name": source_expensive.name,
+                "quantity": 46,
+                "price": 120.0,
+                "is_own_price": True,
+            },
+            {
+                "autopart_id": source_cheap.id,
+                "brand": "DRAGONZAP",
+                "oem_number": source_cheap.oem_number,
+                "name": source_cheap.name,
+                "quantity": 10,
+                "price": 90.0,
+                "is_own_price": True,
+            },
+        ]
+    )
+
+    aliases = await process_service._build_dragonzap_cross_alias_records(
+        test_session,
+        customer_id=101,
+        source_df=source_df,
+    )
+
+    assert len(aliases) == 1
+    assert aliases[0]["oem_number"] == "DZALIAS"
+    assert aliases[0]["brand"] == "DRAGONZAP"
+    assert aliases[0]["autopart_id"] == source_cheap.id
+    assert aliases[0]["price"] == 90.0
+    assert aliases[0]["quantity"] == 8
 
 
 @pytest.mark.asyncio

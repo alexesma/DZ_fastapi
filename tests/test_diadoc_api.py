@@ -907,6 +907,9 @@ async def test_diadoc_can_create_formalized_utd_from_shipment_document(
     shipment_item = ShipmentDocumentItem(
         document_id=shipment.id,
         autopart_id=created_autopart.id,
+        customer_oem="DZ-CROSS-UTD",
+        customer_brand="DRAGONZAP",
+        customer_name="Клиентский артикул в УПД",
         quantity=3,
         price=200.0,
     )
@@ -1004,6 +1007,8 @@ async def test_diadoc_can_create_formalized_utd_from_shipment_document(
         assert 'Function="ДОП"' in xml_text
         assert 'TaxRate="TwentyTwoPercent"' in xml_text
         assert 'Vat="' in xml_text
+        assert 'ItemVendorCode="DZ-CROSS-UTD"' in xml_text
+        assert 'Product="Клиентский артикул в УПД"' in xml_text
         assert "<ItemIdentificationNumbers>" in xml_text
         assert "<Unit>010460123456789021ABC123</Unit>" in xml_text
         assert "<Unit>010460123456789021ABC124</Unit>" in xml_text

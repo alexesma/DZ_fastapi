@@ -1175,10 +1175,10 @@ def _format_quantity_text(value: Decimal) -> str:
 def _build_return_product_name(item: ReturnItem) -> str:
     autopart = getattr(item, "autopart", None)
     for candidate in (
-        getattr(autopart, "name", None),
         getattr(item, "autopart_name", None),
-        getattr(autopart, "oem_number", None),
         getattr(item, "oem_number", None),
+        getattr(autopart, "name", None),
+        getattr(autopart, "oem_number", None),
     ):
         value = str(candidate or "").strip()
         if value:
@@ -1189,8 +1189,8 @@ def _build_return_product_name(item: ReturnItem) -> str:
 def _build_return_item_oem(item: ReturnItem) -> str | None:
     autopart = getattr(item, "autopart", None)
     for candidate in (
-        getattr(autopart, "oem_number", None),
         getattr(item, "oem_number", None),
+        getattr(autopart, "oem_number", None),
     ):
         value = str(candidate or "").strip()
         if value:
@@ -1623,6 +1623,30 @@ def _shipment_formalized_file_name(doc: ShipmentDocument) -> str:
     return f"{suffix}_utd.xml"
 
 
+def _shipment_client_identity(
+    item: ShipmentDocumentItem,
+) -> tuple[str, str, str]:
+    autopart = getattr(item, "autopart", None)
+    brand = getattr(autopart, "brand", None)
+    return (
+        str(
+            getattr(item, "customer_oem", None)
+            or getattr(autopart, "oem_number", None)
+            or ""
+        ).strip(),
+        str(
+            getattr(item, "customer_brand", None)
+            or getattr(brand, "name", None)
+            or ""
+        ).strip(),
+        str(
+            getattr(item, "customer_name", None)
+            or getattr(autopart, "name", None)
+            or ""
+        ).strip(),
+    )
+
+
 def _build_shipment_document_xml(doc: ShipmentDocument) -> bytes:
     customer = getattr(doc, "customer", None)
     warehouse = getattr(doc, "warehouse", None)
@@ -1652,22 +1676,16 @@ def _build_shipment_document_xml(doc: ShipmentDocument) -> bytes:
 
     items_el = ET.SubElement(root, "Items")
     for idx, item in enumerate(doc.items or [], start=1):
-        autopart = getattr(item, "autopart", None)
         lot = getattr(item, "lot", None)
         location = getattr(item, "storage_location", None)
 
         item_el = ET.SubElement(items_el, "Item")
         ET.SubElement(item_el, "LineNo").text = str(idx)
         ET.SubElement(item_el, "AutoPartId").text = str(item.autopart_id)
-        if autopart is not None:
-            ET.SubElement(item_el, "OemNumber").text = str(
-                autopart.oem_number or ""
-            )
-            ET.SubElement(item_el, "Name").text = str(autopart.name or "")
-            if getattr(autopart, "brand", None) is not None:
-                ET.SubElement(item_el, "Brand").text = str(
-                    autopart.brand.name or ""
-                )
+        client_oem, client_brand, client_name = _shipment_client_identity(item)
+        ET.SubElement(item_el, "OemNumber").text = client_oem
+        ET.SubElement(item_el, "Name").text = client_name
+        ET.SubElement(item_el, "Brand").text = client_brand
         ET.SubElement(item_el, "Quantity").text = str(item.quantity)
         if item.price is not None:
             ET.SubElement(item_el, "Price").text = str(item.price)
@@ -1840,12 +1858,8 @@ def _build_formalized_utd_user_data_xml(
             quantity,
             vat_rate,
         )
-        autopart = getattr(item, "autopart", None)
-        product_name = (
-            str(getattr(autopart, "name", "") or "").strip()
-            or str(getattr(autopart, "oem_number", "") or "").strip()
-            or f"Товар #{item.autopart_id}"
-        )
+        client_oem, client_brand, client_name = _shipment_client_identity(item)
+        product_name = client_name or client_oem or f"Товар #{item.autopart_id}"
         item_el = ET.SubElement(
             table_el,
             "Item",
@@ -1863,6 +1877,8 @@ def _build_formalized_utd_user_data_xml(
                 "Subtotal": _format_decimal(gross),
             },
         )
+        if client_oem:
+            item_el.set("ItemVendorCode", client_oem)
         lot = getattr(item, "lot", None)
         declaration_number = str(getattr(lot, "gtd_number", "") or "").strip()
         country_code = str(getattr(lot, "country_code", "") or "").strip()

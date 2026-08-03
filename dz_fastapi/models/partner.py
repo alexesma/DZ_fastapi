@@ -505,6 +505,13 @@ class CustomerPriceList(Base):
 
     date = Column(Date, default=date.today)
     customer_id = Column(Integer, ForeignKey("customer.id"))
+    customer_config_id = Column(
+        Integer,
+        ForeignKey("customerpricelistconfig.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    sent_at = Column(DateTime(timezone=True), nullable=True, index=True)
     customer = relationship("Customer", back_populates="customer_price_lists")
     autopart_associations = relationship(
         "CustomerPriceListAutoPartAssociation",
@@ -512,7 +519,58 @@ class CustomerPriceList(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    published_aliases = relationship(
+        "CustomerPriceListPublishedAlias",
+        back_populates="customer_pricelist",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
     is_active = Column(Boolean, default=DEFAULT_IS_ACTIVE)
+
+
+class CustomerPriceListPublishedAlias(Base):
+    """Client-facing DZ cross linked to the physical stock item we sell."""
+
+    customer_pricelist_id = Column(
+        Integer,
+        ForeignKey("customerpricelist.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    source_autopart_id = Column(
+        Integer,
+        ForeignKey("autopart.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    advertised_oem = Column(String(255), nullable=False)
+    advertised_brand = Column(String(255), nullable=False)
+    advertised_name = Column(String(512), nullable=True)
+    normalized_oem = Column(String(255), nullable=False)
+    normalized_brand = Column(String(255), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    price = Column(DECIMAL(10, 2), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=now_moscow)
+
+    customer_pricelist = relationship(
+        "CustomerPriceList", back_populates="published_aliases"
+    )
+    source_autopart = relationship("AutoPart", lazy="joined")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "customer_pricelist_id",
+            "normalized_oem",
+            "normalized_brand",
+            name="uq_customer_pricelist_published_alias_key",
+        ),
+        Index(
+            "ix_customer_pricelist_published_alias_lookup",
+            "customer_pricelist_id",
+            "normalized_oem",
+            "normalized_brand",
+        ),
+    )
 
 
 event.listen(PriceList, "before_insert", set_date)
@@ -924,6 +982,10 @@ class CustomerOrderItem(Base):
     )
     supplier_id = Column(Integer, ForeignKey("provider.id"), nullable=True)
     autopart_id = Column(Integer, ForeignKey("autopart.id"), nullable=True)
+    match_type = Column(String(32), nullable=True)
+    actual_oem = Column(String(255), nullable=True)
+    actual_brand = Column(String(255), nullable=True)
+    actual_name = Column(String(512), nullable=True)
     matched_price = Column(DECIMAL(10, 2), nullable=True)
     price_diff_pct = Column(Float, nullable=True)
     reject_reason_code = Column(String(64), nullable=True)
@@ -931,6 +993,7 @@ class CustomerOrderItem(Base):
 
     order = relationship("CustomerOrder", back_populates="items")
     supplier = relationship("Provider")
+    autopart = relationship("AutoPart", lazy="joined")
 
 
 class SupplierOrder(Base):
@@ -1507,6 +1570,7 @@ class RECLAMATION_SOURCE(StrEnum):
 @unique
 class RECLAMATION_TYPE(StrEnum):
     CUSTOMER_REFUSAL = "customer_refusal"  # отказ клиента (большинство)
+    MIS_SORT = "mis_sort"                  # пересорт / неверное вложение
     DEFECT = "defect"                      # брак
     SHORTAGE = "shortage"                  # недовоз
     OTHER = "other"

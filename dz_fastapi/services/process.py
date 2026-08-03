@@ -16,8 +16,9 @@ from libarchive import memory_reader
 from openpyxl import Workbook
 from openpyxl.cell import WriteOnlyCell
 from openpyxl.styles import Alignment, Font, PatternFill
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from dz_fastapi.analytics.price_history import analyze_new_pricelist
 from dz_fastapi.core.constants import (
@@ -74,11 +75,14 @@ from dz_fastapi.crud.partner import (
     crud_provider,
 )
 from dz_fastapi.crud.price_control import crud_customer_pricelist_override
-from dz_fastapi.models.autopart import preprocess_oem_number
+from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
+from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.cross import AutoPartCross
 from dz_fastapi.models.partner import (
     Customer,
     CustomerPriceList,
     CustomerPriceListConfig,
+    CustomerPriceListPublishedAlias,
     Provider,
     ProviderPriceListConfig,
 )
@@ -575,9 +579,21 @@ def _collapse_duplicate_rows(
     collapsed["__dedup_brand"] = brand_series.map(_normalize_dedup_brand_key)
 
     if prefer_min_price:
+        if "is_own_price" in collapsed.columns:
+            collapsed["__dz_own_rank"] = (
+                collapsed["__dedup_brand"].eq("DRAGONZAP")
+                & collapsed["is_own_price"].fillna(False).astype(bool)
+            ).astype(int)
+        else:
+            collapsed["__dz_own_rank"] = 0
         collapsed = collapsed.sort_values(
-            by=["__dedup_oem", "__dedup_brand", "price"],
-            ascending=[True, True, True],
+            by=[
+                "__dedup_oem",
+                "__dedup_brand",
+                "__dz_own_rank",
+                "price",
+            ],
+            ascending=[True, True, False, True],
         )
     elif "is_own_price" in collapsed.columns:
         collapsed["__own_rank"] = (
@@ -598,7 +614,12 @@ def _collapse_duplicate_rows(
         keep="first",
     )
     return collapsed.drop(
-        columns=["__dedup_oem", "__dedup_brand", "__own_rank"],
+        columns=[
+            "__dedup_oem",
+            "__dedup_brand",
+            "__own_rank",
+            "__dz_own_rank",
+        ],
         errors="ignore",
     )
 
@@ -641,6 +662,201 @@ def _collapse_duplicate_excel_rows(df_excel: pd.DataFrame) -> pd.DataFrame:
         columns=["__dedup_oem", "__dedup_brand", "__dedup_price"],
         errors="ignore",
     )
+
+
+def _is_dragonzap_brand(value: object) -> bool:
+    return _normalize_dedup_brand_key(value) == "DRAGONZAP"
+
+
+async def _build_dragonzap_cross_alias_records(
+    session: AsyncSession,
+    *,
+    customer_id: int,
+    source_df: pd.DataFrame,
+) -> list[dict[str, Any]]:
+    """Build DZ-only aliases while preserving the selected physical item id."""
+
+    if source_df.empty or "is_own_price" not in source_df.columns:
+        return []
+    own_rows = source_df[
+        source_df["is_own_price"].fillna(False).astype(bool)
+        & source_df["brand"].map(_is_dragonzap_brand)
+        & (pd.to_numeric(source_df["quantity"], errors="coerce").fillna(0) > 0)
+    ].copy()
+    if own_rows.empty:
+        return []
+
+    own_rows["autopart_id"] = pd.to_numeric(
+        own_rows["autopart_id"], errors="coerce"
+    )
+    own_rows = own_rows.dropna(subset=["autopart_id"])
+    own_rows["autopart_id"] = own_rows["autopart_id"].astype(int)
+    seed_ids = set(own_rows["autopart_id"].tolist())
+
+    source_part = aliased(AutoPart)
+    target_part = aliased(AutoPart)
+    source_brand = aliased(Brand)
+    target_brand = aliased(Brand)
+    edge_rows = (
+        await session.execute(
+            select(
+                AutoPartCross.source_autopart_id,
+                AutoPartCross.cross_autopart_id,
+            )
+            .join(source_part, source_part.id == AutoPartCross.source_autopart_id)
+            .join(source_brand, source_brand.id == source_part.brand_id)
+            .join(target_part, target_part.id == AutoPartCross.cross_autopart_id)
+            .join(target_brand, target_brand.id == target_part.brand_id)
+            .where(
+                AutoPartCross.is_bidirectional.is_(True),
+                AutoPartCross.cross_autopart_id.is_not(None),
+                func.upper(source_brand.name) == "DRAGONZAP",
+                func.upper(target_brand.name) == "DRAGONZAP",
+            )
+        )
+    ).all()
+
+    parent: dict[int, int] = {}
+
+    def find(value: int) -> int:
+        parent.setdefault(value, value)
+        while parent[value] != value:
+            parent[value] = parent[parent[value]]
+            value = parent[value]
+        return value
+
+    def union(left: int, right: int) -> None:
+        left_root, right_root = find(left), find(right)
+        if left_root != right_root:
+            parent[right_root] = left_root
+
+    for source_id, target_id in edge_rows:
+        if source_id is not None and target_id is not None:
+            union(int(source_id), int(target_id))
+    for seed_id in seed_ids:
+        find(seed_id)
+
+    relevant_roots = {find(seed_id) for seed_id in seed_ids}
+    relevant_ids = {
+        autopart_id
+        for autopart_id in parent
+        if find(autopart_id) in relevant_roots
+    }
+    member_rows = (
+        await session.execute(
+            select(
+                AutoPart.id,
+                Brand.name,
+                AutoPart.oem_number,
+                AutoPart.name,
+            )
+            .join(Brand, Brand.id == AutoPart.brand_id)
+            .where(
+                AutoPart.id.in_(relevant_ids),
+                func.upper(Brand.name) == "DRAGONZAP",
+            )
+        )
+    ).all()
+
+    candidates_by_root: dict[int, list[dict[str, Any]]] = {}
+    for record in own_rows.to_dict("records"):
+        candidates_by_root.setdefault(find(int(record["autopart_id"])), []).append(
+            record
+        )
+    for candidates in candidates_by_root.values():
+        candidates.sort(
+            key=lambda row: (
+                float(row.get("price") or float("inf")),
+                -int(float(row.get("quantity") or 0)),
+                int(row["autopart_id"]),
+            )
+        )
+
+    direct_keys = {
+        (
+            _normalize_dedup_oem_key(row.get("oem_number")),
+            _normalize_dedup_brand_key(row.get("brand")),
+        )
+        for row in own_rows.to_dict("records")
+    }
+    direct_min_prices: dict[tuple[str, str], float] = {}
+    for row in source_df.to_dict("records"):
+        key = (
+            _normalize_dedup_oem_key(row.get("oem_number")),
+            _normalize_dedup_brand_key(row.get("brand")),
+        )
+        price = float(row.get("price") or 0)
+        if price > 0:
+            direct_min_prices[key] = min(direct_min_prices.get(key, price), price)
+
+    week_key = _customer_pricelist_mask_week_key()
+    aliases_by_key: dict[tuple[str, str], dict[str, Any]] = {}
+    for member_id, brand_name, oem_number, part_name in member_rows:
+        key = (
+            _normalize_dedup_oem_key(oem_number),
+            _normalize_dedup_brand_key(brand_name),
+        )
+        if key in direct_keys:
+            continue
+        candidates = candidates_by_root.get(find(int(member_id))) or []
+        if not candidates:
+            continue
+        selected = candidates[0]
+        selected_price = float(selected.get("price") or 0)
+        if direct_min_prices.get(key, selected_price) < selected_price:
+            continue
+        quantity = int(float(selected.get("quantity") or 0))
+        unit = _stable_unit_interval(
+            customer_id,
+            int(selected["autopart_id"]),
+            int(member_id),
+            week_key,
+            "dragonzap_cross_qty",
+        )
+        alias = dict(selected)
+        alias.update(
+            {
+                "autopart_id": int(selected["autopart_id"]),
+                "__source_oem": selected.get("oem_number"),
+                "brand": "DRAGONZAP",
+                "oem_number": str(oem_number or "").strip(),
+                "name": str(part_name or selected.get("name") or "").strip(),
+                "quantity": _mask_supplier_quantity(quantity, unit),
+                "price": selected_price,
+                "__dragonzap_alias": True,
+            }
+        )
+        current = aliases_by_key.get(key)
+        if current is None or (
+            float(alias["price"]), int(alias["autopart_id"])
+        ) < (float(current["price"]), int(current["autopart_id"])):
+            aliases_by_key[key] = alias
+    return list(aliases_by_key.values())
+
+
+def _sync_dragonzap_alias_prices(
+    aliases: list[dict[str, Any]],
+    df_excel: pd.DataFrame,
+) -> None:
+    """Keep alias price identical to its source after optional ZZAP floors."""
+
+    prices: dict[tuple[str, str], float] = {}
+    if {"Производитель", "Артикул", "Цена"}.issubset(df_excel.columns):
+        for row in df_excel.to_dict("records"):
+            key = (
+                _normalize_dedup_brand_key(row.get("Производитель")),
+                _normalize_dedup_oem_key(row.get("Артикул")),
+            )
+            value = pd.to_numeric(row.get("Цена"), errors="coerce")
+            if pd.notna(value):
+                prices[key] = float(value)
+    for alias in aliases:
+        source_key = (
+            _normalize_dedup_brand_key(alias.get("brand")),
+            _normalize_dedup_oem_key(alias.get("__source_oem") or ""),
+        )
+        if source_key in prices:
+            alias["price"] = prices[source_key]
 
 
 def open_csv(file: bytes) -> pd.DataFrame:
@@ -1833,7 +2049,18 @@ async def process_customer_pricelist(
                 getattr(config, "collapse_duplicates_by_min_price", True)
             ),
         )
+        dragonzap_alias_records = await _build_dragonzap_cross_alias_records(
+            session,
+            customer_id=customer.id,
+            source_df=final_df,
+        )
         customer_autoparts_data = final_df.to_dict("records")
+        dragonzap_source_records = [
+            dict(row)
+            for row in customer_autoparts_data
+            if bool(row.get("is_own_price"))
+            and _is_dragonzap_brand(row.get("brand"))
+        ]
         del final_df
     else:
         raise HTTPException(
@@ -1842,6 +2069,7 @@ async def process_customer_pricelist(
 
     customer_pricelist = CustomerPriceList(
         customer_id=customer.id,
+        customer_config_id=config.id,
         date=request.date or date.today(),
         is_active=True,
     )
@@ -1857,7 +2085,6 @@ async def process_customer_pricelist(
         session=session,
         load_associations=include_autoparts_response,
     )
-
     # Prepare data for Excel file: строим из уже готовых записей,
     # без зависимости от перезагруженных ассоциаций.
     df_excel = await asyncio.to_thread(
@@ -1945,6 +2172,49 @@ async def process_customer_pricelist(
         )
         logger.debug(_dataframe_summary(df_excel, "zzap_excel_df"))
 
+    _sync_dragonzap_alias_prices(dragonzap_alias_records, df_excel)
+    if dz_expand_enabled and dragonzap_source_records:
+        source_excel = await asyncio.to_thread(
+            prepare_excel_data_from_records, dragonzap_source_records
+        )
+        df_excel = pd.concat([df_excel, source_excel], ignore_index=True)
+    if dragonzap_alias_records:
+        for alias in dragonzap_alias_records:
+            session.add(
+                CustomerPriceListPublishedAlias(
+                    customer_pricelist_id=customer_pricelist.id,
+                    source_autopart_id=int(alias["autopart_id"]),
+                    advertised_oem=str(
+                        alias.get("oem_number") or ""
+                    ).strip(),
+                    advertised_brand=str(
+                        alias.get("brand") or "DRAGONZAP"
+                    ).strip(),
+                    advertised_name=(
+                        str(alias.get("name") or "").strip() or None
+                    ),
+                    normalized_oem=_normalize_dedup_oem_key(
+                        alias.get("oem_number")
+                    ),
+                    normalized_brand=_normalize_dedup_brand_key(
+                        alias.get("brand")
+                    ),
+                    quantity=int(alias.get("quantity") or 0),
+                    price=float(alias.get("price") or 0),
+                )
+            )
+        alias_excel = await asyncio.to_thread(
+            prepare_excel_data_from_records, dragonzap_alias_records
+        )
+        df_excel = pd.concat([df_excel, alias_excel], ignore_index=True)
+        logger.info(
+            "Added Dragonzap stock aliases to customer pricelist: "
+            "customer_id=%s config_id=%s aliases=%s",
+            customer.id,
+            config.id,
+            len(dragonzap_alias_records),
+        )
+
     if bool(getattr(config, "collapse_duplicates_by_min_price", True)):
         df_excel = await asyncio.to_thread(
             _collapse_duplicate_excel_rows, df_excel
@@ -1974,7 +2244,10 @@ async def process_customer_pricelist(
         body="Добрый день, высылаем Вам наш прайс-лист",
     )
     if recipients:
-        config.last_sent_at = now_moscow()
+        sent_at = now_moscow()
+        config.last_sent_at = sent_at
+        customer_pricelist.sent_at = sent_at
+        session.add(customer_pricelist)
         session.add(config)
         await session.commit()
     logger.debug("Finished send_pricelist")

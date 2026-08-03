@@ -6,9 +6,11 @@ import pytest
 from dz_fastapi.api.validators import normalize_brand_name
 from dz_fastapi.crud.partner import crud_customer_pricelist
 from dz_fastapi.services.customer_orders import (
+    OfferRow,
     _apply_matched_email_state_for_configs,
     _build_current_offers,
     _canonicalize_brand_key,
+    _merge_published_dragonzap_alias_offers,
     _normalize_key,
     _normalize_oem_key,
     _repair_cp1251_mojibake,
@@ -42,6 +44,48 @@ def test_normalize_key_uses_brand_aliases_for_synonyms():
         "9011908419",
         "TOYOTA",
     )
+
+
+def test_published_dragonzap_alias_maps_to_physical_stock_offer():
+    source = SimpleNamespace(
+        oem_number="DZT113001111BA",
+        brand=SimpleNamespace(name="DRAGONZAP"),
+    )
+    alias = SimpleNamespace(
+        advertised_oem="1014003218",
+        advertised_brand="DRAGONZAP",
+        source_autopart=source,
+    )
+    pricelist = SimpleNamespace(published_aliases=[alias])
+    source_key = _normalize_key(
+        source.oem_number,
+        source.brand.name,
+        None,
+    )
+    source_offer = OfferRow(
+        autopart_id=501,
+        provider_id=1,
+        provider_config_id=2,
+        quantity=46,
+        price=125.0,
+        supplier_price=100.0,
+        is_own_price=True,
+        actual_oem=source.oem_number,
+        actual_brand=source.brand.name,
+        actual_name="Actual stock part",
+    )
+
+    offers = _merge_published_dragonzap_alias_offers(
+        pricelist,
+        {source_key: source_offer},
+    )
+    matched = offers[_normalize_key("1014003218", "DRAGONZAP", None)]
+
+    assert matched.autopart_id == 501
+    assert matched.quantity == 46
+    assert matched.price == 125.0
+    assert matched.match_type == "dragonzap_cross"
+    assert matched.actual_oem == "DZT113001111BA"
 
 
 def test_source_filters_can_ignore_price_and_quantity_thresholds():

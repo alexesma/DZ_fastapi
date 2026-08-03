@@ -154,16 +154,30 @@ def build_commerceml_sale_xml(
         for item in document.items or []:
             autopart = getattr(item, "autopart", None)
             brand = getattr(autopart, "brand", None)
+            client_oem = str(
+                getattr(item, "customer_oem", None)
+                or getattr(autopart, "oem_number", "")
+                or ""
+            ).strip()
+            client_brand = str(
+                getattr(item, "customer_brand", None)
+                or getattr(brand, "name", "")
+                or ""
+            ).strip()
+            client_name = str(
+                getattr(item, "customer_name", None)
+                or getattr(autopart, "name", "")
+                or ""
+            ).strip()
             good = ET.SubElement(goods, "Товар")
             ET.SubElement(good, "Ид").text = f"dz-autopart-{item.autopart_id}"
-            oem = str(getattr(autopart, "oem_number", "") or "").strip()
-            ET.SubElement(good, "Артикул").text = oem
+            ET.SubElement(good, "Артикул").text = client_oem
             part_name = " ".join(
                 part
                 for part in (
-                    str(getattr(brand, "name", "") or "").strip(),
-                    oem,
-                    str(getattr(autopart, "name", "") or "").strip(),
+                    client_brand,
+                    client_oem,
+                    client_name,
                 )
                 if part
             )

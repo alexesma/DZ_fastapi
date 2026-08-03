@@ -18,7 +18,13 @@ from dz_fastapi.models.inventory import (
     StockLot,
     StockMovement,
 )
-from dz_fastapi.models.partner import Provider, SupplierReceipt, SupplierReceiptItem
+from dz_fastapi.models.partner import (
+    CustomerOrder,
+    CustomerOrderItem,
+    Provider,
+    SupplierReceipt,
+    SupplierReceiptItem,
+)
 from dz_fastapi.services.inventory_stock import receive_stock
 
 
@@ -36,6 +42,57 @@ async def _stock_row(
             )
         )
     ).scalar_one_or_none()
+
+
+@pytest.mark.asyncio
+async def test_shipment_preserves_customer_alias_and_physical_stock_item(
+    async_client: AsyncClient,
+    test_session: AsyncSession,
+    created_autopart: AutoPart,
+    created_customers,
+):
+    order = CustomerOrder(
+        customer_id=created_customers[0].id,
+        status="PROCESSED",
+    )
+    test_session.add(order)
+    await test_session.flush()
+    order_item = CustomerOrderItem(
+        order_id=order.id,
+        oem="DZ-CROSS-RETURN",
+        brand="DRAGONZAP",
+        name="Клиентское наименование",
+        requested_qty=2,
+        ship_qty=2,
+        status="OWN_STOCK",
+        autopart_id=created_autopart.id,
+        match_type="dragonzap_cross",
+        actual_oem=created_autopart.oem_number,
+    )
+    test_session.add(order_item)
+    await test_session.commit()
+
+    response = await async_client.post(
+        "/inventory/shipments/",
+        json={
+            "customer_id": created_customers[0].id,
+            "customer_order_id": order.id,
+            "items": [
+                {
+                    "autopart_id": created_autopart.id,
+                    "quantity": 2,
+                    "price": "150.00",
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    item = response.json()["items"][0]
+    assert item["autopart_id"] == created_autopart.id
+    assert item["customer_order_item_id"] == order_item.id
+    assert item["autopart_oem"] == "DZ-CROSS-RETURN"
+    assert item["stock_autopart_oem"] == created_autopart.oem_number
 
 
 @pytest.mark.asyncio

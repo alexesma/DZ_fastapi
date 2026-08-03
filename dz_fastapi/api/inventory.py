@@ -53,7 +53,7 @@ from dz_fastapi.models.inventory import (
     StockReserve,
     SyncStatus,
 )
-from dz_fastapi.models.partner import SupplierReceipt, SupplierReceiptItem
+from dz_fastapi.models.partner import CustomerOrderItem, SupplierReceipt, SupplierReceiptItem
 from dz_fastapi.schemas.inventory import (
     BackfillResult,
     DocumentBulkSyncRequest,
@@ -2105,6 +2105,10 @@ def _shipment_item_to_out(
         id=item.id,
         document_id=item.document_id,
         autopart_id=item.autopart_id,
+        customer_order_item_id=item.customer_order_item_id,
+        customer_oem=item.customer_oem,
+        customer_brand=item.customer_brand,
+        customer_name=item.customer_name,
         storage_location_id=item.storage_location_id,
         quantity=item.quantity,
         price=item.price,
@@ -2114,9 +2118,13 @@ def _shipment_item_to_out(
         reserve_id=item.reserve_id,
         lot_id=item.lot_id,
         notes=item.notes,
-        autopart_oem=ap.oem_number if ap else None,
-        autopart_name=ap.name if ap else None,
-        autopart_brand=ap.brand.name if (ap and ap.brand) else None,
+        autopart_oem=item.customer_oem or (ap.oem_number if ap else None),
+        autopart_name=item.customer_name or (ap.name if ap else None),
+        autopart_brand=item.customer_brand
+        or (ap.brand.name if (ap and ap.brand) else None),
+        stock_autopart_oem=ap.oem_number if ap else None,
+        stock_autopart_name=ap.name if ap else None,
+        stock_autopart_brand=ap.brand.name if (ap and ap.brand) else None,
         storage_location_name=loc.name if loc else None,
         gtd_number=lot.gtd_number if lot else None,
         revenue_total=revenue_total,
@@ -2250,9 +2258,62 @@ async def create_shipment_document(
     await session.flush()
 
     for item_data in data.items:
+        customer_order_item = None
+        if item_data.customer_order_item_id is not None:
+            customer_order_item = await session.get(
+                CustomerOrderItem, item_data.customer_order_item_id
+            )
+            if customer_order_item is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Строка заказа клиента не найдена",
+                )
+            if (
+                data.customer_order_id is not None
+                and customer_order_item.order_id != data.customer_order_id
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Строка относится к другому заказу клиента",
+                )
+            if customer_order_item.autopart_id != item_data.autopart_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Фактическая складская позиция не совпадает "
+                        "со строкой заказа клиента"
+                    ),
+                )
+        elif data.customer_order_id is not None:
+            candidates = (
+                (
+                    await session.execute(
+                        select(CustomerOrderItem).where(
+                            CustomerOrderItem.order_id
+                            == data.customer_order_id,
+                            CustomerOrderItem.autopart_id
+                            == item_data.autopart_id,
+                            CustomerOrderItem.ship_qty > 0,
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            if len(candidates) == 1:
+                customer_order_item = candidates[0]
         item = ShipmentDocumentItem(
             document_id=doc.id,
             autopart_id=item_data.autopart_id,
+            customer_order_item_id=(
+                customer_order_item.id if customer_order_item else None
+            ),
+            customer_oem=item_data.customer_oem
+            or getattr(customer_order_item, "oem", None),
+            customer_brand=item_data.customer_brand
+            or getattr(customer_order_item, "brand", None),
+            customer_name=item_data.customer_name
+            or getattr(customer_order_item, "name", None),
             storage_location_id=item_data.storage_location_id,
             quantity=item_data.quantity,
             price=item_data.price,
@@ -2788,9 +2849,59 @@ async def add_shipment_item(
             status_code=400,
             detail="Можно добавлять строки только в черновик",
         )
+    customer_order_item = None
+    if data.customer_order_item_id is not None:
+        customer_order_item = await session.get(
+            CustomerOrderItem, data.customer_order_item_id
+        )
+        if customer_order_item is None:
+            raise HTTPException(
+                status_code=404, detail="Строка заказа клиента не найдена"
+            )
+        if (
+            doc.customer_order_id is not None
+            and customer_order_item.order_id != doc.customer_order_id
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Строка относится к другому заказу клиента",
+            )
+        if customer_order_item.autopart_id != data.autopart_id:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Фактическая складская позиция не совпадает "
+                    "со строкой заказа клиента"
+                ),
+            )
+    elif doc.customer_order_id is not None:
+        candidates = (
+            (
+                await session.execute(
+                    select(CustomerOrderItem).where(
+                        CustomerOrderItem.order_id == doc.customer_order_id,
+                        CustomerOrderItem.autopart_id == data.autopart_id,
+                        CustomerOrderItem.ship_qty > 0,
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if len(candidates) == 1:
+            customer_order_item = candidates[0]
     item = ShipmentDocumentItem(
         document_id=doc_id,
         autopart_id=data.autopart_id,
+        customer_order_item_id=(
+            customer_order_item.id if customer_order_item else None
+        ),
+        customer_oem=data.customer_oem
+        or getattr(customer_order_item, "oem", None),
+        customer_brand=data.customer_brand
+        or getattr(customer_order_item, "brand", None),
+        customer_name=data.customer_name
+        or getattr(customer_order_item, "name", None),
         storage_location_id=data.storage_location_id,
         quantity=data.quantity,
         price=data.price,
@@ -3225,13 +3336,15 @@ async def _populate_return_item_from_payload(
         item.price = explicit.get("price", shipment_item.price)
         item.vat_rate = explicit.get("vat_rate", shipment_item.vat_rate)
         item.oem_number = (
-            getattr(
+            getattr(shipment_item, "customer_oem", None)
+            or getattr(
                 getattr(shipment_item, "autopart", None), "oem_number", None
             )
             or item.oem_number
         )
         item.brand_name = (
-            getattr(
+            getattr(shipment_item, "customer_brand", None)
+            or getattr(
                 getattr(
                     getattr(shipment_item, "autopart", None), "brand", None
                 ),
@@ -3241,7 +3354,8 @@ async def _populate_return_item_from_payload(
             or item.brand_name
         )
         item.autopart_name = (
-            getattr(getattr(shipment_item, "autopart", None), "name", None)
+            getattr(shipment_item, "customer_name", None)
+            or getattr(getattr(shipment_item, "autopart", None), "name", None)
             or item.autopart_name
         )
         source_lot = getattr(shipment_item, "lot", None)

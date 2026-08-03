@@ -485,6 +485,10 @@ class StockReserveCancelResult(BaseModel):
 
 class ShipmentDocumentItemCreate(BaseModel):
     autopart_id: int
+    customer_order_item_id: Optional[int] = None
+    customer_oem: Optional[str] = Field(None, max_length=255)
+    customer_brand: Optional[str] = Field(None, max_length=255)
+    customer_name: Optional[str] = Field(None, max_length=512)
     quantity: int = Field(..., gt=0)
     storage_location_id: Optional[int] = None
     price: Optional[PriceDecimal] = None
@@ -526,6 +530,10 @@ class ShipmentDocumentItemOut(BaseModel):
     id: int
     document_id: int
     autopart_id: int
+    customer_order_item_id: Optional[int] = None
+    customer_oem: Optional[str] = None
+    customer_brand: Optional[str] = None
+    customer_name: Optional[str] = None
     storage_location_id: Optional[int] = None
     quantity: int
     price: Optional[Decimal] = None
@@ -539,6 +547,9 @@ class ShipmentDocumentItemOut(BaseModel):
     autopart_oem: Optional[str] = None
     autopart_name: Optional[str] = None
     autopart_brand: Optional[str] = None
+    stock_autopart_oem: Optional[str] = None
+    stock_autopart_name: Optional[str] = None
+    stock_autopart_brand: Optional[str] = None
     storage_location_name: Optional[str] = None
     # из лота (заполняется после проведения)
     gtd_number: Optional[str] = None

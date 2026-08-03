@@ -71,6 +71,7 @@ from dz_fastapi.models.partner import (
     CustomerPriceList,
     CustomerPriceListAutoPartAssociation,
     CustomerPriceListConfig,
+    CustomerPriceListPublishedAlias,
     PriceList,
     PriceListAutoPartAssociation,
     Provider,
@@ -222,6 +223,10 @@ class OfferRow:
     price: float
     supplier_price: float
     is_own_price: bool
+    match_type: str = "direct"
+    actual_oem: Optional[str] = None
+    actual_brand: Optional[str] = None
+    actual_name: Optional[str] = None
 
 
 @dataclass
@@ -1297,21 +1302,42 @@ def _apply_response_updates_csv(
 
 
 async def _load_latest_customer_pricelist(
-    session: AsyncSession, customer_id: int
+    session: AsyncSession,
+    customer_id: int,
+    customer_config_id: Optional[int] = None,
 ) -> Optional[CustomerPriceList]:
-    stmt = (
+    base_stmt = (
         select(CustomerPriceList)
         .where(CustomerPriceList.customer_id == customer_id)
-        .order_by(CustomerPriceList.date.desc(), CustomerPriceList.id.desc())
         .options(
             joinedload(CustomerPriceList.autopart_associations)
             .joinedload(CustomerPriceListAutoPartAssociation.autopart)
-            .joinedload(AutoPart.brand)
+            .joinedload(AutoPart.brand),
+            joinedload(CustomerPriceList.published_aliases)
+            .joinedload(CustomerPriceListPublishedAlias.source_autopart)
+            .joinedload(AutoPart.brand),
         )
+    )
+    if customer_config_id is not None:
+        base_stmt = base_stmt.where(
+            CustomerPriceList.customer_config_id == customer_config_id
+        )
+    ordering = (CustomerPriceList.date.desc(), CustomerPriceList.id.desc())
+    sent_result = await session.execute(
+        base_stmt.where(CustomerPriceList.sent_at.is_not(None))
+        .order_by(*ordering)
         .limit(1)
     )
-    result = await session.execute(stmt)
-    return result.scalars().first()
+    sent = sent_result.unique().scalars().first()
+    if sent is not None:
+        return sent
+    # Compatibility only for price lists created before config/sent tracking.
+    result = await session.execute(
+        base_stmt.where(CustomerPriceList.customer_config_id.is_(None))
+        .order_by(*ordering)
+        .limit(1)
+    )
+    return result.unique().scalars().first()
 
 
 def _build_expected_price_map(
@@ -1327,7 +1353,57 @@ def _build_expected_price_map(
             autopart.oem_number, autopart.brand.name, brand_aliases
         )
         expected[key] = float(assoc.price or 0)
+    for alias in pricelist.published_aliases or []:
+        key = _normalize_key(
+            alias.advertised_oem,
+            alias.advertised_brand,
+            brand_aliases,
+        )
+        expected[key] = float(alias.price or 0)
     return expected
+
+
+def _merge_published_dragonzap_alias_offers(
+    pricelist: Optional[CustomerPriceList],
+    offers: Dict[Tuple[str, str], OfferRow],
+    brand_aliases: Optional[Dict[str, str]] = None,
+) -> Dict[Tuple[str, str], OfferRow]:
+    if pricelist is None or not pricelist.published_aliases:
+        return offers
+    merged = dict(offers)
+    for alias in pricelist.published_aliases:
+        source = alias.source_autopart
+        if source is None or source.brand is None:
+            continue
+        source_key = _normalize_key(
+            source.oem_number,
+            source.brand.name,
+            brand_aliases,
+        )
+        source_offer = offers.get(source_key)
+        if source_offer is None or not source_offer.is_own_price:
+            continue
+        advertised_key = _normalize_key(
+            alias.advertised_oem,
+            alias.advertised_brand,
+            brand_aliases,
+        )
+        if advertised_key in merged:
+            continue
+        merged[advertised_key] = OfferRow(
+            autopart_id=source_offer.autopart_id,
+            provider_id=source_offer.provider_id,
+            provider_config_id=source_offer.provider_config_id,
+            quantity=source_offer.quantity,
+            price=source_offer.price,
+            supplier_price=source_offer.supplier_price,
+            is_own_price=True,
+            match_type="dragonzap_cross",
+            actual_oem=source_offer.actual_oem,
+            actual_brand=source_offer.actual_brand,
+            actual_name=source_offer.actual_name,
+        )
+    return merged
 
 
 async def _build_current_offers(
@@ -1434,6 +1510,9 @@ async def _build_current_offers(
             price=float(row.get("price") or 0),
             supplier_price=supplier_price,
             is_own_price=bool(row.get("is_own_price")),
+            actual_oem=str(row.get("oem_number") or "").strip() or None,
+            actual_brand=str(row.get("brand") or "").strip() or None,
+            actual_name=str(row.get("name") or "").strip() or None,
         )
     return offers
 
@@ -2746,7 +2825,9 @@ async def _prepare_customer_order_context(
 ):
     brand_aliases = await _load_brand_alias_map(session)
     last_pricelist = await _load_latest_customer_pricelist(
-        session, config.customer_id
+        session,
+        config.customer_id,
+        config.pricelist_config_id,
     )
     expected_prices = (
         _build_expected_price_map(last_pricelist, brand_aliases)
@@ -2758,6 +2839,11 @@ async def _prepare_customer_order_context(
         await _build_current_offers(session, pricelist_config, brand_aliases)
         if pricelist_config
         else {}
+    )
+    offers = _merge_published_dragonzap_alias_offers(
+        last_pricelist,
+        offers,
+        brand_aliases,
     )
     return expected_prices, offers, brand_aliases, pricelist_config
 
@@ -2784,6 +2870,7 @@ async def _process_manual_rows(
     supplier_items: Dict[int, List[CustomerOrderItem]] = {}
     stock_items: List[CustomerOrderItem] = []
     rejected_items: List[CustomerOrderItem] = []
+    allocated_qty_by_autopart: Dict[int, int] = {}
 
     for row in parsed_rows:
         key = _normalize_key(row.oem, row.brand, brand_aliases)
@@ -2803,6 +2890,10 @@ async def _process_manual_rows(
             requested_qty=row.requested_qty,
             requested_price=requested_price,
             status=CUSTOMER_ORDER_ITEM_STATUS.NEW,
+            match_type=offer.match_type if offer else None,
+            actual_oem=offer.actual_oem if offer else None,
+            actual_brand=offer.actual_brand if offer else None,
+            actual_name=offer.actual_name if offer else None,
         )
         if not offer:
             item.status = CUSTOMER_ORDER_ITEM_STATUS.REJECTED
@@ -2883,7 +2974,10 @@ async def _process_manual_rows(
                 )
 
             if item.status != CUSTOMER_ORDER_ITEM_STATUS.REJECTED:
-                available_qty = int(offer.quantity or 0)
+                already_allocated = allocated_qty_by_autopart.get(
+                    int(offer.autopart_id), 0
+                )
+                available_qty = int(offer.quantity or 0) - already_allocated
                 if available_qty < 0:
                     available_qty = 0
                 ship_qty = min(row.requested_qty, available_qty)
@@ -2891,6 +2985,9 @@ async def _process_manual_rows(
                 item.ship_qty = ship_qty
                 item.reject_qty = reject_qty
                 item.autopart_id = offer.autopart_id
+                allocated_qty_by_autopart[int(offer.autopart_id)] = (
+                    already_allocated + ship_qty
+                )
                 if offer.is_own_price:
                     item.supplier_id = None
                 else:

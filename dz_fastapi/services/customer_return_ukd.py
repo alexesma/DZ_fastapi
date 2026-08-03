@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from dz_fastapi.core.time import MOSCOW_TZ
 from dz_fastapi.models.diadoc import DiadocOutgoingDocument
 from dz_fastapi.models.inventory import (
     ReturnDocumentStatus,
@@ -34,6 +35,8 @@ def _normalized(value: Any) -> str:
 
 def _as_date(value: Any) -> date | None:
     if isinstance(value, datetime):
+        if value.tzinfo is not None:
+            return value.astimezone(MOSCOW_TZ).date()
         return value.date()
     if isinstance(value, date):
         return value
@@ -233,7 +236,10 @@ def _match_shipment_item(
     matches = [
         item
         for item in (shipment.items or [])
-        if _normalized(getattr(getattr(item, "autopart", None), "oem_number", None))
+        if _normalized(
+            getattr(item, "customer_oem", None)
+            or getattr(getattr(item, "autopart", None), "oem_number", None)
+        )
         == target
     ]
     return matches[0] if len(matches) == 1 else None

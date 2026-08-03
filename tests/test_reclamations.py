@@ -177,6 +177,26 @@ def test_extract_froza_email_item_reads_quantity_and_position():
     }
 
 
+def test_extract_froza_email_item_reads_mis_sort_reason():
+    item = extract_froza_email_item(
+        """
+        Товар: ПРОКЛАДКА ПРИЕМНОЙ ТРУБЫ
+        Артикул: DZF1200250
+        Производитель: DragonZap
+        Количество: 10
+
+        Причина возврата: Пересорт
+        Комментарий: Все 10шт. с внутренним диаметром 51мм. А должны 45-48
+        """
+    )
+
+    assert item is not None
+    assert item["oem_number"] == "DZF1200250"
+    assert item["quantity"] == 10
+    assert item["reason"] == "Пересорт"
+    assert classify_reclamation_type(item["reason"]) == "mis_sort"
+
+
 def _greenlight_email_body() -> str:
     return """
     Добрый день! Заявляем о возврате товарных позиций.
@@ -680,7 +700,7 @@ async def test_shared_reclamation_email_resolves_legal_entity_by_order(
     assert [item.oem_number for item in reclamation.items] == ["06H905199C"]
     assert reclamation.items[0].quantity == 1
     assert reclamation.items[0].reason == "Неверное вложение"
-    assert reclamation.reclamation_type == "defect"
+    assert reclamation.reclamation_type == "mis_sort"
 
     linked = await ingest_reclamation_email(
         test_session,
@@ -1061,6 +1081,43 @@ async def test_ingest_froza_email_stores_stated_quantity(
     assert reclamation.items[0].autopart_name == "Кольцо уплотнительное"
     assert reclamation.items[0].quantity == 6
     assert reclamation.extracted_data["froza_email_item"]["quantity"] == 6
+
+
+@pytest.mark.asyncio
+async def test_ingest_froza_mis_sort_creates_single_position(
+    test_session: AsyncSession,
+):
+    reclamation = await ingest_reclamation_email(
+        test_session,
+        ReclamationInboundEmail(
+            from_="postvozvrat@froza.ru",
+            subject="Просьба согласовать возврат",
+            body_text=(
+                "Номер входящего документа: 3121\n"
+                "Дата входящего документа: 14.07.2026\n"
+                "Товар: ПРОКЛАДКА ПРИЕМНОЙ ТРУБЫ\n"
+                "Артикул: DZF1200250\n"
+                "Производитель: DragonZap\n"
+                "Количество: 10\n"
+                "Причина возврата: Пересорт\n"
+                "Комментарий: Все 10шт. с внутренним диаметром 51мм. "
+                "А должны 45-48\n"
+            ),
+            message_id="<froza-mis-sort@example.test>",
+        ),
+    )
+
+    assert reclamation is not None
+    assert reclamation.stated_document_number == "3121"
+    assert reclamation.stated_document_date == date(2026, 7, 14)
+    assert reclamation.stated_reason == "Пересорт"
+    assert reclamation.reclamation_type == "mis_sort"
+    assert len(reclamation.items) == 1
+    assert reclamation.items[0].oem_number == "DZF1200250"
+    assert reclamation.items[0].quantity == 10
+    assert reclamation.extracted_data["froza_email_item"]["comment"] == (
+        "Все 10шт. с внутренним диаметром 51мм. А должны 45-48"
+    )
 
 
 @pytest.mark.asyncio
@@ -1678,6 +1735,10 @@ def test_classify_reclamation_type():
         classify_reclamation_type("клиент отказался, не подошла деталь")
         == "customer_refusal"
     )
+    assert classify_reclamation_type("Причина возврата: Пересорт") == (
+        "mis_sort"
+    )
+    assert classify_reclamation_type("Неверное вложение") == "mis_sort"
     assert classify_reclamation_type("просто вопрос") is None
 
 

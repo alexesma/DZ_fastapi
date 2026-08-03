@@ -1006,6 +1006,16 @@ class ShipmentDocumentItem(Base):
         ForeignKey("autopart.id", ondelete="CASCADE"),
         nullable=False,
     )
+    customer_order_item_id = Column(
+        Integer,
+        ForeignKey("customerorderitem.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="Строка заказа с артикулом, который видел клиент",
+    )
+    customer_oem = Column(String(255), nullable=True)
+    customer_brand = Column(String(255), nullable=True)
+    customer_name = Column(String(512), nullable=True)
     storage_location_id = Column(
         Integer,
         ForeignKey("storagelocation.id", ondelete="SET NULL"),
@@ -1053,6 +1063,7 @@ class ShipmentDocumentItem(Base):
         "ShipmentDocument", back_populates="items", lazy="noload"
     )
     autopart = relationship("AutoPart", lazy="joined")
+    customer_order_item = relationship("CustomerOrderItem", lazy="joined")
     storage_location = relationship("StorageLocation", lazy="joined")
     reserve = relationship("StockReserve", lazy="noload")
     lot = relationship("StockLot", lazy="noload")

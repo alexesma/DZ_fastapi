@@ -228,6 +228,10 @@ class CustomerOrderItemResponse(BaseModel):
     status: CUSTOMER_ORDER_ITEM_STATUS
     supplier_id: Optional[int]
     autopart_id: Optional[int]
+    match_type: Optional[str] = None
+    actual_oem: Optional[str] = None
+    actual_brand: Optional[str] = None
+    actual_name: Optional[str] = None
     matched_price: Optional[Decimal]
     price_diff_pct: Optional[float]
     reject_reason_code: Optional[str] = None
