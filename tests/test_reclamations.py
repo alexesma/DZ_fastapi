@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.api.deps import require_email_relay, require_reclamation_access
 from dz_fastapi.api.reclamation import _redact_portal_tokens
+from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.diadoc import DiadocOutgoingDocument
@@ -2405,6 +2406,7 @@ async def test_shortage_assignment_notifies_and_confirmation_is_audited(
 async def test_reclamation_check_resolves_supplier_from_customer_order(
     test_session: AsyncSession,
 ):
+    order_day = now_moscow().date() - timedelta(days=5)
     customer = Customer(name="Клиент с транзитным заказом")
     provider = Provider(
         name="Поставщик заказа",
@@ -2414,8 +2416,15 @@ async def test_reclamation_check_resolves_supplier_from_customer_order(
     order = CustomerOrder(
         customer=customer,
         order_number="ORD-77",
-        order_date=date(2026, 7, 20),
-        received_at=datetime(2026, 7, 20, 9, 0, tzinfo=UTC),
+        order_date=order_day,
+        received_at=datetime(
+            order_day.year,
+            order_day.month,
+            order_day.day,
+            9,
+            0,
+            tzinfo=UTC,
+        ),
         items=[
             CustomerOrderItem(
                 oem="1113986500",
@@ -2453,7 +2462,7 @@ async def test_reclamation_check_resolves_supplier_from_customer_order(
     assert checked_item["supplier_id"] == provider.id
     assert checked_item["supplier_name"] == "Поставщик заказа"
     assert checked_item["supplier_source"] == "customer_order"
-    assert checked_item["customer_order_date"] == "2026-07-20"
+    assert checked_item["customer_order_date"] == order_day.isoformat()
     assert checked_item["verdict"] == "approve"
     assert checked_item["supplier_action"] == "request_supplier"
     assert reclamation.check_result["recommendation_code"] == "approve"
