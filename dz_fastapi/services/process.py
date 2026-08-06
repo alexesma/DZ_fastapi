@@ -1935,16 +1935,14 @@ async def process_customer_pricelist(
             status_code=400,
             detail="No pricelist configuration found for the customer",
         )
-    # Получаю все прайс листы клиента
-    all_prices = await crud_customer_pricelist.get_all_pricelist(
-        session=session, customer_id=customer.id
+    # Удаляем старую историю пакетно по id. Нельзя вызывать здесь
+    # get_all_pricelist(): он подгружает все позиции всех старых прайсов и
+    # на крупных клиентах занимал несколько гигабайт памяти scheduler.
+    await crud_customer_pricelist.delete_older_pricelists(
+        session=session,
+        customer_id=customer.id,
+        max_count=MAX_PRICE_LISTS,
     )
-    # Проверяю превышает ли кол-во прайсов MAX_PRICE_LISTS,
-    # и если да то удаляем излишек
-    if len(all_prices) > MAX_PRICE_LISTS:
-        await crud_customer_pricelist.delete_older_pricelists(
-            session=session, customer_id=customer.id, max_count=MAX_PRICE_LISTS
-        )
 
     combined_data = []
     dz_expand_enabled = False

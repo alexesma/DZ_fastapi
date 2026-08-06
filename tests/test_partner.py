@@ -1,6 +1,6 @@
 import io
 import logging
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -448,6 +448,71 @@ async def test_get_customer_success_with_pricelist_counts(
 
     assert counts_by_id[first_pricelist.id] == 1
     assert counts_by_id[second_pricelist.id] == 1
+
+
+@pytest.mark.asyncio
+async def test_delete_older_customer_pricelists_uses_bulk_cleanup(
+    test_session: AsyncSession,
+    created_autopart: AutoPart,
+    created_customers: list[Customer],
+):
+    customer = created_customers[0]
+    today = date.today()
+    pricelists = [
+        CustomerPriceList(
+            customer_id=customer.id,
+            date=today - timedelta(days=offset),
+            is_active=True,
+        )
+        for offset in (2, 1, 0)
+    ]
+    test_session.add_all(pricelists)
+    await test_session.flush()
+    test_session.add_all(
+        [
+            CustomerPriceListAutoPartAssociation(
+                customerpricelist_id=pricelist.id,
+                autopart_id=created_autopart.id,
+                quantity=1,
+                price=Decimal("100.00"),
+            )
+            for pricelist in pricelists
+        ]
+    )
+    await test_session.commit()
+
+    deleted = await crud_customer_pricelist.delete_older_pricelists(
+        session=test_session,
+        customer_id=customer.id,
+        max_count=1,
+    )
+
+    remaining_ids = set(
+        (
+            await test_session.execute(
+                select(CustomerPriceList.id).where(
+                    CustomerPriceList.customer_id == customer.id
+                )
+            )
+        ).scalars()
+    )
+    remaining_associations = set(
+        (
+            await test_session.execute(
+                select(
+                    CustomerPriceListAutoPartAssociation.customerpricelist_id
+                ).where(
+                    CustomerPriceListAutoPartAssociation.customerpricelist_id.in_(
+                        [pricelist.id for pricelist in pricelists]
+                    )
+                )
+            )
+        ).scalars()
+    )
+
+    assert deleted == 2
+    assert remaining_ids == {pricelists[-1].id}
+    assert remaining_associations == {pricelists[-1].id}
 
 
 @pytest.mark.asyncio

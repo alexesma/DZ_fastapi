@@ -35,6 +35,7 @@ from dz_fastapi.models.partner import (
     CustomerPriceList,
     CustomerPriceListAutoPartAssociation,
     CustomerPriceListConfig,
+    CustomerPriceListPublishedAlias,
     CustomerPriceListSource,
     Order,
     PriceList,
@@ -2618,30 +2619,47 @@ class CRUDCustomerPriceList(
 
     async def delete_older_pricelists(
         self, session: AsyncSession, customer_id: int, max_count: int = 10
-    ) -> None:
+    ) -> int:
         """
         Удаляет самые старые прайс-листы (по дате, потом по id),
         если общее количество у клиента превышает max_count.
+
+        Выбираем только id и удаляем связи пакетно. Загрузка ORM-объектов
+        прайсов вместе с сотнями тысяч позиций исчерпывала память scheduler.
         """
         try:
-            # Получаем все прайс-листы (сортируем по дате по возрастанию,
-            # чтобы первые в списке были самые старые)
             result = await session.execute(
-                select(self.model)
+                select(self.model.id)
                 .where(self.model.customer_id == customer_id)
-                .order_by(self.model.date.asc(), self.model.id.asc())
+                .order_by(
+                    self.model.date.desc().nullslast(),
+                    self.model.id.desc(),
+                )
+                .offset(max(0, int(max_count)))
             )
-            all_pricelists = result.scalars().all()
+            ids_to_delete = list(result.scalars().all())
+            if not ids_to_delete:
+                return 0
 
-            if len(all_pricelists) > max_count:
-                # Те, что нужно удалить, это "лишние" в начале списка
-                num_to_delete = len(all_pricelists) - max_count
-                pricelists_to_delete = all_pricelists[:num_to_delete]
-
-                for pl in pricelists_to_delete:
-                    await session.delete(pl)
-
-                await session.commit()
+            await session.execute(
+                delete(CustomerPriceListAutoPartAssociation).where(
+                    CustomerPriceListAutoPartAssociation.customerpricelist_id.in_(
+                        ids_to_delete
+                    )
+                )
+            )
+            await session.execute(
+                delete(CustomerPriceListPublishedAlias).where(
+                    CustomerPriceListPublishedAlias.customer_pricelist_id.in_(
+                        ids_to_delete
+                    )
+                )
+            )
+            await session.execute(
+                delete(self.model).where(self.model.id.in_(ids_to_delete))
+            )
+            await session.commit()
+            return len(ids_to_delete)
         except SQLAlchemyError as e:
             logger.error(f"Database error occurred during cleanup: {e}")
             await session.rollback()

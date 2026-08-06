@@ -120,6 +120,10 @@ SCHEDULER_CATCH_UP_MINUTES = {
 ENABLE_LEGACY_ZZAP_AUTO_SEND = os.getenv(
     "ENABLE_LEGACY_ZZAP_AUTO_SEND", "0"
 ).strip().lower() in {"1", "true", "yes", "on"}
+CUSTOMER_PRICELIST_RSS_SOFT_LIMIT_MB = max(
+    512,
+    int(os.getenv("CUSTOMER_PRICELIST_RSS_SOFT_LIMIT_MB", "5500")),
+)
 
 
 def _env_int_with_min(
@@ -1983,7 +1987,10 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
 
         success_count = 0
         error_count = 0
+        memory_samples = []
+        stopped_for_memory = False
         for config_id, customer in pending:
+            rss_before = process_rss_mb()
             request = CustomerPriceListCreate(
                 customer_id=customer.id,
                 config_id=config_id,
@@ -2024,8 +2031,62 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
                         config_id,
                         notify_exc,
                     )
+            finally:
+                trim_process_memory(
+                    logger,
+                    context=(
+                        "send_scheduled_customer_pricelists_task "
+                        f"config_id={config_id}"
+                    ),
+                )
+                rss_after = process_rss_mb()
+                memory_samples.append(
+                    {
+                        "config_id": config_id,
+                        "rss_before_mb": (
+                            round(rss_before, 1)
+                            if rss_before is not None
+                            else None
+                        ),
+                        "rss_after_mb": (
+                            round(rss_after, 1)
+                            if rss_after is not None
+                            else None
+                        ),
+                    }
+                )
+            if (
+                rss_after is not None
+                and rss_after >= CUSTOMER_PRICELIST_RSS_SOFT_LIMIT_MB
+            ):
+                stopped_for_memory = True
+                trace.details["__trace_status"] = "error"
+                trace.details["error"] = (
+                    "Остановлена очередь клиентских прайсов: RSS scheduler "
+                    f"{rss_after:.1f} MB достиг безопасного лимита "
+                    f"{CUSTOMER_PRICELIST_RSS_SOFT_LIMIT_MB} MB."
+                )
+                logger.critical(trace.details["error"])
+                try:
+                    async with async_session_factory() as err_session:
+                        await _notify_scheduler_issue(
+                            err_session,
+                            subject=(
+                                "Остановлена рассылка прайсов: высокая память"
+                            ),
+                            text=trace.details["error"],
+                        )
+                except Exception as notify_exc:
+                    logger.error(
+                        "Failed to notify about customer pricelist memory "
+                        "limit: %s",
+                        notify_exc,
+                    )
+                break
         trace.details["success_count"] = success_count
         trace.details["error_count"] = error_count
+        trace.details["memory_samples"] = memory_samples
+        trace.details["stopped_for_memory"] = stopped_for_memory
         if error_count > 0:
             trace.details["__trace_status"] = "error"
 

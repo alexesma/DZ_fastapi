@@ -21,6 +21,9 @@ services:
   scheduler:
     image: alexesma/dz_fastapi:latest
     container_name: dz_scheduler
+    # Не позволяем ошибке тяжёлого pandas-задания вытеснить PostgreSQL и API.
+    mem_limit: ${SCHEDULER_MEMORY_LIMIT:-6g}
+    memswap_limit: ${SCHEDULER_MEMORY_SWAP_LIMIT:-7g}
     volumes:
       - inbox_uploads_data:/app/uploads
     environment:
