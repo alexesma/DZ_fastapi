@@ -69,6 +69,13 @@ _FROZA_DOCUMENT_NUMBER_RE = re.compile(
 _FROZA_DOCUMENT_DATE_RE = re.compile(
     r"(?im)^\s*Дата\s+входящего\s+документа\s*:\s*(.*?)\s*$"
 )
+_LABELED_RETURN_FIELD_RE = re.compile(
+    r"(?im)^\s*(?P<label>"
+    r"Производитель|Номер\s+(?:товара|детали)|Наименование|Количество|Цена|"
+    r"Причина(?:\s+возврата)?|Номер\s+(?:вход\.?\s*документа|"
+    r"Вашего\s+документа(?:\s*\(ов\))?)"
+    r")\s*(?::|-{2,}|[—–])\s*(?P<value>.*?)\s*$"
+)
 _GREENLIGHT_BOILERPLATE_MARKER = "основные причины формирования возвратов"
 _GREENLIGHT_REASON_PATTERN = (
     r"(?:Отказ от товара по инициативе клиента|"
@@ -114,7 +121,8 @@ _INLINE_RETURN_QUANTITY_RE = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 _INLINE_RETURN_REASON_RE = re.compile(
-    r"^\s*Причина\s*[:—–-]\s*(?P<reason>[^\r\n]+)",
+    r"^\s*Причина(?:\s+(?:возврата|отказа))?\s*[:—–-]\s*"
+    r"(?P<reason>[^\r\n]+)",
     re.IGNORECASE | re.MULTILINE,
 )
 _INLINE_RETURN_REASON_PHRASE_RE = re.compile(
@@ -140,6 +148,18 @@ _INLINE_ARTICLE_QUANTITY_RE = re.compile(
     r"(?P<oem>[A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9./-]{4,})\s*"
     r"[—–-]\s*(?P<quantity>\d+)\s*шт\.?\s*$",
     re.IGNORECASE | re.MULTILINE,
+)
+_NUMBERED_RETURN_ITEM_RE = re.compile(
+    r"(?im)^\s*\d+\)\s*Бренд\s*-\s*(?P<brand>[^;\r\n]+)\s*;\s*"
+    r"Артикул\s*-\s*(?P<oem>[A-Za-zА-Яа-я0-9./-]{4,})\s*;\s*"
+    r"Количество\s*-\s*(?P<quantity>\d+)\s*шт\.?\s*;?\s*\r?\n"
+    r"\s*Наименование\s*-\s*(?P<name>[^\r\n]+?)\s*\.?\s*$"
+)
+_INCOMING_DOCUMENT_RE = re.compile(
+    r"Входящий\s+документ[^\r\n№]{0,160}№\s*:?\s*"
+    r"(?P<number>[A-Za-zА-Яа-я0-9./-]+)\s+от\s+"
+    r"(?P<date>\d{1,2}[./-]\d{1,2}[./-]\d{2,4})",
+    re.IGNORECASE,
 )
 # «№ УТ-1042», «номер УТ-1042 от 15.06.2026», «счёт 123 от 01.02.26»
 _DOC_NUMBER_RE = re.compile(
@@ -311,6 +331,77 @@ def extract_froza_email_item(text: str) -> Optional[dict[str, Any]]:
         "quantity": quantity,
         "reason": fields.get("причина возврата") or None,
         "comment": fields.get("комментарий") or None,
+    }
+
+
+def extract_labeled_return_item(text: str) -> Optional[dict[str, Any]]:
+    """Извлекает позицию из письма с явно подписанными полями."""
+    plain_text = _plain_email_text(text)
+    fields: dict[str, str] = {}
+    for match in _LABELED_RETURN_FIELD_RE.finditer(plain_text):
+        label = re.sub(
+            r"[^a-zа-я0-9]+",
+            "",
+            match.group("label").casefold().replace("ё", "е"),
+        )
+        if label in {"номертовара", "номердетали"}:
+            label = "номертовара"
+        elif label in {"причина", "причинавозврата"}:
+            label = "причинавозврата"
+        elif (
+            label == "номервходдокумента"
+            or label.startswith("номервашегодокумента")
+        ):
+            label = "номервходдокумента"
+        value = match.group("value").strip(" .,:;")
+        if value:
+            fields[label] = value
+
+    required_fields = {
+        "производитель",
+        "номертовара",
+        "наименование",
+        "количество",
+        "причинавозврата",
+        "номервходдокумента",
+    }
+    if not required_fields.issubset(fields):
+        return None
+
+    oem_number = preprocess_oem_number(fields["номертовара"])
+    quantity_match = re.search(r"\d+", fields["количество"])
+    if not oem_number or quantity_match is None:
+        return None
+    quantity = int(quantity_match.group(0))
+    if quantity <= 0:
+        return None
+
+    document_value = fields["номервходдокумента"]
+    document_match = re.match(
+        r"^(?P<number>.+?)\s+от\s+"
+        r"(?P<date>\d{1,2}[./-]\d{1,2}[./-]\d{2,4})"
+        r"(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?\s*$",
+        document_value,
+        re.IGNORECASE,
+    )
+    document_number = (
+        document_match.group("number").strip(" .,:;")
+        if document_match
+        else document_value
+    )
+    document_date = _parse_email_date(
+        document_match.group("date") if document_match else ""
+    )
+    return {
+        "oem_number": oem_number,
+        "brand_name": fields["производитель"],
+        "autopart_name": fields["наименование"],
+        "quantity": quantity,
+        "reason": fields["причинавозврата"],
+        "document_number": document_number or None,
+        "document_date": (
+            document_date.isoformat() if document_date else None
+        ),
     }
 
 
@@ -606,6 +697,19 @@ def extract_inline_return_items(text: str) -> list[dict[str, Any]]:
     )
     items_by_oem: dict[str, dict[str, Any]] = {}
 
+    for row in _NUMBERED_RETURN_ITEM_RE.finditer(plain_text):
+        oem_number = preprocess_oem_number(row.group("oem"))
+        quantity = int(row.group("quantity"))
+        if not oem_number or quantity <= 0:
+            continue
+        items_by_oem[oem_number] = {
+            "oem_number": oem_number,
+            "brand_name": row.group("brand").strip(" .,:;"),
+            "autopart_name": row.group("name").strip(" .,:;"),
+            "quantity": quantity,
+            "reason": reason,
+        }
+
     for row in _INLINE_PRODUCT_SENTENCE_RE.finditer(plain_text):
         oem_number = preprocess_oem_number(row.group("oem"))
         quantity = int(row.group("quantity"))
@@ -844,6 +948,17 @@ def extract_fields(subject: str, body: str) -> dict[str, Any]:
             "links": extract_links(body),
             "froza_email_item": froza_item,
         }
+    labeled_item = extract_labeled_return_item(body)
+    if labeled_item is not None:
+        return {
+            "document_number": labeled_item.get("document_number"),
+            "document_date": labeled_item.get("document_date"),
+            "reclamation_type": classify_reclamation_type(
+                labeled_item.get("reason") or ""
+            ),
+            "links": extract_links(body),
+            "labeled_return_item": labeled_item,
+        }
     html_table_items = extract_html_return_table_items(body)
     if html_table_items:
         first_item = html_table_items[0]
@@ -882,11 +997,16 @@ def extract_fields(subject: str, body: str) -> dict[str, Any]:
         }
     inline_items = extract_inline_return_items(body)
     if inline_items:
-        doc_match = _DOC_NUMBER_RE.search(text)
-        doc_number = (
-            doc_match.group(1).strip(" .,:;") if doc_match else None
-        )
-        doc_date = _parse_doc_date(text)
+        incoming_document = _INCOMING_DOCUMENT_RE.search(text)
+        if incoming_document:
+            doc_number = incoming_document.group("number").strip(" .,:;")
+            doc_date = _parse_email_date(incoming_document.group("date"))
+        else:
+            doc_match = _DOC_NUMBER_RE.search(text)
+            doc_number = (
+                doc_match.group(1).strip(" .,:;") if doc_match else None
+            )
+            doc_date = _parse_doc_date(text)
         first_item = inline_items[0]
         return {
             "document_number": doc_number,
@@ -1115,6 +1235,7 @@ async def recognize_reclamation_items(
         if preprocess_oem_number(item.get("oem_number") or "")
     ]
     froza_item = extract_froza_email_item(reclamation.email_body or "")
+    labeled_item = extract_labeled_return_item(reclamation.email_body or "")
     structured_item_updated = apply_froza_email_item(reclamation)
     html_table_items = extract_html_return_table_items(
         reclamation.email_body or ""
@@ -1124,10 +1245,11 @@ async def recognize_reclamation_items(
     )
     shortage_items = extract_shortage_items(reclamation.email_body or "")
     inline_items = extract_inline_return_items(reclamation.email_body or "")
-    # Стандартное письмо Froza содержит ровно одну позицию. Общий поиск чисел
-    # здесь недопустим: номер входящего документа может совпасть с OEM в базе.
+    # Структурированные письма задают точный состав позиций. Общий поиск чисел
+    # здесь недопустим: номер документа или телефон может совпасть с OEM.
     structured_items = (
         ([froza_item] if froza_item is not None else [])
+        or ([labeled_item] if labeled_item is not None else [])
         or attachment_items
         or html_table_items
         or shortage_items
@@ -1245,6 +1367,8 @@ async def recognize_reclamation_items(
         extracted_key = (
             "froza_email_item"
             if froza_item is not None
+            else "labeled_return_item"
+            if labeled_item is not None
             else "attachment_items"
             if attachment_items
             else "html_table_items"
@@ -1256,7 +1380,11 @@ async def recognize_reclamation_items(
             else "inline_items"
         )
         extracted_data[extracted_key] = (
-            froza_item if froza_item is not None else structured_items
+            froza_item
+            if froza_item is not None
+            else labeled_item
+            if labeled_item is not None
+            else structured_items
         )
         reclamation.extracted_data = extracted_data
         structured_item_updated = True
@@ -1388,6 +1516,9 @@ def _structured_items_from_fields(
     froza_item = fields.get("froza_email_item")
     if isinstance(froza_item, dict):
         return [froza_item]
+    labeled_item = fields.get("labeled_return_item")
+    if isinstance(labeled_item, dict):
+        return [labeled_item]
     return list(
         fields.get("html_table_items")
         or fields.get("shortage_items")
@@ -1929,6 +2060,11 @@ async def ingest_reclamation_email(
                     str(item.get("reason") or "").strip()
                     for item in (
                         fields.get("html_table_items")
+                        or (
+                            [fields["labeled_return_item"]]
+                            if fields.get("labeled_return_item")
+                            else []
+                        )
                         or fields.get("shortage_items")
                         or fields.get("greenlight_items")
                         or fields.get("inline_items")

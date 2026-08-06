@@ -111,6 +111,7 @@ from dz_fastapi.services.reclamations import (
     extract_greenlight_return_items,
     extract_html_return_table_items,
     extract_inline_return_items,
+    extract_labeled_return_item,
     extract_links,
     extract_sender_email,
     extract_shortage_items,
@@ -196,6 +197,258 @@ def test_extract_froza_email_item_reads_mis_sort_reason():
     assert item["quantity"] == 10
     assert item["reason"] == "Пересорт"
     assert classify_reclamation_type(item["reason"]) == "mis_sort"
+
+
+def _antanta_return_body() -> str:
+    return """
+    Добрый день!
+    Заявка на возврат товаров:
+    Производитель                  --TOYOTA
+    Номер товара                   --9098012353
+    Наименование                   --КОНТАКТНАЯ ГРУППА, TOYOTA, 9098012353
+    Количество                     --1
+    Цена                           --454
+    Причина возврата               --отказ клиента
+    Номер вход.документа           --3456 от 28.07.2026
+
+    С уважением,
+    ООО "АНТАНТА"
+    8(4822)655550
+    8-906-555-04-21
+    t-tip_tver@mail.ru
+    """
+
+
+def test_extract_labeled_return_item_ignores_signature_phone():
+    assert extract_labeled_return_item(_antanta_return_body()) == {
+        "oem_number": "9098012353",
+        "brand_name": "TOYOTA",
+        "autopart_name": "КОНТАКТНАЯ ГРУППА, TOYOTA, 9098012353",
+        "quantity": 1,
+        "reason": "отказ клиента",
+        "document_number": "3456",
+        "document_date": "2026-07-28",
+    }
+
+
+@pytest.mark.asyncio
+async def test_ingest_labeled_return_uses_product_number_not_phone(
+    test_session: AsyncSession,
+):
+    brand = Brand(name="ANTANTA RETURN TEST")
+    test_session.add(brand)
+    await test_session.flush()
+    test_session.add_all(
+        [
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="9098012353",
+                name="Контактная группа",
+            ),
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="890655504",
+                name="Ложное совпадение с телефоном",
+            ),
+        ]
+    )
+    await test_session.commit()
+
+    reclamation = await ingest_reclamation_email(
+        test_session,
+        ReclamationInboundEmail(
+            from_="t-tip_tver@mail.ru",
+            subject="Заявка на возврат товаров",
+            body_text=_antanta_return_body(),
+            message_id="<antanta-return@example.test>",
+        ),
+    )
+
+    assert reclamation is not None
+    assert reclamation.stated_document_number == "3456"
+    assert reclamation.stated_document_date == date(2026, 7, 28)
+    assert reclamation.stated_reason == "отказ клиента"
+    assert reclamation.reclamation_type == "customer_refusal"
+    assert len(reclamation.items) == 1
+    assert reclamation.items[0].oem_number == "9098012353"
+    assert reclamation.items[0].brand_name == "TOYOTA"
+    assert reclamation.items[0].quantity == 1
+
+
+@pytest.mark.asyncio
+async def test_recheck_labeled_return_removes_previous_phone_item(
+    test_session: AsyncSession,
+):
+    reclamation = Reclamation(
+        source=RECLAMATION_SOURCE.EMAIL,
+        status=RECLAMATION_STATUS.RECOGNIZED,
+        email_subject="Заявка на возврат товаров",
+        email_body=_antanta_return_body(),
+        items=[
+            ReclamationItem(oem_number="890655504", quantity=21),
+        ],
+    )
+    test_session.add(reclamation)
+    await test_session.commit()
+
+    await recognize_reclamation_items(test_session, reclamation)
+    await test_session.commit()
+
+    assert [item.oem_number for item in reclamation.items] == ["9098012353"]
+    assert reclamation.items[0].quantity == 1
+    assert reclamation.stated_document_number == "3456"
+    assert reclamation.stated_document_date == date(2026, 7, 28)
+
+
+def _stparts_labeled_return_body() -> str:
+    return """
+    Добрый день!
+    Просьба принять на возврат деталь.
+    Производитель --COFLE
+    Номер детали --92BHME045
+    Наименование --Шланг тормозной передний
+    Количество --2
+    Цена --1 334
+    Причина --Отказ клиента
+    Ид отгрузки поставщика --
+    Номер Вашего документа(ов) --3628 от 05.08.2026 0:00:00
+    Просьба указать крайнюю дату для передачи товара.
+    """
+
+
+def test_extract_stparts_labeled_return_item():
+    assert extract_labeled_return_item(_stparts_labeled_return_body()) == {
+        "oem_number": "92BHME045",
+        "brand_name": "COFLE",
+        "autopart_name": "Шланг тормозной передний",
+        "quantity": 2,
+        "reason": "Отказ клиента",
+        "document_number": "3628",
+        "document_date": "2026-08-05",
+    }
+
+
+@pytest.mark.asyncio
+async def test_ingest_stparts_return_excludes_document_number(
+    test_session: AsyncSession,
+):
+    brand = Brand(name="STPARTS LABELED RETURN TEST")
+    test_session.add(brand)
+    await test_session.flush()
+    test_session.add_all(
+        [
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="92BHME045",
+                name="Шланг тормозной передний",
+            ),
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="3628",
+                name="Ложное совпадение с документом",
+            ),
+        ]
+    )
+    await test_session.commit()
+
+    reclamation = await ingest_reclamation_email(
+        test_session,
+        ReclamationInboundEmail(
+            from_="returns@stparts.ru",
+            subject="Просьба принять возврат",
+            body_text=_stparts_labeled_return_body(),
+            message_id="<stparts-labeled-return@example.test>",
+        ),
+    )
+
+    assert reclamation is not None
+    assert reclamation.stated_document_number == "3628"
+    assert reclamation.stated_document_date == date(2026, 8, 5)
+    assert reclamation.reclamation_type == "customer_refusal"
+    assert [item.oem_number for item in reclamation.items] == ["92BHME045"]
+    assert reclamation.items[0].quantity == 2
+    assert reclamation.items[0].brand_name == "COFLE"
+
+
+def _liart_numbered_return_body() -> str:
+    return """
+    Возврат по складу №2
+
+    Необходимо согласовать и сформировать возврат по поступлению
+    № ЛА000025091 от 20.07.2026 00:00:00
+    Поставщик: Автопартс (9731061118)
+    Входящий документ по поступлению (упд, с/ф) №: 3214 от 20.07.2026г.
+
+    Позиции для возврата:
+
+    1) Бренд - HONDA; Артикул - 28600R90004; Количество - 1 шт.;
+    Наименование - Датчик давления масла АКПП.
+
+    Причина отказа: Отказ клиента, товарный вид сохранен
+
+    Документ: Формуляр по возвратам поставщикам 00000004810
+
+    NOTICE TO RECIPIENTS: confidential communication.
+    """
+
+
+def test_extract_liart_numbered_return_item_and_document():
+    items = extract_inline_return_items(_liart_numbered_return_body())
+    fields = extract_fields("", _liart_numbered_return_body())
+
+    assert items == [
+        {
+            "oem_number": "28600R90004",
+            "brand_name": "HONDA",
+            "autopart_name": "Датчик давления масла АКПП",
+            "quantity": 1,
+            "reason": "Отказ клиента, товарный вид сохранен",
+        }
+    ]
+    assert fields["document_number"] == "3214"
+    assert fields["document_date"] == "2026-07-20"
+    assert fields["reclamation_type"] == "customer_refusal"
+
+
+@pytest.mark.asyncio
+async def test_ingest_liart_return_excludes_incoming_document_number(
+    test_session: AsyncSession,
+):
+    brand = Brand(name="LIART NUMBERED RETURN TEST")
+    test_session.add(brand)
+    await test_session.flush()
+    test_session.add_all(
+        [
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="28600R90004",
+                name="Датчик давления масла АКПП",
+            ),
+            AutoPart(
+                brand_id=brand.id,
+                oem_number="3214",
+                name="Ложное совпадение с документом",
+            ),
+        ]
+    )
+    await test_session.commit()
+
+    reclamation = await ingest_reclamation_email(
+        test_session,
+        ReclamationInboundEmail(
+            from_="returns@li-art.example",
+            subject="Возврат по складу №2",
+            body_text=_liart_numbered_return_body(),
+            message_id="<liart-numbered-return@example.test>",
+        ),
+    )
+
+    assert reclamation is not None
+    assert reclamation.stated_document_number == "3214"
+    assert reclamation.stated_document_date == date(2026, 7, 20)
+    assert [item.oem_number for item in reclamation.items] == ["28600R90004"]
+    assert reclamation.items[0].brand_name == "HONDA"
+    assert reclamation.items[0].quantity == 1
 
 
 def _greenlight_email_body() -> str:
