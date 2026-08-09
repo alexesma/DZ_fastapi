@@ -30,6 +30,7 @@ from dz_fastapi.api.order import router as order_router
 from dz_fastapi.api.order_status_mapping import router as order_status_mapping_router
 from dz_fastapi.api.partner import router as partner_router
 from dz_fastapi.api.price_control import router as price_control_router
+from dz_fastapi.api.process_architecture import router as process_architecture_router
 from dz_fastapi.api.reclamation import router as reclamation_router
 from dz_fastapi.api.settings import router as settings_router
 from dz_fastapi.api.telegram_outbox import router as telegram_outbox_router
@@ -204,6 +205,7 @@ app.include_router(inbox_router, dependencies=AUTH_REQUIRED)
 app.include_router(notifications_router, dependencies=AUTH_REQUIRED)
 app.include_router(dashboard_router, dependencies=AUTH_REQUIRED)
 app.include_router(price_control_router, dependencies=AUTH_REQUIRED)
+app.include_router(process_architecture_router)
 app.include_router(settings_router, dependencies=AUTH_REQUIRED)
 app.include_router(watchlist_router, dependencies=AUTH_REQUIRED)
 app.include_router(webchat_router)

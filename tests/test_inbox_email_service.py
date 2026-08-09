@@ -1,11 +1,94 @@
 import os
 import time
-from datetime import datetime
+from datetime import date, datetime
 from types import SimpleNamespace
 
 import pytest
 
 from dz_fastapi.services import inbox_email as inbox_email_service
+
+
+def test_fetch_inbox_imap_downloads_only_bounded_unknown_uids(monkeypatch):
+    header_messages = [
+        SimpleNamespace(uid="105"),
+        SimpleNamespace(uid="104"),
+        SimpleNamespace(uid="103"),
+    ]
+    full_messages = {
+        "104": SimpleNamespace(
+            uid="104",
+            from_="supplier@example.com",
+            subject="Price 104",
+            attachments=[
+                SimpleNamespace(filename="price.xlsx", payload=b"payload")
+            ],
+            date=datetime(2026, 8, 7, 8, 0),
+        ),
+        "103": SimpleNamespace(
+            uid="103",
+            from_="supplier@example.com",
+            subject="Price 103",
+            attachments=[],
+            date=datetime(2026, 8, 7, 7, 0),
+        ),
+    }
+    full_fetches = []
+
+    class FakeFolder:
+        def set(self, _folder):
+            return None
+
+    class FakeMailbox:
+        folder = FakeFolder()
+
+        def login(self, *_args):
+            return self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def fetch(self, criteria, **kwargs):
+            if kwargs.get("headers_only"):
+                return iter(header_messages)
+            uid = str(criteria).split()[-1]
+            full_fetches.append(uid)
+            return iter([full_messages[uid]])
+
+    monkeypatch.setattr(
+        inbox_email_service,
+        "_create_mailbox",
+        lambda *_args, **_kwargs: FakeMailbox(),
+    )
+
+    messages = inbox_email_service._fetch_inbox_imap_sync(
+        "imap.example.com",
+        "prices@example.com",
+        "secret",
+        "INBOX",
+        since_date=date(2026, 8, 6),
+        known_uids={"105"},
+        header_limit=100,
+        full_fetch_limit=1,
+    )
+
+    assert full_fetches == ["104"]
+    assert [message.uid for message in messages] == ["104"]
+    assert messages[0].attachments[0].payload == b"payload"
+
+
+def test_price_only_email_account_detection():
+    assert inbox_email_service._is_price_only_email_account(
+        SimpleNamespace(purposes=["prices_in"])
+    )
+    assert not inbox_email_service._is_price_only_email_account(
+        SimpleNamespace(purposes=["prices_in", "orders_in"])
+    )
+    assert not inbox_email_service._is_price_only_email_account(
+        SimpleNamespace(purposes=[])
+    )
 
 
 @pytest.mark.asyncio

@@ -5,13 +5,14 @@ import pytest
 from sqlalchemy import select
 
 from dz_fastapi.core.time import now_moscow
-from dz_fastapi.models.partner import SupplierOrderMessage
+from dz_fastapi.models.partner import SupplierOrderMessage, SupplierReceipt
 from dz_fastapi.models.settings import CustomerOrderInboxSettings
 from dz_fastapi.services.scheduler import (
     _close_stale_supplier_response_messages,
     _cron_minute_for_interval,
     _notify_scheduler_issue,
     _should_run_scheduled_job,
+    cleanup_misc_logs_task,
     download_price_provider_task,
     process_new_provider_emails,
 )
@@ -218,6 +219,51 @@ async def test_close_stale_supplier_response_messages(
     types = [row.message_type for row in rows]
     assert types == ["IGNORED", "IGNORED", "IMPORT_ERROR"]
     assert "Автозакрыто как устаревшее: старше 7 дн." in (rows[0].import_error_details or "")
+
+
+@pytest.mark.asyncio
+async def test_cleanup_keeps_supplier_message_linked_to_receipt(
+    test_session,
+    created_providers,
+):
+    provider_id = created_providers[0].id
+    linked_message = SupplierOrderMessage(
+        provider_id=provider_id,
+        message_type="IGNORED",
+        received_at=now_moscow() - timedelta(days=10),
+    )
+    removable_message = SupplierOrderMessage(
+        provider_id=provider_id,
+        message_type="IGNORED",
+        received_at=now_moscow() - timedelta(days=10),
+    )
+    test_session.add_all([linked_message, removable_message])
+    await test_session.flush()
+    test_session.add(
+        SupplierReceipt(
+            provider_id=provider_id,
+            source_message_id=linked_message.id,
+        )
+    )
+    await test_session.commit()
+
+    from dz_fastapi.main import app
+
+    await cleanup_misc_logs_task(app)
+
+    remaining_ids = set(
+        (
+            await test_session.execute(
+                select(SupplierOrderMessage.id).where(
+                    SupplierOrderMessage.id.in_(
+                        [linked_message.id, removable_message.id]
+                    )
+                )
+            )
+        ).scalars()
+    )
+    assert linked_message.id in remaining_ids
+    assert removable_message.id not in remaining_ids
 
 
 @pytest.mark.asyncio

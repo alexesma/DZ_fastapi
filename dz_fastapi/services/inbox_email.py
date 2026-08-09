@@ -71,6 +71,7 @@ from dz_fastapi.services.email import (
     _FetchedAttachment,
     _FetchedInboxMessage,
 )
+from dz_fastapi.services.runtime_memory import trim_process_memory
 
 logger = logging.getLogger("dz_fastapi")
 PROJECT_ROOT = os.path.abspath(
@@ -79,6 +80,44 @@ PROJECT_ROOT = os.path.abspath(
 PREVIEWABLE_ATTACHMENT_EXTENSIONS = {".xls", ".xlsx", ".csv"}
 MAX_PREVIEWABLE_ATTACHMENT_SIZE_BYTES = 5 * 1024 * 1024
 FORCE_PROCESSABLE_RULES = {"order_reply", "customer_order", "document"}
+
+
+def _bounded_env_int(
+    name: str,
+    default: int,
+    *,
+    minimum: int = 1,
+    maximum: int,
+) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        value = default
+    return max(minimum, min(value, maximum))
+
+
+# Scan many lightweight headers, but download only a small batch of full
+# messages. Price-list attachments can be hundreds of megabytes in total.
+INBOX_IMAP_HEADER_SCAN_LIMIT = _bounded_env_int(
+    "INBOX_IMAP_HEADER_SCAN_LIMIT",
+    500,
+    maximum=5000,
+)
+INBOX_IMAP_FULL_FETCH_LIMIT = _bounded_env_int(
+    "INBOX_IMAP_FULL_FETCH_LIMIT",
+    5,
+    maximum=100,
+)
+
+
+def _is_price_only_email_account(account) -> bool:
+    purposes = getattr(account, "purposes", None) or []
+    if isinstance(purposes, str):
+        purposes = [purposes]
+    normalized = {
+        str(purpose).strip().lower() for purpose in purposes if purpose
+    }
+    return bool(normalized) and normalized.issubset({"prices_in"})
 
 
 # ---------------------------------------------------------------------------
@@ -462,6 +501,9 @@ def _fetch_inbox_imap_sync(
     folder: str,
     port: int = 993,
     since_date: Optional[date] = None,
+    known_uids: Optional[set[str]] = None,
+    header_limit: int = INBOX_IMAP_HEADER_SCAN_LIMIT,
+    full_fetch_limit: int = INBOX_IMAP_FULL_FETCH_LIMIT,
 ) -> List[_FetchedInboxMessage]:
     """
     Синхронная загрузка писем из IMAP-папки за последние N дней.
@@ -471,18 +513,81 @@ def _fetch_inbox_imap_sync(
         since_date = date.today()
 
     result: List[_FetchedInboxMessage] = []
+    known_uids = {str(uid) for uid in (known_uids or set()) if uid}
     try:
         mb = _create_mailbox(host, port, True).login(email, password)
         with mb as mailbox:
             mailbox.folder.set(folder)
-            messages = list(
-                mailbox.fetch(
-                    AND(date_gte=since_date, all=True),
-                    charset="utf-8",
-                    mark_seen=False,
-                )
+            headers = []
+            header_attempts = (
+                (AND(date_gte=since_date, all=True), "date_gte"),
+                ("ALL", "all"),
             )
-            for msg in messages:
+            for criteria, label in header_attempts:
+                try:
+                    headers = list(
+                        mailbox.fetch(
+                            criteria,
+                            charset="utf-8",
+                            mark_seen=False,
+                            reverse=True,
+                            headers_only=True,
+                            limit=header_limit,
+                        )
+                    )
+                    break
+                except Exception as header_error:
+                    logger.warning(
+                        "IMAP header fetch failed for %s folder=%s mode=%s: %s",
+                        email,
+                        folder,
+                        label,
+                        header_error,
+                    )
+
+            candidate_uids: list[str] = []
+            for header in headers:
+                uid = str(header.uid) if getattr(header, "uid", None) else ""
+                if not uid or uid in known_uids:
+                    continue
+                candidate_uids.append(uid)
+                if len(candidate_uids) >= full_fetch_limit:
+                    break
+
+            logger.info(
+                "IMAP inbox batch prepared: email=%s folder=%s headers=%s "
+                "known_uids=%s full_fetch=%s",
+                email,
+                folder,
+                len(headers),
+                len(known_uids),
+                len(candidate_uids),
+            )
+
+            for uid in candidate_uids:
+                try:
+                    msg = next(
+                        iter(
+                            mailbox.fetch(
+                                f"UID {uid}",
+                                mark_seen=False,
+                                limit=1,
+                            )
+                        ),
+                        None,
+                    )
+                except Exception as full_fetch_error:
+                    logger.warning(
+                        "IMAP full message fetch failed for %s folder=%s "
+                        "uid=%s: %s",
+                        email,
+                        folder,
+                        uid,
+                        full_fetch_error,
+                    )
+                    continue
+                if msg is None:
+                    continue
                 attachments = []
                 for att in msg.attachments:
                     attachments.append(
@@ -530,6 +635,8 @@ def _is_sent_folder(folder_name: str) -> bool:
 async def fetch_inbox_for_account(
     account,
     days: int = 3,
+    *,
+    known_uids: Optional[set[str]] = None,
 ) -> List[_FetchedInboxMessage]:
     """
     Загружает ТОЛЬКО ВХОДЯЩИЕ письма для одного EmailAccount (IMAP или Resend).
@@ -540,6 +647,7 @@ async def fetch_inbox_for_account(
     """
     since_date = (now_moscow() - timedelta(days=days)).date()
     account_email = (account.email or "").lower().strip()
+    known_uids = {str(uid) for uid in (known_uids or set()) if uid}
     messages: List[_FetchedInboxMessage] = []
 
     transport = (account.transport or "").strip().lower()
@@ -553,6 +661,8 @@ async def fetch_inbox_for_account(
         try:
             fetched, _ = await _fetch_resend_price_messages(account)
             for msg in fetched:
+                if msg.uid and str(msg.uid) in known_uids:
+                    continue
                 # Фильтр: пропускаем исходящие (отправитель == сам ящик)
                 msg_from = _extract_email(msg.from_ or "").lower()
                 if msg_from == account_email:
@@ -621,6 +731,7 @@ async def fetch_inbox_for_account(
                     folder,
                     account.imap_port or IMAP_SERVER,
                     since_date,
+                    known_uids,
                 ),
                 timeout=IMAP_FETCH_PER_ACCOUNT_TIMEOUT,
             )
@@ -762,7 +873,21 @@ async def fetch_and_store_emails(
         account_ids = [int(account.id)] if account.is_active else []
     else:
         accounts = await crud_email_account.get_multi(session)
-        account_ids = [int(a.id) for a in accounts if a.is_active]
+        account_ids = [
+            int(a.id)
+            for a in accounts
+            if a.is_active and not _is_price_only_email_account(a)
+        ]
+        skipped_price_accounts = [
+            int(a.id)
+            for a in accounts
+            if a.is_active and _is_price_only_email_account(a)
+        ]
+        if skipped_price_accounts:
+            logger.info(
+                "Skipping price-only accounts in general inbox fetch: ids=%s",
+                skipped_price_accounts,
+            )
 
     total_fetched = 0
     total_stored = 0
@@ -773,9 +898,22 @@ async def fetch_and_store_emails(
         # one message expires every loaded instance in the session; reloading
         # by id avoids synchronous lazy refreshes and MissingGreenlet.
         account = await crud_email_account.get(session, account_id)
+        known_uid_result = await session.execute(
+            select(InboxEmail.uid).where(
+                InboxEmail.email_account_id == account_id,
+                InboxEmail.uid.is_not(None),
+            )
+        )
+        known_uids = {
+            str(uid) for uid in known_uid_result.scalars().all() if uid
+        }
         try:
             messages = await asyncio.wait_for(
-                fetch_inbox_for_account(account, days=days),
+                fetch_inbox_for_account(
+                    account,
+                    days=days,
+                    known_uids=known_uids,
+                ),
                 timeout=IMAP_FETCH_PER_ACCOUNT_TIMEOUT,
             )
             total_fetched += len(messages)
@@ -824,6 +962,9 @@ async def fetch_and_store_emails(
                             uid,
                         )
                         await session.commit()
+                    for attachment in msg.attachments or []:
+                        attachment.payload = b""
+                    msg.attachments.clear()
                     continue
 
             from_email = _extract_email(msg.from_)
@@ -878,6 +1019,16 @@ async def fetch_and_store_emails(
                 # Rollback expires ORM state even with expire_on_commit=False.
                 # Refresh before the next message uses this account again.
                 account = await crud_email_account.get(session, account_id)
+
+            for attachment in msg.attachments or []:
+                attachment.payload = b""
+            msg.attachments.clear()
+
+        messages.clear()
+        trim_process_memory(
+            logger,
+            context=f"fetch_and_store_emails account_id={account_id}",
+        )
 
     return FetchInboxResponse(
         fetched=total_fetched,

@@ -124,6 +124,10 @@ CUSTOMER_PRICELIST_RSS_SOFT_LIMIT_MB = max(
     512,
     int(os.getenv("CUSTOMER_PRICELIST_RSS_SOFT_LIMIT_MB", "5500")),
 )
+PROVIDER_PRICELIST_RSS_SOFT_LIMIT_MB = max(
+    512,
+    int(os.getenv("PROVIDER_PRICELIST_RSS_SOFT_LIMIT_MB", "4500")),
+)
 
 
 def _env_int_with_min(
@@ -967,6 +971,7 @@ async def new_session_from_app(app: FastAPI):
 
 async def _process_one(item, app: FastAPI, sem: asyncio.Semaphore):
     provider, filepath, provider_conf = item
+    file_content = None
     try:
         async with sem:
             try:
@@ -1122,6 +1127,16 @@ async def _process_one(item, app: FastAPI, sem: asyncio.Semaphore):
             )
             return
         raise
+    finally:
+        file_content = None
+        trim_process_memory(
+            logger,
+            context=(
+                "provider_pricelist "
+                f"provider_id={getattr(provider, 'id', None)} "
+                f"config_id={getattr(provider_conf, 'id', None)}"
+            ),
+        )
 
 
 async def send_price_list_task(app: FastAPI):
@@ -2204,12 +2219,46 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
     )
     sem = asyncio.Semaphore(PRICE_PROVIDER_PROCESS_PARALLELISM)
     process_start = time.perf_counter()
-    tasks = [
-        asyncio.create_task(_process_one(item, app, sem))
-        for item in downloaded
-    ]
+    results = []
+    processed_items = []
+    stopped_for_memory = False
     try:
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for start in range(
+            0,
+            len(downloaded),
+            PRICE_PROVIDER_PROCESS_PARALLELISM,
+        ):
+            batch = downloaded[
+                start:start + PRICE_PROVIDER_PROCESS_PARALLELISM
+            ]
+            tasks = [
+                asyncio.create_task(_process_one(item, app, sem))
+                for item in batch
+            ]
+            batch_results = await asyncio.gather(
+                *tasks,
+                return_exceptions=True,
+            )
+            results.extend(batch_results)
+            processed_items.extend(batch)
+            trim_process_memory(
+                logger,
+                context="process_new_provider_emails batch",
+            )
+            batch_rss = _process_rss_mb()
+            if (
+                batch_rss is not None
+                and batch_rss >= PROVIDER_PRICELIST_RSS_SOFT_LIMIT_MB
+            ):
+                stopped_for_memory = True
+                logger.critical(
+                    "Provider pricelist queue stopped for memory: "
+                    "rss_mb=%.1f limit_mb=%s remaining=%s",
+                    batch_rss,
+                    PROVIDER_PRICELIST_RSS_SOFT_LIMIT_MB,
+                    len(downloaded) - len(processed_items),
+                )
+                break
     except asyncio.CancelledError:
         if getattr(app.state, "is_shutting_down", False):
             logger.info("Отмена обработки писем провайдеров при остановке")
@@ -2225,7 +2274,7 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
     review_required = 0
     error_details: list[dict[str, object]] = []
     review_details: list[dict[str, object]] = []
-    for item, result in zip(downloaded, results):
+    for item, result in zip(processed_items, results):
         if isinstance(result, BaseException):
             errors += 1
             provider, filepath, provider_conf = item
@@ -2280,6 +2329,8 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
         "review_required": review_required,
         "error_details": error_details,
         "review_details": review_details,
+        "stopped_for_memory": stopped_for_memory,
+        "remaining": len(downloaded) - len(processed_items),
         "processing_seconds": process_end - process_start,
         "total_seconds": total_time,
     }
@@ -2344,7 +2395,14 @@ async def download_price_provider_task(app: FastAPI):
                 trace.details["provider_name"] = getattr(provider, "name", None)
                 email_summary = await process_new_provider_emails(session, app)
                 trace.details["email_processing_summary"] = email_summary
-                if int(email_summary.get("errors") or 0) > 0:
+                if email_summary.get("stopped_for_memory"):
+                    trace.details["__trace_status"] = "error"
+                    trace.details["error"] = (
+                        "Очередь прайсов остановлена по безопасному лимиту "
+                        "памяти; осталось файлов: "
+                        f"{int(email_summary.get('remaining') or 0)}."
+                    )
+                elif int(email_summary.get("errors") or 0) > 0:
                     trace.details["__trace_status"] = "error"
                     provider_errors = list(
                         email_summary.get("error_details") or []
@@ -3025,7 +3083,7 @@ async def cleanup_metric_snapshots_task(app: FastAPI):
 
 async def cleanup_misc_logs_task(app: FastAPI):
     """Очищает служебные логи и старые IGNORED/закрытые SupplierOrderMessage."""
-    from dz_fastapi.models.partner import SupplierOrderMessage
+    from dz_fastapi.models.partner import SupplierOrderMessage, SupplierReceipt
     from dz_fastapi.models.settings import ExecutionTrace, PriceCheckLog
 
     async_session_factory = app.state.session_factory
@@ -3049,6 +3107,12 @@ async def cleanup_misc_logs_task(app: FastAPI):
                 delete(SupplierOrderMessage).where(
                     SupplierOrderMessage.message_type == "IGNORED",
                     SupplierOrderMessage.received_at < msg_cutoff,
+                    ~select(SupplierReceipt.id)
+                    .where(
+                        SupplierReceipt.source_message_id
+                        == SupplierOrderMessage.id
+                    )
+                    .exists(),
                 )
             )
             deleted_msgs = r2.rowcount or 0
