@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
+from dz_fastapi.models.inventory import StockLotRole
 from dz_fastapi.schemas.autopart import AutoPartPricelist, AutoPartResponse
 
 
@@ -20,6 +21,12 @@ class ProviderDeliveryMethod(str, Enum):
     SELF_PICKUP = "Self pickup"
     COURIER_FOOT = "Courier foot"
     COURIER_CAR = "Courier car"
+
+
+class ProviderInventoryPolicy(str, Enum):
+    ORIGINAL_GOODS = "original_goods"
+    DRAGONZAP_MATERIAL = "dragonzap_material"
+    MIXED = "mixed"
 
 
 class SupplierResponseType(str, Enum):
@@ -72,6 +79,10 @@ class ProviderBase(ClientBase):
     is_vat_payer: Optional[bool] = False
     autopurchase_blocked: Optional[bool] = False
     autopurchase_block_reason: Optional[str] = None
+    inventory_policy: ProviderInventoryPolicy = (
+        ProviderInventoryPolicy.ORIGINAL_GOODS
+    )
+    inventory_policy_note: Optional[str] = None
     order_schedule_days: Optional[List[str]] = None
     order_schedule_times: Optional[List[str]] = None
     order_schedule_enabled: Optional[bool] = None
@@ -142,6 +153,8 @@ class ProviderUpdate(BaseModel):
     is_vat_payer: Optional[bool] = None
     autopurchase_blocked: Optional[bool] = None
     autopurchase_block_reason: Optional[str] = None
+    inventory_policy: Optional[ProviderInventoryPolicy] = None
+    inventory_policy_note: Optional[str] = None
     order_schedule_days: Optional[List[str]] = None
     order_schedule_times: Optional[List[str]] = None
     order_schedule_enabled: Optional[bool] = None
@@ -359,6 +372,68 @@ class ProviderResponse(ProviderBase):
     id: int
     default_warehouse_name: Optional[str] = None
     price_lists: List[PriceListResponse] = []
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProviderInventoryRoleRuleBase(BaseModel):
+    autopart_id: int = Field(gt=0)
+    inventory_role: StockLotRole
+    reason: Optional[str] = Field(default=None, max_length=1000)
+    is_active: bool = True
+
+    @field_validator("inventory_role")
+    @classmethod
+    def validate_inventory_role(cls, value: StockLotRole) -> StockLotRole:
+        if value == StockLotRole.DRAGONZAP_FINISHED:
+            raise ValueError(
+                "Готовая продукция DragonZap создаётся только выпуском"
+            )
+        return value
+
+    @field_validator("reason", mode="before")
+    @classmethod
+    def normalize_reason(cls, value):
+        normalized = str(value or "").strip()
+        return normalized or None
+
+
+class ProviderInventoryRoleRuleCreate(ProviderInventoryRoleRuleBase):
+    pass
+
+
+class ProviderInventoryRoleRuleUpdate(BaseModel):
+    inventory_role: Optional[StockLotRole] = None
+    reason: Optional[str] = Field(default=None, max_length=1000)
+    is_active: Optional[bool] = None
+
+    @field_validator("inventory_role")
+    @classmethod
+    def validate_inventory_role(cls, value: Optional[StockLotRole]):
+        if value == StockLotRole.DRAGONZAP_FINISHED:
+            raise ValueError(
+                "Готовая продукция DragonZap создаётся только выпуском"
+            )
+        return value
+
+    @field_validator("reason", mode="before")
+    @classmethod
+    def normalize_reason(cls, value):
+        if value is None:
+            return None
+        return str(value).strip() or None
+
+
+class ProviderInventoryRoleRuleOut(ProviderInventoryRoleRuleBase):
+    id: int
+    provider_id: int
+    autopart_oem: str
+    autopart_brand: Optional[str] = None
+    autopart_name: Optional[str] = None
+    created_by_name: Optional[str] = None
+    updated_by_name: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
     model_config = ConfigDict(from_attributes=True)
 
 

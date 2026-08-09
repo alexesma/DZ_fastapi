@@ -15,7 +15,7 @@ Inventory models:
 from decimal import Decimal
 from enum import StrEnum, unique
 
-from sqlalchemy import DECIMAL, JSON, Boolean, Column, Date, DateTime
+from sqlalchemy import DECIMAL, JSON, Boolean, CheckConstraint, Column, Date, DateTime
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
@@ -61,6 +61,28 @@ class LotSourceType(StrEnum):
     OPENING_BALANCE = "opening_balance"  # остаток на начало (backfill)
     INVENTORY_CORRECTION = "inventory_correction"  # излишек по инвентаризации
     CUSTOMER_RETURN = "customer_return"  # возврат товара от клиента
+
+
+@unique
+class StockLotRole(StrEnum):
+    """Хозяйственная роль физической партии на складе."""
+
+    ORIGINAL_GOOD = "original_good"
+    DRAGONZAP_MATERIAL = "dragonzap_material"
+    DRAGONZAP_FINISHED = "dragonzap_finished"
+
+
+@unique
+class StockLotRoleSource(StrEnum):
+    """Правило, по которому партии назначена хозяйственная роль."""
+
+    SYSTEM_DEFAULT = "system_default"
+    LEGACY_MIGRATION = "legacy_migration"
+    MANUAL = "manual"
+    PROVIDER_POLICY = "provider_policy"
+    ITEM_RULE = "item_rule"
+    PRODUCTION = "production"
+    CUSTOMER_RETURN = "customer_return"
 
 
 @unique
@@ -285,6 +307,40 @@ class StockLot(Base):
         index=True,
     )
 
+    # Роль отделяет обычный товар, материал для переупаковки и выпущенный DZ.
+    inventory_role = Column(
+        SAEnum(
+            StockLotRole,
+            name="stocklotrole",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=False,
+        default=StockLotRole.ORIGINAL_GOOD,
+        index=True,
+    )
+    role_source = Column(
+        SAEnum(
+            StockLotRoleSource,
+            name="stocklotrolesource",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=False,
+        default=StockLotRoleSource.SYSTEM_DEFAULT,
+    )
+    role_rule_reference = Column(String(255), nullable=True)
+    role_changed_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    role_changed_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        nullable=False,
+    )
+    role_change_reason = Column(Text, nullable=True)
+
     # ── ГТД и страна происхождения ──────────────────────────────────────────
     gtd_number = Column(String(64), nullable=True, index=True)
     country_code = Column(String(16), nullable=True)
@@ -358,6 +414,18 @@ class StockLot(Base):
     autopart = relationship("AutoPart", lazy="joined")
     storage_location = relationship("StorageLocation", lazy="joined")
     source_receipt = relationship("SupplierReceipt", lazy="noload")
+    role_changed_by_user = relationship(
+        "User",
+        foreign_keys=[role_changed_by_user_id],
+        lazy="joined",
+    )
+    role_history = relationship(
+        "StockLotRoleChange",
+        back_populates="stock_lot",
+        cascade="all, delete-orphan",
+        lazy="noload",
+        order_by="StockLotRoleChange.changed_at",
+    )
     marking_code_rows = relationship(
         "ProductMarkingCode",
         back_populates="stock_lot",
@@ -377,6 +445,178 @@ class StockLot(Base):
             "storage_location_id",
             "remaining_quantity",
             "received_at",
+        ),
+    )
+
+
+class StockLotRoleChange(Base):
+    """Неизменяемая история назначения и ручной корректировки роли партии."""
+
+    __tablename__ = "stocklotrolechange"
+
+    stock_lot_id = Column(
+        Integer,
+        ForeignKey("stocklot.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    old_role = Column(
+        SAEnum(
+            StockLotRole,
+            name="stocklotrole",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=True,
+    )
+    new_role = Column(
+        SAEnum(
+            StockLotRole,
+            name="stocklotrole",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=False,
+        index=True,
+    )
+    source = Column(
+        SAEnum(
+            StockLotRoleSource,
+            name="stocklotrolesource",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=False,
+    )
+    rule_reference = Column(String(255), nullable=True)
+    reason = Column(Text, nullable=True)
+    changed_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    changed_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        nullable=False,
+        index=True,
+    )
+
+    stock_lot = relationship("StockLot", back_populates="role_history")
+    changed_by_user = relationship("User", lazy="joined")
+
+    __table_args__ = (
+        Index(
+            "idx_stocklotrolechange_lot_changed",
+            "stock_lot_id",
+            "changed_at",
+        ),
+    )
+
+
+class DragonzapProductionGroup(Base):
+    """Настройки выпуска готового SKU DragonZap из подтверждённых кроссов."""
+
+    __tablename__ = "dragonzapproductiongroup"
+
+    finished_autopart_id = Column(
+        Integer,
+        ForeignKey("autopart.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+    packaging_cost = Column(DECIMAL(12, 4), nullable=False, default=Decimal("0"))
+    packaging_description = Column(String(255), nullable=True)
+    notes = Column(Text, nullable=True)
+    created_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    updated_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=now_moscow,
+        onupdate=now_moscow,
+    )
+
+    finished_autopart = relationship("AutoPart", lazy="joined")
+    created_by_user = relationship(
+        "User",
+        foreign_keys=[created_by_user_id],
+        lazy="joined",
+    )
+    updated_by_user = relationship(
+        "User",
+        foreign_keys=[updated_by_user_id],
+        lazy="joined",
+    )
+    material_overrides = relationship(
+        "DragonzapProductionMaterialOverride",
+        back_populates="production_group",
+        cascade="all, delete-orphan",
+        lazy="noload",
+    )
+
+
+class DragonzapProductionMaterialOverride(Base):
+    """Приоритет или исключение материала внутри автоматически собранной группы."""
+
+    __tablename__ = "dragonzapproductionmaterialoverride"
+
+    production_group_id = Column(
+        Integer,
+        ForeignKey("dragonzapproductiongroup.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    material_autopart_id = Column(
+        Integer,
+        ForeignKey("autopart.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    priority = Column(Integer, nullable=False, default=100)
+    is_allowed = Column(Boolean, nullable=False, default=True)
+    reason = Column(Text, nullable=True)
+    updated_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=now_moscow,
+        onupdate=now_moscow,
+    )
+
+    production_group = relationship(
+        "DragonzapProductionGroup",
+        back_populates="material_overrides",
+    )
+    material_autopart = relationship("AutoPart", lazy="joined")
+    updated_by_user = relationship("User", lazy="joined")
+
+    __table_args__ = (
+        CheckConstraint("priority >= 1", name="ck_dragonzap_material_priority"),
+        UniqueConstraint(
+            "production_group_id",
+            "material_autopart_id",
+            name="uq_dragonzap_production_material_group_part",
+        ),
+        Index(
+            "idx_dragonzap_production_material_allowed",
+            "production_group_id",
+            "is_allowed",
+            "priority",
         ),
     )
 

@@ -42,7 +42,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from dz_fastapi.core.time import now_moscow
-from dz_fastapi.models.autopart import LocationType, StorageLocation, autopart_storage_association
+from dz_fastapi.models.autopart import (
+    AutoPart,
+    LocationType,
+    StorageLocation,
+    autopart_storage_association,
+)
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.inventory import (
     LotSourceType,
@@ -61,11 +66,20 @@ from dz_fastapi.models.inventory import (
     StockDocumentStatus,
     StockDocumentType,
     StockLot,
+    StockLotRole,
+    StockLotRoleChange,
+    StockLotRoleSource,
     StockMovement,
     StockReserve,
     Warehouse,
 )
-from dz_fastapi.models.partner import Provider, SupplierReceipt, SupplierReceiptItem
+from dz_fastapi.models.partner import (
+    PROVIDER_INVENTORY_POLICY,
+    Provider,
+    ProviderInventoryRoleRule,
+    SupplierReceipt,
+    SupplierReceiptItem,
+)
 from dz_fastapi.services.credit_control import (
     assert_customer_credit_available,
     assert_shipment_credit_available,
@@ -121,6 +135,86 @@ def _derive_receipt_unit_cost(item: SupplierReceiptItem) -> Decimal | None:
     if total_with_vat is None or received_quantity <= 0:
         return None
     return _quantize_unit_cost(total_with_vat / Decimal(received_quantity))
+
+
+async def _infer_stock_lot_role_from_brand(
+    session: AsyncSession,
+    *,
+    autopart_id: int,
+) -> StockLotRole:
+    brand_name = (
+        await session.execute(
+            select(Brand.name)
+            .join(AutoPart, AutoPart.brand_id == Brand.id)
+            .where(AutoPart.id == autopart_id)
+        )
+    ).scalar_one_or_none()
+    return (
+        StockLotRole.DRAGONZAP_FINISHED
+        if str(brand_name or "").strip().casefold() == "dragonzap"
+        else StockLotRole.ORIGINAL_GOOD
+    )
+
+
+async def resolve_receipt_inventory_role(
+    session: AsyncSession,
+    *,
+    provider_id: int,
+    autopart_id: int,
+) -> tuple[StockLotRole, StockLotRoleSource, str, str]:
+    """Resolve incoming role using item rule, provider policy, safe fallback."""
+    rule = (
+        await session.execute(
+            select(ProviderInventoryRoleRule).where(
+                ProviderInventoryRoleRule.provider_id == provider_id,
+                ProviderInventoryRoleRule.autopart_id == autopart_id,
+                ProviderInventoryRoleRule.is_active.is_(True),
+            )
+        )
+    ).scalar_one_or_none()
+    if rule is not None:
+        return (
+            StockLotRole(rule.inventory_role),
+            StockLotRoleSource.ITEM_RULE,
+            f"provider_inventory_role_rule:{rule.id}",
+            rule.reason
+            or "Роль назначена по точному правилу поставщика и номенклатуры",
+        )
+
+    provider_settings = (
+        await session.execute(
+            select(
+                Provider.inventory_policy,
+                Provider.inventory_policy_note,
+            ).where(Provider.id == provider_id)
+        )
+    ).one_or_none()
+    provider_policy = provider_settings[0] if provider_settings else None
+    provider_note = str(provider_settings[1] or "").strip() if provider_settings else ""
+    policy = PROVIDER_INVENTORY_POLICY(
+        provider_policy or PROVIDER_INVENTORY_POLICY.ORIGINAL_GOODS
+    )
+    if policy == PROVIDER_INVENTORY_POLICY.DRAGONZAP_MATERIAL:
+        role = StockLotRole.DRAGONZAP_MATERIAL
+        reason = "Поставщик настроен как источник материала DragonZap"
+    elif policy == PROVIDER_INVENTORY_POLICY.MIXED:
+        role = StockLotRole.ORIGINAL_GOOD
+        reason = (
+            "Для смешанного поставщика нет точного правила: "
+            "применён безопасный режим обычного товара"
+        )
+    else:
+        role = StockLotRole.ORIGINAL_GOOD
+        reason = "Поставщик настроен как источник обычного товара"
+    if provider_note:
+        reason = f"{reason}. Пояснение: {provider_note}"
+
+    return (
+        role,
+        StockLotRoleSource.PROVIDER_POLICY,
+        f"provider_inventory_policy:{provider_id}:{policy.value}",
+        reason,
+    )
 
 
 def _weighted_average_cost_from_lots(lots: list[StockLot]) -> Decimal | None:
@@ -470,8 +564,22 @@ async def _create_stock_lot(
     received_at=None,
     external_id: Optional[str] = None,
     cost_price: Optional[Decimal] = None,
+    inventory_role: Optional[StockLotRole] = None,
+    role_source: StockLotRoleSource = StockLotRoleSource.SYSTEM_DEFAULT,
+    role_rule_reference: Optional[str] = None,
+    role_change_reason: Optional[str] = None,
 ) -> StockLot:
     """Insert a new StockLot and return it (flushed, so .id is available)."""
+    if inventory_role is None:
+        inventory_role = await _infer_stock_lot_role_from_brand(
+            session,
+            autopart_id=autopart_id,
+        )
+
+    changed_at = now_moscow()
+    change_reason = role_change_reason or (
+        "Назначено автоматически по бренду номенклатуры"
+    )
     lot = StockLot(
         autopart_id=autopart_id,
         storage_location_id=storage_location_id,
@@ -487,8 +595,79 @@ async def _create_stock_lot(
         received_at=received_at or now_moscow(),
         external_id=external_id,
         cost_price=_quantize_unit_cost(_to_decimal(cost_price)),
+        inventory_role=inventory_role,
+        role_source=role_source,
+        role_rule_reference=role_rule_reference,
+        role_changed_at=changed_at,
+        role_change_reason=change_reason,
     )
     session.add(lot)
+    await session.flush()
+    session.add(
+        StockLotRoleChange(
+            stock_lot_id=lot.id,
+            old_role=None,
+            new_role=inventory_role,
+            source=role_source,
+            rule_reference=role_rule_reference,
+            reason=change_reason,
+            changed_at=changed_at,
+        )
+    )
+    await session.flush()
+    return lot
+
+
+async def change_stock_lot_role(
+    session: AsyncSession,
+    *,
+    lot_id: int,
+    new_role: StockLotRole,
+    changed_by_user_id: int,
+    reason: str,
+    rule_reference: Optional[str] = None,
+) -> StockLot:
+    """Change a lot role as an explicit audited warehouse operation."""
+    normalized_reason = str(reason or "").strip()
+    if len(normalized_reason) < 3:
+        raise ValueError("Укажите причину изменения роли партии")
+
+    locked_lot_id = (
+        await session.execute(
+            select(StockLot.id)
+            .where(StockLot.id == lot_id)
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    if locked_lot_id is None:
+        raise LookupError("Партия не найдена")
+    lot = await session.get(StockLot, locked_lot_id)
+
+    old_role = StockLotRole(lot.inventory_role)
+    new_role = StockLotRole(new_role)
+    if old_role == new_role:
+        raise ValueError("У партии уже установлена выбранная роль")
+
+    changed_at = now_moscow()
+    normalized_reference = str(rule_reference or "").strip() or None
+    lot.inventory_role = new_role
+    lot.role_source = StockLotRoleSource.MANUAL
+    lot.role_rule_reference = normalized_reference
+    lot.role_changed_by_user_id = changed_by_user_id
+    lot.role_changed_at = changed_at
+    lot.role_change_reason = normalized_reason
+    session.add(
+        StockLotRoleChange(
+            stock_lot_id=lot.id,
+            old_role=old_role,
+            new_role=new_role,
+            source=StockLotRoleSource.MANUAL,
+            rule_reference=normalized_reference,
+            reason=normalized_reason,
+            changed_by_user_id=changed_by_user_id,
+            changed_at=changed_at,
+        )
+    )
     await session.flush()
     return lot
 
@@ -675,6 +854,16 @@ async def receive_stock(
         lot_id: Optional[int] = None
         if not reverse:
             lot_cost_price = _derive_receipt_unit_cost(item)
+            (
+                inventory_role,
+                role_source,
+                role_rule_reference,
+                role_change_reason,
+            ) = await resolve_receipt_inventory_role(
+                session,
+                provider_id=receipt.provider_id,
+                autopart_id=autopart_id,
+            )
             lot = await _create_stock_lot(
                 session,
                 autopart_id=autopart_id,
@@ -688,6 +877,10 @@ async def receive_stock(
                 source_receipt_item_id=item.id,
                 received_at=received_at,
                 cost_price=lot_cost_price,
+                inventory_role=inventory_role,
+                role_source=role_source,
+                role_rule_reference=role_rule_reference,
+                role_change_reason=role_change_reason,
             )
             lot_id = lot.id
             await register_receipt_marking_codes(
@@ -933,6 +1126,7 @@ async def transfer_stock_with_lot_trace(
             StockLot.autopart_id == autopart_id,
             StockLot.storage_location_id == to_location_id,
             StockLot.source_type == lot.source_type,
+            StockLot.inventory_role == lot.inventory_role,
             StockLot.gtd_number == lot.gtd_number,
             StockLot.source_receipt_id == lot.source_receipt_id,
             StockLot.source_document_item_id == lot.source_document_item_id,
@@ -958,6 +1152,12 @@ async def transfer_stock_with_lot_trace(
                 source_receipt_item_id=lot.source_receipt_item_id,
                 received_at=lot.received_at,  # preserve original date!
                 cost_price=lot.cost_price,
+                inventory_role=lot.inventory_role,
+                role_source=lot.role_source,
+                role_rule_reference=lot.role_rule_reference,
+                role_change_reason=(
+                    f"Роль унаследована при перемещении партии #{lot.id}"
+                ),
             )
 
         transferred_lots.append(
@@ -1377,7 +1577,15 @@ async def get_lots_for_autopart(
     only_active: bool = False,
 ) -> list[StockLot]:
     """Return all lots for an autopart, optionally filtered by location."""
-    stmt = select(StockLot).where(StockLot.autopart_id == autopart_id)
+    stmt = (
+        select(StockLot)
+        .where(StockLot.autopart_id == autopart_id)
+        .options(
+            selectinload(StockLot.autopart).selectinload(AutoPart.brand),
+            selectinload(StockLot.storage_location),
+            selectinload(StockLot.role_changed_by_user),
+        )
+    )
     if storage_location_id is not None:
         stmt = stmt.where(StockLot.storage_location_id == storage_location_id)
     if only_active:
@@ -2019,6 +2227,20 @@ async def confirm_return_from_customer(
             or (source_lot.country_code if source_lot is not None else None),
             country_name=item.country_name
             or (source_lot.country_name if source_lot is not None else None),
+            inventory_role=(
+                source_lot.inventory_role if source_lot is not None else None
+            ),
+            role_source=StockLotRoleSource.CUSTOMER_RETURN,
+            role_rule_reference=(
+                f"stock_lot:{source_lot.id}"
+                if source_lot is not None
+                else None
+            ),
+            role_change_reason=(
+                "Роль восстановлена из исходной партии при возврате клиента"
+                if source_lot is not None
+                else "Роль назначена по номенклатуре при возврате клиента"
+            ),
         )
         item.autopart_id = int(autopart_id)
         item.lot_id = lot.id

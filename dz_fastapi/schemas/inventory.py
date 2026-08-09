@@ -16,6 +16,8 @@ from dz_fastapi.models.inventory import (
     ShipmentDocumentStatus,
     StockDocumentStatus,
     StockDocumentType,
+    StockLotRole,
+    StockLotRoleSource,
     SyncStatus,
 )
 
@@ -153,7 +155,17 @@ class StockLotOut(BaseModel):
     autopart_id: int
     storage_location_id: Optional[int] = None
     storage_location_name: Optional[str] = None
+    autopart_oem: Optional[str] = None
+    autopart_name: Optional[str] = None
+    autopart_brand: Optional[str] = None
     source_type: LotSourceType
+    inventory_role: StockLotRole
+    role_source: StockLotRoleSource
+    role_rule_reference: Optional[str] = None
+    role_changed_by_user_id: Optional[int] = None
+    role_changed_by_name: Optional[str] = None
+    role_changed_at: datetime
+    role_change_reason: Optional[str] = None
     gtd_number: Optional[str] = None
     country_code: Optional[str] = None
     country_name: Optional[str] = None
@@ -170,6 +182,91 @@ class StockLotOut(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class StockLotRoleUpdate(BaseModel):
+    inventory_role: StockLotRole
+    reason: str = Field(..., min_length=3, max_length=1000)
+    rule_reference: Optional[str] = Field(default=None, max_length=255)
+
+
+class StockLotRoleChangeOut(BaseModel):
+    id: int
+    stock_lot_id: int
+    old_role: Optional[StockLotRole] = None
+    new_role: StockLotRole
+    source: StockLotRoleSource
+    rule_reference: Optional[str] = None
+    reason: Optional[str] = None
+    changed_by_user_id: Optional[int] = None
+    changed_by_name: Optional[str] = None
+    changed_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ─── DragonZap production groups ────────────────────────────────────────────
+
+
+class DragonzapProductionGroupUpdate(BaseModel):
+    is_active: Optional[bool] = None
+    packaging_cost: Optional[CostPriceDecimal] = None
+    packaging_description: Optional[str] = Field(default=None, max_length=255)
+    notes: Optional[str] = Field(default=None, max_length=2000)
+
+
+class DragonzapProductionMaterialUpdate(BaseModel):
+    priority: int = Field(default=100, ge=1, le=10000)
+    is_allowed: bool = True
+    reason: Optional[str] = Field(default=None, max_length=1000)
+
+
+class DragonzapProductionMaterialOut(BaseModel):
+    autopart_id: int
+    brand: str
+    oem_number: str
+    name: Optional[str] = None
+    priority: int
+    is_allowed: bool
+    reason: Optional[str] = None
+    available_material_quantity: int = 0
+    active_lots_count: int = 0
+    has_override: bool = False
+    updated_by_user_id: Optional[int] = None
+    updated_by_name: Optional[str] = None
+    updated_at: Optional[datetime] = None
+
+
+class DragonzapProductionGroupOut(BaseModel):
+    id: int
+    finished_autopart_id: int
+    finished_brand: str
+    finished_oem_number: str
+    finished_name: Optional[str] = None
+    is_active: bool
+    packaging_cost: Decimal
+    packaging_description: Optional[str] = None
+    notes: Optional[str] = None
+    candidates_count: int = 0
+    allowed_candidates_count: int = 0
+    available_material_quantity: int = 0
+    graph_truncated: bool = False
+    materials: List[DragonzapProductionMaterialOut] = Field(default_factory=list)
+    updated_by_user_id: Optional[int] = None
+    updated_by_name: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class DragonzapProductionGroupListOut(BaseModel):
+    items: List[DragonzapProductionGroupOut]
+    total: int
+    synced_groups: int = 0
+
+
+class DragonzapProductionGroupSyncOut(BaseModel):
+    created: int
+    total: int
 
 
 # ─── StockMovement ───────────────────────────────────────────────────────────

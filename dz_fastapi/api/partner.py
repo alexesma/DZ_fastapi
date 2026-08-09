@@ -12,13 +12,13 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 from dz_fastapi.analytics.price_history import (
     analyze_autopart_popularity,
     get_pricelist_change_summary,
 )
-from dz_fastapi.api.deps import require_admin
+from dz_fastapi.api.deps import get_current_user, require_admin
 from dz_fastapi.api.validators import change_brand_name, change_customer_name
 from dz_fastapi.core.db import get_session
 from dz_fastapi.core.time import now_moscow
@@ -36,6 +36,7 @@ from dz_fastapi.crud.partner import (
     crud_supplier_response_config,
     set_last_uid,
 )
+from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.partner import (
     TYPE_PRICES,
     Customer,
@@ -46,10 +47,11 @@ from dz_fastapi.models.partner import (
     CustomerReclamationEmail,
     PriceList,
     Provider,
+    ProviderInventoryRoleRule,
     ProviderPriceListConfig,
     ProviderPricelistReview,
 )
-from dz_fastapi.models.user import User
+from dz_fastapi.models.user import User, UserRole
 from dz_fastapi.schemas.autopart import AutoPartResponse
 from dz_fastapi.schemas.customer_order import (
     SupplierResponseImportErrorItem,
@@ -94,6 +96,9 @@ from dz_fastapi.schemas.partner import (
     ProviderExternalReferenceCreate,
     ProviderExternalReferenceOut,
     ProviderExternalReferenceUpdate,
+    ProviderInventoryRoleRuleCreate,
+    ProviderInventoryRoleRuleOut,
+    ProviderInventoryRoleRuleUpdate,
     ProviderMergeRequest,
     ProviderMergeResponse,
     ProviderPageResponse,
@@ -249,8 +254,18 @@ async def _validate_supplier_response_mailbox(
     response_model=ProviderResponse,
 )
 async def create_provider(
-    provider_in: ProviderCreate, session: AsyncSession = Depends(get_session)
+    provider_in: ProviderCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
+    if (
+        provider_in.inventory_policy.value != "original_goods"
+        or provider_in.inventory_policy_note
+    ) and current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required for inventory policy",
+        )
     new_name = await change_brand_name(brand_name=provider_in.name)
 
     if not new_name or not new_name.strip():
@@ -606,7 +621,20 @@ async def update_provider(
     provider_id: int,
     provider_in: ProviderUpdate = Body(...),
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
+    inventory_policy_fields = {
+        "inventory_policy",
+        "inventory_policy_note",
+    }
+    if (
+        inventory_policy_fields.intersection(provider_in.model_fields_set)
+        and current_user.role != UserRole.ADMIN
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required for inventory policy",
+        )
     if provider_in.default_warehouse_id is not None:
         warehouse = await crud_warehouse.get_by_id(
             provider_in.default_warehouse_id,
@@ -634,6 +662,185 @@ async def update_provider(
             session=session,
         )
     return ProviderResponse.model_validate(updated_provider)
+
+
+def _provider_inventory_rule_options():
+    return (
+        joinedload(ProviderInventoryRoleRule.autopart).joinedload(
+            AutoPart.brand
+        ),
+        joinedload(ProviderInventoryRoleRule.created_by_user),
+        joinedload(ProviderInventoryRoleRule.updated_by_user),
+    )
+
+
+def _serialize_provider_inventory_rule(
+    rule: ProviderInventoryRoleRule,
+) -> ProviderInventoryRoleRuleOut:
+    autopart = rule.autopart
+    brand = getattr(autopart, "brand", None)
+    return ProviderInventoryRoleRuleOut(
+        id=rule.id,
+        provider_id=rule.provider_id,
+        autopart_id=rule.autopart_id,
+        autopart_oem=autopart.oem_number,
+        autopart_brand=getattr(brand, "name", None),
+        autopart_name=autopart.name,
+        inventory_role=rule.inventory_role,
+        reason=rule.reason,
+        is_active=rule.is_active,
+        created_by_name=getattr(rule.created_by_user, "name", None),
+        updated_by_name=getattr(rule.updated_by_user, "name", None),
+        created_at=rule.created_at,
+        updated_at=rule.updated_at,
+    )
+
+
+async def _get_provider_inventory_rule(
+    session: AsyncSession,
+    *,
+    provider_id: int,
+    rule_id: int,
+) -> ProviderInventoryRoleRule:
+    stmt = (
+        select(ProviderInventoryRoleRule)
+        .where(
+            ProviderInventoryRoleRule.id == rule_id,
+            ProviderInventoryRoleRule.provider_id == provider_id,
+        )
+        .options(*_provider_inventory_rule_options())
+    )
+    rule = (await session.execute(stmt)).scalar_one_or_none()
+    if rule is None:
+        raise HTTPException(status_code=404, detail="Inventory role rule not found")
+    return rule
+
+
+@router.get(
+    "/providers/{provider_id}/inventory-role-rules",
+    tags=["providers"],
+    response_model=list[ProviderInventoryRoleRuleOut],
+)
+async def list_provider_inventory_role_rules(
+    provider_id: int,
+    session: AsyncSession = Depends(get_session),
+    _current_user: User = Depends(get_current_user),
+):
+    if await session.get(Provider, provider_id) is None:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    stmt = (
+        select(ProviderInventoryRoleRule)
+        .where(ProviderInventoryRoleRule.provider_id == provider_id)
+        .options(*_provider_inventory_rule_options())
+        .order_by(
+            ProviderInventoryRoleRule.is_active.desc(),
+            ProviderInventoryRoleRule.updated_at.desc(),
+        )
+    )
+    rules = (await session.execute(stmt)).scalars().unique().all()
+    return [_serialize_provider_inventory_rule(rule) for rule in rules]
+
+
+@router.post(
+    "/providers/{provider_id}/inventory-role-rules",
+    tags=["providers"],
+    response_model=ProviderInventoryRoleRuleOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_provider_inventory_role_rule(
+    provider_id: int,
+    payload: ProviderInventoryRoleRuleCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    if await session.get(Provider, provider_id) is None:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    if await session.get(AutoPart, payload.autopart_id) is None:
+        raise HTTPException(status_code=404, detail="AutoPart not found")
+    duplicate = (
+        await session.execute(
+            select(ProviderInventoryRoleRule.id).where(
+                ProviderInventoryRoleRule.provider_id == provider_id,
+                ProviderInventoryRoleRule.autopart_id == payload.autopart_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if duplicate is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Для этой номенклатуры уже существует правило",
+        )
+    rule = ProviderInventoryRoleRule(
+        provider_id=provider_id,
+        created_by_user_id=current_user.id,
+        updated_by_user_id=current_user.id,
+        **payload.model_dump(),
+    )
+    session.add(rule)
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Для этой номенклатуры уже существует правило",
+        ) from exc
+    rule = await _get_provider_inventory_rule(
+        session,
+        provider_id=provider_id,
+        rule_id=rule.id,
+    )
+    return _serialize_provider_inventory_rule(rule)
+
+
+@router.patch(
+    "/providers/{provider_id}/inventory-role-rules/{rule_id}",
+    tags=["providers"],
+    response_model=ProviderInventoryRoleRuleOut,
+)
+async def update_provider_inventory_role_rule(
+    provider_id: int,
+    rule_id: int,
+    payload: ProviderInventoryRoleRuleUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    rule = await _get_provider_inventory_rule(
+        session,
+        provider_id=provider_id,
+        rule_id=rule_id,
+    )
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(rule, field, value)
+    rule.updated_by_user_id = current_user.id
+    rule.updated_at = now_moscow()
+    await session.commit()
+    rule = await _get_provider_inventory_rule(
+        session,
+        provider_id=provider_id,
+        rule_id=rule_id,
+    )
+    return _serialize_provider_inventory_rule(rule)
+
+
+@router.delete(
+    "/providers/{provider_id}/inventory-role-rules/{rule_id}",
+    tags=["providers"],
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_provider_inventory_role_rule(
+    provider_id: int,
+    rule_id: int,
+    session: AsyncSession = Depends(get_session),
+    _current_user: User = Depends(require_admin),
+):
+    rule = await _get_provider_inventory_rule(
+        session,
+        provider_id=provider_id,
+        rule_id=rule_id,
+    )
+    await session.delete(rule)
+    await session.commit()
 
 
 @router.post(

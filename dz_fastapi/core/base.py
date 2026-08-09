@@ -32,6 +32,8 @@ from dz_fastapi.models.finance import (  # noqa
 from dz_fastapi.models.inbox_email import EmailRulePattern, InboxEmail, InboxForceProcessAudit
 from dz_fastapi.models.inventory import InventoryItem  # noqa
 from dz_fastapi.models.inventory import (
+    DragonzapProductionGroup,
+    DragonzapProductionMaterialOverride,
     InventorySession,
     ProductMarkingCode,
     ProductMarkingCodeMovement,
@@ -45,6 +47,7 @@ from dz_fastapi.models.inventory import (
     StockDocument,
     StockDocumentItem,
     StockLot,
+    StockLotRoleChange,
     StockMovement,
     StockReserve,
     Warehouse,
@@ -79,6 +82,7 @@ from dz_fastapi.models.partner import (
     ProviderAbbreviation,
     ProviderConfigLastEmailUID,
     ProviderExternalReference,
+    ProviderInventoryRoleRule,
     ProviderLastEmailUID,
     ProviderPriceListConfig,
     ProviderPricelistReview,
@@ -173,6 +177,7 @@ __all__ = [
     "ProviderAbbreviation",
     "ProviderConfigLastEmailUID",
     "ProviderExternalReference",
+    "ProviderInventoryRoleRule",
     "ProviderLastEmailUID",
     "AutoPartPriceHistory",
     "AutoPartRestockDecision",
@@ -219,6 +224,9 @@ __all__ = [
     "Warehouse",
     "StockByLocation",
     "StockLot",
+    "StockLotRoleChange",
+    "DragonzapProductionGroup",
+    "DragonzapProductionMaterialOverride",
     "StockMovement",
     "StockReserve",
     "StockDocument",

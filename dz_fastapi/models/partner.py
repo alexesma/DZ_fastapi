@@ -13,6 +13,7 @@ from sqlalchemy.orm import relationship, validates
 
 from dz_fastapi.core.db import Base
 from dz_fastapi.core.time import now_moscow
+from dz_fastapi.models.inventory import StockLotRole
 
 DEFAULT_IS_ACTIVE = True
 MAX_NAME_PARTNER = 256
@@ -35,6 +36,15 @@ class PROVIDER_DELIVERY_METHOD(StrEnum):
     SELF_PICKUP = "Self pickup"
     COURIER_FOOT = "Courier foot"
     COURIER_CAR = "Courier car"
+
+
+@unique
+class PROVIDER_INVENTORY_POLICY(StrEnum):
+    """How incoming stock from a provider is classified by default."""
+
+    ORIGINAL_GOODS = "original_goods"
+    DRAGONZAP_MATERIAL = "dragonzap_material"
+    MIXED = "mixed"
 
 
 @unique
@@ -253,6 +263,22 @@ class Provider(Client):
     is_vat_payer = Column(Boolean, default=False, nullable=False)
     autopurchase_blocked = Column(Boolean, default=False, nullable=False)
     autopurchase_block_reason = Column(Text, nullable=True)
+    inventory_policy = Column(
+        SAEnum(
+            PROVIDER_INVENTORY_POLICY,
+            name="providerinventorypolicy",
+            values_callable=lambda enum: [e.value for e in enum],
+        ),
+        default=PROVIDER_INVENTORY_POLICY.ORIGINAL_GOODS,
+        nullable=False,
+    )
+    inventory_policy_note = Column(Text, nullable=True)
+    inventory_role_rules = relationship(
+        "ProviderInventoryRoleRule",
+        back_populates="provider",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
     order_schedule_days = Column(JSON, default=[])
     order_schedule_times = Column(JSON, default=[])
     order_schedule_enabled = Column(Boolean, default=False)
@@ -309,6 +335,63 @@ class Provider(Client):
     def default_warehouse_name(self) -> str | None:
         warehouse = getattr(self, "default_warehouse", None)
         return warehouse.name if warehouse is not None else None
+
+
+class ProviderInventoryRoleRule(Base):
+    """Exact provider + nomenclature override for an incoming lot role."""
+
+    provider_id = Column(
+        Integer,
+        ForeignKey("provider.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    autopart_id = Column(
+        Integer,
+        ForeignKey("autopart.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    inventory_role = Column(
+        SAEnum(
+            StockLotRole,
+            name="stocklotrole",
+            values_callable=lambda enum: [e.value for e in enum],
+        ),
+        nullable=False,
+    )
+    reason = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    updated_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_at = Column(DateTime(timezone=True), default=now_moscow, nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=now_moscow,
+        onupdate=now_moscow,
+        nullable=False,
+    )
+
+    provider = relationship("Provider", back_populates="inventory_role_rules")
+    autopart = relationship("AutoPart", lazy="joined")
+    created_by_user = relationship("User", foreign_keys=[created_by_user_id])
+    updated_by_user = relationship("User", foreign_keys=[updated_by_user_id])
+
+    __table_args__ = (
+        UniqueConstraint(
+            "provider_id",
+            "autopart_id",
+            name="uq_provider_inventory_role_rule_part",
+        ),
+    )
 
 
 class Customer(Client):

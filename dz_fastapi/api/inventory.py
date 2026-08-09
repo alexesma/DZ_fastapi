@@ -24,11 +24,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from dz_fastapi.api.deps import get_current_user
+from dz_fastapi.api.deps import get_current_user, require_admin
 from dz_fastapi.core.db import get_session
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import AutoPart, StorageLocation, autopart_storage_association
 from dz_fastapi.models.inventory import (
+    DragonzapProductionGroup,
     InventoryItem,
     InventorySession,
     InventoryStatus,
@@ -49,17 +50,25 @@ from dz_fastapi.models.inventory import (
     StockDocumentStatus,
     StockDocumentType,
     StockLot,
+    StockLotRole,
+    StockLotRoleChange,
     StockMovement,
     StockReserve,
     SyncStatus,
 )
 from dz_fastapi.models.partner import CustomerOrderItem, SupplierReceipt, SupplierReceiptItem
+from dz_fastapi.models.user import User
 from dz_fastapi.schemas.inventory import (
     BackfillResult,
     DocumentBulkSyncRequest,
     DocumentBulkSyncResult,
     DocumentsExportOut,
     DocumentSyncUpdate,
+    DragonzapProductionGroupListOut,
+    DragonzapProductionGroupOut,
+    DragonzapProductionGroupSyncOut,
+    DragonzapProductionGroupUpdate,
+    DragonzapProductionMaterialUpdate,
     InventoryItemCountUpdate,
     InventoryItemOut,
     InventorySessionCreate,
@@ -105,6 +114,8 @@ from dz_fastapi.schemas.inventory import (
     StockDocumentOut,
     StockDocumentUpdate,
     StockLotOut,
+    StockLotRoleChangeOut,
+    StockLotRoleUpdate,
     StockMovementCreate,
     StockMovementOut,
     StockReserveCancelRequest,
@@ -117,11 +128,13 @@ from dz_fastapi.schemas.inventory import (
 from dz_fastapi.services.credit_control import CreditLimitExceeded
 from dz_fastapi.services.inventory_stock import _apply_stock_delta as apply_stock_delta
 from dz_fastapi.services.inventory_stock import _consume_fifo as consume_stock_fifo
+from dz_fastapi.services.inventory_stock import _create_stock_lot as create_stock_lot
 from dz_fastapi.services.inventory_stock import (
     approve_return_from_customer,
     approve_return_to_supplier,
     backfill_opening_balance_lots,
     cancel_reserve,
+    change_stock_lot_role,
     confirm_return_from_customer,
     confirm_return_to_supplier,
     create_reserve,
@@ -138,6 +151,13 @@ from dz_fastapi.services.inventory_stock import (
     transfer_stock_with_lot_trace,
     unpost_shipment_document,
     unpost_stock_document,
+)
+from dz_fastapi.services.production_groups import (
+    delete_material_override,
+    list_production_groups,
+    sync_production_groups,
+    update_production_group,
+    upsert_material_override,
 )
 
 logger = logging.getLogger(__name__)
@@ -925,16 +945,14 @@ async def create_stock_movement(
     try:
         created_movements: list[StockMovement]
         if data.quantity > 0:
-            lot = StockLot(
+            lot = await create_stock_lot(
+                session,
                 autopart_id=data.autopart_id,
                 storage_location_id=data.storage_location_id,
                 source_type=LotSourceType.MANUAL,
-                initial_quantity=data.quantity,
-                remaining_quantity=data.quantity,
+                quantity=data.quantity,
                 received_at=now_moscow(),
             )
-            session.add(lot)
-            await session.flush()
             mv = await apply_stock_delta(
                 session,
                 autopart_id=data.autopart_id,
@@ -1288,12 +1306,27 @@ async def transfer_autopart(
 
 def _lot_to_out(lot: StockLot) -> StockLotOut:
     loc = getattr(lot, "storage_location", None)
+    autopart = getattr(lot, "autopart", None)
+    brand = getattr(autopart, "brand", None) if autopart else None
+    changed_by = getattr(lot, "role_changed_by_user", None)
     return StockLotOut(
         id=lot.id,
         autopart_id=lot.autopart_id,
         storage_location_id=lot.storage_location_id,
         storage_location_name=loc.name if loc else None,
+        autopart_oem=autopart.oem_number if autopart else None,
+        autopart_name=autopart.name if autopart else None,
+        autopart_brand=brand.name if brand else None,
         source_type=lot.source_type,
+        inventory_role=lot.inventory_role,
+        role_source=lot.role_source,
+        role_rule_reference=lot.role_rule_reference,
+        role_changed_by_user_id=lot.role_changed_by_user_id,
+        role_changed_by_name=(
+            changed_by.name or changed_by.email if changed_by else None
+        ),
+        role_changed_at=lot.role_changed_at,
+        role_change_reason=lot.role_change_reason,
         gtd_number=lot.gtd_number,
         country_code=lot.country_code,
         country_name=lot.country_name,
@@ -1342,6 +1375,7 @@ async def list_stock_lots(
     storage_location_id: Optional[int] = Query(default=None),
     gtd_number: Optional[str] = Query(default=None),
     source_receipt_id: Optional[int] = Query(default=None),
+    inventory_role: Optional[StockLotRole] = Query(default=None),
     only_active: bool = Query(default=False),
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
@@ -1349,7 +1383,11 @@ async def list_stock_lots(
 ):
     from sqlalchemy import asc as _asc
 
-    stmt = select(StockLot)
+    stmt = select(StockLot).options(
+        selectinload(StockLot.autopart).selectinload(AutoPart.brand),
+        selectinload(StockLot.storage_location),
+        selectinload(StockLot.role_changed_by_user),
+    )
     if autopart_id is not None:
         stmt = stmt.where(StockLot.autopart_id == autopart_id)
     if storage_location_id is not None:
@@ -1358,6 +1396,8 @@ async def list_stock_lots(
         stmt = stmt.where(StockLot.gtd_number.ilike(f"%{gtd_number}%"))
     if source_receipt_id is not None:
         stmt = stmt.where(StockLot.source_receipt_id == source_receipt_id)
+    if inventory_role is not None:
+        stmt = stmt.where(StockLot.inventory_role == inventory_role)
     if only_active:
         stmt = stmt.where(StockLot.remaining_quantity > 0)
     stmt = stmt.order_by(_asc(StockLot.received_at), _asc(StockLot.id))
@@ -1375,10 +1415,246 @@ async def get_stock_lot(
     lot_id: int,
     session: AsyncSession = Depends(get_session),
 ):
-    lot = await session.get(StockLot, lot_id)
+    lot = (
+        await session.execute(
+            select(StockLot)
+            .where(StockLot.id == lot_id)
+            .options(
+                selectinload(StockLot.autopart).selectinload(AutoPart.brand),
+                selectinload(StockLot.storage_location),
+                selectinload(StockLot.role_changed_by_user),
+            )
+        )
+    ).scalar_one_or_none()
     if lot is None:
         raise HTTPException(status_code=404, detail="Партия не найдена")
     return _lot_to_out(lot)
+
+
+@router.patch(
+    "/lots/{lot_id}/role",
+    response_model=StockLotOut,
+    summary="Изменить хозяйственную роль партии",
+)
+async def update_stock_lot_role(
+    lot_id: int,
+    data: StockLotRoleUpdate,
+    current_user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        await change_stock_lot_role(
+            session,
+            lot_id=lot_id,
+            new_role=data.inventory_role,
+            changed_by_user_id=current_user.id,
+            reason=data.reason,
+            rule_reference=data.rule_reference,
+        )
+        await session.commit()
+    except LookupError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return await get_stock_lot(lot_id=lot_id, session=session)
+
+
+@router.get(
+    "/lots/{lot_id}/role-history",
+    response_model=List[StockLotRoleChangeOut],
+    summary="История хозяйственной роли партии",
+)
+async def get_stock_lot_role_history(
+    lot_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    if await session.get(StockLot, lot_id) is None:
+        raise HTTPException(status_code=404, detail="Партия не найдена")
+    changes = (
+        await session.execute(
+            select(StockLotRoleChange)
+            .where(StockLotRoleChange.stock_lot_id == lot_id)
+            .options(selectinload(StockLotRoleChange.changed_by_user))
+            .order_by(
+                StockLotRoleChange.changed_at.desc(),
+                StockLotRoleChange.id.desc(),
+            )
+        )
+    ).scalars().all()
+    return [
+        StockLotRoleChangeOut(
+            id=change.id,
+            stock_lot_id=change.stock_lot_id,
+            old_role=change.old_role,
+            new_role=change.new_role,
+            source=change.source,
+            rule_reference=change.rule_reference,
+            reason=change.reason,
+            changed_by_user_id=change.changed_by_user_id,
+            changed_by_name=(
+                change.changed_by_user.name or change.changed_by_user.email
+                if change.changed_by_user
+                else None
+            ),
+            changed_at=change.changed_at,
+        )
+        for change in changes
+    ]
+
+
+# ─── DragonZap production groups ───────────────────────────────────────────
+
+
+async def _production_group_out(
+    session: AsyncSession,
+    group_id: int,
+) -> DragonzapProductionGroupOut:
+    items, _ = await list_production_groups(
+        session,
+        group_id=group_id,
+        limit=1,
+    )
+    if not items:
+        raise HTTPException(status_code=404, detail="Группа выпуска не найдена")
+    return DragonzapProductionGroupOut(**items[0])
+
+
+@router.get(
+    "/production-groups",
+    response_model=DragonzapProductionGroupListOut,
+    summary="Группы выпуска DragonZap из подтверждённых кроссов",
+)
+async def get_dragonzap_production_groups(
+    q: Optional[str] = Query(default=None, max_length=120),
+    is_active: Optional[bool] = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=50),
+    offset: int = Query(default=0, ge=0),
+    session: AsyncSession = Depends(get_session),
+):
+    created, _ = await sync_production_groups(session)
+    if created:
+        await session.commit()
+    items, total = await list_production_groups(
+        session,
+        query=q,
+        is_active=is_active,
+        limit=limit,
+        offset=offset,
+    )
+    return DragonzapProductionGroupListOut(
+        items=[DragonzapProductionGroupOut(**item) for item in items],
+        total=total,
+        synced_groups=created,
+    )
+
+
+@router.post(
+    "/production-groups/sync",
+    response_model=DragonzapProductionGroupSyncOut,
+    summary="Обновить группы выпуска из каталога кроссов",
+)
+async def sync_dragonzap_production_groups(
+    current_user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    created, total = await sync_production_groups(
+        session,
+        user_id=current_user.id,
+    )
+    await session.commit()
+    return DragonzapProductionGroupSyncOut(created=created, total=total)
+
+
+@router.get(
+    "/production-groups/{group_id}",
+    response_model=DragonzapProductionGroupOut,
+    summary="Группа выпуска DragonZap",
+)
+async def get_dragonzap_production_group(
+    group_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    return await _production_group_out(session, group_id)
+
+
+@router.patch(
+    "/production-groups/{group_id}",
+    response_model=DragonzapProductionGroupOut,
+    summary="Изменить настройки группы выпуска",
+)
+async def patch_dragonzap_production_group(
+    group_id: int,
+    data: DragonzapProductionGroupUpdate,
+    current_user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        await update_production_group(
+            session,
+            group_id=group_id,
+            values=data.model_dump(exclude_unset=True),
+            user_id=current_user.id,
+        )
+        await session.commit()
+    except LookupError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return await _production_group_out(session, group_id)
+
+
+@router.put(
+    "/production-groups/{group_id}/materials/{material_autopart_id}",
+    response_model=DragonzapProductionGroupOut,
+    summary="Настроить материал группы выпуска",
+)
+async def put_dragonzap_production_material(
+    group_id: int,
+    material_autopart_id: int,
+    data: DragonzapProductionMaterialUpdate,
+    current_user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        await upsert_material_override(
+            session,
+            group_id=group_id,
+            material_autopart_id=material_autopart_id,
+            values=data.model_dump(),
+            user_id=current_user.id,
+        )
+        await session.commit()
+    except LookupError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return await _production_group_out(session, group_id)
+
+
+@router.delete(
+    "/production-groups/{group_id}/materials/{material_autopart_id}",
+    response_model=DragonzapProductionGroupOut,
+    summary="Сбросить ручную настройку материала",
+)
+async def reset_dragonzap_production_material(
+    group_id: int,
+    material_autopart_id: int,
+    _current_user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    if await session.get(DragonzapProductionGroup, group_id) is None:
+        raise HTTPException(status_code=404, detail="Группа выпуска не найдена")
+    await delete_material_override(
+        session,
+        group_id=group_id,
+        material_autopart_id=material_autopart_id,
+    )
+    await session.commit()
+    return await _production_group_out(session, group_id)
 
 
 # ─── StockDocument (ручные документы оприходования / списания) ─────────────
