@@ -1495,7 +1495,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
             )
             LOOKUP_CHUNK_SIZE = 1000
             for chunk_start in range(0, len(lookup_pairs), LOOKUP_CHUNK_SIZE):
-                chunk = lookup_pairs[chunk_start : chunk_start + LOOKUP_CHUNK_SIZE]
+                chunk = lookup_pairs[chunk_start: chunk_start + LOOKUP_CHUNK_SIZE]
                 lookup_stmt = select(
                     AutoPart.id,
                     AutoPart.oem_number,
@@ -2312,7 +2312,7 @@ class CRUDCustomerPriceList(
         for chunk_start in range(0, len(insert_rows), INSERT_CHUNK_SIZE):
             await session.execute(
                 insert(CustomerPriceListAutoPartAssociation),
-                insert_rows[chunk_start : chunk_start + INSERT_CHUNK_SIZE],
+                insert_rows[chunk_start: chunk_start + INSERT_CHUNK_SIZE],
             )
         await session.commit()
 

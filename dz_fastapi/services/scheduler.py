@@ -2214,7 +2214,7 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
             len(downloaded),
             PRICE_PROVIDER_PROCESS_PARALLELISM,
         ):
-            batch = downloaded[start : start + PRICE_PROVIDER_PROCESS_PARALLELISM]
+            batch = downloaded[start: start + PRICE_PROVIDER_PROCESS_PARALLELISM]
             tasks = [asyncio.create_task(_process_one(item, app, sem)) for item in batch]
             batch_results = await asyncio.gather(
                 *tasks,
