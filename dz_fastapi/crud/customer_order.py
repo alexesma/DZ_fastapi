@@ -17,6 +17,7 @@ from dz_fastapi.models.partner import (
     StockOrderItem,
     SupplierOrder,
     SupplierOrderItem,
+    SupplierReceipt,
     SupplierReceiptItem,
 )
 
@@ -280,6 +281,11 @@ class CRUDStockOrder:
                 joinedload(StockOrder.items).joinedload(
                     StockOrderItem.picked_by_user
                 ),
+                joinedload(StockOrder.items)
+                .joinedload(StockOrderItem.supplier_receipt_item)
+                .joinedload(SupplierReceiptItem.receipt)
+                .joinedload(SupplierReceipt.provider),
+                selectinload(StockOrder.packages),
             )
             .order_by(StockOrder.created_at.desc())
         )

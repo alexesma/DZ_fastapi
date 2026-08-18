@@ -79,9 +79,7 @@ class ProviderBase(ClientBase):
     is_vat_payer: Optional[bool] = False
     autopurchase_blocked: Optional[bool] = False
     autopurchase_block_reason: Optional[str] = None
-    inventory_policy: ProviderInventoryPolicy = (
-        ProviderInventoryPolicy.ORIGINAL_GOODS
-    )
+    inventory_policy: ProviderInventoryPolicy = ProviderInventoryPolicy.ORIGINAL_GOODS
     inventory_policy_note: Optional[str] = None
     order_schedule_days: Optional[List[str]] = None
     order_schedule_times: Optional[List[str]] = None
@@ -98,9 +96,7 @@ class ProviderBase(ClientBase):
     supplier_response_price_col: Optional[int] = Field(default=None, ge=1)
     supplier_response_comment_col: Optional[int] = Field(default=None, ge=1)
     supplier_response_status_col: Optional[int] = Field(default=None, ge=1)
-    default_delivery_method: Optional[ProviderDeliveryMethod] = (
-        ProviderDeliveryMethod.DELIVERED
-    )
+    default_delivery_method: Optional[ProviderDeliveryMethod] = ProviderDeliveryMethod.DELIVERED
     # Рекламации/возвраты поставщику
     return_allowed: Optional[bool] = True
     return_window_days: Optional[int] = Field(default=None, ge=0)
@@ -267,9 +263,7 @@ class PriceListAutoPartAssociationCreate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class CustomerPriceListAutoPartAssociationResponse(
-    PriceListAutoPartAssociationResponse
-):
+class CustomerPriceListAutoPartAssociationResponse(PriceListAutoPartAssociationResponse):
     pass
 
 
@@ -307,9 +301,7 @@ class PriceListResponse(BaseModel):
     date: Optional[date]
     provider: ProviderMinimalResponse
     provider_config_id: Optional[int]
-    autoparts: List[PriceListAutoPartAssociationResponse] = Field(
-        default_factory=list
-    )
+    autoparts: List[PriceListAutoPartAssociationResponse] = Field(default_factory=list)
     stats: Optional["PriceListProcessStats"] = None
     model_config = ConfigDict(from_attributes=True)
 
@@ -346,9 +338,7 @@ class CustomerPriceListBase(BaseModel):
 class CustomerPriceListUpdate(BaseModel):
     date: Optional[date] = None
     is_active: Optional[bool] = None
-    autoparts: Optional[List[CustomerPriceListAutoPartAssociationResponse]] = (
-        None
-    )
+    autoparts: Optional[List[CustomerPriceListAutoPartAssociationResponse]] = None
 
 
 class CustomerMinimalResponse(BaseModel):
@@ -365,6 +355,9 @@ class CustomerPriceListResponse(CustomerPriceListBase):
     # Итоговое число позиций: позволяет не возвращать весь список
     # autoparts (на больших прайсах это десятки мегабайт JSON).
     positions_count: Optional[int] = None
+    generation_status: Optional[str] = None
+    generated_at: Optional[datetime] = None
+    artifact_filename: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -385,9 +378,7 @@ class ProviderInventoryRoleRuleBase(BaseModel):
     @classmethod
     def validate_inventory_role(cls, value: StockLotRole) -> StockLotRole:
         if value == StockLotRole.DRAGONZAP_FINISHED:
-            raise ValueError(
-                "Готовая продукция DragonZap создаётся только выпуском"
-            )
+            raise ValueError("Готовая продукция DragonZap создаётся только выпуском")
         return value
 
     @field_validator("reason", mode="before")
@@ -410,9 +401,7 @@ class ProviderInventoryRoleRuleUpdate(BaseModel):
     @classmethod
     def validate_inventory_role(cls, value: Optional[StockLotRole]):
         if value == StockLotRole.DRAGONZAP_FINISHED:
-            raise ValueError(
-                "Готовая продукция DragonZap создаётся только выпуском"
-            )
+            raise ValueError("Готовая продукция DragonZap создаётся только выпуском")
         return value
 
     @field_validator("reason", mode="before")
@@ -508,9 +497,7 @@ class CustomerReclamationEmailOut(BaseModel):
 class CustomerResponse(CustomerBase):
     id: int
     customer_price_lists: List[CustomerPriceListResponse] = []
-    pricelist_configs: List["CustomerPriceListConfigSummary"] = Field(
-        default_factory=list
-    )
+    pricelist_configs: List["CustomerPriceListConfigSummary"] = Field(default_factory=list)
     model_config = ConfigDict(from_attributes=True)
 
     @field_validator("pricelist_configs", mode="before")
@@ -553,9 +540,7 @@ class CustomerResponseShort(BaseModel):
     credit_limit: Optional[Decimal] = None
     payment_terms_days: int = 0
     return_window_days: Optional[int] = None
-    external_references: List[CustomerExternalReferenceOut] = Field(
-        default_factory=list
-    )
+    external_references: List[CustomerExternalReferenceOut] = Field(default_factory=list)
     customer_price_lists: List[CustomerPriceListResponseShort] = []
 
     @field_validator("name", mode="before")
@@ -722,9 +707,7 @@ def _normalize_cell_reference(value: Any) -> Optional[str]:
         return None
     match = _CELL_REF_RE.fullmatch(text)
     if match is None:
-        raise ValueError(
-            "Cell reference must be in A1 format (for example: A1, B3, AA12)"
-        )
+        raise ValueError("Cell reference must be in A1 format (for example: A1, B3, AA12)")
     return f"{match.group(1)}{int(match.group(2))}"
 
 
@@ -738,9 +721,7 @@ class SupplierResponseConfigBase(BaseModel):
     auto_confirm_unmentioned_items: bool = False
     auto_confirm_after_minutes: Optional[int] = Field(default=None, ge=1)
     file_format: Optional[SupplierResponseFileFormat] = None
-    file_payload_type: SupplierResponseFilePayloadType = (
-        SupplierResponseFilePayloadType.RESPONSE
-    )
+    file_payload_type: SupplierResponseFilePayloadType = SupplierResponseFilePayloadType.RESPONSE
     subject_pattern: Optional[str] = None
     filename_pattern: Optional[str] = None
     shipping_doc_filename_pattern: Optional[str] = None
@@ -884,9 +865,7 @@ class SupplierResponseConfigUpdate(BaseModel):
     total_price_with_vat_col: Optional[int] = Field(default=None, ge=1)
     confirm_keywords: Optional[List[str]] = None
     reject_keywords: Optional[List[str]] = None
-    value_after_article_type: Optional[
-        SupplierResponseValueAfterArticleType
-    ] = None
+    value_after_article_type: Optional[SupplierResponseValueAfterArticleType] = None
 
     @field_validator("name", mode="before")
     def normalize_update_name(cls, v):
@@ -967,9 +946,7 @@ class SupplierResponseConfigOut(BaseModel):
     auto_confirm_unmentioned_items: bool = False
     auto_confirm_after_minutes: Optional[int] = None
     file_format: Optional[SupplierResponseFileFormat] = None
-    file_payload_type: SupplierResponseFilePayloadType = (
-        SupplierResponseFilePayloadType.RESPONSE
-    )
+    file_payload_type: SupplierResponseFilePayloadType = SupplierResponseFilePayloadType.RESPONSE
     subject_pattern: Optional[str] = None
     filename_pattern: Optional[str] = None
     shipping_doc_filename_pattern: Optional[str] = None
@@ -1025,8 +1002,8 @@ class CustomerPriceListCreate(BaseModel):
     config_id: int
     items: List[int] = Field(default_factory=list)
     excluded_own_positions: Optional[List[int]] = Field(default_factory=list)
-    excluded_supplier_positions: Optional[Dict[int, List[int]] | List[int]] = (
-        Field(default_factory=dict)
+    excluded_supplier_positions: Optional[Dict[int, List[int]] | List[int]] = Field(
+        default_factory=dict
     )
     date: Optional[date]
 
@@ -1058,13 +1035,9 @@ class SupplierQuantityFilter(BaseModel):
 
 
 class CustomerPriceListConfigBase(BaseModel):
-    name: str = Field(
-        ..., description="Name or identifier for the configuration"
-    )
+    name: str = Field(..., description="Name or identifier for the configuration")
     general_markup: float = Field(0.0, description="General markup percentage")
-    own_price_list_markup: float = Field(
-        0.0, description="Markup percentage for own price lists"
-    )
+    own_price_list_markup: float = Field(0.0, description="Markup percentage for own price lists")
     third_party_markup: float = Field(
         0.0, description="Markup percentage for third-party price lists"
     )
@@ -1151,22 +1124,17 @@ class CustomerPriceListConfigBase(BaseModel):
             return None
         if not normalized.replace("_", "").isalnum():
             raise ValueError(
-                "export_file_extension must contain only letters, "
-                "digits or underscore"
+                "export_file_extension must contain only letters, " "digits or underscore"
             )
         return normalized
 
 
 class CustomerPriceListConfigCreate(CustomerPriceListConfigBase):
-    general_markup: float = Field(
-        default=1.0, description="Коэффициент по умолчанию равен 1"
-    )
+    general_markup: float = Field(default=1.0, description="Коэффициент по умолчанию равен 1")
     own_price_list_markup: float = Field(
         default=1.0, description="Коэффициент по умолчанию равен 1"
     )
-    third_party_markup: float = Field(
-        default=1.0, description="Коэффициент по умолчанию равен 1"
-    )
+    third_party_markup: float = Field(default=1.0, description="Коэффициент по умолчанию равен 1")
 
 
 class CustomerPriceListConfigUpdate(BaseModel):
@@ -1219,8 +1187,7 @@ class CustomerPriceListConfigUpdate(BaseModel):
             return None
         if not normalized.replace("_", "").isalnum():
             raise ValueError(
-                "export_file_extension must contain only letters, "
-                "digits or underscore"
+                "export_file_extension must contain only letters, " "digits or underscore"
             )
         return normalized
 
@@ -1374,6 +1341,99 @@ class CustomerPriceListConfigSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CustomerPriceListPublicationRuleCreate(BaseModel):
+    source_autopart_id: int = Field(gt=0)
+    target_autopart_id: Optional[int] = Field(default=None, gt=0)
+    mode: str = "only_cross"
+    is_active: bool = True
+
+    @field_validator("mode")
+    @classmethod
+    def validate_mode(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"add_cross", "only_cross", "hide"}:
+            raise ValueError("mode must be add_cross, only_cross or hide")
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_target(self):
+        if self.mode != "hide" and self.target_autopart_id is None:
+            raise ValueError("target_autopart_id is required for cross rules")
+        return self
+
+
+class CustomerPriceListPublicationRuleOut(BaseModel):
+    id: int
+    config_id: int
+    source_autopart_id: int
+    source_brand: Optional[str] = None
+    source_oem: Optional[str] = None
+    source_name: Optional[str] = None
+    target_autopart_id: Optional[int] = None
+    target_brand: Optional[str] = None
+    target_oem: Optional[str] = None
+    target_name: Optional[str] = None
+    mode: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    created_by_name: Optional[str] = None
+    updated_by_name: Optional[str] = None
+
+
+class CustomerPriceListPublicationCandidateOut(BaseModel):
+    autopart_id: int
+    brand: str
+    oem: str
+    name: Optional[str] = None
+    quantity: int = 0
+    price: Optional[float] = None
+
+
+class CustomerPriceListDraftOut(BaseModel):
+    id: int
+    customer_id: int
+    customer_config_id: Optional[int] = None
+    date: date
+    generation_status: str
+    generated_at: Optional[datetime] = None
+    sent_at: Optional[datetime] = None
+    artifact_filename: Optional[str] = None
+    positions_count: int = 0
+    generation_summary: Dict[str, Any] = Field(default_factory=dict)
+    approved_at: Optional[datetime] = None
+    approved_by_name: Optional[str] = None
+    rejected_at: Optional[datetime] = None
+    rejected_by_name: Optional[str] = None
+    decision_reason: Optional[str] = None
+    send_error: Optional[str] = None
+
+
+class CustomerPriceListExportRowOut(BaseModel):
+    id: int
+    source_autopart_id: Optional[int] = None
+    advertised_brand: str
+    advertised_oem: str
+    advertised_name: Optional[str] = None
+    quantity: int
+    price: float
+    row_type: str
+    actual_brand: Optional[str] = None
+    actual_oem: Optional[str] = None
+    actual_name: Optional[str] = None
+
+
+class PaginatedCustomerPriceListExportRows(BaseModel):
+    items: List[CustomerPriceListExportRowOut]
+    page: int
+    page_size: int
+    total: int
+
+
+class CustomerPriceListDraftRejectIn(BaseModel):
+    reason: str = Field(min_length=2, max_length=1000)
+
+
 class AutoPartInPricelist(BaseModel):
     autopart_id: int
     quantity: int
@@ -1474,12 +1534,8 @@ class ProviderPricelistAnalysisResponse(BaseModel):
     removed_positions_count: int = 0
     changed_price_count: int = 0
     changed_quantity_count: int = 0
-    top_turnover_positions: List[PricelistTurnoverItem] = Field(
-        default_factory=list
-    )
-    sharpest_price_changes: List[PricelistPriceChangeItem] = Field(
-        default_factory=list
-    )
+    top_turnover_positions: List[PricelistTurnoverItem] = Field(default_factory=list)
+    sharpest_price_changes: List[PricelistPriceChangeItem] = Field(default_factory=list)
 
 
 class ProviderPriceListConfigOut(BaseModel):
@@ -1592,15 +1648,9 @@ PriceListResponse.model_rebuild()
 class ProviderPageResponse(BaseModel):
     provider: ProviderCoreOut
     abbreviations: List[ProviderAbbreviationOut] = Field(default_factory=list)
-    external_references: List[ProviderExternalReferenceOut] = Field(
+    external_references: List[ProviderExternalReferenceOut] = Field(default_factory=list)
+    pricelist_configs: List[ProviderPriceListConfigOut] = Field(default_factory=list)
+    supplier_response_configs: List[SupplierResponseConfigOut] = Field(default_factory=list)
+    customer_pricelist_sources_usage: List[ProviderCustomerPriceListSourceUsageOut] = Field(
         default_factory=list
     )
-    pricelist_configs: List[ProviderPriceListConfigOut] = Field(
-        default_factory=list
-    )
-    supplier_response_configs: List[SupplierResponseConfigOut] = Field(
-        default_factory=list
-    )
-    customer_pricelist_sources_usage: List[
-        ProviderCustomerPriceListSourceUsageOut
-    ] = Field(default_factory=list)

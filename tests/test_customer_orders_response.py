@@ -39,7 +39,9 @@ from dz_fastapi.services.customer_orders import (
     _build_supplier_order_recipient,
     _customer_order_auto_reply_enabled,
     _customer_order_reply_override_email,
+    _parse_excel_order,
     _parse_xls_order,
+    _select_order_attachment,
     _supplier_order_override_email,
     send_supplier_orders,
 )
@@ -156,6 +158,51 @@ def test_parse_xls_reports_changed_column_layout(monkeypatch):
         match=r"Формат XLS изменился.*Количество=K.*Цена=O",
     ):
         _parse_xls_order(b"xls", config)
+
+
+def test_select_order_attachment_ignores_inline_files_and_uses_table():
+    config = SimpleNamespace(order_filename_pattern=r"order_.*\.xlsx")
+    logo = SimpleNamespace(filename="logo.png", payload=b"image")
+    order = SimpleNamespace(filename="unexpected-name.xlsx", payload=b"table")
+
+    selected = _select_order_attachment(config, [logo, order])
+
+    assert selected is order
+
+
+def test_select_order_attachment_does_not_guess_between_two_tables():
+    config = SimpleNamespace(order_filename_pattern=r"customer-a-.*\.xlsx")
+    first = SimpleNamespace(filename="customer-b-1.xlsx", payload=b"first")
+    second = SimpleNamespace(filename="customer-c-1.xlsx", payload=b"second")
+
+    assert _select_order_attachment(config, [first, second]) is None
+
+
+def test_parse_xlsx_reports_layout_when_no_rows_recognized():
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Заказ"
+    sheet.append(["Артикул", "Бренд", "Количество"])
+    payload = BytesIO()
+    workbook.save(payload)
+    config = SimpleNamespace(
+        order_start_row=2,
+        order_date_column=None,
+        order_date_row=None,
+        order_number_column=None,
+        order_number_row=None,
+        oem_col=0,
+        brand_col=1,
+        name_col=None,
+        qty_col=2,
+        price_col=None,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=r"XLSX.*строк 1, колонок 3.*лист «Заказ».*OEM=A.*Бренд=B.*Количество=C",
+    ):
+        _parse_excel_order(payload.getvalue(), config)
 
 
 def test_apply_response_updates_csv_leaves_ship_price_blank_for_reject():

@@ -49,6 +49,8 @@ class MovementType(StrEnum):
     WRITEOFF = "writeoff"  # списание (от StockDocument)
     CUSTOMER_RETURN = "customer_return"  # возврат от клиента
     SUPPLIER_RETURN = "supplier_return"  # возврат поставщику
+    PRODUCTION_CONSUME = "production_consume"  # списание материала в выпуск
+    PRODUCTION_OUTPUT = "production_output"  # приход готовой продукции
 
 
 @unique
@@ -61,6 +63,7 @@ class LotSourceType(StrEnum):
     OPENING_BALANCE = "opening_balance"  # остаток на начало (backfill)
     INVENTORY_CORRECTION = "inventory_correction"  # излишек по инвентаризации
     CUSTOMER_RETURN = "customer_return"  # возврат товара от клиента
+    PRODUCTION = "production"  # выпуск готовой продукции DragonZap
 
 
 @unique
@@ -83,6 +86,58 @@ class StockLotRoleSource(StrEnum):
     ITEM_RULE = "item_rule"
     PRODUCTION = "production"
     CUSTOMER_RETURN = "customer_return"
+
+
+@unique
+class ProductionWaveStatus(StrEnum):
+    DRAFT = "draft"
+    PLANNED = "planned"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
+@unique
+class ProductionWaveSource(StrEnum):
+    MANUAL = "manual"
+    SCHEDULED = "scheduled"
+
+
+@unique
+class ProductionWaveLabelStatus(StrEnum):
+    PENDING = "pending"
+    PRINTED = "printed"
+
+
+@unique
+class CrossDockingItemStatus(StrEnum):
+    RECEIVED = "received"
+    LABEL_PENDING = "label_pending"
+    READY_FOR_CUSTOMER = "ready_for_customer"
+
+
+@unique
+class CrossDockingLabelStatus(StrEnum):
+    PENDING = "pending"
+    PRINTED = "printed"
+
+
+@unique
+class StockOrderPackageStatus(StrEnum):
+    OPEN = "open"
+    SEALED = "sealed"
+    VERIFIED = "verified"
+
+
+@unique
+class StockOrderPackageEventType(StrEnum):
+    CREATED = "created"
+    CONTENTS_CHANGED = "contents_changed"
+    SEALED = "sealed"
+    SCANNED = "scanned"
+    VERIFIED = "verified"
+    REOPENED = "reopened"
+    LABEL_PRINTED = "label_printed"
 
 
 @unique
@@ -117,6 +172,7 @@ class MarkingMovementType(StrEnum):
     WITHDRAWN = "withdrawn"
     GIS_MT_REPORTED = "gis_mt_reported"
     ERROR = "error"
+    PRODUCTION = "production"
 
 
 @unique
@@ -200,9 +256,7 @@ class InventorySession(Base):
     __tablename__ = "inventorysession"
 
     name = Column(String(200), nullable=False)
-    started_at = Column(
-        DateTime(timezone=True), default=now_moscow, nullable=False
-    )
+    started_at = Column(DateTime(timezone=True), default=now_moscow, nullable=False)
     finished_at = Column(DateTime(timezone=True), nullable=True)
     status = Column(
         SAEnum(
@@ -621,6 +675,715 @@ class DragonzapProductionMaterialOverride(Base):
     )
 
 
+class ProductionWave(Base):
+    """Одна агрегированная волна переупаковки и выпуска DragonZap."""
+
+    __tablename__ = "productionwave"
+
+    number = Column(String(64), nullable=True, unique=True, index=True)
+    warehouse_id = Column(
+        Integer,
+        ForeignKey("warehouse.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    status = Column(
+        SAEnum(
+            ProductionWaveStatus,
+            name="productionwavestatus",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=False,
+        default=ProductionWaveStatus.DRAFT,
+        index=True,
+    )
+    source = Column(
+        SAEnum(
+            ProductionWaveSource,
+            name="productionwavesource",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=False,
+        default=ProductionWaveSource.MANUAL,
+    )
+    cutoff_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    notes = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    total_planned_quantity = Column(Integer, nullable=False, default=0)
+    total_produced_quantity = Column(Integer, nullable=False, default=0)
+    total_material_cost = Column(DECIMAL(14, 2), nullable=False, default=Decimal("0"))
+    total_packaging_cost = Column(DECIMAL(14, 2), nullable=False, default=Decimal("0"))
+    total_finished_cost = Column(DECIMAL(14, 2), nullable=False, default=Decimal("0"))
+
+    created_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    planned_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    started_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    completed_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    cancelled_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
+    planned_at = Column(DateTime(timezone=True), nullable=True)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    cancelled_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=now_moscow,
+        onupdate=now_moscow,
+    )
+
+    external_id = Column(String(100), nullable=True, index=True)
+    sync_status = Column(
+        SAEnum(
+            SyncStatus,
+            name="syncstatus",
+            create_constraint=False,
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=False,
+        default=SyncStatus.PENDING,
+        index=True,
+    )
+
+    warehouse = relationship("Warehouse", lazy="joined")
+    created_by_user = relationship(
+        "User", foreign_keys=[created_by_user_id], lazy="joined"
+    )
+    planned_by_user = relationship(
+        "User", foreign_keys=[planned_by_user_id], lazy="joined"
+    )
+    started_by_user = relationship(
+        "User", foreign_keys=[started_by_user_id], lazy="joined"
+    )
+    completed_by_user = relationship(
+        "User", foreign_keys=[completed_by_user_id], lazy="joined"
+    )
+    cancelled_by_user = relationship(
+        "User", foreign_keys=[cancelled_by_user_id], lazy="joined"
+    )
+    items = relationship(
+        "ProductionWaveItem",
+        back_populates="wave",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="ProductionWaveItem.id",
+    )
+    labels = relationship(
+        "ProductionWaveLabel",
+        back_populates="wave",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="ProductionWaveLabel.id",
+    )
+
+
+class ProductionWaveItem(Base):
+    """Агрегированная потребность по одному готовому SKU внутри волны."""
+
+    __tablename__ = "productionwaveitem"
+
+    wave_id = Column(
+        Integer,
+        ForeignKey("productionwave.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    production_group_id = Column(
+        Integer,
+        ForeignKey("dragonzapproductiongroup.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    finished_autopart_id = Column(
+        Integer,
+        ForeignKey("autopart.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    planned_quantity = Column(Integer, nullable=False)
+    produced_quantity = Column(Integer, nullable=False, default=0)
+    shortage_quantity = Column(Integer, nullable=False, default=0)
+    planning_error = Column(Text, nullable=True)
+    material_cost = Column(DECIMAL(14, 2), nullable=False, default=Decimal("0"))
+    packaging_cost = Column(DECIMAL(14, 2), nullable=False, default=Decimal("0"))
+    total_cost = Column(DECIMAL(14, 2), nullable=False, default=Decimal("0"))
+    unit_cost = Column(DECIMAL(12, 4), nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=now_moscow,
+        onupdate=now_moscow,
+    )
+
+    wave = relationship("ProductionWave", back_populates="items")
+    production_group = relationship("DragonzapProductionGroup", lazy="joined")
+    finished_autopart = relationship("AutoPart", lazy="joined")
+    demands = relationship(
+        "ProductionWaveDemand",
+        back_populates="wave_item",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    allocations = relationship(
+        "ProductionWaveAllocation",
+        back_populates="wave_item",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="ProductionWaveAllocation.id",
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "wave_id",
+            "production_group_id",
+            name="uq_production_wave_item_group",
+        ),
+        CheckConstraint("planned_quantity > 0", name="ck_production_wave_item_qty"),
+    )
+
+
+class ProductionWaveDemand(Base):
+    """Клиентская строка, ради которой выпускается часть количества."""
+
+    __tablename__ = "productionwavedemand"
+
+    wave_item_id = Column(
+        Integer,
+        ForeignKey("productionwaveitem.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    customer_order_item_id = Column(
+        Integer,
+        ForeignKey("customerorderitem.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    stock_order_item_id = Column(
+        Integer,
+        ForeignKey("stockorderitem.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    quantity = Column(Integer, nullable=False)
+    customer_id = Column(
+        Integer,
+        ForeignKey("customer.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    customer_name = Column(String(255), nullable=True)
+    customer_order_id = Column(
+        Integer,
+        ForeignKey("customerorder.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    order_number = Column(String(255), nullable=True)
+    order_date = Column(Date, nullable=True)
+    requested_brand = Column(String(255), nullable=False)
+    requested_oem = Column(String(255), nullable=False)
+    requested_name = Column(String(512), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
+
+    wave_item = relationship("ProductionWaveItem", back_populates="demands")
+    customer_order_item = relationship("CustomerOrderItem", lazy="noload")
+    stock_order_item = relationship("StockOrderItem", lazy="noload")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "wave_item_id",
+            "stock_order_item_id",
+            name="uq_production_wave_demand_stock_item",
+        ),
+        CheckConstraint("quantity > 0", name="ck_production_wave_demand_qty"),
+    )
+
+
+class ProductionWaveAllocation(Base):
+    """План и факт списания конкретной материальной партии."""
+
+    __tablename__ = "productionwaveallocation"
+
+    wave_item_id = Column(
+        Integer,
+        ForeignKey("productionwaveitem.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    material_autopart_id = Column(
+        Integer,
+        ForeignKey("autopart.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    stock_lot_id = Column(
+        Integer,
+        ForeignKey("stocklot.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    storage_location_id = Column(
+        Integer,
+        ForeignKey("storagelocation.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    output_stock_lot_id = Column(
+        Integer,
+        ForeignKey("stocklot.id", ondelete="SET NULL"),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+    planned_quantity = Column(Integer, nullable=False)
+    consumed_quantity = Column(Integer, nullable=False, default=0)
+    unit_material_cost = Column(DECIMAL(12, 4), nullable=True)
+    total_material_cost = Column(DECIMAL(14, 2), nullable=False, default=Decimal("0"))
+    gtd_number = Column(String(64), nullable=True)
+    country_code = Column(String(16), nullable=True)
+    country_name = Column(String(120), nullable=True)
+    marking_codes = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
+    consumed_at = Column(DateTime(timezone=True), nullable=True)
+
+    wave_item = relationship("ProductionWaveItem", back_populates="allocations")
+    material_autopart = relationship(
+        "AutoPart",
+        foreign_keys=[material_autopart_id],
+        lazy="joined",
+    )
+    stock_lot = relationship("StockLot", foreign_keys=[stock_lot_id], lazy="joined")
+    output_stock_lot = relationship(
+        "StockLot",
+        foreign_keys=[output_stock_lot_id],
+        lazy="joined",
+    )
+    storage_location = relationship("StorageLocation", lazy="joined")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "wave_item_id",
+            "stock_lot_id",
+            name="uq_production_wave_allocation_lot",
+        ),
+        CheckConstraint(
+            "planned_quantity > 0", name="ck_production_wave_allocation_qty"
+        ),
+    )
+
+
+class ProductionWaveLabel(Base):
+    """Одна физическая этикетка 58x40 для клиентской строки волны."""
+
+    __tablename__ = "productionwavelabel"
+
+    wave_id = Column(
+        Integer,
+        ForeignKey("productionwave.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    wave_item_id = Column(
+        Integer,
+        ForeignKey("productionwaveitem.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    wave_demand_id = Column(
+        Integer,
+        ForeignKey("productionwavedemand.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    sequence_number = Column(Integer, nullable=False)
+    total_labels = Column(Integer, nullable=False)
+    quantity = Column(Integer, nullable=False, default=1)
+    requested_brand = Column(String(255), nullable=False)
+    requested_oem = Column(String(255), nullable=False)
+    requested_name = Column(String(512), nullable=True)
+    customer_name = Column(String(255), nullable=True)
+    order_number = Column(String(255), nullable=True)
+    order_date = Column(Date, nullable=True)
+    barcode = Column(String(128), nullable=False, unique=True, index=True)
+    status = Column(
+        SAEnum(
+            ProductionWaveLabelStatus,
+            name="productionwavelabelstatus",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=False,
+        default=ProductionWaveLabelStatus.PENDING,
+        index=True,
+    )
+    print_count = Column(Integer, nullable=False, default=0)
+    last_printed_at = Column(DateTime(timezone=True), nullable=True)
+    last_printed_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    last_print_reason = Column(String(500), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
+
+    wave = relationship("ProductionWave", back_populates="labels")
+    wave_item = relationship("ProductionWaveItem", lazy="noload")
+    wave_demand = relationship("ProductionWaveDemand", lazy="noload")
+    last_printed_by_user = relationship("User", lazy="joined")
+    print_events = relationship(
+        "ProductionWaveLabelPrintEvent",
+        back_populates="label",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="ProductionWaveLabelPrintEvent.printed_at",
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "wave_demand_id",
+            "sequence_number",
+            name="uq_production_wave_label_demand_sequence",
+        ),
+        CheckConstraint("quantity > 0", name="ck_production_wave_label_qty"),
+        CheckConstraint("sequence_number > 0", name="ck_production_wave_label_sequence"),
+        CheckConstraint("total_labels > 0", name="ck_production_wave_label_total"),
+    )
+
+
+class ProductionWaveLabelPrintEvent(Base):
+    """Неизменяемая запись каждой передачи этикетки на печать."""
+
+    __tablename__ = "productionwavelabelprintevent"
+
+    label_id = Column(
+        Integer,
+        ForeignKey("productionwavelabel.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    wave_id = Column(
+        Integer,
+        ForeignKey("productionwave.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    print_number = Column(Integer, nullable=False)
+    printed_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    printed_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
+    reason = Column(String(500), nullable=True)
+
+    label = relationship("ProductionWaveLabel", back_populates="print_events")
+    printed_by_user = relationship("User", lazy="joined")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "label_id",
+            "print_number",
+            name="uq_production_wave_label_print_number",
+        ),
+        CheckConstraint("print_number > 0", name="ck_production_wave_label_print_number"),
+    )
+
+
+class CrossDockingLabel(Base):
+    """Клиентская этикетка 58x40 для строки поступления cross-docking."""
+
+    __tablename__ = "crossdockinglabel"
+
+    supplier_receipt_item_id = Column(
+        Integer,
+        ForeignKey("supplierreceiptitem.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    stock_order_item_id = Column(
+        Integer,
+        ForeignKey("stockorderitem.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    customer_order_item_id = Column(
+        Integer,
+        ForeignKey("customerorderitem.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    quantity = Column(Integer, nullable=False)
+    requested_brand = Column(String(255), nullable=False)
+    requested_oem = Column(String(255), nullable=False)
+    requested_name = Column(String(512), nullable=True)
+    customer_name = Column(String(255), nullable=True)
+    order_number = Column(String(255), nullable=True)
+    order_date = Column(Date, nullable=True)
+    barcode = Column(String(128), nullable=False, unique=True, index=True)
+    status = Column(
+        SAEnum(
+            CrossDockingLabelStatus,
+            name="crossdockinglabelstatus",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=False,
+        default=CrossDockingLabelStatus.PENDING,
+        index=True,
+    )
+    print_count = Column(Integer, nullable=False, default=0)
+    last_printed_at = Column(DateTime(timezone=True), nullable=True)
+    last_printed_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    last_print_reason = Column(String(500), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
+
+    receipt_item = relationship(
+        "SupplierReceiptItem",
+        back_populates="cross_docking_label",
+    )
+    stock_order_item = relationship("StockOrderItem", lazy="noload")
+    customer_order_item = relationship("CustomerOrderItem", lazy="noload")
+    last_printed_by_user = relationship("User", lazy="joined")
+    print_events = relationship(
+        "CrossDockingLabelPrintEvent",
+        back_populates="label",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="CrossDockingLabelPrintEvent.printed_at",
+    )
+
+    __table_args__ = (
+        CheckConstraint("quantity > 0", name="ck_cross_docking_label_qty"),
+    )
+
+
+class CrossDockingLabelPrintEvent(Base):
+    """Неизменяемая история печати cross-docking этикетки."""
+
+    __tablename__ = "crossdockinglabelprintevent"
+
+    label_id = Column(
+        Integer,
+        ForeignKey("crossdockinglabel.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    print_number = Column(Integer, nullable=False)
+    printed_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    printed_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
+    reason = Column(String(500), nullable=True)
+
+    label = relationship("CrossDockingLabel", back_populates="print_events")
+    printed_by_user = relationship("User", lazy="joined")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "label_id",
+            "print_number",
+            name="uq_cross_docking_label_print_number",
+        ),
+        CheckConstraint(
+            "print_number > 0",
+            name="ck_cross_docking_label_print_number",
+        ),
+    )
+
+
+class StockOrderPackage(Base):
+    """Клиентская коробка, объединяющая все источники складского заказа."""
+
+    __tablename__ = "stockorderpackage"
+
+    stock_order_id = Column(
+        Integer,
+        ForeignKey("stockorder.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    sequence_number = Column(Integer, nullable=False)
+    barcode = Column(String(128), nullable=False, unique=True, index=True)
+    status = Column(
+        SAEnum(
+            StockOrderPackageStatus,
+            name="stockorderpackagestatus",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=False,
+        default=StockOrderPackageStatus.OPEN,
+        index=True,
+    )
+    comment = Column(String(500), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
+    created_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    sealed_at = Column(DateTime(timezone=True), nullable=True)
+    sealed_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    verified_at = Column(DateTime(timezone=True), nullable=True)
+    verified_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    print_count = Column(Integer, nullable=False, default=0)
+    last_printed_at = Column(DateTime(timezone=True), nullable=True)
+    last_printed_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    last_print_reason = Column(String(500), nullable=True)
+
+    stock_order = relationship("StockOrder", back_populates="packages")
+    items = relationship(
+        "StockOrderPackageItem",
+        back_populates="package",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="StockOrderPackageItem.id",
+    )
+    events = relationship(
+        "StockOrderPackageEvent",
+        back_populates="package",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="StockOrderPackageEvent.created_at",
+    )
+    created_by_user = relationship("User", foreign_keys=[created_by_user_id])
+    sealed_by_user = relationship("User", foreign_keys=[sealed_by_user_id])
+    verified_by_user = relationship("User", foreign_keys=[verified_by_user_id])
+    last_printed_by_user = relationship(
+        "User", foreign_keys=[last_printed_by_user_id]
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "stock_order_id",
+            "sequence_number",
+            name="uq_stock_order_package_sequence",
+        ),
+        CheckConstraint(
+            "sequence_number > 0",
+            name="ck_stock_order_package_sequence",
+        ),
+    )
+
+
+class StockOrderPackageItem(Base):
+    """Количество одной строки заказа, размещённое в конкретной коробке."""
+
+    __tablename__ = "stockorderpackageitem"
+
+    package_id = Column(
+        Integer,
+        ForeignKey("stockorderpackage.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    stock_order_item_id = Column(
+        Integer,
+        ForeignKey("stockorderitem.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    quantity = Column(Integer, nullable=False)
+    verified_quantity = Column(Integer, nullable=False, default=0)
+    last_scan_code = Column(String(255), nullable=True)
+    last_verified_at = Column(DateTime(timezone=True), nullable=True)
+    last_verified_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    package = relationship("StockOrderPackage", back_populates="items")
+    stock_order_item = relationship("StockOrderItem", lazy="joined")
+    last_verified_by_user = relationship(
+        "User", foreign_keys=[last_verified_by_user_id]
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "package_id",
+            "stock_order_item_id",
+            name="uq_stock_order_package_item",
+        ),
+        CheckConstraint("quantity > 0", name="ck_stock_order_package_item_qty"),
+        CheckConstraint(
+            "verified_quantity >= 0 AND verified_quantity <= quantity",
+            name="ck_stock_order_package_item_verified_qty",
+        ),
+    )
+
+
+class StockOrderPackageEvent(Base):
+    """История упаковки, проверки, переоткрытия и печати коробки."""
+
+    __tablename__ = "stockorderpackageevent"
+
+    package_id = Column(
+        Integer,
+        ForeignKey("stockorderpackage.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    event_type = Column(
+        SAEnum(
+            StockOrderPackageEventType,
+            name="stockorderpackageeventtype",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
+    reason = Column(String(500), nullable=True)
+    details = Column(JSON, nullable=True)
+
+    package = relationship("StockOrderPackage", back_populates="events")
+    user = relationship("User", foreign_keys=[user_id])
+
+
 class ProductMarkingCode(Base):
     """Код маркировки (КИЗ/СИЗ) с текущим местом в складской цепочке."""
 
@@ -846,9 +1609,7 @@ class StockMovement(Base):
     reference_type = Column(String(50), nullable=True)
     # 'order'/'inventory'/etc
     notes = Column(Text, nullable=True)
-    created_at = Column(
-        DateTime(timezone=True), default=now_moscow, nullable=False
-    )
+    created_at = Column(DateTime(timezone=True), default=now_moscow, nullable=False)
 
     # ── Ссылка на лот (заполняется при расходе и при поступлении) ──────────
     stock_lot_id = Column(
@@ -956,9 +1717,7 @@ class StockDocument(Base):
         default=SyncStatus.PENDING,
     )
 
-    created_at = Column(
-        DateTime(timezone=True), default=now_moscow, nullable=False
-    )
+    created_at = Column(DateTime(timezone=True), default=now_moscow, nullable=False)
     posted_at = Column(DateTime(timezone=True), nullable=True)
 
     warehouse = relationship("Warehouse", lazy="joined")
@@ -1012,9 +1771,7 @@ class StockDocumentItem(Base):
 
     notes = Column(Text, nullable=True)
 
-    document = relationship(
-        "StockDocument", back_populates="items", lazy="noload"
-    )
+    document = relationship("StockDocument", back_populates="items", lazy="noload")
     autopart = relationship("AutoPart", lazy="joined")
     storage_location = relationship("StorageLocation", lazy="joined")
     # foreign_keys required: two FK paths exist between StockDocumentItem
@@ -1118,9 +1875,7 @@ class StockReserve(Base):
         index=True,
     )
 
-    created_at = Column(
-        DateTime(timezone=True), default=now_moscow, nullable=False
-    )
+    created_at = Column(DateTime(timezone=True), default=now_moscow, nullable=False)
 
     autopart = relationship("AutoPart", lazy="joined")
     storage_location = relationship("StorageLocation", lazy="joined")
@@ -1214,9 +1969,7 @@ class ShipmentDocument(Base):
         index=True,
     )
 
-    created_at = Column(
-        DateTime(timezone=True), default=now_moscow, nullable=False
-    )
+    created_at = Column(DateTime(timezone=True), default=now_moscow, nullable=False)
     posted_at = Column(DateTime(timezone=True), nullable=True)
 
     customer = relationship("Customer", lazy="joined")
@@ -1262,9 +2015,7 @@ class ShipmentDocumentItem(Base):
         nullable=True,
     )
     quantity = Column(Integer, nullable=False)
-    price = Column(
-        DECIMAL(10, 2), nullable=True, comment="Цена реализации за единицу"
-    )
+    price = Column(DECIMAL(10, 2), nullable=True, comment="Цена реализации за единицу")
     vat_rate = Column(
         DECIMAL(5, 2),
         nullable=False,
@@ -1296,17 +2047,27 @@ class ShipmentDocumentItem(Base):
         nullable=True,
         comment="FIFO-лот, заполняется при проведении (первый затронутый лот)",
     )
+    preferred_lot_id = Column(
+        Integer,
+        ForeignKey("stocklot.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="Партия cross-docking, которую нужно списать без замены FIFO",
+    )
 
     notes = Column(Text, nullable=True)
 
-    document = relationship(
-        "ShipmentDocument", back_populates="items", lazy="noload"
-    )
+    document = relationship("ShipmentDocument", back_populates="items", lazy="noload")
     autopart = relationship("AutoPart", lazy="joined")
     customer_order_item = relationship("CustomerOrderItem", lazy="joined")
     storage_location = relationship("StorageLocation", lazy="joined")
     reserve = relationship("StockReserve", lazy="noload")
-    lot = relationship("StockLot", lazy="noload")
+    lot = relationship("StockLot", foreign_keys=[lot_id], lazy="noload")
+    preferred_lot = relationship(
+        "StockLot",
+        foreign_keys=[preferred_lot_id],
+        lazy="noload",
+    )
     allocations = relationship(
         "ShipmentDocumentItemLotAllocation",
         back_populates="shipment_document_item",
@@ -1490,9 +2251,7 @@ class ReturnFromCustomer(Base):
         default=SyncStatus.PENDING,
         index=True,
     )
-    created_at = Column(
-        DateTime(timezone=True), default=now_moscow, nullable=False
-    )
+    created_at = Column(DateTime(timezone=True), default=now_moscow, nullable=False)
     approved_at = Column(DateTime(timezone=True), nullable=True)
     shipped_at = Column(DateTime(timezone=True), nullable=True)
     confirmed_at = Column(DateTime(timezone=True), nullable=True)
@@ -1597,9 +2356,7 @@ class ReturnToSupplier(Base):
         default=SyncStatus.PENDING,
         index=True,
     )
-    created_at = Column(
-        DateTime(timezone=True), default=now_moscow, nullable=False
-    )
+    created_at = Column(DateTime(timezone=True), default=now_moscow, nullable=False)
     approved_at = Column(DateTime(timezone=True), nullable=True)
     shipped_at = Column(DateTime(timezone=True), nullable=True)
     confirmed_at = Column(DateTime(timezone=True), nullable=True)

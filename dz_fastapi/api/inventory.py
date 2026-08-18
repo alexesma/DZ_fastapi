@@ -35,6 +35,7 @@ from dz_fastapi.models.inventory import (
     InventoryStatus,
     LotSourceType,
     MovementType,
+    ProductionWaveStatus,
     ReserveStatus,
     ReturnDocumentStatus,
     ReturnFromCustomer,
@@ -79,6 +80,13 @@ from dz_fastapi.schemas.inventory import (
     MovementBulkSyncResult,
     MovementsExportOut,
     MovementSyncUpdate,
+    ProductionWaveCreate,
+    ProductionWaveEligibleListOut,
+    ProductionWaveEligibleRowOut,
+    ProductionWaveLabelOut,
+    ProductionWaveLabelPrintRequest,
+    ProductionWaveListOut,
+    ProductionWaveOut,
     ReturnFromCustomerCreate,
     ReturnFromCustomerListItem,
     ReturnFromCustomerOut,
@@ -158,6 +166,20 @@ from dz_fastapi.services.production_groups import (
     sync_production_groups,
     update_production_group,
     upsert_material_override,
+)
+from dz_fastapi.services.production_waves import (
+    cancel_production_wave,
+    complete_production_wave,
+    create_production_wave,
+    get_production_wave,
+    list_eligible_demands,
+    list_production_wave_labels,
+    list_production_waves,
+    mark_production_wave_labels_printed,
+    production_wave_to_dict,
+    replan_production_wave,
+    schedule_production_wave,
+    start_production_wave,
 )
 
 logger = logging.getLogger(__name__)
@@ -1503,6 +1525,303 @@ async def get_stock_lot_role_history(
         )
         for change in changes
     ]
+
+
+# ─── DragonZap production waves ────────────────────────────────────────────
+
+
+@router.get(
+    "/production-waves/eligible",
+    response_model=ProductionWaveEligibleListOut,
+    summary="Строки заказов, доступные для новой волны DragonZap",
+)
+async def get_production_wave_eligible_rows(
+    warehouse_id: Optional[int] = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    session: AsyncSession = Depends(get_session),
+):
+    rows, total = await list_eligible_demands(
+        session,
+        warehouse_id=warehouse_id,
+        limit=limit,
+        offset=offset,
+    )
+    return ProductionWaveEligibleListOut(
+        items=[ProductionWaveEligibleRowOut(**row) for row in rows],
+        total=total,
+    )
+
+
+@router.get(
+    "/production-waves",
+    response_model=ProductionWaveListOut,
+    summary="Производственные волны DragonZap",
+)
+async def get_production_waves(
+    wave_status: Optional[ProductionWaveStatus] = Query(
+        default=None,
+        alias="status",
+    ),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    session: AsyncSession = Depends(get_session),
+):
+    waves, total = await list_production_waves(
+        session,
+        status=wave_status,
+        limit=limit,
+        offset=offset,
+    )
+    return ProductionWaveListOut(
+        items=[ProductionWaveOut(**production_wave_to_dict(wave)) for wave in waves],
+        total=total,
+    )
+
+
+@router.post(
+    "/production-waves",
+    response_model=ProductionWaveOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Сформировать черновик волны из клиентских заказов",
+)
+async def post_production_wave(
+    data: ProductionWaveCreate,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        wave = await create_production_wave(
+            session,
+            stock_order_item_ids=data.stock_order_item_ids,
+            warehouse_id=data.warehouse_id,
+            cutoff_at=data.cutoff_at,
+            notes=data.notes,
+            user_id=current_user.id,
+        )
+        await session.commit()
+        wave = await get_production_wave(session, wave.id)
+    except LookupError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return ProductionWaveOut(**production_wave_to_dict(wave))
+
+
+@router.get(
+    "/production-waves/{wave_id}",
+    response_model=ProductionWaveOut,
+    summary="Карточка производственной волны",
+)
+async def get_production_wave_by_id(
+    wave_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        wave = await get_production_wave(session, wave_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return ProductionWaveOut(**production_wave_to_dict(wave))
+
+
+def _production_wave_label_out(label) -> ProductionWaveLabelOut:
+    printed_by = label.last_printed_by_user
+    return ProductionWaveLabelOut(
+        id=label.id,
+        wave_id=label.wave_id,
+        wave_item_id=label.wave_item_id,
+        wave_demand_id=label.wave_demand_id,
+        sequence_number=label.sequence_number,
+        total_labels=label.total_labels,
+        quantity=label.quantity,
+        requested_brand=label.requested_brand,
+        requested_oem=label.requested_oem,
+        requested_name=label.requested_name,
+        customer_name=label.customer_name,
+        order_number=label.order_number,
+        order_date=label.order_date,
+        barcode=label.barcode,
+        status=label.status,
+        print_count=label.print_count,
+        last_printed_at=label.last_printed_at,
+        last_printed_by_name=(
+            printed_by.name or printed_by.email if printed_by else None
+        ),
+        last_print_reason=label.last_print_reason,
+        created_at=label.created_at,
+        print_history=[
+            {
+                "id": event.id,
+                "print_number": event.print_number,
+                "printed_at": event.printed_at,
+                "printed_by_name": (
+                    event.printed_by_user.name or event.printed_by_user.email
+                    if event.printed_by_user
+                    else None
+                ),
+                "reason": event.reason,
+            }
+            for event in label.print_events
+        ],
+    )
+
+
+@router.get(
+    "/production-waves/{wave_id}/labels",
+    response_model=list[ProductionWaveLabelOut],
+    summary="Этикетки 58x40 для производственной волны",
+)
+async def get_production_wave_labels_route(
+    wave_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        labels = await list_production_wave_labels(session, wave_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return [_production_wave_label_out(label) for label in labels]
+
+
+@router.post(
+    "/production-waves/{wave_id}/labels/printed",
+    response_model=list[ProductionWaveLabelOut],
+    summary="Зафиксировать первую или повторную печать этикеток",
+)
+async def mark_production_wave_labels_printed_route(
+    wave_id: int,
+    data: ProductionWaveLabelPrintRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        labels = await mark_production_wave_labels_printed(
+            session,
+            wave_id=wave_id,
+            label_ids=data.label_ids,
+            user_id=current_user.id,
+            reason=data.reason,
+        )
+        await session.commit()
+    except LookupError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return [_production_wave_label_out(label) for label in labels]
+
+
+async def _run_wave_action(
+    session: AsyncSession,
+    action,
+    *,
+    wave_id: int,
+    user_id: Optional[int] = None,
+) -> ProductionWaveOut:
+    try:
+        if user_id is None:
+            wave = await action(session, wave_id)
+        else:
+            wave = await action(session, wave_id=wave_id, user_id=user_id)
+        await session.commit()
+        wave = await get_production_wave(session, wave.id)
+    except LookupError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return ProductionWaveOut(**production_wave_to_dict(wave))
+
+
+@router.post(
+    "/production-waves/{wave_id}/replan",
+    response_model=ProductionWaveOut,
+    summary="Пересчитать FIFO-план черновика",
+)
+async def replan_production_wave_route(
+    wave_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    return await _run_wave_action(
+        session,
+        replan_production_wave,
+        wave_id=wave_id,
+    )
+
+
+@router.post(
+    "/production-waves/{wave_id}/plan",
+    response_model=ProductionWaveOut,
+    summary="Зафиксировать план и резерв партий",
+)
+async def plan_production_wave_route(
+    wave_id: int,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    return await _run_wave_action(
+        session,
+        schedule_production_wave,
+        wave_id=wave_id,
+        user_id=current_user.id,
+    )
+
+
+@router.post(
+    "/production-waves/{wave_id}/start",
+    response_model=ProductionWaveOut,
+    summary="Запустить переупаковку по волне",
+)
+async def start_production_wave_route(
+    wave_id: int,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    return await _run_wave_action(
+        session,
+        start_production_wave,
+        wave_id=wave_id,
+        user_id=current_user.id,
+    )
+
+
+@router.post(
+    "/production-waves/{wave_id}/complete",
+    response_model=ProductionWaveOut,
+    summary="Провести списание материала и выпуск DragonZap",
+)
+async def complete_production_wave_route(
+    wave_id: int,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    return await _run_wave_action(
+        session,
+        complete_production_wave,
+        wave_id=wave_id,
+        user_id=current_user.id,
+    )
+
+
+@router.post(
+    "/production-waves/{wave_id}/cancel",
+    response_model=ProductionWaveOut,
+    summary="Отменить волну до фактического выпуска",
+)
+async def cancel_production_wave_route(
+    wave_id: int,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    return await _run_wave_action(
+        session,
+        cancel_production_wave,
+        wave_id=wave_id,
+        user_id=current_user.id,
+    )
 
 
 # ─── DragonZap production groups ───────────────────────────────────────────

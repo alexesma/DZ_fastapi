@@ -3,12 +3,13 @@ import logging
 import os
 from datetime import date
 from math import ceil
+from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from httpx import Response
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -36,16 +37,20 @@ from dz_fastapi.crud.partner import (
     crud_supplier_response_config,
     set_last_uid,
 )
-from dz_fastapi.models.autopart import AutoPart
+from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
+from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.partner import (
     TYPE_PRICES,
     Customer,
     CustomerPriceList,
     CustomerPriceListAutoPartAssociation,
     CustomerPriceListConfig,
+    CustomerPriceListExportRow,
+    CustomerPriceListPublicationRule,
     CustomerPriceListSource,
     CustomerReclamationEmail,
     PriceList,
+    PriceListAutoPartAssociation,
     Provider,
     ProviderInventoryRoleRule,
     ProviderPriceListConfig,
@@ -73,7 +78,13 @@ from dz_fastapi.schemas.partner import (
     CustomerPriceListConfigSummary,
     CustomerPriceListConfigUpdate,
     CustomerPriceListCreate,
+    CustomerPriceListDraftOut,
+    CustomerPriceListDraftRejectIn,
+    CustomerPriceListExportRowOut,
     CustomerPriceListItem,
+    CustomerPriceListPublicationCandidateOut,
+    CustomerPriceListPublicationRuleCreate,
+    CustomerPriceListPublicationRuleOut,
     CustomerPriceListResponse,
     CustomerPriceListResponseShort,
     CustomerPriceListSourceCreate,
@@ -84,6 +95,7 @@ from dz_fastapi.schemas.partner import (
     CustomerResponse,
     CustomerResponseShort,
     CustomerUpdate,
+    PaginatedCustomerPriceListExportRows,
     PaginatedCustomersResponse,
     PaginatedProvidersResponse,
     PriceListDeleteRequest,
@@ -116,14 +128,17 @@ from dz_fastapi.schemas.partner import (
     SupplierResponseConfigOut,
     SupplierResponseConfigUpdate,
 )
+from dz_fastapi.services.crosses import load_bidirectional_cross_members
 from dz_fastapi.services.email import download_price_provider
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
 from dz_fastapi.services.order_timing import get_today_order_windows_status
 from dz_fastapi.services.process import (
+    CUSTOMER_PRICELIST_ARTIFACT_ROOT,
     check_start_and_finish_date,
     parse_exclude_positions_file,
     process_customer_pricelist,
     process_provider_pricelist,
+    send_pricelist,
 )
 from dz_fastapi.services.supplier_order_responses import (
     classify_supplier_response_message,
@@ -169,26 +184,114 @@ def _validate_order_insights_config_selection(
     if not provider.is_own_price:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Эту настройку можно включить только у поставщика "
-                "с флагом 'Наш прайс'."
-            ),
+            detail=("Эту настройку можно включить только у поставщика " "с флагом 'Наш прайс'."),
         )
     if not is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Конфигурация для сводки заказа должна быть активной."
-            ),
+            detail=("Конфигурация для сводки заказа должна быть активной."),
         )
 
 
 router = APIRouter()
 
 
-async def _validate_incoming_price_mailbox(
-    session: AsyncSession, mailbox_id: int | None
-):
+def _publication_rule_response(
+    rule: CustomerPriceListPublicationRule,
+) -> CustomerPriceListPublicationRuleOut:
+    source = rule.source_autopart
+    target = rule.target_autopart
+    return CustomerPriceListPublicationRuleOut(
+        id=rule.id,
+        config_id=rule.config_id,
+        source_autopart_id=rule.source_autopart_id,
+        source_brand=source.brand.name if source and source.brand else None,
+        source_oem=source.oem_number if source else None,
+        source_name=source.name if source else None,
+        target_autopart_id=rule.target_autopart_id,
+        target_brand=target.brand.name if target and target.brand else None,
+        target_oem=target.oem_number if target else None,
+        target_name=target.name if target else None,
+        mode=rule.mode,
+        is_active=rule.is_active,
+        created_at=rule.created_at,
+        updated_at=rule.updated_at,
+        created_by_name=(rule.created_by_user.name if rule.created_by_user else None),
+        updated_by_name=(rule.updated_by_user.name if rule.updated_by_user else None),
+    )
+
+
+def _customer_pricelist_draft_response(
+    pricelist: CustomerPriceList,
+) -> CustomerPriceListDraftOut:
+    return CustomerPriceListDraftOut(
+        id=pricelist.id,
+        customer_id=pricelist.customer_id,
+        customer_config_id=pricelist.customer_config_id,
+        date=pricelist.date,
+        generation_status=pricelist.generation_status,
+        generated_at=pricelist.generated_at,
+        sent_at=pricelist.sent_at,
+        artifact_filename=pricelist.artifact_filename,
+        positions_count=pricelist.positions_count or 0,
+        generation_summary=pricelist.generation_summary or {},
+        approved_at=pricelist.approved_at,
+        approved_by_name=(pricelist.approved_by_user.name if pricelist.approved_by_user else None),
+        rejected_at=pricelist.rejected_at,
+        rejected_by_name=(pricelist.rejected_by_user.name if pricelist.rejected_by_user else None),
+        decision_reason=pricelist.decision_reason,
+        send_error=pricelist.send_error,
+    )
+
+
+async def _load_customer_pricelist_draft(
+    session: AsyncSession,
+    pricelist_id: int,
+) -> CustomerPriceList | None:
+    return (
+        (
+            await session.execute(
+                select(CustomerPriceList)
+                .options(
+                    selectinload(CustomerPriceList.approved_by_user),
+                    selectinload(CustomerPriceList.rejected_by_user),
+                )
+                .where(CustomerPriceList.id == pricelist_id)
+            )
+        )
+        .scalars()
+        .first()
+    )
+
+
+async def _load_publication_rule(
+    session: AsyncSession,
+    *,
+    config_id: int,
+    rule_id: int,
+) -> CustomerPriceListPublicationRule | None:
+    return (
+        await session.execute(
+            select(CustomerPriceListPublicationRule)
+            .options(
+                selectinload(CustomerPriceListPublicationRule.source_autopart).selectinload(
+                    AutoPart.brand
+                ),
+                selectinload(CustomerPriceListPublicationRule.target_autopart).selectinload(
+                    AutoPart.brand
+                ),
+                selectinload(CustomerPriceListPublicationRule.created_by_user),
+                selectinload(CustomerPriceListPublicationRule.updated_by_user),
+            )
+            .where(
+                CustomerPriceListPublicationRule.id == rule_id,
+                CustomerPriceListPublicationRule.config_id == config_id,
+            )
+        )
+    ).scalar_one_or_none()
+
+
+async def _validate_incoming_price_mailbox(session: AsyncSession, mailbox_id: int | None):
     if mailbox_id is None:
         return
     mailbox = await crud_email_account.get(session, mailbox_id)
@@ -205,9 +308,7 @@ async def _validate_incoming_price_mailbox(
         )
 
 
-async def _validate_outgoing_price_mailbox(
-    session: AsyncSession, mailbox_id: int | None
-):
+async def _validate_outgoing_price_mailbox(session: AsyncSession, mailbox_id: int | None):
     if mailbox_id is None:
         return
     mailbox = await crud_email_account.get(session, mailbox_id)
@@ -221,16 +322,11 @@ async def _validate_outgoing_price_mailbox(
     if not any(purpose in allowed_purposes for purpose in purposes):
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Selected mailbox must have purpose "
-                "prices_out, orders_out or orders_in"
-            ),
+            detail=("Selected mailbox must have purpose " "prices_out, orders_out or orders_in"),
         )
 
 
-async def _validate_supplier_response_mailbox(
-    session: AsyncSession, mailbox_id: int | None
-):
+async def _validate_supplier_response_mailbox(session: AsyncSession, mailbox_id: int | None):
     if mailbox_id is None:
         return
     mailbox = await crud_email_account.get(session, mailbox_id)
@@ -259,8 +355,7 @@ async def create_provider(
     current_user: User = Depends(get_current_user),
 ):
     if (
-        provider_in.inventory_policy.value != "original_goods"
-        or provider_in.inventory_policy_note
+        provider_in.inventory_policy.value != "original_goods" or provider_in.inventory_policy_note
     ) and current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -311,27 +406,17 @@ async def create_provider(
 async def get_all_providers(
     session: AsyncSession = Depends(get_session),
     page: int = Query(1, ge=1, description="Номер страницы"),
-    page_size: int = Query(
-        10, ge=1, le=100, description="Количество элементов на странице"
-    ),
-    search: Optional[str] = Query(
-        None, description="Поиск по названию поставщика"
-    ),
+    page_size: int = Query(10, ge=1, le=100, description="Количество элементов на странице"),
+    search: Optional[str] = Query(None, description="Поиск по названию поставщика"),
     has_pricelist_config: Optional[bool] = Query(
         None, description="Фильтр: есть конфигурация прайса"
     ),
     has_active_pricelists: Optional[bool] = Query(
         None, description="Фильтр: есть активные прайс-листы"
     ),
-    is_virtual: Optional[bool] = Query(
-        None, description="Фильтр: виртуальный поставщик"
-    ),
-    sort_by: Optional[str] = Query(
-        None, description="Сортировка: name или id"
-    ),
-    sort_dir: Optional[str] = Query(
-        None, description="Направление сортировки: asc или desc"
-    ),
+    is_virtual: Optional[bool] = Query(None, description="Фильтр: виртуальный поставщик"),
+    sort_by: Optional[str] = Query(None, description="Сортировка: name или id"),
+    sort_dir: Optional[str] = Query(None, description="Направление сортировки: asc или desc"),
 ):
     """
     Получить список всех поставщиков с пагинацией и поиском.
@@ -369,12 +454,8 @@ async def get_all_providers(
     summary="Поставщик по id",
     response_model=ProviderResponse,
 )
-async def get_provider(
-    provider_id: int, session: AsyncSession = Depends(get_session)
-):
-    provider = await crud_provider.get_by_id(
-        provider_id=provider_id, session=session
-    )
+async def get_provider(provider_id: int, session: AsyncSession = Depends(get_session)):
+    provider = await crud_provider.get_by_id(provider_id=provider_id, session=session)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
     return ProviderResponse.model_validate(provider)
@@ -391,19 +472,14 @@ async def list_provider_external_references(
     provider_id: int,
     session: AsyncSession = Depends(get_session),
 ):
-    provider = await crud_provider.get_by_id(
-        provider_id=provider_id, session=session
-    )
+    provider = await crud_provider.get_by_id(provider_id=provider_id, session=session)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
     refs = await crud_provider.list_external_references(
         provider_id=provider_id,
         session=session,
     )
-    return [
-        ProviderExternalReferenceOut.model_validate(reference)
-        for reference in refs
-    ]
+    return [ProviderExternalReferenceOut.model_validate(reference) for reference in refs]
 
 
 @router.post(
@@ -418,9 +494,7 @@ async def upsert_provider_external_reference(
     payload: ProviderExternalReferenceCreate,
     session: AsyncSession = Depends(get_session),
 ):
-    provider = await crud_provider.get_by_id(
-        provider_id=provider_id, session=session
-    )
+    provider = await crud_provider.get_by_id(provider_id=provider_id, session=session)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
     try:
@@ -455,9 +529,7 @@ async def update_provider_external_reference(
     payload: ProviderExternalReferenceUpdate,
     session: AsyncSession = Depends(get_session),
 ):
-    provider = await crud_provider.get_by_id(
-        provider_id=provider_id, session=session
-    )
+    provider = await crud_provider.get_by_id(provider_id=provider_id, session=session)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
     try:
@@ -515,20 +587,12 @@ async def merge_provider_into_target(
     payload: ProviderMergeRequest,
     session: AsyncSession = Depends(get_session),
 ):
-    target = await crud_provider.get_by_id(
-        provider_id=provider_id, session=session
-    )
+    target = await crud_provider.get_by_id(provider_id=provider_id, session=session)
     if not target:
-        raise HTTPException(
-            status_code=404, detail="Target provider not found"
-        )
-    source = await crud_provider.get_by_id(
-        provider_id=payload.source_provider_id, session=session
-    )
+        raise HTTPException(status_code=404, detail="Target provider not found")
+    source = await crud_provider.get_by_id(provider_id=payload.source_provider_id, session=session)
     if not source:
-        raise HTTPException(
-            status_code=404, detail="Source provider not found"
-        )
+        raise HTTPException(status_code=404, detail="Source provider not found")
     try:
         merged = await crud_provider.merge_providers(
             source_provider_id=payload.source_provider_id,
@@ -551,12 +615,8 @@ async def merge_provider_into_target(
     summary="Поставщик по id",
     response_model=ProviderPageResponse,
 )
-async def get_provider_full(
-    provider_id: int, session: AsyncSession = Depends(get_session)
-):
-    result = await crud_provider.get_full_by_id(
-        provider_id=provider_id, session=session
-    )
+async def get_provider_full(provider_id: int, session: AsyncSession = Depends(get_session)):
+    result = await crud_provider.get_full_by_id(provider_id=provider_id, session=session)
     if result is None:
         raise HTTPException(status_code=404, detail="Provider not found")
     return result
@@ -598,12 +658,8 @@ async def get_provider_config_options(
     status_code=status.HTTP_200_OK,
     response_model=ProviderResponse,
 )
-async def delete_provider(
-    provider_id: int, session: AsyncSession = Depends(get_session)
-):
-    provider = await crud_provider.get_by_id(
-        provider_id=provider_id, session=session
-    )
+async def delete_provider(provider_id: int, session: AsyncSession = Depends(get_session)):
+    provider = await crud_provider.get_by_id(provider_id=provider_id, session=session)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
@@ -648,10 +704,7 @@ async def update_provider(
     updated_provider = await crud_provider.update_provider(
         provider_id=provider_id, obj_in=provider_in, session=session
     )
-    if (
-        "is_own_price" in provider_in.model_fields_set
-        and not bool(updated_provider.is_own_price)
-    ):
+    if "is_own_price" in provider_in.model_fields_set and not bool(updated_provider.is_own_price):
         await _clear_order_insights_config_selection(
             session,
             provider_id=provider_id,
@@ -666,9 +719,7 @@ async def update_provider(
 
 def _provider_inventory_rule_options():
     return (
-        joinedload(ProviderInventoryRoleRule.autopart).joinedload(
-            AutoPart.brand
-        ),
+        joinedload(ProviderInventoryRoleRule.autopart).joinedload(AutoPart.brand),
         joinedload(ProviderInventoryRoleRule.created_by_user),
         joinedload(ProviderInventoryRoleRule.updated_by_user),
     )
@@ -869,41 +920,28 @@ async def create_customer(
             detail=f"Customer with name {customer_in.name} already exists.",
         )
     try:
-        customer = await crud_customer.create(
-            obj_in=customer_in, session=session
-        )
+        customer = await crud_customer.create(obj_in=customer_in, session=session)
     except IntegrityError as e:
         error_message = str(e.orig)
-        if (
-            "duplicate key value violates "
-            'unique constraint "client_name_key"'
-        ) in error_message:
+        if ("duplicate key value violates " 'unique constraint "client_name_key"') in error_message:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    f"Customer with name {customer_in.name} already exists."
-                ),
+                detail=(f"Customer with name {customer_in.name} already exists."),
             )
         elif (
-            "duplicate key value violates "
-            'unique constraint "ix_client_email_contact"'
+            "duplicate key value violates " 'unique constraint "ix_client_email_contact"'
         ) in error_message:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    f"Customer with email "
-                    f"{customer_in.email_contact} already exists."
-                ),
+                detail=(f"Customer with email " f"{customer_in.email_contact} already exists."),
             )
         elif (
-            "duplicate key value violates "
-            'unique constraint "ix_customer_email_outgoing_price"'
+            "duplicate key value violates " 'unique constraint "ix_customer_email_outgoing_price"'
         ) in error_message:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
-                    f"Customer with email "
-                    f"{customer_in.email_outgoing_price} already exists."
+                    f"Customer with email " f"{customer_in.email_outgoing_price} already exists."
                 ),
             )
         else:
@@ -933,16 +971,10 @@ async def create_customer(
 )
 async def get_customers_summary(
     page: int = Query(1, ge=1, description="Номер страницы"),
-    page_size: int = Query(
-        20, ge=1, le=200, description="Количество элементов на странице"
-    ),
+    page_size: int = Query(20, ge=1, le=200, description="Количество элементов на странице"),
     search: Optional[str] = Query(None, description="Поиск по имени клиента"),
-    type_prices: Optional[TYPE_PRICES] = Query(
-        None, description="Фильтр по типу цен"
-    ),
-    has_price_lists: Optional[bool] = Query(
-        None, description="Фильтр: есть прайс-листы"
-    ),
+    type_prices: Optional[TYPE_PRICES] = Query(None, description="Фильтр по типу цен"),
+    has_price_lists: Optional[bool] = Query(None, description="Фильтр: есть прайс-листы"),
     has_pricelist_configs: Optional[bool] = Query(
         None, description="Фильтр: есть конфигурации прайс-листов"
     ),
@@ -953,9 +985,7 @@ async def get_customers_summary(
             "pricelist_configs_count, pricelist_sources_count"
         ),
     ),
-    sort_dir: Optional[str] = Query(
-        None, description="Направление сортировки: asc или desc"
-    ),
+    sort_dir: Optional[str] = Query(None, description="Направление сортировки: asc или desc"),
     session: AsyncSession = Depends(get_session),
 ):
     pricelist_counts = (
@@ -983,8 +1013,7 @@ async def get_customers_summary(
         )
         .join(
             CustomerPriceListSource,
-            CustomerPriceListSource.customer_config_id
-            == CustomerPriceListConfig.id,
+            CustomerPriceListSource.customer_config_id == CustomerPriceListConfig.id,
             isouter=True,
         )
         .group_by(CustomerPriceListConfig.customer_id)
@@ -1006,9 +1035,7 @@ async def get_customers_summary(
             configs_count.label("pricelist_configs_count"),
             sources_count.label("pricelist_sources_count"),
         )
-        .outerjoin(
-            pricelist_counts, pricelist_counts.c.customer_id == Customer.id
-        )
+        .outerjoin(pricelist_counts, pricelist_counts.c.customer_id == Customer.id)
         .outerjoin(config_counts, config_counts.c.customer_id == Customer.id)
         .outerjoin(source_counts, source_counts.c.customer_id == Customer.id)
     )
@@ -1044,9 +1071,7 @@ async def get_customers_summary(
     }
     sort_column = sort_map.get(sort_by) or Customer.name
     sort_direction = (sort_dir or "asc").lower()
-    order_clause = (
-        sort_column.asc() if sort_direction != "desc" else sort_column.desc()
-    )
+    order_clause = sort_column.asc() if sort_direction != "desc" else sort_column.desc()
 
     stmt = stmt.order_by(order_clause)
     stmt = stmt.offset((page - 1) * page_size).limit(page_size)
@@ -1077,9 +1102,7 @@ async def get_all_customer(session: AsyncSession = Depends(get_session)):
             selectinload(Customer.customer_price_lists)
             .selectinload(CustomerPriceList.autopart_associations)
             .selectinload(CustomerPriceListAutoPartAssociation.autopart),
-            selectinload(Customer.pricelist_configs).selectinload(
-                CustomerPriceListConfig.sources
-            ),
+            selectinload(Customer.pricelist_configs).selectinload(CustomerPriceListConfig.sources),
         )
     )
     customers = result.scalars().all()
@@ -1092,9 +1115,7 @@ async def get_all_customer(session: AsyncSession = Depends(get_session)):
             # Convert autoparts_associations
             autoparts = []
             for assoc in cpl.autopart_associations:
-                autopart = AutoPartResponse.model_validate(
-                    assoc.autopart, from_attributes=True
-                )
+                autopart = AutoPartResponse.model_validate(assoc.autopart, from_attributes=True)
                 autopart_in_pricelist = AutoPartInPricelist(
                     autopart_id=assoc.autopart_id,
                     quantity=assoc.quantity,
@@ -1180,14 +1201,13 @@ async def build_customer_response_short_aggregated(
             select(
                 CustomerPriceList.id,
                 CustomerPriceList.date,
-                func.count(
-                    CustomerPriceListAutoPartAssociation.autopart_id
-                ).label("autoparts_count"),
+                func.count(CustomerPriceListAutoPartAssociation.autopart_id).label(
+                    "autoparts_count"
+                ),
             )
             .outerjoin(
                 CustomerPriceListAutoPartAssociation,
-                CustomerPriceListAutoPartAssociation.customerpricelist_id
-                == CustomerPriceList.id,
+                CustomerPriceListAutoPartAssociation.customerpricelist_id == CustomerPriceList.id,
             )
             .where(CustomerPriceList.customer_id == customer.id)
             .group_by(CustomerPriceList.id, CustomerPriceList.date)
@@ -1235,9 +1255,7 @@ def build_customer_source_response(
     source,
 ) -> CustomerPriceListSourceResponse:
     provider_config = getattr(source, "provider_config", None)
-    provider = (
-        getattr(provider_config, "provider", None) if provider_config else None
-    )
+    provider = getattr(provider_config, "provider", None) if provider_config else None
 
     return CustomerPriceListSourceResponse(
         id=source.id,
@@ -1248,9 +1266,7 @@ def build_customer_source_response(
         is_own_price=bool(getattr(provider, "is_own_price", False)),
         enabled=bool(source.enabled),
         markup=source.markup,
-        mask_price_quantity=bool(
-            getattr(source, "mask_price_quantity", False)
-        ),
+        mask_price_quantity=bool(getattr(source, "mask_price_quantity", False)),
         brand_markups=source.brand_markups or {},
         brand_filters=source.brand_filters or {},
         position_filters=source.position_filters or {},
@@ -1269,9 +1285,7 @@ def build_customer_source_response(
     summary="Покупатель по id",
     response_model=CustomerResponseShort,
 )
-async def get_customer(
-    customer_id: int, session: AsyncSession = Depends(get_session)
-):
+async def get_customer(customer_id: int, session: AsyncSession = Depends(get_session)):
     result = await session.execute(
         select(Customer)
         .options(selectinload(Customer.external_references))
@@ -1291,12 +1305,8 @@ async def get_customer(
     status_code=status.HTTP_200_OK,
     response_model=CustomerResponse,
 )
-async def delete_customer(
-    customer_id: int, session: AsyncSession = Depends(get_session)
-):
-    customer = await crud_customer.get_by_id(
-        customer_id=customer_id, session=session
-    )
+async def delete_customer(customer_id: int, session: AsyncSession = Depends(get_session)):
+    customer = await crud_customer.get_by_id(customer_id=customer_id, session=session)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -1315,18 +1325,14 @@ async def update_customer(
     customer_in: CustomerUpdate = Body(...),
     session: AsyncSession = Depends(get_session),
 ):
-    customer_db = await crud_customer.get_by_id(
-        customer_id=customer_id, session=session
-    )
+    customer_db = await crud_customer.get_by_id(customer_id=customer_id, session=session)
     if not customer_db:
         raise HTTPException(status_code=404, detail="Customer not found")
 
     update_data = customer_in.model_dump(exclude_unset=True)
 
     if not update_data:
-        raise HTTPException(
-            status_code=404, detail="No data customer to update."
-        )
+        raise HTTPException(status_code=404, detail="No data customer to update.")
 
     try:
         updated_customer = await crud_customer.update(
@@ -1334,25 +1340,20 @@ async def update_customer(
         )
     except IntegrityError as e:
         error_message = str(e.orig)
-        if (
-            "duplicate key value violates "
-            'unique constraint "client_name_key"'
-        ) in error_message:
+        if ("duplicate key value violates " 'unique constraint "client_name_key"') in error_message:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Customer with this name already exists.",
             )
         if (
-            "duplicate key value violates "
-            'unique constraint "ix_client_email_contact"'
+            "duplicate key value violates " 'unique constraint "ix_client_email_contact"'
         ) in error_message:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Customer with this contact email already exists.",
             )
         if (
-            "duplicate key value violates "
-            'unique constraint "ix_customer_email_outgoing_price"'
+            "duplicate key value violates " 'unique constraint "ix_customer_email_outgoing_price"'
         ) in error_message:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -1360,18 +1361,12 @@ async def update_customer(
             )
         raise
     await session.commit()
-    result = await session.execute(
-        select(Customer).where(Customer.id == customer_id)
-    )
+    result = await session.execute(select(Customer).where(Customer.id == customer_id))
     updated_customer = result.scalars().first()
     if not updated_customer:
-        raise HTTPException(
-            status_code=404, detail="Customer not found after update."
-        )
+        raise HTTPException(status_code=404, detail="Customer not found after update.")
 
-    return await build_customer_response_short_aggregated(
-        updated_customer, session
-    )
+    return await build_customer_response_short_aggregated(updated_customer, session)
 
 
 @router.post(
@@ -1387,9 +1382,7 @@ async def set_provider_pricelist_config(
     session: AsyncSession = Depends(get_session),
 ):
     # Проверяем, что провайдер существует
-    provider = await crud_provider.get_by_id(
-        provider_id=provider_id, session=session
-    )
+    provider = await crud_provider.get_by_id(provider_id=provider_id, session=session)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
     _validate_order_insights_config_selection(
@@ -1397,9 +1390,7 @@ async def set_provider_pricelist_config(
         use_for_order_insights=bool(config_in.use_for_order_insights),
         is_active=bool(config_in.is_active),
     )
-    await _validate_incoming_price_mailbox(
-        session, config_in.incoming_email_account_id
-    )
+    await _validate_incoming_price_mailbox(session, config_in.incoming_email_account_id)
 
     new_config = await crud_provider_pricelist_config.create(
         provider_id=provider_id, config_in=config_in, session=session
@@ -1428,9 +1419,7 @@ async def update_provider_pricelist_config(
     session: AsyncSession = Depends(get_session),
 ):
     # Проверяем, что провайдер существует
-    provider = await crud_provider.get_by_id(
-        provider_id=provider_id, session=session
-    )
+    provider = await crud_provider.get_by_id(provider_id=provider_id, session=session)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
     provider_config = await crud_provider_pricelist_config.get_by_id(
@@ -1445,9 +1434,7 @@ async def update_provider_pricelist_config(
         "incoming_email_account_id" in config_in.model_fields_set
         and config_in.incoming_email_account_id is not None
     ):
-        await _validate_incoming_price_mailbox(
-            session, config_in.incoming_email_account_id
-        )
+        await _validate_incoming_price_mailbox(session, config_in.incoming_email_account_id)
     previous_mailbox_id = provider_config.incoming_email_account_id
     should_reset_last_uid = (
         "incoming_email_account_id" in config_in.model_fields_set
@@ -1462,9 +1449,7 @@ async def update_provider_pricelist_config(
             provider_config.use_for_order_insights,
         )
     )
-    next_is_active = bool(
-        update_payload.get("is_active", provider_config.is_active)
-    )
+    next_is_active = bool(update_payload.get("is_active", provider_config.is_active))
     _validate_order_insights_config_selection(
         provider=provider,
         use_for_order_insights=next_use_for_order_insights,
@@ -1481,8 +1466,7 @@ async def update_provider_pricelist_config(
             provider_config_id=config_id,
         )
         logger.info(
-            "Reset last_uid for provider_config_id=%s after mailbox change "
-            "%s -> %s",
+            "Reset last_uid for provider_config_id=%s after mailbox change " "%s -> %s",
             config_id,
             previous_mailbox_id,
             config_in.incoming_email_account_id,
@@ -1508,15 +1492,11 @@ async def parse_provider_pricelist_excludes(
 ):
     filename = file.filename or ""
     if "." not in filename:
-        raise HTTPException(
-            status_code=400, detail="File extension is required"
-        )
+        raise HTTPException(status_code=400, detail="File extension is required")
     extension = filename.rsplit(".", 1)[-1].lower()
     file_content = await file.read()
     try:
-        items = await asyncio.to_thread(
-            parse_exclude_positions_file, extension, file_content
-        )
+        items = await asyncio.to_thread(parse_exclude_positions_file, extension, file_content)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:
@@ -1535,9 +1515,7 @@ async def get_provider_pricelist_configs(
     provider_id: int, session: AsyncSession = Depends(get_session)
 ):
     # Check if the provider exists
-    provider = await crud_provider.get_by_id(
-        provider_id=provider_id, session=session
-    )
+    provider = await crud_provider.get_by_id(provider_id=provider_id, session=session)
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
@@ -1547,9 +1525,7 @@ async def get_provider_pricelist_configs(
     )
 
     if not existing_configs:
-        raise HTTPException(
-            status_code=404, detail="Config provider not found"
-        )
+        raise HTTPException(status_code=404, detail="Config provider not found")
     return [
         ProviderPriceListConfigOut.model_validate(existing_config)
         for existing_config in existing_configs
@@ -1568,13 +1544,9 @@ async def get_provider_pricelist_config(
     config_id: int,
     session: AsyncSession = Depends(get_session),
 ):
-    provider = await crud_provider.get_by_id(
-        provider_id=provider_id, session=session
-    )
+    provider = await crud_provider.get_by_id(provider_id=provider_id, session=session)
     if not provider:
-        raise HTTPException(
-            status_code=404, detail=f"Provider not found for id {provider_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Provider not found for id {provider_id}")
     provider_config = await crud_provider_pricelist_config.get_by_id(
         config_id=config_id, session=session
     )
@@ -1772,10 +1744,7 @@ async def check_supplier_response_config_now(
 
 
 @router.get(
-    (
-        "/providers/{provider_id}/supplier-response-config/"
-        "{config_id}/import-errors"
-    ),
+    ("/providers/{provider_id}/supplier-response-config/" "{config_id}/import-errors"),
     tags=["providers", "supplier-response-config"],
     status_code=status.HTTP_200_OK,
     summary="List supplier response import errors for selected configuration",
@@ -1809,10 +1778,7 @@ async def list_supplier_response_config_import_errors(
 
 
 @router.post(
-    (
-        "/providers/{provider_id}/supplier-response-config/"
-        "{config_id}/retry-errors"
-    ),
+    ("/providers/{provider_id}/supplier-response-config/" "{config_id}/retry-errors"),
     tags=["providers", "supplier-response-config"],
     status_code=status.HTTP_200_OK,
     summary="Retry supplier response import errors for selected configuration",
@@ -2018,49 +1984,31 @@ async def upload_provider_pricelist(
     provider_list_conf_id: int,
     file: UploadFile = File(...),
     use_stored_params: bool = Form(True),
-    start_row: Optional[int] = Form(
-        None, description="Row number where data starts (0-indexed)"
-    ),
-    oem_col: Optional[int] = Form(
-        None, description="Column number for OEM number (0-indexed)"
-    ),
-    brand_col: Optional[int] = Form(
-        None, description="Column number for brand (0-indexed)"
-    ),
-    name_col: Optional[int] = Form(
-        None, description="Column number for name (0-indexed)"
-    ),
+    start_row: Optional[int] = Form(None, description="Row number where data starts (0-indexed)"),
+    oem_col: Optional[int] = Form(None, description="Column number for OEM number (0-indexed)"),
+    brand_col: Optional[int] = Form(None, description="Column number for brand (0-indexed)"),
+    name_col: Optional[int] = Form(None, description="Column number for name (0-indexed)"),
     multiplicity_col: Optional[int] = Form(
         None, description="Column number for multiplicity (0-indexed)"
     ),
-    qty_col: Optional[int] = Form(
-        None, description="Column number for quantity (0-indexed)"
-    ),
-    price_col: Optional[int] = Form(
-        None, description="Column number for price (0-indexed)"
-    ),
+    qty_col: Optional[int] = Form(None, description="Column number for quantity (0-indexed)"),
+    price_col: Optional[int] = Form(None, description="Column number for price (0-indexed)"),
     session: AsyncSession = Depends(get_session),
 ):
     # Read the file content
     content = await file.read()
     # Get the file extension
     file_extension = file.filename.split(".")[-1].lower()
-    provider = await crud_provider.get_by_id(
-        provider_id=provider_id, session=session
-    )
+    provider = await crud_provider.get_by_id(provider_id=provider_id, session=session)
     if not provider:
-        raise HTTPException(
-            status_code=404, detail=f"Not found provider_id: {provider_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Not found provider_id: {provider_id}")
     logger.debug(f"Filename={file.filename}, size={len(content)} bytes")
     logger.debug(f"Extension={file_extension}")
     provider_conf_obj = await crud_provider_pricelist_config.get_by_id(
         config_id=provider_list_conf_id, session=session
     )
     if not provider_conf_obj:
-        raise HTTPException(
-            status_code=404, detail="Provider configuration not found"
-        )
+        raise HTTPException(status_code=404, detail="Provider configuration not found")
     pricelist, stats = await process_provider_pricelist(
         provider=provider,
         file_content=content,
@@ -2095,16 +2043,12 @@ async def upload_provider_pricelist(
 async def get_provider_pricelists(
     provider_id: int,
     skip: int = Query(0, ge=0, description="Сколько записей пропустить"),
-    limit: int = Query(
-        10, ge=1, description="Максимальное количество записей для возврата"
-    ),
+    limit: int = Query(10, ge=1, description="Максимальное количество записей для возврата"),
     session: AsyncSession = Depends(get_session),
 ):
     try:
         # Проверяем существование поставщика
-        provider = await crud_provider.get_by_id(
-            provider_id=provider_id, session=session
-        )
+        provider = await crud_provider.get_by_id(provider_id=provider_id, session=session)
         if not provider:
             raise HTTPException(status_code=404, detail="Поставщик не найден")
         total_count = await crud_pricelist.count_by_provider_id(
@@ -2137,9 +2081,7 @@ async def get_provider_pricelists(
         )
     except Exception as e:
         logger.error(f"Ошибка при получении прайс-листов: {e}")
-        raise HTTPException(
-            status_code=500, detail="Внутренняя ошибка сервера"
-        )
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
 
 
 @router.delete(
@@ -2155,18 +2097,14 @@ async def delete_provider_pricelists(
 ):
     try:
         # Проверяем существование поставщика
-        provider = await crud_provider.get_by_id(
-            provider_id=provider_id, session=session
-        )
+        provider = await crud_provider.get_by_id(provider_id=provider_id, session=session)
         if not provider:
             raise HTTPException(status_code=404, detail="Provider not found")
 
         pricelist_ids = request.pricelist_ids
 
         if not pricelist_ids:
-            raise HTTPException(
-                status_code=400, detail="No PriceList IDs provided"
-            )
+            raise HTTPException(status_code=400, detail="No PriceList IDs provided")
 
         # Получаем прайс-листы, которые нужно удалить,
         # и проверяем принадлежность поставщику
@@ -2178,9 +2116,7 @@ async def delete_provider_pricelists(
         pricelists_to_delete = result.scalars().all()
 
         if not pricelists_to_delete:
-            raise HTTPException(
-                status_code=404, detail="No PriceLists found for deletion"
-            )
+            raise HTTPException(status_code=404, detail="No PriceLists found for deletion")
 
         # Удаляем прайс-листы
         for pricelist in pricelists_to_delete:
@@ -2193,13 +2129,9 @@ async def delete_provider_pricelists(
     except SQLAlchemyError as e:
         logger.error(f"Database error occurred while deleting PriceLists: {e}")
         await session.rollback()
-        raise HTTPException(
-            status_code=500, detail="Database error during PriceList deletion"
-        )
+        raise HTTPException(status_code=500, detail="Database error during PriceList deletion")
     except Exception as e:
-        logger.error(
-            f"Unexpected error occurred while deleting PriceLists: {e}"
-        )
+        logger.error(f"Unexpected error occurred while deleting PriceLists: {e}")
         await session.rollback()
         raise HTTPException(
             status_code=500,
@@ -2220,14 +2152,10 @@ async def create_customer_pricelist_config(
     session: AsyncSession = Depends(get_session),
 ):
     # Check if the customer exists
-    customer = await crud_customer.get_by_id(
-        customer_id=customer_id, session=session
-    )
+    customer = await crud_customer.get_by_id(customer_id=customer_id, session=session)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
-    await _validate_outgoing_price_mailbox(
-        session, config_in.outgoing_email_account_id
-    )
+    await _validate_outgoing_price_mailbox(session, config_in.outgoing_email_account_id)
 
     try:
         # Вызываем метод из CRUD-класса для создания конфигурации
@@ -2255,9 +2183,7 @@ async def update_customer_pricelist_config(
     session: AsyncSession = Depends(get_session),
 ):
     # Check if the customer exists
-    customer = await crud_customer.get_by_id(
-        customer_id=customer_id, session=session
-    )
+    customer = await crud_customer.get_by_id(customer_id=customer_id, session=session)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -2266,16 +2192,12 @@ async def update_customer_pricelist_config(
         session=session, customer_id=customer.id, config_id=config_id
     )
     if not config or config.customer_id != customer_id:
-        raise HTTPException(
-            status_code=404, detail="Configuration not found for this customer"
-        )
+        raise HTTPException(status_code=404, detail="Configuration not found for this customer")
     if (
         "outgoing_email_account_id" in config_in.model_fields_set
         and config_in.outgoing_email_account_id is not None
     ):
-        await _validate_outgoing_price_mailbox(
-            session, config_in.outgoing_email_account_id
-        )
+        await _validate_outgoing_price_mailbox(session, config_in.outgoing_email_account_id)
 
     update_data = config_in.model_dump(exclude_unset=True)
 
@@ -2290,11 +2212,7 @@ async def update_customer_pricelist_config(
         config_id=config.id, session=session
     )
     base = CustomerPriceListConfigResponse.model_validate(config)
-    return base.model_copy(
-        update={
-            "sources": [build_customer_source_response(s) for s in sources]
-        }
-    )
+    return base.model_copy(update={"sources": [build_customer_source_response(s) for s in sources]})
 
 
 @router.delete(
@@ -2308,9 +2226,7 @@ async def delete_customer_pricelist_config(
     config_id: int,
     session: AsyncSession = Depends(get_session),
 ):
-    customer = await crud_customer.get_by_id(
-        customer_id=customer_id, session=session
-    )
+    customer = await crud_customer.get_by_id(customer_id=customer_id, session=session)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -2318,9 +2234,7 @@ async def delete_customer_pricelist_config(
         session=session, customer_id=customer_id, config_id=config_id
     )
     if not config or config.customer_id != customer_id:
-        raise HTTPException(
-            status_code=404, detail="Configuration not found for this customer"
-        )
+        raise HTTPException(status_code=404, detail="Configuration not found for this customer")
 
     await session.delete(config)
     await session.commit()
@@ -2348,11 +2262,7 @@ async def get_customer_pricelist_configs(
         base = CustomerPriceListConfigResponse.model_validate(config)
         responses.append(
             base.model_copy(
-                update={
-                    "sources": [
-                        build_customer_source_response(s) for s in sources
-                    ]
-                }
+                update={"sources": [build_customer_source_response(s) for s in sources]}
             )
         )
     return responses
@@ -2374,9 +2284,7 @@ async def get_customer_pricelist_sources(
         session=session, customer_id=customer_id, config_id=config_id
     )
     if not config:
-        raise HTTPException(
-            status_code=404, detail="Configuration not found for this customer"
-        )
+        raise HTTPException(status_code=404, detail="Configuration not found for this customer")
     sources = await crud_customer_pricelist_source.get_by_config_id(
         config_id=config_id, session=session
     )
@@ -2400,22 +2308,16 @@ async def create_customer_pricelist_source(
         session=session, customer_id=customer_id, config_id=config_id
     )
     if not config:
-        raise HTTPException(
-            status_code=404, detail="Configuration not found for this customer"
-        )
+        raise HTTPException(status_code=404, detail="Configuration not found for this customer")
     provider_config = await crud_provider_pricelist_config.get_by_id(
         config_id=source_in.provider_config_id, session=session
     )
     if not provider_config:
-        raise HTTPException(
-            status_code=404, detail="Provider config not found"
-        )
-    existing_source = (
-        await crud_customer_pricelist_source.get_by_config_and_provider_config(
-            config_id=config_id,
-            provider_config_id=source_in.provider_config_id,
-            session=session,
-        )
+        raise HTTPException(status_code=404, detail="Provider config not found")
+    existing_source = await crud_customer_pricelist_source.get_by_config_and_provider_config(
+        config_id=config_id,
+        provider_config_id=source_in.provider_config_id,
+        session=session,
     )
     if existing_source:
         raise HTTPException(
@@ -2433,9 +2335,7 @@ async def create_customer_pricelist_source(
 
 
 @router.patch(
-    "/customers/{"
-    "customer_id"
-    "}/pricelist-configs/{config_id}/sources/{source_id}",
+    "/customers/{" "customer_id" "}/pricelist-configs/{config_id}/sources/{source_id}",
     tags=["customers"],
     status_code=status.HTTP_200_OK,
     summary="Update a source for a customer pricelist configuration",
@@ -2452,13 +2352,9 @@ async def update_customer_pricelist_source(
         session=session, customer_id=customer_id, config_id=config_id
     )
     if not config:
-        raise HTTPException(
-            status_code=404, detail="Configuration not found for this customer"
-        )
+        raise HTTPException(status_code=404, detail="Configuration not found for this customer")
 
-    source = await crud_customer_pricelist_source.get_by_id(
-        source_id=source_id, session=session
-    )
+    source = await crud_customer_pricelist_source.get_by_id(source_id=source_id, session=session)
     if not source or source.customer_config_id != config_id:
         raise HTTPException(status_code=404, detail="Source not found")
 
@@ -2467,9 +2363,7 @@ async def update_customer_pricelist_source(
             config_id=source_in.provider_config_id, session=session
         )
         if not provider_config:
-            raise HTTPException(
-                status_code=404, detail="Provider config not found"
-            )
+            raise HTTPException(status_code=404, detail="Provider config not found")
         existing_source = await crud_customer_pricelist_source.get_by_config_and_provider_config(
             config_id=config_id,
             provider_config_id=source_in.provider_config_id,
@@ -2478,9 +2372,7 @@ async def update_customer_pricelist_source(
         if existing_source and existing_source.id != source.id:
             raise HTTPException(
                 status_code=409,
-                detail=(
-                    "This source is already added to the customer pricelist"
-                ),
+                detail=("This source is already added to the customer pricelist"),
             )
 
     updated = await crud_customer_pricelist_source.update_source(
@@ -2493,9 +2385,7 @@ async def update_customer_pricelist_source(
 
 
 @router.delete(
-    "/customers/{"
-    "customer_id"
-    "}/pricelist-configs/{config_id}/sources/{source_id}",
+    "/customers/{" "customer_id" "}/pricelist-configs/{config_id}/sources/{source_id}",
     tags=["customers"],
     status_code=status.HTTP_200_OK,
     summary="Delete a source for a customer pricelist configuration",
@@ -2510,13 +2400,9 @@ async def delete_customer_pricelist_source(
         session=session, customer_id=customer_id, config_id=config_id
     )
     if not config:
-        raise HTTPException(
-            status_code=404, detail="Configuration not found for this customer"
-        )
+        raise HTTPException(status_code=404, detail="Configuration not found for this customer")
 
-    source = await crud_customer_pricelist_source.get_by_id(
-        source_id=source_id, session=session
-    )
+    source = await crud_customer_pricelist_source.get_by_id(source_id=source_id, session=session)
     if not source or source.customer_config_id != config_id:
         raise HTTPException(status_code=404, detail="Source not found")
 
@@ -2537,9 +2423,7 @@ async def send_customer_pricelist_now(
     config_id: int,
     session: AsyncSession = Depends(get_session),
 ):
-    customer = await crud_customer.get_by_id(
-        customer_id=customer_id, session=session
-    )
+    customer = await crud_customer.get_by_id(customer_id=customer_id, session=session)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -2547,9 +2431,7 @@ async def send_customer_pricelist_now(
         session=session, customer_id=customer_id, config_id=config_id
     )
     if not config:
-        raise HTTPException(
-            status_code=404, detail="Configuration not found for this customer"
-        )
+        raise HTTPException(status_code=404, detail="Configuration not found for this customer")
 
     request = CustomerPriceListCreate(
         customer_id=customer.id,
@@ -2563,8 +2445,525 @@ async def send_customer_pricelist_now(
         request=request,
         session=session,
         include_autoparts_response=False,
+        delivery_mode="send",
     )
     return response
+
+
+@router.get(
+    "/customers/{customer_id}/pricelist-configs/{config_id}/publication-rules",
+    tags=["customers", "pricelists"],
+    response_model=List[CustomerPriceListPublicationRuleOut],
+)
+async def list_customer_pricelist_publication_rules(
+    customer_id: int,
+    config_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    config = await crud_customer_pricelist_config.get_by_id(
+        session=session, customer_id=customer_id, config_id=config_id
+    )
+    if not config:
+        raise HTTPException(status_code=404, detail="Configuration not found")
+    rules = list(
+        (
+            await session.execute(
+                select(CustomerPriceListPublicationRule)
+                .options(
+                    selectinload(CustomerPriceListPublicationRule.source_autopart).selectinload(
+                        AutoPart.brand
+                    ),
+                    selectinload(CustomerPriceListPublicationRule.target_autopart).selectinload(
+                        AutoPart.brand
+                    ),
+                    selectinload(CustomerPriceListPublicationRule.created_by_user),
+                    selectinload(CustomerPriceListPublicationRule.updated_by_user),
+                )
+                .where(CustomerPriceListPublicationRule.config_id == config_id)
+                .order_by(CustomerPriceListPublicationRule.updated_at.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [_publication_rule_response(rule) for rule in rules]
+
+
+@router.post(
+    "/customers/{customer_id}/pricelist-configs/{config_id}/publication-rules",
+    tags=["customers", "pricelists"],
+    response_model=CustomerPriceListPublicationRuleOut,
+)
+async def save_customer_pricelist_publication_rule(
+    customer_id: int,
+    config_id: int,
+    payload: CustomerPriceListPublicationRuleCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    config = await crud_customer_pricelist_config.get_by_id(
+        session=session, customer_id=customer_id, config_id=config_id
+    )
+    if not config:
+        raise HTTPException(status_code=404, detail="Configuration not found")
+    source = await session.get(AutoPart, payload.source_autopart_id)
+    if source is None:
+        raise HTTPException(status_code=404, detail="Source autopart not found")
+    if payload.mode != "hide":
+        if payload.target_autopart_id == payload.source_autopart_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Фактическая позиция и выбранный кросс совпадают",
+            )
+        members = await load_bidirectional_cross_members(
+            session, seed_autopart_ids=[payload.source_autopart_id]
+        )
+        member_ids = {item.autopart_id for item in members}
+        if payload.target_autopart_id not in member_ids:
+            raise HTTPException(
+                status_code=400,
+                detail="Можно выбрать только подтверждённый двусторонний кросс",
+            )
+    existing = (
+        await session.execute(
+            select(CustomerPriceListPublicationRule).where(
+                CustomerPriceListPublicationRule.config_id == config_id,
+                CustomerPriceListPublicationRule.source_autopart_id == payload.source_autopart_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing is None:
+        existing = CustomerPriceListPublicationRule(
+            config_id=config_id,
+            source_autopart_id=payload.source_autopart_id,
+            created_by_user_id=current_user.id,
+        )
+    existing.target_autopart_id = None if payload.mode == "hide" else payload.target_autopart_id
+    existing.mode = payload.mode
+    existing.is_active = payload.is_active
+    existing.updated_by_user_id = current_user.id
+    existing.updated_at = now_moscow()
+    session.add(existing)
+    await session.commit()
+    loaded = await _load_publication_rule(session, config_id=config_id, rule_id=existing.id)
+    return _publication_rule_response(loaded)
+
+
+@router.delete(
+    "/customers/{customer_id}/pricelist-configs/{config_id}/publication-rules/{rule_id}",
+    tags=["customers", "pricelists"],
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_customer_pricelist_publication_rule(
+    customer_id: int,
+    config_id: int,
+    rule_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    config = await crud_customer_pricelist_config.get_by_id(
+        session=session, customer_id=customer_id, config_id=config_id
+    )
+    if not config:
+        raise HTTPException(status_code=404, detail="Configuration not found")
+    rule = await session.get(CustomerPriceListPublicationRule, rule_id)
+    if rule is None or rule.config_id != config_id:
+        raise HTTPException(status_code=404, detail="Publication rule not found")
+    await session.delete(rule)
+    await session.commit()
+
+
+def _latest_own_pricelist_ids_query():
+    return (
+        select(func.max(PriceList.id))
+        .join(Provider, Provider.id == PriceList.provider_id)
+        .where(
+            Provider.is_own_price.is_(True),
+            PriceList.is_active.is_(True),
+        )
+        .group_by(PriceList.provider_config_id)
+    )
+
+
+@router.get(
+    "/customers/{customer_id}/pricelist-configs/{config_id}/publication-candidates",
+    tags=["customers", "pricelists"],
+    response_model=List[CustomerPriceListPublicationCandidateOut],
+)
+async def search_customer_pricelist_publication_candidates(
+    customer_id: int,
+    config_id: int,
+    search: str = Query(..., min_length=2, max_length=100),
+    limit: int = Query(30, ge=1, le=100),
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    config = await crud_customer_pricelist_config.get_by_id(
+        session=session, customer_id=customer_id, config_id=config_id
+    )
+    if not config:
+        raise HTTPException(status_code=404, detail="Configuration not found")
+    normalized = preprocess_oem_number(search)
+    pattern = f"%{str(search).strip()}%"
+    rows = (
+        await session.execute(
+            select(
+                AutoPart.id,
+                Brand.name,
+                AutoPart.oem_number,
+                AutoPart.name,
+                func.max(PriceListAutoPartAssociation.quantity),
+                func.min(PriceListAutoPartAssociation.price),
+            )
+            .join(Brand, Brand.id == AutoPart.brand_id)
+            .join(
+                PriceListAutoPartAssociation,
+                PriceListAutoPartAssociation.autopart_id == AutoPart.id,
+            )
+            .where(
+                PriceListAutoPartAssociation.pricelist_id.in_(_latest_own_pricelist_ids_query()),
+                or_(
+                    AutoPart.oem_number.ilike(f"%{normalized}%"),
+                    AutoPart.name.ilike(pattern),
+                    Brand.name.ilike(pattern),
+                ),
+            )
+            .group_by(AutoPart.id, Brand.name)
+            .order_by(Brand.name.asc(), AutoPart.oem_number.asc())
+            .limit(limit)
+        )
+    ).all()
+    return [
+        CustomerPriceListPublicationCandidateOut(
+            autopart_id=row[0],
+            brand=row[1],
+            oem=row[2],
+            name=row[3],
+            quantity=int(row[4] or 0),
+            price=float(row[5]) if row[5] is not None else None,
+        )
+        for row in rows
+    ]
+
+
+@router.get(
+    "/customers/{customer_id}/pricelist-configs/{config_id}"
+    "/publication-candidates/{autopart_id}/crosses",
+    tags=["customers", "pricelists"],
+    response_model=List[CustomerPriceListPublicationCandidateOut],
+)
+async def list_customer_pricelist_publication_crosses(
+    customer_id: int,
+    config_id: int,
+    autopart_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    config = await crud_customer_pricelist_config.get_by_id(
+        session=session, customer_id=customer_id, config_id=config_id
+    )
+    if not config:
+        raise HTTPException(status_code=404, detail="Configuration not found")
+    members = await load_bidirectional_cross_members(session, seed_autopart_ids=[autopart_id])
+    members = [item for item in members if item.autopart_id != autopart_id]
+    return [
+        CustomerPriceListPublicationCandidateOut(
+            autopart_id=item.autopart_id,
+            brand=item.brand_name or "",
+            oem=item.oem_number,
+            name=item.name,
+            quantity=0,
+            price=None,
+        )
+        for item in members
+    ]
+
+
+@router.post(
+    "/customers/{customer_id}/pricelist-configs/{config_id}/drafts",
+    tags=["customers", "pricelists"],
+    response_model=CustomerPriceListDraftOut,
+)
+async def build_customer_pricelist_draft(
+    customer_id: int,
+    config_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    customer = await crud_customer.get_by_id(customer_id=customer_id, session=session)
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    config = await crud_customer_pricelist_config.get_by_id(
+        session=session, customer_id=customer_id, config_id=config_id
+    )
+    if not config:
+        raise HTTPException(status_code=404, detail="Configuration not found")
+    response = await process_customer_pricelist(
+        customer=customer,
+        request=CustomerPriceListCreate(customer_id=customer_id, config_id=config_id, items=[]),
+        session=session,
+        include_autoparts_response=False,
+        delivery_mode="draft",
+    )
+    pricelist = await _load_customer_pricelist_draft(session, response.id)
+    if pricelist is None:
+        raise HTTPException(status_code=500, detail="Generated pricelist was not found")
+    return _customer_pricelist_draft_response(pricelist)
+
+
+@router.get(
+    "/customers/{customer_id}/pricelist-configs/{config_id}/drafts",
+    tags=["customers", "pricelists"],
+    response_model=List[CustomerPriceListDraftOut],
+)
+async def list_customer_pricelist_drafts(
+    customer_id: int,
+    config_id: int,
+    limit: int = Query(20, ge=1, le=100),
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    rows = list(
+        (
+            await session.execute(
+                select(CustomerPriceList)
+                .options(
+                    selectinload(CustomerPriceList.approved_by_user),
+                    selectinload(CustomerPriceList.rejected_by_user),
+                )
+                .where(
+                    CustomerPriceList.customer_id == customer_id,
+                    CustomerPriceList.customer_config_id == config_id,
+                )
+                .order_by(CustomerPriceList.id.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [_customer_pricelist_draft_response(row) for row in rows]
+
+
+@router.get(
+    "/customers/{customer_id}/pricelist-configs/{config_id}/drafts/{pricelist_id}/rows",
+    tags=["customers", "pricelists"],
+    response_model=PaginatedCustomerPriceListExportRows,
+)
+async def list_customer_pricelist_draft_rows(
+    customer_id: int,
+    config_id: int,
+    pricelist_id: int,
+    search: Optional[str] = Query(default=None, max_length=100),
+    row_type: Optional[str] = Query(default=None, max_length=32),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    pricelist = await _load_customer_pricelist_draft(session, pricelist_id)
+    if (
+        pricelist is None
+        or pricelist.customer_id != customer_id
+        or pricelist.customer_config_id != config_id
+    ):
+        raise HTTPException(status_code=404, detail="Pricelist draft not found")
+    filters = [CustomerPriceListExportRow.customer_pricelist_id == pricelist_id]
+    if search:
+        normalized = preprocess_oem_number(search)
+        pattern = f"%{search.strip()}%"
+        filters.append(
+            or_(
+                CustomerPriceListExportRow.normalized_oem.ilike(f"%{normalized}%"),
+                CustomerPriceListExportRow.advertised_brand.ilike(pattern),
+                CustomerPriceListExportRow.advertised_name.ilike(pattern),
+            )
+        )
+    if row_type:
+        filters.append(CustomerPriceListExportRow.row_type == row_type)
+    total = int(
+        (
+            await session.execute(select(func.count(CustomerPriceListExportRow.id)).where(*filters))
+        ).scalar_one()
+    )
+    rows = (
+        await session.execute(
+            select(CustomerPriceListExportRow, AutoPart, Brand)
+            .outerjoin(
+                AutoPart,
+                AutoPart.id == CustomerPriceListExportRow.source_autopart_id,
+            )
+            .outerjoin(Brand, Brand.id == AutoPart.brand_id)
+            .where(*filters)
+            .order_by(
+                CustomerPriceListExportRow.advertised_brand.asc(),
+                CustomerPriceListExportRow.advertised_oem.asc(),
+                CustomerPriceListExportRow.id.asc(),
+            )
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+    ).all()
+    return PaginatedCustomerPriceListExportRows(
+        items=[
+            CustomerPriceListExportRowOut(
+                id=export_row.id,
+                source_autopart_id=export_row.source_autopart_id,
+                advertised_brand=export_row.advertised_brand,
+                advertised_oem=export_row.advertised_oem,
+                advertised_name=export_row.advertised_name,
+                quantity=export_row.quantity,
+                price=float(export_row.price),
+                row_type=export_row.row_type,
+                actual_brand=brand.name if brand else None,
+                actual_oem=autopart.oem_number if autopart else None,
+                actual_name=autopart.name if autopart else None,
+            )
+            for export_row, autopart, brand in rows
+        ],
+        page=page,
+        page_size=page_size,
+        total=total,
+    )
+
+
+@router.get(
+    "/customers/{customer_id}/pricelist-configs/{config_id}/drafts/{pricelist_id}/download",
+    tags=["customers", "pricelists"],
+)
+async def download_customer_pricelist_draft(
+    customer_id: int,
+    config_id: int,
+    pricelist_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    pricelist = await _load_customer_pricelist_draft(session, pricelist_id)
+    if (
+        pricelist is None
+        or pricelist.customer_id != customer_id
+        or pricelist.customer_config_id != config_id
+        or not pricelist.artifact_path
+    ):
+        raise HTTPException(status_code=404, detail="Pricelist artifact not found")
+    path = Path(pricelist.artifact_path).resolve()
+    artifact_root = CUSTOMER_PRICELIST_ARTIFACT_ROOT.resolve()
+    if artifact_root not in path.parents or not path.is_file():
+        raise HTTPException(status_code=404, detail="Pricelist artifact not found")
+    return FileResponse(
+        path,
+        media_type=pricelist.artifact_content_type,
+        filename=pricelist.artifact_filename,
+    )
+
+
+@router.post(
+    "/customers/{customer_id}/pricelist-configs/{config_id}/drafts/{pricelist_id}/approve",
+    tags=["customers", "pricelists"],
+    response_model=CustomerPriceListDraftOut,
+)
+async def approve_customer_pricelist_draft(
+    customer_id: int,
+    config_id: int,
+    pricelist_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    customer = await crud_customer.get_by_id(customer_id=customer_id, session=session)
+    config = await crud_customer_pricelist_config.get_by_id(
+        session=session, customer_id=customer_id, config_id=config_id
+    )
+    pricelist = await _load_customer_pricelist_draft(session, pricelist_id)
+    if not customer or not config or not pricelist:
+        raise HTTPException(status_code=404, detail="Pricelist draft not found")
+    if pricelist.customer_id != customer_id or pricelist.customer_config_id != config_id:
+        raise HTTPException(status_code=404, detail="Pricelist draft not found")
+    if pricelist.generation_status == "sent":
+        return _customer_pricelist_draft_response(pricelist)
+    if pricelist.generation_status == "rejected":
+        raise HTTPException(status_code=409, detail="Черновик уже отклонён")
+    path = Path(pricelist.artifact_path or "").resolve()
+    artifact_root = CUSTOMER_PRICELIST_ARTIFACT_ROOT.resolve()
+    if artifact_root not in path.parents or not path.is_file():
+        raise HTTPException(status_code=404, detail="Pricelist artifact not found")
+    recipients = config.emails or (
+        [customer.email_outgoing_price] if customer.email_outgoing_price else []
+    )
+    if not any(str(email or "").strip() for email in recipients):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Не указан получатель прайс-листа. Заполните поле «Получатели» "
+                "или исходящий email в карточке клиента."
+            ),
+        )
+    try:
+        await send_pricelist(
+            session=session,
+            customer=customer,
+            config=config,
+            to_emails=recipients,
+            df_excel=None,
+            attachment_bytes=await asyncio.to_thread(path.read_bytes),
+            attachment_filename=pricelist.artifact_filename,
+            subject=f"Прайс лист {pricelist.date}",
+            body="Добрый день, высылаем Вам наш прайс-лист",
+        )
+    except Exception as exc:
+        pricelist.generation_status = "send_failed"
+        pricelist.send_error = str(exc)
+        session.add(pricelist)
+        await session.commit()
+        raise HTTPException(status_code=502, detail=str(exc))
+    sent_at = now_moscow()
+    pricelist.generation_status = "sent"
+    pricelist.sent_at = sent_at
+    pricelist.approved_at = sent_at
+    pricelist.approved_by_user_id = current_user.id
+    pricelist.send_error = None
+    config.last_sent_at = sent_at
+    session.add(pricelist)
+    session.add(config)
+    await session.commit()
+    pricelist = await _load_customer_pricelist_draft(session, pricelist_id)
+    if pricelist is None:
+        raise HTTPException(status_code=500, detail="Sent pricelist was not found")
+    return _customer_pricelist_draft_response(pricelist)
+
+
+@router.post(
+    "/customers/{customer_id}/pricelist-configs/{config_id}/drafts/{pricelist_id}/reject",
+    tags=["customers", "pricelists"],
+    response_model=CustomerPriceListDraftOut,
+)
+async def reject_customer_pricelist_draft(
+    customer_id: int,
+    config_id: int,
+    pricelist_id: int,
+    payload: CustomerPriceListDraftRejectIn,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    pricelist = await _load_customer_pricelist_draft(session, pricelist_id)
+    if (
+        pricelist is None
+        or pricelist.customer_id != customer_id
+        or pricelist.customer_config_id != config_id
+    ):
+        raise HTTPException(status_code=404, detail="Pricelist draft not found")
+    if pricelist.generation_status == "sent":
+        raise HTTPException(status_code=409, detail="Отправленный прайс отклонить нельзя")
+    pricelist.generation_status = "rejected"
+    pricelist.rejected_at = now_moscow()
+    pricelist.rejected_by_user_id = current_user.id
+    pricelist.decision_reason = payload.reason.strip()
+    session.add(pricelist)
+    await session.commit()
+    pricelist = await _load_customer_pricelist_draft(session, pricelist_id)
+    if pricelist is None:
+        raise HTTPException(status_code=500, detail="Rejected pricelist was not found")
+    return _customer_pricelist_draft_response(pricelist)
 
 
 @router.post(
@@ -2579,10 +2978,7 @@ async def create_customer_pricelist(
     request: CustomerPriceListCreate,
     session: AsyncSession = Depends(get_session),
 ):
-    logger.info(
-        f"Incoming request: customer_id={customer_id}"
-        f", body={request.model_dump()}"
-    )
+    logger.info(f"Incoming request: customer_id={customer_id}" f", body={request.model_dump()}")
 
     # customer = await crud_customer.get_by_id(
     #     customer_id=customer_id,
@@ -2712,18 +3108,14 @@ async def create_customer_pricelist(
     #     customer_id=customer_id,
     #     autoparts=autoparts_response
     # )
-    customer = await crud_customer.get_by_id(
-        customer_id=customer_id, session=session
-    )
+    customer = await crud_customer.get_by_id(customer_id=customer_id, session=session)
     if not customer:
         logger.error(f"Customer with id {customer_id} not found.")
         raise HTTPException(status_code=404, detail="Customer not found")
 
     # Этот ручной эндпоинт сохраняет полный ответ с позициями —
     # на него завязаны интеграционные проверки наценок и фильтров.
-    response = await process_customer_pricelist(
-        customer=customer, request=request, session=session
-    )
+    response = await process_customer_pricelist(customer=customer, request=request, session=session)
     return response
 
 
@@ -2734,12 +3126,8 @@ async def create_customer_pricelist(
     summary="Get all pricelists for a customer",
     response_model=List[CustomerAllPriceListResponse],
 )
-async def get_customer_pricelists(
-    customer_id: int, session: AsyncSession = Depends(get_session)
-):
-    customer = await crud_customer.get_by_id(
-        customer_id=customer_id, session=session
-    )
+async def get_customer_pricelists(customer_id: int, session: AsyncSession = Depends(get_session)):
+    customer = await crud_customer.get_by_id(customer_id=customer_id, session=session)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -2748,9 +3136,7 @@ async def get_customer_pricelists(
     )
 
     if not pricelists:
-        raise HTTPException(
-            status_code=404, detail="No pricelists found for the customer"
-        )
+        raise HTTPException(status_code=404, detail="No pricelists found for the customer")
 
     response = []
     for pricelist in pricelists:
@@ -2786,9 +3172,7 @@ async def delete_customer_pricelists(
     pricelist_id: int,
     session: AsyncSession = Depends(get_session),
 ):
-    customer = await crud_customer.get_by_id(
-        customer_id=customer_id, session=session
-    )
+    customer = await crud_customer.get_by_id(customer_id=customer_id, session=session)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -2797,16 +3181,10 @@ async def delete_customer_pricelists(
     )
 
     if not pricelist:
-        raise HTTPException(
-            status_code=404, detail="No pricelist found for the customer"
-        )
+        raise HTTPException(status_code=404, detail="No pricelist found for the customer")
     await session.delete(pricelist)
     await session.commit()
-    return {
-        "detail": (
-            f"Deleted {pricelist_id} pricelist for customer {customer_id}"
-        )
-    }
+    return {"detail": (f"Deleted {pricelist_id} pricelist for customer {customer_id}")}
 
 
 @router.post(
@@ -2824,9 +3202,7 @@ async def download_provider_pricelist(
         provider_list_config = await crud_provider_pricelist_config.get_by_id(
             config_id=provider_price_config_id, session=session
         )
-        provider = await crud_provider.get_by_id(
-            provider_id=provider_id, session=session
-        )
+        provider = await crud_provider.get_by_id(provider_id=provider_id, session=session)
         filepath = await download_price_provider(
             provider=provider,
             provider_conf=provider_list_config,
@@ -2834,9 +3210,7 @@ async def download_provider_pricelist(
             force=True,
         )
         if not filepath:
-            raise HTTPException(
-                status_code=404, detail="No price list file downloaded"
-            )
+            raise HTTPException(status_code=404, detail="No price list file downloaded")
         file_extension = filepath.split(".")[-1].lower()
         with open(filepath, "rb") as f:
             file_content = f.read()
@@ -2862,20 +3236,15 @@ async def download_provider_pricelist(
         )
         return {
             "detail": (
-                f"Downloaded and processed "
-                f"provider price list for provider_id: {provider_id}"
+                f"Downloaded and processed " f"provider price list for provider_id: {provider_id}"
             ),
             "stats": stats,
         }
     except HTTPException as e:
         raise e
     except Exception as e:
-        logger.exception(
-            f"Error during download and processing of provider price list {e}"
-        )
-        raise HTTPException(
-            status_code=500, detail="Error during download and processing"
-        )
+        logger.exception(f"Error during download and processing of provider price list {e}")
+        raise HTTPException(status_code=500, detail="Error during download and processing")
 
 
 def _pricelist_review_out(
@@ -2926,14 +3295,9 @@ async def _get_pricelist_review(
 
 
 def _pricelist_review_file_path(review: ProviderPricelistReview) -> str:
-    review_root = os.path.realpath(
-        os.path.join("uploads", "pricelist_reviews")
-    )
+    review_root = os.path.realpath(os.path.join("uploads", "pricelist_reviews"))
     file_path = os.path.realpath(review.file_path)
-    if (
-        file_path != review_root
-        and not file_path.startswith(review_root + os.sep)
-    ):
+    if file_path != review_root and not file_path.startswith(review_root + os.sep):
         raise HTTPException(
             status_code=400,
             detail="Некорректный путь файла проверки",
@@ -2968,9 +3332,7 @@ async def list_provider_pricelist_reviews(
                 select(ProviderPricelistReview)
                 .where(ProviderPricelistReview.provider_id == provider_id)
                 .options(
-                    selectinload(
-                        ProviderPricelistReview.provider_config
-                    ),
+                    selectinload(ProviderPricelistReview.provider_config),
                     selectinload(ProviderPricelistReview.decided_by),
                 )
                 .order_by(
@@ -3139,9 +3501,7 @@ async def approve_provider_pricelist_review(
     )
     approved_review.status = "approved"
     approved_review.published_pricelist_id = int(pricelist.id)
-    approved_review.decision_reason = (
-        payload.reason or "Изменение проверено и подтверждено"
-    )
+    approved_review.decision_reason = payload.reason or "Изменение проверено и подтверждено"
     approved_review.decided_at = now_moscow()
     approved_review.decided_by_user_id = current_user.id
     approved_review.processing_error = None
@@ -3196,9 +3556,7 @@ async def get_provider_pricelist_analytics(
             )
         )
 
-    analyses.sort(
-        key=lambda item: (item.config_name is None, item.config_name or "")
-    )
+    analyses.sort(key=lambda item: (item.config_name is None, item.config_name or ""))
     return analyses
 
 
@@ -3210,12 +3568,8 @@ async def get_provider_pricelist_analytics(
 )
 async def get_autopart_popularity(
     provider_id: Optional[int],
-    date_start: Optional[str] = Query(
-        default=None, description="Start date in format YYYY-MM-DD"
-    ),
-    date_finish: Optional[str] = Query(
-        default=None, description="End date in format YYYY-MM-DD"
-    ),
+    date_start: Optional[str] = Query(default=None, description="Start date in format YYYY-MM-DD"),
+    date_finish: Optional[str] = Query(default=None, description="End date in format YYYY-MM-DD"),
     session: AsyncSession = Depends(get_session),
 ):
     start_dt, finish_dt = check_start_and_finish_date(date_start, date_finish)
@@ -3277,9 +3631,7 @@ async def update_abbreviation(
     new_abbreviation: str = Body(..., embed=True),
     session: AsyncSession = Depends(get_session),
 ):
-    provider = crud_provider.get_by_id(
-        provider_id=provider_id, session=session
-    )
+    provider = crud_provider.get_by_id(provider_id=provider_id, session=session)
     if provider is None:
         raise HTTPException(status_code=404, detail="Provider not found")
     abbr = await crud_provider_abbreviation.update_abbreviation(
@@ -3288,9 +3640,7 @@ async def update_abbreviation(
         new_abbreviation=new_abbreviation,
     )
     if provider_id != abbr.provider_id:
-        raise HTTPException(
-            status_code=404, detail="Provider have not this abbreviation"
-        )
+        raise HTTPException(status_code=404, detail="Provider have not this abbreviation")
     return abbr
 
 
@@ -3305,14 +3655,10 @@ async def delete_abbreviation(
     abbr_id: int,
     session: AsyncSession = Depends(get_session),
 ):
-    provider = await crud_provider.get_by_id(
-        provider_id=provider_id, session=session
-    )
+    provider = await crud_provider.get_by_id(provider_id=provider_id, session=session)
     if provider is None:
         raise HTTPException(status_code=404, detail="Provider not found")
-    await crud_provider_abbreviation.delete_abbreviation(
-        session=session, abbreviation_id=abbr_id
-    )
+    await crud_provider_abbreviation.delete_abbreviation(session=session, abbreviation_id=abbr_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -3328,16 +3674,10 @@ async def delete_provider_pricelist_config(
     session: AsyncSession = Depends(get_session),
 ):
     """Удалить конфигурацию прайс-листа поставщика"""
-    provider = await crud_provider.get_by_id(
-        provider_id=provider_id, session=session
-    )
+    provider = await crud_provider.get_by_id(provider_id=provider_id, session=session)
     if not provider:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Provider not found"
-        )
-    config = await crud_provider_pricelist_config.get_by_id(
-        config_id=config_id, session=session
-    )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Provider not found")
+    config = await crud_provider_pricelist_config.get_by_id(config_id=config_id, session=session)
     if not config or config.provider_id != provider_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -3415,12 +3755,16 @@ async def list_customer_reclamation_emails(
     session: AsyncSession = Depends(get_session),
 ):
     rows = (
-        await session.execute(
-            select(CustomerReclamationEmail)
-            .where(CustomerReclamationEmail.customer_id == customer_id)
-            .order_by(CustomerReclamationEmail.id.asc())
+        (
+            await session.execute(
+                select(CustomerReclamationEmail)
+                .where(CustomerReclamationEmail.customer_id == customer_id)
+                .order_by(CustomerReclamationEmail.id.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return [CustomerReclamationEmailOut.model_validate(row) for row in rows]
 
 

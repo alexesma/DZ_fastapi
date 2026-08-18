@@ -5,7 +5,17 @@ import pytest
 from sqlalchemy import select
 
 from dz_fastapi.core.time import now_moscow
-from dz_fastapi.models.inventory import StockByLocation, StockMovement, Warehouse
+from dz_fastapi.models.autopart import StorageLocation
+from dz_fastapi.models.inventory import (
+    ShipmentDocument,
+    ShipmentDocumentItem,
+    ShipmentDocumentItemLotAllocation,
+    ShipmentDocumentStatus,
+    StockByLocation,
+    StockLot,
+    StockMovement,
+    Warehouse,
+)
 from dz_fastapi.models.partner import (
     ORDER_TRACKING_SOURCE,
     SUPPLIER_ORDER_STATUS,
@@ -19,6 +29,7 @@ from dz_fastapi.models.partner import (
     StockOrderItem,
     SupplierOrder,
     SupplierOrderItem,
+    SupplierReceiptItem,
 )
 from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.services.auth import get_password_hash
@@ -346,6 +357,702 @@ async def test_stock_order_pick_endpoint_updates_progress(
     assert rows[0]["customer_name"] == created_customers[0].name
     assert rows[0]["items"][0]["picked_quantity"] == 3
     assert rows[0]["items"][0]["picked_by_email"] == "picker@example.com"
+
+
+@pytest.mark.asyncio
+@pytest.mark.no_auth_override
+async def test_stock_order_packages_require_final_scan_before_dispatch(
+    async_client,
+    test_session,
+    created_autopart,
+    created_customers,
+    created_storage,
+):
+    await _create_user(test_session, "packer@example.com", UserRole.MANAGER)
+    await _login(async_client, "packer@example.com")
+
+    warehouse = Warehouse(name="Основной склад", is_active=True)
+    test_session.add(warehouse)
+    await test_session.flush()
+    created_storage.warehouse_id = warehouse.id
+    await test_session.commit()
+    stock_response = await async_client.post(
+        "/inventory/movements/",
+        json={
+            "autopart_id": created_autopart.id,
+            "storage_location_id": created_storage.id,
+            "movement_type": "manual",
+            "quantity": 2,
+        },
+    )
+    assert stock_response.status_code == 201, stock_response.text
+
+    customer_order = CustomerOrder(
+        customer_id=created_customers[0].id,
+        order_number="PACK-CLIENT-1",
+        status="PROCESSED",
+        received_at=now_moscow(),
+    )
+    test_session.add(customer_order)
+    await test_session.flush()
+    customer_item = CustomerOrderItem(
+        order_id=customer_order.id,
+        oem="CLIENT-PACK-OEM",
+        brand="DRAGONZAP",
+        name="Клиентская позиция для коробки",
+        requested_qty=2,
+        requested_price=Decimal("300.00"),
+        ship_qty=2,
+        status="OWN_STOCK",
+        autopart_id=created_autopart.id,
+    )
+    test_session.add(customer_item)
+    await test_session.flush()
+    stock_order = StockOrder(
+        customer_id=created_customers[0].id,
+        status="COMPLETED",
+        packing_required=True,
+    )
+    test_session.add(stock_order)
+    await test_session.flush()
+    stock_item = StockOrderItem(
+        stock_order_id=stock_order.id,
+        customer_order_item_id=customer_item.id,
+        autopart_id=created_autopart.id,
+        quantity=2,
+        picked_quantity=2,
+    )
+    test_session.add(stock_item)
+    await test_session.commit()
+
+    blocked_dispatch = await async_client.post(
+        f"/customer-orders/stock/orders/{stock_order.id}/dispatch"
+    )
+    assert blocked_dispatch.status_code == 400
+    assert "упакуйте заказ" in blocked_dispatch.json()["detail"]
+
+    create_box = await async_client.post(
+        f"/customer-orders/stock/orders/{stock_order.id}/packages",
+        json={"pack_all_unallocated": True},
+    )
+    assert create_box.status_code == 201, create_box.text
+    packing = create_box.json()
+    assert packing["packing_required"] is True
+    assert packing["packing_ready"] is False
+    assert packing["items"][0]["allocated_quantity"] == 2
+    assert packing["items"][0]["unallocated_quantity"] == 0
+    box = packing["packages"][0]
+    assert box["sequence_number"] == 1
+    assert box["status"] == "open"
+
+    packed_pick_reduction = await async_client.patch(
+        f"/customer-orders/stock/items/{stock_item.id}/pick",
+        json={"picked_quantity": 1},
+    )
+    assert packed_pick_reduction.status_code == 400
+    assert "уже упакованного" in packed_pick_reduction.json()["detail"]
+
+    seal_box = await async_client.post(
+        f"/customer-orders/stock/packages/{box['id']}/seal"
+    )
+    assert seal_box.status_code == 200, seal_box.text
+    assert seal_box.json()["packages"][0]["status"] == "sealed"
+
+    early_verify = await async_client.post(
+        f"/customer-orders/stock/packages/{box['id']}/verify"
+    )
+    assert early_verify.status_code == 400
+    assert "сканированием" in early_verify.json()["detail"]
+
+    for expected_quantity in (1, 2):
+        scan_response = await async_client.post(
+            f"/customer-orders/stock/packages/{box['id']}/scan",
+            json={"scan_code": created_autopart.barcode},
+        )
+        assert scan_response.status_code == 200, scan_response.text
+        assert (
+            scan_response.json()["packages"][0]["verified_quantity"]
+            == expected_quantity
+        )
+
+    verify_box = await async_client.post(
+        f"/customer-orders/stock/packages/{box['id']}/verify"
+    )
+    assert verify_box.status_code == 200, verify_box.text
+    assert verify_box.json()["packing_ready"] is True
+    assert verify_box.json()["packages"][0]["status"] == "verified"
+
+    first_print = await async_client.post(
+        f"/customer-orders/stock/packages/{box['id']}/label-print",
+        json={},
+    )
+    assert first_print.status_code == 200, first_print.text
+    assert first_print.json()["packages"][0]["print_count"] == 1
+    reprint_without_reason = await async_client.post(
+        f"/customer-orders/stock/packages/{box['id']}/label-print",
+        json={},
+    )
+    assert reprint_without_reason.status_code == 400
+    reprint = await async_client.post(
+        f"/customer-orders/stock/packages/{box['id']}/label-print",
+        json={"reason": "Этикетка повреждена"},
+    )
+    assert reprint.status_code == 200, reprint.text
+    assert reprint.json()["packages"][0]["print_count"] == 2
+
+    list_response = await async_client.get("/customer-orders/stock/list")
+    assert list_response.status_code == 200, list_response.text
+    listed_order = next(
+        row for row in list_response.json() if row["id"] == stock_order.id
+    )
+    assert listed_order["package_count"] == 1
+    assert listed_order["packing_ready"] is True
+
+    dispatch_response = await async_client.post(
+        f"/customer-orders/stock/orders/{stock_order.id}/dispatch"
+    )
+    assert dispatch_response.status_code == 200, dispatch_response.text
+    assert dispatch_response.json()["shipment_status"] == "posted"
+
+    reopen_after_dispatch = await async_client.post(
+        f"/customer-orders/stock/packages/{box['id']}/reopen",
+        json={"reason": "Попытка после отгрузки"},
+    )
+    assert reopen_after_dispatch.status_code == 400
+    assert "Отгруженный заказ" in reopen_after_dispatch.json()["detail"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.no_auth_override
+async def test_stock_order_dispatch_creates_idempotent_shipment_document(
+    async_client,
+    test_session,
+    created_autopart,
+    created_customers,
+    created_storage,
+):
+    await _create_user(test_session, "shipper@example.com", UserRole.MANAGER)
+    await _login(async_client, "shipper@example.com")
+
+    main_warehouse = Warehouse(name="Основной склад", is_active=True)
+    other_warehouse = Warehouse(name="Другой склад", is_active=True)
+    test_session.add_all([main_warehouse, other_warehouse])
+    await test_session.flush()
+    created_storage.warehouse_id = main_warehouse.id
+    other_storage = StorageLocation(
+        name="OTHER 01",
+        warehouse_id=other_warehouse.id,
+    )
+    test_session.add(other_storage)
+    await test_session.commit()
+
+    # The older lot belongs to another warehouse and must not be consumed.
+    for storage_id, quantity in (
+        (other_storage.id, 5),
+        (created_storage.id, 3),
+    ):
+        response = await async_client.post(
+            "/inventory/movements/",
+            json={
+                "autopart_id": created_autopart.id,
+                "storage_location_id": storage_id,
+                "movement_type": "manual",
+                "quantity": quantity,
+            },
+        )
+        assert response.status_code == 201, response.text
+
+    customer_order = CustomerOrder(
+        customer_id=created_customers[0].id,
+        order_number="CLIENT-ORDER-1",
+        status="PROCESSED",
+        received_at=now_moscow(),
+    )
+    test_session.add(customer_order)
+    await test_session.flush()
+    customer_item = CustomerOrderItem(
+        order_id=customer_order.id,
+        oem="CLIENT-ALIAS-001",
+        brand="DRAGONZAP",
+        name="Наименование из заказа клиента",
+        requested_qty=2,
+        requested_price=Decimal("250.00"),
+        ship_qty=2,
+        status="OWN_STOCK",
+        autopart_id=created_autopart.id,
+        actual_oem=created_autopart.oem_number,
+        actual_brand="TEST BRAND",
+    )
+    test_session.add(customer_item)
+    await test_session.flush()
+    stock_order = StockOrder(
+        customer_id=created_customers[0].id,
+        status="COMPLETED",
+    )
+    test_session.add(stock_order)
+    await test_session.flush()
+    test_session.add(
+        StockOrderItem(
+            stock_order_id=stock_order.id,
+            customer_order_item_id=customer_item.id,
+            autopart_id=created_autopart.id,
+            quantity=2,
+            picked_quantity=2,
+        )
+    )
+    await test_session.commit()
+
+    response = await async_client.post(
+        f"/customer-orders/stock/orders/{stock_order.id}/dispatch"
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["shipment_status"] == "posted"
+    assert payload["already_dispatched"] is False
+    shipment_id = payload["shipment_document_id"]
+
+    shipment = await test_session.get(ShipmentDocument, shipment_id)
+    assert shipment.status == ShipmentDocumentStatus.POSTED
+    assert shipment.customer_order_id == customer_order.id
+    assert shipment.warehouse_id == main_warehouse.id
+    shipment_item = (
+        await test_session.execute(
+            select(ShipmentDocumentItem).where(
+                ShipmentDocumentItem.document_id == shipment_id
+            )
+        )
+    ).scalar_one()
+    assert shipment_item.autopart_id == created_autopart.id
+    assert shipment_item.customer_oem == "CLIENT-ALIAS-001"
+    assert shipment_item.customer_brand == "DRAGONZAP"
+    assert shipment_item.price == Decimal("250.00")
+    allocations = (
+        await test_session.execute(
+            select(ShipmentDocumentItemLotAllocation).where(
+                ShipmentDocumentItemLotAllocation.shipment_document_item_id
+                == shipment_item.id
+            )
+        )
+    ).scalars().all()
+    assert sum(row.quantity for row in allocations) == 2
+    assert all(
+        row.stock_lot.storage_location_id == created_storage.id
+        for row in allocations
+    )
+
+    stock_rows = (
+        await test_session.execute(
+            select(StockByLocation).where(
+                StockByLocation.autopart_id == created_autopart.id
+            )
+        )
+    ).scalars().all()
+    quantities = {
+        row.storage_location_id: row.quantity for row in stock_rows
+    }
+    assert quantities[created_storage.id] == 1
+    assert quantities[other_storage.id] == 5
+
+    repeated = await async_client.post(
+        f"/customer-orders/stock/orders/{stock_order.id}/dispatch"
+    )
+    assert repeated.status_code == 200, repeated.text
+    assert repeated.json()["already_dispatched"] is True
+    assert repeated.json()["shipment_document_id"] == shipment_id
+    document_count = (
+        await test_session.execute(select(ShipmentDocument.id))
+    ).scalars().all()
+    assert document_count == [shipment_id]
+
+    list_response = await async_client.get("/customer-orders/stock/list")
+    assert list_response.status_code == 200, list_response.text
+    listed_order = next(
+        row for row in list_response.json() if row["id"] == stock_order.id
+    )
+    assert listed_order["shipment_document_id"] == shipment_id
+
+    unpost = await async_client.post(
+        f"/inventory/shipments/{shipment_id}/unpost/"
+    )
+    assert unpost.status_code == 200, unpost.text
+    assert unpost.json()["movements_created"] == 1
+    await test_session.refresh(stock_order)
+    await test_session.refresh(shipment)
+    assert stock_order.status.value == "COMPLETED"
+    assert shipment.status == ShipmentDocumentStatus.CANCELLED
+    restored_rows = (
+        await test_session.execute(
+            select(StockByLocation).where(
+                StockByLocation.autopart_id == created_autopart.id
+            ).execution_options(populate_existing=True)
+        )
+    ).scalars().all()
+    restored_quantities = {
+        row.storage_location_id: row.quantity for row in restored_rows
+    }
+    assert restored_quantities[created_storage.id] == 3
+    assert restored_quantities[other_storage.id] == 5
+
+    replacement = await async_client.post(
+        f"/customer-orders/stock/orders/{stock_order.id}/dispatch"
+    )
+    assert replacement.status_code == 200, replacement.text
+    replacement_payload = replacement.json()
+    assert replacement_payload["shipment_document_id"] != shipment_id
+    assert replacement_payload["shipment_document_number"].endswith("-R1")
+    await test_session.refresh(stock_order)
+    assert (
+        stock_order.shipment_document_id
+        == replacement_payload["shipment_document_id"]
+    )
+    assert (
+        await test_session.execute(select(ShipmentDocument.id))
+    ).scalars().all() == [shipment_id, replacement_payload["shipment_document_id"]]
+
+
+@pytest.mark.asyncio
+@pytest.mark.no_auth_override
+async def test_cross_docking_receipt_joins_assembly_and_uses_exact_lot(
+    async_client,
+    test_session,
+    created_autopart,
+    created_customers,
+    created_providers,
+    created_storage,
+):
+    await _create_user(test_session, "crossdock@example.com", UserRole.MANAGER)
+    await _login(async_client, "crossdock@example.com")
+
+    warehouse = Warehouse(name="Основной склад", is_active=True)
+    test_session.add(warehouse)
+    await test_session.flush()
+    created_storage.warehouse_id = warehouse.id
+    await test_session.commit()
+
+    # An older lot for the same nomenclature must not replace the lot linked
+    # to the supplier receipt when the cross-docking line is dispatched.
+    movement_response = await async_client.post(
+        "/inventory/movements/",
+        json={
+            "autopart_id": created_autopart.id,
+            "storage_location_id": created_storage.id,
+            "movement_type": "manual",
+            "quantity": 5,
+        },
+    )
+    assert movement_response.status_code == 201, movement_response.text
+    manual_lot = (
+        await test_session.execute(
+            select(StockLot).where(
+                StockLot.autopart_id == created_autopart.id,
+                StockLot.storage_location_id == created_storage.id,
+                StockLot.source_receipt_item_id.is_(None),
+            )
+        )
+    ).scalar_one()
+
+    customer_order = CustomerOrder(
+        customer_id=created_customers[0].id,
+        order_number="CO-MIXED-1",
+        status="PROCESSED",
+        received_at=now_moscow(),
+    )
+    test_session.add(customer_order)
+    await test_session.flush()
+    own_item = CustomerOrderItem(
+        order_id=customer_order.id,
+        oem="OWN-CLIENT-OEM",
+        brand="DRAGONZAP",
+        name="Строка с нашего склада",
+        requested_qty=1,
+        requested_price=Decimal("250.00"),
+        ship_qty=1,
+        status="OWN_STOCK",
+        autopart_id=created_autopart.id,
+    )
+    cross_item = CustomerOrderItem(
+        order_id=customer_order.id,
+        oem="CROSS-CLIENT-OEM",
+        brand="TEST BRAND",
+        name="Строка cross-docking",
+        requested_qty=2,
+        requested_price=Decimal("275.00"),
+        ship_qty=2,
+        status="SUPPLIER",
+        autopart_id=created_autopart.id,
+    )
+    test_session.add_all([own_item, cross_item])
+    await test_session.flush()
+
+    stock_order = StockOrder(
+        customer_id=created_customers[0].id,
+        status="COMPLETED",
+    )
+    test_session.add(stock_order)
+    await test_session.flush()
+    test_session.add(
+        StockOrderItem(
+            stock_order_id=stock_order.id,
+            customer_order_item_id=own_item.id,
+            autopart_id=created_autopart.id,
+            quantity=1,
+            picked_quantity=1,
+        )
+    )
+
+    supplier_order = SupplierOrder(
+        provider_id=created_providers[0].id,
+        status=SUPPLIER_ORDER_STATUS.SENT,
+        created_at=now_moscow(),
+        sent_at=now_moscow(),
+    )
+    test_session.add(supplier_order)
+    await test_session.flush()
+    supplier_item = SupplierOrderItem(
+        supplier_order_id=supplier_order.id,
+        customer_order_item_id=cross_item.id,
+        autopart_id=created_autopart.id,
+        oem_number=created_autopart.oem_number,
+        brand_name="TEST BRAND",
+        autopart_name=created_autopart.name,
+        quantity=2,
+        confirmed_quantity=2,
+        price=Decimal("180.00"),
+    )
+    test_session.add(supplier_item)
+    await test_session.commit()
+
+    receipt_response = await async_client.post(
+        "/customer-orders/supplier-receipts",
+        json={
+            "provider_id": created_providers[0].id,
+            "warehouse_id": warehouse.id,
+            "items": [
+                {
+                    "supplier_order_item_id": supplier_item.id,
+                    "received_quantity": 2,
+                }
+            ],
+        },
+    )
+    assert receipt_response.status_code == 201, receipt_response.text
+    receipt_id = receipt_response.json()["id"]
+
+    post_response = await async_client.post(
+        f"/customer-orders/supplier-receipts/{receipt_id}/post"
+    )
+    assert post_response.status_code == 200, post_response.text
+    posted_item_payload = post_response.json()["items"][0]
+    assert posted_item_payload["cross_docking_status"] == "label_pending"
+    assert posted_item_payload["document_pending"] is True
+
+    labels_response = await async_client.get(
+        f"/customer-orders/supplier-receipts/{receipt_id}/cross-docking-labels"
+    )
+    assert labels_response.status_code == 200, labels_response.text
+    labels_payload = labels_response.json()
+    assert len(labels_payload) == 1
+    assert labels_payload[0]["requested_brand"] == "TEST BRAND"
+    assert labels_payload[0]["requested_oem"] == "CROSS-CLIENT-OEM"
+    assert labels_payload[0]["quantity"] == 2
+    assert labels_payload[0]["barcode"].startswith("XD-")
+
+    missing_document_response = await async_client.patch(
+        f"/customer-orders/supplier-receipts/{receipt_id}/cross-docking-document",
+        json={"document_pending": False},
+    )
+    assert missing_document_response.status_code == 400
+    assert "укажите номер" in missing_document_response.json()["detail"]
+
+    document_response = await async_client.patch(
+        f"/customer-orders/supplier-receipts/{receipt_id}/cross-docking-document",
+        json={
+            "document_pending": False,
+            "document_number": "CROSS-RC-1",
+            "document_date": str(date.today()),
+        },
+    )
+    assert document_response.status_code == 200, document_response.text
+    assert document_response.json()["document_number"] == "CROSS-RC-1"
+    assert document_response.json()["items"][0]["document_pending"] is False
+
+    receipt_item = (
+        await test_session.execute(
+            select(SupplierReceiptItem).where(
+                SupplierReceiptItem.receipt_id == receipt_id
+            )
+        )
+    ).scalar_one()
+    receipt_lot = (
+        await test_session.execute(
+            select(StockLot).where(
+                StockLot.source_receipt_item_id == receipt_item.id
+            )
+        )
+    ).scalar_one()
+    cross_stock_item = (
+        await test_session.execute(
+            select(StockOrderItem).where(
+                StockOrderItem.supplier_receipt_item_id == receipt_item.id
+            )
+        )
+    ).scalar_one()
+    assert cross_stock_item.stock_order_id == stock_order.id
+    assert cross_stock_item.preferred_stock_lot_id == receipt_lot.id
+    await test_session.refresh(stock_order)
+    assert stock_order.status.value == "NEW"
+
+    list_response = await async_client.get("/customer-orders/stock/list")
+    assert list_response.status_code == 200, list_response.text
+    listed_order = next(
+        row for row in list_response.json() if row["id"] == stock_order.id
+    )
+    listed_cross_item = next(
+        item
+        for item in listed_order["items"]
+        if item["supplier_receipt_item_id"] == receipt_item.id
+    )
+    assert listed_cross_item["source_type"] == "cross_docking"
+    assert listed_cross_item["provider_name"] == created_providers[0].name
+
+    # Administrators can safely backfill receipts posted before this feature.
+    await test_session.delete(cross_stock_item)
+    await test_session.commit()
+    await _create_user(test_session, "crossdock-admin@example.com", UserRole.ADMIN)
+    await _login(async_client, "crossdock-admin@example.com")
+    sync_response = await async_client.post(
+        "/customer-orders/stock/sync-cross-docking"
+    )
+    assert sync_response.status_code == 200, sync_response.text
+    assert sync_response.json()["items_created"] == 1
+    assert sync_response.json()["receipts_skipped"] == 0
+    cross_stock_item = (
+        await test_session.execute(
+            select(StockOrderItem).where(
+                StockOrderItem.supplier_receipt_item_id == receipt_item.id
+            )
+        )
+    ).scalar_one()
+
+    pick_response = await async_client.patch(
+        f"/customer-orders/stock/items/{cross_stock_item.id}/pick",
+        json={"picked_quantity": 2},
+    )
+    assert pick_response.status_code == 200, pick_response.text
+    assert pick_response.json()["stock_order_status"] == "COMPLETED"
+
+    package_response = await async_client.post(
+        f"/customer-orders/stock/orders/{stock_order.id}/packages",
+        json={"pack_all_unallocated": True},
+    )
+    assert package_response.status_code == 201, package_response.text
+    package_id = package_response.json()["packages"][0]["id"]
+
+    seal_response = await async_client.post(
+        f"/customer-orders/stock/packages/{package_id}/seal"
+    )
+    assert seal_response.status_code == 200, seal_response.text
+    for _ in range(3):
+        scan_response = await async_client.post(
+            f"/customer-orders/stock/packages/{package_id}/scan",
+            json={"scan_code": created_autopart.barcode},
+        )
+        assert scan_response.status_code == 200, scan_response.text
+    verify_response = await async_client.post(
+        f"/customer-orders/stock/packages/{package_id}/verify"
+    )
+    assert verify_response.status_code == 200, verify_response.text
+    assert verify_response.json()["packing_ready"] is True
+
+    receipt_lot.remaining_quantity = 1
+    await test_session.commit()
+    insufficient_response = await async_client.post(
+        f"/customer-orders/stock/orders/{stock_order.id}/dispatch"
+    )
+    assert insufficient_response.status_code == 400
+    assert "замена другой партией запрещена" in insufficient_response.json()[
+        "detail"
+    ]
+    await test_session.refresh(manual_lot)
+    await test_session.refresh(receipt_lot)
+    assert manual_lot.remaining_quantity == 5
+    assert receipt_lot.remaining_quantity == 1
+    assert (
+        await test_session.execute(select(ShipmentDocument.id))
+    ).scalars().all() == []
+
+    receipt_lot.remaining_quantity = 2
+    await test_session.commit()
+    dispatch_response = await async_client.post(
+        f"/customer-orders/stock/orders/{stock_order.id}/dispatch"
+    )
+    assert dispatch_response.status_code == 200, dispatch_response.text
+    shipment_id = dispatch_response.json()["shipment_document_id"]
+    shipment_items = (
+        await test_session.execute(
+            select(ShipmentDocumentItem).where(
+                ShipmentDocumentItem.document_id == shipment_id
+            )
+        )
+    ).scalars().all()
+    shipment_by_customer_item = {
+        row.customer_order_item_id: row for row in shipment_items
+    }
+    cross_shipment_item = shipment_by_customer_item[cross_item.id]
+    assert cross_shipment_item.customer_oem == "CROSS-CLIENT-OEM"
+    assert cross_shipment_item.preferred_lot_id == receipt_lot.id
+
+    cross_allocations = (
+        await test_session.execute(
+            select(ShipmentDocumentItemLotAllocation).where(
+                ShipmentDocumentItemLotAllocation.shipment_document_item_id
+                == cross_shipment_item.id
+            )
+        )
+    ).scalars().all()
+    assert [(row.stock_lot_id, row.quantity) for row in cross_allocations] == [
+        (receipt_lot.id, 2)
+    ]
+
+    await test_session.refresh(manual_lot)
+    await test_session.refresh(receipt_lot)
+    assert manual_lot.remaining_quantity == 4
+    assert receipt_lot.remaining_quantity == 0
+
+    unpost_response = await async_client.post(
+        f"/customer-orders/supplier-receipts/{receipt_id}/unpost"
+    )
+    assert unpost_response.status_code == 400, unpost_response.text
+    assert "cross-docking уже подобран или отгружен" in unpost_response.json()[
+        "detail"
+    ]
+
+    label_id = labels_payload[0]["id"]
+    first_print_response = await async_client.post(
+        f"/customer-orders/supplier-receipts/{receipt_id}/cross-docking-labels/print",
+        json={"label_ids": [label_id]},
+    )
+    assert first_print_response.status_code == 200, first_print_response.text
+    assert first_print_response.json()[0]["print_count"] == 1
+    assert first_print_response.json()[0]["status"] == "printed"
+
+    reprint_without_reason = await async_client.post(
+        f"/customer-orders/supplier-receipts/{receipt_id}/cross-docking-labels/print",
+        json={"label_ids": [label_id]},
+    )
+    assert reprint_without_reason.status_code == 400
+    assert "укажите причину" in reprint_without_reason.json()["detail"]
+
+    reprint_response = await async_client.post(
+        f"/customer-orders/supplier-receipts/{receipt_id}/cross-docking-labels/print",
+        json={
+            "label_ids": [label_id],
+            "reason": "Этикетка повреждена при приёмке",
+        },
+    )
+    assert reprint_response.status_code == 200, reprint_response.text
+    assert reprint_response.json()[0]["print_count"] == 2
+    assert len(reprint_response.json()[0]["print_history"]) == 2
 
 
 @pytest.mark.asyncio

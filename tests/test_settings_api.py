@@ -72,6 +72,27 @@ async def test_supplier_orders_send_scheduler_setting(async_client):
 
 
 @pytest.mark.asyncio
+async def test_dragonzap_production_wave_scheduler_setting(async_client):
+    response = await async_client.get("/settings/scheduler")
+    assert response.status_code == 200
+    setting = next(
+        item
+        for item in response.json()
+        if item["key"] == "dragonzap_production_waves"
+    )
+    assert setting["enabled"] is False
+    assert setting["times"] == ["09:30", "15:00"]
+
+    updated = await async_client.put(
+        "/settings/scheduler/dragonzap_production_waves",
+        json={"enabled": True, "days": ["mon", "fri"], "times": ["10:00"]},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["enabled"] is True
+    assert updated.json()["times"] == ["10:00"]
+
+
+@pytest.mark.asyncio
 async def test_monitoring_endpoints(async_client):
     response = await async_client.get("/settings/monitor/summary")
     assert response.status_code == 200

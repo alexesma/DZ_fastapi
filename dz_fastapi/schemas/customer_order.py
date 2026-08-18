@@ -1,9 +1,15 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_serializer, field_validator
 
+from dz_fastapi.models.inventory import (
+    CrossDockingItemStatus,
+    CrossDockingLabelStatus,
+    StockOrderPackageEventType,
+    StockOrderPackageStatus,
+)
 from dz_fastapi.models.partner import (
     CUSTOMER_ORDER_ITEM_STATUS,
     CUSTOMER_ORDER_SHIP_MODE,
@@ -469,6 +475,10 @@ class StockOrderItemResponse(BaseModel):
     id: int
     autopart_id: Optional[int]
     customer_order_item_id: Optional[int]
+    supplier_receipt_item_id: Optional[int] = None
+    preferred_stock_lot_id: Optional[int] = None
+    source_type: str = "own_stock"
+    provider_name: Optional[str] = None
     quantity: int
     picked_quantity: int = 0
     picked_at: Optional[datetime] = None
@@ -493,6 +503,10 @@ class StockOrderResponse(BaseModel):
     id: int
     customer_id: Optional[int]
     customer_name: Optional[str] = None
+    shipment_document_id: Optional[int] = None
+    packing_required: bool = False
+    package_count: int = 0
+    packing_ready: bool = False
     status: STOCK_ORDER_STATUS
     created_at: datetime
     items: List[StockOrderItemResponse] = Field(default_factory=list)
@@ -520,6 +534,102 @@ class StockOrderItemPickResponse(BaseModel):
     stock_order_status: STOCK_ORDER_STATUS
 
 
+class StockOrderPackageCreate(BaseModel):
+    comment: Optional[str] = Field(default=None, max_length=500)
+    pack_all_unallocated: bool = False
+
+
+class StockOrderPackageAllocation(BaseModel):
+    stock_order_item_id: int
+    quantity: int = Field(ge=0)
+
+
+class StockOrderPackageContentsUpdate(BaseModel):
+    items: List[StockOrderPackageAllocation] = Field(default_factory=list)
+
+
+class StockOrderPackageScanRequest(BaseModel):
+    scan_code: str = Field(min_length=1, max_length=255)
+
+
+class StockOrderPackageReasonRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class StockOrderPackagePrintRequest(BaseModel):
+    reason: Optional[str] = Field(default=None, max_length=500)
+
+
+class StockOrderPackingItemResponse(BaseModel):
+    stock_order_item_id: int
+    autopart_id: Optional[int] = None
+    actual_oem: Optional[str] = None
+    actual_brand: Optional[str] = None
+    customer_oem: Optional[str] = None
+    customer_brand: Optional[str] = None
+    name: Optional[str] = None
+    barcode: Optional[str] = None
+    quantity: int
+    picked_quantity: int
+    allocated_quantity: int
+    unallocated_quantity: int
+
+
+class StockOrderPackageItemResponse(BaseModel):
+    id: int
+    stock_order_item_id: int
+    quantity: int
+    verified_quantity: int
+    actual_oem: Optional[str] = None
+    customer_oem: Optional[str] = None
+    customer_brand: Optional[str] = None
+    name: Optional[str] = None
+    last_scan_code: Optional[str] = None
+
+
+class StockOrderPackageEventResponse(BaseModel):
+    id: int
+    event_type: StockOrderPackageEventType
+    created_at: datetime
+    user_name: Optional[str] = None
+    reason: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None
+
+
+class StockOrderPackageResponse(BaseModel):
+    id: int
+    sequence_number: int
+    total_packages: int
+    barcode: str
+    status: StockOrderPackageStatus
+    comment: Optional[str] = None
+    created_at: datetime
+    created_by_name: Optional[str] = None
+    sealed_at: Optional[datetime] = None
+    sealed_by_name: Optional[str] = None
+    verified_at: Optional[datetime] = None
+    verified_by_name: Optional[str] = None
+    print_count: int
+    last_printed_at: Optional[datetime] = None
+    last_printed_by_name: Optional[str] = None
+    last_print_reason: Optional[str] = None
+    total_quantity: int
+    verified_quantity: int
+    items: List[StockOrderPackageItemResponse] = Field(default_factory=list)
+    events: List[StockOrderPackageEventResponse] = Field(default_factory=list)
+
+
+class StockOrderPackingResponse(BaseModel):
+    stock_order_id: int
+    customer_id: Optional[int] = None
+    customer_name: Optional[str] = None
+    stock_order_status: STOCK_ORDER_STATUS
+    packing_required: bool
+    packing_ready: bool
+    items: List[StockOrderPackingItemResponse] = Field(default_factory=list)
+    packages: List[StockOrderPackageResponse] = Field(default_factory=list)
+
+
 class SupplierReceiptCandidateRow(BaseModel):
     supplier_order_item_id: int
     supplier_order_id: int
@@ -531,6 +641,7 @@ class SupplierReceiptCandidateRow(BaseModel):
     customer_order_id: Optional[int] = None
     customer_order_number: Optional[str] = None
     customer_name: Optional[str] = None
+    barcode: Optional[str] = None
     oem_number: Optional[str] = None
     brand_name: Optional[str] = None
     autopart_name: Optional[str] = None
@@ -645,6 +756,11 @@ class SupplierReceiptItemResponse(BaseModel):
     # Customer info (populated in detail view)
     customer_name: Optional[str] = None
     customer_order_number: Optional[str] = None
+    cross_docking_status: Optional[CrossDockingItemStatus] = None
+    document_pending: bool = False
+    accepted_at: Optional[datetime] = None
+    accepted_by_user_id: Optional[int] = None
+    ready_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -668,6 +784,48 @@ class SupplierReceiptResponse(BaseModel):
     items: List[SupplierReceiptItemResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CrossDockingLabelPrintEventResponse(BaseModel):
+    id: int
+    print_number: int
+    printed_at: datetime
+    printed_by_name: Optional[str] = None
+    reason: Optional[str] = None
+
+
+class CrossDockingLabelResponse(BaseModel):
+    id: int
+    supplier_receipt_item_id: int
+    stock_order_item_id: Optional[int] = None
+    customer_order_item_id: Optional[int] = None
+    quantity: int
+    requested_brand: str
+    requested_oem: str
+    requested_name: Optional[str] = None
+    customer_name: Optional[str] = None
+    order_number: Optional[str] = None
+    order_date: Optional[date] = None
+    barcode: str
+    status: CrossDockingLabelStatus
+    print_count: int = 0
+    last_printed_at: Optional[datetime] = None
+    last_printed_by_name: Optional[str] = None
+    last_print_reason: Optional[str] = None
+    print_history: List[CrossDockingLabelPrintEventResponse] = Field(
+        default_factory=list
+    )
+
+
+class CrossDockingLabelPrintRequest(BaseModel):
+    label_ids: List[int] = Field(default_factory=list)
+    reason: Optional[str] = Field(default=None, max_length=500)
+
+
+class CrossDockingDocumentStatusUpdate(BaseModel):
+    document_pending: bool
+    document_number: Optional[str] = Field(default=None, max_length=120)
+    document_date: Optional[date] = None
 
 
 class SupplierResponseProcessResult(BaseModel):

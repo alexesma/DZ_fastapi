@@ -9,6 +9,7 @@
    поступления, контрагенты, номенклатура — под типовую «Загрузку данных
    из табличного документа».
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -17,6 +18,7 @@ import xml.etree.ElementTree as ET
 from datetime import date, datetime
 from decimal import Decimal
 from io import BytesIO
+from types import SimpleNamespace
 from typing import Any, Optional, Sequence
 
 import pandas as pd
@@ -73,18 +75,14 @@ async def list_shipments_for_1c(
         .order_by(ShipmentDocument.doc_date.asc(), ShipmentDocument.id.asc())
     )
     if only_pending:
-        stmt = stmt.where(
-            ShipmentDocument.sync_status == SyncStatus.PENDING
-        )
+        stmt = stmt.where(ShipmentDocument.sync_status == SyncStatus.PENDING)
     if date_from is not None:
         stmt = stmt.where(
-            ShipmentDocument.doc_date
-            >= datetime.combine(date_from, datetime.min.time())
+            ShipmentDocument.doc_date >= datetime.combine(date_from, datetime.min.time())
         )
     if date_to is not None:
         stmt = stmt.where(
-            ShipmentDocument.doc_date
-            <= datetime.combine(date_to, datetime.max.time())
+            ShipmentDocument.doc_date <= datetime.combine(date_to, datetime.max.time())
         )
     if limit:
         stmt = stmt.limit(int(limit))
@@ -95,24 +93,21 @@ def build_commerceml_sale_xml(
     shipments: Sequence[ShipmentDocument],
     *,
     vat_rate: str = DEFAULT_VAT_RATE,
+    formed_at: Optional[datetime] = None,
 ) -> bytes:
     """Отгрузки → CommerceML «КоммерческаяИнформация» с документами."""
     root = ET.Element(
         "КоммерческаяИнформация",
         {
             "ВерсияСхемы": COMMERCEML_SCHEMA_VERSION,
-            "ДатаФормирования": now_moscow().strftime(
-                "%Y-%m-%dT%H:%M:%S"
-            ),
+            "ДатаФормирования": (formed_at or now_moscow()).strftime("%Y-%m-%dT%H:%M:%S"),
         },
     )
     for document in shipments:
         customer = getattr(document, "customer", None)
         doc_el = ET.SubElement(root, "Документ")
         ET.SubElement(doc_el, "Ид").text = f"dz-shipment-{document.id}"
-        ET.SubElement(doc_el, "Номер").text = _shipment_document_number(
-            document
-        )
+        ET.SubElement(doc_el, "Номер").text = _shipment_document_number(document)
         doc_date = document.doc_date or document.created_at
         ET.SubElement(doc_el, "Дата").text = doc_date.strftime("%Y-%m-%d")
         ET.SubElement(doc_el, "ХозОперация").text = "Заказ товара"
@@ -130,12 +125,8 @@ def build_commerceml_sale_xml(
         customer_id = getattr(customer, "id", None) or 0
         name = str(getattr(customer, "name", "") or "").strip()
         ET.SubElement(counterparty, "Ид").text = f"dz-customer-{customer_id}"
-        ET.SubElement(counterparty, "Наименование").text = (
-            name or "Розничный покупатель"
-        )
-        ET.SubElement(counterparty, "ПолноеНаименование").text = (
-            name or "Розничный покупатель"
-        )
+        ET.SubElement(counterparty, "Наименование").text = name or "Розничный покупатель"
+        ET.SubElement(counterparty, "ПолноеНаименование").text = name or "Розничный покупатель"
         inn = str(getattr(customer, "inn", "") or "").strip()
         kpp = str(getattr(customer, "kpp", "") or "").strip()
         if inn:
@@ -146,28 +137,20 @@ def build_commerceml_sale_xml(
 
         ET.SubElement(doc_el, "Время").text = doc_date.strftime("%H:%M:%S")
         if document.notes:
-            ET.SubElement(doc_el, "Комментарий").text = str(
-                document.notes
-            )[:1000]
+            ET.SubElement(doc_el, "Комментарий").text = str(document.notes)[:1000]
 
         goods = ET.SubElement(doc_el, "Товары")
         for item in document.items or []:
             autopart = getattr(item, "autopart", None)
             brand = getattr(autopart, "brand", None)
             client_oem = str(
-                getattr(item, "customer_oem", None)
-                or getattr(autopart, "oem_number", "")
-                or ""
+                getattr(item, "customer_oem", None) or getattr(autopart, "oem_number", "") or ""
             ).strip()
             client_brand = str(
-                getattr(item, "customer_brand", None)
-                or getattr(brand, "name", "")
-                or ""
+                getattr(item, "customer_brand", None) or getattr(brand, "name", "") or ""
             ).strip()
             client_name = str(
-                getattr(item, "customer_name", None)
-                or getattr(autopart, "name", "")
-                or ""
+                getattr(item, "customer_name", None) or getattr(autopart, "name", "") or ""
             ).strip()
             good = ET.SubElement(goods, "Товар")
             ET.SubElement(good, "Ид").text = f"dz-autopart-{item.autopart_id}"
@@ -181,20 +164,14 @@ def build_commerceml_sale_xml(
                 )
                 if part
             )
-            ET.SubElement(good, "Наименование").text = (
-                part_name or f"Запчасть #{item.autopart_id}"
-            )
+            ET.SubElement(good, "Наименование").text = part_name or f"Запчасть #{item.autopart_id}"
             ET.SubElement(
                 good,
                 "БазоваяЕдиница",
                 {"Код": "796", "НаименованиеПолное": "Штука"},
             ).text = "шт"
-            ET.SubElement(good, "ЦенаЗаЕдиницу").text = _fmt_money(
-                item.price
-            )
-            ET.SubElement(good, "Количество").text = str(
-                int(item.quantity or 0)
-            )
+            ET.SubElement(good, "ЦенаЗаЕдиницу").text = _fmt_money(item.price)
+            ET.SubElement(good, "Количество").text = str(int(item.quantity or 0))
             ET.SubElement(good, "Сумма").text = _fmt_money(
                 Decimal(str(item.price or 0)) * int(item.quantity or 0)
             )
@@ -219,6 +196,56 @@ def build_commerceml_sale_xml(
     return ET.tostring(root, encoding="utf-8", xml_declaration=True)
 
 
+def build_commerceml_sale_xml_from_snapshots(
+    snapshots: Sequence[dict[str, Any]],
+    *,
+    formed_at: Optional[datetime] = None,
+) -> bytes:
+    """Build CommerceML from immutable outbox snapshots, not live rows."""
+    shipments = []
+    for snapshot in snapshots:
+        customer_data = snapshot.get("customer") or {}
+        customer = SimpleNamespace(**customer_data) if customer_data else None
+        items = []
+        for row in snapshot.get("items") or []:
+            physical = row.get("physical") or {}
+            brand_name = physical.get("brand")
+            autopart = SimpleNamespace(
+                oem_number=physical.get("oem"),
+                name=physical.get("name"),
+                brand=(SimpleNamespace(name=brand_name) if brand_name else None),
+            )
+            items.append(
+                SimpleNamespace(
+                    autopart_id=physical.get("autopart_id"),
+                    autopart=autopart,
+                    customer_oem=row.get("customer_oem"),
+                    customer_brand=row.get("customer_brand"),
+                    customer_name=row.get("customer_name"),
+                    quantity=row.get("quantity"),
+                    price=row.get("price"),
+                )
+            )
+        raw_date = snapshot.get("document_date")
+        try:
+            document_date = datetime.fromisoformat(str(raw_date))
+        except (TypeError, ValueError):
+            document_date = now_moscow()
+        shipments.append(
+            SimpleNamespace(
+                id=snapshot.get("document_id"),
+                doc_number=snapshot.get("document_number"),
+                doc_date=document_date,
+                created_at=document_date,
+                notes=snapshot.get("notes"),
+                customer=customer,
+                customer_order_id=snapshot.get("customer_order_id"),
+                items=items,
+            )
+        )
+    return build_commerceml_sale_xml(shipments, formed_at=formed_at)
+
+
 async def mark_shipments_synced(
     session: AsyncSession,
     shipment_ids: Sequence[int],
@@ -226,12 +253,14 @@ async def mark_shipments_synced(
     if not shipment_ids:
         return 0
     rows = (
-        await session.execute(
-            select(ShipmentDocument).where(
-                ShipmentDocument.id.in_(list(shipment_ids))
+        (
+            await session.execute(
+                select(ShipmentDocument).where(ShipmentDocument.id.in_(list(shipment_ids)))
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for row in rows:
         row.sync_status = SyncStatus.SYNCED
         session.add(row)
@@ -252,13 +281,11 @@ async def reset_shipments_sync_status(
     )
     if date_from is not None:
         stmt = stmt.where(
-            ShipmentDocument.doc_date
-            >= datetime.combine(date_from, datetime.min.time())
+            ShipmentDocument.doc_date >= datetime.combine(date_from, datetime.min.time())
         )
     if date_to is not None:
         stmt = stmt.where(
-            ShipmentDocument.doc_date
-            <= datetime.combine(date_to, datetime.max.time())
+            ShipmentDocument.doc_date <= datetime.combine(date_to, datetime.max.time())
         )
     rows = (await session.execute(stmt)).scalars().all()
     for row in rows:
@@ -315,20 +342,12 @@ async def build_shipments_xlsx(
                     "Цена": float(price),
                     "Сумма": float(price * quantity),
                     "Себестоимость": (
-                        float(item.cost_total)
-                        if item.cost_total is not None
-                        else None
+                        float(item.cost_total) if item.cost_total is not None else None
                     ),
-                    "Выгружен в 1С": (
-                        "да"
-                        if document.sync_status == SyncStatus.SYNCED
-                        else "нет"
-                    ),
+                    "Выгружен в 1С": ("да" if document.sync_status == SyncStatus.SYNCED else "нет"),
                 }
             )
-    return await asyncio.to_thread(
-        _rows_to_xlsx_bytes, rows, "Реализации"
-    )
+    return await asyncio.to_thread(_rows_to_xlsx_bytes, rows, "Реализации")
 
 
 async def build_receipts_xlsx(
@@ -345,9 +364,7 @@ async def build_receipts_xlsx(
             selectinload(SupplierReceipt.items),
             selectinload(SupplierReceipt.provider),
         )
-        .order_by(
-            SupplierReceipt.document_date.asc(), SupplierReceipt.id.asc()
-        )
+        .order_by(SupplierReceipt.document_date.asc(), SupplierReceipt.id.asc())
     )
     if date_from is not None:
         stmt = stmt.where(SupplierReceipt.document_date >= date_from)
@@ -363,9 +380,7 @@ async def build_receipts_xlsx(
             rows.append(
                 {
                     "Дата": (
-                        receipt.document_date.strftime("%d.%m.%Y")
-                        if receipt.document_date
-                        else ""
+                        receipt.document_date.strftime("%d.%m.%Y") if receipt.document_date else ""
                     ),
                     "Номер": receipt.document_number or f"R-{receipt.id}",
                     "Поставщик": getattr(provider, "name", "") or "",
@@ -386,29 +401,15 @@ async def build_receipts_xlsx(
                     "Страна": item.country_name or item.country_code or "",
                 }
             )
-    return await asyncio.to_thread(
-        _rows_to_xlsx_bytes, rows, "Поступления"
-    )
+    return await asyncio.to_thread(_rows_to_xlsx_bytes, rows, "Поступления")
 
 
 async def build_counterparties_xlsx(session: AsyncSession) -> bytes:
     customers = (
-        (
-            await session.execute(
-                select(Customer).order_by(Customer.name.asc())
-            )
-        )
-        .scalars()
-        .all()
+        (await session.execute(select(Customer).order_by(Customer.name.asc()))).scalars().all()
     )
     providers = (
-        (
-            await session.execute(
-                select(Provider).order_by(Provider.name.asc())
-            )
-        )
-        .scalars()
-        .all()
+        (await session.execute(select(Provider).order_by(Provider.name.asc()))).scalars().all()
     )
     rows: list[dict[str, Any]] = []
     for customer in customers:
@@ -420,9 +421,7 @@ async def build_counterparties_xlsx(session: AsyncSession) -> bytes:
                 "КПП": customer.kpp or "",
                 "Email": customer.email_contact or "",
                 "Юр. адрес": getattr(customer, "legal_address", "") or "",
-                "Почтовый адрес": (
-                    getattr(customer, "postal_address", "") or ""
-                ),
+                "Почтовый адрес": (getattr(customer, "postal_address", "") or ""),
             }
         )
     for provider in providers:
@@ -437,9 +436,7 @@ async def build_counterparties_xlsx(session: AsyncSession) -> bytes:
                 "Почтовый адрес": "",
             }
         )
-    return await asyncio.to_thread(
-        _rows_to_xlsx_bytes, rows, "Контрагенты"
-    )
+    return await asyncio.to_thread(_rows_to_xlsx_bytes, rows, "Контрагенты")
 
 
 async def build_nomenclature_xlsx(session: AsyncSession) -> bytes:
@@ -466,9 +463,7 @@ async def build_nomenclature_xlsx(session: AsyncSession) -> bytes:
         }
         for row in rows
     ]
-    return await asyncio.to_thread(
-        _rows_to_xlsx_bytes, payload_rows, "Номенклатура"
-    )
+    return await asyncio.to_thread(_rows_to_xlsx_bytes, payload_rows, "Номенклатура")
 
 
 async def get_one_c_exchange_status(
@@ -516,9 +511,7 @@ _SALES_HEADER_ALIASES = {
 def _resolve_sales_columns(df: pd.DataFrame) -> dict[str, Any]:
     """Ищет колонки по русским заголовкам (без учёта регистра)."""
     resolved: dict[str, Any] = {}
-    normalized = {
-        str(column).strip().lower(): column for column in df.columns
-    }
+    normalized = {str(column).strip().lower(): column for column in df.columns}
     for key, aliases in _SALES_HEADER_ALIASES.items():
         for alias in aliases:
             if alias in normalized:
@@ -563,15 +556,11 @@ def _parse_sales_history_payload(
 
     df = pd.read_excel(BytesIO(payload))
     columns = _resolve_sales_columns(df)
-    missing = [
-        key for key in ("period", "oem", "quantity") if key not in columns
-    ]
+    missing = [key for key in ("period", "oem", "quantity") if key not in columns]
     if missing:
         raise ValueError(
             "Не найдены обязательные колонки: "
-            + ", ".join(
-                "/".join(_SALES_HEADER_ALIASES[key]) for key in missing
-            )
+            + ", ".join("/".join(_SALES_HEADER_ALIASES[key]) for key in missing)
         )
 
     aggregated: dict[tuple, dict[str, Any]] = {}
@@ -596,15 +585,11 @@ def _parse_sales_history_payload(
             raw_revenue = row.get(columns["revenue"])
             if raw_revenue is not None and not pd.isna(raw_revenue):
                 try:
-                    revenue = float(
-                        str(raw_revenue).replace(",", ".").replace(" ", "")
-                    )
+                    revenue = float(str(raw_revenue).replace(",", ".").replace(" ", ""))
                 except (TypeError, ValueError):
                     revenue = None
         key = (period, oem, brand)
-        bucket = aggregated.setdefault(
-            key, {"quantity": 0, "revenue": None}
-        )
+        bucket = aggregated.setdefault(key, {"quantity": 0, "revenue": None})
         bucket["quantity"] += quantity
         if revenue is not None:
             bucket["revenue"] = (bucket["revenue"] or 0.0) + revenue
@@ -634,12 +619,14 @@ async def import_sales_history_xlsx(
     existing_by_key: dict[tuple, SalesHistoryMonthly] = {}
     if periods:
         existing_rows = (
-            await session.execute(
-                select(SalesHistoryMonthly).where(
-                    SalesHistoryMonthly.period.in_(periods)
+            (
+                await session.execute(
+                    select(SalesHistoryMonthly).where(SalesHistoryMonthly.period.in_(periods))
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         existing_by_key = {
             (
                 row.period,
@@ -691,12 +678,8 @@ async def get_sales_history_summary(
                 sa_func.count(),
                 sa_func.min(SalesHistoryMonthly.period),
                 sa_func.max(SalesHistoryMonthly.period),
-                sa_func.count(
-                    sa_func.distinct(SalesHistoryMonthly.oem_number)
-                ),
-                sa_func.coalesce(
-                    sa_func.sum(SalesHistoryMonthly.quantity), 0
-                ),
+                sa_func.count(sa_func.distinct(SalesHistoryMonthly.oem_number)),
+                sa_func.coalesce(sa_func.sum(SalesHistoryMonthly.quantity), 0),
             )
         )
     ).one()

@@ -7,12 +7,14 @@ from dz_fastapi.api.validators import normalize_brand_name
 from dz_fastapi.crud.partner import crud_customer_pricelist
 from dz_fastapi.services.customer_orders import (
     OfferRow,
+    ParsedOrderRow,
     _apply_matched_email_state_for_configs,
     _build_current_offers,
     _canonicalize_brand_key,
     _merge_published_dragonzap_alias_offers,
     _normalize_key,
     _normalize_oem_key,
+    _prepare_customer_order_context,
     _repair_cp1251_mojibake,
 )
 from dz_fastapi.services.process import _apply_source_filters
@@ -239,7 +241,10 @@ async def test_build_current_offers_keeps_supplier_price_before_markups(
     async def _fake_latest_pricelist(*args, **kwargs):
         return SimpleNamespace(id=501)
 
+    requested_oems = set()
+
     async def _fake_fetch_data(*args, **kwargs):
+        requested_oems.update(kwargs.get("oem_numbers") or set())
         return [SimpleNamespace()]
 
     async def _fake_transform(*args, **kwargs):
@@ -279,9 +284,76 @@ async def test_build_current_offers_keeps_supplier_price_before_markups(
         session=None,
         config=config,
         brand_aliases=None,
+        required_oems={"SMD359158"},
     )
 
     assert len(offers) == 1
+    assert requested_oems == {"SMD359158"}
     offer = next(iter(offers.values()))
     assert offer.supplier_price == pytest.approx(100.0)
     assert offer.price == pytest.approx(300.0)
+
+
+@pytest.mark.asyncio
+async def test_order_context_loads_only_requested_and_alias_source_oems(monkeypatch):
+    requested = ParsedOrderRow(
+        row_index=1,
+        oem="2020-01932-AA",
+        brand="DRAGONZAP",
+        name="Стойка",
+        requested_qty=2,
+        requested_price=300.0,
+    )
+    source_autopart = SimpleNamespace(
+        oem_number="DZ2906150XSZ08A",
+        brand=SimpleNamespace(name="DRAGONZAP"),
+    )
+    alias = SimpleNamespace(
+        advertised_oem="202001932AA",
+        advertised_brand="DRAGONZAP",
+        price=311.0,
+        source_autopart=source_autopart,
+    )
+    last_pricelist = SimpleNamespace(
+        autopart_associations=[],
+        published_aliases=[alias],
+    )
+    loaded_oems = set()
+    offered_oems = set()
+
+    async def _fake_brand_aliases(*args, **kwargs):
+        return {}
+
+    async def _fake_latest(*args, **kwargs):
+        loaded_oems.update(kwargs.get("normalized_oems") or set())
+        return last_pricelist
+
+    async def _fake_config(*args, **kwargs):
+        return SimpleNamespace(id=11)
+
+    async def _fake_offers(*args, **kwargs):
+        offered_oems.update(kwargs.get("required_oems") or set())
+        return {}
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders._load_brand_alias_map",
+        _fake_brand_aliases,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders._load_latest_customer_pricelist",
+        _fake_latest,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders._resolve_pricelist_config",
+        _fake_config,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.customer_orders._build_current_offers",
+        _fake_offers,
+    )
+
+    config = SimpleNamespace(customer_id=946, pricelist_config_id=11)
+    await _prepare_customer_order_context(None, config, [requested])
+
+    assert loaded_oems == {"202001932AA"}
+    assert offered_oems == {"202001932AA", "DZ2906150XSZ08A"}

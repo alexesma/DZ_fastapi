@@ -13,7 +13,7 @@ from sqlalchemy.orm import relationship, validates
 
 from dz_fastapi.core.db import Base
 from dz_fastapi.core.time import now_moscow
-from dz_fastapi.models.inventory import StockLotRole
+from dz_fastapi.models.inventory import CrossDockingItemStatus, StockLotRole
 
 DEFAULT_IS_ACTIVE = True
 MAX_NAME_PARTNER = 256
@@ -208,18 +208,14 @@ class Client(Base):
 
 
 class Provider(Client):
-    id = Column(
-        Integer, ForeignKey("client.id"), primary_key=True, unique=True
-    )
+    id = Column(Integer, ForeignKey("client.id"), primary_key=True, unique=True)
     default_warehouse_id = Column(
         Integer,
         ForeignKey("warehouse.id"),
         nullable=True,
         index=True,
     )
-    email_incoming_price = Column(
-        String(255), index=True, nullable=True, unique=True
-    )
+    email_incoming_price = Column(String(255), index=True, nullable=True, unique=True)
     inn = Column(String(32), nullable=True, index=True)
     kpp = Column(String(32), nullable=True, index=True)
     price_lists = relationship("PriceList", back_populates="provider")
@@ -395,19 +391,13 @@ class ProviderInventoryRoleRule(Base):
 
 
 class Customer(Client):
-    id = Column(
-        Integer, ForeignKey("client.id"), primary_key=True, unique=True
-    )
-    email_outgoing_price = Column(
-        String(255), index=True, nullable=True, unique=True
-    )
+    id = Column(Integer, ForeignKey("client.id"), primary_key=True, unique=True)
+    email_outgoing_price = Column(String(255), index=True, nullable=True, unique=True)
     inn = Column(String(32), nullable=True, index=True)
     kpp = Column(String(32), nullable=True, index=True)
     legal_address = Column(Text, nullable=True)
     postal_address = Column(Text, nullable=True)
-    customer_price_lists = relationship(
-        "CustomerPriceList", back_populates="customer"
-    )
+    customer_price_lists = relationship("CustomerPriceList", back_populates="customer")
     pricelist_configs = relationship(
         "CustomerPriceListConfig",
         back_populates="customer",
@@ -471,20 +461,14 @@ class Customer(Client):
 class PriceListAutoPartAssociation(Base):
     id = None
 
-    pricelist_id = Column(
-        Integer, ForeignKey("pricelist.id"), primary_key=True
-    )
+    pricelist_id = Column(Integer, ForeignKey("pricelist.id"), primary_key=True)
     autopart_id = Column(Integer, ForeignKey("autopart.id"), primary_key=True)
     quantity = Column(Integer, nullable=False)
     price = Column(DECIMAL(10, 2), nullable=False)
     multiplicity = Column(Integer, nullable=False, default=1)
 
-    pricelist = relationship(
-        "PriceList", back_populates="autopart_associations"
-    )
-    autopart = relationship(
-        "AutoPart", back_populates="price_list_associations"
-    )
+    pricelist = relationship("PriceList", back_populates="autopart_associations")
+    autopart = relationship("AutoPart", back_populates="price_list_associations")
 
     __table_args__ = (
         Index("ix_price_list_autopart_id", "autopart_id", unique=False),
@@ -500,9 +484,7 @@ class PriceList(Base):
     date = Column(Date)
     provider_id = Column(Integer, ForeignKey("provider.id"))
     provider = relationship("Provider", back_populates="price_lists")
-    provider_config_id = Column(
-        Integer, ForeignKey("providerpricelistconfig.id"), nullable=True
-    )
+    provider_config_id = Column(Integer, ForeignKey("providerpricelistconfig.id"), nullable=True)
     config = relationship("ProviderPriceListConfig", lazy="selectin")
     is_active = Column(Boolean, default=DEFAULT_IS_ACTIVE)
     autopart_associations = relationship(
@@ -533,9 +515,7 @@ class PriceListMissingBrand(Base):
     created_at = Column(DateTime(timezone=True), default=now_moscow)
 
     pricelist = relationship("PriceList", back_populates="missing_brand_stats")
-    provider_config = relationship(
-        "ProviderPriceListConfig", back_populates="missing_brand_stats"
-    )
+    provider_config = relationship("ProviderPriceListConfig", back_populates="missing_brand_stats")
 
     __table_args__ = (
         Index(
@@ -555,24 +535,16 @@ class PriceListMissingBrand(Base):
 
 class CustomerPriceListAutoPartAssociation(Base):
     id = None
-    customerpricelist_id = Column(
-        Integer, ForeignKey("customerpricelist.id"), primary_key=True
-    )
+    customerpricelist_id = Column(Integer, ForeignKey("customerpricelist.id"), primary_key=True)
     autopart_id = Column(Integer, ForeignKey("autopart.id"), primary_key=True)
     quantity = Column(Integer, nullable=False)
     price = Column(DECIMAL(10, 2))
 
-    customerpricelist = relationship(
-        "CustomerPriceList", back_populates="autopart_associations"
-    )
-    autopart = relationship(
-        "AutoPart", back_populates="customer_price_list_associations"
-    )
+    customerpricelist = relationship("CustomerPriceList", back_populates="autopart_associations")
+    autopart = relationship("AutoPart", back_populates="customer_price_list_associations")
 
     __table_args__ = (
-        Index(
-            "ix_customer_price_list_autopart_id", "autopart_id", unique=False
-        ),
+        Index("ix_customer_price_list_autopart_id", "autopart_id", unique=False),
         Index(
             "ix_customer_price_list_customerpricelist_id",
             "customerpricelist_id",
@@ -595,6 +567,23 @@ class CustomerPriceList(Base):
         index=True,
     )
     sent_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    generation_status = Column(String(24), nullable=False, default="generated", index=True)
+    generated_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    artifact_path = Column(Text, nullable=True)
+    artifact_filename = Column(String(512), nullable=True)
+    artifact_content_type = Column(String(128), nullable=True)
+    positions_count = Column(Integer, nullable=False, default=0)
+    generation_summary = Column(JSON, nullable=False, default=dict)
+    approved_by_user_id = Column(
+        Integer, ForeignKey("app_user.id", ondelete="SET NULL"), nullable=True
+    )
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    rejected_by_user_id = Column(
+        Integer, ForeignKey("app_user.id", ondelete="SET NULL"), nullable=True
+    )
+    rejected_at = Column(DateTime(timezone=True), nullable=True)
+    decision_reason = Column(Text, nullable=True)
+    send_error = Column(Text, nullable=True)
     customer = relationship("Customer", back_populates="customer_price_lists")
     autopart_associations = relationship(
         "CustomerPriceListAutoPartAssociation",
@@ -608,6 +597,14 @@ class CustomerPriceList(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    export_rows = relationship(
+        "CustomerPriceListExportRow",
+        back_populates="customer_pricelist",
+        cascade="all, delete-orphan",
+        lazy="noload",
+    )
+    approved_by_user = relationship("User", foreign_keys=[approved_by_user_id], lazy="joined")
+    rejected_by_user = relationship("User", foreign_keys=[rejected_by_user_id], lazy="joined")
     is_active = Column(Boolean, default=DEFAULT_IS_ACTIVE)
 
 
@@ -635,9 +632,7 @@ class CustomerPriceListPublishedAlias(Base):
     price = Column(DECIMAL(10, 2), nullable=False)
     created_at = Column(DateTime(timezone=True), default=now_moscow)
 
-    customer_pricelist = relationship(
-        "CustomerPriceList", back_populates="published_aliases"
-    )
+    customer_pricelist = relationship("CustomerPriceList", back_populates="published_aliases")
     source_autopart = relationship("AutoPart", lazy="joined")
 
     __table_args__ = (
@@ -656,15 +651,102 @@ class CustomerPriceListPublishedAlias(Base):
     )
 
 
+class CustomerPriceListExportRow(Base):
+    """Exact row written to a generated customer pricelist artifact."""
+
+    customer_pricelist_id = Column(
+        Integer,
+        ForeignKey("customerpricelist.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    source_autopart_id = Column(
+        Integer,
+        ForeignKey("autopart.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    advertised_brand = Column(String(255), nullable=False)
+    advertised_oem = Column(String(255), nullable=False)
+    advertised_name = Column(String(512), nullable=True)
+    normalized_brand = Column(String(255), nullable=False)
+    normalized_oem = Column(String(255), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    price = Column(DECIMAL(10, 2), nullable=False)
+    row_type = Column(String(32), nullable=False, default="direct")
+
+    customer_pricelist = relationship("CustomerPriceList", back_populates="export_rows")
+    source_autopart = relationship("AutoPart", lazy="joined")
+
+    __table_args__ = (
+        Index(
+            "ix_customer_pricelist_export_row_lookup",
+            "customer_pricelist_id",
+            "normalized_brand",
+            "normalized_oem",
+        ),
+    )
+
+
+class CustomerPriceListPublicationRule(Base):
+    """Per-config rule controlling how a physical item is advertised."""
+
+    config_id = Column(
+        Integer,
+        ForeignKey("customerpricelistconfig.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    source_autopart_id = Column(
+        Integer,
+        ForeignKey("autopart.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    target_autopart_id = Column(
+        Integer,
+        ForeignKey("autopart.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    mode = Column(String(24), nullable=False, default="only_cross")
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_by_user_id = Column(
+        Integer, ForeignKey("app_user.id", ondelete="SET NULL"), nullable=True
+    )
+    updated_by_user_id = Column(
+        Integer, ForeignKey("app_user.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_moscow)
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=now_moscow,
+        onupdate=now_moscow,
+    )
+
+    config = relationship("CustomerPriceListConfig", back_populates="publication_rules")
+    source_autopart = relationship("AutoPart", foreign_keys=[source_autopart_id], lazy="joined")
+    target_autopart = relationship("AutoPart", foreign_keys=[target_autopart_id], lazy="joined")
+    created_by_user = relationship("User", foreign_keys=[created_by_user_id], lazy="joined")
+    updated_by_user = relationship("User", foreign_keys=[updated_by_user_id], lazy="joined")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "config_id",
+            "source_autopart_id",
+            name="uq_customer_pricelist_publication_rule_source",
+        ),
+    )
+
+
 event.listen(PriceList, "before_insert", set_date)
 event.listen(CustomerPriceList, "before_insert", set_date)
 
 
 class ProviderPriceListConfig(Base):
     provider_id = Column(Integer, ForeignKey("provider.id"))
-    incoming_email_account_id = Column(
-        Integer, ForeignKey("emailaccount.id"), nullable=True
-    )
+    incoming_email_account_id = Column(Integer, ForeignKey("emailaccount.id"), nullable=True)
     start_row = Column(Integer, nullable=False)
     oem_col = Column(Integer, nullable=False)
     name_col = Column(Integer, nullable=True)
@@ -686,16 +768,12 @@ class ProviderPriceListConfig(Base):
     min_delivery_day = Column(Integer, nullable=True, default=1)
     max_delivery_day = Column(Integer, nullable=True, default=2)
     is_active = Column(Boolean, default=True, nullable=False)
-    use_for_order_insights = Column(
-        Boolean, default=False, nullable=False
-    )
+    use_for_order_insights = Column(Boolean, default=False, nullable=False)
     autopurchase_blocked = Column(Boolean, default=False, nullable=False)
     autopurchase_block_reason = Column(Text, nullable=True)
     provider = relationship("Provider", back_populates="pricelist_configs")
     incoming_email_account = relationship("EmailAccount", lazy="selectin")
-    price_lists = relationship(
-        "PriceList", back_populates="config", lazy="selectin"
-    )
+    price_lists = relationship("PriceList", back_populates="config", lazy="selectin")
     missing_brand_stats = relationship(
         "PriceListMissingBrand",
         back_populates="provider_config",
@@ -807,9 +885,7 @@ class SupplierResponseConfig(Base):
     sender_emails = Column(JSON, default=[])
     response_type = Column(String(16), default="file", nullable=False)
     process_shipping_docs = Column(Boolean, default=True, nullable=False)
-    auto_confirm_unmentioned_items = Column(
-        Boolean, default=False, nullable=False
-    )
+    auto_confirm_unmentioned_items = Column(Boolean, default=False, nullable=False)
     auto_confirm_after_minutes = Column(Integer, nullable=True)
 
     file_format = Column(String(16), nullable=True)
@@ -841,13 +917,9 @@ class SupplierResponseConfig(Base):
 
     confirm_keywords = Column(JSON, default=[])
     reject_keywords = Column(JSON, default=[])
-    value_after_article_type = Column(
-        String(16), default="both", nullable=False
-    )
+    value_after_article_type = Column(String(16), default="both", nullable=False)
 
-    provider = relationship(
-        "Provider", back_populates="supplier_response_configs"
-    )
+    provider = relationship("Provider", back_populates="supplier_response_configs")
     inbox_email_account = relationship("EmailAccount", lazy="selectin")
 
     @property
@@ -870,55 +942,31 @@ class CustomerPriceListConfig(Base):
 
     name = Column(String(255), nullable=False, unique=True)
     general_markup = Column(Float, default=0.0)  # Общая наценка
-    own_price_list_markup = Column(
-        Float, default=0.0
-    )  # Наценка на наш прайс-лист
-    third_party_markup = Column(
-        Float, default=0.0
-    )  # Наценка на стороние прайс-листы общая
-    individual_markups = Column(
-        JSON, default={}
-    )  # Индивидуальная наценка (provider_id: markup)
-    brand_filters = Column(
-        JSON, default=[]
-    )  # Список брендов для фильтра(include/exclude)
-    category_filter = Column(
-        JSON, default=[]
-    )  # Список категорий для фильтра(include/exclude)
-    price_intervals = Column(
-        JSON, default=[]
-    )  # Price intervals with coefficients
-    position_filters = Column(
-        JSON, default=[]
-    )  # List of position IDs to include/exclude
-    supplier_quantity_filters = Column(
-        JSON, default=[]
-    )  # Supplier-specific quantity filters
+    own_price_list_markup = Column(Float, default=0.0)  # Наценка на наш прайс-лист
+    third_party_markup = Column(Float, default=0.0)  # Наценка на стороние прайс-листы общая
+    individual_markups = Column(JSON, default={})  # Индивидуальная наценка (provider_id: markup)
+    brand_filters = Column(JSON, default=[])  # Список брендов для фильтра(include/exclude)
+    category_filter = Column(JSON, default=[])  # Список категорий для фильтра(include/exclude)
+    price_intervals = Column(JSON, default=[])  # Price intervals with coefficients
+    position_filters = Column(JSON, default=[])  # List of position IDs to include/exclude
+    supplier_quantity_filters = Column(JSON, default=[])  # Supplier-specific quantity filters
     additional_filters = Column(JSON, default={})  # Other custom filters
     default_filters = Column(JSON, default={})  # Общие фильтры по умолчанию
     own_filters = Column(JSON, default={})  # Фильтры для нашего прайса
-    other_filters = Column(
-        JSON, default={}
-    )  # Фильтры для остальных поставщиков
-    supplier_filters = Column(
-        JSON, default={}
-    )  # Индивидуальные фильтры для поставщиков
+    other_filters = Column(JSON, default={})  # Фильтры для остальных поставщиков
+    supplier_filters = Column(JSON, default={})  # Индивидуальные фильтры для поставщиков
     schedule_days = Column(JSON, default=[])
     schedule_times = Column(JSON, default=[])
     emails = Column(JSON, default=[])
     export_file_name = Column(String(255), nullable=True)
-    export_file_format = Column(
-        String(16), nullable=False, default="xlsx", server_default="xlsx"
-    )
+    export_file_format = Column(String(16), nullable=False, default="xlsx", server_default="xlsx")
     export_file_extension = Column(String(16), nullable=True)
     collapse_duplicates_by_min_price = Column(
         Boolean,
         nullable=False,
         default=True,
     )
-    outgoing_email_account_id = Column(
-        Integer, ForeignKey("emailaccount.id"), nullable=True
-    )
+    outgoing_email_account_id = Column(Integer, ForeignKey("emailaccount.id"), nullable=True)
     is_active = Column(Boolean, default=True)
     last_sent_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -930,6 +978,12 @@ class CustomerPriceListConfig(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    publication_rules = relationship(
+        "CustomerPriceListPublicationRule",
+        back_populates="config",
+        cascade="all, delete-orphan",
+        lazy="noload",
+    )
 
 
 class CustomerOrderConfig(Base):
@@ -940,9 +994,7 @@ class CustomerOrderConfig(Base):
     order_subject_pattern = Column(String(255), nullable=True)
     order_filename_pattern = Column(String(255), nullable=True)
     order_reply_emails = Column(JSON, default=[])
-    email_account_id = Column(
-        Integer, ForeignKey("emailaccount.id"), nullable=True
-    )
+    email_account_id = Column(Integer, ForeignKey("emailaccount.id"), nullable=True)
     email_account_ids = Column(JSON, default=[])
     forward_customer_order_enabled = Column(
         Boolean, nullable=False, default=False, server_default="false"
@@ -952,9 +1004,7 @@ class CustomerOrderConfig(Base):
         Integer, ForeignKey("emailaccount.id"), nullable=True
     )
 
-    pricelist_config_id = Column(
-        Integer, ForeignKey("customerpricelistconfig.id"), nullable=True
-    )
+    pricelist_config_id = Column(Integer, ForeignKey("customerpricelistconfig.id"), nullable=True)
 
     order_start_row = Column(Integer, default=1)
     order_number_column = Column(Integer, nullable=True)
@@ -1007,9 +1057,7 @@ class CustomerOrderConfig(Base):
 
 class CustomerOrder(Base):
     customer_id = Column(Integer, ForeignKey("customer.id"), nullable=False)
-    order_config_id = Column(
-        Integer, ForeignKey("customerorderconfig.id"), nullable=True
-    )
+    order_config_id = Column(Integer, ForeignKey("customerorderconfig.id"), nullable=True)
     status = Column(
         SAEnum(
             CUSTOMER_ORDER_STATUS,
@@ -1086,9 +1134,7 @@ class SupplierOrder(Base):
         nullable=False,
         default=ORDER_TRACKING_SOURCE.CUSTOMER_ORDER.value,
     )
-    created_by_user_id = Column(
-        Integer, ForeignKey("app_user.id"), nullable=True
-    )
+    created_by_user_id = Column(Integer, ForeignKey("app_user.id"), nullable=True)
     status = Column(
         SAEnum(
             SUPPLIER_ORDER_STATUS,
@@ -1124,12 +1170,8 @@ class SupplierOrder(Base):
 
 
 class SupplierOrderItem(Base):
-    supplier_order_id = Column(
-        Integer, ForeignKey("supplierorder.id"), nullable=False
-    )
-    customer_order_item_id = Column(
-        Integer, ForeignKey("customerorderitem.id"), nullable=True
-    )
+    supplier_order_id = Column(Integer, ForeignKey("supplierorder.id"), nullable=False)
+    customer_order_item_id = Column(Integer, ForeignKey("customerorderitem.id"), nullable=True)
     autopart_id = Column(Integer, ForeignKey("autopart.id"), nullable=True)
     oem_number = Column(String(120), nullable=True, index=True)
     brand_name = Column(String(120), nullable=True)
@@ -1158,9 +1200,7 @@ class SupplierOrderItem(Base):
 
 
 class SupplierOrderMessage(Base):
-    supplier_order_id = Column(
-        Integer, ForeignKey("supplierorder.id"), nullable=True, index=True
-    )
+    supplier_order_id = Column(Integer, ForeignKey("supplierorder.id"), nullable=True, index=True)
     provider_id = Column(Integer, ForeignKey("provider.id"), nullable=False)
     message_type = Column(String(32), nullable=False, default="UNKNOWN")
     subject = Column(String(500), nullable=True)
@@ -1228,9 +1268,7 @@ class SupplierReceipt(Base):
         nullable=True,
         index=True,
     )
-    supplier_order_id = Column(
-        Integer, ForeignKey("supplierorder.id"), nullable=True, index=True
-    )
+    supplier_order_id = Column(Integer, ForeignKey("supplierorder.id"), nullable=True, index=True)
     source_message_id = Column(
         Integer,
         ForeignKey("supplierordermessage.id"),
@@ -1239,9 +1277,7 @@ class SupplierReceipt(Base):
     )
     document_number = Column(String(120), nullable=True, index=True)
     document_date = Column(Date, nullable=True, index=True)
-    created_by_user_id = Column(
-        Integer, ForeignKey("app_user.id"), nullable=True
-    )
+    created_by_user_id = Column(Integer, ForeignKey("app_user.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), default=now_moscow)
     posted_at = Column(DateTime(timezone=True), nullable=True)
     comment = Column(Text, nullable=True)
@@ -1273,9 +1309,7 @@ class SupplierReceiptItem(Base):
         nullable=False,
         index=True,
     )
-    supplier_order_id = Column(
-        Integer, ForeignKey("supplierorder.id"), nullable=True, index=True
-    )
+    supplier_order_id = Column(Integer, ForeignKey("supplierorder.id"), nullable=True, index=True)
     supplier_order_item_id = Column(
         Integer,
         ForeignKey("supplierorderitem.id"),
@@ -1318,6 +1352,23 @@ class SupplierReceiptItem(Base):
         nullable=True,
         index=True,
     )
+    cross_docking_status = Column(
+        SAEnum(
+            CrossDockingItemStatus,
+            name="crossdockingitemstatus",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=True,
+        index=True,
+    )
+    document_pending = Column(Boolean, nullable=False, default=False)
+    accepted_at = Column(DateTime(timezone=True), nullable=True)
+    accepted_by_user_id = Column(
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    ready_at = Column(DateTime(timezone=True), nullable=True)
 
     receipt = relationship("SupplierReceipt", back_populates="items")
     warehouse = relationship("Warehouse", foreign_keys=[warehouse_id])
@@ -1329,10 +1380,24 @@ class SupplierReceiptItem(Base):
     customer_order_item = relationship("CustomerOrderItem")
     order_item = relationship("OrderItem", back_populates="receipt_items")
     autopart = relationship("AutoPart")
+    accepted_by_user = relationship("User", foreign_keys=[accepted_by_user_id])
+    cross_docking_label = relationship(
+        "CrossDockingLabel",
+        back_populates="receipt_item",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
 
 class StockOrder(Base):
     customer_id = Column(Integer, ForeignKey("customer.id"), nullable=True)
+    shipment_document_id = Column(
+        Integer,
+        ForeignKey("shipmentdocument.id", ondelete="SET NULL"),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
     status = Column(
         SAEnum(
             STOCK_ORDER_STATUS,
@@ -1343,32 +1408,63 @@ class StockOrder(Base):
         default=STOCK_ORDER_STATUS.NEW,
     )
     created_at = Column(DateTime(timezone=True), default=now_moscow)
+    packing_required = Column(Boolean, nullable=False, default=False)
 
     customer = relationship("Customer")
+    shipment_document = relationship(
+        "ShipmentDocument",
+        foreign_keys=[shipment_document_id],
+        lazy="noload",
+    )
     items = relationship(
         "StockOrderItem",
         back_populates="stock_order",
         cascade="all, delete-orphan",
     )
+    packages = relationship(
+        "StockOrderPackage",
+        back_populates="stock_order",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="StockOrderPackage.sequence_number",
+    )
 
 
 class StockOrderItem(Base):
     stock_order_id = Column(Integer, ForeignKey("stockorder.id"))
-    customer_order_item_id = Column(
-        Integer, ForeignKey("customerorderitem.id"), nullable=True
+    customer_order_item_id = Column(Integer, ForeignKey("customerorderitem.id"), nullable=True)
+    supplier_receipt_item_id = Column(
+        Integer,
+        ForeignKey("supplierreceiptitem.id", ondelete="SET NULL"),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+    preferred_stock_lot_id = Column(
+        Integer,
+        ForeignKey("stocklot.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     autopart_id = Column(Integer, ForeignKey("autopart.id"), nullable=True)
     quantity = Column(Integer, nullable=False)
     picked_quantity = Column(Integer, nullable=False, default=0)
     picked_at = Column(DateTime(timezone=True), nullable=True)
-    picked_by_user_id = Column(
-        Integer, ForeignKey("app_user.id"), nullable=True
-    )
+    picked_by_user_id = Column(Integer, ForeignKey("app_user.id"), nullable=True)
     pick_comment = Column(String(500), nullable=True)
     pick_last_scan_code = Column(String(255), nullable=True)
 
     stock_order = relationship("StockOrder", back_populates="items")
     customer_order_item = relationship("CustomerOrderItem")
+    supplier_receipt_item = relationship(
+        "SupplierReceiptItem",
+        foreign_keys=[supplier_receipt_item_id],
+    )
+    preferred_stock_lot = relationship(
+        "StockLot",
+        foreign_keys=[preferred_stock_lot_id],
+        lazy="noload",
+    )
     autopart = relationship("AutoPart")
     picked_by_user = relationship("User", foreign_keys=[picked_by_user_id])
 
@@ -1380,9 +1476,7 @@ class CustomerPriceListSource(Base):
         nullable=False,
         index=True,
     )
-    provider_config_id = Column(
-        Integer, ForeignKey("providerpricelistconfig.id"), nullable=False
-    )
+    provider_config_id = Column(Integer, ForeignKey("providerpricelistconfig.id"), nullable=False)
     enabled = Column(Boolean, default=True)
     markup = Column(Float, default=1.0)
     mask_price_quantity = Column(Boolean, default=False, nullable=False)
@@ -1422,14 +1516,10 @@ class CustomerPriceListSource(Base):
 
 class ProviderLastEmailUID(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
-    provider_id = Column(
-        Integer, ForeignKey("provider.id"), primary_key=True, unique=True
-    )
+    provider_id = Column(Integer, ForeignKey("provider.id"), primary_key=True, unique=True)
     last_uid = Column(Integer, nullable=False, default=0)
     folder_last_uids = Column(JSON, default=dict)
-    updated_at = Column(
-        DateTime(timezone=True), default=now_moscow, onupdate=now_moscow
-    )
+    updated_at = Column(DateTime(timezone=True), default=now_moscow, onupdate=now_moscow)
     provider = relationship("Provider", back_populates="provider_last_uid")
 
 
@@ -1443,12 +1533,8 @@ class ProviderConfigLastEmailUID(Base):
     )
     last_uid = Column(Integer, nullable=False, default=0)
     folder_last_uids = Column(JSON, default=dict)
-    updated_at = Column(
-        DateTime(timezone=True), default=now_moscow, onupdate=now_moscow
-    )
-    provider_config = relationship(
-        "ProviderPriceListConfig", back_populates="last_email_uid"
-    )
+    updated_at = Column(DateTime(timezone=True), default=now_moscow, onupdate=now_moscow)
+    provider_config = relationship("ProviderPriceListConfig", back_populates="last_email_uid")
 
 
 class ProviderExternalReference(Base):
@@ -1516,9 +1602,7 @@ class ProviderAbbreviation(Base):
 
 
 class Order(Base):
-    order_number = Column(
-        String(36), default=lambda: str(uuid4()), unique=True
-    )
+    order_number = Column(String(36), default=lambda: str(uuid4()), unique=True)
     provider_id = Column(Integer, ForeignKey("provider.id"), nullable=False)
     customer_id = Column(Integer, ForeignKey("customer.id"), nullable=False)
     source_type = Column(
@@ -1526,13 +1610,9 @@ class Order(Base):
         nullable=False,
         default=ORDER_TRACKING_SOURCE.DRAGONZAP_SEARCH.value,
     )
-    created_by_user_id = Column(
-        Integer, ForeignKey("app_user.id"), nullable=True
-    )
+    created_by_user_id = Column(Integer, ForeignKey("app_user.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), default=now_moscow)
-    updated_at = Column(
-        DateTime(timezone=True), default=now_moscow, onupdate=now_moscow
-    )
+    updated_at = Column(DateTime(timezone=True), default=now_moscow, onupdate=now_moscow)
     status = Column(
         SAEnum(
             TYPE_STATUS_ORDER,
@@ -1561,12 +1641,8 @@ class OrderItem(Base):
     received_quantity = Column(Integer, nullable=True)
     received_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=now_moscow)
-    updated_at = Column(
-        DateTime(timezone=True), default=now_moscow, onupdate=now_moscow
-    )
-    tracking_uuid = Column(
-        String(36), default=lambda: str(uuid4()), unique=True, index=True
-    )
+    updated_at = Column(DateTime(timezone=True), default=now_moscow, onupdate=now_moscow)
+    tracking_uuid = Column(String(36), default=lambda: str(uuid4()), unique=True, index=True)
     status = Column(
         SAEnum(
             TYPE_ORDER_ITEM_STATUS,
@@ -1599,12 +1675,8 @@ class OrderItem(Base):
         ForeignKey("autopartrestockdecisionsupplier.id"),
         nullable=True,
     )
-    restock_supplier = relationship(
-        "AutoPartRestockDecisionSupplier", back_populates="order_items"
-    )
-    external_status_mapping = relationship(
-        "ExternalStatusMapping", back_populates="order_items"
-    )
+    restock_supplier = relationship("AutoPartRestockDecisionSupplier", back_populates="order_items")
+    external_status_mapping = relationship("ExternalStatusMapping", back_populates="order_items")
     receipt_items = relationship(
         "SupplierReceiptItem",
         back_populates="order_item",
@@ -1645,52 +1717,52 @@ class SalesHistoryMonthly(Base):
 
 @unique
 class RECLAMATION_SOURCE(StrEnum):
-    EMAIL = "email"          # письмо на почту рекламаций
-    LINK = "link"            # ссылка на портал клиента
-    MANUAL = "manual"        # заведено вручную
+    EMAIL = "email"  # письмо на почту рекламаций
+    LINK = "link"  # ссылка на портал клиента
+    MANUAL = "manual"  # заведено вручную
 
 
 @unique
 class RECLAMATION_TYPE(StrEnum):
     CUSTOMER_REFUSAL = "customer_refusal"  # отказ клиента (большинство)
-    MIS_SORT = "mis_sort"                  # пересорт / неверное вложение
-    DEFECT = "defect"                      # брак
-    SHORTAGE = "shortage"                  # недовоз
+    MIS_SORT = "mis_sort"  # пересорт / неверное вложение
+    DEFECT = "defect"  # брак
+    SHORTAGE = "shortage"  # недовоз
     OTHER = "other"
 
 
 @unique
 class RECLAMATION_STATUS(StrEnum):
-    NEW = "new"                          # только пришла, не распознана
-    RECOGNIZED = "recognized"            # поля извлечены, ждёт проверки
-    CHECKED = "checked"                  # проверена, есть рекомендация
-    WAITING_DOCS = "waiting_docs"        # ждём документы от клиента (брак)
+    NEW = "new"  # только пришла, не распознана
+    RECOGNIZED = "recognized"  # поля извлечены, ждёт проверки
+    CHECKED = "checked"  # проверена, есть рекомендация
+    WAITING_DOCS = "waiting_docs"  # ждём документы от клиента (брак)
     WAITING_SUPPLIER = "waiting_supplier"  # отправлен запрос поставщику
-    APPROVED = "approved"                # согласована
-    REJECTED = "rejected"                # отклонена
-    CLOSED = "closed"                    # закрыта
+    APPROVED = "approved"  # согласована
+    REJECTED = "rejected"  # отклонена
+    CLOSED = "closed"  # закрыта
 
 
 @unique
 class RECLAMATION_ITEM_SOURCE(StrEnum):
     UNKNOWN = "unknown"
-    OUR_STOCK = "our_stock"          # товар был с нашего склада
+    OUR_STOCK = "our_stock"  # товар был с нашего склада
     SUPPLIER_TRANSIT = "supplier_transit"  # транзит от поставщика
 
 
 @unique
 class RECLAMATION_ATTACHMENT_KIND(StrEnum):
-    REMOVAL_ORDER = "removal_order"        # заказ-наряд на снятие
+    REMOVAL_ORDER = "removal_order"  # заказ-наряд на снятие
     INSTALLATION_ORDER = "installation_order"  # заказ-наряд на установку
-    DEFECT_REPORT = "defect_report"        # дефектовка
-    PHOTO = "photo"                        # фото запчасти
+    DEFECT_REPORT = "defect_report"  # дефектовка
+    PHOTO = "photo"  # фото запчасти
     SHORTAGE_EVIDENCE = "shortage_evidence"  # фото/видео отгрузки
     OTHER = "other"
 
 
 @unique
 class EMAIL_OUTBOX_STATUS(StrEnum):
-    PENDING = "pending"    # ждёт отправки релеем
+    PENDING = "pending"  # ждёт отправки релеем
     SENT = "sent"
     ERROR = "error"
     CANCELLED = "cancelled"
@@ -1723,9 +1795,7 @@ class CustomerReclamationEmail(Base):
     comment = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), default=now_moscow)
 
-    customer = relationship(
-        "Customer", back_populates="reclamation_emails", lazy="joined"
-    )
+    customer = relationship("Customer", back_populates="reclamation_emails", lazy="joined")
 
     __table_args__ = (
         UniqueConstraint(
@@ -1800,7 +1870,8 @@ class Reclamation(Base):
     resolution = Column(String(64), nullable=True)
     resolution_comment = Column(Text, nullable=True)
     resolved_by_user_id = Column(
-        Integer, ForeignKey("app_user.id", ondelete="SET NULL"),
+        Integer,
+        ForeignKey("app_user.id", ondelete="SET NULL"),
         nullable=True,
     )
     resolved_at = Column(DateTime(timezone=True), nullable=True)
@@ -1839,9 +1910,7 @@ class Reclamation(Base):
     )
 
     customer = relationship("Customer", lazy="joined")
-    resolved_by_user = relationship(
-        "User", foreign_keys=[resolved_by_user_id], lazy="noload"
-    )
+    resolved_by_user = relationship("User", foreign_keys=[resolved_by_user_id], lazy="noload")
     shortage_assigned_to_user = relationship(
         "User",
         foreign_keys=[shortage_assigned_to_user_id],
@@ -1901,7 +1970,8 @@ class ReclamationItem(Base):
         default=RECLAMATION_ITEM_SOURCE.UNKNOWN,
     )
     autopart_id = Column(
-        Integer, ForeignKey("autopart.id", ondelete="SET NULL"),
+        Integer,
+        ForeignKey("autopart.id", ondelete="SET NULL"),
         nullable=True,
     )
     shipment_item_id = Column(
@@ -1922,9 +1992,7 @@ class ReclamationItem(Base):
         index=True,
     )
 
-    reclamation = relationship(
-        "Reclamation", back_populates="items", lazy="noload"
-    )
+    reclamation = relationship("Reclamation", back_populates="items", lazy="noload")
 
 
 class ReclamationAttachment(Base):
@@ -1953,9 +2021,7 @@ class ReclamationAttachment(Base):
     size_bytes = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), default=now_moscow)
 
-    reclamation = relationship(
-        "Reclamation", back_populates="attachments", lazy="noload"
-    )
+    reclamation = relationship("Reclamation", back_populates="attachments", lazy="noload")
 
 
 class ReclamationEvent(Base):
@@ -1984,9 +2050,7 @@ class ReclamationEvent(Base):
         index=True,
     )
 
-    reclamation = relationship(
-        "Reclamation", back_populates="events", lazy="noload"
-    )
+    reclamation = relationship("Reclamation", back_populates="events", lazy="noload")
     actor_user = relationship("User", lazy="joined")
 
 

@@ -44,6 +44,11 @@ SCHEDULER_SETTING_DEFAULTS = {
         "days": [],
         "times": [],
     },
+    "dragonzap_production_waves": {
+        "enabled": False,
+        "days": [],
+        "times": ["09:30", "15:00"],
+    },
 }
 
 SCHEDULER_SETTING_KEYS = list(SCHEDULER_SETTING_DEFAULTS.keys())

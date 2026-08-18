@@ -95,20 +95,13 @@ EMAIL_HOST_ORDER = os.getenv("EMAIL_HOST_ORDERS")
 EMAIL_FOLDER_ORDER = os.getenv("EMAIL_FOLDER_ORDERS", "INBOX")
 
 ORDERS_UPLOAD_DIR = os.getenv("CUSTOMER_ORDERS_UPLOAD_DIR", "uploads/orders")
-ORDERS_RESPONSE_DIR = os.getenv(
-    "CUSTOMER_ORDERS_RESPONSE_DIR", "uploads/orders/responses"
-)
-ORDERS_REPORT_DIR = os.getenv(
-    "CUSTOMER_ORDERS_REPORT_DIR", "uploads/orders/reports"
-)
-ORDERS_ERROR_DIR = os.getenv(
-    "CUSTOMER_ORDERS_ERROR_DIR", "uploads/orders/errors"
-)
+ORDERS_RESPONSE_DIR = os.getenv("CUSTOMER_ORDERS_RESPONSE_DIR", "uploads/orders/responses")
+ORDERS_REPORT_DIR = os.getenv("CUSTOMER_ORDERS_REPORT_DIR", "uploads/orders/reports")
+ORDERS_ERROR_DIR = os.getenv("CUSTOMER_ORDERS_ERROR_DIR", "uploads/orders/errors")
 ORDERS_RETENTION_DAYS = int(os.getenv("CUSTOMER_ORDERS_REPORT_DAYS", 7))
 ORDER_ERROR_DETAIL_MAX_LEN = 500
-CUSTOMER_ORDERS_FETCH_LIMIT = int(
-    os.getenv("CUSTOMER_ORDERS_FETCH_LIMIT") or "0"
-)
+SUPPORTED_CUSTOMER_ORDER_EXTENSIONS = {"csv", "xls", "xlsx"}
+CUSTOMER_ORDERS_FETCH_LIMIT = int(os.getenv("CUSTOMER_ORDERS_FETCH_LIMIT") or "0")
 CUSTOMER_ORDERS_IMAP_TIMEOUT_SEC = max(
     5,
     int(os.getenv("CUSTOMER_ORDERS_IMAP_TIMEOUT_SEC", "30")),
@@ -126,9 +119,12 @@ CUSTOMER_ORDERS_IMAP_RETRY_DELAY_SEC = max(
 def _customer_order_auto_reply_enabled() -> bool:
     if _customer_order_reply_override_email():
         return True
-    return str(
-        os.getenv("CUSTOMER_ORDER_AUTO_REPLY_ENABLED", "0")
-    ).strip().lower() in {"1", "true", "yes", "on"}
+    return str(os.getenv("CUSTOMER_ORDER_AUTO_REPLY_ENABLED", "0")).strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
 
 
 def _customer_order_reply_override_email() -> Optional[str]:
@@ -155,16 +151,12 @@ async def _supplier_order_override_email_from_settings(
     session: AsyncSession,
 ) -> Optional[str]:
     try:
-        inbox_settings = (
-            await crud_customer_order_inbox_settings.get_or_create(session)
-        )
+        inbox_settings = await crud_customer_order_inbox_settings.get_or_create(session)
     except Exception:
         return _supplier_order_override_email()
     if not bool(getattr(inbox_settings, "supplier_order_stub_enabled", True)):
         return None
-    configured_email = str(
-        getattr(inbox_settings, "supplier_order_stub_email", "") or ""
-    ).strip()
+    configured_email = str(getattr(inbox_settings, "supplier_order_stub_email", "") or "").strip()
     if configured_email:
         return configured_email
     return _supplier_order_override_email()
@@ -325,15 +317,11 @@ async def _fetch_order_messages(
         try:
             return await asyncio.to_thread(_fetch)
         except Exception as exc:
-            if (
-                not _is_retryable_imap_fetch_error(exc)
-                or attempt >= CUSTOMER_ORDERS_IMAP_RETRIES
-            ):
+            if not _is_retryable_imap_fetch_error(exc) or attempt >= CUSTOMER_ORDERS_IMAP_RETRIES:
                 raise
             delay = CUSTOMER_ORDERS_IMAP_RETRY_DELAY_SEC * attempt
             logger.warning(
-                "Transient IMAP fetch error for %s (folder=%s). "
-                "Retry %s/%s in %ss. Error: %s",
+                "Transient IMAP fetch error for %s (folder=%s). " "Retry %s/%s in %ss. Error: %s",
                 email_account,
                 folder,
                 attempt,
@@ -555,6 +543,36 @@ def _match_pattern(pattern: Optional[str], value: Optional[str]) -> bool:
         return pattern.lower() in value.lower()
 
 
+def _order_attachment_extension(attachment) -> str:
+    filename = str(getattr(attachment, "filename", "") or "").strip()
+    return filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+
+def _select_order_attachment(config: CustomerOrderConfig, attachments: list):
+    attachments = list(attachments or [])
+    if not attachments:
+        return None
+
+    filename_pattern = str(config.order_filename_pattern or "").strip()
+    if filename_pattern:
+        for attachment in attachments:
+            if _match_pattern(filename_pattern, getattr(attachment, "filename", None)):
+                return attachment
+
+    tabular_attachments = [
+        attachment
+        for attachment in attachments
+        if _order_attachment_extension(attachment) in SUPPORTED_CUSTOMER_ORDER_EXTENSIONS
+    ]
+    if len(tabular_attachments) == 1:
+        return tabular_attachments[0]
+    if filename_pattern:
+        return None
+    if tabular_attachments:
+        return tabular_attachments[0]
+    return attachments[0]
+
+
 def _extract_email(value: Optional[str]) -> str:
     if not value:
         return ""
@@ -564,10 +582,7 @@ def _extract_email(value: Optional[str]) -> str:
 
 def _is_too_many_connections_error(exc: Exception) -> bool:
     text = str(exc).lower()
-    return (
-        "too many simultaneous connections" in text
-        or "too many connections" in text
-    )
+    return "too many simultaneous connections" in text or "too many connections" in text
 
 
 def _is_retryable_imap_fetch_error(exc: Exception) -> bool:
@@ -673,11 +688,7 @@ def _message_sort_key(item: tuple[object, Optional[object]]) -> tuple:
     msg, inbox_account = item
     account_id = inbox_account.id if inbox_account else 0
     uid = _safe_uid_as_int(getattr(msg, "uid", None))
-    message_dt = (
-        getattr(msg, "received_at", None)
-        or getattr(msg, "date", None)
-        or datetime.min
-    )
+    message_dt = getattr(msg, "received_at", None) or getattr(msg, "date", None) or datetime.min
     if hasattr(message_dt, "isoformat"):
         message_dt = message_dt.isoformat()
     else:
@@ -698,9 +709,7 @@ def _message_identity_key(item: tuple[object, Optional[object]]) -> tuple:
     external_id = str(getattr(msg, "external_id", "") or "").strip()
     if external_id:
         return ("external", account_id, external_id)
-    message_dt = (
-        getattr(msg, "received_at", None) or getattr(msg, "date", None) or ""
-    )
+    message_dt = getattr(msg, "received_at", None) or getattr(msg, "date", None) or ""
     if hasattr(message_dt, "isoformat"):
         message_dt = message_dt.isoformat()
     attachments = tuple(
@@ -857,12 +866,7 @@ def _safe_float(value: Optional[object]) -> Optional[float]:
         # non-breaking space (\xa0),
         # narrow no-break space ( ) — common in Russian/Excel number formats
         # e.g. "2 792,00" or "2\xa0792,00" → 2792.0
-        cleaned = (
-            value_str.replace(" ", "")
-            .replace("\xa0", "")
-            .replace(" ", "")
-            .replace(",", ".")
-        )
+        cleaned = value_str.replace(" ", "").replace("\xa0", "").replace(" ", "").replace(",", ".")
         return float(cleaned)
     except (TypeError, ValueError):
         return None
@@ -879,6 +883,61 @@ def _parse_date(value: Optional[object]) -> Optional[date]:
         return pd.to_datetime(value).date()
     except (TypeError, ValueError):
         return None
+
+
+def _configured_order_columns(config: CustomerOrderConfig) -> tuple[tuple[str, int], ...]:
+    configured = (
+        ("OEM", config.oem_col),
+        ("Бренд", config.brand_col),
+        ("Количество", config.qty_col),
+        ("Наименование", config.name_col),
+        ("Цена", config.price_col),
+        ("Дата заказа", config.order_date_column),
+        ("Номер заказа", config.order_number_column),
+    )
+    return tuple((name, int(column)) for name, column in configured if column is not None)
+
+
+def _validate_order_columns(
+    config: CustomerOrderConfig,
+    *,
+    column_count: int,
+    format_name: str,
+) -> None:
+    missing_columns = [
+        f"{name}={get_column_letter(column + 1)}"
+        for name, column in _configured_order_columns(config)
+        if column >= column_count
+    ]
+    if not missing_columns:
+        return
+    available = f"A–{get_column_letter(column_count)}" if column_count else "нет колонок"
+    raise ValueError(
+        f"Формат {format_name} изменился: в файле доступны колонки {available}, "
+        f"но настройка ожидает {', '.join(missing_columns)}"
+    )
+
+
+def _empty_order_rows_error(
+    config: CustomerOrderConfig,
+    *,
+    row_count: int,
+    column_count: int,
+    format_name: str,
+    sheet_name: Optional[str] = None,
+) -> ValueError:
+    expected = ", ".join(
+        f"{name}={get_column_letter(column + 1)}"
+        for name, column in _configured_order_columns(config)
+        if name in {"OEM", "Бренд", "Количество"}
+    )
+    sheet = f", лист «{sheet_name}»" if sheet_name else ""
+    return ValueError(
+        f"В {format_name} не распознано ни одной позиции: "
+        f"строк {row_count}, колонок {column_count}{sheet}, "
+        f"начало данных со строки {max(1, int(config.order_start_row or 1))}; "
+        f"ожидаются {expected}. Проверьте настройки колонок и строку начала."
+    )
 
 
 def _extract_order_number(
@@ -932,6 +991,11 @@ def _parse_excel_order(
 ) -> Tuple[List[ParsedOrderRow], Optional[date], Optional[str], BytesIO]:
     wb = load_workbook(BytesIO(file_bytes))
     ws = wb.active
+    _validate_order_columns(
+        config,
+        column_count=ws.max_column,
+        format_name="XLSX",
+    )
 
     parsed_rows: List[ParsedOrderRow] = []
     order_date: Optional[date] = None
@@ -942,26 +1006,12 @@ def _parse_excel_order(
     name_col = config.name_col + 1 if config.name_col is not None else None
     qty_col = config.qty_col + 1
     price_col = config.price_col + 1 if config.price_col is not None else None
-    order_date_col = (
-        config.order_date_column + 1
-        if config.order_date_column is not None
-        else None
-    )
-    order_date_row = (
-        int(config.order_date_row)
-        if config.order_date_row is not None
-        else None
-    )
+    order_date_col = config.order_date_column + 1 if config.order_date_column is not None else None
+    order_date_row = int(config.order_date_row) if config.order_date_row is not None else None
     order_number_col = (
-        config.order_number_column + 1
-        if config.order_number_column is not None
-        else None
+        config.order_number_column + 1 if config.order_number_column is not None else None
     )
-    order_number_row = (
-        int(config.order_number_row)
-        if config.order_number_row is not None
-        else None
-    )
+    order_number_row = int(config.order_number_row) if config.order_number_row is not None else None
 
     start_row = max(1, int(config.order_start_row or 1))
     for row_idx, row in enumerate(ws.iter_rows(values_only=True), start=1):
@@ -1009,6 +1059,15 @@ def _parse_excel_order(
             )
         )
 
+    if not parsed_rows:
+        raise _empty_order_rows_error(
+            config,
+            row_count=ws.max_row,
+            column_count=ws.max_column,
+            format_name="XLSX",
+            sheet_name=ws.title,
+        )
+
     output = BytesIO()
     wb.save(output)
     output.seek(0)
@@ -1020,21 +1079,18 @@ def _parse_csv_order(
     config: CustomerOrderConfig,
 ) -> Tuple[List[ParsedOrderRow], Optional[date], Optional[str], BytesIO]:
     df = pd.read_csv(BytesIO(file_bytes), header=None)
+    _validate_order_columns(
+        config,
+        column_count=len(df.columns),
+        format_name="CSV",
+    )
     parsed_rows: List[ParsedOrderRow] = []
     order_date: Optional[date] = None
     order_number: Optional[str] = None
 
     start_row = max(1, int(config.order_start_row or 1))
-    order_date_row = (
-        int(config.order_date_row)
-        if config.order_date_row is not None
-        else None
-    )
-    order_number_row = (
-        int(config.order_number_row)
-        if config.order_number_row is not None
-        else None
-    )
+    order_date_row = int(config.order_date_row) if config.order_date_row is not None else None
+    order_number_row = int(config.order_number_row) if config.order_number_row is not None else None
     for idx, row in df.iterrows():
         row_num = idx + 1
         if (
@@ -1082,6 +1138,14 @@ def _parse_csv_order(
             )
         )
 
+    if not parsed_rows:
+        raise _empty_order_rows_error(
+            config,
+            row_count=len(df.index),
+            column_count=len(df.columns),
+            format_name="CSV",
+        )
+
     output = BytesIO()
     df.to_csv(output, index=False, header=False)
     output.seek(0)
@@ -1093,47 +1157,19 @@ def _parse_xls_order(
     config: CustomerOrderConfig,
 ) -> Tuple[List[ParsedOrderRow], Optional[date], Optional[str], BytesIO]:
     df = pd.read_excel(BytesIO(file_bytes), header=None, engine="xlrd")
-    configured_columns = (
-        ("OEM", config.oem_col),
-        ("Бренд", config.brand_col),
-        ("Количество", config.qty_col),
-        ("Наименование", config.name_col),
-        ("Цена", config.price_col),
-        ("Дата заказа", config.order_date_column),
-        ("Номер заказа", config.order_number_column),
+    _validate_order_columns(
+        config,
+        column_count=len(df.columns),
+        format_name="XLS",
     )
-    missing_columns = [
-        f"{name}={get_column_letter(int(column) + 1)}"
-        for name, column in configured_columns
-        if column is not None and int(column) not in df.columns
-    ]
-    if missing_columns:
-        available = (
-            f"A–{get_column_letter(len(df.columns))}"
-            if len(df.columns)
-            else "нет колонок"
-        )
-        raise ValueError(
-            "Формат XLS изменился: в файле доступны колонки "
-            f"{available}, но настройка ожидает "
-            f"{', '.join(missing_columns)}"
-        )
 
     parsed_rows: List[ParsedOrderRow] = []
     order_date: Optional[date] = None
     order_number: Optional[str] = None
 
     start_row = max(1, int(config.order_start_row or 1))
-    order_date_row = (
-        int(config.order_date_row)
-        if config.order_date_row is not None
-        else None
-    )
-    order_number_row = (
-        int(config.order_number_row)
-        if config.order_number_row is not None
-        else None
-    )
+    order_date_row = int(config.order_date_row) if config.order_date_row is not None else None
+    order_number_row = int(config.order_number_row) if config.order_number_row is not None else None
     for idx, row in df.iterrows():
         row_num = idx + 1
         if (
@@ -1183,6 +1219,14 @@ def _parse_xls_order(
             )
         )
 
+    if not parsed_rows:
+        raise _empty_order_rows_error(
+            config,
+            row_count=len(df.index),
+            column_count=len(df.columns),
+            format_name="XLS",
+        )
+
     output = BytesIO()
     df.to_excel(output, index=False, header=False)
     output.seek(0)
@@ -1196,21 +1240,13 @@ def _parse_order_attachment(
 ) -> Tuple[List[ParsedOrderRow], Optional[date], Optional[str], BytesIO, str]:
     file_ext = (filename.rsplit(".", 1)[-1] if "." in filename else "").lower()
     if file_ext == "csv":
-        parsed_rows, order_date, order_number, file_buffer = _parse_csv_order(
-            file_bytes, config
-        )
+        parsed_rows, order_date, order_number, file_buffer = _parse_csv_order(file_bytes, config)
     elif file_ext == "xls":
-        parsed_rows, order_date, order_number, file_buffer = _parse_xls_order(
-            file_bytes, config
-        )
+        parsed_rows, order_date, order_number, file_buffer = _parse_xls_order(file_bytes, config)
     elif file_ext == "xlsx":
-        parsed_rows, order_date, order_number, file_buffer = (
-            _parse_excel_order(file_bytes, config)
-        )
+        parsed_rows, order_date, order_number, file_buffer = _parse_excel_order(file_bytes, config)
     else:
-        raise ValueError(
-            f'Неподдерживаемый тип файла: {file_ext or "unknown"}'
-        )
+        raise ValueError(f'Неподдерживаемый тип файла: {file_ext or "unknown"}')
     return parsed_rows, order_date, order_number, file_buffer, file_ext
 
 
@@ -1222,19 +1258,9 @@ def _apply_response_updates_excel(
     wb = load_workbook(file_bytes)
     ws = wb.active
     qty_col = config.qty_col + 1
-    ship_col = (
-        config.ship_qty_col + 1 if config.ship_qty_col is not None else None
-    )
-    ship_price_col = (
-        config.ship_price_col + 1
-        if config.ship_price_col is not None
-        else None
-    )
-    reject_col = (
-        config.reject_qty_col + 1
-        if config.reject_qty_col is not None
-        else None
-    )
+    ship_col = config.ship_qty_col + 1 if config.ship_qty_col is not None else None
+    ship_price_col = config.ship_price_col + 1 if config.ship_price_col is not None else None
+    reject_col = config.reject_qty_col + 1 if config.reject_qty_col is not None else None
 
     for item in items:
         row_index = item.row_index
@@ -1248,15 +1274,11 @@ def _apply_response_updates_excel(
             ws.cell(row=row_index, column=ship_col).value = item.ship_qty or 0
         elif config.ship_mode == CUSTOMER_ORDER_SHIP_MODE.WRITE_REJECT_QTY:
             if reject_col is None:
-                raise ValueError(
-                    "reject_qty_col is required for WRITE_REJECT_QTY"
-                )
-            ws.cell(row=row_index, column=reject_col).value = (
-                item.reject_qty or 0
-            )
+                raise ValueError("reject_qty_col is required for WRITE_REJECT_QTY")
+            ws.cell(row=row_index, column=reject_col).value = item.reject_qty or 0
         if ship_price_col is not None:
-            ws.cell(row=row_index, column=ship_price_col).value = (
-                _get_response_ship_price_value(item)
+            ws.cell(row=row_index, column=ship_price_col).value = _get_response_ship_price_value(
+                item
             )
 
     output = BytesIO()
@@ -1286,13 +1308,11 @@ def _apply_response_updates_csv(
             df.iat[row_index, config.ship_qty_col] = item.ship_qty or 0
         elif config.ship_mode == CUSTOMER_ORDER_SHIP_MODE.WRITE_REJECT_QTY:
             if config.reject_qty_col is None:
-                raise ValueError(
-                    "reject_qty_col is required for WRITE_REJECT_QTY"
-                )
+                raise ValueError("reject_qty_col is required for WRITE_REJECT_QTY")
             df.iat[row_index, config.reject_qty_col] = item.reject_qty or 0
         if config.ship_price_col is not None:
-            df.iat[row_index, config.ship_price_col] = (
-                _get_response_ship_price_value(item, blank_value="")
+            df.iat[row_index, config.ship_price_col] = _get_response_ship_price_value(
+                item, blank_value=""
             )
 
     output = BytesIO()
@@ -1305,37 +1325,44 @@ async def _load_latest_customer_pricelist(
     session: AsyncSession,
     customer_id: int,
     customer_config_id: Optional[int] = None,
+    normalized_oems: Optional[set[str]] = None,
 ) -> Optional[CustomerPriceList]:
+    association_relation = CustomerPriceList.autopart_associations
+    alias_relation = CustomerPriceList.published_aliases
+    if normalized_oems is not None:
+        normalized_oems = {oem for oem in normalized_oems if oem}
+        matching_autopart_ids = select(AutoPart.id).where(AutoPart.oem_number.in_(normalized_oems))
+        association_relation = association_relation.and_(
+            CustomerPriceListAutoPartAssociation.autopart_id.in_(matching_autopart_ids)
+        )
+        alias_relation = alias_relation.and_(
+            CustomerPriceListPublishedAlias.normalized_oem.in_(normalized_oems)
+        )
+
     base_stmt = (
         select(CustomerPriceList)
         .where(CustomerPriceList.customer_id == customer_id)
         .options(
-            joinedload(CustomerPriceList.autopart_associations)
+            selectinload(association_relation)
             .joinedload(CustomerPriceListAutoPartAssociation.autopart)
             .joinedload(AutoPart.brand),
-            joinedload(CustomerPriceList.published_aliases)
+            selectinload(alias_relation)
             .joinedload(CustomerPriceListPublishedAlias.source_autopart)
             .joinedload(AutoPart.brand),
         )
     )
     if customer_config_id is not None:
-        base_stmt = base_stmt.where(
-            CustomerPriceList.customer_config_id == customer_config_id
-        )
+        base_stmt = base_stmt.where(CustomerPriceList.customer_config_id == customer_config_id)
     ordering = (CustomerPriceList.date.desc(), CustomerPriceList.id.desc())
     sent_result = await session.execute(
-        base_stmt.where(CustomerPriceList.sent_at.is_not(None))
-        .order_by(*ordering)
-        .limit(1)
+        base_stmt.where(CustomerPriceList.sent_at.is_not(None)).order_by(*ordering).limit(1)
     )
     sent = sent_result.unique().scalars().first()
     if sent is not None:
         return sent
     # Compatibility only for price lists created before config/sent tracking.
     result = await session.execute(
-        base_stmt.where(CustomerPriceList.customer_config_id.is_(None))
-        .order_by(*ordering)
-        .limit(1)
+        base_stmt.where(CustomerPriceList.customer_config_id.is_(None)).order_by(*ordering).limit(1)
     )
     return result.unique().scalars().first()
 
@@ -1410,6 +1437,7 @@ async def _build_current_offers(
     session: AsyncSession,
     config: CustomerPriceListConfig,
     brand_aliases: Optional[Dict[str, str]] = None,
+    required_oems: Optional[set[str]] = None,
 ) -> Dict[Tuple[str, str], OfferRow]:
     sources = await crud_customer_pricelist_source.get_by_config_id(
         config_id=config.id, session=session
@@ -1424,19 +1452,17 @@ async def _build_current_offers(
         if not latest_pl:
             continue
         associations = await crud_pricelist.fetch_pricelist_data(
-            latest_pl.id, session
+            latest_pl.id,
+            session,
+            oem_numbers=required_oems,
         )
         if not associations:
             continue
-        df = await crud_pricelist.transform_to_dataframe(
-            associations=associations, session=session
-        )
+        df = await crud_pricelist.transform_to_dataframe(associations=associations, session=session)
         # For order matching we ignore price/quantity thresholds from the
         # outbound pricelist. A valid offer should still match even if it
         # would be hidden from the mailed pricelist by stock/price limits.
-        df = _apply_source_filters(
-            df, source, ignore_price_quantity_filters=True
-        )
+        df = _apply_source_filters(df, source, ignore_price_quantity_filters=True)
         if df.empty:
             continue
         # Keep the original supplier price from the provider price list.
@@ -1499,9 +1525,7 @@ async def _build_current_offers(
         supplier_price_raw = row.get("supplier_price")
         if pd.isna(supplier_price_raw):
             supplier_price_raw = row.get("price")
-        supplier_price = (
-            float(supplier_price_raw) if pd.notna(supplier_price_raw) else 0.0
-        )
+        supplier_price = float(supplier_price_raw) if pd.notna(supplier_price_raw) else 0.0
         offers[key] = OfferRow(
             autopart_id=int(row.get("autopart_id")),
             provider_id=int(row.get("provider_id")),
@@ -1732,7 +1756,9 @@ async def _diagnose_missing_offer_reason(
         if not latest_pl:
             continue
         associations = await crud_pricelist.fetch_pricelist_data(
-            latest_pl.id, session
+            latest_pl.id,
+            session,
+            oem_numbers={key[0]},
         )
         if not associations:
             continue
@@ -1792,9 +1818,7 @@ async def _diagnose_missing_offer_reason(
         first_match = positive_raw.iloc[0]
         provider_id_value = first_match.get("provider_id")
         own_flag_value = first_match.get("is_own_price")
-        provider_id = (
-            int(provider_id_value) if pd.notna(provider_id_value) else None
-        )
+        provider_id = int(provider_id_value) if pd.notna(provider_id_value) else None
         own_flag = bool(own_flag_value) if pd.notna(own_flag_value) else False
 
         config_filtered_df = crud_customer_pricelist.apply_coefficient(
@@ -1935,9 +1959,7 @@ def _advance_config_last_uid(
         folder_uids = dict(config.folder_last_uids or {})
         parsed_account_id: Optional[int]
         try:
-            parsed_account_id = (
-                int(account_id) if account_id is not None else None
-            )
+            parsed_account_id = int(account_id) if account_id is not None else None
         except (TypeError, ValueError):
             parsed_account_id = None
         if parsed_account_id and parsed_account_id > 0:
@@ -1961,9 +1983,7 @@ def _get_config_last_uid(
         normalized_folder = normalize_imap_folder(folder_name)
         parsed_account_id: Optional[int]
         try:
-            parsed_account_id = (
-                int(account_id) if account_id is not None else None
-            )
+            parsed_account_id = int(account_id) if account_id is not None else None
         except (TypeError, ValueError):
             parsed_account_id = None
         if parsed_account_id and parsed_account_id > 0:
@@ -2091,12 +2111,8 @@ def _build_supplier_order_rows(
     for index, item in enumerate(order.items or [], start=1):
         autopart = item.autopart
         brand_name = autopart.brand.name if autopart and autopart.brand else ""
-        oem_number = (
-            item.oem_number or (autopart.oem_number if autopart else "") or ""
-        )
-        part_name = (
-            item.autopart_name or (autopart.name if autopart else "") or ""
-        )
+        oem_number = item.oem_number or (autopart.oem_number if autopart else "") or ""
+        part_name = item.autopart_name or (autopart.name if autopart else "") or ""
         quantity = int(item.quantity or 0)
         price = float(item.price) if item.price is not None else 0.0
         line_sum = round(quantity * price, 2)
@@ -2494,17 +2510,13 @@ def _build_customer_order_forward_attachment_bytes(
             cell = sheet.cell(row=current_row, column=col_index, value=value)
             cell.font = font_main
             cell.border = border
-            cell.alignment = (
-                align_right if col_index in numeric_columns else align_left
-            )
+            cell.alignment = align_right if col_index in numeric_columns else align_left
         current_row += 1
 
     sheet.cell(row=current_row, column=1, value="Итого:").font = font_bold
     sheet.cell(row=current_row, column=7, value=total_qty).font = font_bold
     sheet.cell(row=current_row, column=8, value="RUR").font = font_bold
-    sheet.cell(
-        row=current_row, column=9, value=round(float(total_sum), 2)
-    ).font = font_bold
+    sheet.cell(row=current_row, column=9, value=round(float(total_sum), 2)).font = font_bold
     for col_index in range(1, len(headers) + 1):
         sheet.cell(row=current_row, column=col_index).border = border
 
@@ -2783,19 +2795,12 @@ async def _send_reject_report(
         "Отказы:",
     ]
     for item in rejected_items:
-        price = (
-            item.requested_price
-            if item.requested_price is not None
-            else item.matched_price
-        )
+        price = item.requested_price if item.requested_price is not None else item.matched_price
         price_value = float(price) if price is not None else 0.0
         price_text = f"{price_value:.2f}"
         qty = item.reject_qty or item.requested_qty
         name = item.name or ""
-        lines.append(
-            f"- {item.oem} / {item.brand} / {name} — "
-            f"{qty} шт, {price_text}"
-        )
+        lines.append(f"- {item.oem} / {item.brand} / {name} — " f"{qty} шт, {price_text}")
     await _notify_admins(
         session,
         title="Отказы по заказу клиента",
@@ -2822,21 +2827,38 @@ async def _resolve_pricelist_config(
 async def _prepare_customer_order_context(
     session: AsyncSession,
     config: CustomerOrderConfig,
+    parsed_rows: List[ParsedOrderRow],
 ):
     brand_aliases = await _load_brand_alias_map(session)
+    requested_oems = {
+        _normalize_oem_key(row.oem) for row in parsed_rows if _normalize_oem_key(row.oem)
+    }
     last_pricelist = await _load_latest_customer_pricelist(
         session,
         config.customer_id,
         config.pricelist_config_id,
+        normalized_oems=requested_oems,
     )
     expected_prices = (
-        _build_expected_price_map(last_pricelist, brand_aliases)
-        if last_pricelist
-        else {}
+        _build_expected_price_map(last_pricelist, brand_aliases) if last_pricelist else {}
     )
     pricelist_config = await _resolve_pricelist_config(session, config)
+    source_oems = (
+        {
+            _normalize_oem_key(alias.source_autopart.oem_number)
+            for alias in (last_pricelist.published_aliases or [])
+            if alias.source_autopart is not None
+        }
+        if last_pricelist
+        else set()
+    )
     offers = (
-        await _build_current_offers(session, pricelist_config, brand_aliases)
+        await _build_current_offers(
+            session,
+            pricelist_config,
+            brand_aliases,
+            required_oems=requested_oems | source_oems,
+        )
         if pricelist_config
         else {}
     )
@@ -2864,7 +2886,7 @@ async def _process_manual_rows(
         offers,
         brand_aliases,
         pricelist_config,
-    ) = await _prepare_customer_order_context(session, config)
+    ) = await _prepare_customer_order_context(session, config, parsed_rows)
 
     order_items: List[CustomerOrderItem] = []
     supplier_items: Dict[int, List[CustomerOrderItem]] = {}
@@ -2985,9 +3007,7 @@ async def _process_manual_rows(
                 item.ship_qty = ship_qty
                 item.reject_qty = reject_qty
                 item.autopart_id = offer.autopart_id
-                allocated_qty_by_autopart[int(offer.autopart_id)] = (
-                    already_allocated + ship_qty
-                )
+                allocated_qty_by_autopart[int(offer.autopart_id)] = already_allocated + ship_qty
                 if offer.is_own_price:
                     item.supplier_id = None
                 else:
@@ -3013,15 +3033,9 @@ async def _process_manual_rows(
         session.add(item)
         await session.flush()
 
-        if (
-            item.status == CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK
-            and item.ship_qty
-        ):
+        if item.status == CUSTOMER_ORDER_ITEM_STATUS.OWN_STOCK and item.ship_qty:
             stock_items.append(item)
-        elif (
-            item.status == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
-            and item.ship_qty
-        ):
+        elif item.status == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER and item.ship_qty:
             supplier_items.setdefault(item.supplier_id, []).append(item)
         elif item.status == CUSTOMER_ORDER_ITEM_STATUS.REJECTED:
             rejected_items.append(item)
@@ -3030,6 +3044,7 @@ async def _process_manual_rows(
         stock_order = StockOrder(
             customer_id=config.customer_id,
             status=STOCK_ORDER_STATUS.NEW,
+            packing_required=True,
         )
         session.add(stock_order)
         await session.flush()
@@ -3485,6 +3500,20 @@ async def _ensure_import_order_stub(
     )
 
 
+async def _is_resumable_import_stub(
+    session: AsyncSession,
+    order: CustomerOrder,
+) -> bool:
+    if order.status != CUSTOMER_ORDER_STATUS.NEW or not order.file_hash:
+        return False
+    item_id = (
+        await session.execute(
+            select(CustomerOrderItem.id).where(CustomerOrderItem.order_id == order.id).limit(1)
+        )
+    ).scalar_one_or_none()
+    return item_id is None
+
+
 async def _store_import_error(
     session: AsyncSession,
     config: CustomerOrderConfig,
@@ -3693,13 +3722,12 @@ async def retry_customer_order(
     session: AsyncSession,
     order_id: int,
 ) -> CustomerOrder:
-    order = await crud_customer_order.get_by_id(
-        session=session, order_id=order_id
-    )
+    order = await crud_customer_order.get_by_id(session=session, order_id=order_id)
     if not order:
         raise LookupError("Order not found")
-    if order.status != CUSTOMER_ORDER_STATUS.ERROR:
-        raise ValueError("Only errored orders can be retried")
+    interrupted_import = await _is_resumable_import_stub(session, order)
+    if order.status != CUSTOMER_ORDER_STATUS.ERROR and not interrupted_import:
+        raise ValueError("Only errored or interrupted imports can be retried")
     if not order.order_config_id:
         raise ValueError("Order is not linked to an order config")
 
@@ -4088,9 +4116,7 @@ async def process_customer_orders(
     if order_accounts:
         unique_accounts = {}
         for account in order_accounts:
-            host = (
-                (account.imap_host or EMAIL_HOST_ORDER or "").strip().lower()
-            )
+            host = (account.imap_host or EMAIL_HOST_ORDER or "").strip().lower()
             folders = tuple(
                 folder.casefold()
                 for folder in resolve_imap_folders(
@@ -4188,10 +4214,8 @@ async def process_customer_orders(
                 try:
                     account_messages = []
                     for label in folders:
-                        remaining_limit = (
-                            _remaining_customer_orders_fetch_limit(
-                                len(messages) + len(account_messages)
-                            )
+                        remaining_limit = _remaining_customer_orders_fetch_limit(
+                            len(messages) + len(account_messages)
                         )
                         if remaining_limit == 0:
                             break
@@ -4447,22 +4471,18 @@ async def process_customer_orders(
                         getattr(msg, "subject", None),
                     )
                     continue
-                candidate_attachment = None
-                for att in msg.attachments:
-                    if _match_pattern(
-                        candidate.order_filename_pattern, att.filename
-                    ):
-                        candidate_attachment = att
-                        break
-                if candidate_attachment is None and msg.attachments:
-                    candidate_attachment = msg.attachments[0]
+                candidate_attachment = _select_order_attachment(
+                    candidate,
+                    msg.attachments,
+                )
                 if candidate_attachment is None:
                     logger.debug(
                         "Skip order config %s for sender=%s: "
-                        "no suitable attachment filename_pattern=%r",
+                        "no suitable attachment filename_pattern=%r files=%s",
                         candidate.id,
                         sender,
                         candidate.order_filename_pattern,
+                        [getattr(item, "filename", None) for item in (msg.attachments or [])],
                     )
                     continue
                 config = candidate
@@ -4503,37 +4523,48 @@ async def process_customer_orders(
             )
             existing_order = existing.scalars().first()
             if existing_order:
-                _apply_matched_email_state_for_configs(
-                    session,
-                    configs_for_uid_update or [config],
-                    msg,
-                    inbox_account,
-                )
-                await _send_order_import_notification(
+                if await _is_resumable_import_stub(session, existing_order):
+                    order = existing_order
+                    order_id = existing_order.id
+                    logger.warning(
+                        "Resume interrupted customer order import: "
+                        "order_id=%s uid=%s filename=%s",
+                        order_id,
+                        getattr(msg, "uid", None),
+                        filename,
+                    )
+                else:
+                    _apply_matched_email_state_for_configs(
+                        session,
+                        configs_for_uid_update or [config],
+                        msg,
+                        inbox_account,
+                    )
+                    await _send_order_import_notification(
+                        session,
+                        config,
+                        sender,
+                        getattr(msg, "subject", None),
+                        filename,
+                        success=False,
+                        reason="Дубликат файла: заказ уже загружен ранее",
+                        order_number=(existing_order.order_number or order_number_hint),
+                    )
+                    await session.commit()
+                    continue
+
+            if order is None:
+                order = await _create_import_order_stub(
                     session,
                     config,
                     sender,
-                    getattr(msg, "subject", None),
+                    msg,
                     filename,
-                    success=False,
-                    reason="Дубликат файла: заказ уже загружен ранее",
-                    order_number=(
-                        existing_order.order_number or order_number_hint
-                    ),
+                    file_hash,
+                    order_number=order_number_hint,
                 )
-                await session.commit()
-                continue
-
-            order = await _create_import_order_stub(
-                session,
-                config,
-                sender,
-                msg,
-                filename,
-                file_hash,
-                order_number=order_number_hint,
-            )
-            order_id = order.id
+                order_id = order.id
+            await _save_order_source_file(order, file_bytes)
 
             try:
                 (
@@ -4722,20 +4753,12 @@ async def send_supplier_orders(
     smtp_kwargs = {}
     if account:
         smtp_kwargs = build_email_delivery_kwargs(account)
-    automatic_order_override_email = await _supplier_order_override_email_from_settings(
-        session
-    )
+    automatic_order_override_email = await _supplier_order_override_email_from_settings(session)
 
     for order in orders:
         provider = order.provider
-        is_manual_search_order = (
-            order.source_type == ORDER_TRACKING_SOURCE.SEARCH_OFFERS.value
-        )
-        override_email = (
-            None
-            if is_manual_search_order
-            else automatic_order_override_email
-        )
+        is_manual_search_order = order.source_type == ORDER_TRACKING_SOURCE.SEARCH_OFFERS.value
+        override_email = None if is_manual_search_order else automatic_order_override_email
         original_recipient = _build_supplier_order_recipient(
             provider,
             use_override=False,
@@ -4753,9 +4776,7 @@ async def send_supplier_orders(
             total_sum=total_sum,
         )
         try:
-            provider_name = (
-                provider.name if provider and provider.name else "Поставщик"
-            )
+            provider_name = provider.name if provider and provider.name else "Поставщик"
             attachment_filename = _supplier_order_attachment_filename(order.id)
             body = _build_supplier_order_body_html(
                 order=order,
@@ -5030,13 +5051,12 @@ async def update_customer_order_item_manual(
                 .order_by(StockOrder.created_at.asc())
                 .limit(1)
             )
-            stock_order = (
-                await session.execute(order_stmt)
-            ).scalar_one_or_none()
+            stock_order = (await session.execute(order_stmt)).scalar_one_or_none()
             if not stock_order:
                 stock_order = StockOrder(
                     customer_id=item.order.customer_id,
                     status=STOCK_ORDER_STATUS.NEW,
+                    packing_required=True,
                 )
                 session.add(stock_order)
                 await session.flush()
@@ -5047,9 +5067,11 @@ async def update_customer_order_item_manual(
             and existing_stock_order
             and stock_order.id == existing_stock_order.id
         ):
+            stock_order.packing_required = True
             existing_stock_item.quantity = item.requested_qty
             existing_stock_item.autopart_id = item.autopart_id
         else:
+            stock_order.packing_required = True
             session.add(
                 StockOrderItem(
                     stock_order_id=stock_order.id,
@@ -5162,17 +5184,11 @@ async def update_customer_order_item_manual(
             )
             .limit(1)
         )
-        supplier_price = (
-            await session.execute(price_stmt)
-        ).scalar_one_or_none()
+        supplier_price = (await session.execute(price_stmt)).scalar_one_or_none()
     if not supplier_price and item.matched_price:
         supplier_price = float(item.matched_price)
 
-    if (
-        existing_item
-        and supplier_order
-        and supplier_order.id == existing_order.id
-    ):
+    if existing_item and supplier_order and supplier_order.id == existing_order.id:
         existing_item.quantity = item.requested_qty
         existing_item.price = supplier_price
         existing_item.autopart_id = item.autopart_id

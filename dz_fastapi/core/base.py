@@ -30,11 +30,19 @@ from dz_fastapi.models.finance import (  # noqa
     SupplierPayment,
 )
 from dz_fastapi.models.inbox_email import EmailRulePattern, InboxEmail, InboxForceProcessAudit
-from dz_fastapi.models.inventory import InventoryItem  # noqa
-from dz_fastapi.models.inventory import (
+from dz_fastapi.models.inventory import (  # noqa
+    CrossDockingLabel,
+    CrossDockingLabelPrintEvent,
     DragonzapProductionGroup,
     DragonzapProductionMaterialOverride,
+    InventoryItem,
     InventorySession,
+    ProductionWave,
+    ProductionWaveAllocation,
+    ProductionWaveDemand,
+    ProductionWaveItem,
+    ProductionWaveLabel,
+    ProductionWaveLabelPrintEvent,
     ProductMarkingCode,
     ProductMarkingCodeMovement,
     ReturnFromCustomer,
@@ -49,6 +57,9 @@ from dz_fastapi.models.inventory import (
     StockLot,
     StockLotRoleChange,
     StockMovement,
+    StockOrderPackage,
+    StockOrderPackageEvent,
+    StockOrderPackageItem,
     StockReserve,
     Warehouse,
 )
@@ -59,6 +70,11 @@ from dz_fastapi.models.nomenclature import (
     autopart_honest_sign_association,
 )
 from dz_fastapi.models.notification import AppNotification  # noqa
+from dz_fastapi.models.one_c import (  # noqa
+    OneCExchangeBatch,
+    OneCExchangeBatchItem,
+    OneCExchangeEvent,
+)
 from dz_fastapi.models.order_status_mapping import ExternalStatusMapping, ExternalStatusUnmapped
 from dz_fastapi.models.partner import (
     Client,
@@ -70,6 +86,9 @@ from dz_fastapi.models.partner import (
     CustomerPriceList,
     CustomerPriceListAutoPartAssociation,
     CustomerPriceListConfig,
+    CustomerPriceListExportRow,
+    CustomerPriceListPublicationRule,
+    CustomerPriceListPublishedAlias,
     CustomerPriceListSource,
     CustomerReclamationEmail,
     EmailOutbox,
@@ -221,6 +240,10 @@ __all__ = [
     "ReturnItem",
     "ProductMarkingCode",
     "ProductMarkingCodeMovement",
+    "ProductionWave",
+    "ProductionWaveItem",
+    "ProductionWaveDemand",
+    "ProductionWaveAllocation",
     "Warehouse",
     "StockByLocation",
     "StockLot",
@@ -234,11 +257,17 @@ __all__ = [
     "ShipmentDocument",
     "ShipmentDocumentItem",
     "ShipmentDocumentItemLotAllocation",
+    "OneCExchangeEvent",
+    "OneCExchangeBatch",
+    "OneCExchangeBatchItem",
     "HonestSignCategory",
     "ApplicabilityNode",
     "autopart_honest_sign_association",
     "autopart_applicability_association",
     "CustomerPriceListOverride",
+    "CustomerPriceListExportRow",
+    "CustomerPriceListPublicationRule",
+    "CustomerPriceListPublishedAlias",
     "PriceControlConfig",
     "PriceControlManualItem",
     "PriceControlRecommendation",

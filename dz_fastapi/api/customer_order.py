@@ -21,6 +21,9 @@ from dz_fastapi.models.notification import AppNotificationLevel
 from dz_fastapi.models.partner import CUSTOMER_ORDER_ITEM_STATUS
 from dz_fastapi.models.user import User, UserRole
 from dz_fastapi.schemas.customer_order import (
+    CrossDockingDocumentStatusUpdate,
+    CrossDockingLabelPrintRequest,
+    CrossDockingLabelResponse,
     CustomerOrderConfigCreate,
     CustomerOrderConfigResponse,
     CustomerOrderConfigUpdate,
@@ -35,6 +38,12 @@ from dz_fastapi.schemas.customer_order import (
     CustomerOrderSummaryResponse,
     StockOrderItemPickResponse,
     StockOrderItemPickUpdate,
+    StockOrderPackageContentsUpdate,
+    StockOrderPackageCreate,
+    StockOrderPackagePrintRequest,
+    StockOrderPackageReasonRequest,
+    StockOrderPackageScanRequest,
+    StockOrderPackingResponse,
     StockOrderResponse,
     SupplierOrderDetailResponse,
     SupplierOrderManualCreate,
@@ -50,6 +59,14 @@ from dz_fastapi.schemas.customer_order import (
     SupplierResponseProcessResult,
 )
 from dz_fastapi.services.credit_control import CreditLimitExceeded, check_customer_credit_policy
+from dz_fastapi.services.cross_docking import (
+    ensure_cross_docking_labels,
+    list_cross_docking_labels,
+    mark_cross_docking_labels_printed,
+    serialize_cross_docking_label,
+    sync_posted_cross_docking_labels,
+    update_cross_docking_document_status,
+)
 from dz_fastapi.services.customer_orders import (
     create_manual_customer_order,
     create_manual_supplier_order,
@@ -62,8 +79,23 @@ from dz_fastapi.services.customer_orders import (
     send_supplier_orders,
     update_customer_order_item_manual,
 )
-from dz_fastapi.services.inventory_stock import dispatch_stock_order
+from dz_fastapi.services.inventory_stock import (
+    dispatch_stock_order,
+    sync_posted_cross_docking_assemblies,
+)
 from dz_fastapi.services.notifications import create_notification
+from dz_fastapi.services.stock_order_packages import (
+    create_stock_order_package,
+    delete_stock_order_package,
+    get_stock_order_packing,
+    mark_stock_order_package_label_printed,
+    reopen_stock_order_package,
+    replace_stock_order_package_contents,
+    scan_stock_order_package_item,
+    seal_stock_order_package,
+    serialize_stock_order_packing,
+    verify_stock_order_package,
+)
 from dz_fastapi.services.supplier_order_responses import process_supplier_response_messages
 from dz_fastapi.services.supplier_receipt_upd import send_supplier_receipt_upd_email
 from dz_fastapi.services.supplier_workflow import (
@@ -1019,6 +1051,30 @@ async def list_stock_orders(
     ]
 
 
+@router.post(
+    "/stock/sync-cross-docking",
+    status_code=status.HTTP_200_OK,
+    summary="Добавить проведённые cross-docking поступления в комплектацию",
+)
+async def sync_cross_docking_stock_orders(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Синхронизация доступна только администратору",
+        )
+    result = await sync_posted_cross_docking_assemblies(session)
+    label_result = await sync_posted_cross_docking_labels(
+        session,
+        user_id=current_user.id,
+    )
+    result.update(label_result)
+    await session.commit()
+    return result
+
+
 @router.patch(
     "/stock/items/{item_id}/pick",
     response_model=StockOrderItemPickResponse,
@@ -1062,10 +1118,229 @@ async def update_stock_order_item_pick_endpoint(
     )
 
 
+@router.get(
+    "/stock/orders/{order_id}/packing",
+    response_model=StockOrderPackingResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_stock_order_packing_endpoint(
+    order_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        order = await get_stock_order_packing(
+            session,
+            stock_order_id=order_id,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return StockOrderPackingResponse.model_validate(
+        serialize_stock_order_packing(order)
+    )
+
+
+@router.post(
+    "/stock/orders/{order_id}/packages",
+    response_model=StockOrderPackingResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_stock_order_package_endpoint(
+    order_id: int,
+    payload: StockOrderPackageCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        order = await create_stock_order_package(
+            session,
+            stock_order_id=order_id,
+            user_id=current_user.id,
+            comment=payload.comment,
+            pack_all_unallocated=payload.pack_all_unallocated,
+        )
+        await session.commit()
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return StockOrderPackingResponse.model_validate(
+        serialize_stock_order_packing(order)
+    )
+
+
+@router.put(
+    "/stock/packages/{package_id}/contents",
+    response_model=StockOrderPackingResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def replace_stock_order_package_contents_endpoint(
+    package_id: int,
+    payload: StockOrderPackageContentsUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        order = await replace_stock_order_package_contents(
+            session,
+            package_id=package_id,
+            user_id=current_user.id,
+            items=[item.model_dump() for item in payload.items],
+        )
+        await session.commit()
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return StockOrderPackingResponse.model_validate(
+        serialize_stock_order_packing(order)
+    )
+
+
+async def _run_package_action(
+    action,
+    *,
+    package_id: int,
+    session: AsyncSession,
+    current_user: User,
+    **kwargs,
+) -> StockOrderPackingResponse:
+    try:
+        order = await action(
+            session,
+            package_id=package_id,
+            user_id=current_user.id,
+            **kwargs,
+        )
+        await session.commit()
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return StockOrderPackingResponse.model_validate(
+        serialize_stock_order_packing(order)
+    )
+
+
+@router.post(
+    "/stock/packages/{package_id}/seal",
+    response_model=StockOrderPackingResponse,
+)
+async def seal_stock_order_package_endpoint(
+    package_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    return await _run_package_action(
+        seal_stock_order_package,
+        package_id=package_id,
+        session=session,
+        current_user=current_user,
+    )
+
+
+@router.post(
+    "/stock/packages/{package_id}/scan",
+    response_model=StockOrderPackingResponse,
+)
+async def scan_stock_order_package_endpoint(
+    package_id: int,
+    payload: StockOrderPackageScanRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    return await _run_package_action(
+        scan_stock_order_package_item,
+        package_id=package_id,
+        session=session,
+        current_user=current_user,
+        scan_code=payload.scan_code,
+    )
+
+
+@router.post(
+    "/stock/packages/{package_id}/verify",
+    response_model=StockOrderPackingResponse,
+)
+async def verify_stock_order_package_endpoint(
+    package_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    return await _run_package_action(
+        verify_stock_order_package,
+        package_id=package_id,
+        session=session,
+        current_user=current_user,
+    )
+
+
+@router.post(
+    "/stock/packages/{package_id}/reopen",
+    response_model=StockOrderPackingResponse,
+)
+async def reopen_stock_order_package_endpoint(
+    package_id: int,
+    payload: StockOrderPackageReasonRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    return await _run_package_action(
+        reopen_stock_order_package,
+        package_id=package_id,
+        session=session,
+        current_user=current_user,
+        reason=payload.reason,
+    )
+
+
+@router.post(
+    "/stock/packages/{package_id}/label-print",
+    response_model=StockOrderPackingResponse,
+)
+async def print_stock_order_package_label_endpoint(
+    package_id: int,
+    payload: StockOrderPackagePrintRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    return await _run_package_action(
+        mark_stock_order_package_label_printed,
+        package_id=package_id,
+        session=session,
+        current_user=current_user,
+        reason=payload.reason,
+    )
+
+
+@router.delete(
+    "/stock/packages/{package_id}",
+    response_model=StockOrderPackingResponse,
+)
+async def delete_stock_order_package_endpoint(
+    package_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        order = await delete_stock_order_package(
+            session,
+            package_id=package_id,
+        )
+        await session.commit()
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return StockOrderPackingResponse.model_validate(
+        serialize_stock_order_packing(order)
+    )
+
+
 @router.post(
     "/stock/orders/{order_id}/dispatch",
     status_code=status.HTTP_200_OK,
-    summary="Отгрузить складской заказ — списать товар по FIFO (ГТД)",
+    summary="Создать и провести накладную из собранного складского заказа",
 )
 async def dispatch_stock_order_endpoint(
     order_id: int,
@@ -1402,6 +1677,102 @@ async def get_supplier_receipt_endpoint(
     )
 
 
+@router.get(
+    "/supplier-receipts/{receipt_id}/cross-docking-labels",
+    response_model=List[CrossDockingLabelResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def get_cross_docking_labels_endpoint(
+    receipt_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        await ensure_cross_docking_labels(
+            session,
+            receipt_id=receipt_id,
+            user_id=current_user.id,
+        )
+        labels = await list_cross_docking_labels(
+            session,
+            receipt_id=receipt_id,
+        )
+        await session.commit()
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return [
+        CrossDockingLabelResponse.model_validate(
+            serialize_cross_docking_label(label)
+        )
+        for label in labels
+    ]
+
+
+@router.post(
+    "/supplier-receipts/{receipt_id}/cross-docking-labels/print",
+    response_model=List[CrossDockingLabelResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def print_cross_docking_labels_endpoint(
+    receipt_id: int,
+    payload: CrossDockingLabelPrintRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        labels = await mark_cross_docking_labels_printed(
+            session,
+            receipt_id=receipt_id,
+            user_id=current_user.id,
+            label_ids=payload.label_ids,
+            reason=payload.reason,
+        )
+        await session.commit()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return [
+        CrossDockingLabelResponse.model_validate(
+            serialize_cross_docking_label(label)
+        )
+        for label in labels
+    ]
+
+
+@router.patch(
+    "/supplier-receipts/{receipt_id}/cross-docking-document",
+    response_model=SupplierReceiptResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def update_cross_docking_document_endpoint(
+    receipt_id: int,
+    payload: CrossDockingDocumentStatusUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        await update_cross_docking_document_status(
+            session,
+            receipt_id=receipt_id,
+            document_pending=payload.document_pending,
+            document_number=payload.document_number,
+            document_date=payload.document_date,
+        )
+        await session.commit()
+        receipt = await get_supplier_receipt_detail(
+            session=session,
+            receipt_id=receipt_id,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return SupplierReceiptResponse.model_validate(
+        serialize_supplier_receipt(receipt)
+    )
+
+
 @router.post(
     "/supplier-receipts",
     response_model=SupplierReceiptResponse,
@@ -1472,6 +1843,8 @@ async def post_supplier_receipt_endpoint(
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     await _notify_current_user(
         session,
         current_user,
@@ -1538,6 +1911,8 @@ async def unpost_supplier_receipt_endpoint(
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     await _notify_current_user(
         session,
         current_user,

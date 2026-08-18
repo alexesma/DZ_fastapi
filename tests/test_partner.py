@@ -23,6 +23,8 @@ from dz_fastapi.models.partner import (
     CustomerPriceList,
     CustomerPriceListAutoPartAssociation,
     CustomerPriceListConfig,
+    CustomerPriceListExportRow,
+    CustomerPriceListPublicationRule,
     CustomerPriceListSource,
     PriceList,
     PriceListAutoPartAssociation,
@@ -490,18 +492,14 @@ async def test_delete_older_customer_pricelists_uses_bulk_cleanup(
     remaining_ids = set(
         (
             await test_session.execute(
-                select(CustomerPriceList.id).where(
-                    CustomerPriceList.customer_id == customer.id
-                )
+                select(CustomerPriceList.id).where(CustomerPriceList.customer_id == customer.id)
             )
         ).scalars()
     )
     remaining_associations = set(
         (
             await test_session.execute(
-                select(
-                    CustomerPriceListAutoPartAssociation.customerpricelist_id
-                ).where(
+                select(CustomerPriceListAutoPartAssociation.customerpricelist_id).where(
                     CustomerPriceListAutoPartAssociation.customerpricelist_id.in_(
                         [pricelist.id for pricelist in pricelists]
                     )
@@ -808,9 +806,7 @@ async def test_provider_pricelist_review_workflow(
         lambda review: str(review_file),
     )
 
-    list_response = await async_client.get(
-        f"/providers/{provider.id}/pricelist-reviews"
-    )
+    list_response = await async_client.get(f"/providers/{provider.id}/pricelist-reviews")
     assert list_response.status_code == 200, list_response.text
     listed = list_response.json()
     assert len(listed) == 2
@@ -818,18 +814,14 @@ async def test_provider_pricelist_review_workflow(
     assert listed[0]["config_name"] == "PRICE_CONFIG"
 
     download_response = await async_client.get(
-        f"/providers/{provider.id}/pricelist-reviews/"
-        f"{rejected_review.id}/download"
+        f"/providers/{provider.id}/pricelist-reviews/" f"{rejected_review.id}/download"
     )
     assert download_response.status_code == 200, download_response.text
     assert download_response.content == b"exact blocked pricelist"
-    assert "blocked-price.xlsx" in download_response.headers[
-        "content-disposition"
-    ]
+    assert "blocked-price.xlsx" in download_response.headers["content-disposition"]
 
     reject_response = await async_client.post(
-        f"/providers/{provider.id}/pricelist-reviews/"
-        f"{rejected_review.id}/reject",
+        f"/providers/{provider.id}/pricelist-reviews/" f"{rejected_review.id}/reject",
         json={"reason": "Поставщик прислал неполный файл"},
     )
     assert reject_response.status_code == 200, reject_response.text
@@ -857,23 +849,19 @@ async def test_provider_pricelist_review_workflow(
         fake_process_provider_pricelist,
     )
     approve_response = await async_client.post(
-        f"/providers/{provider.id}/pricelist-reviews/"
-        f"{approved_review.id}/approve",
+        f"/providers/{provider.id}/pricelist-reviews/" f"{approved_review.id}/approve",
         json={"reason": "Рост ассортимента подтверждён поставщиком"},
     )
     assert approve_response.status_code == 200, approve_response.text
     approved = approve_response.json()
     assert approved["status"] == "approved"
-    assert approved["decision_reason"] == (
-        "Рост ассортимента подтверждён поставщиком"
-    )
+    assert approved["decision_reason"] == ("Рост ассортимента подтверждён поставщиком")
     assert approved["decided_by_name"] == "Test Admin"
     assert approved["decided_at"] is not None
     assert approved["published_pricelist_id"] is not None
 
     duplicate_response = await async_client.post(
-        f"/providers/{provider.id}/pricelist-reviews/"
-        f"{approved_review.id}/approve",
+        f"/providers/{provider.id}/pricelist-reviews/" f"{approved_review.id}/approve",
         json={},
     )
     assert duplicate_response.status_code == 409
@@ -2242,9 +2230,7 @@ async def test_dragonzap_cross_alias_uses_cheapest_stock_item_and_masks_qty(
         oem_number="CHERY-ALIAS",
         name="Foreign alias",
     )
-    test_session.add_all(
-        [source_expensive, source_cheap, dz_alias, foreign_alias]
-    )
+    test_session.add_all([source_expensive, source_cheap, dz_alias, foreign_alias])
     await test_session.flush()
     test_session.add_all(
         [
@@ -2308,6 +2294,166 @@ async def test_dragonzap_cross_alias_uses_cheapest_stock_item_and_masks_qty(
     assert aliases[0]["autopart_id"] == source_cheap.id
     assert aliases[0]["price"] == 90.0
     assert aliases[0]["quantity"] == 8
+
+
+@pytest.mark.asyncio
+async def test_customer_publication_rule_only_cross_hides_source_and_other_aliases(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+):
+    customer = created_customers[0]
+    dz_brand = Brand(name="DRAGONZAP")
+    test_session.add(dz_brand)
+    await test_session.flush()
+    source = AutoPart(
+        brand_id=dz_brand.id,
+        oem_number="DZSOURCE001",
+        name="Physical item",
+    )
+    selected_cross = AutoPart(
+        brand_id=dz_brand.id,
+        oem_number="DZSELECTED001",
+        name="Selected client cross",
+    )
+    other_cross = AutoPart(
+        brand_id=dz_brand.id,
+        oem_number="DZOTHER001",
+        name="Other automatic cross",
+    )
+    test_session.add_all([source, selected_cross, other_cross])
+    await test_session.flush()
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name="PUBLICATION RULE CONFIG",
+        general_markup=1.0,
+    )
+    test_session.add(config)
+    await test_session.flush()
+    test_session.add(
+        CustomerPriceListPublicationRule(
+            config_id=config.id,
+            source_autopart_id=source.id,
+            target_autopart_id=selected_cross.id,
+            mode="only_cross",
+            is_active=True,
+        )
+    )
+    await test_session.flush()
+
+    source_df = pd.DataFrame(
+        [
+            {
+                "autopart_id": source.id,
+                "brand": "DRAGONZAP",
+                "oem_number": source.oem_number,
+                "name": source.name,
+                "quantity": 20,
+                "price": 150.0,
+                "is_own_price": True,
+            }
+        ]
+    )
+    automatic_aliases = [
+        {
+            **source_df.iloc[0].to_dict(),
+            "brand": "DRAGONZAP",
+            "oem_number": other_cross.oem_number,
+            "name": other_cross.name,
+            "__dragonzap_alias": True,
+        }
+    ]
+
+    result_df, aliases, summary = await process_service._apply_customer_publication_rules(
+        test_session,
+        config_id=config.id,
+        customer_id=customer.id,
+        source_df=source_df,
+        automatic_aliases=automatic_aliases,
+    )
+
+    assert result_df.empty
+    assert len(aliases) == 1
+    assert aliases[0]["oem_number"] == selected_cross.oem_number
+    assert aliases[0]["autopart_id"] == source.id
+    assert aliases[0]["price"] == 150.0
+    assert aliases[0]["__manual_publication_rule"] is True
+    assert summary["manual_aliases"] == 1
+    assert summary["hidden_positions"] == 1
+
+
+@pytest.mark.asyncio
+async def test_customer_pricelist_auto_mode_keeps_required_approval_as_draft(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+    created_providers: list[Provider],
+    created_autopart: AutoPart,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+):
+    customer = created_customers[0]
+    provider = created_providers[0]
+    pricelist = PriceList(
+        date=date.today(),
+        provider_id=provider.id,
+        is_active=True,
+    )
+    test_session.add(pricelist)
+    await test_session.flush()
+    test_session.add(
+        PriceListAutoPartAssociation(
+            pricelist_id=pricelist.id,
+            autopart_id=created_autopart.id,
+            quantity=7,
+            price=125.0,
+        )
+    )
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name="DRAFT APPROVAL CONFIG",
+        general_markup=1.0,
+        additional_filters={"REQUIRE_DRAFT_APPROVAL": True},
+        emails=["price@example.com"],
+    )
+    test_session.add(config)
+    await test_session.commit()
+
+    async def fail_if_sent(**_kwargs):
+        raise AssertionError("draft must not be sent")
+
+    monkeypatch.setattr(process_service, "send_pricelist", fail_if_sent)
+    monkeypatch.setattr(
+        process_service,
+        "CUSTOMER_PRICELIST_ARTIFACT_ROOT",
+        tmp_path,
+    )
+
+    response = await process_service.process_customer_pricelist(
+        customer=customer,
+        request=process_service.CustomerPriceListCreate(
+            customer_id=customer.id,
+            config_id=config.id,
+            items=[pricelist.id],
+        ),
+        session=test_session,
+        include_autoparts_response=False,
+        delivery_mode="auto",
+    )
+
+    generated = await test_session.get(CustomerPriceList, response.id)
+    export_rows = int(
+        (
+            await test_session.execute(
+                select(func.count(CustomerPriceListExportRow.id)).where(
+                    CustomerPriceListExportRow.customer_pricelist_id == response.id
+                )
+            )
+        ).scalar_one()
+    )
+    assert response.generation_status == "draft"
+    assert generated.sent_at is None
+    assert generated.artifact_filename
+    assert generated.positions_count == 1
+    assert export_rows == 1
 
 
 @pytest.mark.asyncio

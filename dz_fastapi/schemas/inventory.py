@@ -11,6 +11,9 @@ from dz_fastapi.models.inventory import (
     InventoryStatus,
     LotSourceType,
     MovementType,
+    ProductionWaveLabelStatus,
+    ProductionWaveSource,
+    ProductionWaveStatus,
     ReserveStatus,
     ReturnDocumentStatus,
     ShipmentDocumentStatus,
@@ -267,6 +270,167 @@ class DragonzapProductionGroupListOut(BaseModel):
 class DragonzapProductionGroupSyncOut(BaseModel):
     created: int
     total: int
+
+
+# ─── DragonZap production waves ─────────────────────────────────────────────
+
+
+class ProductionWaveEligibleRowOut(BaseModel):
+    stock_order_item_id: int
+    stock_order_id: int
+    customer_order_item_id: int
+    customer_order_id: int
+    customer_id: int
+    customer_name: str
+    order_number: Optional[str] = None
+    order_date: Optional[date] = None
+    requested_brand: str
+    requested_oem: str
+    requested_name: Optional[str] = None
+    quantity: int
+    production_group_id: int
+    finished_autopart_id: int
+    finished_brand: str
+    finished_oem_number: str
+    finished_name: str
+
+
+class ProductionWaveEligibleListOut(BaseModel):
+    items: List[ProductionWaveEligibleRowOut]
+    total: int
+
+
+class ProductionWaveCreate(BaseModel):
+    stock_order_item_ids: List[int] = Field(..., min_length=1)
+    warehouse_id: Optional[int] = None
+    cutoff_at: Optional[datetime] = None
+    notes: Optional[str] = None
+
+
+class ProductionWaveDemandOut(BaseModel):
+    id: int
+    stock_order_item_id: int
+    customer_order_item_id: int
+    customer_order_id: Optional[int] = None
+    customer_id: Optional[int] = None
+    customer_name: Optional[str] = None
+    order_number: Optional[str] = None
+    order_date: Optional[date] = None
+    requested_brand: str
+    requested_oem: str
+    requested_name: Optional[str] = None
+    quantity: int
+
+
+class ProductionWaveAllocationOut(BaseModel):
+    id: int
+    material_autopart_id: int
+    material_brand: Optional[str] = None
+    material_oem_number: str
+    material_name: str
+    stock_lot_id: int
+    storage_location_id: int
+    storage_location_name: Optional[str] = None
+    output_stock_lot_id: Optional[int] = None
+    planned_quantity: int
+    consumed_quantity: int
+    unit_material_cost: Optional[Decimal] = None
+    total_material_cost: Decimal
+    gtd_number: Optional[str] = None
+    country_code: Optional[str] = None
+    country_name: Optional[str] = None
+    marking_codes_count: int = 0
+
+
+class ProductionWaveItemOut(BaseModel):
+    id: int
+    production_group_id: int
+    finished_autopart_id: int
+    finished_brand: Optional[str] = None
+    finished_oem_number: str
+    finished_name: str
+    planned_quantity: int
+    produced_quantity: int
+    shortage_quantity: int
+    planning_error: Optional[str] = None
+    material_cost: Decimal
+    packaging_cost: Decimal
+    total_cost: Decimal
+    unit_cost: Optional[Decimal] = None
+    demands: List[ProductionWaveDemandOut] = Field(default_factory=list)
+    allocations: List[ProductionWaveAllocationOut] = Field(default_factory=list)
+
+
+class ProductionWaveOut(BaseModel):
+    id: int
+    number: Optional[str] = None
+    warehouse_id: int
+    warehouse_name: Optional[str] = None
+    status: ProductionWaveStatus
+    source: ProductionWaveSource
+    cutoff_at: Optional[datetime] = None
+    notes: Optional[str] = None
+    error_message: Optional[str] = None
+    total_planned_quantity: int
+    total_produced_quantity: int
+    total_material_cost: Decimal
+    total_packaging_cost: Decimal
+    total_finished_cost: Decimal
+    created_by_name: Optional[str] = None
+    planned_by_name: Optional[str] = None
+    started_by_name: Optional[str] = None
+    completed_by_name: Optional[str] = None
+    cancelled_by_name: Optional[str] = None
+    created_at: datetime
+    planned_at: Optional[datetime] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None
+    external_id: Optional[str] = None
+    sync_status: SyncStatus
+    items: List[ProductionWaveItemOut] = Field(default_factory=list)
+
+
+class ProductionWaveListOut(BaseModel):
+    items: List[ProductionWaveOut]
+    total: int
+
+
+class ProductionWaveLabelPrintEventOut(BaseModel):
+    id: int
+    print_number: int
+    printed_at: datetime
+    printed_by_name: Optional[str] = None
+    reason: Optional[str] = None
+
+
+class ProductionWaveLabelOut(BaseModel):
+    id: int
+    wave_id: int
+    wave_item_id: int
+    wave_demand_id: int
+    sequence_number: int
+    total_labels: int
+    quantity: int
+    requested_brand: str
+    requested_oem: str
+    requested_name: Optional[str] = None
+    customer_name: Optional[str] = None
+    order_number: Optional[str] = None
+    order_date: Optional[date] = None
+    barcode: str
+    status: ProductionWaveLabelStatus
+    print_count: int
+    last_printed_at: Optional[datetime] = None
+    last_printed_by_name: Optional[str] = None
+    last_print_reason: Optional[str] = None
+    created_at: datetime
+    print_history: List[ProductionWaveLabelPrintEventOut] = Field(default_factory=list)
+
+
+class ProductionWaveLabelPrintRequest(BaseModel):
+    label_ids: List[int] = Field(default_factory=list)
+    reason: Optional[str] = Field(default=None, max_length=500)
 
 
 # ─── StockMovement ───────────────────────────────────────────────────────────
