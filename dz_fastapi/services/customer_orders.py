@@ -253,6 +253,7 @@ async def _fetch_order_messages(
     from_email: Optional[str] = None,
     allowed_senders: Optional[set[str]] = None,
     limit: Optional[int] = None,
+    additional_uids: Optional[set[int]] = None,
 ) -> list:
     def _fetch():
         mailbox = _create_mailbox(
@@ -261,8 +262,15 @@ async def _fetch_order_messages(
         try:
             mailbox.folder.set(folder)
             fetched = None
+            uid_sequence = [
+                str(int(uid))
+                for uid in sorted(additional_uids or set())
+                if int(uid) > 0
+            ]
             if last_uid and int(last_uid) > 0:
-                uid_criteria = f"UID {int(last_uid) + 1}:*"
+                uid_sequence.append(f"{int(last_uid) + 1}:*")
+            if uid_sequence:
+                uid_criteria = f"UID {','.join(uid_sequence)}"
                 try:
                     fetched = mailbox.fetch(
                         uid_criteria,
@@ -271,10 +279,10 @@ async def _fetch_order_messages(
                 except Exception as uid_exc:
                     logger.warning(
                         "UID fetch failed for order inbox %s "
-                        "(folder=%s, uid>%s). Fallback to date search: %s",
+                        "(folder=%s, criteria=%s). Fallback to date search: %s",
                         email_account,
                         folder,
-                        last_uid,
+                        uid_criteria,
                         uid_exc,
                     )
             if fetched is None:
@@ -4063,6 +4071,44 @@ async def process_customer_orders(
         logger.info("No active customer order configs found.")
         return
 
+    # Import stubs are committed before parsing so an OOM/restart cannot lose
+    # the source identity. Fetch their exact UIDs alongside new mail; lowering
+    # the normal UID floor would re-read every intervening message.
+    resumable_stub = ~select(CustomerOrderItem.id).where(
+        CustomerOrderItem.order_id == CustomerOrder.id
+    ).exists()
+    recovery_rows = (
+        await session.execute(
+            select(
+                CustomerOrder.order_config_id,
+                CustomerOrder.source_uid,
+            )
+            .where(
+                CustomerOrder.order_config_id.in_([config.id for config in configs]),
+                CustomerOrder.status == CUSTOMER_ORDER_STATUS.NEW,
+                CustomerOrder.file_hash.is_not(None),
+                CustomerOrder.source_uid.is_not(None),
+                resumable_stub,
+            )
+            .distinct()
+        )
+    ).all()
+    recovery_uids_by_config: dict[int, set[int]] = {}
+    for row in recovery_rows:
+        if row.order_config_id is None or row.source_uid is None:
+            continue
+        recovery_uids_by_config.setdefault(int(row.order_config_id), set()).add(
+            int(row.source_uid)
+        )
+    if recovery_uids_by_config:
+        logger.info(
+            "Customer order recovery will fetch interrupted IMAP UIDs: %s",
+            {
+                config_key: sorted(uids)
+                for config_key, uids in recovery_uids_by_config.items()
+            },
+        )
+
     specific_account_ids: set[int] = set()
     for cfg in configs:
         specific_account_ids.update(_get_config_email_account_ids(cfg))
@@ -4149,6 +4195,13 @@ async def process_customer_orders(
             allowed_senders.update(
                 account_sender_filter.get(int(account.id), set())
             )
+            recovery_uids: set[int] = set()
+            for cfg in configs:
+                if cfg.id not in recovery_uids_by_config:
+                    continue
+                config_account_ids = _get_config_email_account_ids(cfg)
+                if not config_account_ids or account.id in config_account_ids:
+                    recovery_uids.update(recovery_uids_by_config[cfg.id])
             folder_uid_floor: dict[str, int] = {}
             if use_uid_optimization:
                 uid_configs = list(global_configs_for_uid)
@@ -4284,8 +4337,14 @@ async def process_customer_orders(
                                 last_uid=folder_uid_floor.get(folder),
                                 port=account.imap_port or IMAP_SERVER,
                                 ssl=True,
+                                from_email=(
+                                    next(iter(allowed_senders))
+                                    if len(allowed_senders) == 1
+                                    else None
+                                ),
                                 allowed_senders=allowed_senders,
                                 limit=remaining_limit,
+                                additional_uids=recovery_uids,
                             )
                         )
                     except MailboxFolderSelectError as folder_exc:
@@ -4344,6 +4403,11 @@ async def process_customer_orders(
                     )
                 if uid_floor > 0:
                     fallback_last_uid = uid_floor
+            fallback_recovery_uids = {
+                uid
+                for uids in recovery_uids_by_config.values()
+                for uid in uids
+            }
             remaining_limit = _remaining_customer_orders_fetch_limit(0)
             fallback_messages = await _fetch_order_messages(
                 EMAIL_HOST_ORDER,
@@ -4355,8 +4419,14 @@ async def process_customer_orders(
                 last_uid=fallback_last_uid,
                 port=IMAP_SERVER,
                 ssl=True,
+                from_email=(
+                    next(iter(global_sender_filter))
+                    if len(global_sender_filter) == 1
+                    else None
+                ),
                 allowed_senders=global_sender_filter,
                 limit=remaining_limit,
+                additional_uids=fallback_recovery_uids,
             )
             fetched_count = len(fallback_messages)
             fallback_messages = _filter_messages_by_senders(
@@ -4448,7 +4518,16 @@ async def process_customer_orders(
                     getattr(msg, "folder_name", None),
                     account_id=account_id,
                 )
-                if msg_uid_int is not None and msg_uid_int <= folder_last_uid:
+                is_recovery_uid = (
+                    msg_uid_int is not None
+                    and msg_uid_int
+                    in recovery_uids_by_config.get(candidate.id, set())
+                )
+                if (
+                    msg_uid_int is not None
+                    and msg_uid_int <= folder_last_uid
+                    and not is_recovery_uid
+                ):
                     logger.debug(
                         "Skip order config %s for sender=%s: "
                         "msg_uid=%s <= last_uid=%s folder=%s",
