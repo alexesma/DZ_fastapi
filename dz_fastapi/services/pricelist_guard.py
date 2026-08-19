@@ -360,8 +360,15 @@ async def _load_previous_price_map(
     latest_id = (
         await session.execute(
             select(PriceList.id)
+            .join(
+                PriceListAutoPartAssociation,
+                PriceListAutoPartAssociation.pricelist_id == PriceList.id,
+            )
             .where(PriceList.provider_config_id == provider_config_id)
-            .order_by(PriceList.date.desc().nullslast(), PriceList.id.desc())
+            # ID reflects publication order. A reviewed file may be approved
+            # after a newer business date was written by an automatic import,
+            # so ordering by date could keep the old baseline indefinitely.
+            .order_by(PriceList.id.desc())
             .limit(1)
         )
     ).scalar_one_or_none()

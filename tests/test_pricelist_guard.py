@@ -1,4 +1,13 @@
-from dz_fastapi.services.pricelist_guard import build_review_examples, calculate_pricelist_anomaly
+from datetime import date, timedelta
+
+import pytest
+
+from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation
+from dz_fastapi.services.pricelist_guard import (
+    _load_previous_price_map,
+    build_review_examples,
+    calculate_pricelist_anomaly,
+)
 
 
 def _prices(count: int, price: float = 100.0):
@@ -98,3 +107,66 @@ def test_review_examples_prefer_new_positions_and_distinct_brands():
     assert len(examples) == 10
     assert len({row["brand"] for row in examples}) == 10
     assert all(row["change_type"] == "new" for row in examples)
+
+
+@pytest.mark.asyncio
+async def test_guard_uses_latest_published_id_as_next_baseline(
+    test_session,
+    created_providers,
+    created_pricelist_config,
+    created_autopart,
+):
+    provider = created_providers[0]
+    automatic_pricelist = PriceList(
+        provider_id=provider.id,
+        provider_config_id=created_pricelist_config.id,
+        date=date.today() + timedelta(days=1),
+        is_active=True,
+    )
+    test_session.add(automatic_pricelist)
+    await test_session.flush()
+    test_session.add(
+        PriceListAutoPartAssociation(
+            pricelist_id=automatic_pricelist.id,
+            autopart_id=created_autopart.id,
+            quantity=5,
+            price=100,
+            multiplicity=1,
+        )
+    )
+
+    approved_pricelist = PriceList(
+        provider_id=provider.id,
+        provider_config_id=created_pricelist_config.id,
+        date=date.today(),
+        is_active=True,
+    )
+    test_session.add(approved_pricelist)
+    await test_session.flush()
+    test_session.add(
+        PriceListAutoPartAssociation(
+            pricelist_id=approved_pricelist.id,
+            autopart_id=created_autopart.id,
+            quantity=7,
+            price=125,
+            multiplicity=1,
+        )
+    )
+
+    # A failed/interrupted technical row must not replace the baseline.
+    empty_pricelist = PriceList(
+        provider_id=provider.id,
+        provider_config_id=created_pricelist_config.id,
+        date=date.today() + timedelta(days=2),
+        is_active=True,
+    )
+    test_session.add(empty_pricelist)
+    await test_session.commit()
+
+    baseline_id, prices = await _load_previous_price_map(
+        test_session,
+        created_pricelist_config.id,
+    )
+
+    assert baseline_id == approved_pricelist.id
+    assert prices == {("TEST BRAND", "E4G163611091"): 125.0}
