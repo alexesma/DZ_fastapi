@@ -2829,6 +2829,269 @@ async def list_customer_pricelist_draft_rows(
 
 
 @router.get(
+    "/customers/{customer_id}/pricelist-configs/{config_id}"
+    "/drafts/{pricelist_id}/diagnostics",
+    tags=["customers", "pricelists"],
+)
+async def diagnose_customer_pricelist_position(
+    customer_id: int,
+    config_id: int,
+    pricelist_id: int,
+    search: str = Query(..., min_length=2, max_length=100),
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    pricelist = await _load_customer_pricelist_draft(session, pricelist_id)
+    if (
+        pricelist is None
+        or pricelist.customer_id != customer_id
+        or pricelist.customer_config_id != config_id
+    ):
+        raise HTTPException(status_code=404, detail="Pricelist draft not found")
+
+    normalized = preprocess_oem_number(search).upper()
+    published_rows = list(
+        (
+            await session.execute(
+                select(CustomerPriceListExportRow)
+                .where(
+                    CustomerPriceListExportRow.customer_pricelist_id == pricelist_id,
+                    CustomerPriceListExportRow.normalized_oem.ilike(f"%{normalized}%"),
+                )
+                .order_by(CustomerPriceListExportRow.price.asc())
+                .limit(20)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if published_rows:
+        return {
+            "status": "published",
+            "message": "Позиция присутствует в сохранённой версии.",
+            "items": [
+                {
+                    "stage": "result",
+                    "status": "published",
+                    "brand": row.advertised_brand,
+                    "oem": row.advertised_oem,
+                    "name": row.advertised_name,
+                    "quantity": row.quantity,
+                    "price": float(row.price),
+                    "reason": None,
+                }
+                for row in published_rows
+            ],
+        }
+
+    summary = pricelist.generation_summary or {}
+    source_pricelist_ids = [
+        int(value)
+        for value in summary.get("source_pricelist_ids", [])
+        if str(value).isdigit()
+    ]
+    sources = await crud_customer_pricelist_source.get_by_config_id(
+        config_id=config_id,
+        session=session,
+    )
+    source_by_provider_config = {int(row.provider_config_id): row for row in sources}
+    for source in sources:
+        latest = await crud_pricelist.get_latest_pricelist_by_config(
+            session=session,
+            provider_config_id=source.provider_config_id,
+        )
+        if latest is not None and int(latest.id) not in source_pricelist_ids:
+            source_pricelist_ids.append(int(latest.id))
+
+    normalized_oem_expr = func.upper(
+        func.replace(
+            func.replace(
+                func.replace(func.replace(AutoPart.oem_number, "-", ""), " ", ""),
+                "/",
+                "",
+            ),
+            ".",
+            "",
+        )
+    )
+
+    candidate_rows = (
+        await session.execute(
+            select(
+                PriceList.id,
+                PriceList.provider_config_id,
+                AutoPart.id,
+                Brand.id,
+                Brand.name,
+                AutoPart.oem_number,
+                AutoPart.name,
+                PriceListAutoPartAssociation.quantity,
+                PriceListAutoPartAssociation.price,
+            )
+            .join(
+                PriceListAutoPartAssociation,
+                PriceListAutoPartAssociation.pricelist_id == PriceList.id,
+            )
+            .join(AutoPart, AutoPart.id == PriceListAutoPartAssociation.autopart_id)
+            .join(Brand, Brand.id == AutoPart.brand_id)
+            .where(
+                PriceList.id.in_(source_pricelist_ids or [-1]),
+                normalized_oem_expr.like(f"%{normalized}%"),
+            )
+            .order_by(PriceList.id.desc(), PriceListAutoPartAssociation.price.asc())
+            .limit(50)
+        )
+    ).all()
+    candidate_autopart_ids = {
+        int(row[2]) for row in candidate_rows if row[2] is not None
+    }
+    published_by_source: dict[int, list[CustomerPriceListExportRow]] = {}
+    if candidate_autopart_ids:
+        source_exports = list(
+            (
+                await session.execute(
+                    select(CustomerPriceListExportRow).where(
+                        CustomerPriceListExportRow.customer_pricelist_id == pricelist_id,
+                        CustomerPriceListExportRow.source_autopart_id.in_(
+                            candidate_autopart_ids
+                        ),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for export_row in source_exports:
+            published_by_source.setdefault(
+                int(export_row.source_autopart_id), []
+            ).append(export_row)
+
+    items = []
+    for (
+        source_pricelist_id,
+        provider_config_id,
+        autopart_id,
+        brand_id,
+        brand_name,
+        oem_number,
+        name,
+        quantity,
+        price,
+    ) in candidate_rows:
+        source = source_by_provider_config.get(int(provider_config_id or 0))
+        reason = "Позиция не дошла до итогового файла."
+        status_value = "excluded"
+        published_variants = published_by_source.get(int(autopart_id), [])
+        if published_variants:
+            status_value = "transformed"
+            preview = ", ".join(
+                f"{row.advertised_brand} {row.advertised_oem}"
+                for row in published_variants[:5]
+            )
+            reason = f"Исходная позиция преобразована и опубликована как: {preview}."
+        elif source is None:
+            reason = "Прайс поставщика не подключён к этой конфигурации."
+        elif not source.enabled:
+            reason = "Источник выключен."
+        else:
+            brand_filter = source.brand_filters or {}
+            source_settings = source.additional_filters or {}
+            dragonzap_mode = str(
+                source_settings.get("DRAGONZAP_MODE") or "normal"
+            ).lower()
+            brand_ids = {
+                int(value)
+                for value in brand_filter.get("brands", [])
+                if str(value).isdigit()
+            }
+            filter_type = str(brand_filter.get("type") or "").lower()
+            if filter_type == "exclude" and int(brand_id) in brand_ids:
+                if (
+                    str(brand_name or "").upper() == "DRAGONZAP"
+                    and dragonzap_mode in {"transform_only", "auto"}
+                ):
+                    reason = (
+                        "Исходная строка DragonZap используется только для "
+                        "преобразования; она не публикуется под брендом DragonZap."
+                    )
+                else:
+                    reason = "Бренд исключён фильтром источника."
+            elif filter_type == "include" and brand_ids and int(brand_id) not in brand_ids:
+                reason = "Бренд не входит в разрешённый список источника."
+            elif source.min_price is not None and float(price) < float(source.min_price):
+                reason = "Цена ниже минимального ограничения источника."
+            elif source.max_price is not None and float(price) > float(source.max_price):
+                reason = "Цена выше максимального ограничения источника."
+            elif source.min_quantity is not None and int(quantity) < int(source.min_quantity):
+                reason = "Остаток ниже минимального ограничения источника."
+            elif source.max_quantity is not None and int(quantity) > int(source.max_quantity):
+                reason = "Остаток выше максимального ограничения источника."
+            else:
+                brand_rules = source_settings.get("BRAND_FILTER_RULES", [])
+                if not isinstance(brand_rules, list):
+                    brand_rules = []
+                for rule in brand_rules:
+                    if not isinstance(rule, dict):
+                        continue
+                    rule_brand_ids = {
+                        int(value)
+                        for value in rule.get("brand_ids", [])
+                        if str(value).isdigit()
+                    }
+                    if int(brand_id) not in rule_brand_ids:
+                        continue
+                    inside_limits = True
+                    if rule.get("min_price") is not None:
+                        inside_limits &= float(price) >= float(rule["min_price"])
+                    if rule.get("max_price") is not None:
+                        inside_limits &= float(price) <= float(rule["max_price"])
+                    if rule.get("min_quantity") is not None:
+                        inside_limits &= int(quantity) >= int(rule["min_quantity"])
+                    if rule.get("max_quantity") is not None:
+                        inside_limits &= int(quantity) <= int(rule["max_quantity"])
+                    action = str(rule.get("action") or "include").lower()
+                    if (action == "exclude" and inside_limits) or (
+                        action != "exclude" and not inside_limits
+                    ):
+                        reason = "Позиция исключена отдельным правилом бренда."
+                        break
+                else:
+                    reason = (
+                        "Позиция прошла фильтры источника, но была удалена "
+                        "при преобразовании, ручном правиле или сворачивании дублей."
+                    )
+        items.append(
+            {
+                "stage": "source_filters",
+                "status": status_value,
+                "source_pricelist_id": source_pricelist_id,
+                "provider_config_id": provider_config_id,
+                "autopart_id": autopart_id,
+                "brand": brand_name,
+                "oem": oem_number,
+                "name": name,
+                "quantity": quantity,
+                "price": float(price),
+                "reason": reason,
+            }
+        )
+    has_transformed = any(item["status"] == "transformed" for item in items)
+    return {
+        "status": "transformed" if has_transformed else ("excluded" if items else "not_found"),
+        "message": (
+            "Исходная позиция опубликована после преобразования."
+            if has_transformed
+            else (
+                "Найдены исходные предложения, которые не попали в версию."
+                if items
+                else "Позиция не найдена ни в версии, ни в использованных источниках."
+            )
+        ),
+        "items": items,
+    }
+
+
+@router.get(
     "/customers/{customer_id}/pricelist-configs/{config_id}/drafts/{pricelist_id}/download",
     tags=["customers", "pricelists"],
 )
@@ -2883,6 +3146,17 @@ async def approve_customer_pricelist_draft(
         return _customer_pricelist_draft_response(pricelist)
     if pricelist.generation_status == "rejected":
         raise HTTPException(status_code=409, detail="Черновик уже отклонён")
+    quality_control = (pricelist.generation_summary or {}).get("quality_control") or {}
+    if bool(quality_control.get("enabled")) and quality_control.get("status") == "failed":
+        failed_checks = [
+            str(check.get("message") or check.get("key") or "Неизвестная проверка")
+            for check in quality_control.get("checks", [])
+            if check.get("status") == "failed"
+        ]
+        detail = "Контроль качества не пройден"
+        if failed_checks:
+            detail = f"{detail}: {'; '.join(failed_checks)}"
+        raise HTTPException(status_code=409, detail=detail)
     path = Path(pricelist.artifact_path or "").resolve()
     artifact_root = CUSTOMER_PRICELIST_ARTIFACT_ROOT.resolve()
     if artifact_root not in path.parents or not path.is_file():

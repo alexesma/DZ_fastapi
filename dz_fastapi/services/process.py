@@ -86,6 +86,7 @@ from dz_fastapi.models.partner import (
     CustomerPriceListExportRow,
     CustomerPriceListPublicationRule,
     CustomerPriceListPublishedAlias,
+    PriceListAutoPartAssociation,
     Provider,
     ProviderPriceListConfig,
 )
@@ -131,6 +132,18 @@ CUSTOMER_PRICELIST_ARTIFACT_ROOT = Path(
     os.getenv("CUSTOMER_PRICELIST_ARTIFACT_ROOT", "uploads/customer_pricelists")
 )
 
+CUSTOMER_PRICELIST_PIPELINE_DEFAULT = [
+    "source_filters",
+    "price_control_before",
+    "dragonzap_crosses",
+    "dragonzap_transform",
+    "product_labels",
+    "price_control_after",
+    "publication_rules",
+    "deduplication",
+    "quality_control",
+]
+
 
 def _customer_pricelist_setting(
     config: CustomerPriceListConfig,
@@ -139,6 +152,58 @@ def _customer_pricelist_setting(
 ) -> Any:
     settings = getattr(config, "additional_filters", None) or {}
     return settings.get(key, default) if isinstance(settings, dict) else default
+
+
+def customer_pricelist_pipeline(config: CustomerPriceListConfig) -> list[str]:
+    raw = _customer_pricelist_setting(
+        config,
+        "PIPELINE_ORDER",
+        CUSTOMER_PRICELIST_PIPELINE_DEFAULT,
+    )
+    requested = [str(value) for value in raw] if isinstance(raw, list) else []
+    result = [value for value in requested if value in CUSTOMER_PRICELIST_PIPELINE_DEFAULT]
+    for value in CUSTOMER_PRICELIST_PIPELINE_DEFAULT:
+        if value not in result:
+            result.append(value)
+    dependencies = {
+        "price_control_before": {"source_filters"},
+        "dragonzap_crosses": {"source_filters", "price_control_before"},
+        "dragonzap_transform": {"dragonzap_crosses"},
+        "product_labels": {"dragonzap_transform"},
+        "price_control_after": {"dragonzap_transform"},
+        "publication_rules": {
+            "price_control_before",
+            "dragonzap_crosses",
+            "dragonzap_transform",
+            "product_labels",
+            "price_control_after",
+        },
+        "deduplication": {
+            "price_control_before",
+            "dragonzap_crosses",
+            "dragonzap_transform",
+            "product_labels",
+            "price_control_after",
+            "publication_rules",
+        },
+        "quality_control": set(CUSTOMER_PRICELIST_PIPELINE_DEFAULT) - {"quality_control"},
+    }
+    ordered: list[str] = []
+    pending = list(result)
+    while pending:
+        available = [
+            value
+            for value in pending
+            if dependencies.get(value, set()).issubset(set(ordered))
+        ]
+        value = available[0] if available else pending[0]
+        ordered.append(value)
+        pending.remove(value)
+    return ordered
+
+
+def _customer_pricelist_v2_enabled(config: CustomerPriceListConfig) -> bool:
+    return bool(_customer_pricelist_setting(config, "PIPELINE_V2_ENABLED", False))
 
 
 def customer_pricelist_requires_draft(
@@ -346,8 +411,14 @@ def _apply_source_filters(
     source,
     *,
     ignore_price_quantity_filters: bool = False,
+    dragonzap_mode: str = "normal",
 ) -> pd.DataFrame:
     df = _sanitize_positive_price_quantity(df, context="source_filters")
+    dragonzap_mode = str(dragonzap_mode or "normal").strip().lower()
+    if dragonzap_mode not in {"normal", "exclude", "transform_only", "auto"}:
+        dragonzap_mode = "normal"
+    if "__transform_only" not in df.columns:
+        df["__transform_only"] = False
 
     def _to_int_list(values):
         cleaned = []
@@ -358,11 +429,29 @@ def _apply_source_filters(
                 continue
         return cleaned
 
+    dragonzap_rows = df[df["brand"].map(_is_dragonzap_brand)].copy()
     if source.brand_filters:
         normalized = dict(source.brand_filters)
         if "brands" in normalized:
             normalized["brands"] = _to_int_list(normalized.get("brands"))
         df = brand_filters(brand_filters=normalized, df=df)
+    if dragonzap_mode == "exclude":
+        df = df[~df["brand"].map(_is_dragonzap_brand)].copy()
+    elif dragonzap_mode == "transform_only":
+        df = df[~df["brand"].map(_is_dragonzap_brand)].copy()
+        if not dragonzap_rows.empty:
+            dragonzap_rows["__transform_only"] = True
+            df = pd.concat([df, dragonzap_rows], ignore_index=True)
+    elif dragonzap_mode == "auto" and not dragonzap_rows.empty:
+        remaining_ids = set(pd.to_numeric(df.get("autopart_id"), errors="coerce").dropna())
+        removed = dragonzap_rows[
+            ~pd.to_numeric(dragonzap_rows.get("autopart_id"), errors="coerce").isin(
+                remaining_ids
+            )
+        ].copy()
+        if not removed.empty:
+            removed["__transform_only"] = True
+            df = pd.concat([df, removed], ignore_index=True)
     if source.position_filters:
         normalized = dict(source.position_filters)
         if "autoparts" in normalized:
@@ -378,6 +467,35 @@ def _apply_source_filters(
             df = df[df["quantity"] >= int(source.min_quantity)]
         if source.max_quantity is not None:
             df = df[df["quantity"] <= int(source.max_quantity)]
+
+        source_settings = getattr(source, "additional_filters", None) or {}
+        brand_rules = source_settings.get("BRAND_FILTER_RULES", [])
+        if isinstance(brand_rules, list) and "brand_id" in df.columns:
+            for rule in brand_rules:
+                if not isinstance(rule, dict):
+                    continue
+                brand_ids = {
+                    int(value)
+                    for value in rule.get("brand_ids", [])
+                    if str(value).isdigit()
+                }
+                if not brand_ids:
+                    continue
+                brand_mask = pd.to_numeric(df["brand_id"], errors="coerce").isin(brand_ids)
+                condition = brand_mask.copy()
+                if rule.get("min_price") is not None:
+                    condition &= df["price"] >= float(rule["min_price"])
+                if rule.get("max_price") is not None:
+                    condition &= df["price"] <= float(rule["max_price"])
+                if rule.get("min_quantity") is not None:
+                    condition &= df["quantity"] >= int(rule["min_quantity"])
+                if rule.get("max_quantity") is not None:
+                    condition &= df["quantity"] <= int(rule["max_quantity"])
+                action = str(rule.get("action") or "include").strip().lower()
+                if action == "exclude":
+                    df = df[~condition]
+                else:
+                    df = df[~brand_mask | condition]
 
     return _sanitize_positive_price_quantity(df, context="source_filters_after_limits")
 
@@ -653,6 +771,201 @@ def _is_dragonzap_brand(value: object) -> bool:
     return _normalize_dedup_brand_key(value) == "DRAGONZAP"
 
 
+def _prefixed_name(name: object, prefix: str) -> str:
+    value = str(name or "").strip()
+    marker = str(prefix or "").strip()
+    if not marker or value.startswith(marker):
+        return value
+    return f"{marker} {value}".strip()
+
+
+def _transform_dragonzap_records(
+    records: list[dict[str, Any]],
+    *,
+    keep_source: bool,
+) -> list[dict[str, Any]]:
+    """Create client-facing original offers while retaining physical ids."""
+
+    result: list[dict[str, Any]] = []
+    for source in records:
+        row = dict(source)
+        row.setdefault("__row_type", "direct")
+        if not _is_dragonzap_brand(row.get("brand")):
+            row.setdefault("__origin_type", "original_source")
+            result.append(row)
+            continue
+
+        source_oem = str(row.get("oem_number") or "").strip()
+        source_brand = str(row.get("brand") or "").strip()
+        advertised_oem = source_oem[2:] if source_oem.upper().startswith("DZ") else source_oem
+        assigned_brands = assign_brand(advertised_oem)
+        for assigned_brand in assigned_brands:
+            transformed = dict(row)
+            transformed_row_type = (
+                "transformed_cross"
+                if row.get("__row_type") == "automatic_cross"
+                else "zzap_transform"
+            )
+            transformed.update(
+                {
+                    "brand": assigned_brand,
+                    "oem_number": advertised_oem,
+                    "__source_oem": source_oem,
+                    "__source_brand": source_brand,
+                    "__origin_type": "dragonzap_transform",
+                    "__row_type": transformed_row_type,
+                }
+            )
+            result.append(transformed)
+
+        if keep_source and not bool(row.get("__transform_only")):
+            row["__origin_type"] = "dragonzap_source"
+            result.append(row)
+    return result
+
+
+def _apply_product_labels(
+    records: list[dict[str, Any]],
+    *,
+    label_original: bool,
+    label_transformed: bool,
+    original_label: str,
+    transformed_label: str,
+) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    original_keys = {_normalize_dedup_brand_key(value) for value in ORIGINAL_BRANDS}
+    for source in records:
+        row = dict(source)
+        origin_type = row.get("__origin_type")
+        if label_transformed and origin_type == "dragonzap_transform":
+            row["name"] = _prefixed_name(row.get("name"), transformed_label)
+        elif (
+            label_original
+            and origin_type == "original_source"
+            and _normalize_dedup_brand_key(row.get("brand")) in original_keys
+        ):
+            row["name"] = _prefixed_name(row.get("name"), original_label)
+        result.append(row)
+    return result
+
+
+def _collapse_output_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Choose cheapest Brand+OEM, then biggest stock, then real original."""
+
+    origin_rank = {
+        "original_source": 0,
+        "dragonzap_transform": 1,
+        "dragonzap_source": 2,
+    }
+    selected: dict[tuple[str, str], dict[str, Any]] = {}
+    for source in records:
+        row = dict(source)
+        key = (
+            _normalize_dedup_brand_key(row.get("brand")),
+            _normalize_dedup_oem_key(row.get("oem_number")),
+        )
+        candidate_rank = (
+            float(row.get("price") or float("inf")),
+            -int(float(row.get("quantity") or 0)),
+            origin_rank.get(str(row.get("__origin_type") or ""), 3),
+            int(row.get("autopart_id") or 0),
+        )
+        current = selected.get(key)
+        if current is None:
+            selected[key] = row
+            continue
+        current_rank = (
+            float(current.get("price") or float("inf")),
+            -int(float(current.get("quantity") or 0)),
+            origin_rank.get(str(current.get("__origin_type") or ""), 3),
+            int(current.get("autopart_id") or 0),
+        )
+        if candidate_rank < current_rank:
+            selected[key] = row
+    return list(selected.values())
+
+
+async def _load_customer_benchmark_prices(
+    session: AsyncSession,
+    provider_config_ids: list[int],
+) -> tuple[dict[tuple[str, str], float], list[int]]:
+    latest_ids: list[int] = []
+    for provider_config_id in provider_config_ids:
+        pricelist = await crud_pricelist.get_latest_pricelist_by_config(
+            session=session,
+            provider_config_id=int(provider_config_id),
+        )
+        if pricelist is not None:
+            latest_ids.append(int(pricelist.id))
+    if not latest_ids:
+        return {}, []
+
+    rows = (
+        await session.execute(
+            select(
+                Brand.name,
+                AutoPart.oem_number,
+                func.min(PriceListAutoPartAssociation.price),
+            )
+            .join(
+                AutoPart,
+                AutoPart.id == PriceListAutoPartAssociation.autopart_id,
+            )
+            .join(Brand, Brand.id == AutoPart.brand_id)
+            .where(
+                PriceListAutoPartAssociation.pricelist_id.in_(latest_ids),
+                PriceListAutoPartAssociation.quantity > 0,
+                PriceListAutoPartAssociation.price > 0,
+            )
+            .group_by(Brand.name, AutoPart.oem_number)
+        )
+    ).all()
+    prices: dict[tuple[str, str], float] = {}
+    for brand_name, oem_number, price in rows:
+        if price is None:
+            continue
+        key = (
+            _normalize_dedup_brand_key(brand_name),
+            _normalize_dedup_oem_key(oem_number),
+        )
+        numeric_price = float(price)
+        current = prices.get(key)
+        if current is None or numeric_price < current:
+            prices[key] = numeric_price
+    return prices, latest_ids
+
+
+def _apply_benchmark_floor_records(
+    records: list[dict[str, Any]],
+    benchmark_prices: dict[tuple[str, str], float],
+    *,
+    multiplier: float,
+    rounding_step: float,
+    stage: str,
+) -> tuple[list[dict[str, Any]], int]:
+    result: list[dict[str, Any]] = []
+    changed = 0
+    multiplier = max(float(multiplier or 1.0), 0.0)
+    rounding_step = max(float(rounding_step or 1.0), 0.01)
+    for source in records:
+        row = dict(source)
+        key = (
+            _normalize_dedup_brand_key(row.get("brand")),
+            _normalize_dedup_oem_key(row.get("oem_number")),
+        )
+        benchmark = benchmark_prices.get(key)
+        if benchmark is not None:
+            before = float(row.get("price") or 0)
+            floor = float(np.ceil(benchmark * multiplier / rounding_step) * rounding_step)
+            if floor > before:
+                row["price"] = floor
+                row[f"__price_before_{stage}"] = before
+                row[f"__benchmark_price_{stage}"] = benchmark
+                changed += 1
+        result.append(row)
+    return result, changed
+
+
 async def _build_dragonzap_cross_alias_records(
     session: AsyncSession,
     *,
@@ -795,6 +1108,7 @@ async def _build_dragonzap_cross_alias_records(
             {
                 "autopart_id": int(selected["autopart_id"]),
                 "__source_oem": selected.get("oem_number"),
+                "__source_brand": selected.get("brand"),
                 "brand": "DRAGONZAP",
                 "oem_number": str(oem_number or "").strip(),
                 "name": str(part_name or selected.get("name") or "").strip(),
@@ -2009,12 +2323,17 @@ async def _persist_customer_pricelist_artifact(
         )
         source = alias_lookup.get(key)
         if source is not None:
-            row_type = (
-                "manual_cross" if source.get("__manual_publication_rule") else "automatic_cross"
+            row_type = str(
+                source.get("__row_type")
+                or (
+                    "manual_cross"
+                    if source.get("__manual_publication_rule")
+                    else "automatic_cross"
+                )
             )
         else:
             source = direct_lookup.get(key)
-            row_type = "direct"
+            row_type = str((source or {}).get("__row_type") or "direct")
         if source is None:
             source = oem_lookup.get(key[1])
             row_type = "zzap_transform"
@@ -2087,6 +2406,13 @@ async def process_customer_pricelist(
 
     combined_data = []
     dz_expand_enabled = False
+    pipeline_v2 = _customer_pricelist_v2_enabled(config)
+    pipeline_order = customer_pricelist_pipeline(config)
+    transform_enabled = pipeline_v2 and bool(
+        _customer_pricelist_setting(config, "DZ_ORIGINAL_TRANSFORM_ENABLED", False)
+    )
+    source_pricelist_ids: list[int] = []
+    source_filter_summary: list[dict[str, Any]] = []
 
     if request.items:
         for pricelist_id in request.items:
@@ -2126,13 +2452,40 @@ async def process_customer_pricelist(
             associations = await crud_pricelist.fetch_pricelist_data(latest_pl.id, session)
             if not associations:
                 continue
+            source_pricelist_ids.append(int(latest_pl.id))
 
             df = await crud_pricelist.transform_to_dataframe(
                 associations=associations, session=session
             )
             logger.debug(_dataframe_summary(df, "customer_pricelist_latest_df"))
 
-            df = _apply_source_filters(df, source)
+            source_rows_before = len(df)
+            source_settings = source.additional_filters or {}
+            dragonzap_mode = str(source_settings.get("DRAGONZAP_MODE") or "").strip().lower()
+            if pipeline_v2 and transform_enabled and not dragonzap_mode:
+                dragonzap_mode = "auto"
+            df = _apply_source_filters(
+                df,
+                source,
+                dragonzap_mode=dragonzap_mode or "normal",
+            )
+            source_filter_summary.append(
+                {
+                    "source_id": int(source.id),
+                    "provider_config_id": int(source.provider_config_id),
+                    "pricelist_id": int(latest_pl.id),
+                    "rows_before": source_rows_before,
+                    "rows_after": len(df),
+                    "excluded": max(source_rows_before - len(df), 0),
+                    "transform_only": int(
+                        df.get("__transform_only", pd.Series(dtype=bool))
+                        .fillna(False)
+                        .astype(bool)
+                        .sum()
+                    ),
+                    "dragonzap_mode": dragonzap_mode or "normal",
+                }
+            )
             if df.empty:
                 continue
 
@@ -2175,32 +2528,260 @@ async def process_customer_pricelist(
             final_df,
             prefer_min_price=bool(getattr(config, "collapse_duplicates_by_min_price", True)),
         )
-        if bool(_customer_pricelist_setting(config, "PUBLISH_CONFIRMED_DZ_CROSSES", True)):
-            dragonzap_alias_records = await _build_dragonzap_cross_alias_records(
+        if pipeline_v2:
+            physical_records = final_df.to_dict("records")
+            direct_output_records = [dict(row) for row in physical_records]
+            dragonzap_alias_records: list[dict[str, Any]] = []
+            rule_summary: dict[str, Any] = {
+                "publication_rules": 0,
+                "manual_aliases": 0,
+                "hidden_positions": 0,
+                "publication_rule_warnings": [],
+            }
+            publish_dz_crosses = bool(
+                _customer_pricelist_setting(config, "PUBLISH_CONFIRMED_DZ_CROSSES", False)
+            )
+            transform_crosses = bool(
+                _customer_pricelist_setting(config, "DZ_TRANSFORM_INCLUDE_CROSSES", True)
+            )
+            keep_dragonzap = bool(
+                _customer_pricelist_setting(config, "DZ_TRANSFORM_KEEP_DRAGONZAP", False)
+            )
+            labels_enabled = bool(
+                _customer_pricelist_setting(config, "PRODUCT_LABELS_ENABLED", False)
+            )
+            price_control_enabled = bool(
+                _customer_pricelist_setting(config, "PRICE_CONTROL_ENABLED", False)
+            )
+            price_control_stages = {
+                str(value)
+                for value in _customer_pricelist_setting(
+                    config,
+                    "PRICE_CONTROL_STAGES",
+                    [],
+                )
+                if str(value) in {"before", "after"}
+            }
+            benchmark_config_ids = [
+                int(value)
+                for value in _customer_pricelist_setting(
+                    config,
+                    "PRICE_CONTROL_PROVIDER_CONFIG_IDS",
+                    [],
+                )
+                if str(value).isdigit()
+            ]
+            benchmark_prices, benchmark_pricelist_ids = await _load_customer_benchmark_prices(
                 session,
-                customer_id=customer.id,
-                source_df=final_df,
+                benchmark_config_ids if price_control_enabled else [],
             )
+            price_multiplier = float(
+                _customer_pricelist_setting(config, "PRICE_CONTROL_MULTIPLIER", 1.2)
+            )
+            price_rounding = float(
+                _customer_pricelist_setting(config, "PRICE_CONTROL_ROUNDING_STEP", 10)
+            )
+            price_changes = {"before": 0, "after": 0}
+            raw_cross_records: list[dict[str, Any]] = []
+
+            for pipeline_step in pipeline_order:
+                if (
+                    pipeline_step == "price_control_before"
+                    and price_control_enabled
+                    and "before" in price_control_stages
+                ):
+                    direct_output_records, price_changes["before"] = (
+                        _apply_benchmark_floor_records(
+                            direct_output_records,
+                            benchmark_prices,
+                            multiplier=price_multiplier,
+                            rounding_step=price_rounding,
+                            stage="before",
+                        )
+                    )
+                    final_df = pd.DataFrame(direct_output_records)
+                elif pipeline_step == "dragonzap_crosses" and (
+                    publish_dz_crosses or (transform_enabled and transform_crosses)
+                ):
+                    raw_cross_records = await _build_dragonzap_cross_alias_records(
+                        session,
+                        customer_id=customer.id,
+                        source_df=final_df,
+                    )
+                    for row in raw_cross_records:
+                        row["__row_type"] = "automatic_cross"
+                        row["__origin_type"] = "dragonzap_source"
+                elif pipeline_step == "dragonzap_transform" and transform_enabled:
+                    direct_output_records = _transform_dragonzap_records(
+                        direct_output_records,
+                        keep_source=keep_dragonzap,
+                    )
+                    transformed_crosses = (
+                        _transform_dragonzap_records(raw_cross_records, keep_source=False)
+                        if transform_crosses
+                        else []
+                    )
+                    dragonzap_alias_records = [
+                        *([dict(row) for row in raw_cross_records] if publish_dz_crosses else []),
+                        *transformed_crosses,
+                    ]
+                elif pipeline_step == "product_labels" and labels_enabled:
+                    label_kwargs = {
+                        "label_original": bool(
+                            _customer_pricelist_setting(config, "LABEL_ORIGINAL_ENABLED", True)
+                        ),
+                        "label_transformed": bool(
+                            _customer_pricelist_setting(config, "LABEL_TRANSFORMED_ENABLED", True)
+                        ),
+                        "original_label": str(
+                            _customer_pricelist_setting(
+                                config,
+                                "LABEL_ORIGINAL_TEXT",
+                                ">>Оригинал<<",
+                            )
+                        ),
+                        "transformed_label": str(
+                            _customer_pricelist_setting(
+                                config,
+                                "LABEL_TRANSFORMED_TEXT",
+                                ">>Неоригинал<<",
+                            )
+                        ),
+                    }
+                    direct_output_records = _apply_product_labels(
+                        direct_output_records,
+                        **label_kwargs,
+                    )
+                    dragonzap_alias_records = _apply_product_labels(
+                        dragonzap_alias_records,
+                        **label_kwargs,
+                    )
+                elif (
+                    pipeline_step == "price_control_after"
+                    and price_control_enabled
+                    and "after" in price_control_stages
+                ):
+                    direct_output_records, direct_changed = _apply_benchmark_floor_records(
+                        direct_output_records,
+                        benchmark_prices,
+                        multiplier=price_multiplier,
+                        rounding_step=price_rounding,
+                        stage="after",
+                    )
+                    dragonzap_alias_records, alias_changed = _apply_benchmark_floor_records(
+                        dragonzap_alias_records,
+                        benchmark_prices,
+                        multiplier=price_multiplier,
+                        rounding_step=price_rounding,
+                        stage="after",
+                    )
+                    price_changes["after"] = direct_changed + alias_changed
+                elif pipeline_step == "publication_rules":
+                    output_df = pd.DataFrame(direct_output_records)
+                    output_df, dragonzap_alias_records, rule_summary = (
+                        await _apply_customer_publication_rules(
+                            session,
+                            config_id=config.id,
+                            customer_id=customer.id,
+                            source_df=output_df,
+                            automatic_aliases=dragonzap_alias_records,
+                        )
+                    )
+                    direct_output_records = output_df.to_dict("records")
+                elif pipeline_step == "deduplication":
+                    combined_output = [
+                        *({**row, "__output_group": "direct"} for row in direct_output_records),
+                        *({**row, "__output_group": "alias"} for row in dragonzap_alias_records),
+                    ]
+                    combined_output = _collapse_output_records(combined_output)
+                    direct_output_records = [
+                        row for row in combined_output if row.get("__output_group") == "direct"
+                    ]
+                    dragonzap_alias_records = [
+                        row for row in combined_output if row.get("__output_group") == "alias"
+                    ]
+
+            direct_output_records = [
+                row
+                for row in direct_output_records
+                if not row.get("__transform_only")
+                or row.get("__origin_type") == "dragonzap_transform"
+            ]
+            dragonzap_alias_records = [
+                row
+                for row in dragonzap_alias_records
+                if not row.get("__transform_only")
+                or row.get("__origin_type") == "dragonzap_transform"
+            ]
+            transformed_direct = [
+                row
+                for row in direct_output_records
+                if str(row.get("__row_type") or "direct") != "direct"
+            ]
+            direct_output_records = [
+                row
+                for row in direct_output_records
+                if str(row.get("__row_type") or "direct") == "direct"
+            ]
+            dragonzap_alias_records.extend(transformed_direct)
+            final_source_ids = {
+                int(row.get("autopart_id") or 0)
+                for row in [*direct_output_records, *dragonzap_alias_records]
+                if row.get("autopart_id")
+            }
+            customer_autoparts_data = [
+                dict(row)
+                for row in physical_records
+                if int(row.get("autopart_id") or 0) in final_source_ids
+            ]
+            if not direct_output_records and not dragonzap_alias_records:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Publication rules excluded all pricelist positions",
+                )
+            v2_summary = {
+                "pipeline_v2": True,
+                "pipeline_order": pipeline_order,
+                "source_pricelist_ids": source_pricelist_ids,
+                "source_filters": source_filter_summary,
+                "benchmark_pricelist_ids": benchmark_pricelist_ids,
+                "benchmark_positions": len(benchmark_prices),
+                "price_changes": price_changes,
+                "transform_enabled": transform_enabled,
+                "duplicate_policy": "cheapest_then_stock_then_original",
+            }
+            dragonzap_source_records = []
         else:
-            dragonzap_alias_records = []
-        final_df, dragonzap_alias_records, rule_summary = await _apply_customer_publication_rules(
-            session,
-            config_id=config.id,
-            customer_id=customer.id,
-            source_df=final_df,
-            automatic_aliases=dragonzap_alias_records,
-        )
-        customer_autoparts_data = final_df.to_dict("records")
-        if not customer_autoparts_data and not dragonzap_alias_records:
-            raise HTTPException(
-                status_code=400,
-                detail="Publication rules excluded all pricelist positions",
+            if bool(_customer_pricelist_setting(config, "PUBLISH_CONFIRMED_DZ_CROSSES", True)):
+                dragonzap_alias_records = await _build_dragonzap_cross_alias_records(
+                    session,
+                    customer_id=customer.id,
+                    source_df=final_df,
+                )
+            else:
+                dragonzap_alias_records = []
+            final_df, dragonzap_alias_records, rule_summary = (
+                await _apply_customer_publication_rules(
+                    session,
+                    config_id=config.id,
+                    customer_id=customer.id,
+                    source_df=final_df,
+                    automatic_aliases=dragonzap_alias_records,
+                )
             )
-        dragonzap_source_records = [
-            dict(row)
-            for row in customer_autoparts_data
-            if bool(row.get("is_own_price")) and _is_dragonzap_brand(row.get("brand"))
-        ]
+            customer_autoparts_data = final_df.to_dict("records")
+            if not customer_autoparts_data and not dragonzap_alias_records:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Publication rules excluded all pricelist positions",
+                )
+            dragonzap_source_records = [
+                dict(row)
+                for row in customer_autoparts_data
+                if bool(row.get("is_own_price")) and _is_dragonzap_brand(row.get("brand"))
+            ]
+            direct_output_records = customer_autoparts_data
+            v2_summary = {"pipeline_v2": False}
         del final_df
     else:
         raise HTTPException(status_code=400, detail="No autoparts to include in the pricelist")
@@ -2227,17 +2808,20 @@ async def process_customer_pricelist(
     )
     # Prepare data for Excel file: строим из уже готовых записей,
     # без зависимости от перезагруженных ассоциаций.
-    df_excel = await asyncio.to_thread(prepare_excel_data_from_records, customer_autoparts_data)
+    df_excel = await asyncio.to_thread(
+        prepare_excel_data_from_records,
+        direct_output_records if pipeline_v2 else customer_autoparts_data,
+    )
 
     # DZ brand expansion (without name labels) — applied at Excel level
     # so that the brand column in output reflects assigned brands,
     # not DRAGONZAP.
     # dz_expand_enabled is set when iterating sources above.
-    if dz_expand_enabled:
+    if not pipeline_v2 and dz_expand_enabled:
         logger.debug("DZ_EXPAND_BRANDS: expanding DRAGONZAP positions in Excel DF")
         df_excel = expand_dz_brands(df_excel)
 
-    if bool(_customer_pricelist_setting(config, "ZZAP", False)):
+    if not pipeline_v2 and bool(_customer_pricelist_setting(config, "ZZAP", False)):
         logger.debug("Зашел в get additional_filters")
         benchmark_config_id = _customer_pricelist_setting(
             config, "ZZAP_BENCHMARK_PROVIDER_CONFIG_ID", None
@@ -2350,8 +2934,9 @@ async def process_customer_pricelist(
         )
         logger.debug(_dataframe_summary(df_excel, "zzap_excel_df"))
 
-    _sync_dragonzap_alias_prices(dragonzap_alias_records, df_excel)
-    if dz_expand_enabled and dragonzap_source_records:
+    if not pipeline_v2:
+        _sync_dragonzap_alias_prices(dragonzap_alias_records, df_excel)
+    if not pipeline_v2 and dz_expand_enabled and dragonzap_source_records:
         source_excel = await asyncio.to_thread(
             prepare_excel_data_from_records, dragonzap_source_records
         )
@@ -2401,8 +2986,88 @@ async def process_customer_pricelist(
             "final_positions": len(df_excel),
             "zzap_mode": bool(_customer_pricelist_setting(config, "ZZAP", False)),
             "dz_expand_brands": bool(dz_expand_enabled),
+            **v2_summary,
         }
     )
+    duplicate_count = 0
+    if {"Производитель", "Артикул"}.issubset(df_excel.columns):
+        quality_keys = pd.DataFrame(
+            {
+                "brand": df_excel["Производитель"].map(_normalize_dedup_brand_key),
+                "oem": df_excel["Артикул"].map(_normalize_dedup_oem_key),
+            }
+        )
+        duplicate_count = int(quality_keys.duplicated(subset=["brand", "oem"]).sum())
+
+    quality_checks = [
+        {
+            "key": "non_empty",
+            "status": "passed" if len(df_excel) > 0 else "failed",
+            "message": f"В итоговом файле {len(df_excel)} строк.",
+        },
+        {
+            "key": "source_mapping",
+            "status": (
+                "passed"
+                if all(
+                    row.get("autopart_id")
+                    for row in [*direct_output_records, *dragonzap_alias_records]
+                )
+                else "failed"
+            ),
+            "message": "Все опубликованные строки связаны с фактической номенклатурой.",
+        },
+        {
+            "key": "positive_values",
+            "status": (
+                "passed"
+                if all(
+                    float(row.get("price") or 0) > 0
+                    and int(float(row.get("quantity") or 0)) > 0
+                    for row in [*direct_output_records, *dragonzap_alias_records]
+                )
+                else "failed"
+            ),
+            "message": "Цена и количество проверены.",
+        },
+        {
+            "key": "duplicates",
+            "status": "passed" if duplicate_count == 0 else "failed",
+            "message": (
+                "Совпадений Бренд + Артикул нет."
+                if duplicate_count == 0
+                else f"Осталось совпадающих строк: {duplicate_count}."
+            ),
+        },
+    ]
+    if pipeline_v2 and bool(
+        _customer_pricelist_setting(config, "PRICE_CONTROL_ENABLED", False)
+    ):
+        benchmark_ready = bool(v2_summary.get("benchmark_pricelist_ids")) and int(
+            v2_summary.get("benchmark_positions") or 0
+        ) > 0
+        quality_checks.append(
+            {
+                "key": "benchmark_prices",
+                "status": "passed" if benchmark_ready else "failed",
+                "message": (
+                    "Контрольные прайсы найдены."
+                    if benchmark_ready
+                    else "Контроль цены включён, но в контрольных прайсах нет предложений."
+                ),
+            }
+        )
+    generation_summary["quality_control"] = {
+        "enabled": bool(
+            _customer_pricelist_setting(config, "QUALITY_CONTROL_ENABLED", pipeline_v2)
+        ),
+        "status": (
+            "failed"
+            if any(check["status"] == "failed" for check in quality_checks)
+            else "passed"
+        ),
+        "checks": quality_checks,
+    }
     customer_pricelist.generation_summary = generation_summary
     customer_pricelist.generation_status = "draft"
     attachment_bytes = await _persist_customer_pricelist_artifact(
@@ -2410,7 +3075,7 @@ async def process_customer_pricelist(
         customer=customer,
         config=config,
         df_excel=df_excel,
-        direct_records=customer_autoparts_data,
+        direct_records=(direct_output_records if pipeline_v2 else customer_autoparts_data),
         alias_records=dragonzap_alias_records,
         session=session,
     )
@@ -2419,6 +3084,20 @@ async def process_customer_pricelist(
     should_send = delivery_mode == "send" or (
         delivery_mode == "auto" and not customer_pricelist_requires_draft(config)
     )
+    quality_control = generation_summary.get("quality_control") or {}
+    quality_failed = bool(quality_control.get("enabled")) and (
+        quality_control.get("status") == "failed"
+    )
+    if should_send and quality_failed:
+        customer_pricelist.generation_status = "draft"
+        customer_pricelist.send_error = (
+            "Отправка заблокирована: итоговый файл не прошёл контроль качества."
+        )
+        session.add(customer_pricelist)
+        await session.commit()
+        if delivery_mode == "send":
+            raise HTTPException(status_code=409, detail=customer_pricelist.send_error)
+        should_send = False
     recipients = config.emails or (
         [customer.email_outgoing_price] if customer.email_outgoing_price else []
     )
