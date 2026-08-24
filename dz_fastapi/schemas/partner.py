@@ -1344,6 +1344,7 @@ class CustomerPriceListConfigSummary(BaseModel):
 class CustomerPriceListPublicationRuleCreate(BaseModel):
     source_autopart_id: int = Field(gt=0)
     target_autopart_id: Optional[int] = Field(default=None, gt=0)
+    target_autopart_ids: List[int] = Field(default_factory=list)
     mode: str = "only_cross"
     is_active: bool = True
 
@@ -1357,9 +1358,23 @@ class CustomerPriceListPublicationRuleCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_target(self):
-        if self.mode != "hide" and self.target_autopart_id is None:
-            raise ValueError("target_autopart_id is required for cross rules")
+        target_ids = [int(value) for value in self.target_autopart_ids if int(value) > 0]
+        if self.target_autopart_id is not None:
+            target_ids.append(int(self.target_autopart_id))
+        self.target_autopart_ids = list(dict.fromkeys(target_ids))
+        if self.mode != "hide" and not self.target_autopart_ids:
+            raise ValueError("at least one target autopart is required for cross rules")
+        if self.mode == "hide":
+            self.target_autopart_id = None
+            self.target_autopart_ids = []
         return self
+
+
+class CustomerPriceListPublicationTargetOut(BaseModel):
+    autopart_id: int
+    brand: Optional[str] = None
+    oem: Optional[str] = None
+    name: Optional[str] = None
 
 
 class CustomerPriceListPublicationRuleOut(BaseModel):
@@ -1373,6 +1388,7 @@ class CustomerPriceListPublicationRuleOut(BaseModel):
     target_brand: Optional[str] = None
     target_oem: Optional[str] = None
     target_name: Optional[str] = None
+    targets: List[CustomerPriceListPublicationTargetOut] = Field(default_factory=list)
     mode: str
     is_active: bool
     created_at: datetime

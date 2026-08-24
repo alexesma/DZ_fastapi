@@ -19,7 +19,7 @@ from openpyxl.cell import WriteOnlyCell
 from openpyxl.styles import Alignment, Font, PatternFill
 from sqlalchemy import func, insert, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, selectinload
 
 from dz_fastapi.analytics.price_history import analyze_new_pricelist
 from dz_fastapi.core.constants import (
@@ -85,6 +85,7 @@ from dz_fastapi.models.partner import (
     CustomerPriceListConfig,
     CustomerPriceListExportRow,
     CustomerPriceListPublicationRule,
+    CustomerPriceListPublicationRuleTarget,
     CustomerPriceListPublishedAlias,
     PriceListAutoPartAssociation,
     Provider,
@@ -140,6 +141,7 @@ CUSTOMER_PRICELIST_PIPELINE_DEFAULT = [
     "product_labels",
     "price_control_after",
     "publication_rules",
+    "final_filters",
     "deduplication",
     "quality_control",
 ]
@@ -179,6 +181,15 @@ def customer_pricelist_pipeline(config: CustomerPriceListConfig) -> list[str]:
             "price_control_after",
         },
         "deduplication": {
+            "price_control_before",
+            "dragonzap_crosses",
+            "dragonzap_transform",
+            "product_labels",
+            "price_control_after",
+            "publication_rules",
+            "final_filters",
+        },
+        "final_filters": {
             "price_control_before",
             "dragonzap_crosses",
             "dragonzap_transform",
@@ -885,6 +896,180 @@ def _collapse_output_records(records: list[dict[str, Any]]) -> list[dict[str, An
     return list(selected.values())
 
 
+def _final_filter_rule_matches(row: dict[str, Any], rule: dict[str, Any]) -> bool:
+    """Match a generated client-facing row against one final filter rule."""
+
+    conditions = 0
+    brand_values = {
+        _normalize_dedup_brand_key(value)
+        for value in rule.get("brands", [])
+        if str(value or "").strip()
+    }
+    if brand_values:
+        conditions += 1
+        if _normalize_dedup_brand_key(row.get("brand")) not in brand_values:
+            return False
+
+    oem_value = _normalize_dedup_oem_key(rule.get("oem"))
+    if oem_value:
+        conditions += 1
+        row_oem = _normalize_dedup_oem_key(row.get("oem_number"))
+        match_mode = str(rule.get("oem_match") or "exact").strip().lower()
+        if match_mode == "contains":
+            matched = oem_value in row_oem
+        elif match_mode == "prefix":
+            matched = row_oem.startswith(oem_value)
+        else:
+            matched = row_oem == oem_value
+        if not matched:
+            return False
+
+    name_value = str(rule.get("name_contains") or "").strip().casefold()
+    if name_value:
+        conditions += 1
+        if name_value not in str(row.get("name") or "").casefold():
+            return False
+
+    row_types = {
+        str(value).strip().lower()
+        for value in rule.get("row_types", [])
+        if str(value or "").strip()
+    }
+    if row_types:
+        conditions += 1
+        if str(row.get("__row_type") or "direct").strip().lower() not in row_types:
+            return False
+
+    origin_types = {
+        str(value).strip().lower()
+        for value in rule.get("origin_types", [])
+        if str(value or "").strip()
+    }
+    if origin_types:
+        conditions += 1
+        if str(row.get("__origin_type") or "").strip().lower() not in origin_types:
+            return False
+
+    provider_config_ids = {
+        int(value)
+        for value in rule.get("provider_config_ids", [])
+        if str(value).isdigit()
+    }
+    if provider_config_ids:
+        conditions += 1
+        try:
+            row_provider_config_id = int(row.get("provider_config_id") or 0)
+        except (TypeError, ValueError):
+            return False
+        if row_provider_config_id not in provider_config_ids:
+            return False
+
+    numeric_rules = (
+        ("min_price", "price", float, lambda current, limit: current >= limit),
+        ("max_price", "price", float, lambda current, limit: current <= limit),
+        ("min_quantity", "quantity", int, lambda current, limit: current >= limit),
+        ("max_quantity", "quantity", int, lambda current, limit: current <= limit),
+    )
+    for rule_key, row_key, converter, comparator in numeric_rules:
+        if rule.get(rule_key) in (None, ""):
+            continue
+        conditions += 1
+        try:
+            if not comparator(converter(float(row.get(row_key) or 0)), converter(rule[rule_key])):
+                return False
+        except (TypeError, ValueError):
+            return False
+    return conditions > 0
+
+
+def _apply_final_output_filters(
+    records: list[dict[str, Any]],
+    rules: Any,
+    *,
+    enabled: bool,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    criteria_keys = {
+        "brands",
+        "oem",
+        "name_contains",
+        "row_types",
+        "origin_types",
+        "provider_config_ids",
+        "min_price",
+        "max_price",
+        "min_quantity",
+        "max_quantity",
+    }
+
+    def has_criteria(rule: dict[str, Any]) -> bool:
+        return any(rule.get(key) not in (None, "", []) for key in criteria_keys)
+
+    normalized_rules = [
+        dict(rule)
+        for rule in (rules if isinstance(rules, list) else [])
+        if isinstance(rule, dict) and rule.get("enabled", True) and has_criteria(rule)
+    ]
+    if not enabled or not normalized_rules:
+        return records, {
+            "enabled": bool(enabled),
+            "rules_count": len(normalized_rules),
+            "input_count": len(records),
+            "output_count": len(records),
+            "excluded_count": 0,
+            "examples": [],
+        }
+
+    include_rules = [
+        rule for rule in normalized_rules if str(rule.get("action")).lower() == "include"
+    ]
+    exclude_rules = [
+        rule for rule in normalized_rules if str(rule.get("action")).lower() != "include"
+    ]
+    output: list[dict[str, Any]] = []
+    examples: list[dict[str, Any]] = []
+    for row in records:
+        excluded_by = next(
+            (rule for rule in exclude_rules if _final_filter_rule_matches(row, rule)),
+            None,
+        )
+        include_match = next(
+            (rule for rule in include_rules if _final_filter_rule_matches(row, rule)),
+            None,
+        )
+        manual_override = bool(row.get("__manual_publication_rule"))
+        reason = None
+        matched_rule = excluded_by
+        if excluded_by is not None:
+            reason = "Совпало с запрещающим финальным правилом."
+        elif include_rules and include_match is None and not manual_override:
+            reason = "Не совпало ни с одним разрешающим финальным правилом."
+        if reason is None:
+            output.append(row)
+            continue
+        if len(examples) < 10:
+            examples.append(
+                {
+                    "brand": str(row.get("brand") or ""),
+                    "oem": str(row.get("oem_number") or ""),
+                    "name": str(row.get("name") or ""),
+                    "quantity": int(float(row.get("quantity") or 0)),
+                    "price": float(row.get("price") or 0),
+                    "source_autopart_id": row.get("autopart_id"),
+                    "rule_id": matched_rule.get("id") if matched_rule else None,
+                    "rule_name": matched_rule.get("name") if matched_rule else None,
+                    "reason": reason,
+                }
+            )
+    return output, {
+        "enabled": True,
+        "rules_count": len(normalized_rules),
+        "input_count": len(records),
+        "output_count": len(output),
+        "excluded_count": len(records) - len(output),
+        "examples": examples,
+    }
+
+
 async def _load_customer_benchmark_prices(
     session: AsyncSession,
     provider_config_ids: list[int],
@@ -1136,39 +1321,30 @@ async def _apply_customer_publication_rules(
 ) -> tuple[pd.DataFrame, list[dict[str, Any]], dict[str, Any]]:
     """Apply explicit per-client publication rules after price selection."""
 
-    source_part = aliased(AutoPart)
-    target_part = aliased(AutoPart)
-    source_brand = aliased(Brand)
-    target_brand = aliased(Brand)
-    rows = (
-        await session.execute(
-            select(
-                CustomerPriceListPublicationRule,
-                source_brand.name,
-                source_part.oem_number,
-                source_part.name,
-                target_brand.name,
-                target_part.oem_number,
-                target_part.name,
+    rules = list(
+        (
+            await session.execute(
+                select(CustomerPriceListPublicationRule)
+                .options(
+                    selectinload(CustomerPriceListPublicationRule.source_autopart)
+                    .selectinload(AutoPart.brand),
+                    selectinload(CustomerPriceListPublicationRule.target_autopart)
+                    .selectinload(AutoPart.brand),
+                    selectinload(CustomerPriceListPublicationRule.targets)
+                    .selectinload(CustomerPriceListPublicationRuleTarget.target_autopart)
+                    .selectinload(AutoPart.brand),
+                )
+                .where(
+                    CustomerPriceListPublicationRule.config_id == config_id,
+                    CustomerPriceListPublicationRule.is_active.is_(True),
+                )
+                .order_by(CustomerPriceListPublicationRule.id.asc())
             )
-            .join(
-                source_part,
-                source_part.id == CustomerPriceListPublicationRule.source_autopart_id,
-            )
-            .join(source_brand, source_brand.id == source_part.brand_id)
-            .outerjoin(
-                target_part,
-                target_part.id == CustomerPriceListPublicationRule.target_autopart_id,
-            )
-            .outerjoin(target_brand, target_brand.id == target_part.brand_id)
-            .where(
-                CustomerPriceListPublicationRule.config_id == config_id,
-                CustomerPriceListPublicationRule.is_active.is_(True),
-            )
-            .order_by(CustomerPriceListPublicationRule.id.asc())
         )
-    ).all()
-    if not rows:
+        .scalars()
+        .all()
+    )
+    if not rules:
         return (
             source_df,
             automatic_aliases,
@@ -1187,15 +1363,12 @@ async def _apply_customer_publication_rules(
     warnings: list[str] = []
     week_key = _customer_pricelist_mask_week_key()
 
-    for (
-        rule,
-        source_brand_name,
-        source_oem,
-        _source_name,
-        target_brand_name,
-        target_oem,
-        target_name,
-    ) in rows:
+    for rule in rules:
+        source_part = rule.source_autopart
+        source_brand_name = (
+            source_part.brand.name if source_part and source_part.brand else ""
+        )
+        source_oem = source_part.oem_number if source_part else ""
         source_id = int(rule.source_autopart_id)
         candidates = working[working["autopart_id"] == source_id]
         if candidates.empty:
@@ -1214,35 +1387,54 @@ async def _apply_customer_publication_rules(
             suppressed_source_ids.add(source_id)
         if mode == "hide":
             continue
-        if not target_brand_name or not target_oem:
+        target_parts = [
+            item.target_autopart
+            for item in (rule.targets or [])
+            if item.target_autopart is not None
+        ]
+        if not target_parts and rule.target_autopart is not None:
+            target_parts = [rule.target_autopart]
+        if not target_parts:
             warnings.append(
-                f"{source_brand_name} {source_oem}: выбранный кросс больше " "не существует"
+                f"{source_brand_name} {source_oem}: выбранные кроссы больше не существуют"
             )
             continue
-        quantity = int(float(selected.get("quantity") or 0))
-        unit = _stable_unit_interval(
-            customer_id,
-            source_id,
-            int(rule.target_autopart_id or 0),
-            week_key,
-            "manual_customer_cross_qty",
-        )
-        alias = dict(selected)
-        alias.update(
-            {
-                "autopart_id": source_id,
-                "__source_oem": selected.get("oem_number"),
-                "brand": str(target_brand_name).strip(),
-                "oem_number": str(target_oem).strip(),
-                "name": str(target_name or selected.get("name") or "").strip(),
-                "quantity": _mask_supplier_quantity(quantity, unit),
-                "price": float(selected.get("price") or 0),
-                "__dragonzap_alias": True,
-                "__manual_publication_rule": True,
-                "__publication_rule_id": int(rule.id),
-            }
-        )
-        manual_aliases.append(alias)
+        for target_part in target_parts:
+            target_brand_name = (
+                target_part.brand.name if target_part.brand is not None else ""
+            )
+            target_oem = target_part.oem_number
+            if not target_brand_name or not target_oem:
+                warnings.append(
+                    f"{source_brand_name} {source_oem}: один из выбранных кроссов "
+                    "не содержит бренд или артикул"
+                )
+                continue
+            quantity = int(float(selected.get("quantity") or 0))
+            unit = _stable_unit_interval(
+                customer_id,
+                source_id,
+                int(target_part.id),
+                week_key,
+                "manual_customer_cross_qty",
+            )
+            alias = dict(selected)
+            alias.update(
+                {
+                    "autopart_id": source_id,
+                    "__source_oem": selected.get("oem_number"),
+                    "brand": str(target_brand_name).strip(),
+                    "oem_number": str(target_oem).strip(),
+                    "name": str(target_part.name or selected.get("name") or "").strip(),
+                    "quantity": _mask_supplier_quantity(quantity, unit),
+                    "price": float(selected.get("price") or 0),
+                    "__dragonzap_alias": True,
+                    "__manual_publication_rule": True,
+                    "__publication_rule_id": int(rule.id),
+                    "__row_type": "manual_cross",
+                }
+            )
+            manual_aliases.append(alias)
 
     if suppressed_source_ids:
         working = working[~working["autopart_id"].isin(suppressed_source_ids)].copy()
@@ -1266,7 +1458,7 @@ async def _apply_customer_publication_rules(
         working,
         list(aliases_by_key.values()),
         {
-            "publication_rules": len(rows),
+            "publication_rules": len(rules),
             "manual_aliases": len(manual_aliases),
             "hidden_positions": len(suppressed_source_ids),
             "publication_rule_warnings": warnings,
@@ -2530,13 +2722,33 @@ async def process_customer_pricelist(
         )
         if pipeline_v2:
             physical_records = final_df.to_dict("records")
-            direct_output_records = [dict(row) for row in physical_records]
+            direct_output_records = []
+            for source_row in physical_records:
+                output_row = dict(source_row)
+                output_row.setdefault("__row_type", "direct")
+                output_row.setdefault(
+                    "__origin_type",
+                    (
+                        "dragonzap_source"
+                        if _is_dragonzap_brand(output_row.get("brand"))
+                        else "original_source"
+                    ),
+                )
+                direct_output_records.append(output_row)
             dragonzap_alias_records: list[dict[str, Any]] = []
             rule_summary: dict[str, Any] = {
                 "publication_rules": 0,
                 "manual_aliases": 0,
                 "hidden_positions": 0,
                 "publication_rule_warnings": [],
+                "final_filters": {
+                    "enabled": False,
+                    "rules_count": 0,
+                    "input_count": 0,
+                    "output_count": 0,
+                    "excluded_count": 0,
+                    "examples": [],
+                },
             }
             publish_dz_crosses = bool(
                 _customer_pricelist_setting(config, "PUBLISH_CONFIRMED_DZ_CROSSES", False)
@@ -2688,6 +2900,36 @@ async def process_customer_pricelist(
                         )
                     )
                     direct_output_records = output_df.to_dict("records")
+                elif pipeline_step == "final_filters":
+                    combined_output = [
+                        *({**row, "__output_group": "direct"} for row in direct_output_records),
+                        *(
+                            {**row, "__output_group": "alias"}
+                            for row in dragonzap_alias_records
+                        ),
+                    ]
+                    combined_output, final_filter_summary = _apply_final_output_filters(
+                        combined_output,
+                        _customer_pricelist_setting(config, "FINAL_FILTER_RULES", []),
+                        enabled=bool(
+                            _customer_pricelist_setting(
+                                config,
+                                "FINAL_FILTER_ENABLED",
+                                False,
+                            )
+                        ),
+                    )
+                    rule_summary["final_filters"] = final_filter_summary
+                    direct_output_records = [
+                        row
+                        for row in combined_output
+                        if row.get("__output_group") == "direct"
+                    ]
+                    dragonzap_alias_records = [
+                        row
+                        for row in combined_output
+                        if row.get("__output_group") == "alias"
+                    ]
                 elif pipeline_step == "deduplication":
                     combined_output = [
                         *({**row, "__output_group": "direct"} for row in direct_output_records),
@@ -2735,9 +2977,14 @@ async def process_customer_pricelist(
                 if int(row.get("autopart_id") or 0) in final_source_ids
             ]
             if not direct_output_records and not dragonzap_alias_records:
+                final_filter_summary = rule_summary.get("final_filters") or {}
                 raise HTTPException(
                     status_code=400,
-                    detail="Publication rules excluded all pricelist positions",
+                    detail=(
+                        "Финальные фильтры исключили все позиции прайса"
+                        if final_filter_summary.get("excluded_count")
+                        else "Publication rules excluded all pricelist positions"
+                    ),
                 )
             v2_summary = {
                 "pipeline_v2": True,
@@ -3040,6 +3287,21 @@ async def process_customer_pricelist(
             ),
         },
     ]
+    final_filter_summary = generation_summary.get("final_filters") or {}
+    if final_filter_summary.get("enabled"):
+        quality_checks.append(
+            {
+                "key": "final_filters",
+                "status": (
+                    "passed" if int(final_filter_summary.get("output_count") or 0) > 0 else "failed"
+                ),
+                "message": (
+                    "Финальные фильтры исключили "
+                    f"{int(final_filter_summary.get('excluded_count') or 0)} строк; "
+                    f"осталось {int(final_filter_summary.get('output_count') or 0)}."
+                ),
+            }
+        )
     if pipeline_v2 and bool(
         _customer_pricelist_setting(config, "PRICE_CONTROL_ENABLED", False)
     ):

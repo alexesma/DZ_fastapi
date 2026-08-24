@@ -15,6 +15,8 @@ from dz_fastapi.models.partner import (
     CustomerPriceList,
     CustomerPriceListConfig,
     CustomerPriceListExportRow,
+    CustomerPriceListPublicationRule,
+    CustomerPriceListPublicationRuleTarget,
     CustomerPriceListSource,
     PriceList,
     PriceListAutoPartAssociation,
@@ -25,6 +27,8 @@ from dz_fastapi.schemas.partner import CustomerPriceListCreate
 from dz_fastapi.services import process as process_service
 from dz_fastapi.services.process import (
     CUSTOMER_PRICELIST_PIPELINE_DEFAULT,
+    _apply_customer_publication_rules,
+    _apply_final_output_filters,
     _apply_product_labels,
     _apply_source_filters,
     _collapse_output_records,
@@ -158,7 +162,165 @@ def test_pipeline_order_is_complete_and_respects_required_dependencies():
     assert set(result) == set(CUSTOMER_PRICELIST_PIPELINE_DEFAULT)
     assert result.index("source_filters") < result.index("dragonzap_transform")
     assert result.index("dragonzap_transform") < result.index("deduplication")
+    assert result.index("publication_rules") < result.index("final_filters")
+    assert result.index("final_filters") < result.index("deduplication")
     assert result[-1] == "quality_control"
+
+
+def test_source_position_filter_can_include_or_exclude_exact_items():
+    source = SimpleNamespace(
+        brand_filters={},
+        position_filters={"type": "exclude", "autoparts": [2]},
+        min_price=None,
+        max_price=None,
+        min_quantity=None,
+        max_quantity=None,
+        additional_filters={},
+    )
+    source_df = pd.DataFrame(
+        [
+            {
+                "autopart_id": 1,
+                "brand_id": 1,
+                "brand": "GEELY",
+                "oem_number": "ONE",
+                "price": 100,
+                "quantity": 3,
+            },
+            {
+                "autopart_id": 2,
+                "brand_id": 1,
+                "brand": "GEELY",
+                "oem_number": "TWO",
+                "price": 100,
+                "quantity": 3,
+            },
+        ]
+    )
+
+    excluded = _apply_source_filters(source_df, source)
+    assert excluded["autopart_id"].tolist() == [1]
+
+    source.position_filters = {"type": "include", "autoparts": [2]}
+    included = _apply_source_filters(source_df, source)
+    assert included["autopart_id"].tolist() == [2]
+
+
+def test_final_filters_use_client_facing_values_and_manual_include_override():
+    records = [
+        {
+            "autopart_id": 1,
+            "brand": "GEELY",
+            "oem_number": "1064001701",
+            "name": ">>Неоригинал<< Подшипник",
+            "price": 500,
+            "quantity": 4,
+            "__row_type": "zzap_transform",
+            "__origin_type": "dragonzap_transform",
+        },
+        {
+            "autopart_id": 2,
+            "brand": "TOYOTA",
+            "oem_number": "9098012353",
+            "name": "Контактная группа",
+            "price": 454,
+            "quantity": 1,
+            "__row_type": "manual_cross",
+            "__manual_publication_rule": True,
+        },
+    ]
+    result, summary = _apply_final_output_filters(
+        records,
+        [
+            {
+                "id": "allow-geely",
+                "action": "include",
+                "brands": ["GEELY"],
+                "enabled": True,
+            },
+            {
+                "id": "block-bearing",
+                "name": "Не продавать подшипники",
+                "action": "exclude",
+                "name_contains": "подшипник",
+                "enabled": True,
+            },
+        ],
+        enabled=True,
+    )
+
+    assert [row["autopart_id"] for row in result] == [2]
+    assert summary["excluded_count"] == 1
+    assert summary["examples"][0]["rule_id"] == "block-bearing"
+
+
+@pytest.mark.asyncio
+async def test_publication_rule_creates_multiple_cross_rows_for_one_physical_item(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+):
+    customer = created_customers[0]
+    brand = Brand(name="DRAGONZAP")
+    test_session.add(brand)
+    await test_session.flush()
+    source = AutoPart(brand_id=brand.id, oem_number="DZSOURCE", name="Источник")
+    first = AutoPart(brand_id=brand.id, oem_number="DZCROSS1", name="Кросс 1")
+    second = AutoPart(brand_id=brand.id, oem_number="DZCROSS2", name="Кросс 2")
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name="Multiple manual crosses",
+        general_markup=1,
+        own_price_list_markup=1,
+        third_party_markup=1,
+    )
+    test_session.add_all([source, first, second, config])
+    await test_session.flush()
+    rule = CustomerPriceListPublicationRule(
+        config_id=config.id,
+        source_autopart_id=source.id,
+        target_autopart_id=first.id,
+        mode="only_cross",
+        is_active=True,
+    )
+    test_session.add(rule)
+    await test_session.flush()
+    test_session.add_all(
+        [
+            CustomerPriceListPublicationRuleTarget(
+                rule_id=rule.id,
+                target_autopart_id=first.id,
+            ),
+            CustomerPriceListPublicationRuleTarget(
+                rule_id=rule.id,
+                target_autopart_id=second.id,
+            ),
+        ]
+    )
+    await test_session.commit()
+
+    direct, aliases, summary = await _apply_customer_publication_rules(
+        test_session,
+        config_id=config.id,
+        customer_id=customer.id,
+        source_df=pd.DataFrame(
+            [
+                {
+                    "autopart_id": source.id,
+                    "brand": "DRAGONZAP",
+                    "oem_number": "DZSOURCE",
+                    "name": "Источник",
+                    "price": 100,
+                    "quantity": 5,
+                }
+            ]
+        ),
+        automatic_aliases=[],
+    )
+
+    assert direct.empty
+    assert {row["oem_number"] for row in aliases} == {"DZCROSS1", "DZCROSS2"}
+    assert {row["autopart_id"] for row in aliases} == {source.id}
+    assert summary["manual_aliases"] == 2
 
 
 @pytest.mark.asyncio

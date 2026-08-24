@@ -728,6 +728,13 @@ class CustomerPriceListPublicationRule(Base):
     config = relationship("CustomerPriceListConfig", back_populates="publication_rules")
     source_autopart = relationship("AutoPart", foreign_keys=[source_autopart_id], lazy="joined")
     target_autopart = relationship("AutoPart", foreign_keys=[target_autopart_id], lazy="joined")
+    targets = relationship(
+        "CustomerPriceListPublicationRuleTarget",
+        back_populates="rule",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="CustomerPriceListPublicationRuleTarget.id",
+    )
     created_by_user = relationship("User", foreign_keys=[created_by_user_id], lazy="joined")
     updated_by_user = relationship("User", foreign_keys=[updated_by_user_id], lazy="joined")
 
@@ -736,6 +743,34 @@ class CustomerPriceListPublicationRule(Base):
             "config_id",
             "source_autopart_id",
             name="uq_customer_pricelist_publication_rule_source",
+        ),
+    )
+
+
+class CustomerPriceListPublicationRuleTarget(Base):
+    """One client-facing cross attached to a publication rule."""
+
+    rule_id = Column(
+        Integer,
+        ForeignKey("customerpricelistpublicationrule.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    target_autopart_id = Column(
+        Integer,
+        ForeignKey("autopart.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    rule = relationship("CustomerPriceListPublicationRule", back_populates="targets")
+    target_autopart = relationship("AutoPart", lazy="joined")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "rule_id",
+            "target_autopart_id",
+            name="uq_customer_pricelist_publication_rule_target",
         ),
     )
 

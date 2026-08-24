@@ -47,6 +47,7 @@ from dz_fastapi.models.partner import (
     CustomerPriceListConfig,
     CustomerPriceListExportRow,
     CustomerPriceListPublicationRule,
+    CustomerPriceListPublicationRuleTarget,
     CustomerPriceListSource,
     CustomerReclamationEmail,
     PriceList,
@@ -201,6 +202,29 @@ def _publication_rule_response(
 ) -> CustomerPriceListPublicationRuleOut:
     source = rule.source_autopart
     target = rule.target_autopart
+    targets = [
+        {
+            "autopart_id": item.target_autopart_id,
+            "brand": (
+                item.target_autopart.brand.name
+                if item.target_autopart and item.target_autopart.brand
+                else None
+            ),
+            "oem": item.target_autopart.oem_number if item.target_autopart else None,
+            "name": item.target_autopart.name if item.target_autopart else None,
+        }
+        for item in (rule.targets or [])
+        if item.target_autopart is not None
+    ]
+    if not targets and target is not None:
+        targets = [
+            {
+                "autopart_id": target.id,
+                "brand": target.brand.name if target.brand else None,
+                "oem": target.oem_number,
+                "name": target.name,
+            }
+        ]
     return CustomerPriceListPublicationRuleOut(
         id=rule.id,
         config_id=rule.config_id,
@@ -212,6 +236,7 @@ def _publication_rule_response(
         target_brand=target.brand.name if target and target.brand else None,
         target_oem=target.oem_number if target else None,
         target_name=target.name if target else None,
+        targets=targets,
         mode=rule.mode,
         is_active=rule.is_active,
         created_at=rule.created_at,
@@ -280,6 +305,9 @@ async def _load_publication_rule(
                 selectinload(CustomerPriceListPublicationRule.target_autopart).selectinload(
                     AutoPart.brand
                 ),
+                selectinload(CustomerPriceListPublicationRule.targets)
+                .selectinload(CustomerPriceListPublicationRuleTarget.target_autopart)
+                .selectinload(AutoPart.brand),
                 selectinload(CustomerPriceListPublicationRule.created_by_user),
                 selectinload(CustomerPriceListPublicationRule.updated_by_user),
             )
@@ -2477,6 +2505,9 @@ async def list_customer_pricelist_publication_rules(
                     selectinload(CustomerPriceListPublicationRule.target_autopart).selectinload(
                         AutoPart.brand
                     ),
+                    selectinload(CustomerPriceListPublicationRule.targets)
+                    .selectinload(CustomerPriceListPublicationRuleTarget.target_autopart)
+                    .selectinload(AutoPart.brand),
                     selectinload(CustomerPriceListPublicationRule.created_by_user),
                     selectinload(CustomerPriceListPublicationRule.updated_by_user),
                 )
@@ -2510,8 +2541,9 @@ async def save_customer_pricelist_publication_rule(
     source = await session.get(AutoPart, payload.source_autopart_id)
     if source is None:
         raise HTTPException(status_code=404, detail="Source autopart not found")
+    target_ids = [] if payload.mode == "hide" else payload.target_autopart_ids
     if payload.mode != "hide":
-        if payload.target_autopart_id == payload.source_autopart_id:
+        if payload.source_autopart_id in target_ids:
             raise HTTPException(
                 status_code=400,
                 detail="Фактическая позиция и выбранный кросс совпадают",
@@ -2520,10 +2552,14 @@ async def save_customer_pricelist_publication_rule(
             session, seed_autopart_ids=[payload.source_autopart_id]
         )
         member_ids = {item.autopart_id for item in members}
-        if payload.target_autopart_id not in member_ids:
+        invalid_target_ids = sorted(set(target_ids) - member_ids)
+        if invalid_target_ids:
             raise HTTPException(
                 status_code=400,
-                detail="Можно выбрать только подтверждённый двусторонний кросс",
+                detail=(
+                    "Можно выбрать только подтверждённые двусторонние кроссы. "
+                    f"Не прошли проверку: {invalid_target_ids}"
+                ),
             )
     existing = (
         await session.execute(
@@ -2539,12 +2575,16 @@ async def save_customer_pricelist_publication_rule(
             source_autopart_id=payload.source_autopart_id,
             created_by_user_id=current_user.id,
         )
-    existing.target_autopart_id = None if payload.mode == "hide" else payload.target_autopart_id
+    existing.target_autopart_id = target_ids[0] if target_ids else None
     existing.mode = payload.mode
     existing.is_active = payload.is_active
     existing.updated_by_user_id = current_user.id
     existing.updated_at = now_moscow()
     session.add(existing)
+    existing.targets = [
+        CustomerPriceListPublicationRuleTarget(target_autopart_id=target_id)
+        for target_id in target_ids
+    ]
     await session.commit()
     loaded = await _load_publication_rule(session, config_id=config_id, rule_id=existing.id)
     return _publication_rule_response(loaded)
@@ -2596,6 +2636,7 @@ async def search_customer_pricelist_publication_candidates(
     config_id: int,
     search: str = Query(..., min_length=2, max_length=100),
     limit: int = Query(30, ge=1, le=100),
+    provider_config_id: Optional[int] = Query(default=None, gt=0),
     session: AsyncSession = Depends(get_session),
     _: User = Depends(require_admin),
 ):
@@ -2604,6 +2645,23 @@ async def search_customer_pricelist_publication_candidates(
     )
     if not config:
         raise HTTPException(status_code=404, detail="Configuration not found")
+    latest_pricelist_ids = _latest_own_pricelist_ids_query()
+    if provider_config_id is not None:
+        configured_sources = await crud_customer_pricelist_source.get_by_config_id(
+            config_id=config_id,
+            session=session,
+        )
+        if provider_config_id not in {
+            int(source.provider_config_id) for source in configured_sources
+        }:
+            raise HTTPException(
+                status_code=400,
+                detail="Источник не подключён к выбранной конфигурации клиента",
+            )
+        latest_pricelist_ids = select(func.max(PriceList.id)).where(
+            PriceList.provider_config_id == provider_config_id,
+            PriceList.is_active.is_(True),
+        )
     normalized = preprocess_oem_number(search)
     pattern = f"%{str(search).strip()}%"
     rows = (
@@ -2622,7 +2680,7 @@ async def search_customer_pricelist_publication_candidates(
                 PriceListAutoPartAssociation.autopart_id == AutoPart.id,
             )
             .where(
-                PriceListAutoPartAssociation.pricelist_id.in_(_latest_own_pricelist_ids_query()),
+                PriceListAutoPartAssociation.pricelist_id.in_(latest_pricelist_ids),
                 or_(
                     AutoPart.oem_number.ilike(f"%{normalized}%"),
                     AutoPart.name.ilike(pattern),
@@ -2885,6 +2943,9 @@ async def diagnose_customer_pricelist_position(
         }
 
     summary = pricelist.generation_summary or {}
+    final_filter_examples = (
+        (summary.get("final_filters") or {}).get("examples") or []
+    )
     source_pricelist_ids = [
         int(value)
         for value in summary.get("source_pricelist_ids", [])
@@ -2995,6 +3056,7 @@ async def diagnose_customer_pricelist_position(
             reason = "Источник выключен."
         else:
             brand_filter = source.brand_filters or {}
+            position_filter = source.position_filters or {}
             source_settings = source.additional_filters or {}
             dragonzap_mode = str(
                 source_settings.get("DRAGONZAP_MODE") or "normal"
@@ -3005,7 +3067,34 @@ async def diagnose_customer_pricelist_position(
                 if str(value).isdigit()
             }
             filter_type = str(brand_filter.get("type") or "").lower()
-            if filter_type == "exclude" and int(brand_id) in brand_ids:
+            position_ids = {
+                int(value)
+                for value in position_filter.get("autoparts", [])
+                if str(value).isdigit()
+            }
+            position_filter_type = str(position_filter.get("type") or "").lower()
+            final_example = next(
+                (
+                    item
+                    for item in final_filter_examples
+                    if int(item.get("source_autopart_id") or 0) == int(autopart_id)
+                ),
+                None,
+            )
+            if final_example is not None:
+                reason = (
+                    "Позиция исключена финальным фильтром: "
+                    f"{final_example.get('reason') or 'совпало правило фильтрации'}."
+                )
+            elif position_filter_type == "exclude" and int(autopart_id) in position_ids:
+                reason = "Позиция исключена точечным фильтром источника."
+            elif (
+                position_filter_type == "include"
+                and position_ids
+                and int(autopart_id) not in position_ids
+            ):
+                reason = "Позиция не входит в разрешённый список источника."
+            elif filter_type == "exclude" and int(brand_id) in brand_ids:
                 if (
                     str(brand_name or "").upper() == "DRAGONZAP"
                     and dragonzap_mode in {"transform_only", "auto"}
