@@ -254,6 +254,100 @@ def test_final_filters_use_client_facing_values_and_manual_include_override():
     assert summary["examples"][0]["rule_id"] == "block-bearing"
 
 
+def test_final_filter_policy_combines_brand_position_and_quantity_lists():
+    records = [
+        {
+            "autopart_id": 1,
+            "brand": "TOYOTA",
+            "oem_number": "KEEP1",
+            "name": "Оставить",
+            "price": 100,
+            "quantity": 5,
+        },
+        {
+            "autopart_id": 2,
+            "brand": "TOYOTA",
+            "oem_number": "LOW2",
+            "name": "Мало",
+            "price": 100,
+            "quantity": 1,
+        },
+        {
+            "autopart_id": 3,
+            "brand": "GEELY",
+            "oem_number": "KEEP1",
+            "name": "Другой бренд",
+            "price": 100,
+            "quantity": 5,
+        },
+    ]
+
+    result, summary = _apply_final_output_filters(
+        records,
+        [],
+        enabled=True,
+        policy={
+            "brand_mode": "include",
+            "brands": ["TOYOTA"],
+            "position_mode": "include",
+            "positions": ["TOYOTA | KEEP1", "LOW2"],
+            "min_quantity": 2,
+        },
+    )
+
+    assert [row["autopart_id"] for row in result] == [1]
+    assert summary["excluded_count"] == 2
+    assert {item["rule_id"] for item in summary["examples"]} == {
+        "policy-brands",
+        "policy-quantity",
+    }
+
+
+def test_final_filter_policy_supports_brand_and_position_blacklists():
+    records = [
+        {
+            "autopart_id": 1,
+            "brand": "TOYOTA",
+            "oem_number": "KEEP1",
+            "price": 100,
+            "quantity": 5,
+        },
+        {
+            "autopart_id": 2,
+            "brand": "TOYOTA",
+            "oem_number": "BLOCK2",
+            "price": 100,
+            "quantity": 5,
+        },
+        {
+            "autopart_id": 3,
+            "brand": "GEELY",
+            "oem_number": "KEEP1",
+            "price": 100,
+            "quantity": 5,
+        },
+    ]
+
+    result, summary = _apply_final_output_filters(
+        records,
+        [],
+        enabled=True,
+        policy={
+            "brand_mode": "exclude",
+            "brands": ["GEELY"],
+            "position_mode": "exclude",
+            "positions": ["BLOCK2"],
+        },
+    )
+
+    assert [row["autopart_id"] for row in result] == [1]
+    assert summary["excluded_count"] == 2
+    assert {item["rule_id"] for item in summary["examples"]} == {
+        "policy-brands",
+        "policy-positions",
+    }
+
+
 @pytest.mark.asyncio
 async def test_publication_rule_creates_multiple_cross_rows_for_one_physical_item(
     test_session: AsyncSession,
@@ -264,6 +358,11 @@ async def test_publication_rule_creates_multiple_cross_rows_for_one_physical_ite
     test_session.add(brand)
     await test_session.flush()
     source = AutoPart(brand_id=brand.id, oem_number="DZSOURCE", name="Источник")
+    unconfigured = AutoPart(
+        brand_id=brand.id,
+        oem_number="DZUNCONFIGURED",
+        name="Без правила",
+    )
     first = AutoPart(brand_id=brand.id, oem_number="DZCROSS1", name="Кросс 1")
     second = AutoPart(brand_id=brand.id, oem_number="DZCROSS2", name="Кросс 2")
     config = CustomerPriceListConfig(
@@ -273,7 +372,7 @@ async def test_publication_rule_creates_multiple_cross_rows_for_one_physical_ite
         own_price_list_markup=1,
         third_party_markup=1,
     )
-    test_session.add_all([source, first, second, config])
+    test_session.add_all([source, unconfigured, first, second, config])
     await test_session.flush()
     rule = CustomerPriceListPublicationRule(
         config_id=config.id,
@@ -311,7 +410,15 @@ async def test_publication_rule_creates_multiple_cross_rows_for_one_physical_ite
                     "name": "Источник",
                     "price": 100,
                     "quantity": 5,
-                }
+                },
+                {
+                    "autopart_id": unconfigured.id,
+                    "brand": "DRAGONZAP",
+                    "oem_number": unconfigured.oem_number,
+                    "name": unconfigured.name,
+                    "price": 90,
+                    "quantity": 7,
+                },
             ]
         ),
         automatic_aliases=[],
@@ -321,6 +428,39 @@ async def test_publication_rule_creates_multiple_cross_rows_for_one_physical_ite
     assert {row["oem_number"] for row in aliases} == {"DZCROSS1", "DZCROSS2"}
     assert {row["autopart_id"] for row in aliases} == {source.id}
     assert summary["manual_aliases"] == 2
+    assert summary["unconfigured_positions"] == 1
+
+    direct_with_legacy_scope, _, legacy_summary = (
+        await _apply_customer_publication_rules(
+            test_session,
+            config_id=config.id,
+            customer_id=customer.id,
+            source_df=pd.DataFrame(
+                [
+                    {
+                        "autopart_id": source.id,
+                        "brand": "DRAGONZAP",
+                        "oem_number": source.oem_number,
+                        "name": source.name,
+                        "price": 100,
+                        "quantity": 5,
+                    },
+                    {
+                        "autopart_id": unconfigured.id,
+                        "brand": "DRAGONZAP",
+                        "oem_number": unconfigured.oem_number,
+                        "name": unconfigured.name,
+                        "price": 90,
+                        "quantity": 7,
+                    },
+                ]
+            ),
+            automatic_aliases=[],
+            only_configured_when_rules_exist=False,
+        )
+    )
+    assert direct_with_legacy_scope["autopart_id"].tolist() == [unconfigured.id]
+    assert legacy_summary["unconfigured_positions"] == 0
 
 
 @pytest.mark.asyncio

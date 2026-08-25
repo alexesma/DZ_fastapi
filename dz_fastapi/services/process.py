@@ -987,6 +987,7 @@ def _apply_final_output_filters(
     rules: Any,
     *,
     enabled: bool,
+    policy: Any = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     criteria_keys = {
         "brands",
@@ -1009,14 +1010,60 @@ def _apply_final_output_filters(
         for rule in (rules if isinstance(rules, list) else [])
         if isinstance(rule, dict) and rule.get("enabled", True) and has_criteria(rule)
     ]
-    if not enabled or not normalized_rules:
+    raw_policy = policy if isinstance(policy, dict) else {}
+    brand_mode = str(raw_policy.get("brand_mode") or "all").strip().lower()
+    if brand_mode not in {"all", "include", "exclude"}:
+        brand_mode = "all"
+    policy_brands = {
+        _normalize_dedup_brand_key(value)
+        for value in raw_policy.get("brands", [])
+        if str(value or "").strip()
+    }
+    position_mode = str(raw_policy.get("position_mode") or "all").strip().lower()
+    if position_mode not in {"all", "include", "exclude"}:
+        position_mode = "all"
+    policy_positions: set[tuple[str, str]] = set()
+    for value in raw_policy.get("positions", []):
+        if isinstance(value, dict):
+            brand_value = value.get("brand")
+            oem_value = value.get("oem") or value.get("oem_number")
+        else:
+            raw_value = str(value or "").strip()
+            if "|" in raw_value:
+                brand_value, oem_value = raw_value.split("|", 1)
+            else:
+                brand_value, oem_value = "", raw_value
+        normalized_oem = _normalize_dedup_oem_key(oem_value)
+        if normalized_oem:
+            policy_positions.add(
+                (_normalize_dedup_brand_key(brand_value), normalized_oem)
+            )
+    try:
+        min_quantity = (
+            int(float(raw_policy.get("min_quantity")))
+            if raw_policy.get("min_quantity") not in (None, "")
+            else None
+        )
+    except (TypeError, ValueError):
+        min_quantity = None
+    if min_quantity is not None and min_quantity <= 0:
+        min_quantity = None
+    policy_filters_count = sum(
+        (
+            brand_mode != "all" and bool(policy_brands),
+            position_mode != "all" and bool(policy_positions),
+            min_quantity is not None,
+        )
+    )
+    if not enabled or (not normalized_rules and not policy_filters_count):
         return records, {
             "enabled": bool(enabled),
-            "rules_count": len(normalized_rules),
+            "rules_count": len(normalized_rules) + policy_filters_count,
             "input_count": len(records),
             "output_count": len(records),
             "excluded_count": 0,
             "examples": [],
+            "policy": raw_policy,
         }
 
     include_rules = [
@@ -1043,6 +1090,37 @@ def _apply_final_output_filters(
             reason = "Совпало с запрещающим финальным правилом."
         elif include_rules and include_match is None and not manual_override:
             reason = "Не совпало ни с одним разрешающим финальным правилом."
+        row_brand = _normalize_dedup_brand_key(row.get("brand"))
+        row_oem = _normalize_dedup_oem_key(row.get("oem_number"))
+        if reason is None and brand_mode == "include" and policy_brands:
+            if row_brand not in policy_brands:
+                matched_rule = {"id": "policy-brands", "name": "Белый список брендов"}
+                reason = "Бренд не входит в белый список."
+        if reason is None and brand_mode == "exclude" and policy_brands:
+            if row_brand in policy_brands:
+                matched_rule = {"id": "policy-brands", "name": "Чёрный список брендов"}
+                reason = "Бренд входит в чёрный список."
+        position_matches = any(
+            row_oem == allowed_oem
+            and (not allowed_brand or row_brand == allowed_brand)
+            for allowed_brand, allowed_oem in policy_positions
+        )
+        if reason is None and position_mode == "include" and policy_positions:
+            if not position_matches:
+                matched_rule = {"id": "policy-positions", "name": "Белый список позиций"}
+                reason = "Позиция не входит в белый список."
+        if reason is None and position_mode == "exclude" and policy_positions:
+            if position_matches:
+                matched_rule = {"id": "policy-positions", "name": "Чёрный список позиций"}
+                reason = "Позиция входит в чёрный список."
+        if reason is None and min_quantity is not None:
+            try:
+                row_quantity = int(float(row.get("quantity") or 0))
+            except (TypeError, ValueError):
+                row_quantity = 0
+            if row_quantity < min_quantity:
+                matched_rule = {"id": "policy-quantity", "name": "Минимальный остаток"}
+                reason = f"Остаток меньше {min_quantity} шт."
         if reason is None:
             output.append(row)
             continue
@@ -1062,11 +1140,12 @@ def _apply_final_output_filters(
             )
     return output, {
         "enabled": True,
-        "rules_count": len(normalized_rules),
+        "rules_count": len(normalized_rules) + policy_filters_count,
         "input_count": len(records),
         "output_count": len(output),
         "excluded_count": len(records) - len(output),
         "examples": examples,
+        "policy": raw_policy,
     }
 
 
@@ -1318,6 +1397,7 @@ async def _apply_customer_publication_rules(
     customer_id: int,
     source_df: pd.DataFrame,
     automatic_aliases: list[dict[str, Any]],
+    only_configured_when_rules_exist: bool = True,
 ) -> tuple[pd.DataFrame, list[dict[str, Any]], dict[str, Any]]:
     """Apply explicit per-client publication rules after price selection."""
 
@@ -1352,6 +1432,8 @@ async def _apply_customer_publication_rules(
                 "publication_rules": 0,
                 "manual_aliases": 0,
                 "hidden_positions": 0,
+                "unconfigured_positions": 0,
+                "only_configured_positions": bool(only_configured_when_rules_exist),
                 "publication_rule_warnings": [],
             },
         )
@@ -1359,6 +1441,7 @@ async def _apply_customer_publication_rules(
     working = source_df.copy()
     working["autopart_id"] = pd.to_numeric(working.get("autopart_id"), errors="coerce")
     suppressed_source_ids: set[int] = set()
+    configured_source_ids = {int(rule.source_autopart_id) for rule in rules}
     manual_aliases: list[dict[str, Any]] = []
     warnings: list[str] = []
     week_key = _customer_pricelist_mask_week_key()
@@ -1436,6 +1519,17 @@ async def _apply_customer_publication_rules(
             )
             manual_aliases.append(alias)
 
+    unconfigured_positions = 0
+    if only_configured_when_rules_exist:
+        configured_mask = working["autopart_id"].isin(configured_source_ids)
+        unconfigured_positions = int((~configured_mask).sum())
+        working = working[configured_mask].copy()
+        automatic_aliases = [
+            alias
+            for alias in automatic_aliases
+            if int(alias.get("autopart_id") or 0) in configured_source_ids
+        ]
+
     if suppressed_source_ids:
         working = working[~working["autopart_id"].isin(suppressed_source_ids)].copy()
         automatic_aliases = [
@@ -1461,6 +1555,8 @@ async def _apply_customer_publication_rules(
             "publication_rules": len(rules),
             "manual_aliases": len(manual_aliases),
             "hidden_positions": len(suppressed_source_ids),
+            "unconfigured_positions": unconfigured_positions,
+            "only_configured_positions": bool(only_configured_when_rules_exist),
             "publication_rule_warnings": warnings,
         },
     )
@@ -2740,6 +2836,14 @@ async def process_customer_pricelist(
                 "publication_rules": 0,
                 "manual_aliases": 0,
                 "hidden_positions": 0,
+                "unconfigured_positions": 0,
+                "only_configured_positions": bool(
+                    _customer_pricelist_setting(
+                        config,
+                        "PUBLICATION_RULES_ONLY_CONFIGURED",
+                        True,
+                    )
+                ),
                 "publication_rule_warnings": [],
                 "final_filters": {
                     "enabled": False,
@@ -2897,6 +3001,13 @@ async def process_customer_pricelist(
                             customer_id=customer.id,
                             source_df=output_df,
                             automatic_aliases=dragonzap_alias_records,
+                            only_configured_when_rules_exist=bool(
+                                _customer_pricelist_setting(
+                                    config,
+                                    "PUBLICATION_RULES_ONLY_CONFIGURED",
+                                    True,
+                                )
+                            ),
                         )
                     )
                     direct_output_records = output_df.to_dict("records")
@@ -2917,6 +3028,11 @@ async def process_customer_pricelist(
                                 "FINAL_FILTER_ENABLED",
                                 False,
                             )
+                        ),
+                        policy=_customer_pricelist_setting(
+                            config,
+                            "FINAL_FILTER_POLICY",
+                            {},
                         ),
                     )
                     rule_summary["final_filters"] = final_filter_summary
@@ -3014,6 +3130,13 @@ async def process_customer_pricelist(
                     customer_id=customer.id,
                     source_df=final_df,
                     automatic_aliases=dragonzap_alias_records,
+                    only_configured_when_rules_exist=bool(
+                        _customer_pricelist_setting(
+                            config,
+                            "PUBLICATION_RULES_ONLY_CONFIGURED",
+                            True,
+                        )
+                    ),
                 )
             )
             customer_autoparts_data = final_df.to_dict("records")
