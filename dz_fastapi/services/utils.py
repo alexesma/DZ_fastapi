@@ -145,6 +145,13 @@ def prepare_excel_data_from_records(records: List[dict]) -> pd.DataFrame:
     Собирает DataFrame для экспорта в Excel напрямую из записей
     клиентского прайса (без повторной загрузки ассоциаций из БД).
     """
+    columns = [
+        "Производитель",
+        "Наименование",
+        "Артикул",
+        "Количество",
+        "Цена",
+    ]
     return pd.DataFrame(
         [
             {
@@ -155,7 +162,8 @@ def prepare_excel_data_from_records(records: List[dict]) -> pd.DataFrame:
                 "Цена": record.get("price"),
             }
             for record in records
-        ]
+        ],
+        columns=columns,
     )
 
 

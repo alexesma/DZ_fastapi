@@ -34,7 +34,30 @@ from dz_fastapi.services.process import (
     _collapse_output_records,
     _transform_dragonzap_records,
     customer_pricelist_pipeline,
+    expand_dz_brands,
 )
+from dz_fastapi.services.utils import prepare_excel_data_from_records
+
+
+def test_empty_excel_records_keep_export_columns_for_later_aliases():
+    result = prepare_excel_data_from_records([])
+
+    assert result.empty
+    assert result.columns.tolist() == [
+        "Производитель",
+        "Наименование",
+        "Артикул",
+        "Количество",
+        "Цена",
+    ]
+    assert expand_dz_brands(result).columns.tolist() == result.columns.tolist()
+
+
+def test_expand_dz_brands_ignores_dataframe_without_excel_schema():
+    result = expand_dz_brands(pd.DataFrame())
+
+    assert result.empty
+    assert result.columns.tolist() == []
 
 
 def test_transform_only_restores_dragonzap_removed_by_brand_filter():

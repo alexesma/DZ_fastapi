@@ -2395,9 +2395,18 @@ def expand_dz_brands(df: pd.DataFrame) -> pd.DataFrame:
         * Explode into one row per assigned brand
     - All other positions pass through unchanged.
     """
+    required_columns = {"Производитель", "Артикул"}
+    if not required_columns.issubset(df.columns):
+        logger.warning(
+            "DZ_EXPAND_BRANDS skipped: required columns are missing; columns=%s rows=%s",
+            list(df.columns),
+            len(df),
+        )
+        return df.copy()
+
     df = df.copy()
 
-    mask_dz = df["Производитель"].str.upper() == "DRAGONZAP"
+    mask_dz = df["Производитель"].fillna("").astype(str).str.upper() == "DRAGONZAP"
     dz_items = df.loc[mask_dz].copy()
 
     if not dz_items.empty:
