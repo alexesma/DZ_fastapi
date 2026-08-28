@@ -117,20 +117,27 @@ def upgrade() -> None:
         )
 
     # ── связи и признак «не требует» ────────────────────────────────────
-    # Временная таблица + join одним набором: построчный ORM на 152 тыс.
+    # Промежуточная таблица + join одним набором: построчный ORM на 152 тыс.
     # строк занял бы минуты и заблокировал деплой.
+    #
+    # Таблица обычная, а не TEMP ... ON COMMIT DROP: в части окружений DDL
+    # выполняется с автокоммитом, и временная таблица исчезала сразу после
+    # создания — вставка падала с UndefinedTableError. Обычную таблицу
+    # удаляем явно в конце, а IF EXISTS в начале подчищает следы неудачного
+    # прогона.
+    bind.execute(sa.text("DROP TABLE IF EXISTS _regulatory_seed_stage"))
     bind.execute(
         sa.text(
             """
-            CREATE TEMP TABLE tmp_regulatory_seed (
+            CREATE TABLE _regulatory_seed_stage (
                 brand text, article text, certificate text
-            ) ON COMMIT DROP
+            )
             """
         )
     )
     batch: list[dict] = []
     insert_tmp = sa.text(
-        "INSERT INTO tmp_regulatory_seed (brand, article, certificate) "
+        "INSERT INTO _regulatory_seed_stage (brand, article, certificate) "
         "VALUES (:brand, :article, :certificate)"
     )
     for brand, article, certificate in _iter_links():
@@ -145,7 +152,7 @@ def upgrade() -> None:
 
     bind.execute(
         sa.text(
-            "CREATE INDEX ON tmp_regulatory_seed (brand, article)"
+            "CREATE INDEX ON _regulatory_seed_stage (brand, article)"
         )
     )
 
@@ -156,7 +163,7 @@ def upgrade() -> None:
             INSERT INTO autopart_certificate_association
                 (autopart_id, certificate_id)
             SELECT DISTINCT a.id, c.id
-            FROM tmp_regulatory_seed t
+            FROM _regulatory_seed_stage t
             JOIN brand b ON lower(b.name) = t.brand
             JOIN autopart a
               ON a.brand_id = b.id AND a.oem_number = t.article
@@ -178,7 +185,7 @@ def upgrade() -> None:
                    certification_required = true,
                    regulatory_source = COALESCE(a.regulatory_source,
                                                 'supplier_doc')
-              FROM tmp_regulatory_seed t
+              FROM _regulatory_seed_stage t
               JOIN brand b ON lower(b.name) = t.brand
               JOIN certificate c ON c.number = t.certificate
              WHERE a.brand_id = b.id
@@ -197,7 +204,7 @@ def upgrade() -> None:
             UPDATE autopart a
                SET certification_required = false,
                    regulatory_source = 'supplier_doc'
-              FROM tmp_regulatory_seed t
+              FROM _regulatory_seed_stage t
               JOIN brand b ON lower(b.name) = t.brand
              WHERE a.brand_id = b.id
                AND a.oem_number = t.article
@@ -207,6 +214,8 @@ def upgrade() -> None:
             """
         )
     )
+
+    bind.execute(sa.text("DROP TABLE IF EXISTS _regulatory_seed_stage"))
 
     # ── применение правил по наименованию ───────────────────────────────
     # Нормализация повторяет normalize_name из services/certification_rules:
