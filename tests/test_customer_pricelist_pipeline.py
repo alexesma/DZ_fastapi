@@ -36,10 +36,7 @@ from dz_fastapi.services.process import (
     customer_pricelist_pipeline,
     expand_dz_brands,
 )
-from dz_fastapi.services.utils import (
-    REGULATORY_COLUMNS,
-    prepare_excel_data_from_records,
-)
+from dz_fastapi.services.utils import REGULATORY_COLUMNS, prepare_excel_data_from_records
 
 
 def test_empty_excel_records_keep_export_columns_for_later_aliases():
