@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from dz_fastapi.api.auth import router as auth_router
 from dz_fastapi.api.autopart import router as autopart_router
 from dz_fastapi.api.brand import router as brand_router
+from dz_fastapi.api.certificate import router as certificate_router
 from dz_fastapi.api.cross import router as cross_router
 from dz_fastapi.api.customer_order import router as customer_order_router
 from dz_fastapi.api.dashboard import router as dashboard_router
@@ -208,6 +209,7 @@ app.include_router(price_control_router, dependencies=AUTH_REQUIRED)
 app.include_router(process_architecture_router)
 app.include_router(settings_router, dependencies=AUTH_REQUIRED)
 app.include_router(watchlist_router, dependencies=AUTH_REQUIRED)
+app.include_router(certificate_router, dependencies=AUTH_REQUIRED)
 app.include_router(webchat_router)
 app.include_router(inventory_router)
 app.include_router(finance_router, dependencies=AUTH_REQUIRED)

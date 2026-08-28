@@ -46,6 +46,12 @@ from dz_fastapi.schemas.order import OrderPositionOut, SupplierOrderOut
 
 logger = logging.getLogger("dz_fastapi")
 
+# Поля, которые нельзя обнулить через обновление карточки: в модели они
+# NOT NULL, и попытка их очистить свалила бы запрос на уровне БД.
+NON_NULLABLE_AUTOPART_FIELDS = frozenset(
+    {"brand_id", "oem_number", "name", "barcode"}
+)
+
 
 def get_recursive_selectinloads(depth: int):
     def recursive_load(level):
@@ -495,9 +501,16 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         data.pop("category_name", None)
         data.pop("storage_location_name", None)
 
+        # data приходит из model_dump(exclude_unset=True): если ключ есть,
+        # клиент прислал его осознанно, и None означает «очистить». Раньше
+        # None молча пропускался, и ошибочно введённый номер сертификата
+        # нельзя было стереть — только заменить другим.
         for key, value in data.items():
-            if hasattr(autopart, key) and value is not None:
-                setattr(autopart, key, value)
+            if not hasattr(autopart, key):
+                continue
+            if value is None and key in NON_NULLABLE_AUTOPART_FIELDS:
+                continue
+            setattr(autopart, key, value)
 
         if category_ids is not None:
             cats_result = await session.execute(

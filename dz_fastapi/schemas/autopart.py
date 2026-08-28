@@ -35,6 +35,13 @@ class AutoPartBase(BaseModel):
     comment: Optional[str] = None
     barcode: Optional[str] = None
     honest_sign_category: Optional[str] = None
+    tnved_code: Optional[str] = None
+    okpd2_code: Optional[str] = None
+    certification_required: Optional[bool] = None
+    eac_cert_number: Optional[str] = None
+    eac_cert_url: Optional[str] = None
+    eac_cert_valid_until: Optional[date] = None
+    regulatory_source: Optional[str] = None
     applicability: Optional[str] = None
 
 
@@ -58,6 +65,13 @@ class AutoPartResponse(BaseModel):
     comment: Optional[str] = None
     barcode: Optional[str] = None
     honest_sign_category: Optional[str] = None
+    tnved_code: Optional[str] = None
+    okpd2_code: Optional[str] = None
+    certification_required: Optional[bool] = None
+    eac_cert_number: Optional[str] = None
+    eac_cert_url: Optional[str] = None
+    eac_cert_valid_until: Optional[date] = None
+    regulatory_source: Optional[str] = None
     applicability: Optional[str] = None
     categories: List[str] = Field(default_factory=list)
     storage_locations: List[str] = Field(default_factory=list)
@@ -106,6 +120,13 @@ class AutoPartCreate(BaseModel):
     comment: Optional[str] = None
     barcode: Optional[str] = None
     honest_sign_category: Optional[str] = None
+    tnved_code: Optional[str] = None
+    okpd2_code: Optional[str] = None
+    certification_required: Optional[bool] = None
+    eac_cert_number: Optional[str] = None
+    eac_cert_url: Optional[str] = None
+    eac_cert_valid_until: Optional[date] = None
+    regulatory_source: Optional[str] = None
     applicability: Optional[str] = None
     category_name: Optional[str] = None
     storage_location_name: Optional[str] = None
@@ -149,6 +170,13 @@ class AutoPartUpdate(BaseModel):
     comment: Optional[str] = None
     barcode: Optional[str] = None
     honest_sign_category: Optional[str] = None
+    tnved_code: Optional[str] = None
+    okpd2_code: Optional[str] = None
+    certification_required: Optional[bool] = None
+    eac_cert_number: Optional[str] = None
+    eac_cert_url: Optional[str] = None
+    eac_cert_valid_until: Optional[date] = None
+    regulatory_source: Optional[str] = None
     applicability: Optional[str] = None
     category_name: Optional[str] = None
     storage_location_name: Optional[str] = None
@@ -450,6 +478,13 @@ class AutoPartCatalogItem(BaseModel):
     min_balance_auto: Optional[bool] = None
     barcode: Optional[str] = None
     honest_sign_category: Optional[str] = None
+    tnved_code: Optional[str] = None
+    okpd2_code: Optional[str] = None
+    certification_required: Optional[bool] = None
+    eac_cert_number: Optional[str] = None
+    eac_cert_url: Optional[str] = None
+    eac_cert_valid_until: Optional[date] = None
+    regulatory_source: Optional[str] = None
     applicability: Optional[str] = None
     categories: List[str] = Field(default_factory=list)
     storage_locations: List[str] = Field(default_factory=list)

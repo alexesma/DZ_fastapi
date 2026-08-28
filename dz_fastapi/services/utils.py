@@ -1,7 +1,7 @@
 import logging
 import re
 import unicodedata
-from typing import List
+from typing import Dict, List, Optional
 
 import pandas as pd
 
@@ -140,10 +140,54 @@ def position_exclude(
     return df[mask]
 
 
-def prepare_excel_data_from_records(records: List[dict]) -> pd.DataFrame:
+# Обязательные реквизиты, которые поставщики обязаны отдавать в прайсе.
+REGULATORY_COLUMNS = [
+    "ТН ВЭД",
+    "ОКПД 2",
+    "Честный знак",
+    "Номер сертификата ЕАС",
+    "Ссылка ФГИС",
+]
+
+CERTIFICATION_NOT_REQUIRED_TEXT = "Не требует сертификации"
+
+
+def regulatory_columns_for(attrs: Optional[dict]) -> dict:
+    """Пять обязательных колонок прайса из атрибутов карточки.
+
+    Пустое значение означает «не заполнено» и должно попадать в отчёт
+    незаполненных позиций, а не молча уезжать клиенту. Явное
+    «Не требует сертификации» хранится флагом, а не строкой в поле номера,
+    поэтому текст собирается здесь — в одном месте для всех выгрузок.
+    """
+    attrs = attrs or {}
+    certification_required = attrs.get("certification_required")
+    if certification_required is False:
+        cert_number = CERTIFICATION_NOT_REQUIRED_TEXT
+        cert_url = ""
+    else:
+        cert_number = attrs.get("eac_cert_number") or ""
+        cert_url = attrs.get("eac_cert_url") or ""
+    return {
+        "ТН ВЭД": attrs.get("tnved_code") or "",
+        "ОКПД 2": attrs.get("okpd2_code") or "",
+        "Честный знак": attrs.get("honest_sign_category") or "",
+        "Номер сертификата ЕАС": cert_number,
+        "Ссылка ФГИС": cert_url,
+    }
+
+
+def prepare_excel_data_from_records(
+    records: List[dict],
+    regulatory_by_autopart_id: Optional[Dict[int, dict]] = None,
+) -> pd.DataFrame:
     """
     Собирает DataFrame для экспорта в Excel напрямую из записей
     клиентского прайса (без повторной загрузки ассоциаций из БД).
+
+    regulatory_by_autopart_id — карта обязательных реквизитов по id
+    номенклатуры. Не передана — колонки выводятся пустыми, чтобы старые
+    вызовы не падали.
     """
     columns = [
         "Производитель",
@@ -151,20 +195,26 @@ def prepare_excel_data_from_records(records: List[dict]) -> pd.DataFrame:
         "Артикул",
         "Количество",
         "Цена",
+        *REGULATORY_COLUMNS,
     ]
-    return pd.DataFrame(
-        [
-            {
-                "Производитель": record.get("brand"),
-                "Наименование": record.get("name"),
-                "Артикул": record.get("oem_number"),
-                "Количество": record.get("quantity"),
-                "Цена": record.get("price"),
-            }
-            for record in records
-        ],
-        columns=columns,
-    )
+    regulatory_map = regulatory_by_autopart_id or {}
+    rows = []
+    for record in records:
+        autopart_id = record.get("autopart_id")
+        try:
+            key = int(autopart_id) if autopart_id is not None else None
+        except (TypeError, ValueError):
+            key = None
+        row = {
+            "Производитель": record.get("brand"),
+            "Наименование": record.get("name"),
+            "Артикул": record.get("oem_number"),
+            "Количество": record.get("quantity"),
+            "Цена": record.get("price"),
+        }
+        row.update(regulatory_columns_for(regulatory_map.get(key)))
+        rows.append(row)
+    return pd.DataFrame(rows, columns=columns)
 
 
 def prepare_excel_data(
@@ -181,18 +231,40 @@ def prepare_excel_data(
     excel_data = []
     for assoc in associations:
         autopart = assoc.autopart
-        excel_data.append(
-            {
-                "Производитель": (
-                    autopart.brand.name if autopart.brand else None
-                ),
-                "Наименование": autopart.name,
-                "Артикул": autopart.oem_number,
-                "Количество": assoc.quantity,
-                "Цена": assoc.price,
-            }
+        row = {
+            "Производитель": (
+                autopart.brand.name if autopart.brand else None
+            ),
+            "Наименование": autopart.name,
+            "Артикул": autopart.oem_number,
+            "Количество": assoc.quantity,
+            "Цена": assoc.price,
+        }
+        # Реквизиты берём прямо с карточки — ассоциация уже её загрузила.
+        row.update(
+            regulatory_columns_for(
+                {
+                    "tnved_code": autopart.tnved_code,
+                    "okpd2_code": autopart.okpd2_code,
+                    "honest_sign_category": autopart.honest_sign_category,
+                    "certification_required": autopart.certification_required,
+                    "eac_cert_number": autopart.eac_cert_number,
+                    "eac_cert_url": autopart.eac_cert_url,
+                }
+            )
         )
-    return pd.DataFrame(excel_data)
+        excel_data.append(row)
+    return pd.DataFrame(
+        excel_data,
+        columns=[
+            "Производитель",
+            "Наименование",
+            "Артикул",
+            "Количество",
+            "Цена",
+            *REGULATORY_COLUMNS,
+        ],
+    )
 
 
 async def compare_pricelists(old_pl, new_pl, qty_diff_threshold: int = 3):

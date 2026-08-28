@@ -12,6 +12,11 @@ from dz_fastapi.models.autopart import (
     autopart_storage_association,
 )
 from dz_fastapi.models.brand import Brand, brand_synonyms  # noqa
+from dz_fastapi.models.certificate import (  # noqa
+    Certificate,
+    CertificationExemptionRule,
+    autopart_certificate_association,
+)
 from dz_fastapi.models.cross import (  # noqa
     AutoPartCross,
     AutoPartInvalidCross,

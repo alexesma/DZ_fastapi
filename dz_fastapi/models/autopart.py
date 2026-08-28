@@ -4,7 +4,7 @@ from enum import StrEnum, unique
 from hashlib import sha1
 from uuid import uuid4
 
-from sqlalchemy import DECIMAL, JSON, Boolean, CheckConstraint, Column, DateTime
+from sqlalchemy import DECIMAL, JSON, Boolean, CheckConstraint, Column, Date, DateTime
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import (
     Float,
@@ -160,6 +160,23 @@ class AutoPart(Base):
     honest_sign_category = Column(String(100), nullable=True)
     # Применение: на какие автомобили подходит запчасть
     applicability = Column(Text, nullable=True)
+
+    # ── Обязательные реквизиты прайса ───────────────────────────────────────
+    # Код ТН ВЭД ЕАЭС (10 знаков). Эталонный источник — графа 33 ГТД или УПД
+    # поставщика; проставленный «по смыслу» код лучше помечать как ручной.
+    tnved_code = Column(String(20), nullable=True, index=True)
+    # ОКПД 2. Выводится из ТН ВЭД по переходным ключам, но соответствие
+    # один-ко-многим и не исчерпывающее — итоговый выбор подтверждает человек.
+    okpd2_code = Column(String(20), nullable=True)
+    # None — не определено, False — не требует оценки соответствия,
+    # True — требует. Разделено с номером, чтобы «Не требует сертификации»
+    # можно было искать и считать, а не хранить строкой в поле номера.
+    certification_required = Column(Boolean, nullable=True)
+    eac_cert_number = Column(String(150), nullable=True)
+    eac_cert_url = Column(String(500), nullable=True)
+    eac_cert_valid_until = Column(Date, nullable=True)
+    # Откуда взято значение: gtd | supplier_doc | registry | manual | rule
+    regulatory_source = Column(String(32), nullable=True)
     __table_args__ = (
         UniqueConstraint("brand_id", "oem_number", name="uq_brand_oem_number"),
         CheckConstraint("width > 0", name="check_width_positive"),
@@ -211,6 +228,14 @@ class AutoPart(Base):
         "CustomerPriceListAutoPartAssociation",
         back_populates="autopart",
         cascade="all, delete-orphan",
+    )
+    # Сертификаты (M2M). Поля eac_cert_* выше — кэш действующего документа
+    # для быстрой выгрузки прайса, источник истины здесь.
+    certificates = relationship(
+        "Certificate",
+        secondary="autopart_certificate_association",
+        back_populates="autoparts",
+        lazy="selectin",
     )
     __mapper_args__ = {"polymorphic_identity": "autopart"}
 

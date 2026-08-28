@@ -1230,6 +1230,55 @@ def _apply_benchmark_floor_records(
     return result, changed
 
 
+async def _load_regulatory_attrs(
+    session: AsyncSession,
+    autopart_ids: set[int],
+) -> dict[int, dict]:
+    """Обязательные реквизиты прайса по id номенклатуры.
+
+    Для алиасов Dragonzap берётся карточка физической позиции, а не
+    рекламируемого артикула: ТН ВЭД и сертификат описывают товар, который
+    клиент реально получит.
+    """
+    ids = sorted({int(item) for item in autopart_ids if item is not None})
+    if not ids:
+        return {}
+    stmt = select(
+        AutoPart.id,
+        AutoPart.tnved_code,
+        AutoPart.okpd2_code,
+        AutoPart.honest_sign_category,
+        AutoPart.certification_required,
+        AutoPart.eac_cert_number,
+        AutoPart.eac_cert_url,
+    ).where(AutoPart.id.in_(ids))
+    return {
+        int(row.id): {
+            "tnved_code": row.tnved_code,
+            "okpd2_code": row.okpd2_code,
+            "honest_sign_category": row.honest_sign_category,
+            "certification_required": row.certification_required,
+            "eac_cert_number": row.eac_cert_number,
+            "eac_cert_url": row.eac_cert_url,
+        }
+        for row in (await session.execute(stmt)).all()
+    }
+
+
+def _collect_autopart_ids(*record_groups) -> set[int]:
+    ids: set[int] = set()
+    for records in record_groups:
+        for record in records or []:
+            value = record.get("autopart_id")
+            if value is None:
+                continue
+            try:
+                ids.add(int(value))
+            except (TypeError, ValueError):
+                continue
+    return ids
+
+
 async def _build_dragonzap_cross_alias_records(
     session: AsyncSession,
     *,
@@ -3187,9 +3236,23 @@ async def process_customer_pricelist(
     )
     # Prepare data for Excel file: строим из уже готовых записей,
     # без зависимости от перезагруженных ассоциаций.
+    main_records = (
+        direct_output_records if pipeline_v2 else customer_autoparts_data
+    )
+    # Обязательные реквизиты подтягиваем одним запросом на всю выгрузку,
+    # включая позиции-источники и алиасы Dragonzap.
+    regulatory_attrs = await _load_regulatory_attrs(
+        session,
+        _collect_autopart_ids(
+            main_records,
+            dragonzap_source_records,
+            dragonzap_alias_records,
+        ),
+    )
     df_excel = await asyncio.to_thread(
         prepare_excel_data_from_records,
-        direct_output_records if pipeline_v2 else customer_autoparts_data,
+        main_records,
+        regulatory_attrs,
     )
 
     # DZ brand expansion (without name labels) — applied at Excel level
@@ -3317,7 +3380,9 @@ async def process_customer_pricelist(
         _sync_dragonzap_alias_prices(dragonzap_alias_records, df_excel)
     if not pipeline_v2 and dz_expand_enabled and dragonzap_source_records:
         source_excel = await asyncio.to_thread(
-            prepare_excel_data_from_records, dragonzap_source_records
+            prepare_excel_data_from_records,
+            dragonzap_source_records,
+            regulatory_attrs,
         )
         df_excel = pd.concat([df_excel, source_excel], ignore_index=True)
     if dragonzap_alias_records:
@@ -3336,7 +3401,9 @@ async def process_customer_pricelist(
                 )
             )
         alias_excel = await asyncio.to_thread(
-            prepare_excel_data_from_records, dragonzap_alias_records
+            prepare_excel_data_from_records,
+            dragonzap_alias_records,
+            regulatory_attrs,
         )
         df_excel = pd.concat([df_excel, alias_excel], ignore_index=True)
         logger.info(
