@@ -36,19 +36,26 @@ from dz_fastapi.services.process import (
     customer_pricelist_pipeline,
     expand_dz_brands,
 )
-from dz_fastapi.services.utils import prepare_excel_data_from_records
+from dz_fastapi.services.utils import (
+    REGULATORY_COLUMNS,
+    prepare_excel_data_from_records,
+)
 
 
 def test_empty_excel_records_keep_export_columns_for_later_aliases():
     result = prepare_excel_data_from_records([])
 
     assert result.empty
+    # Пустая выгрузка обязана нести полный набор колонок: иначе concat с
+    # алиасами Dragonzap разъедется по схеме. Обязательные реквизиты
+    # берём из константы, чтобы список не расходился при её изменении.
     assert result.columns.tolist() == [
         "Производитель",
         "Наименование",
         "Артикул",
         "Количество",
         "Цена",
+        *REGULATORY_COLUMNS,
     ]
     assert expand_dz_brands(result).columns.tolist() == result.columns.tolist()
 
