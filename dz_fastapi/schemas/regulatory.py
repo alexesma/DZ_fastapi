@@ -97,3 +97,20 @@ class SuspiciousLinksResponse(BaseModel):
     unverified_certificates: int = 0
     by_problem: dict[str, int] = {}
     items: list[SuspiciousLinkRow] = []
+
+
+class TnvedOkpd2ImportResponse(BaseModel):
+    rows: int = 0
+    created: int = 0
+    existing: int = 0
+
+
+class Okpd2FromTnvedResponse(BaseModel):
+    # Строк в загруженной таблице соответствия. Ноль означает, что
+    # таблицу ещё не загружали и проставлять не из чего.
+    table_rows: int = 0
+    positions: int = 0
+    updated: int = 0
+    # Одному ТН ВЭД отвечает несколько ОКПД 2 — выбор за человеком.
+    ambiguous: int = 0
+    no_match: int = 0

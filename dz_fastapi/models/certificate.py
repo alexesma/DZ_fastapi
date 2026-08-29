@@ -136,3 +136,32 @@ class CertificationExemptionRule(Base):
             name="uq_certification_exemption_pattern",
         ),
     )
+
+
+class TnvedOkpd2Match(Base):
+    """Соответствие кода ТН ВЭД коду ОКПД 2.
+
+    Формулой одно из другого не выводится: соответствие устанавливается
+    официальной таблицей, и оно один ко многим — одному коду ТН ВЭД может
+    отвечать несколько ОКПД 2. Поэтому таблица загружается из внешнего
+    файла, а проставление идёт только там, где соответствие однозначно;
+    спорное оставляем человеку.
+
+    Сопоставление по префиксу: в таблице код бывает укрупнённым (четыре
+    или шесть знаков), а в карточке — полным десятизначным. Выигрывает
+    самый длинный подошедший префикс, как более точный.
+    """
+
+    __tablename__ = "tnvedokpd2match"
+
+    tnved_prefix = Column(String(20), nullable=False, index=True)
+    okpd2_code = Column(String(20), nullable=False)
+    comment = Column(Text, nullable=True)
+    # Откуда взята строка: имя файла или название источника.
+    source = Column(String(255), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "tnved_prefix", "okpd2_code", name="unique_tnved_okpd2"
+        ),
+    )

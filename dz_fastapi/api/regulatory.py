@@ -13,17 +13,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dz_fastapi.api.deps import require_admin
 from dz_fastapi.core.db import get_session
 from dz_fastapi.schemas.regulatory import (
+    Okpd2FromTnvedResponse,
     RegistryRefreshResponse,
     RegulatoryCoverageResponse,
     RegulatoryImportResponse,
     RegulatoryRulesResponse,
     SuspiciousLinksResponse,
+    TnvedOkpd2ImportResponse,
 )
 from dz_fastapi.services.certification_rules import apply_exemption_rules, sync_exemption_rules
 from dz_fastapi.services.registry_lookup import refresh_certificates_from_registry
 from dz_fastapi.services.regulatory import (
+    apply_okpd2_from_tnved,
     import_supplier_regulatory,
+    import_tnved_okpd2_table,
     parse_supplier_regulatory_file,
+    parse_tnved_okpd2_file,
     regulatory_coverage,
     suspicious_certificate_links,
 )
@@ -189,4 +194,45 @@ async def get_suspicious_links(
     """Связи позиция-документ, не прошедшие проверку."""
     return SuspiciousLinksResponse(
         **await suspicious_certificate_links(session, limit=limit)
+    )
+
+
+@router.post(
+    "/regulatory/tnved-okpd2/import/",
+    tags=["regulatory"],
+    response_model=TnvedOkpd2ImportResponse,
+)
+async def upload_tnved_okpd2_table(
+    file: UploadFile = File(...),
+    dry_run: bool = Query(default=True),
+    session: AsyncSession = Depends(get_session),
+):
+    """Загружает официальную таблицу соответствия ТН ВЭД — ОКПД 2."""
+    content = await file.read()
+    try:
+        rows = parse_tnved_okpd2_file(content)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    return TnvedOkpd2ImportResponse(
+        **await import_tnved_okpd2_table(
+            session, rows, source=file.filename, dry_run=dry_run
+        )
+    )
+
+
+@router.post(
+    "/regulatory/okpd2-from-tnved/",
+    tags=["regulatory"],
+    response_model=Okpd2FromTnvedResponse,
+)
+async def fill_okpd2_from_tnved(
+    dry_run: bool = Query(default=True),
+    only_empty: bool = Query(default=True),
+    session: AsyncSession = Depends(get_session),
+):
+    """Проставляет ОКПД 2 там, где соответствие однозначно."""
+    return Okpd2FromTnvedResponse(
+        **await apply_okpd2_from_tnved(
+            session, dry_run=dry_run, only_empty=only_empty
+        )
     )

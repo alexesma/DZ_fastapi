@@ -25,13 +25,18 @@ from collections import defaultdict
 from datetime import date
 from typing import Any, Iterable, Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
 from dz_fastapi.models.brand import Brand, brand_synonyms
-from dz_fastapi.models.certificate import Certificate, autopart_certificate_association
+from dz_fastapi.models.certificate import (
+    Certificate,
+    TnvedOkpd2Match,
+    autopart_certificate_association,
+)
+from dz_fastapi.models.nomenclature import HonestSignCategory
 from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation, Provider
 from dz_fastapi.services.utils import (
     CERTIFICATION_NOT_REQUIRED_TEXT,
@@ -178,6 +183,38 @@ def normalize_brand_key(value: Optional[str]) -> str:
     разделители.
     """
     return re.sub(r"[^0-9a-zа-яё]", "", str(value or "").lower())
+
+
+# Значения, которыми поставщики отвечают «да» в колонке «Подключен к ЧЗ».
+# Сам по себе флаг категорию не называет, поэтому по нему карточку не
+# заполняем — только считаем, чтобы значение не пропадало молча.
+_HONEST_SIGN_FLAGS = frozenset(
+    {"да", "yes", "true", "1", "+", "нет", "no", "false", "0", "-"}
+)
+
+
+def _normalize_category_key(value: Optional[str]) -> str:
+    return re.sub(r"[^0-9a-zа-яё]", "", str(value or "").lower())
+
+
+async def load_honest_sign_index(
+    session: AsyncSession,
+) -> dict[str, int]:
+    """Название категории Честного знака → id.
+
+    Поставщики пишут в эту колонку либо флаг «да/нет», либо название
+    категории. Название сопоставляем со справочником, флаг — нет: он не
+    говорит, какой именно категории подлежит товар, а угадать её нельзя.
+    """
+    return {
+        _normalize_category_key(name): int(category_id)
+        for category_id, name in (
+            await session.execute(
+                select(HonestSignCategory.id, HonestSignCategory.name)
+            )
+        ).all()
+        if _normalize_category_key(name)
+    }
 
 
 async def load_brand_groups(
@@ -413,6 +450,8 @@ async def import_supplier_regulatory(
         session, [key for key, _ in prepared], brand_keys
     )
 
+    honest_sign_index = await load_honest_sign_index(session)
+
     stats = {
         "rows": len(prepared),
         "matched": 0,
@@ -422,6 +461,11 @@ async def import_supplier_regulatory(
         "unchanged": 0,
         "fields_filled": defaultdict(int),
         "unmatched_brands": defaultdict(int),
+        # Значения колонки «Подключен к ЧЗ», которые не удалось разложить
+        # по нашим категориям. Раньше они молча терялись.
+        "honest_sign_linked": 0,
+        "honest_sign_flag_only": 0,
+        "honest_sign_unknown": defaultdict(int),
     }
 
     targets: dict[int, dict[str, Any]] = {}
@@ -439,6 +483,7 @@ async def import_supplier_regulatory(
     if not targets:
         stats["fields_filled"] = dict(stats["fields_filled"])
         stats["unmatched_brands"] = dict(stats["unmatched_brands"])
+        stats["honest_sign_unknown"] = dict(stats["honest_sign_unknown"])
         return stats
 
     # Сертификаты заводим один раз на номер и связываем с позициями:
@@ -461,7 +506,10 @@ async def import_supplier_regulatory(
                 await session.execute(
                     select(AutoPart)
                     .where(AutoPart.id.in_(chunk))
-                    .options(selectinload(AutoPart.certificates))
+                    .options(
+                        selectinload(AutoPart.certificates),
+                        selectinload(AutoPart.honest_sign_categories),
+                    )
                 )
             )
             .scalars()
@@ -488,6 +536,42 @@ async def import_supplier_regulatory(
             changes["eac_cert_number"] = cert_number
         if row.get("eac_cert_url") and not part.eac_cert_url:
             changes["eac_cert_url"] = row["eac_cert_url"]
+
+        # Честный знак. У нас это категории маркировки, у поставщика в
+        # той же колонке может стоять и название категории, и просто
+        # «да». Название сопоставляем со справочником, флаг — считаем.
+        honest_sign = (row.get("honest_sign") or "").strip()
+        if honest_sign and not dry_run:
+            if honest_sign.casefold() in _HONEST_SIGN_FLAGS:
+                stats["honest_sign_flag_only"] += 1
+            else:
+                category_id = honest_sign_index.get(
+                    _normalize_category_key(honest_sign)
+                )
+                if category_id is None:
+                    stats["honest_sign_unknown"][honest_sign] += 1
+                elif category_id not in {
+                    item.id for item in part.honest_sign_categories
+                }:
+                    part.honest_sign_categories.append(
+                        await session.get(HonestSignCategory, category_id)
+                    )
+                    part.honest_sign_category = ", ".join(
+                        sorted(
+                            item.name
+                            for item in part.honest_sign_categories
+                            if item.name
+                        )
+                    )[:100] or None
+                    stats["honest_sign_linked"] += 1
+                    session.add(part)
+        elif honest_sign and dry_run:
+            if honest_sign.casefold() in _HONEST_SIGN_FLAGS:
+                stats["honest_sign_flag_only"] += 1
+            elif _normalize_category_key(honest_sign) in honest_sign_index:
+                stats["honest_sign_linked"] += 1
+            else:
+                stats["honest_sign_unknown"][honest_sign] += 1
 
         # Связь ставим независимо от того, менялись ли поля карточки:
         # позиция могла уже иметь номер, но не иметь связи с документом.
@@ -528,6 +612,12 @@ async def import_supplier_regulatory(
     stats["unmatched_brands"] = dict(
         sorted(
             stats["unmatched_brands"].items(),
+            key=lambda item: -item[1],
+        )[:20]
+    )
+    stats["honest_sign_unknown"] = dict(
+        sorted(
+            stats["honest_sign_unknown"].items(),
             key=lambda item: -item[1],
         )[:20]
     )
@@ -1201,3 +1291,175 @@ async def suspicious_certificate_links(
         "by_problem": dict(counts),
         "items": items,
     }
+
+
+# ── ОКПД 2 по ТН ВЭД ────────────────────────────────────────────────────
+
+TNVED_COLUMN_ALIASES = ("тнвэд", "кодтнвэд", "тнвэдеаэс")
+OKPD2_COLUMN_ALIASES = ("окпд2", "окпд", "кодокпд2")
+
+
+def normalize_code(value: Optional[str]) -> str:
+    """Код без пробелов, точек и прочих разделителей.
+
+    В таблицах соответствия один и тот же код пишут и «8708 80 100 0»,
+    и «8708801000», а ОКПД 2 — с точками. Сравниваем по цифрам.
+    """
+    return re.sub(r"[^0-9]", "", str(value or ""))
+
+
+def parse_tnved_okpd2_file(
+    content: bytes,
+    *,
+    delimiter: str = ";",
+) -> list[dict[str, str]]:
+    """Разбирает таблицу соответствия ТН ВЭД — ОКПД 2."""
+    text: Optional[str] = None
+    for candidate in ("utf-8-sig", "cp1251", "utf-8"):
+        try:
+            text = content.decode(candidate)
+            break
+        except (UnicodeDecodeError, LookupError):
+            continue
+    if text is None:
+        raise ValueError("Не удалось определить кодировку файла")
+
+    reader = list(csv.reader(io.StringIO(text), delimiter=delimiter))
+    if not reader:
+        return []
+    header = [_normalize_header(cell) for cell in reader[0]]
+    tnved_index = next(
+        (i for i, cell in enumerate(header) if cell in TNVED_COLUMN_ALIASES),
+        None,
+    )
+    okpd2_index = next(
+        (i for i, cell in enumerate(header) if cell in OKPD2_COLUMN_ALIASES),
+        None,
+    )
+    if tnved_index is None or okpd2_index is None:
+        raise ValueError(
+            "В файле не найдены колонки ТН ВЭД и ОКПД 2"
+        )
+
+    rows: list[dict[str, str]] = []
+    for raw in reader[1:]:
+        if len(raw) <= max(tnved_index, okpd2_index):
+            continue
+        tnved = normalize_code(raw[tnved_index])
+        okpd2 = str(raw[okpd2_index] or "").strip()
+        if not tnved or not okpd2:
+            continue
+        rows.append({"tnved_prefix": tnved, "okpd2_code": okpd2})
+    return rows
+
+
+async def import_tnved_okpd2_table(
+    session: AsyncSession,
+    rows: list[dict[str, str]],
+    *,
+    source: Optional[str] = None,
+    dry_run: bool = True,
+) -> dict[str, Any]:
+    """Загружает таблицу соответствия, не трогая уже загруженное."""
+    wanted = {
+        (row["tnved_prefix"], row["okpd2_code"]) for row in rows
+    }
+    if not wanted:
+        return {"rows": 0, "created": 0, "existing": 0}
+
+    existing = {
+        (prefix, code)
+        for prefix, code in (
+            await session.execute(
+                select(
+                    TnvedOkpd2Match.tnved_prefix, TnvedOkpd2Match.okpd2_code
+                )
+            )
+        ).all()
+    }
+    missing = sorted(wanted - existing)
+    if not dry_run and missing:
+        session.add_all(
+            [
+                TnvedOkpd2Match(
+                    tnved_prefix=prefix, okpd2_code=code, source=source
+                )
+                for prefix, code in missing
+            ]
+        )
+        await session.commit()
+    return {
+        "rows": len(rows),
+        "created": len(missing),
+        "existing": len(wanted) - len(missing),
+    }
+
+
+async def apply_okpd2_from_tnved(
+    session: AsyncSession,
+    *,
+    dry_run: bool = True,
+    only_empty: bool = True,
+) -> dict[str, Any]:
+    """Проставляет ОКПД 2 позициям, у которых заполнен ТН ВЭД.
+
+    Соответствие один ко многим, поэтому заполняем только там, где по
+    самому длинному подошедшему префиксу код ровно один. Неоднозначное
+    считаем и оставляем человеку: выбрать за него значит поставить в
+    прайс код, которого товар не касается.
+    """
+    by_prefix: dict[str, set[str]] = defaultdict(set)
+    for prefix, code in (
+        await session.execute(
+            select(TnvedOkpd2Match.tnved_prefix, TnvedOkpd2Match.okpd2_code)
+        )
+    ).all():
+        by_prefix[prefix].add(code)
+    if not by_prefix:
+        return {
+            "table_rows": 0,
+            "positions": 0,
+            "updated": 0,
+            "ambiguous": 0,
+            "no_match": 0,
+        }
+
+    stmt = select(AutoPart).where(
+        AutoPart.tnved_code.is_not(None),
+        AutoPart.tnved_code != "",
+        func.coalesce(AutoPart.regulatory_source, "") != MANUAL_SOURCE,
+    )
+    if only_empty:
+        stmt = stmt.where(
+            or_(AutoPart.okpd2_code.is_(None), AutoPart.okpd2_code == "")
+        )
+    parts = (await session.execute(stmt)).scalars().all()
+
+    stats = {
+        "table_rows": sum(len(codes) for codes in by_prefix.values()),
+        "positions": len(parts),
+        "updated": 0,
+        "ambiguous": 0,
+        "no_match": 0,
+    }
+    for part in parts:
+        digits = normalize_code(part.tnved_code)
+        codes: set[str] = set()
+        # Самый длинный подошедший префикс точнее укрупнённого.
+        for length in range(len(digits), 1, -1):
+            candidate = by_prefix.get(digits[:length])
+            if candidate:
+                codes = candidate
+                break
+        if not codes:
+            stats["no_match"] += 1
+        elif len(codes) > 1:
+            stats["ambiguous"] += 1
+        else:
+            stats["updated"] += 1
+            if not dry_run:
+                part.okpd2_code = next(iter(codes))
+                session.add(part)
+    if not dry_run and stats["updated"]:
+        await session.commit()
+    return stats

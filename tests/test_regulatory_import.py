@@ -9,6 +9,7 @@ from sqlalchemy import select
 
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand, brand_synonyms
+from dz_fastapi.models.nomenclature import HonestSignCategory
 from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation
 from dz_fastapi.services.regulatory import (
     _split_certificate,
@@ -395,3 +396,79 @@ async def test_unrelated_brands_do_not_match(test_session):
 
     await test_session.refresh(part)
     assert part.eac_cert_number is None
+
+
+# ── Честный знак из прайса поставщика ───────────────────────────────────
+
+
+@pytest.mark.anyio
+async def test_honest_sign_category_name_is_linked(
+    test_session, created_brand
+):
+    """В колонке «Подключен к ЧЗ» стоит название категории — связываем
+    её со справочником, значение не теряется."""
+    category = HonestSignCategory(name='Шины и покрышки')
+    part = AutoPart(
+        brand_id=created_brand.id, oem_number='HS0001', name='Шина'
+    )
+    test_session.add_all([category, part])
+    await test_session.commit()
+
+    rows, _ = parse_supplier_regulatory_file(
+        _csv('TEST BRAND;HS0001;Шина;4011;;шины и покрышки;;')
+    )
+    result = await import_supplier_regulatory(
+        test_session, rows, dry_run=False
+    )
+    assert result['honest_sign_linked'] == 1
+
+    await test_session.refresh(part)
+    assert part.honest_sign_category == 'Шины и покрышки'
+
+
+@pytest.mark.anyio
+async def test_honest_sign_flag_is_counted_not_guessed(
+    test_session, created_brand
+):
+    """«Да» не называет категорию, и угадать её нельзя — считаем
+    отдельно, чтобы значение не пропадало молча."""
+    part = AutoPart(
+        brand_id=created_brand.id, oem_number='HS0002', name='Фильтр'
+    )
+    test_session.add(part)
+    await test_session.commit()
+
+    rows, _ = parse_supplier_regulatory_file(
+        _csv('TEST BRAND;HS0002;Фильтр;8421;;Да;;')
+    )
+    result = await import_supplier_regulatory(
+        test_session, rows, dry_run=False
+    )
+    assert result['honest_sign_flag_only'] == 1
+    assert result['honest_sign_linked'] == 0
+
+    await test_session.refresh(part)
+    assert part.honest_sign_category is None
+
+
+@pytest.mark.anyio
+async def test_unknown_honest_sign_value_is_reported(
+    test_session, created_brand
+):
+    """Незнакомая категория попадает в отчёт, а не в карточку."""
+    part = AutoPart(
+        brand_id=created_brand.id, oem_number='HS0003', name='Фильтр'
+    )
+    test_session.add(part)
+    await test_session.commit()
+
+    rows, _ = parse_supplier_regulatory_file(
+        _csv('TEST BRAND;HS0003;Фильтр;8421;;Неизвестная категория;;')
+    )
+    result = await import_supplier_regulatory(
+        test_session, rows, dry_run=False
+    )
+    assert result['honest_sign_unknown'] == {'Неизвестная категория': 1}
+
+    await test_session.refresh(part)
+    assert part.honest_sign_category is None
