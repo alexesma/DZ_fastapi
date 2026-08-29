@@ -68,8 +68,18 @@ def test_commerceml_xml_structure():
     assert good.findtext("Количество") == "10"
     assert good.findtext("Сумма") == "1505.00"
     assert (
-        good.findtext("СтавкиНалогов/СтавкаНалога/Ставка") == "20"
+        good.findtext("СтавкиНалогов/СтавкаНалога/Ставка") == "22"
     )
+
+
+def test_commerceml_xml_uses_item_vat_rate():
+    shipment = _shipment_stub()
+    shipment.items[0].vat_rate = Decimal("10.00")
+
+    root = ET.fromstring(build_commerceml_sale_xml([shipment]))
+    good = root.find("Документ/Товары/Товар")
+
+    assert good.findtext("СтавкиНалогов/СтавкаНалога/Ставка") == "10"
 
 
 def test_commerceml_xml_without_customer():

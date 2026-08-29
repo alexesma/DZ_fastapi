@@ -40,7 +40,7 @@ from dz_fastapi.models.partner import Customer, Provider, SupplierReceipt
 logger = logging.getLogger("dz_fastapi")
 
 COMMERCEML_SCHEMA_VERSION = "2.05"
-DEFAULT_VAT_RATE = "20"
+DEFAULT_VAT_RATE = "22"
 SALE_QUERY_LIMIT = 100
 
 
@@ -48,6 +48,12 @@ def _fmt_money(value: Any) -> str:
     if value is None:
         return "0.00"
     return f"{Decimal(str(value)):.2f}"
+
+
+def _fmt_rate(value: Any) -> str:
+    """Format a tax rate without trailing zeroes for CommerceML."""
+    rate = Decimal(str(DEFAULT_VAT_RATE if value is None else value))
+    return format(rate.normalize(), "f")
 
 
 def _shipment_document_number(document: ShipmentDocument) -> str:
@@ -178,7 +184,10 @@ def build_commerceml_sale_xml(
             taxes = ET.SubElement(good, "СтавкиНалогов")
             tax = ET.SubElement(taxes, "СтавкаНалога")
             ET.SubElement(tax, "Наименование").text = "НДС"
-            ET.SubElement(tax, "Ставка").text = str(vat_rate)
+            item_vat_rate = getattr(item, "vat_rate", None)
+            ET.SubElement(tax, "Ставка").text = _fmt_rate(
+                vat_rate if item_vat_rate is None else item_vat_rate
+            )
 
         requisites = ET.SubElement(doc_el, "ЗначенияРеквизитов")
         for req_name, req_value in (
@@ -224,6 +233,7 @@ def build_commerceml_sale_xml_from_snapshots(
                     customer_name=row.get("customer_name"),
                     quantity=row.get("quantity"),
                     price=row.get("price"),
+                    vat_rate=row.get("vat_rate"),
                 )
             )
         raw_date = snapshot.get("document_date")
