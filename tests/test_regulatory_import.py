@@ -8,10 +8,13 @@ import pytest
 from sqlalchemy import select
 
 from dz_fastapi.models.autopart import AutoPart
+from dz_fastapi.models.brand import Brand, brand_synonyms
 from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation
 from dz_fastapi.services.regulatory import (
     _split_certificate,
+    chunked,
     import_supplier_regulatory,
+    normalize_brand_key,
     parse_supplier_regulatory_file,
     propagate_certificates_by_brand,
 )
@@ -268,3 +271,127 @@ async def test_propagation_applies_within_ratio(
     ).scalars().all()
     assert all(part.eac_cert_number == cert for part in updated)
     assert all(part.regulatory_source == "brand_rule" for part in updated)
+
+
+# ── сопоставление брендов и порционные запросы ──────────────────────────
+
+
+@pytest.mark.parametrize(
+    "written, catalogue",
+    [
+        ("Hyundai/Kia", "HYUNDAI-KIA"),
+        ("Citroen/Peugeot", "CITROEN-PEUGEOT"),
+        ("Master KiT", "MASTERKIT"),
+        ("  febi  ", "FEBI"),
+    ],
+)
+def test_brand_key_ignores_case_and_separators(written, catalogue):
+    """Поставщики пишут бренд по-своему: «Hyundai/Kia» и «HYUNDAI-KIA» —
+    один и тот же бренд каталога, иначе позиции остаются без реквизитов."""
+    assert normalize_brand_key(written) == normalize_brand_key(catalogue)
+
+
+def test_brand_key_keeps_different_brands_apart():
+    assert normalize_brand_key('MANN') != normalize_brand_key('MANNOL')
+
+
+def test_chunked_splits_by_size_and_keeps_order():
+    """asyncpg не принимает больше 32 767 параметров: список для IN режем
+    порциями, иначе импорт всех файлов падает на InterfaceError."""
+    values = list(range(25))
+    assert list(chunked(values, 10)) == [
+        list(range(10)), list(range(10, 20)), list(range(20, 25))
+    ]
+    assert list(chunked([], 10)) == []
+    assert list(chunked([1, 2], 10)) == [[1, 2]]
+
+
+@pytest.mark.anyio
+async def test_import_matches_part_when_brand_written_differently(
+    test_session, created_brand
+):
+    """Бренд в файле написан иначе, чем в каталоге, — позиция всё равно
+    должна получить реквизиты."""
+    part = AutoPart(
+        brand_id=created_brand.id,
+        oem_number='BRANDKEY1',
+        name='Фильтр масляный',
+    )
+    test_session.add(part)
+    await test_session.commit()
+
+    disguised = created_brand.name.lower().replace('-', ' / ')
+    content = _csv(
+        f'{disguised};BRANDKEY1;Фильтр масляный;8708;;;'
+        f'ЕАЭС RU С-CN.НА96.В.02398/22;https://pub.fsa.gov.ru/y'
+    )
+    rows, _ = parse_supplier_regulatory_file(content)
+    result = await import_supplier_regulatory(
+        test_session, rows, dry_run=False
+    )
+    assert result['matched'] == 1
+
+    await test_session.refresh(part)
+    assert part.eac_cert_number == 'ЕАЭС RU С-CN.НА96.В.02398/22'
+
+
+@pytest.mark.anyio
+async def test_certificate_matches_part_through_brand_synonym(test_session):
+    """Сертификат выписан на одно написание бренда, позиция заведена под
+    другим: связь берётся из справочника синонимов, а не угадывается."""
+    main = Brand(name='LUKOIL', main_brand=True)
+    alias = Brand(name='ЛУКОЙЛ')
+    test_session.add_all([main, alias])
+    await test_session.flush()
+    await test_session.execute(
+        brand_synonyms.insert().values(
+            brand_id=main.id, synonym_id=alias.id
+        )
+    )
+    part = AutoPart(
+        brand_id=main.id, oem_number='SYN0001', name='Масло моторное'
+    )
+    test_session.add(part)
+    await test_session.commit()
+
+    rows, _ = parse_supplier_regulatory_file(
+        _csv(
+            'ЛУКОЙЛ;SYN0001;Масло моторное;2710;;;'
+            'ЕАЭС RU С-RU.АД50.В.05948/23;https://pub.fsa.gov.ru/z'
+        )
+    )
+    result = await import_supplier_regulatory(
+        test_session, rows, dry_run=False
+    )
+    assert result['matched'] == 1
+
+    await test_session.refresh(part)
+    assert part.eac_cert_number == 'ЕАЭС RU С-RU.АД50.В.05948/23'
+
+
+@pytest.mark.anyio
+async def test_unrelated_brands_do_not_match(test_session):
+    """Без записи в синонимах разные написания остаются разными
+    брендами — иначе позиции получат чужой сертификат."""
+    ours = Brand(name='MANNOL', main_brand=True)
+    test_session.add(ours)
+    await test_session.flush()
+    part = AutoPart(
+        brand_id=ours.id, oem_number='SYN0002', name='Масло моторное'
+    )
+    test_session.add(part)
+    await test_session.commit()
+
+    rows, _ = parse_supplier_regulatory_file(
+        _csv(
+            'MANN;SYN0002;Масло моторное;2710;;;'
+            'ЕАЭС RU С-RU.АД50.В.05949/23;https://pub.fsa.gov.ru/z'
+        )
+    )
+    result = await import_supplier_regulatory(
+        test_session, rows, dry_run=False
+    )
+    assert result['matched'] == 0
+
+    await test_session.refresh(part)
+    assert part.eac_cert_number is None

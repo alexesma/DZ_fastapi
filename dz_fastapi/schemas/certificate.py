@@ -8,6 +8,9 @@ class CertificateBase(BaseModel):
     number: str
     url: Optional[str] = None
     brand_id: Optional[int] = None
+    # Бренд как написан в прайсе поставщика — на случай, когда такого
+    # бренда нет в каталоге и brand_id проставить не от чего.
+    source_brand: Optional[str] = None
     covers_whole_brand: bool = False
     valid_from: Optional[date] = None
     valid_until: Optional[date] = None
@@ -24,6 +27,7 @@ class CertificateUpdate(BaseModel):
     number: Optional[str] = None
     url: Optional[str] = None
     brand_id: Optional[int] = None
+    source_brand: Optional[str] = None
     covers_whole_brand: Optional[bool] = None
     valid_from: Optional[date] = None
     valid_until: Optional[date] = None
@@ -35,6 +39,9 @@ class CertificateUpdate(BaseModel):
 class CertificateOut(CertificateBase):
     id: int
     brand_name: Optional[str] = None
+    # Все бренды связанных позиций. Объявленный бренд в brand_name — один,
+    # но документ из прайса поставщика может покрывать несколько сразу.
+    brands: list[str] = []
     source: Optional[str] = None
     autopart_count: int = 0
     # Действует ли документ на сегодня: пустой срок считаем бессрочным,

@@ -1951,6 +1951,13 @@ async def get_autoparts_catalog(
                 min_balance_auto=ap.min_balance_auto,
                 barcode=ap.barcode,
                 honest_sign_category=ap.honest_sign_category,
+                tnved_code=ap.tnved_code,
+                okpd2_code=ap.okpd2_code,
+                certification_required=ap.certification_required,
+                eac_cert_number=ap.eac_cert_number,
+                eac_cert_url=ap.eac_cert_url,
+                eac_cert_valid_until=ap.eac_cert_valid_until,
+                regulatory_source=ap.regulatory_source,
                 applicability=ap.applicability,
                 categories=ap.categories,
                 storage_locations=ap.storage_locations,
@@ -2021,6 +2028,13 @@ async def get_autopart_detail(
         comment=ap.comment,
         barcode=ap.barcode,
         honest_sign_category=ap.honest_sign_category,
+        tnved_code=ap.tnved_code,
+        okpd2_code=ap.okpd2_code,
+        certification_required=ap.certification_required,
+        eac_cert_number=ap.eac_cert_number,
+        eac_cert_url=ap.eac_cert_url,
+        eac_cert_valid_until=ap.eac_cert_valid_until,
+        regulatory_source=ap.regulatory_source,
         applicability=ap.applicability,
         categories=ap.categories,
         storage_locations=ap.storage_locations,
@@ -2298,6 +2312,12 @@ async def assign_honest_sign_categories(
         .all()
     )
     ap.honest_sign_categories = cats
+    # Выгрузка прайса читает текстовое поле, а интерфейс пишет в связь.
+    # Держим поле кэшем выбранных категорий, иначе выбранная в карточке
+    # категория до клиента не доедет.
+    joined = ", ".join(sorted(item.name for item in cats if item.name))
+    ap.honest_sign_category = joined[:100] or None
+    session.add(ap)
     await session.commit()
     # Return cats we already have — avoids post-commit lazy-load
     return [HonestSignCategoryOut.model_validate(c) for c in cats]

@@ -20,7 +20,9 @@ from __future__ import annotations
 import csv
 import io
 import logging
+import re
 from collections import defaultdict
+from datetime import date
 from typing import Any, Iterable, Optional
 
 from sqlalchemy import func, select
@@ -28,15 +30,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
-from dz_fastapi.models.brand import Brand
-from dz_fastapi.models.certificate import Certificate
+from dz_fastapi.models.brand import Brand, brand_synonyms
+from dz_fastapi.models.certificate import Certificate, autopart_certificate_association
 from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation, Provider
-from dz_fastapi.services.utils import CERTIFICATION_NOT_REQUIRED_TEXT
+from dz_fastapi.services.utils import (
+    CERTIFICATION_NOT_REQUIRED_TEXT,
+    is_certificate_expired,
+    is_certificate_usable,
+)
 
 logger = logging.getLogger("dz_fastapi")
 
 # Значение, которым нельзя затирать ручной ввод.
 MANUAL_SOURCE = "manual"
+# Документ пришёл из прайса поставщика: за ввезённый товар отвечает
+# он, поэтому его документ важнее нашего собственного.
+SUPPLIER_SOURCE = "supplier_file"
 
 # Заголовки колонок поставщиков. Список открытый: у разных поставщиков
 # написание отличается («ТНВЭД» / «ТН ВЭД»), поэтому сверяем по
@@ -147,28 +156,180 @@ def _split_certificate(value: Optional[str]) -> tuple[Optional[bool], Optional[s
     return True, text
 
 
+# asyncpg не принимает больше 32767 параметров на запрос, а IN-список
+# строится из артикулов файла или id позиций прайса — там бывают десятки
+# тысяч значений. Держим запас: часть параметров уходит на остальные
+# условия запроса.
+IN_CHUNK = 10000
+
+
+def chunked(values: list, size: int = IN_CHUNK):
+    """Режет список на порции для безопасного IN."""
+    for start in range(0, len(values), size):
+        yield values[start:start + size]
+
+
+def normalize_brand_key(value: Optional[str]) -> str:
+    """Ключ для сопоставления брендов между файлом и каталогом.
+
+    Поставщики пишут бренд по-своему: «Hyundai/Kia» против нашего
+    «HYUNDAI-KIA», «Master KiT» против «MASTERKIT». Сравнение по точному
+    имени теряло такие позиции целиком, поэтому убираем регистр и все
+    разделители.
+    """
+    return re.sub(r"[^0-9a-zа-яё]", "", str(value or "").lower())
+
+
+async def load_brand_groups(
+    session: AsyncSession,
+) -> tuple[dict[str, int], dict[int, int]]:
+    """Группы синонимов бренда в двух видах.
+
+    Первый — написание бренда → id основного бренда группы; по нему
+    сопоставляются файлы поставщиков. Второй — id любого бренда → id
+    основного; по нему сверяется, что бренд сертификата и бренд позиции
+    это один и тот же бренд, а не два разных написания.
+
+    «ЛУКОЙЛ» и «LUKOIL» — один бренд, но транслитерацией их не связать:
+    «й» превращается и в i, и в y, и в j, а «точка опоры» в каталоге
+    может оказаться переводом. Поэтому связь берём из brand_synonyms,
+    где её завёл человек.
+    """
+    brands = [
+        (int(brand_id), name, bool(main))
+        for brand_id, name, main in (
+            await session.execute(
+                select(Brand.id, Brand.name, Brand.main_brand)
+            )
+        ).all()
+    ]
+    parent = {brand_id: brand_id for brand_id, _, _ in brands}
+
+    def find(node: int) -> int:
+        while parent[node] != node:
+            parent[node] = parent[parent[node]]
+            node = parent[node]
+        return node
+
+    edges = (
+        await session.execute(
+            select(brand_synonyms.c.brand_id, brand_synonyms.c.synonym_id)
+        )
+    ).all()
+    for left, right in edges:
+        if int(left) in parent and int(right) in parent:
+            parent[find(int(left))] = find(int(right))
+
+    groups: dict[int, list[tuple[int, bool]]] = defaultdict(list)
+    for brand_id, _, main in brands:
+        groups[find(brand_id)].append((brand_id, main))
+
+    # Каноничный бренд группы — помеченный основным; если основных нет
+    # или их несколько, берём наименьший id, как и подбор кроссов.
+    canonical: dict[int, int] = {}
+    for root, members in groups.items():
+        mains = sorted(item for item, main in members if main)
+        canonical[root] = (
+            mains[0] if mains else min(item for item, _ in members)
+        )
+
+    # Разные бренды могут дать один ключ («Master KiT» и «MASTERKIT»).
+    # Если они при этом в разных группах, написание неоднозначно —
+    # такой ключ выкидываем: молча выбрать один из брендов значит
+    # приписать позициям чужой сертификат.
+    by_key: dict[str, set[int]] = defaultdict(set)
+    by_id: dict[int, int] = {}
+    for brand_id, name, _ in brands:
+        group = canonical[find(brand_id)]
+        by_key[normalize_brand_key(name)].add(group)
+        by_id[brand_id] = group
+    unique = {
+        key: next(iter(ids)) for key, ids in by_key.items() if len(ids) == 1
+    }
+    return unique, by_id
+
+
+async def load_brand_key_index(session: AsyncSession) -> dict[str, int]:
+    """Написание бренда → id основного бренда его группы синонимов."""
+    by_key, _ = await load_brand_groups(session)
+    return by_key
+
+
+# Почему связь считается спорной. Первые две — блокирующие: такую связь
+# не создаём и в прайс не выпускаем. Остальные показываем в отчёте:
+# запретить их нельзя, иначе разом обнулится всё покрытие.
+LINK_BRAND_MISMATCH = "brand_mismatch"
+LINK_NOT_ACTIVE = "not_active"
+LINK_BRAND_UNKNOWN = "brand_unknown"
+
+BLOCKING_LINK_PROBLEMS = frozenset({LINK_BRAND_MISMATCH, LINK_NOT_ACTIVE})
+
+
+def certificate_link_problems(
+    part: AutoPart,
+    certificate: Certificate,
+    brand_groups: dict[int, int],
+    today: Optional[date] = None,
+) -> list[str]:
+    """Что не так со связью позиции и документа.
+
+    Главная проверка — бренд: клиент сверяет формальное соответствие
+    бренда и сертификата первым делом, и документ на чужой бренд хуже
+    пустой ячейки. Разные написания одного бренда считаем совпадением,
+    для этого и нужны группы синонимов.
+    """
+    problems: list[str] = []
+    if certificate.brand_id is None:
+        problems.append(LINK_BRAND_UNKNOWN)
+    elif brand_groups.get(certificate.brand_id, certificate.brand_id) != (
+        brand_groups.get(part.brand_id, part.brand_id)
+    ):
+        problems.append(LINK_BRAND_MISMATCH)
+
+    if not is_certificate_usable(
+        certificate.valid_from,
+        certificate.valid_until,
+        certificate.status,
+        today,
+    ):
+        problems.append(LINK_NOT_ACTIVE)
+    # «В реестре не сверялся» сюда не входит: это свойство документа, а
+    # не связи, и сейчас оно верно для всех до единой. В отчёте такой
+    # признак превратил бы список в шум, поэтому он идёт отдельным
+    # счётчиком.
+    return problems
+
+
 async def _load_autopart_index(
     session: AsyncSession,
-    keys: Iterable[tuple[str, str]],
-) -> dict[tuple[str, str], int]:
-    """(нормализованный бренд, нормализованный артикул) → id карточки."""
-    articles = {article for _, article in keys}
+    keys: Iterable[tuple[Optional[int], str]],
+    brand_keys: dict[str, int],
+) -> dict[tuple[int, str], int]:
+    """(id основного бренда, нормализованный артикул) → id карточки."""
+    articles = sorted({article for _, article in keys})
     if not articles:
         return {}
-    index: dict[tuple[str, str], int] = {}
-    stmt = (
-        select(AutoPart.id, AutoPart.oem_number, func.lower(Brand.name))
-        .join(Brand, Brand.id == AutoPart.brand_id)
-        .where(AutoPart.oem_number.in_(sorted(articles)))
-    )
-    for autopart_id, oem, brand_lower in (await session.execute(stmt)).all():
-        index[(str(brand_lower).strip(), str(oem))] = int(autopart_id)
+    index: dict[tuple[int, str], int] = {}
+    for chunk in chunked(articles):
+        stmt = (
+            select(AutoPart.id, AutoPart.oem_number, Brand.name)
+            .join(Brand, Brand.id == AutoPart.brand_id)
+            .where(AutoPart.oem_number.in_(chunk))
+        )
+        for autopart_id, oem, brand_name in (
+            await session.execute(stmt)
+        ).all():
+            brand_id = brand_keys.get(normalize_brand_key(brand_name))
+            if brand_id is None:
+                continue
+            index[(brand_id, str(oem))] = int(autopart_id)
     return index
 
 
 async def _upsert_certificates(
     session: AsyncSession,
     rows: list[dict[str, Any]],
+    brand_keys: dict[str, int],
 ) -> dict[str, int]:
     """Заводит сертификаты из файла, номер — естественный ключ."""
     wanted: dict[str, dict[str, Any]] = {}
@@ -181,7 +342,7 @@ async def _upsert_certificates(
         )
         if row.get("eac_cert_url") and not entry["url"]:
             entry["url"] = row["eac_cert_url"]
-        entry["brands"].add(str(row.get("brand") or "").strip().lower())
+        entry["brands"].add(str(row.get("brand") or "").strip())
     if not wanted:
         return {}
 
@@ -195,27 +356,23 @@ async def _upsert_certificates(
             )
         ).scalars()
     }
-    brand_index = {
-        str(name).strip().lower(): int(brand_id)
-        for brand_id, name in (
-            await session.execute(select(Brand.id, Brand.name))
-        ).all()
-    }
-
     result: dict[str, int] = {}
     for number, entry in wanted.items():
         certificate = existing.get(number)
         # Бренд проставляем, только когда он в файле однозначен: клиенты
         # сверяют формальное соответствие бренда и сертификата.
         brand_id = None
+        source_brand = None
         if len(entry["brands"]) == 1:
-            brand_id = brand_index.get(next(iter(entry["brands"])))
+            source_brand = next(iter(entry["brands"]))
+            brand_id = brand_keys.get(normalize_brand_key(source_brand))
         if certificate is None:
             certificate = Certificate(
                 number=number,
                 url=entry["url"],
                 brand_id=brand_id,
-                source="supplier_file",
+                source_brand=source_brand,
+                source=SUPPLIER_SOURCE,
             )
             session.add(certificate)
         else:
@@ -223,6 +380,8 @@ async def _upsert_certificates(
                 certificate.url = entry["url"]
             if brand_id and not certificate.brand_id:
                 certificate.brand_id = brand_id
+            if source_brand and not certificate.source_brand:
+                certificate.source_brand = source_brand
             session.add(certificate)
         await session.flush()
         result[number] = int(certificate.id)
@@ -241,15 +400,18 @@ async def import_supplier_regulatory(
     Ручной ввод по умолчанию не затирается: человек, который проверил
     сертификат в реестре, знает больше, чем строка в чужом файле.
     """
-    prepared: list[tuple[tuple[str, str], dict[str, Any]]] = []
+    brand_keys = await load_brand_key_index(session)
+    prepared: list[tuple[tuple[Optional[int], str], dict[str, Any]]] = []
     for row in rows:
         key = (
-            str(row["brand"]).strip().lower(),
+            brand_keys.get(normalize_brand_key(row["brand"])),
             preprocess_oem_number(str(row["article"])),
         )
         prepared.append((key, row))
 
-    index = await _load_autopart_index(session, [key for key, _ in prepared])
+    index = await _load_autopart_index(
+        session, [key for key, _ in prepared], brand_keys
+    )
 
     stats = {
         "rows": len(prepared),
@@ -283,22 +445,28 @@ async def import_supplier_regulatory(
     # один документ покрывает сотни артикулов, дублировать его в каждой
     # карточке бессмысленно.
     certificate_ids = (
-        {} if dry_run else await _upsert_certificates(session, list(targets.values()))
+        {}
+        if dry_run
+        else await _upsert_certificates(
+            session, list(targets.values()), brand_keys
+        )
     )
     stats["certificates"] = len(certificate_ids)
     stats["links_created"] = 0
 
-    parts = (
-        (
-            await session.execute(
-                select(AutoPart)
-                .where(AutoPart.id.in_(sorted(targets)))
-                .options(selectinload(AutoPart.certificates))
+    parts = []
+    for chunk in chunked(sorted(targets)):
+        parts.extend(
+            (
+                await session.execute(
+                    select(AutoPart)
+                    .where(AutoPart.id.in_(chunk))
+                    .options(selectinload(AutoPart.certificates))
+                )
             )
+            .scalars()
+            .all()
         )
-        .scalars()
-        .all()
-    )
     for part in parts:
         row = targets[part.id]
         if (
@@ -323,10 +491,18 @@ async def import_supplier_regulatory(
 
         # Связь ставим независимо от того, менялись ли поля карточки:
         # позиция могла уже иметь номер, но не иметь связи с документом.
-        certificate_id = certificate_ids.get(cert_number) if cert_number else None
-        if certificate_id and not dry_run:
-            linked = {item.id for item in part.certificates}
-            if certificate_id not in linked:
+        if dry_run:
+            # В предпросмотре сертификаты ещё не заведены, поэтому считаем
+            # связи по номеру: иначе отчёт всегда показывал бы ноль.
+            if cert_number and cert_number not in {
+                item.number for item in part.certificates
+            }:
+                stats["links_created"] += 1
+        elif cert_number:
+            certificate_id = certificate_ids.get(cert_number)
+            if certificate_id and certificate_id not in {
+                item.id for item in part.certificates
+            }:
                 part.certificates.append(
                     await session.get(Certificate, certificate_id)
                 )
@@ -512,23 +688,35 @@ _CERT_HOMOGLYPHS = str.maketrans(
 )
 
 
+# Стандартная форма номера: «… С-BE.НВ07.В.00826/23» — до дефиса тип
+# документа, сразу после дефиса двухбуквенный код страны, дальше орган и
+# литеры. Только такой номер и нормализуем.
+_CERT_STANDARD_RE = re.compile(r"^(.*?)-([A-Za-z]{2})\.(.+)$", re.DOTALL)
+
+
 def normalize_certificate_number(value: str) -> str:
     """Приводит номер сертификата к кириллическому написанию.
 
     Код страны после дефиса (RU, BE, JP, CN) остаётся латиницей — это
     ISO-код, он так и печатается в бланке.
+
+    Номера нестандартной формы возвращаются как есть. Раньше они
+    переводились целиком, и белорусский «ЕАЭС BY/112 02.01. ТР018 …»
+    превращался в «ЕАЭС ВУ/112 …»: латинский код страны BY уходил в
+    кириллицу, и документ переставал находиться в реестре. Оставить
+    номер нетронутым безопаснее, чем испортить.
     """
     text = " ".join(str(value or "").split())
     if not text:
         return ""
-    parts = text.split("-", 1)
-    head = parts[0].translate(_CERT_HOMOGLYPHS)
-    if len(parts) == 1:
-        return head
-    tail = parts[1]
-    # Первый сегмент хвоста — код страны, его не трогаем.
-    country, dot, rest = tail.partition(".")
-    return f"{head}-{country}{dot}{rest.translate(_CERT_HOMOGLYPHS)}"
+    match = _CERT_STANDARD_RE.match(text)
+    if not match:
+        return text
+    head, country, rest = match.groups()
+    return (
+        f"{head.translate(_CERT_HOMOGLYPHS)}-{country}."
+        f"{rest.translate(_CERT_HOMOGLYPHS)}"
+    )
 
 
 async def apply_brand_certificate(
@@ -562,20 +750,56 @@ async def apply_brand_certificate(
         )
     ).scalar_one_or_none()
     created = certificate is None
-    if certificate is None:
-        certificate = Certificate(number=canonical, source="manual")
-    certificate.url = url or certificate.url
-    certificate.brand_id = brand_id
-    certificate.covers_whole_brand = True
-    if scope:
-        certificate.scope = scope
-    if valid_until:
-        certificate.valid_until = valid_until
+    # Сменить бренд у документа, который уже покрывает позиции другого
+    # бренда, нельзя: brand_id перепишется, а старые связи останутся, и
+    # сертификат станет показывать один бренд, покрывая другой.
+    if certificate is not None:
+        foreign = (
+            await session.execute(
+                select(func.count())
+                .select_from(autopart_certificate_association)
+                .join(
+                    AutoPart,
+                    AutoPart.id
+                    == autopart_certificate_association.c.autopart_id,
+                )
+                .where(
+                    autopart_certificate_association.c.certificate_id
+                    == certificate.id,
+                    AutoPart.brand_id != brand_id,
+                )
+            )
+        ).scalar_one()
+        if foreign:
+            raise ValueError(
+                f"Сертификат уже привязан к {foreign} позициям другого "
+                f"бренда. Сначала отвяжите их или заведите отдельный "
+                f"документ."
+            )
+
     if not dry_run:
+        if certificate is None:
+            certificate = Certificate(number=canonical, source="manual")
+        certificate.url = url or certificate.url
+        certificate.brand_id = brand_id
+        certificate.covers_whole_brand = True
+        if scope:
+            certificate.scope = scope
+        if valid_until:
+            certificate.valid_until = valid_until
         session.add(certificate)
         await session.flush()
+    # При dry_run объект не трогаем вовсе: загруженный из сессии
+    # сертификат стал бы «грязным», и любой последующий commit в том же
+    # запросе записал бы предпросмотр в базу.
 
-    targets_stmt = select(AutoPart).where(AutoPart.brand_id == brand_id)
+    targets_stmt = select(AutoPart).where(
+        AutoPart.brand_id == brand_id,
+        # Ручной ввод не перетираем ни в каком режиме: интерфейс это
+        # обещает, и обещание должно держаться и при снятом ограничении
+        # «только позиции без признака».
+        func.coalesce(AutoPart.regulatory_source, "") != MANUAL_SOURCE,
+    )
     if only_undetermined:
         targets_stmt = targets_stmt.where(
             AutoPart.certification_required.is_(None)
@@ -607,6 +831,171 @@ async def apply_brand_certificate(
     return result
 
 
+async def refresh_autopart_certificate_cache(
+    session: AsyncSession,
+    autopart_ids: Iterable[int],
+    *,
+    commit: bool = True,
+) -> int:
+    """Пересобирает кэш сертификата на карточке из связей M2M.
+
+    Поля eac_cert_* на карточке — денормализация ради быстрой выгрузки
+    прайса, источник истины — связь. Любая правка связей или самого
+    документа должна пройти через эту функцию, иначе в прайс уедет
+    отвязанный или переименованный сертификат.
+
+    Из нескольких привязанных документов выбираем действующий с самым
+    поздним сроком; документ без срока считается действующим, но
+    проигрывает документу с явной датой. Карточки с ручным вводом не
+    трогаем — человек знает больше.
+    """
+    ids = sorted({int(item) for item in autopart_ids if item is not None})
+    if not ids:
+        return 0
+
+    parts = []
+    for chunk in chunked(ids):
+        parts.extend(
+            (
+                await session.execute(
+                    select(AutoPart)
+                    .where(AutoPart.id.in_(chunk))
+                    .options(selectinload(AutoPart.certificates))
+                )
+            )
+            .scalars()
+            .all()
+        )
+    today = date.today()
+    _, brand_groups = await load_brand_groups(session)
+    changed = 0
+    for part in parts:
+        if part.regulatory_source == MANUAL_SOURCE:
+            continue
+        # Последняя защита перед прайсом: связь могли создать в обход
+        # проверок — миграцией, старым импортом, руками в базе.
+        active = [
+            item
+            for item in part.certificates
+            if not (
+                set(
+                    certificate_link_problems(
+                        part, item, brand_groups, today
+                    )
+                )
+                & BLOCKING_LINK_PROBLEMS
+            )
+        ]
+        # Документ поставщика важнее нашего: поставщик отвечает за товар,
+        # который сам и ввёз. Дальше — явный срок предпочтительнее
+        # пустого, а при равенстве берём самый последний документ.
+        best = max(
+            active,
+            key=lambda item: (
+                item.source == SUPPLIER_SOURCE,
+                item.valid_until is not None,
+                item.valid_until or date.min,
+                item.id,
+            ),
+            default=None,
+        )
+        number = best.number if best else None
+        url = best.url if best else None
+        valid_until = best.valid_until if best else None
+        # Привязанный документ противоречит признаку «не требует»: в
+        # выгрузке этот признак сильнее номера, и позиция уехала бы к
+        # клиенту с текстом «Не требует сертификации», имея сертификат.
+        # При отвязке признак не сбрасываем: то, что документа больше нет,
+        # не означает, что товар сертификации не подлежит.
+        required = True if best else part.certification_required
+        if (
+            part.eac_cert_number == number
+            and part.eac_cert_url == url
+            and part.eac_cert_valid_until == valid_until
+            and part.certification_required == required
+        ):
+            continue
+        part.eac_cert_number = number
+        part.eac_cert_url = url
+        part.eac_cert_valid_until = valid_until
+        part.certification_required = required
+        session.add(part)
+        changed += 1
+    if commit and changed:
+        await session.commit()
+    return changed
+
+
+async def backfill_certificate_brands(
+    session: AsyncSession,
+    *,
+    dry_run: bool = True,
+) -> dict[str, int]:
+    """Проставляет бренд сертификату по связанным позициям.
+
+    При импорте бренд ставился только если в файле поставщика документ
+    покрывал ровно один бренд. Но связи в каталоге дают ту же информацию
+    точнее: если все привязанные позиции одного бренда, документ ему и
+    принадлежит. Клиенты сверяют формальное соответствие бренда и
+    сертификата, поэтому пустое поле здесь мешает.
+
+    Неоднозначные (позиции нескольких брендов) не трогаем: угадывать
+    нельзя, и такой документ действительно межбрендовый.
+    """
+    rows = (
+        await session.execute(
+            select(
+                Certificate.id,
+                func.min(AutoPart.brand_id),
+                func.count(func.distinct(AutoPart.brand_id)),
+            )
+            .select_from(Certificate)
+            .join(
+                autopart_certificate_association,
+                autopart_certificate_association.c.certificate_id
+                == Certificate.id,
+            )
+            .join(
+                AutoPart,
+                AutoPart.id == autopart_certificate_association.c.autopart_id,
+            )
+            .where(Certificate.brand_id.is_(None))
+            .group_by(Certificate.id)
+        )
+    ).all()
+
+    stats = {"considered": len(rows), "updated": 0, "ambiguous": 0}
+    for certificate_id, brand_id, brand_count in rows:
+        if int(brand_count) != 1 or brand_id is None:
+            stats["ambiguous"] += 1
+            continue
+        stats["updated"] += 1
+        if not dry_run:
+            certificate = await session.get(Certificate, int(certificate_id))
+            certificate.brand_id = int(brand_id)
+            session.add(certificate)
+    if not dry_run and stats["updated"]:
+        await session.commit()
+    return stats
+
+
+async def autopart_ids_for_certificate(
+    session: AsyncSession,
+    certificate_id: int,
+) -> list[int]:
+    return [
+        int(row[0])
+        for row in (
+            await session.execute(
+                select(autopart_certificate_association.c.autopart_id).where(
+                    autopart_certificate_association.c.certificate_id
+                    == certificate_id
+                )
+            )
+        ).all()
+    ]
+
+
 async def regulatory_coverage(
     session: AsyncSession,
     *,
@@ -633,6 +1022,7 @@ async def regulatory_coverage(
             AutoPart.tnved_code,
             AutoPart.okpd2_code,
             AutoPart.eac_cert_number,
+            AutoPart.eac_cert_valid_until,
             AutoPart.certification_required,
         )
         .select_from(PriceListAutoPartAssociation)
@@ -657,6 +1047,8 @@ async def regulatory_coverage(
         "okpd2": 0,
         "certificate": 0,
         "complete": 0,
+        "expired": 0,
+        "undated": 0,
     }
     by_brand: dict[str, dict[str, int]] = defaultdict(
         lambda: {"positions": 0, "missing": 0}
@@ -670,9 +1062,17 @@ async def regulatory_coverage(
         has_tnved = bool(row.tnved_code)
         has_okpd2 = bool(row.okpd2_code)
         # Сертификат считается закрытым и когда он не требуется.
+        # Истёкший документ не закрывает позицию: в прайс он не уедет.
+        expired = is_certificate_expired(row.eac_cert_valid_until)
         has_cert = (
-            bool(row.eac_cert_number) or row.certification_required is False
+            (bool(row.eac_cert_number) and not expired)
+            or row.certification_required is False
         )
+        if expired:
+            totals["expired"] += 1
+        elif row.eac_cert_number and row.eac_cert_valid_until is None:
+            # Срок не заполнен — документ выгружается, но не проверен.
+            totals["undated"] += 1
         totals["tnved"] += int(has_tnved)
         totals["okpd2"] += int(has_okpd2)
         totals["certificate"] += int(has_cert)
@@ -694,6 +1094,8 @@ async def regulatory_coverage(
 
     return {
         "positions": totals["positions"],
+        "expired_certificates": totals["expired"],
+        "undated_certificates": totals["undated"],
         "tnved_pct": pct(totals["tnved"]),
         "okpd2_pct": pct(totals["okpd2"]),
         "certificate_pct": pct(totals["certificate"]),
@@ -721,4 +1123,81 @@ async def regulatory_coverage(
             ),
             key=lambda item: -item["missing"],
         )[:50],
+    }
+
+
+async def suspicious_certificate_links(
+    session: AsyncSession,
+    *,
+    limit: int = 500,
+) -> dict[str, Any]:
+    """Связи позиция-документ, не прошедшие проверку.
+
+    Блокирующие в прайс не попадают, но и молча висеть в базе не должны:
+    их нужно разобрать руками. Предупреждения — повод сверить документ с
+    реестром, а не признак ошибки.
+    """
+    _, brand_groups = await load_brand_groups(session)
+    today = date.today()
+    rows = (
+        await session.execute(
+            select(AutoPart, Certificate, Brand.name)
+            .select_from(autopart_certificate_association)
+            .join(
+                AutoPart,
+                AutoPart.id
+                == autopart_certificate_association.c.autopart_id,
+            )
+            .join(
+                Certificate,
+                Certificate.id
+                == autopart_certificate_association.c.certificate_id,
+            )
+            .outerjoin(Brand, Brand.id == AutoPart.brand_id)
+        )
+    ).all()
+
+    counts: dict[str, int] = defaultdict(int)
+    items: list[dict[str, Any]] = []
+    with_problems = 0
+    unverified = {
+        certificate.id
+        for _, certificate, _ in rows
+        if certificate.registry_checked_at is None
+    }
+    for part, certificate, brand_name in rows:
+        problems = certificate_link_problems(
+            part, certificate, brand_groups, today
+        )
+        if not problems:
+            continue
+        with_problems += 1
+        for problem in problems:
+            counts[problem] += 1
+        if len(items) < limit:
+            items.append(
+                {
+                    "autopart_id": part.id,
+                    "oem_number": part.oem_number,
+                    "name": part.name,
+                    "brand_name": brand_name,
+                    "certificate_id": certificate.id,
+                    "number": certificate.number,
+                    "problems": problems,
+                    "blocking": bool(
+                        set(problems) & BLOCKING_LINK_PROBLEMS
+                    ),
+                }
+            )
+    return {
+        "links": len(rows),
+        "with_problems": with_problems,
+        "unverified_certificates": len(unverified),
+        "blocking": sum(
+            count
+            for problem, count in counts.items()
+            if problem in BLOCKING_LINK_PROBLEMS
+        ),
+        "by_problem": dict(counts),
+        "items": items,
     }

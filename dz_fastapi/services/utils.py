@@ -1,6 +1,7 @@
 import logging
 import re
 import unicodedata
+from datetime import date, datetime
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -152,6 +153,55 @@ REGULATORY_COLUMNS = [
 CERTIFICATION_NOT_REQUIRED_TEXT = "Не требует сертификации"
 
 
+def is_certificate_expired(
+    valid_until, today: Optional[date] = None
+) -> bool:
+    """Истёк ли документ. Пустой срок истёкшим не считаем.
+
+    По 545 сертификатам из прайсов поставщиков срок не передан вовсе,
+    поэтому пустое значение приходится трактовать как «неизвестно» и
+    выгружать — иначе разом обнулится всё покрытие. Такие документы
+    подсвечиваются отдельно в отчёте, чтобы срок дозаполнили.
+    """
+    if valid_until is None:
+        return False
+    if isinstance(valid_until, datetime):
+        valid_until = valid_until.date()
+    return valid_until < (today or date.today())
+
+
+# Состояние документа в реестре. Выгружаем только действующий: клиент
+# проверяет номер первым делом, и приостановленный документ хуже пустой
+# ячейки. Пустой статус означает «в реестре не сверялись» — такие
+# выгружаем, иначе разом обнулится всё покрытие.
+CERTIFICATE_STATUS_ACTIVE = "active"
+CERTIFICATE_STATUS_BLOCKING = frozenset(
+    {"suspended", "terminated", "archived"}
+)
+
+
+def is_certificate_usable(
+    valid_from=None,
+    valid_until=None,
+    status: Optional[str] = None,
+    today: Optional[date] = None,
+) -> bool:
+    """Можно ли отдавать документ клиенту сегодня.
+
+    Три причины отказа: срок ещё не начался, срок истёк, реестр говорит,
+    что документ больше не действует.
+    """
+    today = today or date.today()
+    if status and status in CERTIFICATE_STATUS_BLOCKING:
+        return False
+    if valid_from is not None:
+        if isinstance(valid_from, datetime):
+            valid_from = valid_from.date()
+        if valid_from > today:
+            return False
+    return not is_certificate_expired(valid_until, today)
+
+
 def regulatory_columns_for(attrs: Optional[dict]) -> dict:
     """Пять обязательных колонок прайса из атрибутов карточки.
 
@@ -159,11 +209,17 @@ def regulatory_columns_for(attrs: Optional[dict]) -> dict:
     незаполненных позиций, а не молча уезжать клиенту. Явное
     «Не требует сертификации» хранится флагом, а не строкой в поле номера,
     поэтому текст собирается здесь — в одном месте для всех выгрузок.
+
+    Истёкший документ не выгружаем: клиент проверяет его в реестре
+    первым делом, и просроченный номер хуже пустой ячейки.
     """
     attrs = attrs or {}
     certification_required = attrs.get("certification_required")
     if certification_required is False:
         cert_number = CERTIFICATION_NOT_REQUIRED_TEXT
+        cert_url = ""
+    elif is_certificate_expired(attrs.get("eac_cert_valid_until")):
+        cert_number = ""
         cert_url = ""
     else:
         cert_number = attrs.get("eac_cert_number") or ""
@@ -250,6 +306,7 @@ def prepare_excel_data(
                     "certification_required": autopart.certification_required,
                     "eac_cert_number": autopart.eac_cert_number,
                     "eac_cert_url": autopart.eac_cert_url,
+                    "eac_cert_valid_until": autopart.eac_cert_valid_until,
                 }
             )
         )

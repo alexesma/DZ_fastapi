@@ -108,7 +108,9 @@ from dz_fastapi.services.email import (
     send_email_with_attachment,
 )
 from dz_fastapi.services.pricelist_guard import guard_automatic_provider_pricelist
+from dz_fastapi.services.regulatory import import_supplier_regulatory
 from dz_fastapi.services.utils import (
+    CERTIFICATION_NOT_REQUIRED_TEXT,
     brand_filters,
     normalize_markup,
     normalize_mixed_cyrillic,
@@ -1243,6 +1245,20 @@ async def _load_regulatory_attrs(
     ids = sorted({int(item) for item in autopart_ids if item is not None})
     if not ids:
         return {}
+    # Прайс может содержать десятки тысяч позиций, а asyncpg не принимает
+    # больше 32767 параметров на запрос — идём порциями.
+    result: dict[int, dict] = {}
+    for start in range(0, len(ids), 10000):
+        result.update(await _load_regulatory_attrs_chunk(
+            session, ids[start:start + 10000]
+        ))
+    return result
+
+
+async def _load_regulatory_attrs_chunk(
+    session: AsyncSession,
+    ids: list[int],
+) -> dict[int, dict]:
     stmt = select(
         AutoPart.id,
         AutoPart.tnved_code,
@@ -1251,6 +1267,7 @@ async def _load_regulatory_attrs(
         AutoPart.certification_required,
         AutoPart.eac_cert_number,
         AutoPart.eac_cert_url,
+        AutoPart.eac_cert_valid_until,
     ).where(AutoPart.id.in_(ids))
     return {
         int(row.id): {
@@ -1260,6 +1277,7 @@ async def _load_regulatory_attrs(
             "certification_required": row.certification_required,
             "eac_cert_number": row.eac_cert_number,
             "eac_cert_url": row.eac_cert_url,
+            "eac_cert_valid_until": row.eac_cert_valid_until,
         }
         for row in (await session.execute(stmt)).all()
     }
@@ -1277,6 +1295,41 @@ def _collect_autopart_ids(*record_groups) -> set[int]:
             except (TypeError, ValueError):
                 continue
     return ids
+
+
+def _regulatory_column_gaps(df_excel) -> Optional[dict[str, int]]:
+    """Сколько строк уезжает клиенту без обязательных реквизитов.
+
+    Считаются только те пропуски, которые действительно нарушение.
+    «Честный знак» пуст у большинства запчастей законно — маркировке
+    подлежит не всё, поэтому пустая ячейка здесь не дефект. Ссылка ФГИС
+    нужна там, где стоит номер документа: у позиций с отметкой
+    «Не требует сертификации» ссылаться не на что.
+    """
+    if df_excel is None or "Номер сертификата ЕАС" not in df_excel.columns:
+        return None
+
+    def blank(column: str):
+        values = df_excel[column].astype(str).str.strip()
+        return values.isin(("", "nan", "None"))
+
+    gaps: dict[str, int] = {}
+    for column in ("ТН ВЭД", "ОКПД 2", "Номер сертификата ЕАС"):
+        if column not in df_excel.columns:
+            continue
+        missing = int(blank(column).sum())
+        if missing:
+            gaps[column] = missing
+
+    if "Ссылка ФГИС" in df_excel.columns:
+        numbered = ~blank("Номер сертификата ЕАС") & (
+            df_excel["Номер сертификата ЕАС"].astype(str).str.strip()
+            != CERTIFICATION_NOT_REQUIRED_TEXT
+        )
+        missing = int((numbered & blank("Ссылка ФГИС")).sum())
+        if missing:
+            gaps["Ссылка ФГИС"] = missing
+    return gaps
 
 
 async def _build_dragonzap_cross_alias_records(
@@ -1709,6 +1762,91 @@ def process_download_pricelist(file_extension: str, file_content: bytes) -> pd.D
         raise HTTPException(status_code=400, detail=f"Invalid format file:{e}")
 
 
+def _collect_regulatory_rows(
+    data_df,
+    brand_col: Optional[int],
+    oem_col: int,
+    name_col: Optional[int],
+    regulatory_cols: Optional[dict],
+) -> list[dict]:
+    """Строки с обязательными реквизитами из того же файла прайса.
+
+    Собираются отдельно от цен и остатков и намеренно не подмешиваются
+    в основной поток: приём прайса не должен зависеть от того, что
+    поставщик написал в колонке сертификата.
+
+    Без колонки бренда не работаем: позицию не с чем сопоставить, а
+    угадывать бренд по артикулу значит приписать чужой сертификат.
+    """
+    if not regulatory_cols or brand_col is None:
+        return []
+    present = {
+        field: index
+        for field, index in regulatory_cols.items()
+        if index is not None
+    }
+    if not present:
+        return []
+
+    def cell(row, index):
+        if index is None or index not in data_df.columns:
+            return None
+        value = row.get(index)
+        if value is None or (isinstance(value, float) and pd.isna(value)):
+            return None
+        text = str(value).strip()
+        return text or None
+
+    rows: list[dict] = []
+    for _, row in data_df.iterrows():
+        brand = cell(row, brand_col)
+        article = cell(row, oem_col)
+        if not brand or not article:
+            continue
+        rows.append(
+            {
+                "brand": brand,
+                "article": article,
+                "name": cell(row, name_col) or "",
+                "tnved_code": cell(row, present.get("tnved_code")),
+                "okpd2_code": cell(row, present.get("okpd2_code")),
+                "honest_sign": cell(row, present.get("honest_sign")),
+                "eac_cert_number": cell(row, present.get("eac_cert_number")),
+                "eac_cert_url": cell(row, present.get("eac_cert_url")),
+            }
+        )
+    return rows
+
+
+async def _apply_pricelist_regulatory(
+    session: AsyncSession,
+    rows: list[dict],
+    *,
+    provider=None,
+) -> dict:
+    """Записывает реквизиты, приехавшие вместе с прайсом.
+
+    Отдельным шагом и под общим перехватом: приём прайса — основной путь
+    всей системы, и сбой в реквизитах не должен ронять загрузку цен и
+    остатков. Не получилось — прайс всё равно принят, а в журнале
+    останется причина.
+    """
+    if not rows:
+        return {"rows": 0}
+    try:
+        return await import_supplier_regulatory(
+            session, rows, dry_run=False
+        )
+    except Exception as error:  # noqa: BLE001 — приём прайса важнее
+        await session.rollback()
+        logger.exception(
+            "Реквизиты из прайса не записаны (provider_id=%s): %s",
+            getattr(provider, "id", None),
+            error,
+        )
+        return {"rows": len(rows), "failed": True}
+
+
 def _prepare_pricelist_data(
     file_extension: str,
     file_content: bytes,
@@ -1719,9 +1857,13 @@ def _prepare_pricelist_data(
     multiplicity_col: Optional[int],
     qty_col: int,
     price_col: int,
+    regulatory_cols: Optional[dict] = None,
 ):
     df = process_download_pricelist(file_extension=file_extension, file_content=file_content)
     data_df = df.iloc[start_row:]
+    regulatory_rows = _collect_regulatory_rows(
+        data_df, brand_col, oem_col, name_col, regulatory_cols
+    )
     required_columns = {
         "oem_number": oem_col,
         "brand": brand_col,
@@ -1794,8 +1936,9 @@ def _prepare_pricelist_data(
         "rows_deduplicated": int(dedup_rows),
         "rows_removed": int(max(total_rows - clean_rows, 0)),
         "rows_dedup_removed": int(max(clean_rows - dedup_rows, 0)),
+        "rows_regulatory": int(len(regulatory_rows)),
     }
-    return deduplicated_data, stats
+    return deduplicated_data, stats, regulatory_rows
 
 
 def _normalize_exclude_positions(exclude_positions):
@@ -1930,8 +2073,18 @@ async def process_provider_pricelist(
         if None in (start_row, oem_col, qty_col, price_col):
             raise HTTPException(status_code=400, detail="Missing required parameters.")
 
+    # Указатели на колонки реквизитов берём только из конфигурации: при
+    # ручной загрузке с произвольными номерами колонок их не передают.
+    regulatory_cols = {
+        "tnved_code": provider_list_conf.tnved_col,
+        "okpd2_code": provider_list_conf.okpd2_col,
+        "honest_sign": provider_list_conf.honest_sign_col,
+        "eac_cert_number": provider_list_conf.eac_cert_col,
+        "eac_cert_url": provider_list_conf.eac_cert_url_col,
+    }
+
     try:
-        deduplicated_data, stats = await asyncio.to_thread(
+        deduplicated_data, stats, regulatory_rows = await asyncio.to_thread(
             _prepare_pricelist_data,
             file_extension,
             file_content,
@@ -1942,6 +2095,7 @@ async def process_provider_pricelist(
             multiplicity_col,
             qty_col,
             price_col,
+            regulatory_cols,
         )
     except KeyError as e:
         raise HTTPException(status_code=422, detail=f"Invalid column indices provided: {e}")
@@ -2035,6 +2189,9 @@ async def process_provider_pricelist(
         pl_orm = await crud_pricelist.get(session=session, obj_id=created_id)
 
         await analyze_new_pricelist(pl_orm, session=session)
+        stats["regulatory"] = await _apply_pricelist_regulatory(
+            session, regulatory_rows, provider=provider
+        )
         if return_stats:
             return pricelist, stats
         return pricelist
@@ -3486,6 +3643,23 @@ async def process_customer_pricelist(
             ),
         },
     ]
+    regulatory_gaps = _regulatory_column_gaps(df_excel)
+    if regulatory_gaps is not None:
+        quality_checks.append(
+            {
+                "key": "regulatory_columns",
+                "status": "passed" if not regulatory_gaps else "failed",
+                "message": (
+                    "Обязательные реквизиты заполнены."
+                    if not regulatory_gaps
+                    else "Не заполнено: "
+                    + "; ".join(
+                        f"{column} — {count}"
+                        for column, count in regulatory_gaps.items()
+                    )
+                ),
+            }
+        )
     final_filter_summary = generation_summary.get("final_filters") or {}
     if final_filter_summary.get("enabled"):
         quality_checks.append(

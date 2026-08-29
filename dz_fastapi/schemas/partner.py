@@ -596,6 +596,13 @@ class ProviderPriceListConfigBase(BaseModel):
     multiplicity_col: Optional[int] = None
     qty_col: int
     price_col: int
+    # Обязательные реквизиты прайса: их передают не все поставщики,
+    # поэтому колонки необязательные и без них приём не меняется.
+    tnved_col: Optional[int] = None
+    okpd2_col: Optional[int] = None
+    honest_sign_col: Optional[int] = None
+    eac_cert_col: Optional[int] = None
+    eac_cert_url_col: Optional[int] = None
     filename_pattern: Optional[str] = None
     name_price: Optional[str] = None
     name_mail: Optional[str] = None
@@ -627,6 +634,11 @@ class ProviderPriceListConfigUpdate(BaseModel):
     multiplicity_col: Optional[int] = Field(default=None, ge=0)
     qty_col: Optional[int] = Field(default=None, ge=0)
     price_col: Optional[int] = Field(default=None, ge=0)
+    tnved_col: Optional[int] = Field(default=None, ge=0)
+    okpd2_col: Optional[int] = Field(default=None, ge=0)
+    honest_sign_col: Optional[int] = Field(default=None, ge=0)
+    eac_cert_col: Optional[int] = Field(default=None, ge=0)
+    eac_cert_url_col: Optional[int] = Field(default=None, ge=0)
     filename_pattern: Optional[str] = None
     name_price: Optional[str] = None
     name_mail: Optional[str] = None

@@ -64,6 +64,11 @@ class Certificate(Base):
         nullable=True,
         index=True,
     )
+    # Бренд, как он написан в прайсе поставщика. Нужен, когда такого
+    # бренда нет в нашем каталоге: заводить его ради одного сертификата
+    # нельзя — засорим справочник, фильтры прайсов и кроссы, — а искать
+    # документ по названию бренда всё равно надо.
+    source_brand = Column(String(255), nullable=True, index=True)
     # Документ покрывает весь ассортимент бренда, а не список артикулов.
     covers_whole_brand = Column(Boolean, default=False, nullable=False)
     valid_from = Column(Date, nullable=True)
@@ -74,6 +79,13 @@ class Certificate(Base):
     scope = Column(Text, nullable=True)
     # supplier_file | registry | manual
     source = Column(String(32), nullable=True)
+    # Состояние в реестре: действует / приостановлен / прекращён / архивный.
+    # Приостановленный документ формально существует и не истёк, но
+    # выгружать его нельзя — клиент увидит это первой же проверкой.
+    status = Column(String(32), nullable=True, index=True)
+    # Когда последний раз сверялись с реестром: пустое значение означает
+    # «данные только из прайса поставщика, в реестре не проверялись».
+    registry_checked_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=now_moscow)
     updated_at = Column(
         DateTime(timezone=True), default=now_moscow, onupdate=now_moscow

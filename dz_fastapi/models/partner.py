@@ -789,6 +789,14 @@ class ProviderPriceListConfig(Base):
     multiplicity_col = Column(Integer, nullable=True)
     qty_col = Column(Integer, nullable=False)
     price_col = Column(Integer, nullable=False)
+    # Обязательные реквизиты прайса. Все необязательные: у кого этих
+    # колонок в файле нет, у того приём прайса не меняется вовсе.
+    # Без brand_col реквизиты не читаются: сопоставлять позицию не с чем.
+    tnved_col = Column(Integer, nullable=True)
+    okpd2_col = Column(Integer, nullable=True)
+    honest_sign_col = Column(Integer, nullable=True)
+    eac_cert_col = Column(Integer, nullable=True)
+    eac_cert_url_col = Column(Integer, nullable=True)
     filename_pattern = Column(String(255), nullable=True)
     name_price = Column(String, nullable=True)
     name_mail = Column(String, nullable=True)
