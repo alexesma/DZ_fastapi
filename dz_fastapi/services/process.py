@@ -3648,7 +3648,12 @@ async def process_customer_pricelist(
         quality_checks.append(
             {
                 "key": "regulatory_columns",
-                "status": "passed" if not regulatory_gaps else "failed",
+                # Предупреждение, а не отказ. Провал любой проверки
+                # блокирует утверждение и отправку прайса, а ТН ВЭД и
+                # ОКПД 2 сейчас не заполнены почти нигде — блокирующая
+                # проверка остановила бы вообще всю отправку прайсов.
+                # Показываем пробел, но решение оставляем человеку.
+                "status": "passed" if not regulatory_gaps else "warning",
                 "message": (
                     "Обязательные реквизиты заполнены."
                     if not regulatory_gaps
