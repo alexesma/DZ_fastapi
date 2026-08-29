@@ -69,7 +69,10 @@ async def import_regulatory_file(
     if len(content) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="Файл слишком большой")
     try:
-        rows, columns = parse_supplier_regulatory_file(content)
+        rows, columns = parse_supplier_regulatory_file(
+            content,
+            filename=file.filename,
+        )
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
     if not rows:

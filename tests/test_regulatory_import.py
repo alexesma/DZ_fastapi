@@ -4,11 +4,15 @@
 сертификата на однобрендовые позиции даёт кратный переброс (на реальных
 данных — 3 позиции с сертификатом превращались в 10 872 записи).
 """
+import io
+
 import pytest
+from openpyxl import Workbook
 from sqlalchemy import select
 
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand, brand_synonyms
+from dz_fastapi.models.certificate import Certificate
 from dz_fastapi.models.nomenclature import HonestSignCategory
 from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation
 from dz_fastapi.services.regulatory import (
@@ -63,6 +67,44 @@ def test_rows_without_brand_or_article_are_skipped():
 def test_missing_required_column_raises():
     with pytest.raises(ValueError, match="обязательные колонки"):
         parse_supplier_regulatory_file("Цена;Количество\r\n1;2".encode("cp1251"))
+
+
+def test_parses_comma_delimited_csv_without_manual_setting():
+    content = (
+        "Бренд,Артикул,Описание,ТНВЭД,ОКПД 2,Подключен к ЧЗ,"
+        "Номер сертификата ЕАС,Ссылка ФГИС\n"
+        "555,SB1392,Сайлентблок,8708801000,,,,"
+    ).encode("utf-8")
+    rows, _ = parse_supplier_regulatory_file(content)
+    assert rows[0]["article"] == "SB1392"
+    assert rows[0]["tnved_code"] == "8708801000"
+
+
+def test_parses_xlsx_uploaded_from_regulatory_page():
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(HEADER.split(";"))
+    sheet.append(
+        [
+            "555",
+            "SB1392",
+            "Сайлентблок",
+            8708801000,
+            "",
+            "",
+            "ЕАЭС RU С-JP.АД50.В.05948/23",
+            "https://pub.fsa.gov.ru/x",
+        ]
+    )
+    stream = io.BytesIO()
+    workbook.save(stream)
+
+    rows, columns = parse_supplier_regulatory_file(
+        stream.getvalue(), filename="supplier.xlsx"
+    )
+    assert set(columns) >= {"brand", "article", "tnved_code"}
+    assert rows[0]["article"] == "SB1392"
+    assert rows[0]["tnved_code"] == "8708801000"
 
 
 # ── разбор колонки сертификата ──────────────────────────────────────────
@@ -144,6 +186,78 @@ async def test_dry_run_changes_nothing(
     assert stats["updated"] == 1
     await test_session.refresh(created_autopart)
     assert created_autopart.tnved_code is None
+
+
+@pytest.mark.asyncio
+async def test_supplier_certificate_overrides_automatic_exemption_rule(
+    test_session, created_autopart, created_brand
+):
+    created_autopart.certification_required = False
+    created_autopart.regulatory_source = "rule"
+    test_session.add(created_autopart)
+    await test_session.commit()
+
+    number = "ЕАЭС RU С-CN.НА96.В.02398/22"
+    rows = [
+        {
+            "brand": created_brand.name,
+            "article": created_autopart.oem_number,
+            "name": "",
+            "tnved_code": None,
+            "okpd2_code": None,
+            "honest_sign": None,
+            "eac_cert_number": number,
+            "eac_cert_url": "https://pub.fsa.gov.ru/x",
+        }
+    ]
+    stats = await import_supplier_regulatory(
+        test_session, rows, dry_run=False
+    )
+
+    await test_session.refresh(created_autopart)
+    assert stats["links_created"] == 1
+    assert created_autopart.certification_required is True
+    assert created_autopart.eac_cert_number == number
+
+
+@pytest.mark.asyncio
+async def test_import_rejects_certificate_of_another_brand(
+    test_session, created_autopart, created_brand
+):
+    other_brand = Brand(name="OTHER CERT BRAND")
+    test_session.add(other_brand)
+    await test_session.flush()
+    number = "ЕАЭС RU С-CN.НА96.В.09999/22"
+    test_session.add(
+        Certificate(
+            number=number,
+            brand_id=other_brand.id,
+            source="registry",
+        )
+    )
+    await test_session.commit()
+
+    rows = [
+        {
+            "brand": created_brand.name,
+            "article": created_autopart.oem_number,
+            "name": "",
+            "tnved_code": None,
+            "okpd2_code": None,
+            "honest_sign": None,
+            "eac_cert_number": number,
+            "eac_cert_url": "https://pub.fsa.gov.ru/foreign",
+        }
+    ]
+    stats = await import_supplier_regulatory(
+        test_session, rows, dry_run=False
+    )
+
+    await test_session.refresh(created_autopart)
+    assert stats["certificate_links_rejected"] == 1
+    assert stats["certificate_rejections"] == {"brand_mismatch": 1}
+    assert stats["links_created"] == 0
+    assert created_autopart.eac_cert_number is None
 
 
 # ── ограничители распространения ────────────────────────────────────────

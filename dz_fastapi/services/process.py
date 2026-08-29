@@ -1797,25 +1797,31 @@ def _collect_regulatory_rows(
         text = str(value).strip()
         return text or None
 
-    rows: list[dict] = []
+    rows_by_key: dict[tuple[str, str], dict] = {}
     for _, row in data_df.iterrows():
         brand = cell(row, brand_col)
         article = cell(row, oem_col)
         if not brand or not article:
             continue
-        rows.append(
-            {
-                "brand": brand,
-                "article": article,
-                "name": cell(row, name_col) or "",
-                "tnved_code": cell(row, present.get("tnved_code")),
-                "okpd2_code": cell(row, present.get("okpd2_code")),
-                "honest_sign": cell(row, present.get("honest_sign")),
-                "eac_cert_number": cell(row, present.get("eac_cert_number")),
-                "eac_cert_url": cell(row, present.get("eac_cert_url")),
-            }
-        )
-    return rows
+        regulatory = {
+            "tnved_code": cell(row, present.get("tnved_code")),
+            "okpd2_code": cell(row, present.get("okpd2_code")),
+            "honest_sign": cell(row, present.get("honest_sign")),
+            "eac_cert_number": cell(row, present.get("eac_cert_number")),
+            "eac_cert_url": cell(row, present.get("eac_cert_url")),
+        }
+        # Настроенные, но пустые колонки встречаются почти во всём прайсе.
+        # Не создаём для них сотни тысяч бесполезных словарей.
+        if not any(regulatory.values()):
+            continue
+        key = (brand.casefold(), preprocess_oem_number(article))
+        rows_by_key[key] = {
+            "brand": brand,
+            "article": article,
+            "name": cell(row, name_col) or "",
+            **regulatory,
+        }
+    return list(rows_by_key.values())
 
 
 async def _apply_pricelist_regulatory(

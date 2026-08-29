@@ -2468,14 +2468,78 @@ async def send_customer_pricelist_now(
     )
     # Сокращённый ответ: список autoparts на 100к+ позиций — это десятки
     # мегабайт JSON и лишний SELECT; фронту достаточно id и счётчика.
-    response = await process_customer_pricelist(
-        customer=customer,
-        request=request,
-        session=session,
-        include_autoparts_response=False,
-        delivery_mode="send",
-    )
+    try:
+        response = await process_customer_pricelist(
+            customer=customer,
+            request=request,
+            session=session,
+            include_autoparts_response=False,
+            delivery_mode="send",
+        )
+    except ValueError as error:
+        # Незаполненный получатель и подобное — это ошибка настройки, а не
+        # сбой сервера. Без явного текста кнопка выглядит нерабочей: до
+        # человека доходил только пустой 500.
+        raise HTTPException(status_code=400, detail=str(error))
     return response
+
+
+@router.post(
+    "/customers/{customer_id}/pricelist-configs/{config_id}/build-file",
+    tags=["customers", "pricelists"],
+    summary="Build customer pricelist and return the file",
+)
+async def build_customer_pricelist_file(
+    customer_id: int,
+    config_id: int,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_admin),
+):
+    """Собирает прайс и отдаёт файл, никому его не отправляя.
+
+    Нужен, чтобы посмотреть, что уедет клиенту, до отправки: раньше для
+    этого приходилось отправлять письмо себе.
+    """
+    customer = await crud_customer.get_by_id(customer_id=customer_id, session=session)
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    config = await crud_customer_pricelist_config.get_by_id(
+        session=session, customer_id=customer_id, config_id=config_id
+    )
+    if not config:
+        raise HTTPException(
+            status_code=404, detail="Configuration not found for this customer"
+        )
+
+    try:
+        response = await process_customer_pricelist(
+            customer=customer,
+            request=CustomerPriceListCreate(
+                customer_id=customer.id, config_id=config.id, items=[]
+            ),
+            session=session,
+            include_autoparts_response=False,
+            delivery_mode="draft",
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
+    pricelist = await _load_customer_pricelist_draft(session, response.id)
+    if pricelist is None or not pricelist.artifact_path:
+        raise HTTPException(
+            status_code=404, detail="Файл прайса не сформирован"
+        )
+    path = Path(pricelist.artifact_path).resolve()
+    artifact_root = CUSTOMER_PRICELIST_ARTIFACT_ROOT.resolve()
+    if artifact_root not in path.parents or not path.is_file():
+        raise HTTPException(
+            status_code=404, detail="Файл прайса не найден на диске"
+        )
+    return FileResponse(
+        path,
+        media_type=pricelist.artifact_content_type,
+        filename=pricelist.artifact_filename,
+    )
 
 
 @router.get(

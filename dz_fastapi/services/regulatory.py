@@ -23,8 +23,10 @@ import logging
 import re
 from collections import defaultdict
 from datetime import date
+from pathlib import Path
 from typing import Any, Iterable, Optional
 
+import pandas as pd
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -86,30 +88,65 @@ def _map_columns(header: list[str]) -> dict[str, int]:
 def parse_supplier_regulatory_file(
     content: bytes,
     *,
+    filename: Optional[str] = None,
     encoding: Optional[str] = None,
-    delimiter: str = ";",
+    delimiter: Optional[str] = None,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
-    """Разбирает CSV поставщика с обязательными реквизитами.
+    """Разбирает CSV/XLS/XLSX поставщика с обязательными реквизитами.
 
-    Кодировка у таких выгрузок обычно cp1251, поэтому пробуем её первой,
-    а не полагаемся на utf-8 по умолчанию.
+    Формат определяем и по имени, и по сигнатуре: браузер иногда не
+    передаёт расширение. CSV у поставщиков бывает с ``;``, ``,`` или
+    табуляцией, а кодировка чаще cp1251.
     """
-    text: Optional[str] = None
-    for candidate in ([encoding] if encoding else []) + ["cp1251", "utf-8-sig", "utf-8"]:
-        if not candidate:
-            continue
+    extension = Path(filename or "").suffix.lower()
+    is_excel = (
+        extension in {".xls", ".xlsx"}
+        or content.startswith(b"PK\x03\x04")
+        or content.startswith(b"\xd0\xcf\x11\xe0")
+    )
+    if is_excel:
         try:
-            text = content.decode(candidate)
-            break
-        except (UnicodeDecodeError, LookupError):
-            continue
-    if text is None:
-        raise ValueError("Не удалось определить кодировку файла")
+            frame = pd.read_excel(
+                io.BytesIO(content),
+                header=None,
+                engine=(
+                    "xlrd"
+                    if extension == ".xls" or content.startswith(b"\xd0\xcf\x11\xe0")
+                    else "openpyxl"
+                ),
+            )
+        except Exception as error:  # noqa: BLE001 - даём понятную ошибку API
+            raise ValueError(f"Не удалось прочитать Excel-файл: {error}") from error
+        matrix = frame.where(pd.notna(frame), "").values.tolist()
+    else:
+        text: Optional[str] = None
+        candidates = ([encoding] if encoding else []) + [
+            "cp1251",
+            "utf-8-sig",
+            "utf-8",
+        ]
+        for candidate in candidates:
+            if not candidate:
+                continue
+            try:
+                text = content.decode(candidate)
+                break
+            except (UnicodeDecodeError, LookupError):
+                continue
+        if text is None:
+            raise ValueError("Не удалось определить кодировку файла")
+        if delimiter is None:
+            try:
+                delimiter = csv.Sniffer().sniff(
+                    text[:8192], delimiters=";,\t"
+                ).delimiter
+            except csv.Error:
+                delimiter = ";"
+        matrix = list(csv.reader(io.StringIO(text), delimiter=delimiter))
 
-    reader = list(csv.reader(io.StringIO(text), delimiter=delimiter))
-    if not reader:
+    if not matrix:
         return [], {}
-    columns = _map_columns(reader[0])
+    columns = _map_columns([str(item or "") for item in matrix[0]])
     missing = {"brand", "article"} - set(columns)
     if missing:
         raise ValueError(
@@ -118,7 +155,7 @@ def parse_supplier_regulatory_file(
         )
 
     rows: list[dict[str, Any]] = []
-    for raw in reader[1:]:
+    for raw in matrix[1:]:
         if not raw:
             continue
 
@@ -126,7 +163,12 @@ def parse_supplier_regulatory_file(
             index = columns.get(field)
             if index is None or index >= len(raw):
                 return ""
-            return str(raw[index] or "").strip()
+            value = raw[index]
+            if value is None or (isinstance(value, float) and pd.isna(value)):
+                return ""
+            if isinstance(value, float) and value.is_integer():
+                value = int(value)
+            return str(value).strip()
 
         brand = cell("brand")
         article = cell("article")
@@ -437,23 +479,23 @@ async def import_supplier_regulatory(
     Ручной ввод по умолчанию не затирается: человек, который проверил
     сертификат в реестре, знает больше, чем строка в чужом файле.
     """
-    brand_keys = await load_brand_key_index(session)
-    prepared: list[tuple[tuple[Optional[int], str], dict[str, Any]]] = []
-    for row in rows:
-        key = (
-            brand_keys.get(normalize_brand_key(row["brand"])),
-            preprocess_oem_number(str(row["article"])),
-        )
-        prepared.append((key, row))
-
+    brand_keys, brand_groups = await load_brand_groups(session)
     index = await _load_autopart_index(
-        session, [key for key, _ in prepared], brand_keys
+        session,
+        (
+            (
+                brand_keys.get(normalize_brand_key(row["brand"])),
+                preprocess_oem_number(str(row["article"])),
+            )
+            for row in rows
+        ),
+        brand_keys,
     )
 
     honest_sign_index = await load_honest_sign_index(session)
 
     stats = {
-        "rows": len(prepared),
+        "rows": len(rows),
         "matched": 0,
         "unmatched": 0,
         "updated": 0,
@@ -466,10 +508,17 @@ async def import_supplier_regulatory(
         "honest_sign_linked": 0,
         "honest_sign_flag_only": 0,
         "honest_sign_unknown": defaultdict(int),
+        "certificate_links_rejected": 0,
+        "certificate_rejections": defaultdict(int),
+        "cache_refreshed": 0,
     }
 
     targets: dict[int, dict[str, Any]] = {}
-    for key, row in prepared:
+    for row in rows:
+        key = (
+            brand_keys.get(normalize_brand_key(row["brand"])),
+            preprocess_oem_number(str(row["article"])),
+        )
         autopart_id = index.get(key)
         if autopart_id is None:
             stats["unmatched"] += 1
@@ -499,9 +548,28 @@ async def import_supplier_regulatory(
     stats["certificates"] = len(certificate_ids)
     stats["links_created"] = 0
 
-    parts = []
+    certificate_numbers = sorted(
+        {
+            number
+            for row in targets.values()
+            for required, number in [_split_certificate(row.get("eac_cert_number"))]
+            if required and number
+        }
+    )
+    certificates = {
+        item.number: item
+        for item in (
+            await session.execute(
+                select(Certificate).where(Certificate.number.in_(certificate_numbers))
+            )
+        ).scalars()
+    }
+    cache_targets: set[int] = set()
+
+    # Обрабатываем ORM-карточки порциями. Раньше все 200+ тысяч объектов
+    # и их связи оставались в одном списке до commit и раздували scheduler.
     for chunk in chunked(sorted(targets)):
-        parts.extend(
+        parts = (
             (
                 await session.execute(
                     select(AutoPart)
@@ -515,98 +583,124 @@ async def import_supplier_regulatory(
             .scalars()
             .all()
         )
-    for part in parts:
-        row = targets[part.id]
-        if (
-            part.regulatory_source == MANUAL_SOURCE
-            and not overwrite_manual
-        ):
-            stats["skipped_manual"] += 1
-            continue
+        for part in parts:
+            row = targets[part.id]
+            if (
+                part.regulatory_source == MANUAL_SOURCE
+                and not overwrite_manual
+            ):
+                stats["skipped_manual"] += 1
+                continue
 
-        required, cert_number = _split_certificate(row.get("eac_cert_number"))
-        changes: dict[str, Any] = {}
-        if row.get("tnved_code") and not part.tnved_code:
-            changes["tnved_code"] = row["tnved_code"]
-        if row.get("okpd2_code") and not part.okpd2_code:
-            changes["okpd2_code"] = row["okpd2_code"]
-        if required is not None and part.certification_required is None:
-            changes["certification_required"] = required
-        if cert_number and not part.eac_cert_number:
-            changes["eac_cert_number"] = cert_number
-        if row.get("eac_cert_url") and not part.eac_cert_url:
-            changes["eac_cert_url"] = row["eac_cert_url"]
+            required, cert_number = _split_certificate(
+                row.get("eac_cert_number")
+            )
+            certificate = certificates.get(cert_number) if cert_number else None
+            cert_problems = (
+                certificate_link_problems(part, certificate, brand_groups)
+                if certificate is not None
+                else []
+            )
+            blocking_problems = sorted(
+                set(cert_problems) & BLOCKING_LINK_PROBLEMS
+            )
+            certificate_accepted = bool(cert_number) and not blocking_problems
+            if blocking_problems:
+                stats["certificate_links_rejected"] += 1
+                for problem in blocking_problems:
+                    stats["certificate_rejections"][problem] += 1
 
-        # Честный знак. У нас это категории маркировки, у поставщика в
-        # той же колонке может стоять и название категории, и просто
-        # «да». Название сопоставляем со справочником, флаг — считаем.
-        honest_sign = (row.get("honest_sign") or "").strip()
-        if honest_sign and not dry_run:
-            if honest_sign.casefold() in _HONEST_SIGN_FLAGS:
-                stats["honest_sign_flag_only"] += 1
-            else:
-                category_id = honest_sign_index.get(
-                    _normalize_category_key(honest_sign)
+            changes: dict[str, Any] = {}
+            if row.get("tnved_code") and not part.tnved_code:
+                changes["tnved_code"] = row["tnved_code"]
+            if row.get("okpd2_code") and not part.okpd2_code:
+                changes["okpd2_code"] = row["okpd2_code"]
+            # Документ поставщика важнее автоматического правила. Ручное
+            # решение защищено ранним continue выше.
+            if required is True and part.certification_required is not True:
+                changes["certification_required"] = True
+            elif (
+                required is False
+                and not part.certificates
+                and (
+                    part.certification_required is None
+                    or part.regulatory_source == "rule"
                 )
-                if category_id is None:
-                    stats["honest_sign_unknown"][honest_sign] += 1
-                elif category_id not in {
-                    item.id for item in part.honest_sign_categories
-                }:
-                    part.honest_sign_categories.append(
-                        await session.get(HonestSignCategory, category_id)
+            ):
+                changes["certification_required"] = False
+
+            relation_changed = False
+            honest_sign = (row.get("honest_sign") or "").strip()
+            if honest_sign and not dry_run:
+                if honest_sign.casefold() in _HONEST_SIGN_FLAGS:
+                    stats["honest_sign_flag_only"] += 1
+                else:
+                    category_id = honest_sign_index.get(
+                        _normalize_category_key(honest_sign)
                     )
-                    part.honest_sign_category = ", ".join(
-                        sorted(
-                            item.name
-                            for item in part.honest_sign_categories
-                            if item.name
+                    if category_id is None:
+                        stats["honest_sign_unknown"][honest_sign] += 1
+                    elif category_id not in {
+                        item.id for item in part.honest_sign_categories
+                    }:
+                        category = await session.get(
+                            HonestSignCategory, category_id
                         )
-                    )[:100] or None
+                        if category is not None:
+                            part.honest_sign_categories.append(category)
+                            part.honest_sign_category = ", ".join(
+                                sorted(
+                                    item.name
+                                    for item in part.honest_sign_categories
+                                    if item.name
+                                )
+                            )[:100] or None
+                            stats["honest_sign_linked"] += 1
+                            relation_changed = True
+            elif honest_sign and dry_run:
+                if honest_sign.casefold() in _HONEST_SIGN_FLAGS:
+                    stats["honest_sign_flag_only"] += 1
+                elif _normalize_category_key(honest_sign) in honest_sign_index:
                     stats["honest_sign_linked"] += 1
-                    session.add(part)
-        elif honest_sign and dry_run:
-            if honest_sign.casefold() in _HONEST_SIGN_FLAGS:
-                stats["honest_sign_flag_only"] += 1
-            elif _normalize_category_key(honest_sign) in honest_sign_index:
-                stats["honest_sign_linked"] += 1
-            else:
-                stats["honest_sign_unknown"][honest_sign] += 1
+                    relation_changed = True
+                else:
+                    stats["honest_sign_unknown"][honest_sign] += 1
 
-        # Связь ставим независимо от того, менялись ли поля карточки:
-        # позиция могла уже иметь номер, но не иметь связи с документом.
-        if dry_run:
-            # В предпросмотре сертификаты ещё не заведены, поэтому считаем
-            # связи по номеру: иначе отчёт всегда показывал бы ноль.
-            if cert_number and cert_number not in {
-                item.number for item in part.certificates
-            }:
-                stats["links_created"] += 1
-        elif cert_number:
-            certificate_id = certificate_ids.get(cert_number)
-            if certificate_id and certificate_id not in {
-                item.id for item in part.certificates
-            }:
-                part.certificates.append(
-                    await session.get(Certificate, certificate_id)
-                )
-                stats["links_created"] += 1
+            if certificate_accepted:
+                existing_numbers = {item.number for item in part.certificates}
+                if cert_number not in existing_numbers:
+                    stats["links_created"] += 1
+                    relation_changed = True
+                    if not dry_run and certificate is not None:
+                        part.certificates.append(certificate)
+                if not dry_run and certificate is not None:
+                    # Даже уже существующую связь прогоняем через пересборку:
+                    # старый кэш мог содержать номер снятого документа.
+                    cache_targets.add(part.id)
+
+            changed = bool(changes) or relation_changed
+            if not changed:
+                stats["unchanged"] += 1
+                continue
+            stats["updated"] += 1
+            for field in changes:
+                stats["fields_filled"][field] += 1
+            if not dry_run:
+                for field, value in changes.items():
+                    setattr(part, field, value)
+                part.regulatory_source = "supplier_doc"
                 session.add(part)
-
-        if not changes:
-            stats["unchanged"] += 1
-            continue
-        stats["updated"] += 1
-        for field in changes:
-            stats["fields_filled"][field] += 1
         if not dry_run:
-            for field, value in changes.items():
-                setattr(part, field, value)
-            part.regulatory_source = "supplier_doc"
-            session.add(part)
+            # Реквизиты вторичны относительно самого прайса, поэтому здесь
+            # важнее ограниченная память, чем одна гигантская транзакция.
+            await session.commit()
+        del parts
 
     if not dry_run:
-        await session.commit()
+        stats["cache_refreshed"] = await refresh_autopart_certificate_cache(
+            session,
+            cache_targets,
+        )
 
     stats["fields_filled"] = dict(stats["fields_filled"])
     stats["unmatched_brands"] = dict(
@@ -620,6 +714,9 @@ async def import_supplier_regulatory(
             stats["honest_sign_unknown"].items(),
             key=lambda item: -item[1],
         )[:20]
+    )
+    stats["certificate_rejections"] = dict(
+        stats["certificate_rejections"]
     )
     return stats
 
@@ -943,9 +1040,11 @@ async def refresh_autopart_certificate_cache(
     if not ids:
         return 0
 
-    parts = []
+    today = date.today()
+    _, brand_groups = await load_brand_groups(session)
+    changed = 0
     for chunk in chunked(ids):
-        parts.extend(
+        parts = (
             (
                 await session.execute(
                     select(AutoPart)
@@ -956,63 +1055,55 @@ async def refresh_autopart_certificate_cache(
             .scalars()
             .all()
         )
-    today = date.today()
-    _, brand_groups = await load_brand_groups(session)
-    changed = 0
-    for part in parts:
-        if part.regulatory_source == MANUAL_SOURCE:
-            continue
-        # Последняя защита перед прайсом: связь могли создать в обход
-        # проверок — миграцией, старым импортом, руками в базе.
-        active = [
-            item
-            for item in part.certificates
-            if not (
-                set(
-                    certificate_link_problems(
-                        part, item, brand_groups, today
+        chunk_changed = 0
+        for part in parts:
+            if part.regulatory_source == MANUAL_SOURCE:
+                continue
+            # Последняя защита перед прайсом: связь могли создать в обход
+            # проверок — миграцией, старым импортом, руками в базе.
+            active = [
+                item
+                for item in part.certificates
+                if not (
+                    set(
+                        certificate_link_problems(
+                            part, item, brand_groups, today
+                        )
                     )
+                    & BLOCKING_LINK_PROBLEMS
                 )
-                & BLOCKING_LINK_PROBLEMS
+            ]
+            best = max(
+                active,
+                key=lambda item: (
+                    item.source == SUPPLIER_SOURCE,
+                    item.valid_until is not None,
+                    item.valid_until or date.min,
+                    item.id,
+                ),
+                default=None,
             )
-        ]
-        # Документ поставщика важнее нашего: поставщик отвечает за товар,
-        # который сам и ввёз. Дальше — явный срок предпочтительнее
-        # пустого, а при равенстве берём самый последний документ.
-        best = max(
-            active,
-            key=lambda item: (
-                item.source == SUPPLIER_SOURCE,
-                item.valid_until is not None,
-                item.valid_until or date.min,
-                item.id,
-            ),
-            default=None,
-        )
-        number = best.number if best else None
-        url = best.url if best else None
-        valid_until = best.valid_until if best else None
-        # Привязанный документ противоречит признаку «не требует»: в
-        # выгрузке этот признак сильнее номера, и позиция уехала бы к
-        # клиенту с текстом «Не требует сертификации», имея сертификат.
-        # При отвязке признак не сбрасываем: то, что документа больше нет,
-        # не означает, что товар сертификации не подлежит.
-        required = True if best else part.certification_required
-        if (
-            part.eac_cert_number == number
-            and part.eac_cert_url == url
-            and part.eac_cert_valid_until == valid_until
-            and part.certification_required == required
-        ):
-            continue
-        part.eac_cert_number = number
-        part.eac_cert_url = url
-        part.eac_cert_valid_until = valid_until
-        part.certification_required = required
-        session.add(part)
-        changed += 1
-    if commit and changed:
-        await session.commit()
+            number = best.number if best else None
+            url = best.url if best else None
+            valid_until = best.valid_until if best else None
+            required = True if best else part.certification_required
+            if (
+                part.eac_cert_number == number
+                and part.eac_cert_url == url
+                and part.eac_cert_valid_until == valid_until
+                and part.certification_required == required
+            ):
+                continue
+            part.eac_cert_number = number
+            part.eac_cert_url = url
+            part.eac_cert_valid_until = valid_until
+            part.certification_required = required
+            session.add(part)
+            changed += 1
+            chunk_changed += 1
+        if commit and chunk_changed:
+            await session.commit()
+        del parts
     return changed
 
 

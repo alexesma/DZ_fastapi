@@ -19,6 +19,12 @@ class RegulatoryImportResponse(BaseModel):
     unmatched_brands: dict[str, int] = {}
     certificates: int = 0
     links_created: int = 0
+    certificate_links_rejected: int = 0
+    certificate_rejections: dict[str, int] = {}
+    cache_refreshed: int = 0
+    honest_sign_linked: int = 0
+    honest_sign_flag_only: int = 0
+    honest_sign_unknown: dict[str, int] = {}
 
 
 class CoverageRow(BaseModel):
