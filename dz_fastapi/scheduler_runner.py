@@ -5,6 +5,8 @@ import signal
 import time
 
 from fastapi import FastAPI
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from dz_fastapi.core.db import dispose_engines, get_async_session
 from dz_fastapi.services.auth import ensure_admin_user
@@ -15,6 +17,67 @@ SCHEDULER_STARTUP_DELAY_SECONDS = max(
     0,
     int(os.getenv("SCHEDULER_STARTUP_DELAY_SECONDS", "20")),
 )
+SCHEDULER_DB_STARTUP_ATTEMPTS = max(
+    1,
+    int(os.getenv("SCHEDULER_DB_STARTUP_ATTEMPTS", "8")),
+)
+SCHEDULER_DB_RETRY_DELAY_SECONDS = max(
+    1,
+    int(os.getenv("SCHEDULER_DB_RETRY_DELAY_SECONDS", "5")),
+)
+SCHEDULER_DB_RETRY_MAX_DELAY_SECONDS = max(
+    SCHEDULER_DB_RETRY_DELAY_SECONDS,
+    int(os.getenv("SCHEDULER_DB_RETRY_MAX_DELAY_SECONDS", "30")),
+)
+
+
+async def wait_for_database():
+    """Дожидается PostgreSQL и возвращает рабочую фабрику сессий.
+
+    ``depends_on: service_healthy`` проверяется только при создании
+    контейнера. PostgreSQL может быть временно недоступен позже, например
+    после перезапуска или тяжёлой транзакции, поэтому scheduler не должен
+    завершаться после единственного тайм-аута подключения.
+    """
+    for attempt in range(1, SCHEDULER_DB_STARTUP_ATTEMPTS + 1):
+        try:
+            session_factory = get_async_session()
+            async with session_factory() as session:
+                await session.execute(text("SELECT 1"))
+                await ensure_admin_user(session)
+            if attempt > 1:
+                logger.info(
+                    "Database connection restored on scheduler startup "
+                    "attempt %s/%s",
+                    attempt,
+                    SCHEDULER_DB_STARTUP_ATTEMPTS,
+                )
+            return session_factory
+        except (TimeoutError, OSError, SQLAlchemyError) as error:
+            if attempt >= SCHEDULER_DB_STARTUP_ATTEMPTS:
+                logger.exception(
+                    "Database is unavailable after %s scheduler startup "
+                    "attempts",
+                    SCHEDULER_DB_STARTUP_ATTEMPTS,
+                )
+                raise
+            delay = min(
+                SCHEDULER_DB_RETRY_DELAY_SECONDS * (2 ** (attempt - 1)),
+                SCHEDULER_DB_RETRY_MAX_DELAY_SECONDS,
+            )
+            logger.warning(
+                "Database connection failed on scheduler startup "
+                "attempt %s/%s (%s: %s). Retrying in %s seconds",
+                attempt,
+                SCHEDULER_DB_STARTUP_ATTEMPTS,
+                type(error).__name__,
+                error,
+                delay,
+            )
+            await dispose_engines()
+            await asyncio.sleep(delay)
+
+    raise RuntimeError("Database startup retry loop finished unexpectedly")
 
 
 async def main() -> None:
@@ -25,15 +88,12 @@ async def main() -> None:
         )
         await asyncio.sleep(SCHEDULER_STARTUP_DELAY_SECONDS)
 
-    session_factory = get_async_session()
+    session_factory = await wait_for_database()
 
     app = FastAPI()
     app.state.session_factory = session_factory
     app.state.is_shutting_down = False
     app.state.started_at = time.time()
-
-    async with session_factory() as session:
-        await ensure_admin_user(session)
 
     scheduler = start_scheduler(app)
     app.state.scheduler = scheduler

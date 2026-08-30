@@ -9,7 +9,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from httpx import Response
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -39,6 +39,7 @@ from dz_fastapi.crud.partner import (
 )
 from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
 from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.notification import AppNotification
 from dz_fastapi.models.partner import (
     TYPE_PRICES,
     Customer,
@@ -3742,6 +3743,56 @@ def _read_pricelist_review_file(file_path: str) -> bytes:
         return file_handle.read()
 
 
+async def _mark_pricelist_review_notifications_read(
+    session: AsyncSession,
+    review: ProviderPricelistReview,
+) -> None:
+    """Закрывает эту проверку и устаревшую очередь той же конфигурации."""
+    decided_at = now_moscow()
+    await session.execute(
+        update(ProviderPricelistReview)
+        .where(
+            ProviderPricelistReview.provider_config_id
+            == review.provider_config_id,
+            ProviderPricelistReview.id < review.id,
+            ProviderPricelistReview.status == "pending",
+        )
+        .values(
+            status="superseded",
+            decision_reason=(
+                "Заменён более свежим прайсом этой конфигурации"
+            ),
+            decided_at=decided_at,
+            processing_error=None,
+        )
+    )
+    review_ids = list(
+        (
+            await session.execute(
+                select(ProviderPricelistReview.id).where(
+                    ProviderPricelistReview.provider_config_id
+                    == review.provider_config_id,
+                    ProviderPricelistReview.id <= review.id,
+                )
+            )
+        ).scalars()
+    )
+    if not review_ids:
+        return
+    links = [
+        f"/providers/{review.provider_id}/edit?pricelist_review={review_id}"
+        for review_id in review_ids
+    ]
+    await session.execute(
+        update(AppNotification)
+        .where(
+            AppNotification.link.in_(links),
+            AppNotification.read_at.is_(None),
+        )
+        .values(read_at=decided_at)
+    )
+
+
 @router.get(
     "/providers/{provider_id}/pricelist-reviews",
     response_model=List[ProviderPricelistReviewOut],
@@ -3826,6 +3877,7 @@ async def reject_provider_pricelist_review(
     review.decided_by_user_id = current_user.id
     review.processing_error = None
     session.add(review)
+    await _mark_pricelist_review_notifications_read(session, review)
     await session.commit()
     return _pricelist_review_out(
         await _get_pricelist_review(
@@ -3933,6 +3985,10 @@ async def approve_provider_pricelist_review(
     approved_review.decided_by_user_id = current_user.id
     approved_review.processing_error = None
     session.add(approved_review)
+    await _mark_pricelist_review_notifications_read(
+        session,
+        approved_review,
+    )
     await session.commit()
     return _pricelist_review_out(
         await _get_pricelist_review(

@@ -121,9 +121,9 @@ def parse_supplier_regulatory_file(
     else:
         text: Optional[str] = None
         candidates = ([encoding] if encoding else []) + [
-            "cp1251",
             "utf-8-sig",
             "utf-8",
+            "cp1251",
         ]
         for candidate in candidates:
             if not candidate:

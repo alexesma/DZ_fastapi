@@ -209,21 +209,38 @@ async def _resolve_site_provider_id(
         if cached_provider_id is not None:
             return cached_provider_id
 
-        provider = await crud_provider.get_provider_or_none(
-            supplier_name, session
+        # Привязка, заведённая человеком при объединении дубля, важнее
+        # совпадения имён — поэтому идёт первой.
+        reference = await crud_provider.get_external_reference_by_source_name(
+            source_system=DRAGONZAP_EXTERNAL_SOURCE,
+            external_supplier_name=supplier_name,
+            session=session,
+        )
+        if reference is not None and reference.is_active:
+            provider_cache[name_cache_key] = reference.provider_id
+            if id_cache_key:
+                provider_cache[id_cache_key] = reference.provider_id
+            return reference.provider_id
+
+        # Без учёта регистра: сайт пишет «Cosmopart», в каталоге
+        # «COSMOPART», и точное сравнение плодило дубли.
+        provider = await crud_provider.get_provider_by_name_insensitive(
+            name=supplier_name, session=session
         )
         if provider is not None:
-            if supplier_id is not None:
-                await crud_provider.upsert_external_reference(
-                    provider_id=provider.id,
-                    obj_in=ProviderExternalReferenceCreate(
-                        source_system=DRAGONZAP_EXTERNAL_SOURCE,
-                        external_supplier_id=int(supplier_id),
-                        external_supplier_name=supplier_name or None,
-                        is_active=True,
+            await crud_provider.upsert_external_reference(
+                provider_id=provider.id,
+                obj_in=ProviderExternalReferenceCreate(
+                    source_system=DRAGONZAP_EXTERNAL_SOURCE,
+                    external_supplier_id=(
+                        int(supplier_id) if supplier_id is not None else None
                     ),
-                    session=session,
-                )
+                    external_supplier_name=supplier_name or None,
+                    is_active=True,
+                ),
+                session=session,
+            )
+            if id_cache_key:
                 provider_cache[id_cache_key] = provider.id
             provider_cache[name_cache_key] = provider.id
             return provider.id

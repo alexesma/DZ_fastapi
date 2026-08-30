@@ -2,8 +2,14 @@ from datetime import date, timedelta
 
 import pytest
 
-from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation
+from dz_fastapi.models.partner import (
+    PriceList,
+    PriceListAutoPartAssociation,
+    ProviderPricelistReview,
+)
 from dz_fastapi.services.pricelist_guard import (
+    PricelistAnomalyResult,
+    _create_pricelist_review,
     _load_previous_price_map,
     build_review_examples,
     calculate_pricelist_anomaly,
@@ -107,6 +113,70 @@ def test_review_examples_prefer_new_positions_and_distinct_brands():
     assert len(examples) == 10
     assert len({row["brand"] for row in examples}) == 10
     assert all(row["change_type"] == "new" for row in examples)
+
+
+@pytest.mark.asyncio
+async def test_new_review_supersedes_older_pending_review(
+    test_session,
+    created_providers,
+    created_pricelist_config,
+    tmp_path,
+    monkeypatch,
+):
+    provider = created_providers[0]
+    old_review = ProviderPricelistReview(
+        provider_id=provider.id,
+        provider_config_id=created_pricelist_config.id,
+        source_filename="old.xlsx",
+        file_path=str(tmp_path / "old.xlsx"),
+        file_extension="xlsx",
+        file_sha256="a" * 64,
+        status="pending",
+        reasons=["Старое предупреждение"],
+        metrics={},
+        examples=[],
+    )
+    test_session.add(old_review)
+    await test_session.commit()
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.pricelist_guard.PRICELIST_REVIEW_DIR",
+        str(tmp_path),
+    )
+    result = PricelistAnomalyResult(
+        blocked=True,
+        reasons=["Количество позиций изменилось на +30.0%."],
+        metrics={"previous_pricelist_id": None},
+    )
+    new_review, created = await _create_pricelist_review(
+        session=test_session,
+        provider=provider,
+        provider_config=created_pricelist_config,
+        result=result,
+        items=[
+            {
+                "brand": "BRAND",
+                "oem_number": "NEW",
+                "name": "New position",
+                "quantity": 2,
+                "price": 100,
+            }
+        ],
+        previous_prices={},
+        file_content=b"new pricelist payload",
+        file_extension="xlsx",
+        source_filename="new.xlsx",
+    )
+    await test_session.commit()
+    await test_session.refresh(old_review)
+
+    assert created is True
+    assert new_review.status == "pending"
+    assert old_review.status == "superseded"
+    assert old_review.decided_at is not None
+    assert old_review.decision_reason == (
+        "Заменён более свежим прайсом этой конфигурации"
+    )
 
 
 @pytest.mark.asyncio

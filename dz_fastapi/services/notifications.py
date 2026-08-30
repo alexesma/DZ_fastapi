@@ -84,6 +84,7 @@ async def create_notifications_for_role(
     message: str,
     level: str = AppNotificationLevel.INFO,
     link: str | None = None,
+    payload: dict[str, Any] | None = None,
     commit: bool = True,
 ) -> list[AppNotification]:
     result = await session.execute(
@@ -100,6 +101,7 @@ async def create_notifications_for_role(
         message=message,
         level=level,
         link=link,
+        payload=payload,
         commit=commit,
     )
 
@@ -111,6 +113,7 @@ async def create_admin_notifications(
     message: str,
     level: str = AppNotificationLevel.INFO,
     link: str | None = None,
+    payload: dict[str, Any] | None = None,
     commit: bool = True,
 ) -> list[AppNotification]:
     return await create_notifications_for_role(
@@ -120,6 +123,7 @@ async def create_admin_notifications(
         message=message,
         level=level,
         link=link,
+        payload=payload,
         commit=commit,
     )
 

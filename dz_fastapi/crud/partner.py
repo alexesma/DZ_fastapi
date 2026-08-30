@@ -220,6 +220,64 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         )
         return result.scalar_one_or_none()
 
+    async def get_external_reference_by_source_name(
+        self,
+        *,
+        source_system: str,
+        external_supplier_name: str,
+        session: AsyncSession,
+    ) -> Optional[ProviderExternalReference]:
+        """Ищет привязку по названию поставщика во внешней системе.
+
+        Сайт присылает не всегда id: в присланных заказах он пуст у всех
+        сорока привязок, и опознать поставщика можно только по названию.
+        Без этого поиска привязка записывалась, но никогда не читалась —
+        и объединение дублей не давало ничего, потому что перенесённая
+        привязка ни на что не влияла.
+
+        Сравнение без учёта регистра и краевых пробелов: сайт и каталог
+        пишут одно и то же имя по-разному.
+        """
+        value = (external_supplier_name or "").strip()
+        if not value:
+            return None
+        result = await session.execute(
+            select(ProviderExternalReference)
+            .where(
+                ProviderExternalReference.source_system == source_system,
+                func.lower(
+                    func.trim(ProviderExternalReference.external_supplier_name)
+                )
+                == value.lower(),
+            )
+            .order_by(ProviderExternalReference.id.asc())
+        )
+        return result.scalars().first()
+
+    async def get_provider_by_name_insensitive(
+        self,
+        *,
+        name: str,
+        session: AsyncSession,
+    ) -> Optional[Provider]:
+        """Поставщик по названию без учёта регистра и краевых пробелов.
+
+        Сайт пишет «Cosmopart», в каталоге заведён «COSMOPART», и точное
+        сравнение их не сводило — из-за этого на каждый заказ заводился
+        новый виртуальный поставщик.
+        """
+        value = (name or "").strip()
+        if not value:
+            return None
+        result = await session.execute(
+            select(Provider)
+            .where(func.lower(func.trim(Provider.name)) == value.lower())
+            # Настоящий поставщик важнее автоматически созданного дубля:
+            # пока дубль не убран, заказ должен идти к настоящему.
+            .order_by(Provider.is_virtual.asc(), Provider.id.asc())
+        )
+        return result.scalars().first()
+
     async def list_external_references(
         self,
         *,

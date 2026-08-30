@@ -9,13 +9,14 @@ from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.api.validators import normalize_brand_name
+from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
 from dz_fastapi.models.brand import Brand
-from dz_fastapi.models.notification import AppNotificationLevel
+from dz_fastapi.models.notification import AppNotification, AppNotificationLevel
 from dz_fastapi.models.partner import (
     PriceList,
     PriceListAutoPartAssociation,
@@ -183,6 +184,13 @@ async def _create_pricelist_review(
     file_extension: str | None,
     source_filename: str | None,
 ) -> tuple[ProviderPricelistReview, bool]:
+    # Serialize review creation per configuration. This prevents two emails
+    # processed almost simultaneously from leaving two current reviews.
+    await session.execute(
+        select(ProviderPriceListConfig.id)
+        .where(ProviderPriceListConfig.id == provider_config.id)
+        .with_for_update()
+    )
     checksum = hashlib.sha256(file_content).hexdigest()
     existing = (
         await session.execute(
@@ -201,6 +209,50 @@ async def _create_pricelist_review(
     ).scalar_one_or_none()
     if existing is not None:
         return existing, False
+
+    # От одной конфигурации нужен только самый свежий файл. Если поставщик
+    # прислал ночью пять версий, первые четыре уже не имеют смысла проверять:
+    # новая версия заменяет все предыдущие ожидающие решения.
+    previous_pending = (
+        (
+            await session.execute(
+                select(ProviderPricelistReview)
+                .where(
+                    ProviderPricelistReview.provider_config_id
+                    == provider_config.id,
+                    ProviderPricelistReview.status == "pending",
+                )
+                .with_for_update()
+            )
+        )
+        .scalars()
+        .all()
+    )
+    superseded_ids: list[int] = []
+    decided_at = now_moscow()
+    for pending in previous_pending:
+        pending.status = "superseded"
+        pending.decision_reason = (
+            "Заменён более свежим прайсом этой конфигурации"
+        )
+        pending.decided_at = decided_at
+        pending.processing_error = None
+        session.add(pending)
+        superseded_ids.append(int(pending.id))
+
+    if superseded_ids:
+        old_links = [
+            f"/providers/{provider.id}/edit?pricelist_review={review_id}"
+            for review_id in superseded_ids
+        ]
+        await session.execute(
+            update(AppNotification)
+            .where(
+                AppNotification.link.in_(old_links),
+                AppNotification.read_at.is_(None),
+            )
+            .values(read_at=decided_at)
+        )
 
     safe_filename = _safe_source_filename(source_filename, file_extension)
     relative_path = os.path.join(
@@ -476,6 +528,22 @@ async def guard_automatic_provider_pricelist(
         link=(
             f"/providers/{provider.id}/edit"
             + (f"?pricelist_review={review.id}" if review else "")
+        ),
+        payload=(
+            {
+                "notification_type": "provider_pricelist_review",
+                "review_id": int(review.id),
+                "provider_id": int(provider.id),
+                "provider_config_id": int(provider_config.id),
+                "provider_name": provider.name,
+                "config_name": provider_config.name_price or str(provider_config.id),
+                "source_filename": review.source_filename,
+                "reasons": list(review.reasons or []),
+                "metrics": dict(review.metrics or {}),
+                "examples": list(review.examples or []),
+            }
+            if review is not None
+            else None
         ),
         commit=True,
     )
