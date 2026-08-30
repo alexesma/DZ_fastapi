@@ -61,6 +61,31 @@ def _shipment_document_number(document: ShipmentDocument) -> str:
     return number or f"DZ-{document.id}"
 
 
+def _append_address(parent: ET.Element, tag: str, value: Any) -> None:
+    representation = str(value or "").strip()
+    if not representation:
+        return
+    address = ET.SubElement(parent, tag)
+    ET.SubElement(address, "Представление").text = representation
+
+
+def _append_contact(
+    contacts: ET.Element,
+    *,
+    contact_type: str,
+    value: Any,
+    comment: Optional[str] = None,
+) -> None:
+    normalized = str(value or "").strip()
+    if not normalized:
+        return
+    contact = ET.SubElement(contacts, "Контакт")
+    ET.SubElement(contact, "Тип").text = contact_type
+    ET.SubElement(contact, "Значение").text = normalized
+    if comment:
+        ET.SubElement(contact, "Комментарий").text = comment
+
+
 async def list_shipments_for_1c(
     session: AsyncSession,
     *,
@@ -133,12 +158,54 @@ def build_commerceml_sale_xml(
         ET.SubElement(counterparty, "Ид").text = f"dz-customer-{customer_id}"
         ET.SubElement(counterparty, "Наименование").text = name or "Розничный покупатель"
         ET.SubElement(counterparty, "ПолноеНаименование").text = name or "Розничный покупатель"
+        ET.SubElement(counterparty, "ОфициальноеНаименование").text = (
+            name or "Розничный покупатель"
+        )
+        _append_address(
+            counterparty,
+            "ЮридическийАдрес",
+            getattr(customer, "legal_address", None),
+        )
         inn = str(getattr(customer, "inn", "") or "").strip()
         kpp = str(getattr(customer, "kpp", "") or "").strip()
         if inn:
             ET.SubElement(counterparty, "ИНН").text = inn
         if kpp:
             ET.SubElement(counterparty, "КПП").text = kpp
+        comments = [
+            str(value).strip()
+            for value in (
+                getattr(customer, "description", None),
+                getattr(customer, "comment", None),
+            )
+            if str(value or "").strip()
+        ]
+        if comments:
+            ET.SubElement(counterparty, "Комментарий").text = "\n".join(comments)[:1000]
+        _append_address(
+            counterparty,
+            "Адрес",
+            getattr(customer, "postal_address", None),
+        )
+        emails = []
+        for email, comment in (
+            (getattr(customer, "email_contact", None), "Основной email"),
+            (
+                getattr(customer, "email_outgoing_price", None),
+                "Email для прайс-листов",
+            ),
+        ):
+            normalized_email = str(email or "").strip()
+            if normalized_email and normalized_email not in emails:
+                emails.append(normalized_email)
+                if len(emails) == 1:
+                    contacts = ET.SubElement(counterparty, "Контакты")
+                _append_contact(
+                    contacts,
+                    contact_type="Почта",
+                    value=normalized_email,
+                    comment=comment,
+                )
         ET.SubElement(counterparty, "Роль").text = "Покупатель"
 
         ET.SubElement(doc_el, "Время").text = doc_date.strftime("%H:%M:%S")
@@ -196,6 +263,22 @@ def build_commerceml_sale_xml(
             (
                 "Заказ клиента",
                 str(document.customer_order_id or ""),
+            ),
+            (
+                "Тип цены клиента",
+                str(getattr(customer, "type_prices", "") or ""),
+            ),
+            (
+                "Кредитный лимит клиента",
+                (
+                    _fmt_money(getattr(customer, "credit_limit", None))
+                    if getattr(customer, "credit_limit", None) is not None
+                    else ""
+                ),
+            ),
+            (
+                "Отсрочка платежа, дней",
+                str(getattr(customer, "payment_terms_days", "") or ""),
             ),
         ):
             req = ET.SubElement(requisites, "ЗначениеРеквизита")

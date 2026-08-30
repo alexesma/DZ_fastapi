@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import hashlib
-import json
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Iterable, Optional
 
 from sqlalchemy import func, or_, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -59,14 +59,6 @@ def _value(value: Any) -> Any:
     return value
 
 
-def _canonical_payload(payload: dict[str, Any]) -> str:
-    return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-
-
-def _payload_hash(payload: dict[str, Any]) -> str:
-    return hashlib.sha256(_canonical_payload(payload).encode("utf-8")).hexdigest()
-
-
 def _item_autopart_payload(autopart: Optional[AutoPart]) -> dict[str, Any]:
     brand = getattr(getattr(autopart, "brand", None), "name", None)
     return {
@@ -112,6 +104,17 @@ async def build_shipment_snapshot(
             "name": getattr(customer, "name", None),
             "inn": getattr(customer, "inn", None),
             "kpp": getattr(customer, "kpp", None),
+            "legal_address": getattr(customer, "legal_address", None),
+            "postal_address": getattr(customer, "postal_address", None),
+            "email_contact": getattr(customer, "email_contact", None),
+            "email_outgoing_price": getattr(
+                customer, "email_outgoing_price", None
+            ),
+            "description": getattr(customer, "description", None),
+            "comment": getattr(customer, "comment", None),
+            "type_prices": _value(getattr(customer, "type_prices", None)),
+            "credit_limit": _value(getattr(customer, "credit_limit", None)),
+            "payment_terms_days": getattr(customer, "payment_terms_days", None),
         },
         "warehouse": {
             "id": getattr(document.warehouse, "id", None),
@@ -319,15 +322,25 @@ async def enqueue_one_c_event(
     event_type: str,
     payload: dict[str, Any],
 ) -> OneCExchangeEvent:
-    digest = _payload_hash(payload)
-    idempotency_key = f"{entity_type}:{entity_id}:{event_type}:{digest[:48]}"
+    # A business transition is immutable. Its snapshot may nevertheless gain
+    # derived values after first enqueue (for example FIFO allocations after
+    # posting). Such changes must not create a second delivery to 1C.
     existing = (
         await session.execute(
-            select(OneCExchangeEvent).where(OneCExchangeEvent.idempotency_key == idempotency_key)
+            select(OneCExchangeEvent)
+            .where(
+                OneCExchangeEvent.entity_type == entity_type,
+                OneCExchangeEvent.entity_id == entity_id,
+                OneCExchangeEvent.event_type == event_type,
+            )
+            .order_by(OneCExchangeEvent.id.desc())
+            .limit(1)
         )
     ).scalar_one_or_none()
     if existing is not None:
         return existing
+
+    idempotency_key = f"{entity_type}:{entity_id}:{event_type}"
     event = OneCExchangeEvent(
         entity_type=entity_type,
         entity_id=entity_id,
@@ -337,8 +350,23 @@ async def enqueue_one_c_event(
         idempotency_key=idempotency_key,
         status=OneCExchangeEventStatus.PENDING,
     )
-    session.add(event)
-    await session.flush()
+    try:
+        async with session.begin_nested():
+            session.add(event)
+            await session.flush()
+    except IntegrityError:
+        # A concurrent request may insert the same stable key after the lookup
+        # above. The savepoint keeps the caller transaction usable.
+        existing = (
+            await session.execute(
+                select(OneCExchangeEvent).where(
+                    OneCExchangeEvent.idempotency_key == idempotency_key
+                )
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            return existing
+        raise
     return event
 
 

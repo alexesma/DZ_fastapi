@@ -53,6 +53,7 @@ holidays = ">=0.68"
 
 [tool.poetry.group.dev.dependencies]
 python-dotenv = "^1.0.1"
+pytest-xdist = "^3.8.0"
 
 [tool.isort]
 profile = "black"

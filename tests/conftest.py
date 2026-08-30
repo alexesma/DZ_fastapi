@@ -8,8 +8,10 @@ import pytest_asyncio
 from email_validator import validate_email as real_validate_email
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 
 from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.core.base import (
@@ -37,38 +39,103 @@ def pytest_configure(config):
     )
 
 
-async def _reset_database_schema(engine) -> None:
-    """Reset test DB to a clean state.
+def _quote_identifier(value: str) -> str:
+    return '"' + value.replace('"', '""') + '"'
 
-    For PostgreSQL we recreate public schema (more reliable than drop_all()).
-    For other engines we fallback to metadata drop/create.
-    """
+
+@pytest.fixture(scope="session")
+def test_schema_name(request) -> str:
+    """Give every xdist worker an isolated PostgreSQL schema."""
+    worker_input = getattr(request.config, "workerinput", None) or {}
+    worker_id = worker_input.get("workerid", "master")
+    return f"pytest_{worker_id}"
+
+
+async def _truncate_database(engine, schema_name: str) -> None:
+    """Remove test data without rebuilding the complete database schema."""
     async with engine.begin() as conn:
-        dialect = conn.dialect.name
-        if dialect == "postgresql":
-            await conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
-            await conn.execute(text("CREATE SCHEMA public"))
-            await conn.execute(text("GRANT ALL ON SCHEMA public TO CURRENT_USER"))
-            await conn.execute(text("GRANT ALL ON SCHEMA public TO public"))
-            await conn.run_sync(Base.metadata.create_all)
+        if conn.dialect.name == "postgresql":
+            preparer = conn.dialect.identifier_preparer
+            quoted_schema = preparer.quote_schema(schema_name)
+            checks = " UNION ALL ".join(
+                (
+                    f"SELECT '{table.name}' AS table_name "
+                    f"WHERE EXISTS (SELECT 1 FROM {quoted_schema}."
+                    f"{preparer.quote(table.name)} LIMIT 1)"
+                )
+                for table in Base.metadata.tables.values()
+            )
+            populated_tables = (
+                (await conn.execute(text(checks))).scalars().all()
+                if checks
+                else []
+            )
+            if populated_tables:
+                tables = ", ".join(
+                    f"{quoted_schema}.{preparer.quote(table_name)}"
+                    for table_name in populated_tables
+                )
+                await conn.execute(
+                    text(f"TRUNCATE TABLE {tables} RESTART IDENTITY CASCADE")
+                )
             return
 
-        await conn.run_sync(Base.metadata.drop_all)
+        for table in reversed(Base.metadata.sorted_tables):
+            await conn.execute(table.delete())
+
+
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
+async def test_engine(test_schema_name):
+    """Create tables once per worker instead of twice per individual test."""
+    database_url = settings.get_database_url(test=True)
+    dialect_name = make_url(database_url).get_backend_name()
+
+    if dialect_name == "postgresql":
+        admin_engine = create_async_engine(database_url, echo=False, future=True)
+        quoted_schema = _quote_identifier(test_schema_name)
+        async with admin_engine.begin() as conn:
+            await conn.execute(text(f"DROP SCHEMA IF EXISTS {quoted_schema} CASCADE"))
+            await conn.execute(text(f"CREATE SCHEMA {quoted_schema}"))
+        await admin_engine.dispose()
+
+        engine = create_async_engine(
+            database_url,
+            echo=False,
+            future=True,
+            poolclass=NullPool,
+            connect_args={
+                "server_settings": {
+                    "search_path": test_schema_name,
+                }
+            },
+        )
+    else:
+        engine = create_async_engine(
+            database_url,
+            echo=False,
+            future=True,
+            poolclass=NullPool,
+        )
+
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
-
-@pytest_asyncio.fixture(scope="function")
-async def test_engine():
-    engine = create_async_engine(settings.get_database_url(test=True), echo=True, future=True)
-    await _reset_database_schema(engine)
 
     yield engine
 
-    # Финальная очистка после теста
-    await _reset_database_schema(engine)
-
-    # Закрытие движка
     await engine.dispose()
+
+    cleanup_engine = create_async_engine(database_url, echo=False, future=True)
+    async with cleanup_engine.begin() as conn:
+        if dialect_name == "postgresql":
+            await conn.execute(
+                text(
+                    f"DROP SCHEMA IF EXISTS "
+                    f"{_quote_identifier(test_schema_name)} CASCADE"
+                )
+            )
+        else:
+            await conn.run_sync(Base.metadata.drop_all)
+    await cleanup_engine.dispose()
 
 
 # @pytest_asyncio.fixture(scope="function")
@@ -79,11 +146,18 @@ async def test_engine():
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_session(test_engine) -> AsyncSession:
+async def test_session(test_engine, test_schema_name) -> AsyncSession:
     async_session = sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session() as session:
         yield session
         await session.rollback()
+    await _truncate_database(test_engine, test_schema_name)
+
+
+@pytest.fixture
+def anyio_backend():
+    """The application and asyncpg are asyncio-based; Trio is unsupported."""
+    return "asyncio"
 
 
 @pytest_asyncio.fixture
@@ -241,7 +315,9 @@ async def async_client(test_session: AsyncSession):
 
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
-async def override_dependencies(test_engine, request):
+async def override_dependencies(
+    test_engine, test_session, test_schema_name, request
+):
     """
     Fixture that automatically overrides dependencies for all tests.
     """
@@ -250,7 +326,11 @@ async def override_dependencies(test_engine, request):
     logger = logging.getLogger("dz_fastapi")
     if not logger.handlers:
         logger.setLevel(logging.DEBUG)
-        handler = RotatingFileHandler("test_dz_fastapi.log", maxBytes=2000, backupCount=100)
+        handler = RotatingFileHandler(
+            f"test_dz_fastapi_{test_schema_name}.log",
+            maxBytes=2000,
+            backupCount=100,
+        )
         handler.setLevel(logging.DEBUG)
         formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         handler.setFormatter(formatter)

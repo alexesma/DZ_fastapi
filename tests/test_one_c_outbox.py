@@ -23,6 +23,7 @@ from dz_fastapi.services.one_c_outbox import (
     ENTITY_SHIPMENT,
     EVENT_POSTED,
     acknowledge_delivery_batch,
+    backfill_pending_shipment_events,
     enqueue_shipment_event,
     get_or_create_delivery_batch,
     retry_one_c_event,
@@ -76,6 +77,12 @@ async def test_one_c_outbox_is_idempotent_and_reuses_unconfirmed_batch(
     )
 
     first = await enqueue_shipment_event(test_session, shipment.id)
+    assert first.payload["customer"]["email_contact"] == (
+        created_customers[0].email_contact
+    )
+    assert first.payload["customer"]["legal_address"] == (
+        created_customers[0].legal_address
+    )
     duplicate = await enqueue_shipment_event(test_session, shipment.id)
     assert duplicate.id == first.id
     assert await test_session.scalar(select(func.count(OneCExchangeEvent.id))) == 1
@@ -112,6 +119,34 @@ async def test_one_c_outbox_is_idempotent_and_reuses_unconfirmed_batch(
     assert first.external_id == "1C-GUID-001"
     assert shipment.sync_status == SyncStatus.SYNCED
     assert shipment.external_id == "1C-GUID-001"
+
+
+@pytest.mark.asyncio
+async def test_one_c_backfill_does_not_duplicate_changed_shipment_snapshot(
+    test_session,
+    created_autopart,
+    created_customers,
+):
+    shipment = await _create_posted_shipment(
+        test_session,
+        autopart_id=created_autopart.id,
+        customer_id=created_customers[0].id,
+        number="DZ-OUTBOX-CHANGED",
+    )
+    first = await enqueue_shipment_event(test_session, shipment.id)
+
+    item = await test_session.scalar(
+        select(ShipmentDocumentItem).where(
+            ShipmentDocumentItem.document_id == shipment.id
+        )
+    )
+    item.cost_total = Decimal("250.00")
+    await test_session.commit()
+
+    assert await backfill_pending_shipment_events(test_session) == 0
+    repeated = await enqueue_shipment_event(test_session, shipment.id)
+    assert repeated.id == first.id
+    assert await test_session.scalar(select(func.count(OneCExchangeEvent.id))) == 1
 
 
 @pytest.mark.asyncio

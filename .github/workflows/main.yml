@@ -103,7 +103,9 @@ jobs:
       run: |
         export PATH="$HOME/.local/bin:$PATH"
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        poetry run pytest
+        # Каждый worker использует собственную PostgreSQL-схему,
+        # поэтому полный набор безопасно выполняется параллельно.
+        poetry run pytest -q -n 4 --dist loadscope --durations=50
 
 # Frontend линтинг и сборка (без тестов пока)
   frontend_lint_and_build:

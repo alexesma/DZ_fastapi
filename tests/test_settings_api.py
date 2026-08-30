@@ -93,7 +93,24 @@ async def test_dragonzap_production_wave_scheduler_setting(async_client):
 
 
 @pytest.mark.asyncio
-async def test_monitoring_endpoints(async_client):
+async def test_monitoring_endpoints(async_client, monkeypatch):
+    async def fake_get_db_metrics(*, session, table_limit=10):
+        return {
+            "size_bytes": 1024,
+            "size_pretty": "1024 bytes",
+            "connections": 1,
+            "max_connections": 100,
+            "tables": [],
+        }
+
+    # pg_database_size() scans the complete shared test database. It is a
+    # production metric, not behavior of these API endpoints, and becomes
+    # disproportionately expensive while xdist workers create/drop schemas.
+    monkeypatch.setattr(
+        "dz_fastapi.services.monitoring.get_db_metrics",
+        fake_get_db_metrics,
+    )
+
     response = await async_client.get("/settings/monitor/summary")
     assert response.status_code == 200
     summary = response.json()

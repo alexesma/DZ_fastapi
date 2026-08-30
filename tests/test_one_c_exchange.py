@@ -25,6 +25,15 @@ def _shipment_stub():
         name='ООО "Ромашка"',
         inn="7701234567",
         kpp="770101001",
+        legal_address="г. Москва, ул. Юридическая, д. 1",
+        postal_address="г. Москва, ул. Почтовая, д. 2",
+        email_contact="orders@example.org",
+        email_outgoing_price="prices@example.org",
+        description="Оптовый покупатель",
+        comment="Основной клиент",
+        type_prices="Wholesale",
+        credit_limit=Decimal("500000.00"),
+        payment_terms_days=14,
     )
     return SimpleNamespace(
         id=123,
@@ -52,11 +61,38 @@ def test_commerceml_xml_structure():
     assert document.findtext("ХозОперация") == "Заказ товара"
     assert document.findtext("Сумма") == "1505.00"
 
-    counterparty = document.find("Контрагенты/Контрагент")
+    counterparties = document.findall("Контрагенты/Контрагент")
+    assert len(counterparties) == 1
+    counterparty = counterparties[0]
     assert counterparty.findtext("Наименование") == 'ООО "Ромашка"'
     assert counterparty.findtext("ИНН") == "7701234567"
     assert counterparty.findtext("КПП") == "770101001"
+    assert counterparty.findtext("ОфициальноеНаименование") == 'ООО "Ромашка"'
+    assert (
+        counterparty.findtext("ЮридическийАдрес/Представление")
+        == "г. Москва, ул. Юридическая, д. 1"
+    )
+    assert (
+        counterparty.findtext("Адрес/Представление")
+        == "г. Москва, ул. Почтовая, д. 2"
+    )
+    assert counterparty.findtext("Комментарий") == (
+        "Оптовый покупатель\nОсновной клиент"
+    )
+    contacts = counterparty.findall("Контакты/Контакт")
+    assert [(row.findtext("Тип"), row.findtext("Значение")) for row in contacts] == [
+        ("Почта", "orders@example.org"),
+        ("Почта", "prices@example.org"),
+    ]
     assert counterparty.findtext("Роль") == "Покупатель"
+
+    requisites = {
+        row.findtext("Наименование"): row.findtext("Значение")
+        for row in document.findall("ЗначенияРеквизитов/ЗначениеРеквизита")
+    }
+    assert requisites["Тип цены клиента"] == "Wholesale"
+    assert requisites["Кредитный лимит клиента"] == "500000.00"
+    assert requisites["Отсрочка платежа, дней"] == "14"
 
     good = document.find("Товары/Товар")
     assert good.findtext("Артикул") == "A11-1012010"
