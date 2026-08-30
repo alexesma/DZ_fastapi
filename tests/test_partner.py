@@ -1047,8 +1047,12 @@ async def test_create_provider_pricelist_success(
     assert response.status_code == 201
     data = response.json()
     assert data["provider"]["id"] == provider.id
-    assert len(data["autoparts"]) == 1
-    assert data["autoparts"][0]["quantity"] == 2
+    # Ручная загрузка возвращает только метаданные и статистику. Возврат
+    # всего прайса блокировал единственный API worker и расходовал гигабайты
+    # памяти на больших файлах.
+    assert data["autoparts"] == []
+    assert data["stats"]["rows_total"] == 1
+    assert data["stats"]["rows_deduplicated"] == 1
 
 
 @pytest.mark.asyncio

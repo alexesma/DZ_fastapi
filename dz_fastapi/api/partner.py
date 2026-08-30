@@ -2053,6 +2053,7 @@ async def upload_provider_pricelist(
         price_col=price_col,
         session=session,
         return_stats=True,
+        include_autoparts_response=False,
         enforce_anomaly_guard=False,
         source_filename=file.filename,
     )
