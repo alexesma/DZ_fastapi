@@ -943,17 +943,20 @@ class CRUDStorageLocation(
         limit: int = 100,
         warehouse_id: Optional[int] = None,
         include_system: bool = False,
+        include_autoparts: bool = True,
     ) -> List[StorageLocation]:
         try:
-            stmt = (
-                select(StorageLocation)
-                .options(
-                    selectinload(StorageLocation.warehouse),
+            loader_options = [selectinload(StorageLocation.warehouse)]
+            if include_autoparts:
+                loader_options.append(
                     selectinload(StorageLocation.autoparts).options(
                         selectinload(AutoPart.categories),
                         selectinload(AutoPart.storage_locations),
-                    ),
+                    )
                 )
+            stmt = (
+                select(StorageLocation)
+                .options(*loader_options)
                 .order_by(StorageLocation.name.asc(), StorageLocation.id.asc())
             )
             if warehouse_id is not None:

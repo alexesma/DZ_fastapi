@@ -117,7 +117,11 @@ def _warehouse_to_out(warehouse: Warehouse) -> WarehouseOut:
     )
 
 
-def _storage_to_response(storage: StorageLocation) -> StorageLocationResponse:
+def _storage_to_response(
+    storage: StorageLocation,
+    *,
+    include_autoparts: bool = True,
+) -> StorageLocationResponse:
     warehouse = getattr(storage, "warehouse", None)
     return StorageLocationResponse(
         id=storage.id,
@@ -128,7 +132,11 @@ def _storage_to_response(storage: StorageLocation) -> StorageLocationResponse:
         warehouse_name=warehouse.name if warehouse is not None else None,
         system_code=storage.system_code,
         is_system=bool(storage.system_code),
-        autoparts=list(getattr(storage, "autoparts", None) or []),
+        autoparts=(
+            list(getattr(storage, "autoparts", None) or [])
+            if include_autoparts
+            else []
+        ),
     )
 
 
@@ -1371,6 +1379,7 @@ async def get_storage_locations(
     limit: int = 100,
     warehouse_id: Optional[int] = Query(default=None),
     include_system: bool = Query(default=False),
+    include_autoparts: bool = Query(default=True),
 ):
     storages = await crud_storage.get_multi(
         session,
@@ -1378,8 +1387,12 @@ async def get_storage_locations(
         limit=limit,
         warehouse_id=warehouse_id,
         include_system=include_system,
+        include_autoparts=include_autoparts,
     )
-    return [_storage_to_response(storage) for storage in storages]
+    return [
+        _storage_to_response(storage, include_autoparts=include_autoparts)
+        for storage in storages
+    ]
 
 
 @router.get(

@@ -12,6 +12,7 @@ from dz_fastapi.models.autopart import (
     AutoPart,
     Category,
     StorageLocation,
+    autopart_storage_association,
     change_string,
     preprocess_oem_number,
 )
@@ -731,6 +732,31 @@ async def test_get_storage_with_data(test_session, created_storage: StorageLocat
     created_names = {storage["name"] for storage in [{"name": created_storage.name}, storage_data]}
     response_names = {storages["name"] for storages in storages}
     assert created_names == response_names
+
+
+@pytest.mark.asyncio
+async def test_get_storage_without_nested_autoparts(
+    test_session,
+    created_storage: StorageLocation,
+    created_autopart: AutoPart,
+):
+    await test_session.execute(
+        autopart_storage_association.insert().values(
+            autopart_id=created_autopart.id,
+            storage_location_id=created_storage.id,
+        )
+    )
+    await test_session.commit()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        compact_response = await ac.get("/storage/?include_autoparts=false")
+        full_response = await ac.get("/storage/?include_autoparts=true")
+
+    assert compact_response.status_code == 200, compact_response.text
+    assert compact_response.json()[0]["autoparts"] == []
+    assert full_response.status_code == 200, full_response.text
+    assert len(full_response.json()[0]["autoparts"]) == 1
 
 
 @pytest.mark.asyncio
