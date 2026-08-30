@@ -243,11 +243,8 @@ async def test_build_current_offers_keeps_supplier_price_before_markups(
 
     requested_oems = set()
 
-    async def _fake_fetch_data(*args, **kwargs):
+    async def _fake_fetch_dataframe(*args, **kwargs):
         requested_oems.update(kwargs.get("oem_numbers") or set())
-        return [SimpleNamespace()]
-
-    async def _fake_transform(*args, **kwargs):
         return pd.DataFrame(
             [
                 {
@@ -272,12 +269,8 @@ async def test_build_current_offers_keeps_supplier_price_before_markups(
         _fake_latest_pricelist,
     )
     monkeypatch.setattr(
-        "dz_fastapi.services.customer_orders." "crud_pricelist.fetch_pricelist_data",
-        _fake_fetch_data,
-    )
-    monkeypatch.setattr(
-        "dz_fastapi.services.customer_orders." "crud_pricelist.transform_to_dataframe",
-        _fake_transform,
+        "dz_fastapi.services.customer_orders." "crud_pricelist.fetch_pricelist_dataframe",
+        _fake_fetch_dataframe,
     )
 
     offers = await _build_current_offers(

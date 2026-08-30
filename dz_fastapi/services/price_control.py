@@ -707,10 +707,10 @@ async def _build_current_offers(
                 source.provider_config_id,
             )
             continue
-        associations = await crud_pricelist.fetch_pricelist_data(
+        df = await crud_pricelist.fetch_pricelist_dataframe(
             latest_pl.id, session
         )
-        if not associations:
+        if df.empty:
             logger.debug(
                 "Price control source skipped (empty pricelist rows): "
                 "config=%s provider_config=%s pricelist_id=%s",
@@ -719,9 +719,6 @@ async def _build_current_offers(
                 latest_pl.id,
             )
             continue
-        df = await crud_pricelist.transform_to_dataframe(
-            associations=associations, session=session
-        )
         source_rows_before_filters = len(df)
         df = _apply_source_filters(df, source)
         if df.empty:

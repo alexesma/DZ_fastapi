@@ -2925,13 +2925,11 @@ async def process_customer_pricelist(
 
     if request.items:
         for pricelist_id in request.items:
-            associations = await crud_pricelist.fetch_pricelist_data(pricelist_id, session)
-            if not associations:
-                continue
-
-            df = await crud_pricelist.transform_to_dataframe(
-                associations=associations, session=session
+            df = await crud_pricelist.fetch_pricelist_dataframe(
+                pricelist_id, session
             )
+            if df.empty:
+                continue
             logger.debug(_dataframe_summary(df, "customer_pricelist_source_df"))
 
             df = crud_customer_pricelist.apply_coefficient(df, config, apply_general_markup=True)
@@ -2958,14 +2956,12 @@ async def process_customer_pricelist(
             if not latest_pl:
                 continue
 
-            associations = await crud_pricelist.fetch_pricelist_data(latest_pl.id, session)
-            if not associations:
+            df = await crud_pricelist.fetch_pricelist_dataframe(
+                latest_pl.id, session
+            )
+            if df.empty:
                 continue
             source_pricelist_ids.append(int(latest_pl.id))
-
-            df = await crud_pricelist.transform_to_dataframe(
-                associations=associations, session=session
-            )
             logger.debug(_dataframe_summary(df, "customer_pricelist_latest_df"))
 
             source_rows_before = len(df)
@@ -3453,11 +3449,8 @@ async def process_customer_pricelist(
             benchmark_pricelist_id = pricelist_ids[-1]
         else:
             benchmark_pricelist_id = benchmark_pricelist.id
-        benchmark_associations = await crud_pricelist.fetch_pricelist_data(
+        df_diller = await crud_pricelist.fetch_pricelist_dataframe(
             benchmark_pricelist_id, session
-        )
-        df_diller = await crud_pricelist.transform_to_dataframe(
-            associations=benchmark_associations, session=session
         )
         logger.debug(_dataframe_summary(df_diller, "zzap_diller_df"))
         df_diller_rename = df_diller.rename(

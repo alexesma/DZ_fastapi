@@ -1867,6 +1867,98 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         result = await session.execute(stmt)
         return result.scalars().all()
 
+    # Колонки, которые действительно нужны потребителям прайса.
+    # Держим список рядом с запросом: он же задаёт порядок в DataFrame.
+    PRICELIST_DF_COLUMNS = (
+        "autopart_id",
+        "name",
+        "oem_number",
+        "brand_id",
+        "brand",
+        "quantity",
+        "price",
+    )
+
+    async def fetch_pricelist_dataframe(
+        self,
+        pricelist_id: int,
+        session: AsyncSession,
+        oem_numbers: Optional[Iterable[str]] = None,
+    ) -> pd.DataFrame:
+        """Строки прайса сразу в DataFrame, без объектов ORM.
+
+        Потребителям нужны одиннадцать скалярных полей, а прежняя пара
+        fetch_pricelist_data + transform_to_dataframe грузила ради них
+        полные объекты AutoPart (сорок с лишним колонок), Brand, PriceList
+        и Provider. На прайсе в сотни тысяч строк это гигабайты, и всё
+        оставалось в карте объектов сессии до конца запроса: при сборке
+        прайса клиенту источники складывались один к другому, пока не
+        кончалась память и ядро не убивало процесс.
+
+        Поставщик и признак собственной цены одинаковы для всего прайса,
+        поэтому берутся одним запросом и подставляются колонкой, а не
+        тянутся join-ом на каждую строку.
+        """
+        header = (
+            await session.execute(
+                select(
+                    PriceList.id,
+                    PriceList.provider_id,
+                    PriceList.provider_config_id,
+                    func.coalesce(Provider.is_own_price, False),
+                )
+                .outerjoin(Provider, Provider.id == PriceList.provider_id)
+                .where(PriceList.id == pricelist_id)
+            )
+        ).first()
+        if header is None:
+            return pd.DataFrame(columns=list(self.PRICELIST_DF_COLUMNS))
+
+        stmt = (
+            select(
+                AutoPart.id,
+                AutoPart.name,
+                AutoPart.oem_number,
+                AutoPart.brand_id,
+                Brand.name,
+                PriceListAutoPartAssociation.quantity,
+                PriceListAutoPartAssociation.price,
+            )
+            .join(
+                AutoPart,
+                AutoPart.id == PriceListAutoPartAssociation.autopart_id,
+            )
+            .outerjoin(Brand, Brand.id == AutoPart.brand_id)
+            .where(PriceListAutoPartAssociation.pricelist_id == pricelist_id)
+        )
+        if oem_numbers is not None:
+            normalized_oems = set()
+            for oem in oem_numbers:
+                normalized_oem = preprocess_oem_number(str(oem))
+                if normalized_oem:
+                    normalized_oems.add(normalized_oem)
+            if not normalized_oems:
+                return pd.DataFrame(columns=list(self.PRICELIST_DF_COLUMNS))
+            stmt = stmt.where(AutoPart.oem_number.in_(normalized_oems))
+
+        rows = (await session.execute(stmt)).all()
+
+        def _build() -> pd.DataFrame:
+            frame = pd.DataFrame(
+                rows, columns=list(self.PRICELIST_DF_COLUMNS)
+            )
+            # Одинаковые для всего прайса поля — колонкой, а не построчно.
+            frame["provider_id"] = header[1]
+            frame["provider_config_id"] = header[2]
+            frame["pricelist_id"] = header[0]
+            frame["is_own_price"] = bool(header[3])
+            if not frame.empty:
+                frame["price"] = frame["price"].astype(float)
+            return frame
+
+        # Построение DataFrame — чистый CPU, уводим из event loop.
+        return await asyncio.to_thread(_build)
+
     async def transform_to_dataframe(self, associations, session: AsyncSession):
         def _build_dataframe() -> pd.DataFrame:
             # Все связи загружены жадно (joinedload), поэтому доступ к

@@ -1459,14 +1459,13 @@ async def _build_current_offers(
         )
         if not latest_pl:
             continue
-        associations = await crud_pricelist.fetch_pricelist_data(
+        df = await crud_pricelist.fetch_pricelist_dataframe(
             latest_pl.id,
             session,
             oem_numbers=required_oems,
         )
-        if not associations:
+        if df.empty:
             continue
-        df = await crud_pricelist.transform_to_dataframe(associations=associations, session=session)
         # For order matching we ignore price/quantity thresholds from the
         # outbound pricelist. A valid offer should still match even if it
         # would be hidden from the mailed pricelist by stock/price limits.
@@ -1763,17 +1762,10 @@ async def _diagnose_missing_offer_reason(
         )
         if not latest_pl:
             continue
-        associations = await crud_pricelist.fetch_pricelist_data(
+        raw_df = await crud_pricelist.fetch_pricelist_dataframe(
             latest_pl.id,
             session,
             oem_numbers={key[0]},
-        )
-        if not associations:
-            continue
-
-        raw_df = await crud_pricelist.transform_to_dataframe(
-            associations=associations,
-            session=session,
         )
         if raw_df.empty:
             continue
