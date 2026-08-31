@@ -50,6 +50,15 @@ from tests.test_constants import CONFIG_DATA, TEST_CUSTOMER, TEST_PROVIDER
 logger = logging.getLogger("dz_fastapi")
 
 
+@pytest.fixture
+def successful_customer_pricelist_delivery(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(
+        process_service,
+        "send_email_with_attachment",
+        lambda **kwargs: True,
+    )
+
+
 @pytest.mark.asyncio
 async def test_create_provider(test_session: AsyncSession, async_client: AsyncClient):
 
@@ -1437,6 +1446,7 @@ async def test_create_customer_pricelist(
     created_autopart: AutoPart,
     created_providers: list[Provider],
     created_customers: list[Customer],
+    successful_customer_pricelist_delivery,
 ):
     customer = created_customers[0]
     provider = created_providers[0]
@@ -1566,6 +1576,7 @@ async def test_customer_pricelist_prioritizes_own_price(
     async_client: AsyncClient,
     created_customers: list[Customer],
     created_brand: Brand,
+    successful_customer_pricelist_delivery,
 ):
     customer = created_customers[0]
 
@@ -1706,6 +1717,7 @@ async def test_customer_pricelist_collapses_duplicates_by_min_price(
     async_client: AsyncClient,
     created_customers: list[Customer],
     created_brand: Brand,
+    successful_customer_pricelist_delivery,
 ):
     customer = created_customers[0]
 
@@ -1929,6 +1941,7 @@ async def test_customer_pricelist_source_min_price_filter(
     async_client: AsyncClient,
     created_customers: list[Customer],
     created_brand: Brand,
+    successful_customer_pricelist_delivery,
 ):
     customer = created_customers[0]
 
@@ -2027,6 +2040,7 @@ async def test_customer_pricelist_source_brand_markups_applied(
     async_client: AsyncClient,
     created_customers: list[Customer],
     created_brand: Brand,
+    successful_customer_pricelist_delivery,
 ):
     customer = created_customers[0]
 
@@ -2469,6 +2483,7 @@ async def test_customer_pricelist_send_now_updates_last_sent_at(
     async_client: AsyncClient,
     created_customers: list[Customer],
     created_brand: Brand,
+    successful_customer_pricelist_delivery,
 ):
     customer = created_customers[0]
 
