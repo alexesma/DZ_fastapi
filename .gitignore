@@ -1,6 +1,10 @@
 # Claude Code (AI assistant session data — не для git)
 .claude/
 
+# Local email relay secrets and configured Windows packages
+scripts/email_relay/config.json
+scripts/email_relay/*-configured.zip
+
 # Log files
 *.log
 *.log.*
