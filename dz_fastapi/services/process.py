@@ -107,6 +107,7 @@ from dz_fastapi.services.email import (
     describe_email_delivery,
     send_email_with_attachment,
 )
+from dz_fastapi.services.email_outbox import enqueue_email
 from dz_fastapi.services.pricelist_guard import guard_automatic_provider_pricelist
 from dz_fastapi.services.regulatory import import_supplier_regulatory
 from dz_fastapi.services.utils import (
@@ -2648,7 +2649,10 @@ async def send_pricelist(
     body: str,
     attachment_filename: str | None = None,
     attachment_bytes: bytes | None = None,
-):
+    attachment_local_path: str | None = None,
+    attachment_content_type: str | None = None,
+    customer_pricelist_id: int | None = None,
+) -> str:
     logger.debug("Build customer pricelist attachment")
     to_email = None
     if to_emails:
@@ -2753,7 +2757,44 @@ async def send_pricelist(
             EMAIL_NAME,
         )
 
-    await loop.run_in_executor(
+    account_transport = str(getattr(account, "transport", "") or "").strip().lower()
+    smtp_via_relay = bool(
+        _customer_pricelist_setting(config, "SMTP_VIA_RELAY", True)
+    )
+    if account_transport == "smtp" and smtp_via_relay:
+        if not attachment_local_path or customer_pricelist_id is None:
+            raise RuntimeError(
+                "Для отправки прайс-листа через внешний релей "
+                "не сохранён файл или идентификатор прайса"
+            )
+        await enqueue_email(
+            session,
+            to_email=to_email,
+            from_email=account.email,
+            subject=subject,
+            body_text=body,
+            attachments=[
+                {
+                    "filename": attachment_filename,
+                    "local_file_path": attachment_local_path,
+                    "content_type": attachment_content_type,
+                }
+            ],
+            source_type="customer_pricelist",
+            source_id=customer_pricelist_id,
+            commit=False,
+        )
+        logger.info(
+            "Customer pricelist queued for external email relay: "
+            "pricelist_id=%s config=%s from=%s to=%s",
+            customer_pricelist_id,
+            config.id,
+            account.email,
+            to_email,
+        )
+        return "queued"
+
+    sent = await loop.run_in_executor(
         None,
         partial(
             send_email_with_attachment,
@@ -2765,7 +2806,14 @@ async def send_pricelist(
             **kwargs,
         ),
     )
+    if not sent:
+        sender = account.email if account else EMAIL_NAME
+        raise RuntimeError(
+            "Почтовый транспорт не подтвердил отправку прайс-листа "
+            f"с адреса {sender or 'не указан'}"
+        )
     logger.debug("Final send email")
+    return "sent"
 
 
 async def _persist_customer_pricelist_artifact(
@@ -3743,7 +3791,7 @@ async def process_customer_pricelist(
     if should_send:
         logger.debug("Calling send_pricelist")
         try:
-            await send_pricelist(
+            delivery_result = await send_pricelist(
                 session=session,
                 customer=customer,
                 config=config,
@@ -3751,13 +3799,20 @@ async def process_customer_pricelist(
                 df_excel=None,
                 attachment_bytes=attachment_bytes,
                 attachment_filename=customer_pricelist.artifact_filename,
+                attachment_local_path=customer_pricelist.artifact_path,
+                attachment_content_type=customer_pricelist.artifact_content_type,
+                customer_pricelist_id=customer_pricelist.id,
                 subject=f"Прайс лист {customer_pricelist.date}",
                 body="Добрый день, высылаем Вам наш прайс-лист",
             )
-            sent_at = now_moscow()
-            config.last_sent_at = sent_at
-            customer_pricelist.sent_at = sent_at
-            customer_pricelist.generation_status = "sent"
+            handled_at = now_moscow()
+            config.last_sent_at = handled_at
+            if delivery_result == "queued":
+                customer_pricelist.sent_at = None
+                customer_pricelist.generation_status = "queued"
+            else:
+                customer_pricelist.sent_at = handled_at
+                customer_pricelist.generation_status = "sent"
             customer_pricelist.send_error = None
         except Exception as exc:
             customer_pricelist.generation_status = "send_failed"

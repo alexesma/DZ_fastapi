@@ -637,15 +637,16 @@ def start_scheduler(app: FastAPI):
     )
 
     # ── 5. Отправка прайсов клиентам ─────────────────────────────────────
-    # Рабочий день 08–18 МСК, каждые 5 мин
+    # Проверяем пользовательские расписания круглосуточно каждую минуту.
+    # Тяжёлая генерация запускается только когда наступило время конфигурации.
     scheduler.add_job(
         func=send_scheduled_customer_pricelists_task,
         trigger="cron",
         args=[app],
         id="send_customer_pricelists",
         name="Send scheduled customer pricelists",
-        hour="8-18",
-        minute="*/5",
+        hour="0-23",
+        minute="*",
         second=5,
         replace_existing=True,
         max_instances=1,
@@ -1842,6 +1843,45 @@ def _day_key(now: datetime) -> str:
     return mapping[now.weekday()]
 
 
+def _latest_due_customer_pricelist_schedule(
+    config: CustomerPriceListConfig,
+    now: datetime,
+) -> datetime | None:
+    """Return today's latest scheduled send time that has already arrived."""
+    if _day_key(now) not in (config.schedule_days or []):
+        return None
+    now_minute = now.replace(second=0, microsecond=0)
+    due_times: list[datetime] = []
+    for raw_time in config.schedule_times or []:
+        try:
+            hour_str, minute_str = str(raw_time).split(":", 1)
+            hour = int(hour_str)
+            minute = int(minute_str)
+            if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                raise ValueError
+            scheduled_at = now_minute.replace(hour=hour, minute=minute)
+        except (TypeError, ValueError):
+            logger.warning(
+                "Invalid customer pricelist schedule time %r for config_id=%s",
+                raw_time,
+                config.id,
+            )
+            continue
+        if scheduled_at <= now_minute:
+            due_times.append(scheduled_at)
+    return max(due_times) if due_times else None
+
+
+def _schedule_was_handled(value: datetime | None, scheduled_at: datetime) -> bool:
+    if value is None:
+        return False
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=scheduled_at.tzinfo)
+    else:
+        value = value.astimezone(scheduled_at.tzinfo)
+    return value >= scheduled_at
+
+
 async def _should_run_scheduled_job(
     session: AsyncSession,
     key: str,
@@ -1937,8 +1977,6 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
     ) as trace:
         async_session_factory = app.state.session_factory
         now = now_moscow()
-        day_key = _day_key(now)
-        time_key = now.strftime("%H:%M")
 
         try:
             async with async_session_factory() as session:
@@ -1970,23 +2008,15 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
                 for config in configs:
                     if not config.schedule_days or not config.schedule_times:
                         continue
-                    if day_key not in (config.schedule_days or []):
+                    scheduled_at = _latest_due_customer_pricelist_schedule(config, now)
+                    if scheduled_at is None:
                         continue
-                    if time_key not in (config.schedule_times or []):
+                    if _schedule_was_handled(config.last_sent_at, scheduled_at):
                         continue
-                    if config.last_sent_at:
-                        last_key = config.last_sent_at.strftime("%Y-%m-%d %H:%M")
-                        now_key = now.strftime("%Y-%m-%d %H:%M")
-                        if last_key == now_key:
-                            continue
                     if customer_pricelist_requires_draft(config):
                         latest_generated_at = latest_generated_by_config.get(config.id)
-                        if latest_generated_at:
-                            generated_key = latest_generated_at.astimezone(now.tzinfo).strftime(
-                                "%Y-%m-%d %H:%M"
-                            )
-                            if generated_key == now.strftime("%Y-%m-%d %H:%M"):
-                                continue
+                        if _schedule_was_handled(latest_generated_at, scheduled_at):
+                            continue
                     if not config.customer:
                         continue
                     pending.append((config.id, config.customer))

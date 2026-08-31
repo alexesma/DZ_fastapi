@@ -19,6 +19,7 @@ from dz_fastapi.models.cross import AutoPartCross
 from dz_fastapi.models.email_account import EmailAccount
 from dz_fastapi.models.inventory import Warehouse
 from dz_fastapi.models.partner import (
+    EMAIL_OUTBOX_STATUS,
     Customer,
     CustomerPriceList,
     CustomerPriceListAutoPartAssociation,
@@ -26,6 +27,7 @@ from dz_fastapi.models.partner import (
     CustomerPriceListExportRow,
     CustomerPriceListPublicationRule,
     CustomerPriceListSource,
+    EmailOutbox,
     PriceList,
     PriceListAutoPartAssociation,
     Provider,
@@ -42,6 +44,7 @@ from dz_fastapi.schemas.partner import (
     ProviderResponse,
 )
 from dz_fastapi.services import process as process_service
+from dz_fastapi.services.email_outbox import mark_outbox_error, mark_outbox_sent
 from tests.test_constants import CONFIG_DATA, TEST_CUSTOMER, TEST_PROVIDER
 
 logger = logging.getLogger("dz_fastapi")
@@ -2596,6 +2599,150 @@ async def test_send_pricelist_uses_export_file_name_and_csv(
     attachment_text = captured["attachment_bytes"].decode("utf-8-sig")
     assert "Производитель,Артикул,Цена,Количество" in attachment_text
     assert "MAZDA,ABC123,1000,3" in attachment_text
+
+
+@pytest.mark.asyncio
+async def test_send_pricelist_rejects_unconfirmed_delivery(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        process_service,
+        "send_email_with_attachment",
+        lambda **kwargs: False,
+    )
+    customer = created_customers[0]
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name="FAILED DELIVERY CONFIG",
+    )
+
+    with pytest.raises(RuntimeError, match="не подтвердил отправку"):
+        await process_service.send_pricelist(
+            session=test_session,
+            df_excel=None,
+            customer=customer,
+            config=config,
+            to_emails=["price@example.com"],
+            subject="Тестовый прайс",
+            body="Тело письма",
+            attachment_bytes=b"test",
+            attachment_filename="price.xlsx",
+        )
+
+
+@pytest.mark.asyncio
+async def test_smtp_customer_pricelist_uses_external_relay(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+):
+    customer = created_customers[0]
+    account = EmailAccount(
+        name="Customer price relay",
+        email="price-relay@example.com",
+        password="secret",
+        transport="smtp",
+        smtp_host="smtp.example.com",
+        smtp_port=465,
+        smtp_use_ssl=True,
+        purposes=["prices_out"],
+        is_active=True,
+    )
+    test_session.add(account)
+    await test_session.flush()
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name="RELAY DELIVERY CONFIG",
+        outgoing_email_account_id=account.id,
+    )
+    customer_pricelist = CustomerPriceList(
+        customer_id=customer.id,
+        date=date.today(),
+        generation_status="generated",
+    )
+    test_session.add_all([config, customer_pricelist])
+    await test_session.commit()
+    await test_session.refresh(config)
+    await test_session.refresh(customer_pricelist)
+    artifact_path = tmp_path / "exist.xlsx"
+    artifact_path.write_bytes(b"test-price")
+
+    monkeypatch.setattr(
+        process_service,
+        "send_email_with_attachment",
+        lambda **kwargs: pytest.fail("SMTP must be handled by the relay"),
+    )
+    result = await process_service.send_pricelist(
+        session=test_session,
+        df_excel=None,
+        customer=customer,
+        config=config,
+        to_emails=["recipient@example.com"],
+        subject="Прайс лист",
+        body="Тело письма",
+        attachment_bytes=b"test-price",
+        attachment_filename="exist.xlsx",
+        attachment_local_path=str(artifact_path),
+        attachment_content_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+        customer_pricelist_id=customer_pricelist.id,
+    )
+
+    outbox = (
+        await test_session.execute(
+            select(EmailOutbox).where(
+                EmailOutbox.source_type == "customer_pricelist",
+                EmailOutbox.source_id == customer_pricelist.id,
+            )
+        )
+    ).scalar_one()
+    assert result == "queued"
+    assert outbox.status == EMAIL_OUTBOX_STATUS.PENDING
+    assert outbox.from_email == account.email
+    assert outbox.to_email == "recipient@example.com"
+    assert outbox.attachments[0]["local_file_path"] == str(artifact_path)
+
+    await mark_outbox_sent(test_session, outbox_id=outbox.id)
+    await test_session.refresh(customer_pricelist)
+    assert customer_pricelist.generation_status == "sent"
+    assert customer_pricelist.sent_at is not None
+
+
+@pytest.mark.asyncio
+async def test_customer_pricelist_relay_terminal_error_updates_draft(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+):
+    customer_pricelist = CustomerPriceList(
+        customer_id=created_customers[0].id,
+        date=date.today(),
+        generation_status="queued",
+    )
+    test_session.add(customer_pricelist)
+    await test_session.flush()
+    outbox = EmailOutbox(
+        status=EMAIL_OUTBOX_STATUS.PENDING,
+        from_email="price@example.com",
+        to_email="recipient@example.com",
+        source_type="customer_pricelist",
+        source_id=customer_pricelist.id,
+    )
+    test_session.add(outbox)
+    await test_session.commit()
+
+    await mark_outbox_error(
+        test_session,
+        outbox_id=outbox.id,
+        error="SMTP unavailable",
+        retry=False,
+    )
+    await test_session.refresh(customer_pricelist)
+    assert customer_pricelist.generation_status == "send_failed"
+    assert customer_pricelist.send_error == "SMTP unavailable"
 
 
 @pytest.mark.asyncio

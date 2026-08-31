@@ -1,5 +1,6 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from types import SimpleNamespace
+from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy import select
@@ -10,7 +11,9 @@ from dz_fastapi.models.settings import CustomerOrderInboxSettings
 from dz_fastapi.services.scheduler import (
     _close_stale_supplier_response_messages,
     _cron_minute_for_interval,
+    _latest_due_customer_pricelist_schedule,
     _notify_scheduler_issue,
+    _schedule_was_handled,
     _should_run_scheduled_job,
     cleanup_misc_logs_task,
     download_price_provider_task,
@@ -21,6 +24,52 @@ from dz_fastapi.services.scheduler import (
 def test_cron_interval_59_runs_once_per_hour():
     assert _cron_minute_for_interval(59) == "0"
     assert _cron_minute_for_interval(30) == "*/30"
+
+
+def test_customer_pricelist_schedule_catches_up_after_configured_time():
+    now = datetime(2026, 8, 31, 8, 17, tzinfo=ZoneInfo("Europe/Moscow"))
+    config = SimpleNamespace(
+        id=15,
+        schedule_days=["mon"],
+        schedule_times=["06:00", "12:00"],
+    )
+
+    scheduled_at = _latest_due_customer_pricelist_schedule(config, now)
+
+    assert scheduled_at == datetime(
+        2026,
+        8,
+        31,
+        6,
+        0,
+        tzinfo=ZoneInfo("Europe/Moscow"),
+    )
+    assert not _schedule_was_handled(
+        datetime(2026, 8, 30, 12, 0, tzinfo=ZoneInfo("Europe/Moscow")),
+        scheduled_at,
+    )
+    assert _schedule_was_handled(
+        datetime(2026, 8, 31, 6, 4, tzinfo=ZoneInfo("Europe/Moscow")),
+        scheduled_at,
+    )
+
+
+def test_customer_pricelist_schedule_uses_latest_due_slot():
+    now = datetime(2026, 8, 31, 15, 5, tzinfo=ZoneInfo("Europe/Moscow"))
+    config = SimpleNamespace(
+        id=16,
+        schedule_days=["mon"],
+        schedule_times=["06:00", "12:00", "18:00"],
+    )
+
+    assert _latest_due_customer_pricelist_schedule(config, now) == datetime(
+        2026,
+        8,
+        31,
+        12,
+        0,
+        tzinfo=ZoneInfo("Europe/Moscow"),
+    )
 
 
 @pytest.mark.asyncio

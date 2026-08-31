@@ -19,7 +19,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.time import now_moscow
-from dz_fastapi.models.partner import EMAIL_OUTBOX_STATUS, EmailOutbox
+from dz_fastapi.models.partner import EMAIL_OUTBOX_STATUS, CustomerPriceList, EmailOutbox
 from dz_fastapi.services.reclamation_audit import record_reclamation_event
 
 logger = logging.getLogger("dz_fastapi")
@@ -282,6 +282,13 @@ async def mark_outbox_sent(
     row.claimed_by = None
     row.claimed_at = None
     session.add(row)
+    if row.source_type == "customer_pricelist" and row.source_id:
+        customer_pricelist = await session.get(CustomerPriceList, int(row.source_id))
+        if customer_pricelist is not None:
+            customer_pricelist.sent_at = row.sent_at
+            customer_pricelist.generation_status = "sent"
+            customer_pricelist.send_error = None
+            session.add(customer_pricelist)
     if row.source_type in {"reclamation", "reclamation_supplier"} and row.source_id:
         await record_reclamation_event(
             session,
@@ -331,6 +338,16 @@ async def mark_outbox_error(
     else:
         row.status = EMAIL_OUTBOX_STATUS.ERROR
     session.add(row)
+    if (
+        row.status == EMAIL_OUTBOX_STATUS.ERROR
+        and row.source_type == "customer_pricelist"
+        and row.source_id
+    ):
+        customer_pricelist = await session.get(CustomerPriceList, int(row.source_id))
+        if customer_pricelist is not None:
+            customer_pricelist.generation_status = "send_failed"
+            customer_pricelist.send_error = row.last_error
+            session.add(customer_pricelist)
     if (
         row.status == EMAIL_OUTBOX_STATUS.ERROR
         and row.source_type in {"reclamation", "reclamation_supplier"}
