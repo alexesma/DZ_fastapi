@@ -44,6 +44,17 @@ import requests
 logger = logging.getLogger("email_relay")
 
 
+def configure_stdio() -> None:
+    """Keep Russian console output working on every Windows locale."""
+    for stream in (sys.stdout, sys.stderr):
+        if stream is None or not hasattr(stream, "reconfigure"):
+            continue
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError):
+            pass
+
+
 def application_dir() -> Path:
     """Return the portable app directory for source and PyInstaller builds."""
     if getattr(sys, "frozen", False):
@@ -571,6 +582,7 @@ def process_telegram_once(
 
 
 def main() -> int:
+    configure_stdio()
     parser = argparse.ArgumentParser(
         description="Релей EmailOutbox и TelegramOutbox"
     )
