@@ -37,10 +37,41 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate, make_msgid
+from pathlib import Path
 
 import requests
 
 logger = logging.getLogger("email_relay")
+
+
+def application_dir() -> Path:
+    """Return the portable app directory for source and PyInstaller builds."""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+def default_config_path() -> Path:
+    return application_dir() / "config.json"
+
+
+def configure_logging(config_path: Path) -> None:
+    handlers: list[logging.Handler] = [logging.StreamHandler()]
+    try:
+        handlers.append(
+            logging.FileHandler(
+                config_path.parent / "relay.log",
+                encoding="utf-8",
+            )
+        )
+    except OSError:
+        # The console remains available if the folder is read-only.
+        pass
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+        handlers=handlers,
+    )
 
 
 class RelayConfig:
@@ -543,7 +574,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Релей EmailOutbox и TelegramOutbox"
     )
-    parser.add_argument("--config", required=True, help="путь к config.json")
+    parser.add_argument(
+        "--config",
+        default=str(default_config_path()),
+        help="путь к config.json (по умолчанию рядом с программой)",
+    )
     parser.add_argument("--once", action="store_true", help="один проход")
     parser.add_argument(
         "--dry-run", action="store_true",
@@ -551,11 +586,14 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(message)s",
-    )
-    config = load_config(args.config)
+    config_path = Path(args.config).expanduser().resolve()
+    configure_logging(config_path)
+    if not config_path.is_file():
+        raise FileNotFoundError(
+            f"Не найден файл настроек: {config_path}. "
+            "Положите config.json рядом с DZEmailRelay.exe."
+        )
+    config = load_config(str(config_path))
     client = ApiClient(config)
     client.login()
 
@@ -585,4 +623,16 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        logger.info("Релей остановлен пользователем")
+        sys.exit(0)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Релей не запущен: %s", exc)
+        if getattr(sys, "frozen", False) and sys.stdin.isatty():
+            try:
+                input("\nНажмите Enter, чтобы закрыть окно...")
+            except EOFError:
+                pass
+        sys.exit(1)
