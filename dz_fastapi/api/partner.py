@@ -13,7 +13,7 @@ from sqlalchemy import func, or_, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import joinedload, noload, selectinload
 
 from dz_fastapi.analytics.price_history import (
     analyze_autopart_popularity,
@@ -2212,16 +2212,21 @@ async def update_customer_pricelist_config(
     config_in: CustomerPriceListConfigUpdate,
     session: AsyncSession = Depends(get_session),
 ):
-    # Check if the customer exists
-    customer = await crud_customer.get_by_id(customer_id=customer_id, session=session)
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
-
-    # Retrieve existing configuration
-    config = await crud_customer_pricelist_config.get_by_id(
-        session=session, customer_id=customer.id, config_id=config_id
+    # This endpoint only needs the selected config. Loading the full customer also
+    # loads its complete pricelist history and makes a small PATCH unnecessarily slow.
+    config_result = await session.execute(
+        select(CustomerPriceListConfig)
+        .options(
+            noload(CustomerPriceListConfig.sources),
+            noload(CustomerPriceListConfig.outgoing_email_account),
+        )
+        .where(
+            CustomerPriceListConfig.id == config_id,
+            CustomerPriceListConfig.customer_id == customer_id,
+        )
     )
-    if not config or config.customer_id != customer_id:
+    config = config_result.scalar_one_or_none()
+    if not config:
         raise HTTPException(status_code=404, detail="Configuration not found for this customer")
     if (
         "outgoing_email_account_id" in config_in.model_fields_set
@@ -2237,7 +2242,6 @@ async def update_customer_pricelist_config(
 
     session.add(config)
     await session.commit()
-    await session.refresh(config)
     sources = await crud_customer_pricelist_source.get_by_config_id(
         config_id=config.id, session=session
     )
