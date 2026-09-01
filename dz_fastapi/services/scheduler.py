@@ -1882,6 +1882,14 @@ def _schedule_was_handled(value: datetime | None, scheduled_at: datetime) -> boo
     return value >= scheduled_at
 
 
+def _customer_pricelist_delivery_attempt_handled(
+    generated_at: datetime | None,
+    scheduled_at: datetime,
+) -> bool:
+    """Do not rebuild a price list repeatedly after one delivery attempt."""
+    return _schedule_was_handled(generated_at, scheduled_at)
+
+
 async def _should_run_scheduled_job(
     session: AsyncSession,
     key: str,
@@ -1988,6 +1996,7 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
                 configs = (await session.execute(stmt)).scalars().all()
                 config_ids = [config.id for config in configs]
                 latest_generated_by_config = {}
+                latest_delivery_attempt_by_config = {}
                 if config_ids:
                     latest_generated_by_config = dict(
                         (
@@ -2004,6 +2013,24 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
                             )
                         ).all()
                     )
+                    latest_delivery_attempt_by_config = dict(
+                        (
+                            await session.execute(
+                                select(
+                                    CustomerPriceList.customer_config_id,
+                                    func.max(CustomerPriceList.generated_at),
+                                )
+                                .where(
+                                    CustomerPriceList.customer_config_id.in_(config_ids),
+                                    CustomerPriceList.generated_at.is_not(None),
+                                    CustomerPriceList.generation_status.in_(
+                                        ("queued", "sent", "send_failed")
+                                    ),
+                                )
+                                .group_by(CustomerPriceList.customer_config_id)
+                            )
+                        ).all()
+                    )
                 pending = []
                 for config in configs:
                     if not config.schedule_days or not config.schedule_times:
@@ -2012,6 +2039,12 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
                     if scheduled_at is None:
                         continue
                     if _schedule_was_handled(config.last_sent_at, scheduled_at):
+                        continue
+                    latest_attempt_at = latest_delivery_attempt_by_config.get(config.id)
+                    if _customer_pricelist_delivery_attempt_handled(
+                        latest_attempt_at,
+                        scheduled_at,
+                    ):
                         continue
                     if customer_pricelist_requires_draft(config):
                         latest_generated_at = latest_generated_by_config.get(config.id)

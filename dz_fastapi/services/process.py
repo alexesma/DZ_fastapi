@@ -17,6 +17,7 @@ from libarchive import memory_reader
 from openpyxl import Workbook
 from openpyxl.cell import WriteOnlyCell
 from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
 from sqlalchemy import func, insert, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
@@ -298,6 +299,30 @@ def _build_customer_pricelist_attachment_filename(
     return f"{base_name}.{extension}"
 
 
+CUSTOMER_PRICELIST_COLUMN_WIDTHS = {
+    "Производитель": 20,
+    "Наименование": 56,
+    "Артикул": 32,
+    "Количество": 12,
+    "Кратность": 12,
+    "Цена": 14,
+    "ТН ВЭД": 16,
+    "ОКПД 2": 18,
+    "Честный знак": 24,
+    "Номер сертификата ЕАС": 34,
+    "Ссылка ФГИС": 50,
+}
+CUSTOMER_PRICELIST_WRAPPED_COLUMNS = frozenset(
+    {
+        "Наименование",
+        "Артикул",
+        "Честный знак",
+        "Номер сертификата ЕАС",
+        "Ссылка ФГИС",
+    }
+)
+
+
 def _build_customer_pricelist_attachment_bytes(
     df_excel: pd.DataFrame,
     config: CustomerPriceListConfig,
@@ -315,11 +340,23 @@ def _build_customer_pricelist_attachment_bytes(
     output = BytesIO()
     wb = Workbook(write_only=True)
     ws = wb.create_sheet()
+    ws.title = "Прайс"
+
+    # Write-only worksheet serializes its column settings with the first row,
+    # so dimensions must be configured before any append call.
+    for column_index, column_title in enumerate(df_excel.columns, start=1):
+        ws.column_dimensions[get_column_letter(column_index)].width = (
+            CUSTOMER_PRICELIST_COLUMN_WIDTHS.get(str(column_title), 18)
+        )
+    ws.row_dimensions[2].height = 26
+    ws.freeze_panes = "A3"
 
     note_font = Font(name="Arial", size=7)
     header_font = Font(name="Arial", size=10, bold=True)
     header_fill = PatternFill(start_color="D9EAD3", end_color="D9EAD3", fill_type="solid")
     center_alignment = Alignment(horizontal="center", vertical="center")
+    wrapped_alignment = Alignment(vertical="top", wrap_text=True)
+    data_alignment = Alignment(vertical="top")
     data_font = Font(name="Arial", size=10)
 
     current_time = now_moscow().strftime("%Y-%m-%d %H:%M:%S")
@@ -350,9 +387,14 @@ def _build_customer_pricelist_attachment_bytes(
     logger.debug("Write data rows starting from the third row")
     for row_data in df_excel.itertuples(index=False):
         row_cells = []
-        for cell_value in row_data:
+        for column_title, cell_value in zip(df_excel.columns, row_data):
             cell = WriteOnlyCell(ws, value=_sanitize_cell(cell_value))
             cell.font = data_font
+            cell.alignment = (
+                wrapped_alignment
+                if str(column_title) in CUSTOMER_PRICELIST_WRAPPED_COLUMNS
+                else data_alignment
+            )
             row_cells.append(cell)
         ws.append(row_cells)
 
@@ -2895,6 +2937,7 @@ async def _persist_customer_pricelist_artifact(
             source = oem_lookup.get(key[1])
             row_type = "zzap_transform"
         quantity_value = pd.to_numeric(values.get("Количество"), errors="coerce")
+        multiplicity_value = pd.to_numeric(values.get("Кратность"), errors="coerce")
         price_value = pd.to_numeric(values.get("Цена"), errors="coerce")
         if pd.isna(quantity_value) or pd.isna(price_value):
             continue
@@ -2910,6 +2953,11 @@ async def _persist_customer_pricelist_artifact(
                 "normalized_brand": key[0],
                 "normalized_oem": key[1],
                 "quantity": int(float(quantity_value)),
+                "multiplicity": (
+                    max(int(float(multiplicity_value)), 1)
+                    if not pd.isna(multiplicity_value)
+                    else 1
+                ),
                 "price": float(price_value),
                 "row_type": row_type,
             }

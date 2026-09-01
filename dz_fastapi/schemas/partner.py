@@ -1444,6 +1444,7 @@ class CustomerPriceListExportRowOut(BaseModel):
     advertised_oem: str
     advertised_name: Optional[str] = None
     quantity: int
+    multiplicity: int = 1
     price: float
     row_type: str
     actual_brand: Optional[str] = None

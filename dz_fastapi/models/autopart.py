@@ -150,7 +150,12 @@ class AutoPart(Base):
     purchase_price = Column(DECIMAL(10, 2), default=0)
     retail_price = Column(DECIMAL(10, 2), default=0)
     wholesale_price = Column(DECIMAL(10, 2), default=0)
-    multiplicity = Column(Integer, default=1, nullable=True)
+    multiplicity = Column(
+        Integer,
+        default=1,
+        server_default="1",
+        nullable=False,
+    )
     minimum_balance = Column(Integer, default=0)
     min_balance_auto = Column(Boolean, default=False)
     min_balance_user = Column(Boolean, default=False)

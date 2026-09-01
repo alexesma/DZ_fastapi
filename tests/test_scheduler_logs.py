@@ -11,6 +11,7 @@ from dz_fastapi.models.settings import CustomerOrderInboxSettings
 from dz_fastapi.services.scheduler import (
     _close_stale_supplier_response_messages,
     _cron_minute_for_interval,
+    _customer_pricelist_delivery_attempt_handled,
     _latest_due_customer_pricelist_schedule,
     _notify_scheduler_issue,
     _schedule_was_handled,
@@ -69,6 +70,19 @@ def test_customer_pricelist_schedule_uses_latest_due_slot():
         12,
         0,
         tzinfo=ZoneInfo("Europe/Moscow"),
+    )
+
+
+def test_customer_pricelist_failed_delivery_is_not_rebuilt_for_same_slot():
+    scheduled_at = datetime(2026, 9, 1, 6, 0, tzinfo=ZoneInfo("Europe/Moscow"))
+
+    assert _customer_pricelist_delivery_attempt_handled(
+        datetime(2026, 9, 1, 6, 3, tzinfo=ZoneInfo("Europe/Moscow")),
+        scheduled_at,
+    )
+    assert not _customer_pricelist_delivery_attempt_handled(
+        datetime(2026, 9, 1, 5, 59, tzinfo=ZoneInfo("Europe/Moscow")),
+        scheduled_at,
     )
 
 

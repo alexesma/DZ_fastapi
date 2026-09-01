@@ -1412,6 +1412,49 @@ async def test_update_customer_pricelist_config(
 
 
 @pytest.mark.asyncio
+async def test_update_customer_pricelist_config_persists_delivery_mailbox(
+    created_customers: Customer,
+    async_client: AsyncClient,
+    test_session: AsyncSession,
+):
+    customer = created_customers[0]
+    mailbox = EmailAccount(
+        name="Customer pricelist sender",
+        email="customer-prices@example.com",
+        password="secret",
+        transport="smtp",
+        purposes=["prices_out"],
+        is_active=True,
+    )
+    test_session.add(mailbox)
+    await test_session.commit()
+    await test_session.refresh(mailbox)
+
+    response = await async_client.post(
+        f"/customers/{customer.id}/pricelist-configs/",
+        json={"name": "Delivery mailbox config"},
+    )
+    assert response.status_code == 201, response.text
+    config_id = response.json()["id"]
+
+    response = await async_client.patch(
+        f"/customers/{customer.id}/pricelist-configs/{config_id}",
+        json={
+            "outgoing_email_account_id": mailbox.id,
+            "emails": ["price-recipient@example.com"],
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["outgoing_email_account_id"] == mailbox.id
+    assert response.json()["emails"] == ["price-recipient@example.com"]
+
+    persisted = await test_session.get(CustomerPriceListConfig, config_id)
+    await test_session.refresh(persisted)
+    assert persisted.outgoing_email_account_id == mailbox.id
+    assert persisted.emails == ["price-recipient@example.com"]
+
+
+@pytest.mark.asyncio
 async def test_get_customer_pricelist_configs(
     created_customers: Customer,
     async_client: AsyncClient,

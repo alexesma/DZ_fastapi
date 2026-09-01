@@ -146,7 +146,7 @@ async def notify_admin_all(
         commit=commit,
     )
     try:
-        from dz_fastapi.services.webchat import send_telegram_message
+        from dz_fastapi.services.telegram import send_message_to_telegram
 
         emoji = (
             "🔴" if level == "error" else "🟡" if level == "warning" else "🔵"
@@ -154,7 +154,7 @@ async def notify_admin_all(
         tg_text = f"{emoji} {title}\n\n{message}"
         if link:
             tg_text += f"\n\n{link}"
-        await send_telegram_message(tg_text)
+        await send_message_to_telegram(tg_text)
     except Exception as tg_exc:
         import logging as _logging
 

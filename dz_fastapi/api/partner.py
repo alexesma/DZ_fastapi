@@ -2938,6 +2938,7 @@ async def list_customer_pricelist_draft_rows(
                 advertised_oem=export_row.advertised_oem,
                 advertised_name=export_row.advertised_name,
                 quantity=export_row.quantity,
+                multiplicity=export_row.multiplicity,
                 price=float(export_row.price),
                 row_type=export_row.row_type,
                 actual_brand=brand.name if brand else None,

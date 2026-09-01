@@ -604,6 +604,7 @@ def _is_retryable_imap_fetch_error(exc: Exception) -> bool:
         "command: uid => socket error: eof",
         "connection reset",
         "connection aborted",
+        "server is closing this connection",
         "timed out",
         "timeout",
     )

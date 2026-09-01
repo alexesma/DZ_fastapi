@@ -2,7 +2,7 @@ import logging
 import re
 import unicodedata
 from datetime import date, datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
@@ -233,6 +233,16 @@ def regulatory_columns_for(attrs: Optional[dict]) -> dict:
     }
 
 
+def normalize_multiplicity(value: Any) -> int:
+    """Return a valid sale lot size; absent or invalid values mean one."""
+    try:
+        if value is None or pd.isna(value):
+            return 1
+        return max(int(float(value)), 1)
+    except (TypeError, ValueError, OverflowError):
+        return 1
+
+
 def prepare_excel_data_from_records(
     records: List[dict],
     regulatory_by_autopart_id: Optional[Dict[int, dict]] = None,
@@ -250,6 +260,7 @@ def prepare_excel_data_from_records(
         "Наименование",
         "Артикул",
         "Количество",
+        "Кратность",
         "Цена",
         *REGULATORY_COLUMNS,
     ]
@@ -266,6 +277,7 @@ def prepare_excel_data_from_records(
             "Наименование": record.get("name"),
             "Артикул": record.get("oem_number"),
             "Количество": record.get("quantity"),
+            "Кратность": normalize_multiplicity(record.get("multiplicity")),
             "Цена": record.get("price"),
         }
         row.update(regulatory_columns_for(regulatory_map.get(key)))
@@ -294,6 +306,7 @@ def prepare_excel_data(
             "Наименование": autopart.name,
             "Артикул": autopart.oem_number,
             "Количество": assoc.quantity,
+            "Кратность": normalize_multiplicity(autopart.multiplicity),
             "Цена": assoc.price,
         }
         # Реквизиты берём прямо с карточки — ассоциация уже её загрузила.
@@ -318,6 +331,7 @@ def prepare_excel_data(
             "Наименование",
             "Артикул",
             "Количество",
+            "Кратность",
             "Цена",
             *REGULATORY_COLUMNS,
         ],

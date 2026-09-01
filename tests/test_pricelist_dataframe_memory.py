@@ -16,16 +16,26 @@ from dz_fastapi.models.partner import PriceList, PriceListAutoPartAssociation
 
 
 async def _pricelist_with_rows(
-    session, brand, provider, config, rows: list[tuple[str, int, float]]
+    session,
+    brand,
+    provider,
+    config,
+    rows: list[tuple[str, int, float] | tuple[str, int, float, int, int]],
 ) -> PriceList:
     pricelist = PriceList(
         provider_id=provider.id, provider_config_id=config.id
     )
     session.add(pricelist)
     await session.flush()
-    for oem, quantity, price in rows:
+    for row in rows:
+        oem, quantity, price = row[:3]
+        card_multiplicity = row[3] if len(row) > 3 else 1
+        supplier_multiplicity = row[4] if len(row) > 4 else 1
         part = AutoPart(
-            brand_id=brand.id, oem_number=oem, name=f'Деталь {oem}'
+            brand_id=brand.id,
+            oem_number=oem,
+            name=f'Деталь {oem}',
+            multiplicity=card_multiplicity,
         )
         session.add(part)
         await session.flush()
@@ -35,6 +45,7 @@ async def _pricelist_with_rows(
                 autopart_id=part.id,
                 quantity=quantity,
                 price=price,
+                multiplicity=supplier_multiplicity,
             )
         )
     await session.commit()
@@ -60,13 +71,14 @@ async def test_dataframe_has_all_fields_consumers_need(
     assert set(frame.columns) >= {
         'autopart_id', 'name', 'oem_number', 'brand_id', 'brand',
         'quantity', 'price', 'provider_id', 'provider_config_id',
-        'pricelist_id', 'is_own_price',
+        'pricelist_id', 'is_own_price', 'multiplicity',
     }
     assert len(frame) == 2
     row = frame[frame['oem_number'] == 'DF0001'].iloc[0]
     assert row['brand'] == created_brand.name
     assert row['quantity'] == 5
     assert row['price'] == pytest.approx(100.0)
+    assert row['multiplicity'] == 1
     assert row['provider_id'] == created_providers[0].id
     assert row['pricelist_id'] == pricelist.id
 
@@ -137,6 +149,48 @@ async def test_empty_oem_filter_returns_empty_frame(
 
     assert frame.empty
     assert 'oem_number' in frame.columns
+
+
+@pytest.mark.anyio
+async def test_supplier_uses_pricelist_multiplicity(
+    test_session, created_brand, created_providers, created_pricelist_config
+):
+    provider = created_providers[0]
+    provider.is_own_price = False
+    pricelist = await _pricelist_with_rows(
+        test_session,
+        created_brand,
+        provider,
+        created_pricelist_config,
+        [('DF0008', 3, 40.0, 8, 4)],
+    )
+
+    frame = await crud_pricelist.fetch_pricelist_dataframe(
+        pricelist.id, test_session
+    )
+
+    assert frame.iloc[0]['multiplicity'] == 4
+
+
+@pytest.mark.anyio
+async def test_own_stock_uses_product_card_multiplicity(
+    test_session, created_brand, created_providers, created_pricelist_config
+):
+    provider = created_providers[0]
+    provider.is_own_price = True
+    pricelist = await _pricelist_with_rows(
+        test_session,
+        created_brand,
+        provider,
+        created_pricelist_config,
+        [('DF0009', 6, 80.0, 8, 4)],
+    )
+
+    frame = await crud_pricelist.fetch_pricelist_dataframe(
+        pricelist.id, test_session
+    )
+
+    assert frame.iloc[0]['multiplicity'] == 8
 
 
 @pytest.mark.anyio

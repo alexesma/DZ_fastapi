@@ -17,6 +17,7 @@ BASE_COLUMNS = [
     "Наименование",
     "Артикул",
     "Количество",
+    "Кратность",
     "Цена",
 ]
 
@@ -28,6 +29,7 @@ def _record(autopart_id=1, oem="DZ456"):
         "name": "Фильтр масляный",
         "oem_number": oem,
         "quantity": 46,
+        "multiplicity": 5,
         "price": 300,
     }
 
@@ -42,6 +44,19 @@ def test_columns_present_without_attribute_map():
     df = prepare_excel_data_from_records([_record()])
     assert list(df.columns) == BASE_COLUMNS + REGULATORY_COLUMNS
     assert df.iloc[0]["ТН ВЭД"] == ""
+
+
+def test_multiplicity_defaults_to_one_when_missing_or_invalid():
+    record = _record()
+    record.pop("multiplicity")
+    assert prepare_excel_data_from_records([record]).iloc[0]["Кратность"] == 1
+
+    record["multiplicity"] = 0
+    assert prepare_excel_data_from_records([record]).iloc[0]["Кратность"] == 1
+
+
+def test_multiplicity_is_exported_from_record():
+    assert prepare_excel_data_from_records([_record()]).iloc[0]["Кратность"] == 5
 
 
 def test_filled_attributes_land_in_row():

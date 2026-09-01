@@ -465,7 +465,7 @@ class PriceListAutoPartAssociation(Base):
     autopart_id = Column(Integer, ForeignKey("autopart.id"), primary_key=True)
     quantity = Column(Integer, nullable=False)
     price = Column(DECIMAL(10, 2), nullable=False)
-    multiplicity = Column(Integer, nullable=False, default=1)
+    multiplicity = Column(Integer, nullable=False, default=1, server_default="1")
 
     pricelist = relationship("PriceList", back_populates="autopart_associations")
     autopart = relationship("AutoPart", back_populates="price_list_associations")
@@ -672,6 +672,7 @@ class CustomerPriceListExportRow(Base):
     normalized_brand = Column(String(255), nullable=False)
     normalized_oem = Column(String(255), nullable=False)
     quantity = Column(Integer, nullable=False)
+    multiplicity = Column(Integer, nullable=False, default=1, server_default="1")
     price = Column(DECIMAL(10, 2), nullable=False)
     row_type = Column(String(32), nullable=False, default="direct")
 

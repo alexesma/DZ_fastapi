@@ -1877,6 +1877,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         "brand",
         "quantity",
         "price",
+        "multiplicity",
     )
 
     async def fetch_pricelist_dataframe(
@@ -1914,6 +1915,11 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
         if header is None:
             return pd.DataFrame(columns=list(self.PRICELIST_DF_COLUMNS))
 
+        multiplicity_source = (
+            AutoPart.multiplicity
+            if bool(header[3])
+            else PriceListAutoPartAssociation.multiplicity
+        )
         stmt = (
             select(
                 AutoPart.id,
@@ -1923,6 +1929,7 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                 Brand.name,
                 PriceListAutoPartAssociation.quantity,
                 PriceListAutoPartAssociation.price,
+                func.coalesce(multiplicity_source, 1),
             )
             .join(
                 AutoPart,
@@ -1984,6 +1991,18 @@ class CRUDPriceList(CRUDBase[PriceList, PriceListCreate, PriceListUpdate]):
                         ),
                         "quantity": assoc.quantity,
                         "price": float(assoc.price),
+                        "multiplicity": max(
+                            int(
+                                (
+                                    autopart.multiplicity
+                                    if assoc.pricelist.provider
+                                    and assoc.pricelist.provider.is_own_price
+                                    else assoc.multiplicity
+                                )
+                                or 1
+                            ),
+                            1,
+                        ),
                     }
                 )
             return pd.DataFrame(data)

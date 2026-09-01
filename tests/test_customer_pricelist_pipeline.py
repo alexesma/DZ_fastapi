@@ -51,6 +51,7 @@ def test_empty_excel_records_keep_export_columns_for_later_aliases():
         "Наименование",
         "Артикул",
         "Количество",
+        "Кратность",
         "Цена",
         *REGULATORY_COLUMNS,
     ]
@@ -525,6 +526,7 @@ async def test_v2_pipeline_transforms_filtered_dragonzap_into_original_draft(
         brand_id=dragonzap.id,
         oem_number="DZ1064001701",
         name="Подшипник передней ступицы",
+        multiplicity=6,
     )
     cross = AutoPart(
         brand_id=dragonzap.id,
@@ -628,6 +630,7 @@ async def test_v2_pipeline_transforms_filtered_dragonzap_into_original_draft(
         ("GEELY", "1064001701"),
     ]
     assert {row.source_autopart_id for row in rows} == {physical.id}
+    assert {row.multiplicity for row in rows} == {6}
     assert all(row.advertised_name.startswith(">>Неоригинал<<") for row in rows)
     assert response.generation_status == "draft"
     generated = await test_session.get(CustomerPriceList, response.id)

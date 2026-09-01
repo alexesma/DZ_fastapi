@@ -28,7 +28,7 @@ class AutoPartBase(BaseModel):
     purchase_price: Optional[float] = None
     retail_price: Optional[float] = None
     wholesale_price: Optional[float] = None
-    multiplicity: Optional[int] = None
+    multiplicity: int = Field(default=1, ge=1)
     minimum_balance: Optional[int] = None
     min_balance_auto: Optional[bool] = None
     min_balance_user: Optional[bool] = None
@@ -58,7 +58,7 @@ class AutoPartResponse(BaseModel):
     purchase_price: Optional[float] = None
     retail_price: Optional[float] = None
     wholesale_price: Optional[float] = None
-    multiplicity: Optional[int] = None
+    multiplicity: int = Field(default=1, ge=1)
     minimum_balance: Optional[int] = None
     min_balance_auto: Optional[bool] = None
     min_balance_user: Optional[bool] = None
@@ -113,7 +113,7 @@ class AutoPartCreate(BaseModel):
     purchase_price: Optional[float] = None
     retail_price: Optional[float] = None
     wholesale_price: Optional[float] = None
-    multiplicity: Optional[int] = None
+    multiplicity: int = Field(default=1, ge=1)
     minimum_balance: Optional[int] = None
     min_balance_auto: Optional[bool] = None
     min_balance_user: Optional[bool] = None
@@ -139,7 +139,7 @@ class AutoPartCreatePriceList(BaseModel):
     oem_number: str
     brand: Optional[str] = None
     name: Optional[str] = None
-    multiplicity: Optional[int] = None
+    multiplicity: int = Field(default=1, ge=1)
     purchase_price: Optional[float] = None
     retail_price: Optional[float] = None
     wholesale_price: Optional[float] = None
@@ -163,7 +163,7 @@ class AutoPartUpdate(BaseModel):
     purchase_price: Optional[float] = None
     retail_price: Optional[float] = None
     wholesale_price: Optional[float] = None
-    multiplicity: Optional[int] = None
+    multiplicity: Optional[int] = Field(default=None, ge=1)
     minimum_balance: Optional[int] = None
     min_balance_auto: Optional[bool] = None
     min_balance_user: Optional[bool] = None
@@ -193,7 +193,7 @@ class AutoPartPricelist(BaseModel):
     brand: Optional[str] = None
     oem_number: str
     name: Optional[str] = None
-    multiplicity: Optional[int] = None
+    multiplicity: int = Field(default=1, ge=1)
     purchase_price: Optional[float] = None
     retail_price: Optional[float] = None
     wholesale_price: Optional[float] = None

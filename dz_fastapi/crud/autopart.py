@@ -508,6 +508,8 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         for key, value in data.items():
             if not hasattr(autopart, key):
                 continue
+            if key == "multiplicity" and value is None:
+                value = 1
             if value is None and key in NON_NULLABLE_AUTOPART_FIELDS:
                 continue
             setattr(autopart, key, value)
