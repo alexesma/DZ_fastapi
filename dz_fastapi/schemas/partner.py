@@ -1357,6 +1357,7 @@ class CustomerPriceListPublicationRuleCreate(BaseModel):
     source_autopart_id: int = Field(gt=0)
     target_autopart_id: Optional[int] = Field(default=None, gt=0)
     target_autopart_ids: List[int] = Field(default_factory=list)
+    fixed_price: Optional[float] = Field(default=None, gt=0, le=99_999_999.99)
     mode: str = "only_cross"
     is_active: bool = True
 
@@ -1379,6 +1380,7 @@ class CustomerPriceListPublicationRuleCreate(BaseModel):
         if self.mode == "hide":
             self.target_autopart_id = None
             self.target_autopart_ids = []
+            self.fixed_price = None
         return self
 
 
@@ -1401,6 +1403,7 @@ class CustomerPriceListPublicationRuleOut(BaseModel):
     target_oem: Optional[str] = None
     target_name: Optional[str] = None
     targets: List[CustomerPriceListPublicationTargetOut] = Field(default_factory=list)
+    fixed_price: Optional[float] = None
     mode: str
     is_active: bool
     created_at: datetime

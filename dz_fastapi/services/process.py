@@ -906,7 +906,7 @@ def _apply_product_labels(
 
 
 def _collapse_output_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Choose cheapest Brand+OEM, then biggest stock, then real original."""
+    """Prefer manual fixed prices, then cheapest Brand+OEM and biggest stock."""
 
     origin_rank = {
         "original_source": 0,
@@ -921,6 +921,7 @@ def _collapse_output_records(records: list[dict[str, Any]]) -> list[dict[str, An
             _normalize_dedup_oem_key(row.get("oem_number")),
         )
         candidate_rank = (
+            0 if row.get("__publication_rule_fixed_price") else 1,
             float(row.get("price") or float("inf")),
             -int(float(row.get("quantity") or 0)),
             origin_rank.get(str(row.get("__origin_type") or ""), 3),
@@ -931,6 +932,7 @@ def _collapse_output_records(records: list[dict[str, Any]]) -> list[dict[str, An
             selected[key] = row
             continue
         current_rank = (
+            0 if current.get("__publication_rule_fixed_price") else 1,
             float(current.get("price") or float("inf")),
             -int(float(current.get("quantity") or 0)),
             origin_rank.get(str(current.get("__origin_type") or ""), 3),
@@ -1611,6 +1613,7 @@ async def _apply_customer_publication_rules(
             .to_dict()
         )
         mode = str(rule.mode or "only_cross").lower()
+        fixed_price = float(rule.fixed_price) if rule.fixed_price is not None else None
         if mode in {"hide", "only_cross"}:
             suppressed_source_ids.add(source_id)
         if mode == "hide":
@@ -1655,9 +1658,14 @@ async def _apply_customer_publication_rules(
                     "oem_number": str(target_oem).strip(),
                     "name": str(target_part.name or selected.get("name") or "").strip(),
                     "quantity": _mask_supplier_quantity(quantity, unit),
-                    "price": float(selected.get("price") or 0),
+                    "price": (
+                        fixed_price
+                        if fixed_price is not None
+                        else float(selected.get("price") or 0)
+                    ),
                     "__dragonzap_alias": True,
                     "__manual_publication_rule": True,
+                    "__publication_rule_fixed_price": fixed_price is not None,
                     "__publication_rule_id": int(rule.id),
                     "__row_type": "manual_cross",
                 }
@@ -3611,6 +3619,8 @@ async def process_customer_pricelist(
             if current is None or float(dealer_price) < current:
                 dealer_price_by_key[dealer_key] = float(dealer_price)
         for alias in dragonzap_alias_records:
+            if alias.get("__publication_rule_fixed_price"):
+                continue
             alias_key = (
                 _normalize_dedup_brand_key(alias.get("brand")),
                 _normalize_dedup_oem_key(alias.get("oem_number")),

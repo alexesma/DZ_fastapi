@@ -174,6 +174,33 @@ def test_duplicate_policy_uses_price_then_stock_then_real_original():
     assert tied[0]["autopart_id"] == 2
 
 
+def test_duplicate_policy_preserves_manual_fixed_publication_price():
+    result = _collapse_output_records(
+        [
+            {
+                "autopart_id": 1,
+                "brand": "GEELY",
+                "oem_number": "1064001701",
+                "price": 490,
+                "quantity": 7,
+            },
+            {
+                "autopart_id": 2,
+                "brand": "GEELY",
+                "oem_number": "1064001701",
+                "price": 550,
+                "quantity": 4,
+                "__manual_publication_rule": True,
+                "__publication_rule_fixed_price": True,
+            },
+        ]
+    )
+
+    assert len(result) == 1
+    assert result[0]["autopart_id"] == 2
+    assert result[0]["price"] == 550
+
+
 def test_pipeline_order_is_complete_and_respects_required_dependencies():
     config = SimpleNamespace(
         additional_filters={
@@ -406,6 +433,7 @@ async def test_publication_rule_creates_multiple_cross_rows_for_one_physical_ite
         config_id=config.id,
         source_autopart_id=source.id,
         target_autopart_id=first.id,
+        fixed_price=123.45,
         mode="only_cross",
         is_active=True,
     )
@@ -455,6 +483,8 @@ async def test_publication_rule_creates_multiple_cross_rows_for_one_physical_ite
     assert direct.empty
     assert {row["oem_number"] for row in aliases} == {"DZCROSS1", "DZCROSS2"}
     assert {row["autopart_id"] for row in aliases} == {source.id}
+    assert {row["price"] for row in aliases} == {123.45}
+    assert all(row["__publication_rule_fixed_price"] is True for row in aliases)
     assert summary["manual_aliases"] == 2
     assert summary["unconfigured_positions"] == 1
 

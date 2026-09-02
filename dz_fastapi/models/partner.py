@@ -710,6 +710,7 @@ class CustomerPriceListPublicationRule(Base):
         nullable=True,
         index=True,
     )
+    fixed_price = Column(DECIMAL(10, 2), nullable=True)
     mode = Column(String(24), nullable=False, default="only_cross")
     is_active = Column(Boolean, nullable=False, default=True)
     created_by_user_id = Column(

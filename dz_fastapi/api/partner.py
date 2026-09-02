@@ -238,6 +238,7 @@ def _publication_rule_response(
         target_oem=target.oem_number if target else None,
         target_name=target.name if target else None,
         targets=targets,
+        fixed_price=rule.fixed_price,
         mode=rule.mode,
         is_active=rule.is_active,
         created_at=rule.created_at,
@@ -2646,6 +2647,7 @@ async def save_customer_pricelist_publication_rule(
             created_by_user_id=current_user.id,
         )
     existing.target_autopart_id = target_ids[0] if target_ids else None
+    existing.fixed_price = payload.fixed_price
     existing.mode = payload.mode
     existing.is_active = payload.is_active
     existing.updated_by_user_id = current_user.id
