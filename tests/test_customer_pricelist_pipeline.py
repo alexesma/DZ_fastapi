@@ -51,8 +51,8 @@ def test_empty_excel_records_keep_export_columns_for_later_aliases():
         "Наименование",
         "Артикул",
         "Количество",
-        "Кратность",
         "Цена",
+        "Кратность",
         *REGULATORY_COLUMNS,
     ]
     assert expand_dz_brands(result).columns.tolist() == result.columns.tolist()

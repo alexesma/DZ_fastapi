@@ -9,7 +9,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from httpx import Response
-from sqlalchemy import func, or_, update
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -39,7 +39,6 @@ from dz_fastapi.crud.partner import (
 )
 from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
 from dz_fastapi.models.brand import Brand
-from dz_fastapi.models.notification import AppNotification
 from dz_fastapi.models.partner import (
     TYPE_PRICES,
     Customer,
@@ -134,6 +133,12 @@ from dz_fastapi.services.crosses import load_bidirectional_cross_members
 from dz_fastapi.services.email import download_price_provider
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
 from dz_fastapi.services.order_timing import get_today_order_windows_status
+from dz_fastapi.services.pricelist_review_queue import (
+    mark_pricelist_review_notifications_read as _mark_pricelist_review_notifications_read,
+)
+from dz_fastapi.services.pricelist_review_queue import (
+    pricelist_review_file_path as _pricelist_review_file_path,
+)
 from dz_fastapi.services.process import (
     CUSTOMER_PRICELIST_ARTIFACT_ROOT,
     check_start_and_finish_date,
@@ -2653,6 +2658,13 @@ async def save_customer_pricelist_publication_rule(
     existing.updated_by_user_id = current_user.id
     existing.updated_at = now_moscow()
     session.add(existing)
+
+    # Flush orphan deletions before inserting the replacement collection.
+    # Otherwise a target kept during editing is inserted before its old row is
+    # deleted and violates uq_customer_pricelist_publication_rule_target.
+    if existing.id is not None and existing.targets:
+        existing.targets.clear()
+        await session.flush()
     existing.targets = [
         CustomerPriceListPublicationRuleTarget(target_autopart_id=target_id)
         for target_id in target_ids
@@ -3730,77 +3742,6 @@ async def _get_pricelist_review(
     return review
 
 
-def _pricelist_review_file_path(review: ProviderPricelistReview) -> str:
-    review_root = os.path.realpath(os.path.join("uploads", "pricelist_reviews"))
-    file_path = os.path.realpath(review.file_path)
-    if file_path != review_root and not file_path.startswith(review_root + os.sep):
-        raise HTTPException(
-            status_code=400,
-            detail="Некорректный путь файла проверки",
-        )
-    if not os.path.isfile(file_path):
-        raise HTTPException(
-            status_code=404,
-            detail="Сохранённый файл проверки не найден",
-        )
-    return file_path
-
-
-def _read_pricelist_review_file(file_path: str) -> bytes:
-    with open(file_path, "rb") as file_handle:
-        return file_handle.read()
-
-
-async def _mark_pricelist_review_notifications_read(
-    session: AsyncSession,
-    review: ProviderPricelistReview,
-) -> None:
-    """Закрывает эту проверку и устаревшую очередь той же конфигурации."""
-    decided_at = now_moscow()
-    await session.execute(
-        update(ProviderPricelistReview)
-        .where(
-            ProviderPricelistReview.provider_config_id
-            == review.provider_config_id,
-            ProviderPricelistReview.id < review.id,
-            ProviderPricelistReview.status == "pending",
-        )
-        .values(
-            status="superseded",
-            decision_reason=(
-                "Заменён более свежим прайсом этой конфигурации"
-            ),
-            decided_at=decided_at,
-            processing_error=None,
-        )
-    )
-    review_ids = list(
-        (
-            await session.execute(
-                select(ProviderPricelistReview.id).where(
-                    ProviderPricelistReview.provider_config_id
-                    == review.provider_config_id,
-                    ProviderPricelistReview.id <= review.id,
-                )
-            )
-        ).scalars()
-    )
-    if not review_ids:
-        return
-    links = [
-        f"/providers/{review.provider_id}/edit?pricelist_review={review_id}"
-        for review_id in review_ids
-    ]
-    await session.execute(
-        update(AppNotification)
-        .where(
-            AppNotification.link.in_(links),
-            AppNotification.read_at.is_(None),
-        )
-        .values(read_at=decided_at)
-    )
-
-
 @router.get(
     "/providers/{provider_id}/pricelist-reviews",
     response_model=List[ProviderPricelistReviewOut],
@@ -3899,6 +3840,7 @@ async def reject_provider_pricelist_review(
 @router.post(
     "/providers/{provider_id}/pricelist-reviews/{review_id}/approve",
     response_model=ProviderPricelistReviewOut,
+    status_code=status.HTTP_202_ACCEPTED,
     summary="Принять и опубликовать заблокированный прайс",
 )
 async def approve_provider_pricelist_review(
@@ -3919,84 +3861,14 @@ async def approve_provider_pricelist_review(
             status_code=409,
             detail="По этому прайсу решение уже принято или он обрабатывается",
         )
-    file_path = _pricelist_review_file_path(review)
-    review.status = "processing"
+    # Файл проверяем сразу, а тяжёлый импорт выполняет отдельный scheduler.
+    _pricelist_review_file_path(review)
+    review.status = "queued"
     review.processing_error = None
+    review.decision_reason = payload.reason or "Изменение проверено и подтверждено"
+    review.decided_at = now_moscow()
+    review.decided_by_user_id = current_user.id
     session.add(review)
-    await session.commit()
-
-    try:
-        provider = await crud_provider.get_by_id(
-            provider_id=provider_id,
-            session=session,
-        )
-        provider_config = await crud_provider_pricelist_config.get_by_id(
-            config_id=review.provider_config_id,
-            session=session,
-        )
-        file_content = await asyncio.to_thread(
-            _read_pricelist_review_file,
-            file_path,
-        )
-        pricelist, _ = await process_provider_pricelist(
-            provider=provider,
-            file_content=file_content,
-            file_extension=review.file_extension,
-            provider_list_conf=provider_config,
-            use_stored_params=True,
-            start_row=None,
-            oem_col=None,
-            brand_col=None,
-            name_col=None,
-            multiplicity_col=None,
-            qty_col=None,
-            price_col=None,
-            session=session,
-            return_stats=True,
-            include_autoparts_response=False,
-            enforce_anomaly_guard=False,
-            source_filename=review.source_filename,
-        )
-    except Exception as exc:
-        await session.rollback()
-        failed_review = await _get_pricelist_review(
-            session,
-            provider_id=provider_id,
-            review_id=review_id,
-            for_update=True,
-        )
-        failed_review.status = "pending"
-        failed_review.processing_error = str(exc)[:4000]
-        session.add(failed_review)
-        await session.commit()
-        logger.exception(
-            "Failed to approve provider pricelist review id=%s",
-            review_id,
-        )
-        if isinstance(exc, HTTPException):
-            raise
-        raise HTTPException(
-            status_code=500,
-            detail="Не удалось опубликовать проверяемый прайс",
-        ) from exc
-
-    approved_review = await _get_pricelist_review(
-        session,
-        provider_id=provider_id,
-        review_id=review_id,
-        for_update=True,
-    )
-    approved_review.status = "approved"
-    approved_review.published_pricelist_id = int(pricelist.id)
-    approved_review.decision_reason = payload.reason or "Изменение проверено и подтверждено"
-    approved_review.decided_at = now_moscow()
-    approved_review.decided_by_user_id = current_user.id
-    approved_review.processing_error = None
-    session.add(approved_review)
-    await _mark_pricelist_review_notifications_read(
-        session,
-        approved_review,
-    )
     await session.commit()
     return _pricelist_review_out(
         await _get_pricelist_review(

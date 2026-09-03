@@ -116,12 +116,14 @@ def test_review_examples_prefer_new_positions_and_distinct_brands():
 
 
 @pytest.mark.asyncio
-async def test_new_review_supersedes_older_pending_review(
+@pytest.mark.parametrize("old_status", ["pending", "queued"])
+async def test_new_review_supersedes_older_waiting_review(
     test_session,
     created_providers,
     created_pricelist_config,
     tmp_path,
     monkeypatch,
+    old_status,
 ):
     provider = created_providers[0]
     old_review = ProviderPricelistReview(
@@ -131,7 +133,7 @@ async def test_new_review_supersedes_older_pending_review(
         file_path=str(tmp_path / "old.xlsx"),
         file_extension="xlsx",
         file_sha256="a" * 64,
-        status="pending",
+        status=old_status,
         reasons=["Старое предупреждение"],
         metrics={},
         examples=[],

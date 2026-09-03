@@ -260,8 +260,8 @@ def prepare_excel_data_from_records(
         "Наименование",
         "Артикул",
         "Количество",
-        "Кратность",
         "Цена",
+        "Кратность",
         *REGULATORY_COLUMNS,
     ]
     regulatory_map = regulatory_by_autopart_id or {}
@@ -277,8 +277,8 @@ def prepare_excel_data_from_records(
             "Наименование": record.get("name"),
             "Артикул": record.get("oem_number"),
             "Количество": record.get("quantity"),
-            "Кратность": normalize_multiplicity(record.get("multiplicity")),
             "Цена": record.get("price"),
+            "Кратность": normalize_multiplicity(record.get("multiplicity")),
         }
         row.update(regulatory_columns_for(regulatory_map.get(key)))
         rows.append(row)
@@ -306,8 +306,8 @@ def prepare_excel_data(
             "Наименование": autopart.name,
             "Артикул": autopart.oem_number,
             "Количество": assoc.quantity,
-            "Кратность": normalize_multiplicity(autopart.multiplicity),
             "Цена": assoc.price,
+            "Кратность": normalize_multiplicity(autopart.multiplicity),
         }
         # Реквизиты берём прямо с карточки — ассоциация уже её загрузила.
         row.update(
@@ -331,8 +331,8 @@ def prepare_excel_data(
             "Наименование",
             "Артикул",
             "Количество",
-            "Кратность",
             "Цена",
+            "Кратность",
             *REGULATORY_COLUMNS,
         ],
     )

@@ -89,6 +89,7 @@ from dz_fastapi.services.placed_orders import (
     sync_site_tracking_statuses,
 )
 from dz_fastapi.services.price_control import run_price_control
+from dz_fastapi.services.pricelist_review_queue import process_next_provider_pricelist_review
 from dz_fastapi.services.process import (
     customer_pricelist_requires_draft,
     process_customer_pricelist,
@@ -128,6 +129,10 @@ ENABLE_LEGACY_ZZAP_AUTO_SEND = os.getenv("ENABLE_LEGACY_ZZAP_AUTO_SEND", "0").st
     "yes",
     "on",
 }
+PRICELIST_REVIEW_QUEUE_POLL_SECONDS = max(
+    5,
+    int(os.getenv("PRICELIST_REVIEW_QUEUE_POLL_SECONDS", "10")),
+)
 CUSTOMER_PRICELIST_RSS_SOFT_LIMIT_MB = max(
     512,
     int(os.getenv("CUSTOMER_PRICELIST_RSS_SOFT_LIMIT_MB", "5500")),
@@ -437,6 +442,16 @@ async def create_dragonzap_production_wave_task(app: FastAPI):
                 )
 
 
+async def process_provider_pricelist_review_queue_task(app: FastAPI):
+    async with new_session_from_app(app) as session:
+        review_id = await process_next_provider_pricelist_review(session)
+    if review_id is not None:
+        trim_process_memory(
+            logger,
+            context=f"provider pricelist review queue review_id={review_id}",
+        )
+
+
 def start_scheduler(app: FastAPI):
     scheduler = AsyncIOScheduler()
     scheduler.configure(
@@ -460,6 +475,19 @@ def start_scheduler(app: FastAPI):
         id="process_autopurchase_runs",
         name="Process queued autopurchase runs",
         seconds=AUTOPURCHASE_QUEUE_POLL_SECONDS,
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        next_run_time=now_moscow(),
+    )
+
+    scheduler.add_job(
+        func=process_provider_pricelist_review_queue_task,
+        trigger="interval",
+        args=[app],
+        id="process_provider_pricelist_review_queue",
+        name="Publish approved provider pricelists",
+        seconds=PRICELIST_REVIEW_QUEUE_POLL_SECONDS,
         replace_existing=True,
         max_instances=1,
         coalesce=True,

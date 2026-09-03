@@ -4,7 +4,7 @@ from statistics import median
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import Integer, and_, case, column, func, literal, select, values
+from sqlalchemy import Integer, and_, case, column, func, literal, select, text, values
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -976,58 +976,62 @@ async def _load_pair_stats_batch(
     if not pairs:
         return result
 
-    pair_values = values(
-        column("prev_id", Integer),
-        column("curr_id", Integer),
-        name="pairs",
-    ).data(sorted(pairs))
-    curr_assoc = aliased(PriceListAutoPartAssociation)
-    prev_assoc = aliased(PriceListAutoPartAssociation)
-    # NULLIF отсекает нулевые прежние цены: изменение по ним не определено,
-    # ratio становится NULL и не попадает ни в медиану, ни в счётчики.
-    ratio = (
-        curr_assoc.price / func.nullif(prev_assoc.price, 0) - 1
-    ) * 100
+    # Один запрос на сотни пар создавал большой parallel hash в /dev/shm.
+    # Небольшие последовательные пачки ограничивают пиковую память.
+    await session.execute(text("SET LOCAL max_parallel_workers_per_gather = 0"))
+    ordered_pairs = sorted(pairs)
+    batch_size = 8
+    for offset in range(0, len(ordered_pairs), batch_size):
+        pair_values = values(
+            column("prev_id", Integer),
+            column("curr_id", Integer),
+            name="pairs",
+        ).data(ordered_pairs[offset: offset + batch_size])
+        curr_assoc = aliased(PriceListAutoPartAssociation)
+        prev_assoc = aliased(PriceListAutoPartAssociation)
+        ratio = (
+            curr_assoc.price / func.nullif(prev_assoc.price, 0) - 1
+        ) * 100
 
-    stmt = (
-        select(
-            pair_values.c.prev_id,
-            pair_values.c.curr_id,
-            func.count().label("overlap_count"),
-            func.count(ratio).label("ratio_count"),
-            func.percentile_cont(0.5)
-            .within_group(ratio)
-            .label("median_pct"),
-            func.count()
-            .filter(func.abs(ratio) > 0.01)
-            .label("changed_count"),
+        stmt = (
+            select(
+                pair_values.c.prev_id,
+                pair_values.c.curr_id,
+                func.count().label("overlap_count"),
+                func.count(ratio).label("ratio_count"),
+                func.percentile_cont(0.5)
+                .within_group(ratio)
+                .label("median_pct"),
+                func.count()
+                .filter(func.abs(ratio) > 0.01)
+                .label("changed_count"),
+            )
+            .select_from(pair_values)
+            .join(
+                curr_assoc,
+                curr_assoc.pricelist_id == pair_values.c.curr_id,
+            )
+            .join(
+                prev_assoc,
+                and_(
+                    prev_assoc.pricelist_id == pair_values.c.prev_id,
+                    prev_assoc.autopart_id == curr_assoc.autopart_id,
+                ),
+            )
+            .group_by(pair_values.c.prev_id, pair_values.c.curr_id)
         )
-        .select_from(pair_values)
-        .join(
-            curr_assoc,
-            curr_assoc.pricelist_id == pair_values.c.curr_id,
-        )
-        .join(
-            prev_assoc,
-            and_(
-                prev_assoc.pricelist_id == pair_values.c.prev_id,
-                prev_assoc.autopart_id == curr_assoc.autopart_id,
-            ),
-        )
-        .group_by(pair_values.c.prev_id, pair_values.c.curr_id)
-    )
-    for row in (await session.execute(stmt)).all():
-        ratio_count = int(row.ratio_count or 0)
-        changed_share_pct = (
-            round((int(row.changed_count or 0) / ratio_count) * 100.0, 1)
-            if ratio_count
-            else None
-        )
-        result[(int(row.prev_id), int(row.curr_id))] = (
-            int(row.overlap_count or 0),
-            _to_float(row.median_pct) if ratio_count else None,
-            changed_share_pct,
-        )
+        for row in (await session.execute(stmt)).all():
+            ratio_count = int(row.ratio_count or 0)
+            changed_share_pct = (
+                round((int(row.changed_count or 0) / ratio_count) * 100.0, 1)
+                if ratio_count
+                else None
+            )
+            result[(int(row.prev_id), int(row.curr_id))] = (
+                int(row.overlap_count or 0),
+                _to_float(row.median_pct) if ratio_count else None,
+                changed_share_pct,
+            )
     # Пары без общих позиций Postgres не вернёт — заполняем нулями.
     for pair in pairs:
         result.setdefault(pair, (0, None, None))

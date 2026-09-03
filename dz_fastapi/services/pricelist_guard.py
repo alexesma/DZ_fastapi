@@ -200,7 +200,7 @@ async def _create_pricelist_review(
                 == provider_config.id,
                 ProviderPricelistReview.file_sha256 == checksum,
                 ProviderPricelistReview.status.in_(
-                    ("pending", "processing")
+                    ("pending", "queued", "processing")
                 ),
             )
             .order_by(ProviderPricelistReview.id.desc())
@@ -220,7 +220,7 @@ async def _create_pricelist_review(
                 .where(
                     ProviderPricelistReview.provider_config_id
                     == provider_config.id,
-                    ProviderPricelistReview.status == "pending",
+                    ProviderPricelistReview.status.in_(("pending", "queued")),
                 )
                 .with_for_update()
             )

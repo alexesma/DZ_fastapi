@@ -26,6 +26,7 @@ from dz_fastapi.models.partner import (
     CustomerPriceListConfig,
     CustomerPriceListExportRow,
     CustomerPriceListPublicationRule,
+    CustomerPriceListPublicationRuleTarget,
     CustomerPriceListSource,
     EmailOutbox,
     PriceList,
@@ -43,6 +44,7 @@ from dz_fastapi.schemas.partner import (
     PriceListCreate,
     ProviderResponse,
 )
+from dz_fastapi.services import pricelist_review_queue
 from dz_fastapi.services import process as process_service
 from dz_fastapi.services.email_outbox import mark_outbox_error, mark_outbox_sent
 from tests.test_constants import CONFIG_DATA, TEST_CUSTOMER, TEST_PROVIDER
@@ -856,27 +858,49 @@ async def test_provider_pricelist_review_workflow(
         return pricelist, {"rows_after_filters": 143}
 
     monkeypatch.setattr(
-        partner_api,
+        pricelist_review_queue,
         "process_provider_pricelist",
         fake_process_provider_pricelist,
+    )
+    monkeypatch.setattr(
+        pricelist_review_queue,
+        "pricelist_review_file_path",
+        lambda review: str(review_file),
     )
     approve_response = await async_client.post(
         f"/providers/{provider.id}/pricelist-reviews/" f"{approved_review.id}/approve",
         json={"reason": "Рост ассортимента подтверждён поставщиком"},
     )
-    assert approve_response.status_code == 200, approve_response.text
-    approved = approve_response.json()
-    assert approved["status"] == "approved"
-    assert approved["decision_reason"] == ("Рост ассортимента подтверждён поставщиком")
-    assert approved["decided_by_name"] == "Test Admin"
-    assert approved["decided_at"] is not None
-    assert approved["published_pricelist_id"] is not None
+    assert approve_response.status_code == 202, approve_response.text
+    queued = approve_response.json()
+    assert queued["status"] == "queued"
 
     duplicate_response = await async_client.post(
         f"/providers/{provider.id}/pricelist-reviews/" f"{approved_review.id}/approve",
         json={},
     )
     assert duplicate_response.status_code == 409
+
+    processed_review_id = (
+        await pricelist_review_queue.process_next_provider_pricelist_review(
+            test_session
+        )
+    )
+    assert processed_review_id == approved_review.id
+    await test_session.refresh(approved_review)
+    assert approved_review.status == "approved"
+    approved_response = await async_client.get(
+        f"/providers/{provider.id}/pricelist-reviews"
+    )
+    approved = next(
+        item
+        for item in approved_response.json()
+        if item["id"] == approved_review.id
+    )
+    assert approved["decision_reason"] == ("Рост ассортимента подтверждён поставщиком")
+    assert approved["decided_by_name"] == "Test Admin"
+    assert approved["decided_at"] is not None
+    assert approved["published_pricelist_id"] is not None
 
 
 @pytest.mark.asyncio
@@ -2443,6 +2467,94 @@ async def test_customer_publication_rule_only_cross_hides_source_and_other_alias
     assert aliases[0]["__manual_publication_rule"] is True
     assert summary["manual_aliases"] == 1
     assert summary["hidden_positions"] == 1
+
+
+@pytest.mark.asyncio
+async def test_customer_publication_rule_replaces_targets_without_duplicate_error(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+    async_client: AsyncClient,
+):
+    customer = created_customers[0]
+    test_session.add(
+        User(
+            id=1,
+            name="Test Admin",
+            email="publication-rule-admin@example.com",
+            password_hash="not-used",
+            role=UserRole.ADMIN,
+            status=UserStatus.ACTIVE,
+        )
+    )
+    brand = Brand(name="PUBLICATION-RULE-BRAND")
+    test_session.add(brand)
+    await test_session.flush()
+    source = AutoPart(brand_id=brand.id, oem_number="RULE-SOURCE", name="Source")
+    first_target = AutoPart(brand_id=brand.id, oem_number="RULE-TARGET-1", name="First")
+    second_target = AutoPart(brand_id=brand.id, oem_number="RULE-TARGET-2", name="Second")
+    test_session.add_all([source, first_target, second_target])
+    await test_session.flush()
+    test_session.add_all(
+        [
+            AutoPartCross(
+                source_autopart_id=source.id,
+                cross_brand_id=brand.id,
+                cross_oem_number=target.oem_number,
+                cross_autopart_id=target.id,
+                is_bidirectional=True,
+            )
+            for target in (first_target, second_target)
+        ]
+    )
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name="PUBLICATION RULE UPDATE",
+        general_markup=1.0,
+    )
+    test_session.add(config)
+    await test_session.commit()
+
+    endpoint = (
+        f"/customers/{customer.id}/pricelist-configs/{config.id}/publication-rules"
+    )
+    create_response = await async_client.post(
+        endpoint,
+        json={
+            "source_autopart_id": source.id,
+            "target_autopart_ids": [first_target.id],
+            "mode": "only_cross",
+        },
+    )
+    assert create_response.status_code == 200, create_response.text
+
+    update_response = await async_client.post(
+        endpoint,
+        json={
+            "source_autopart_id": source.id,
+            "target_autopart_ids": [first_target.id, second_target.id],
+            "mode": "only_cross",
+        },
+    )
+    assert update_response.status_code == 200, update_response.text
+    assert {item["autopart_id"] for item in update_response.json()["targets"]} == {
+        first_target.id,
+        second_target.id,
+    }
+
+    target_rows = list(
+        (
+            await test_session.execute(
+                select(CustomerPriceListPublicationRuleTarget).where(
+                    CustomerPriceListPublicationRuleTarget.rule_id
+                    == update_response.json()["id"]
+                )
+            )
+        ).scalars()
+    )
+    assert {row.target_autopart_id for row in target_rows} == {
+        first_target.id,
+        second_target.id,
+    }
 
 
 @pytest.mark.asyncio
