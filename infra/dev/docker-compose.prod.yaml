@@ -23,6 +23,9 @@ services:
     restart: unless-stopped
     volumes:
       - inbox_uploads_data:/app/uploads
+      # Общий том с сервисом ftp: сюда 1С кладёт сообщения обмена
+      # EnterpriseData, отсюда приложение их читает и пишет ответные.
+      - onec_exchange:/app/onec_exchange
     environment:
       RUN_MODE: "api"
       ENABLE_SCHEDULER: "0"
@@ -39,6 +42,7 @@ services:
     memswap_limit: ${SCHEDULER_MEMORY_SWAP_LIMIT:-7g}
     volumes:
       - inbox_uploads_data:/app/uploads
+      - onec_exchange:/app/onec_exchange
     environment:
       RUN_MODE: "scheduler"
       ENABLE_SCHEDULER: "1"
@@ -92,5 +96,40 @@ services:
       - "-c"
       - "idle_in_transaction_session_timeout=1800000"
 
+  # ─── FTP-канал синхронизации с 1С:УНФ (EnterpriseData) ────────────────────
+  # База 1С живёт на приватном адресе за VPN — мы к ней достучаться не можем,
+  # а публикация OData у арендодателя выключена. Поэтому направление
+  # перевёрнуто: 1С сама подключается сюда исходящим соединением, кладёт свои
+  # сообщения обмена и забирает наши. Приложение читает те же файлы напрямую
+  # с общего тома, по FTP оно не ходит и пароль от него не знает.
+  #
+  # Значения берутся из infra/dev/.env (рядом с этим файлом) — именно оттуда
+  # compose подставляет ${...}. Корневой .env для подстановки НЕ используется,
+  # он передаётся только внутрь контейнеров через env_file.
+  # Инструкция: docs/integrations/1c_unf3/ftp-setup.md
+  ftp:
+    image: delfer/alpine-ftp-server:latest
+    container_name: dz_ftp
+    restart: always
+    environment:
+      # логин|пароль|домашний каталог|uid
+      USERS: "${FTP_USER:-onec}|${FTP_PASSWORD}|/ftp/${FTP_USER:-onec}|1000"
+      # публичный адрес — обязателен для пассивного режима
+      ADDRESS: ${FTP_PUBLIC_HOST:-dragonzap.online}
+      MIN_PORT: 30000
+      MAX_PORT: 30009
+    ports:
+      # Нестандартный внешний порт: на 21-м круглосуточно работают переборщики
+      - "${FTP_PORT:-2121}:21"
+      - "30000-30009:30000-30009"
+    volumes:
+      - onec_exchange:/ftp/${FTP_USER:-onec}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   inbox_uploads_data:
+  onec_exchange:

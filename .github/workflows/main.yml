@@ -282,6 +282,14 @@ jobs:
             web poetry run alembic upgrade heads
           # После миграций запускаем постоянные контейнеры приложения, scheduler и фронта.
           sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d --force-recreate web scheduler frontend
+          # FTP-канал обмена с 1С. Поднимается только если в infra/dev/.env
+          # задан FTP_PASSWORD — иначе контейнер пропускаем, чтобы не поднять
+          # открытый наружу FTP с пустым паролем.
+          if grep -qs '^FTP_PASSWORD=..*' .env; then
+            sudo docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d ftp
+          else
+            echo "FTP_PASSWORD не задан в infra/dev/.env — сервис ftp пропущен"
+          fi
 
   send_success_message:
     runs-on: ubuntu-latest
