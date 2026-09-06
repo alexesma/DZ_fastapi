@@ -283,12 +283,9 @@ async def mark_outbox_sent(
     row.claimed_at = None
     session.add(row)
     if row.source_type == "customer_pricelist" and row.source_id:
-        customer_pricelist = await session.get(CustomerPriceList, int(row.source_id))
-        if customer_pricelist is not None:
-            customer_pricelist.sent_at = row.sent_at
-            customer_pricelist.generation_status = "sent"
-            customer_pricelist.send_error = None
-            session.add(customer_pricelist)
+        await _sync_customer_pricelist_delivery_status(
+            session, customer_pricelist_id=int(row.source_id)
+        )
     if row.source_type in {"reclamation", "reclamation_supplier"} and row.source_id:
         await record_reclamation_event(
             session,
@@ -338,16 +335,10 @@ async def mark_outbox_error(
     else:
         row.status = EMAIL_OUTBOX_STATUS.ERROR
     session.add(row)
-    if (
-        row.status == EMAIL_OUTBOX_STATUS.ERROR
-        and row.source_type == "customer_pricelist"
-        and row.source_id
-    ):
-        customer_pricelist = await session.get(CustomerPriceList, int(row.source_id))
-        if customer_pricelist is not None:
-            customer_pricelist.generation_status = "send_failed"
-            customer_pricelist.send_error = row.last_error
-            session.add(customer_pricelist)
+    if row.source_type == "customer_pricelist" and row.source_id:
+        await _sync_customer_pricelist_delivery_status(
+            session, customer_pricelist_id=int(row.source_id)
+        )
     if (
         row.status == EMAIL_OUTBOX_STATUS.ERROR
         and row.source_type in {"reclamation", "reclamation_supplier"}
@@ -367,6 +358,55 @@ async def mark_outbox_error(
     await session.commit()
     await session.refresh(row)
     return row
+
+
+async def _sync_customer_pricelist_delivery_status(
+    session: AsyncSession, *, customer_pricelist_id: int
+) -> None:
+    """Сводит статус прайса по всем отдельным письмам его получателям."""
+    await session.flush()
+    customer_pricelist = await session.get(
+        CustomerPriceList, customer_pricelist_id
+    )
+    if customer_pricelist is None:
+        return
+    rows = list(
+        (
+            await session.scalars(
+                select(EmailOutbox).where(
+                    EmailOutbox.source_type == "customer_pricelist",
+                    EmailOutbox.source_id == customer_pricelist_id,
+                )
+            )
+        ).all()
+    )
+    if not rows:
+        return
+
+    pending = [
+        item for item in rows if item.status == EMAIL_OUTBOX_STATUS.PENDING
+    ]
+    failed = [
+        item for item in rows if item.status == EMAIL_OUTBOX_STATUS.ERROR
+    ]
+    if pending:
+        customer_pricelist.generation_status = "queued"
+        customer_pricelist.sent_at = None
+        customer_pricelist.send_error = None
+    elif failed:
+        customer_pricelist.generation_status = "send_failed"
+        customer_pricelist.sent_at = None
+        customer_pricelist.send_error = "; ".join(
+            f"{item.to_email}: {item.last_error or 'ошибка отправки'}"
+            for item in failed
+        )[:2000]
+    else:
+        customer_pricelist.generation_status = "sent"
+        customer_pricelist.sent_at = max(
+            item.sent_at for item in rows if item.sent_at is not None
+        )
+        customer_pricelist.send_error = None
+    session.add(customer_pricelist)
 
 
 def _flag_source_email_answered_sync(

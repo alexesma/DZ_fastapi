@@ -2817,30 +2817,44 @@ async def send_pricelist(
                 "Для отправки прайс-листа через внешний релей "
                 "не сохранён файл или идентификатор прайса"
             )
-        await enqueue_email(
-            session,
-            to_email=to_email,
-            from_email=account.email,
-            subject=subject,
-            body_text=body,
-            attachments=[
-                {
-                    "filename": attachment_filename,
-                    "local_file_path": attachment_local_path,
-                    "content_type": attachment_content_type,
-                }
-            ],
-            source_type="customer_pricelist",
-            source_id=customer_pricelist_id,
-            commit=False,
-        )
+        relay_recipients: list[str] = []
+        seen_recipients: set[str] = set()
+        for value in to_emails or [to_email]:
+            for raw_recipient in re.split(r"[;,]", str(value or "")):
+                recipient = raw_recipient.strip()
+                recipient_key = recipient.casefold()
+                if recipient and recipient_key not in seen_recipients:
+                    seen_recipients.add(recipient_key)
+                    relay_recipients.append(recipient)
+        if not relay_recipients:
+            raise RuntimeError("Для отправки прайс-листа не заданы получатели")
+
+        for recipient in relay_recipients:
+            await enqueue_email(
+                session,
+                to_email=recipient,
+                from_email=account.email,
+                subject=subject,
+                body_text=body,
+                attachments=[
+                    {
+                        "filename": attachment_filename,
+                        "local_file_path": attachment_local_path,
+                        "content_type": attachment_content_type,
+                    }
+                ],
+                source_type="customer_pricelist",
+                source_id=customer_pricelist_id,
+                commit=False,
+            )
         logger.info(
             "Customer pricelist queued for external email relay: "
-            "pricelist_id=%s config=%s from=%s to=%s",
+            "pricelist_id=%s config=%s from=%s recipients=%s outbox_count=%s",
             customer_pricelist_id,
             config.id,
             account.email,
-            to_email,
+            ",".join(relay_recipients),
+            len(relay_recipients),
         )
         return "queued"
 

@@ -2850,7 +2850,10 @@ async def test_smtp_customer_pricelist_uses_external_relay(
         df_excel=None,
         customer=customer,
         config=config,
-        to_emails=["recipient@example.com"],
+        to_emails=[
+            "first@example.com",
+            "second@example.com;FIRST@example.com",
+        ],
         subject="Прайс лист",
         body="Тело письма",
         attachment_bytes=b"test-price",
@@ -2862,21 +2865,37 @@ async def test_smtp_customer_pricelist_uses_external_relay(
         customer_pricelist_id=customer_pricelist.id,
     )
 
-    outbox = (
-        await test_session.execute(
-            select(EmailOutbox).where(
-                EmailOutbox.source_type == "customer_pricelist",
-                EmailOutbox.source_id == customer_pricelist.id,
+    outbox_rows = list(
+        (
+            await test_session.execute(
+                select(EmailOutbox)
+                .where(
+                    EmailOutbox.source_type == "customer_pricelist",
+                    EmailOutbox.source_id == customer_pricelist.id,
+                )
+                .order_by(EmailOutbox.id.asc())
             )
-        )
-    ).scalar_one()
+        ).scalars().all()
+    )
     assert result == "queued"
-    assert outbox.status == EMAIL_OUTBOX_STATUS.PENDING
-    assert outbox.from_email == account.email
-    assert outbox.to_email == "recipient@example.com"
-    assert outbox.attachments[0]["local_file_path"] == str(artifact_path)
+    assert len(outbox_rows) == 2
+    assert [row.to_email for row in outbox_rows] == [
+        "first@example.com",
+        "second@example.com",
+    ]
+    assert all(row.status == EMAIL_OUTBOX_STATUS.PENDING for row in outbox_rows)
+    assert all(row.from_email == account.email for row in outbox_rows)
+    assert all(
+        row.attachments[0]["local_file_path"] == str(artifact_path)
+        for row in outbox_rows
+    )
 
-    await mark_outbox_sent(test_session, outbox_id=outbox.id)
+    await mark_outbox_sent(test_session, outbox_id=outbox_rows[0].id)
+    await test_session.refresh(customer_pricelist)
+    assert customer_pricelist.generation_status == "queued"
+    assert customer_pricelist.sent_at is None
+
+    await mark_outbox_sent(test_session, outbox_id=outbox_rows[1].id)
     await test_session.refresh(customer_pricelist)
     assert customer_pricelist.generation_status == "sent"
     assert customer_pricelist.sent_at is not None
@@ -2912,7 +2931,10 @@ async def test_customer_pricelist_relay_terminal_error_updates_draft(
     )
     await test_session.refresh(customer_pricelist)
     assert customer_pricelist.generation_status == "send_failed"
-    assert customer_pricelist.send_error == "SMTP unavailable"
+    assert (
+        customer_pricelist.send_error
+        == "recipient@example.com: SMTP unavailable"
+    )
 
 
 @pytest.mark.asyncio
