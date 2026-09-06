@@ -2828,12 +2828,15 @@ async def test_smtp_customer_pricelist_uses_external_relay(
         name="RELAY DELIVERY CONFIG",
         outgoing_email_account_id=account.id,
     )
+    test_session.add(config)
+    await test_session.flush()
     customer_pricelist = CustomerPriceList(
         customer_id=customer.id,
+        customer_config_id=config.id,
         date=date.today(),
         generation_status="generated",
     )
-    test_session.add_all([config, customer_pricelist])
+    test_session.add(customer_pricelist)
     await test_session.commit()
     await test_session.refresh(config)
     await test_session.refresh(customer_pricelist)
@@ -2889,16 +2892,22 @@ async def test_smtp_customer_pricelist_uses_external_relay(
         row.attachments[0]["local_file_path"] == str(artifact_path)
         for row in outbox_rows
     )
+    await test_session.refresh(config)
+    assert config.last_sent_at is None
 
     await mark_outbox_sent(test_session, outbox_id=outbox_rows[0].id)
     await test_session.refresh(customer_pricelist)
+    await test_session.refresh(config)
     assert customer_pricelist.generation_status == "queued"
     assert customer_pricelist.sent_at is None
+    assert config.last_sent_at is None
 
     await mark_outbox_sent(test_session, outbox_id=outbox_rows[1].id)
     await test_session.refresh(customer_pricelist)
+    await test_session.refresh(config)
     assert customer_pricelist.generation_status == "sent"
     assert customer_pricelist.sent_at is not None
+    assert config.last_sent_at == customer_pricelist.sent_at
 
 
 @pytest.mark.asyncio

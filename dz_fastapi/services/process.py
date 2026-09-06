@@ -3883,13 +3883,13 @@ async def process_customer_pricelist(
                 body="Добрый день, высылаем Вам наш прайс-лист",
             )
             handled_at = now_moscow()
-            config.last_sent_at = handled_at
             if delivery_result == "queued":
                 customer_pricelist.sent_at = None
                 customer_pricelist.generation_status = "queued"
             else:
                 customer_pricelist.sent_at = handled_at
                 customer_pricelist.generation_status = "sent"
+                config.last_sent_at = handled_at
             customer_pricelist.send_error = None
         except Exception as exc:
             customer_pricelist.generation_status = "send_failed"

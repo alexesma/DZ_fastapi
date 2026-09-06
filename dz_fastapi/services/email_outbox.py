@@ -19,7 +19,12 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.core.time import now_moscow
-from dz_fastapi.models.partner import EMAIL_OUTBOX_STATUS, CustomerPriceList, EmailOutbox
+from dz_fastapi.models.partner import (
+    EMAIL_OUTBOX_STATUS,
+    CustomerPriceList,
+    CustomerPriceListConfig,
+    EmailOutbox,
+)
 from dz_fastapi.services.reclamation_audit import record_reclamation_event
 
 logger = logging.getLogger("dz_fastapi")
@@ -365,9 +370,13 @@ async def _sync_customer_pricelist_delivery_status(
 ) -> None:
     """Сводит статус прайса по всем отдельным письмам его получателям."""
     await session.flush()
-    customer_pricelist = await session.get(
-        CustomerPriceList, customer_pricelist_id
-    )
+    customer_pricelist = (
+        await session.scalars(
+            select(CustomerPriceList)
+            .where(CustomerPriceList.id == customer_pricelist_id)
+            .with_for_update(of=CustomerPriceList)
+        )
+    ).first()
     if customer_pricelist is None:
         return
     rows = list(
@@ -406,6 +415,14 @@ async def _sync_customer_pricelist_delivery_status(
             item.sent_at for item in rows if item.sent_at is not None
         )
         customer_pricelist.send_error = None
+        if customer_pricelist.customer_config_id:
+            config = await session.get(
+                CustomerPriceListConfig,
+                int(customer_pricelist.customer_config_id),
+            )
+            if config is not None:
+                config.last_sent_at = customer_pricelist.sent_at
+                session.add(config)
     session.add(customer_pricelist)
 
 

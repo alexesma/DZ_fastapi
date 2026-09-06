@@ -3347,7 +3347,7 @@ async def approve_customer_pricelist_draft(
             ),
         )
     try:
-        await send_pricelist(
+        delivery_result = await send_pricelist(
             session=session,
             customer=customer,
             config=config,
@@ -3355,6 +3355,9 @@ async def approve_customer_pricelist_draft(
             df_excel=None,
             attachment_bytes=await asyncio.to_thread(path.read_bytes),
             attachment_filename=pricelist.artifact_filename,
+            attachment_local_path=str(path),
+            attachment_content_type=pricelist.artifact_content_type,
+            customer_pricelist_id=pricelist.id,
             subject=f"Прайс лист {pricelist.date}",
             body="Добрый день, высылаем Вам наш прайс-лист",
         )
@@ -3365,12 +3368,16 @@ async def approve_customer_pricelist_draft(
         await session.commit()
         raise HTTPException(status_code=502, detail=str(exc))
     sent_at = now_moscow()
-    pricelist.generation_status = "sent"
-    pricelist.sent_at = sent_at
+    if delivery_result == "queued":
+        pricelist.generation_status = "queued"
+        pricelist.sent_at = None
+    else:
+        pricelist.generation_status = "sent"
+        pricelist.sent_at = sent_at
+        config.last_sent_at = sent_at
     pricelist.approved_at = sent_at
     pricelist.approved_by_user_id = current_user.id
     pricelist.send_error = None
-    config.last_sent_at = sent_at
     session.add(pricelist)
     session.add(config)
     await session.commit()
