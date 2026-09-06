@@ -605,6 +605,9 @@ def _is_retryable_imap_fetch_error(exc: Exception) -> bool:
         "connection reset",
         "connection aborted",
         "server is closing this connection",
+        "wrong version number",
+        "eof occurred in violation of protocol",
+        "unexpected eof while reading",
         "timed out",
         "timeout",
     )

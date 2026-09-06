@@ -17,7 +17,7 @@ class V3Client:
         self.base_url = base_url.rstrip("/")
         self.auth = BasicAuth(login=username, password=password)
         self.verify_ssl = verify_ssl
-        self._session = Optional[ClientSession] = None
+        self._session: Optional[ClientSession] = None
 
     async def __aenter__(self):
         self._session = ClientSession(
@@ -47,7 +47,7 @@ class V3Client:
     async def get(self, path: str, params: dict = None):
         url = f"{self.base_url}{path}"
         try:
-            async with self._session.post(url, params=params) as response:
+            async with self._session.get(url, params=params) as response:
                 response.raise_for_status()
                 return await response.json()
         except Exception as error:

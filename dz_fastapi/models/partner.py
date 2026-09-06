@@ -1103,6 +1103,8 @@ class CustomerOrderConfig(Base):
 class CustomerOrder(Base):
     customer_id = Column(Integer, ForeignKey("customer.id"), nullable=False)
     order_config_id = Column(Integer, ForeignKey("customerorderconfig.id"), nullable=True)
+    external_source = Column(String(32), nullable=True, index=True)
+    external_order_id = Column(String(128), nullable=True)
     status = Column(
         SAEnum(
             CUSTOMER_ORDER_STATUS,
@@ -1136,9 +1138,18 @@ class CustomerOrder(Base):
         cascade="all, delete-orphan",
     )
 
+    __table_args__ = (
+        UniqueConstraint(
+            "external_source",
+            "external_order_id",
+            name="uq_customerorder_external_source_order_id",
+        ),
+    )
+
 
 class CustomerOrderItem(Base):
     order_id = Column(Integer, ForeignKey("customerorder.id"), nullable=False)
+    external_order_item_id = Column(String(128), nullable=True)
     row_index = Column(Integer, nullable=True)
     oem = Column(String(255), nullable=False)
     brand = Column(String(255), nullable=False)
@@ -1170,6 +1181,14 @@ class CustomerOrderItem(Base):
     order = relationship("CustomerOrder", back_populates="items")
     supplier = relationship("Provider")
     autopart = relationship("AutoPart", lazy="joined")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "order_id",
+            "external_order_item_id",
+            name="uq_customerorderitem_order_external_item_id",
+        ),
+    )
 
 
 class SupplierOrder(Base):
