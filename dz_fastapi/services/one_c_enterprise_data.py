@@ -49,10 +49,25 @@ PEER_NODE_CODE = "НФ"
 DEFAULT_FORMAT_VERSION = "1.22"
 
 # Типы объектов, которые мы объявляем 1С.
-# ПУСТО НАМЕРЕННО: пока не реализован разбор данных, объявлять приём нельзя —
-# 1С отправит объекты и пометит их доставленными, а мы их потеряем.
-# По мере готовности сюда добавляются имена вида "Документ.РеализацияТоваровУслуг".
-SUPPORTED_SENDING: tuple[str, ...] = ()
+#
+# SENDING — что МЫ готовы отправлять в 1С. Объявлять безопасно: это лишь
+# разрешение, обязанности слать немедленно нет. Без непустого списка 1С не
+# может настроить правила обмена и останавливает мастер на шаге «правила
+# отправки и получения» с требованием «получить параметры из DragonZap».
+#
+# RECEIVING — что мы готовы ПРИНИМАТЬ от 1С. Пока пусто НАМЕРЕННО: разбор
+# входящих данных не реализован, а объявив приём, мы заставим 1С прислать
+# объекты и пометить их доставленными — то есть потеряем их. Заполняется по
+# мере готовности разбора.
+#
+# Объявлять можно только то, что поддерживает встречная сторона: список ниже
+# сверен с рукопожатием 1С (все четыре типа она принимает).
+SUPPORTED_SENDING: tuple[str, ...] = (
+    "Документ.РеализацияТоваровУслуг",
+    "Документ.ПоступлениеТоваровУслуг",
+    "Справочник.Контрагенты",
+    "Справочник.Номенклатура",
+)
 SUPPORTED_RECEIVING: tuple[str, ...] = ()
 
 STATE_FILE_NAME = ".dz_enterprise_data_state.json"
@@ -322,6 +337,61 @@ def write_outgoing_message(
     with open(path, "wb") as fh:
         fh.write(buffer.getvalue())
     return path
+
+
+def regenerate_outgoing_message(
+    directory: Optional[str] = None,
+    *,
+    bump_message_no: bool = False,
+) -> dict[str, Any]:
+    """Пересобирает наше исходящее сообщение по сохранённому состоянию.
+
+    Нужно, когда 1С требует «получить параметры из приложения», а нового
+    входящего сообщения нет: её рукопожатие мы уже обработали, а состав
+    объявленных типов с тех пор изменился.
+
+    По умолчанию номер сообщения НЕ увеличивается — мы заменяем ещё не
+    прочитанное 1С сообщение. Если она его уже забрала, нужен bump_message_no.
+    """
+    directory = directory or get_exchange_dir()
+    os.makedirs(directory, exist_ok=True)
+    state = load_state(directory)
+
+    if bump_message_no or int(state.get("sent_no", 0)) == 0:
+        state["sent_no"] = int(state.get("sent_no", 0)) + 1
+
+    # Синтетическое «входящее»: коды узлов постоянны, GUID берём из состояния
+    stub = IncomingMessage(
+        from_code=PEER_NODE_CODE,
+        to_code=OUR_NODE_CODE,
+        message_no=int(state.get("received_no", 0)),
+        received_no=int(state.get("sent_no", 0)),
+        format_versions=[DEFAULT_FORMAT_VERSION],
+        peer_node_guid=state.get("peer_node_guid"),
+        peer_node_name=None,
+    )
+    xml_bytes = build_response_xml(stub, state)
+    path = write_outgoing_message(
+        directory,
+        xml_bytes,
+        from_code=OUR_NODE_CODE,
+        to_code=PEER_NODE_CODE,
+    )
+    state["last_message_at"] = now_moscow().isoformat()
+    save_state(directory, state)
+    logger.info(
+        "1C EnterpriseData: пересобран %s (MessageNo=%s, типов на отправку %s)",
+        os.path.basename(path),
+        state.get("sent_no"),
+        len(SUPPORTED_SENDING),
+    )
+    return {
+        "directory": directory,
+        "response_file": os.path.basename(path),
+        "message_no": state.get("sent_no"),
+        "declared_sending": list(SUPPORTED_SENDING),
+        "declared_receiving": list(SUPPORTED_RECEIVING),
+    }
 
 
 def process_exchange_directory(

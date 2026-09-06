@@ -162,6 +162,43 @@ def test_process_directory_creates_response_and_archives(tmp_path):
     assert state["peer_node_guid"] == "91d5a7dd-2d96-4af5-b855-90ad613450b9"
 
 
+def test_declared_types_are_not_empty():
+    """1С останавливает мастер, если корреспондент не объявил ни одного типа."""
+    from dz_fastapi.services.one_c_enterprise_data import SUPPORTED_RECEIVING, SUPPORTED_SENDING
+
+    assert SUPPORTED_SENDING, "без списка на отправку мастер 1С не пройти"
+    # Приём объявлять нельзя, пока нет разбора данных: 1С пометит
+    # отправленное доставленным, и объекты потеряются
+    assert SUPPORTED_RECEIVING == ()
+
+
+def test_regenerate_reuses_message_no_by_default(tmp_path):
+    from dz_fastapi.services.one_c_enterprise_data import regenerate_outgoing_message, save_state
+
+    save_state(
+        str(tmp_path),
+        {"node_guid": "our-guid", "sent_no": 1, "received_no": 0,
+         "peer_node_guid": "peer-guid"},
+    )
+    result = regenerate_outgoing_message(str(tmp_path))
+
+    # Сообщение 1С ещё не прочла — заменяем его, а не плодим новое
+    assert result["message_no"] == 1
+    assert result["response_file"] == "Message_ДЗ_НФ.zip"
+    assert result["declared_sending"]
+
+    xml = read_message_file(str(tmp_path / "Message_ДЗ_НФ.zip"))
+    root = ET.fromstring(xml.decode("utf-8-sig"))
+    names = [
+        e.text
+        for e in root.iter(f"{{{MSG_NS}}}Name")
+    ]
+    assert "Документ.РеализацияТоваровУслуг" in names
+
+    bumped = regenerate_outgoing_message(str(tmp_path), bump_message_no=True)
+    assert bumped["message_no"] == 2
+
+
 def test_process_directory_without_messages(tmp_path):
     result = process_exchange_directory(str(tmp_path))
     assert result["response_file"] is None

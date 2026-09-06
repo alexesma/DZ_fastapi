@@ -45,7 +45,10 @@ from dz_fastapi.schemas.one_c import (
 from dz_fastapi.services.one_c_enterprise_data import (
     get_exchange_status as get_enterprise_data_status,
 )
-from dz_fastapi.services.one_c_enterprise_data import process_exchange_directory
+from dz_fastapi.services.one_c_enterprise_data import (
+    process_exchange_directory,
+    regenerate_outgoing_message,
+)
 from dz_fastapi.services.one_c_exchange import (
     build_commerceml_sale_xml,
     build_commerceml_sale_xml_from_snapshots,
@@ -273,6 +276,26 @@ async def enterprise_data_process(
         return await asyncio.to_thread(process_exchange_directory)
     except Exception as exc:  # noqa: BLE001
         logger.exception("Ошибка обработки обмена EnterpriseData")
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post(
+    "/enterprise-data/announce",
+    summary="Пересобрать исходящее сообщение с объявленным составом объектов",
+)
+async def enterprise_data_announce(
+    bump_message_no: bool = Query(default=False),
+    _: User = Depends(require_admin),
+):
+    """1С требует «получить параметры из приложения», когда не знает, какими
+    объектами мы готовы обмениваться. Здесь мы перевыкладываем сообщение с
+    актуальным составом, не дожидаясь нового входящего."""
+    try:
+        return await asyncio.to_thread(
+            regenerate_outgoing_message, bump_message_no=bump_message_no
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Не удалось пересобрать сообщение EnterpriseData")
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
