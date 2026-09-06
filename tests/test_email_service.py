@@ -236,6 +236,7 @@ def test_send_email_with_attachment_resend_api(monkeypatch):
         transport="resend_api",
         resend_api_key="re_test",
         resend_timeout=15,
+        resend_idempotency_key="customer-pricelist/42",
         from_email="orders@dragonzap.online",
     )
 
@@ -246,6 +247,7 @@ def test_send_email_with_attachment_resend_api(monkeypatch):
     assert captured["subject"] == "Resend test"
     assert captured["attachment_filename"] == "report.txt"
     assert captured["timeout"] == 15
+    assert captured["idempotency_key"] == "customer-pricelist/42"
 
 
 @pytest.mark.asyncio

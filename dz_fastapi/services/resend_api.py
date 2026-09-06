@@ -1,6 +1,8 @@
 import base64
+import json
 import logging
 import os
+import time
 from datetime import date, datetime
 from typing import Any
 
@@ -13,6 +15,7 @@ RESEND_API_BASE_URL = os.getenv(
     "https://api.resend.com",
 )
 RESEND_API_TIMEOUT = int(os.getenv("RESEND_API_TIMEOUT", "20"))
+MAX_RESEND_EMAIL_BYTES = 40 * 1024 * 1024
 
 
 def _parse_iso_datetime(value: str | None) -> datetime | None:
@@ -26,11 +29,18 @@ def _parse_iso_datetime(value: str | None) -> datetime | None:
         return None
 
 
-def _build_headers(api_key: str) -> dict[str, str]:
-    return {
+def _build_headers(
+    api_key: str,
+    *,
+    idempotency_key: str | None = None,
+) -> dict[str, str]:
+    headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
+    if idempotency_key:
+        headers["Idempotency-Key"] = idempotency_key[:256]
+    return headers
 
 
 def _extract_domain(email: str | None) -> str:
@@ -254,6 +264,7 @@ def send_email_via_resend(
     attachment_bytes: bytes | None = None,
     attachment_filename: str | None = None,
     timeout: int | None = None,
+    idempotency_key: str | None = None,
 ) -> bool:
     if not api_key:
         logger.error("Resend API key is not configured")
@@ -283,20 +294,68 @@ def send_email_via_resend(
             }
         ]
 
-    try:
-        response = httpx.post(
-            f"{RESEND_API_BASE_URL}/emails",
-            headers=_build_headers(api_key),
-            json=payload,
-            timeout=timeout or RESEND_API_TIMEOUT,
+    request_size = len(
+        json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    )
+    if request_size > MAX_RESEND_EMAIL_BYTES:
+        logger.error(
+            "Failed to send email via Resend: request is %.2f MB; limit is 40 MB",
+            request_size / 1024 / 1024,
         )
-        response.raise_for_status()
-        logger.info(
-            "Email sent via Resend from=%s to=%s",
-            from_email,
-            ",".join(to_email),
-        )
-        return True
-    except Exception as exc:
-        logger.error("Failed to send email via Resend: %s", exc)
         return False
+
+    configured_timeout = max(int(timeout or RESEND_API_TIMEOUT), 1)
+    request_timeout = httpx.Timeout(
+        connect=min(configured_timeout, 10),
+        read=max(configured_timeout, 30),
+        write=max(configured_timeout, 120),
+        pool=min(configured_timeout, 10),
+    )
+    headers = _build_headers(api_key, idempotency_key=idempotency_key)
+    logger.info(
+        "Sending email via Resend from=%s to=%s attachment_bytes=%s "
+        "request_bytes=%s write_timeout=%s",
+        from_email,
+        ",".join(to_email),
+        len(attachment_bytes) if attachment_bytes is not None else 0,
+        request_size,
+        request_timeout.write,
+    )
+    for attempt in range(2):
+        try:
+            response = httpx.post(
+                f"{RESEND_API_BASE_URL}/emails",
+                headers=headers,
+                json=payload,
+                timeout=request_timeout,
+            )
+            response.raise_for_status()
+            logger.info(
+                "Email sent via Resend from=%s to=%s id=%s",
+                from_email,
+                ",".join(to_email),
+                response.json().get("id"),
+            )
+            return True
+        except httpx.TimeoutException as exc:
+            if attempt == 0 and idempotency_key:
+                logger.warning(
+                    "Resend timed out; retrying safely with idempotency key %s: %s",
+                    idempotency_key,
+                    exc,
+                )
+                time.sleep(1)
+                continue
+            logger.error("Failed to send email via Resend: %s", exc)
+            return False
+        except httpx.HTTPStatusError as exc:
+            logger.error(
+                "Failed to send email via Resend: HTTP %s %s",
+                exc.response.status_code,
+                exc.response.text[:1000],
+            )
+            return False
+        except Exception as exc:
+            logger.error("Failed to send email via Resend: %s", exc)
+            return False
+    return False

@@ -2853,6 +2853,11 @@ async def send_pricelist(
             body=body,
             attachment_bytes=attachment_bytes,
             attachment_filename=attachment_filename,
+            resend_idempotency_key=(
+                f"customer-pricelist/{customer_pricelist_id}"
+                if customer_pricelist_id is not None
+                else None
+            ),
             **kwargs,
         ),
     )

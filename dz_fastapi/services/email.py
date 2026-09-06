@@ -702,6 +702,7 @@ def _send_email_via_resend(
     from_email: str | None = None,
     resend_api_key: str | None = None,
     resend_timeout: int | None = None,
+    resend_idempotency_key: str | None = None,
 ) -> bool:
     recipients = _normalize_recipients(to_email)
     resolved_from_email = (
@@ -719,6 +720,7 @@ def _send_email_via_resend(
         attachment_bytes=attachment_bytes,
         attachment_filename=attachment_filename,
         timeout=resend_timeout or RESEND_TIMEOUT,
+        idempotency_key=resend_idempotency_key,
     )
 
 
@@ -1323,6 +1325,7 @@ def send_email_with_attachment(
     oauth_refresh_token: str | None = None,
     resend_api_key: str | None = None,
     resend_timeout: int | None = None,
+    resend_idempotency_key: str | None = None,
 ) -> bool:
     logger.debug(
         "Inside send_email_with_attachment with attachment=%s size=%s",
@@ -1352,6 +1355,7 @@ def send_email_with_attachment(
             from_email=from_email,
             resend_api_key=resend_api_key,
             resend_timeout=resend_timeout,
+            resend_idempotency_key=resend_idempotency_key,
         )
 
     if transport == "gmail_api":
