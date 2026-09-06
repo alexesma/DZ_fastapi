@@ -72,16 +72,27 @@ openssl rand -base64 24
 > `.env` — их можно удалить, они не используются. В корневом `.env` от этой
 > задачи нужен только `ONE_C_EXCHANGE_DIR=/app/onec_exchange`.
 
-## Шаг 2. Открыть порты
+## Шаг 2. Порты — проверить, а не открывать
+
+На этом сервере `ufw` **выключен** (`ufw status` → `Status: inactive`), поэтому
+входящие порты ничем не фильтруются и открывать ничего не нужно. Команды
+`ufw allow` в неактивном состоянии просто записывают правила «на будущее» и ни
+на что не влияют.
+
+> ⚠️ **Не включайте `ufw enable` без подготовки.** Политика по умолчанию
+> заблокирует входящие соединения, включая SSH, и доступ к серверу пропадёт.
+> Если когда-нибудь понадобится включить — сначала `sudo ufw allow OpenSSH`,
+> и только потом `enable`.
+
+Убедитесь только, что порты никем не заняты:
 
 ```bash
-sudo ufw allow 2121/tcp
-sudo ufw allow 30000:30009/tcp
-sudo ufw status
+sudo ss -tulpn | grep -E ':(21|2121|30000)\b'
+sudo docker ps -a --format '{{.Names}}\t{{.Ports}}' | grep -i ftp
 ```
 
-Если вместо `ufw` другой межсетевой экран или порты фильтруются у хостера —
-открыть те же: **2121** и диапазон **30000–30009**.
+Если что-то уже слушает 2121 или диапазон 30000–30009, наш контейнер не
+стартует с ошибкой «port is already allocated».
 
 ## Шаг 3. Задеплоить
 
@@ -233,13 +244,34 @@ curl -v --ftp-pasv "ftp://onec:ПАРОЛЬ@dragonzap.online:2121/"
 sudo docker logs dz_ftp | grep -iE "connect|login" | tail -20
 ```
 
-Найдя адрес, ограничьте доступ только им:
+Найдя адрес, ограничьте доступ только им. **Через `ufw` это не сработает:**
+Docker публикует порты, напрямую правя iptables, и проходит мимо правил ufw.
+Фильтровать нужно в цепочке `DOCKER-USER`, которую Docker специально оставляет
+для пользовательских правил:
 
 ```bash
-sudo ufw delete allow 2121/tcp
-sudo ufw delete allow 30000:30009/tcp
-sudo ufw allow from АДРЕС_1С to any port 2121 proto tcp
-sudo ufw allow from АДРЕС_1С to any port 30000:30009 proto tcp
+# разрешить только адрес 1С
+sudo iptables -I DOCKER-USER -p tcp -s АДРЕС_1С --dport 21 -j RETURN
+sudo iptables -I DOCKER-USER -p tcp -s АДРЕС_1С --dport 30000:30009 -j RETURN
+# остальным — запретить
+sudo iptables -A DOCKER-USER -p tcp --dport 21 -j DROP
+sudo iptables -A DOCKER-USER -p tcp --dport 30000:30009 -j DROP
+```
+
+Порт указывается **внутренний** (21), а не внешний (2121): правила в
+`DOCKER-USER` применяются после трансляции адресов.
+
+Правила iptables не переживают перезагрузку. Чтобы сохранить:
+
+```bash
+sudo apt install iptables-persistent
+sudo netfilter-persistent save
+```
+
+Проверить, что вышло:
+
+```bash
+sudo iptables -L DOCKER-USER -n -v --line-numbers
 ```
 
 После этого проверьте из 1С «Проверить подключение» ещё раз — должно

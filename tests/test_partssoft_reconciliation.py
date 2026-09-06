@@ -3,6 +3,7 @@ from dz_fastapi.services.partssoft_reconciliation import (
     compare_fields,
     flatten_remote_customer,
     normalize_digits,
+    normalize_name,
 )
 
 
@@ -10,6 +11,10 @@ def test_normalize_digits_preserves_scientific_tax_identifiers():
     assert normalize_digits("5.0232771813E+11") == "502327718130"
     assert normalize_digits(221003000000.0) == "221003000000"
     assert normalize_digits("77-01-23") == "770123"
+
+
+def test_normalize_name_ignores_legal_form_and_quotes():
+    assert normalize_name("ООО «РМС ЧЕРНОЗЕМЬЕ»") == normalize_name('"РМС Черноземье"')
 
 
 def test_flatten_remote_customer_prefers_company_and_organization_email():

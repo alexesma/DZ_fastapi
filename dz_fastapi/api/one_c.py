@@ -42,6 +42,10 @@ from dz_fastapi.schemas.one_c import (
     OneCOutboxEnvelope,
     OneCOutboxPingResponse,
 )
+from dz_fastapi.services.one_c_enterprise_data import (
+    get_exchange_status as get_enterprise_data_status,
+)
+from dz_fastapi.services.one_c_enterprise_data import process_exchange_directory
 from dz_fastapi.services.one_c_exchange import (
     build_commerceml_sale_xml,
     build_commerceml_sale_xml_from_snapshots,
@@ -246,6 +250,30 @@ async def one_c_status(
         **counters,
         **outbox,
     }
+
+
+@router.get(
+    "/enterprise-data/status",
+    summary="Состояние обмена с 1С через EnterpriseData (FTP)",
+)
+async def enterprise_data_status(
+    _: User = Depends(require_admin),
+):
+    return await asyncio.to_thread(get_enterprise_data_status)
+
+
+@router.post(
+    "/enterprise-data/process",
+    summary="Разобрать входящие сообщения 1С и сформировать ответ",
+)
+async def enterprise_data_process(
+    _: User = Depends(require_admin),
+):
+    try:
+        return await asyncio.to_thread(process_exchange_directory)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Ошибка обработки обмена EnterpriseData")
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/events", summary="Журнал событий обмена с 1С")

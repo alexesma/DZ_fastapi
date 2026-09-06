@@ -23,7 +23,7 @@ def norm(value):
 
 async def main():
     load_dotenv()
-    base = os.getenv("V3_BASE_URL", "https://admin.dragonzap.ru/api/v3").rstrip("/")
+    base = (os.getenv("V3_BASE_URL") or "https://admin.dragonzap.ru/api/v3").rstrip("/")
     if not base.startswith("https://"):
         raise ValueError("V3_BASE_URL must use HTTPS")
     report = {

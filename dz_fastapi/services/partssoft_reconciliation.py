@@ -34,7 +34,18 @@ def normalize_email(value: Any) -> str:
 
 
 def normalize_name(value: Any) -> str:
-    return " ".join(clean(value).casefold().replace('"', "").split())
+    words = re.findall(r"[0-9a-zа-яё]+", clean(value).casefold())
+    legal_form_words = {
+        "ао",
+        "зао",
+        "ип",
+        "общество",
+        "ограниченной",
+        "ооо",
+        "ответственностью",
+        "пао",
+    }
+    return " ".join(word for word in words if word not in legal_form_words)
 
 
 def format_address(value: Any) -> str:

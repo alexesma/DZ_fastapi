@@ -215,7 +215,7 @@ def write_reports(
 
 async def main(output_dir: Path) -> None:
     load_dotenv(".env")
-    base_url = os.getenv("V3_BASE_URL", "https://admin.dragonzap.ru/api/v3").rstrip("/")
+    base_url = (os.getenv("V3_BASE_URL") or "https://admin.dragonzap.ru/api/v3").rstrip("/")
     if not base_url.startswith("https://"):
         raise ValueError("V3_BASE_URL must use HTTPS")
     auth = aiohttp.BasicAuth(os.environ["V3_USERNAME"], os.environ["V3_PASSWORD"])

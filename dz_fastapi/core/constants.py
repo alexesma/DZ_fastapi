@@ -75,7 +75,7 @@ URL_OUR_SITE = "https://dragonzap.ru/api/v1/auth_key/init"
 
 URL_DZ_SEARCH = "https://dragonzap.ru/backend/price_items/api/v1/search"
 
-URL_DZ_V3 = os.getenv("V3_BASE_URL", "https://admin.dragonzap.ru/api/v3").rstrip("/")
+URL_DZ_V3 = (os.getenv("V3_BASE_URL") or "https://admin.dragonzap.ru/api/v3").rstrip("/")
 
 CORE_BASE = "https://dragonzap.ru/api/v1"
 

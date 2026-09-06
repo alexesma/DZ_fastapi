@@ -5,10 +5,12 @@ import re
 from collections import Counter
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
+from difflib import SequenceMatcher
 from typing import Any
 
 import aiohttp
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -18,6 +20,8 @@ from dz_fastapi.services.partssoft_reconciliation import (
     PARTS_SOFT_SOURCE,
     CustomerMatcher,
     normalize_digits,
+    normalize_email,
+    normalize_name,
 )
 
 MOSCOW_REGION_ID = 28
@@ -105,7 +109,7 @@ def local_order_fingerprint(order: CustomerOrder) -> tuple[tuple[str, str, int, 
 async def _fetch_orders(days: int) -> tuple[datetime, datetime, list[dict[str, Any]]]:
     end = now_moscow()
     start = end - timedelta(days=days)
-    base_url = os.getenv("V3_BASE_URL", "https://admin.dragonzap.ru/api/v3").rstrip("/")
+    base_url = (os.getenv("V3_BASE_URL") or "https://admin.dragonzap.ru/api/v3").rstrip("/")
     username = os.getenv("V3_USERNAME")
     password = os.getenv("V3_PASSWORD")
     if not username or not password:
@@ -141,6 +145,210 @@ async def _fetch_orders(days: int) -> tuple[datetime, datetime, list[dict[str, A
                 break
             page += 1
     return start, end, rows
+
+
+async def _fetch_customer(external_customer_id: int) -> dict[str, Any]:
+    base_url = (os.getenv("V3_BASE_URL") or "https://admin.dragonzap.ru/api/v3").rstrip("/")
+    username = os.getenv("V3_USERNAME")
+    password = os.getenv("V3_PASSWORD")
+    if not username or not password:
+        raise RuntimeError("Parts-Soft API credentials are not configured")
+    if not base_url.startswith("https://"):
+        raise RuntimeError("Parts-Soft API URL must use HTTPS")
+    auth = aiohttp.BasicAuth(username, password)
+    async with aiohttp.ClientSession(
+        auth=auth,
+        timeout=aiohttp.ClientTimeout(total=30),
+    ) as client:
+        async with client.get(
+            f"{base_url}/customers/{int(external_customer_id)}.json",
+            allow_redirects=False,
+        ) as response:
+            response.raise_for_status()
+            payload = await response.json()
+    customer = payload.get("customer") if isinstance(payload, dict) else None
+    if not isinstance(customer, dict):
+        raise RuntimeError("Unexpected Parts-Soft customer response")
+    return customer
+
+
+def _candidate_score(
+    customer: Customer,
+    *,
+    name: str,
+    inn: str,
+    kpp: str,
+    email: str,
+) -> tuple[int, list[str]]:
+    score = 0
+    basis: list[str] = []
+    local_inn = normalize_digits(customer.inn)
+    local_kpp = normalize_digits(customer.kpp)
+    local_email = normalize_email(customer.email_contact)
+    remote_name = normalize_name(name)
+    local_name = normalize_name(customer.name)
+    if inn and local_inn == inn:
+        score += 80
+        basis.append("ИНН")
+        if kpp and local_kpp == kpp:
+            score += 20
+            basis.append("КПП")
+    if email and local_email == email:
+        score += 70
+        basis.append("email")
+    if remote_name and local_name:
+        ratio = SequenceMatcher(None, remote_name, local_name).ratio()
+        if ratio == 1:
+            score += 60
+            basis.append("название")
+        elif ratio >= 0.55:
+            score += round(ratio * 40)
+            basis.append("похожее название")
+    return score, basis
+
+
+async def search_local_customer_candidates(
+    session: AsyncSession,
+    *,
+    name: str = "",
+    inn: str = "",
+    kpp: str = "",
+    email: str = "",
+    search: str = "",
+    limit: int = 25,
+) -> list[dict[str, Any]]:
+    customers = (await session.scalars(select(Customer))).all()
+    normalized_search = _normalized_text(search)
+    search_digits = normalize_digits(search)
+    scored: list[tuple[int, Customer, list[str]]] = []
+    for customer in customers:
+        score, basis = _candidate_score(
+            customer,
+            name=name,
+            inn=normalize_digits(inn),
+            kpp=normalize_digits(kpp),
+            email=normalize_email(email),
+        )
+        if normalized_search:
+            haystacks = (
+                _normalized_text(customer.id),
+                _normalized_text(customer.name),
+                normalize_email(customer.email_contact),
+                normalize_digits(customer.inn),
+                normalize_digits(customer.kpp),
+            )
+            matches_search = any(
+                normalized_search in value for value in haystacks if value
+            ) or bool(search_digits and any(search_digits in value for value in haystacks))
+            if not matches_search:
+                continue
+            score += 100
+            basis = ["ручной поиск", *basis]
+        if score > 0 or normalized_search:
+            scored.append((score, customer, basis))
+    scored.sort(key=lambda row: (-row[0], normalize_name(row[1].name), row[1].id))
+    return [
+        {
+            "id": customer.id,
+            "name": customer.name,
+            "inn": customer.inn,
+            "kpp": customer.kpp,
+            "email": customer.email_contact,
+            "score": score,
+            "match_basis": basis,
+        }
+        for score, customer, basis in scored[: max(1, min(limit, 50))]
+    ]
+
+
+async def link_partssoft_customer(
+    session: AsyncSession,
+    *,
+    external_customer_id: int,
+    local_customer_id: int,
+) -> dict[str, Any]:
+    remote_raw = await _fetch_customer(external_customer_id)
+    remote = _remote_customer({"customer": remote_raw})
+    customer = await session.get(Customer, int(local_customer_id))
+    if customer is None:
+        raise LookupError("Local customer not found")
+
+    existing = (
+        await session.scalars(
+            select(CustomerExternalReference).where(
+                CustomerExternalReference.source_system == PARTS_SOFT_SOURCE,
+                CustomerExternalReference.external_customer_id == int(external_customer_id),
+            )
+        )
+    ).first()
+    if existing is not None and existing.customer_id != customer.id:
+        raise ValueError(
+            f"Parts-Soft customer is already linked to local customer {existing.customer_id}"
+        )
+
+    filled_fields: list[str] = []
+    conflicts: list[str] = []
+    field_map = {
+        "inn": "inn",
+        "kpp": "kpp",
+        "email": "email_contact",
+    }
+    normalizers = {
+        "inn": normalize_digits,
+        "kpp": normalize_digits,
+        "email": normalize_email,
+    }
+    for remote_field, local_field in field_map.items():
+        remote_value = _text(remote.get(remote_field))
+        local_value = _text(getattr(customer, local_field, None))
+        if remote_value and not local_value:
+            if remote_field == "email":
+                if not customer.is_valid_email(remote_value):
+                    conflicts.append("email_contact_invalid")
+                    continue
+                email_owner = (
+                    await session.scalars(
+                        select(Customer).where(
+                            Customer.email_contact.ilike(remote_value),
+                            Customer.id != customer.id,
+                        )
+                    )
+                ).first()
+                if email_owner is not None:
+                    conflicts.append("email_contact_used_by_another_customer")
+                    continue
+            setattr(customer, local_field, remote_value)
+            filled_fields.append(local_field)
+        elif (
+            remote_value
+            and local_value
+            and normalizers[remote_field](remote_value) != normalizers[remote_field](local_value)
+        ):
+            conflicts.append(local_field)
+
+    if existing is None:
+        existing = CustomerExternalReference(
+            customer_id=customer.id,
+            source_system=PARTS_SOFT_SOURCE,
+            external_customer_id=int(external_customer_id),
+        )
+        session.add(existing)
+    existing.external_customer_name = remote["name"] or None
+    existing.is_active = True
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise ValueError("Customer link conflicts with an existing link") from exc
+    await session.refresh(existing)
+    return {
+        "reference_id": existing.id,
+        "external_customer_id": int(external_customer_id),
+        "local_customer_id": customer.id,
+        "local_customer_name": customer.name,
+        "filled_fields": filled_fields,
+        "conflicting_fields": conflicts,
+    }
 
 
 async def reconcile_partssoft_orders(
@@ -310,7 +518,12 @@ async def reconcile_partssoft_orders(
                 "customer_name": remote_customer["name"],
                 "customer_inn": remote_customer["inn"],
                 "customer_kpp": remote_customer["kpp"],
+                "customer_email": remote_customer["email"],
                 "local_customer_id": local_customer_id,
+                "suggested_local_customer_id": customer_match.local_id,
+                "customer_linked": customer_match.classification == "linked",
+                "customer_match_classification": customer_match.classification,
+                "customer_match_basis": customer_match.basis,
                 "local_order_id": matched_local_order_id,
                 "classification": classification,
                 "match_basis": match_basis,

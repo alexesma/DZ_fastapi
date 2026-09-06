@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 from dz_fastapi.services.partssoft_order_reconciliation import (
+    _candidate_score,
     _remote_customer,
     _remote_order_number,
     local_order_fingerprint,
@@ -62,3 +63,22 @@ def test_order_fingerprints_normalize_and_sort_rows():
         ]
     )
     assert remote_order_fingerprint(remote) == local_order_fingerprint(local)
+
+
+def test_candidate_score_uses_inn_kpp_and_company_name():
+    customer = SimpleNamespace(
+        id=10,
+        name="РМС Черноземье",
+        inn="3662217593",
+        kpp="366201001",
+        email_contact=None,
+    )
+    score, basis = _candidate_score(
+        customer,
+        name="ООО «РМС ЧЕРНОЗЕМЬЕ»",
+        inn="3662217593",
+        kpp="366201001",
+        email="",
+    )
+    assert score == 160
+    assert basis == ["ИНН", "КПП", "название"]
