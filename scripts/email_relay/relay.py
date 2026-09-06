@@ -36,7 +36,7 @@ from email.header import Header
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.utils import formatdate, make_msgid
+from email.utils import formatdate, getaddresses, make_msgid
 from pathlib import Path
 
 import requests
@@ -310,8 +310,28 @@ def build_message(item: dict, from_email: str) -> MIMEMultipart:
     return msg
 
 
-def send_via_smtp(smtp_cfg: dict, from_email: str, to_email: str,
-                  message: MIMEMultipart) -> None:
+def recipient_addresses(value: str) -> list[str]:
+    """Return distinct SMTP envelope recipients from comma/semicolon input."""
+    parsed = getaddresses([str(value or "").replace(";", ",")])
+    recipients: list[str] = []
+    seen: set[str] = set()
+    for _, address in parsed:
+        address = address.strip()
+        normalized = address.casefold()
+        if address and normalized not in seen:
+            recipients.append(address)
+            seen.add(normalized)
+    if not recipients:
+        raise ValueError("Не указан корректный адрес получателя")
+    return recipients
+
+
+def send_via_smtp(
+    smtp_cfg: dict,
+    from_email: str,
+    to_email: str,
+    message: MIMEMultipart,
+) -> None:
     host = smtp_cfg.get("host", "smtp.yandex.ru")
     port = int(smtp_cfg.get("port", 465))
     username = smtp_cfg.get("username") or from_email
@@ -325,7 +345,11 @@ def send_via_smtp(smtp_cfg: dict, from_email: str, to_email: str,
         server.starttls()
     try:
         server.login(username, password)
-        server.sendmail(from_email, [to_email], message.as_string())
+        server.sendmail(
+            from_email,
+            recipient_addresses(to_email),
+            message.as_string(),
+        )
     finally:
         try:
             server.quit()
