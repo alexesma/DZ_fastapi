@@ -49,3 +49,40 @@ def test_send_via_smtp_uses_individual_envelope_recipients(monkeypatch):
     assert captured["connection"] == ("smtp.yandex.ru", 465, 60)
     assert captured["sendmail"][0] == "price@dragonzap.ru"
     assert captured["sendmail"][1] == ["one@example.com", "two@example.com"]
+
+
+def test_send_via_smtp_raises_when_server_refuses_a_recipient(monkeypatch):
+    class FakeSMTP:
+        def __init__(self, host, port, timeout):
+            pass
+
+        def login(self, username, password):
+            pass
+
+        def sendmail(self, from_email, recipients, message):
+            return {"two@example.com": (550, b"recipient rejected")}
+
+        def quit(self):
+            pass
+
+    monkeypatch.setattr(relay.smtplib, "SMTP_SSL", FakeSMTP)
+    message = relay.build_message(
+        {
+            "to_email": "one@example.com,two@example.com",
+            "subject": "Price",
+            "body_text": "Attached",
+        },
+        "price@dragonzap.ru",
+    )
+
+    try:
+        relay.send_via_smtp(
+            {"password": "secret"},
+            "price@dragonzap.ru",
+            "one@example.com,two@example.com",
+            message,
+        )
+    except relay.smtplib.SMTPRecipientsRefused as exc:
+        assert "two@example.com" in exc.recipients
+    else:
+        raise AssertionError("refused recipient must fail relay delivery")

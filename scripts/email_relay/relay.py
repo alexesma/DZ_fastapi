@@ -42,6 +42,7 @@ from pathlib import Path
 import requests
 
 logger = logging.getLogger("email_relay")
+RELAY_VERSION = "multi-recipient-v2"
 
 
 def configure_stdio() -> None:
@@ -345,11 +346,13 @@ def send_via_smtp(
         server.starttls()
     try:
         server.login(username, password)
-        server.sendmail(
+        refused = server.sendmail(
             from_email,
             recipient_addresses(to_email),
             message.as_string(),
         )
+        if refused:
+            raise smtplib.SMTPRecipientsRefused(refused)
     finally:
         try:
             server.quit()
@@ -630,6 +633,7 @@ def main() -> int:
             "Положите config.json рядом с DZEmailRelay.exe."
         )
     config = load_config(str(config_path))
+    logger.info("Версия релея: %s", RELAY_VERSION)
     client = ApiClient(config)
     client.login()
 
