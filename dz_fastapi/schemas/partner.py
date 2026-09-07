@@ -203,6 +203,16 @@ class CustomerBase(ClientBase):
     kpp: Optional[str] = Field(default=None, max_length=32)
     legal_address: Optional[str] = None
     postal_address: Optional[str] = None
+    company_type: Optional[str] = Field(default=None, max_length=128)
+    phone: Optional[str] = Field(default=None, max_length=64)
+    additional_phone: Optional[str] = Field(default=None, max_length=64)
+    vat_rate: Optional[Decimal] = Field(default=None, ge=0)
+    bank_bik: Optional[str] = Field(default=None, max_length=32)
+    bank_name: Optional[str] = Field(default=None, max_length=255)
+    bank_city: Optional[str] = Field(default=None, max_length=255)
+    bank_account: Optional[str] = Field(default=None, max_length=64)
+    correspondent_account: Optional[str] = Field(default=None, max_length=64)
+    registration_source: Optional[str] = Field(default=None, max_length=128)
     credit_control_mode: str = Field(default="off")
     credit_limit: Optional[Decimal] = Field(default=None, ge=0)
     payment_terms_days: int = Field(default=0, ge=0)
@@ -222,7 +232,20 @@ class CustomerBase(ClientBase):
         value = str(v).strip()
         return value or None
 
-    @field_validator("legal_address", "postal_address", mode="before")
+    @field_validator(
+        "legal_address",
+        "postal_address",
+        "company_type",
+        "phone",
+        "additional_phone",
+        "bank_bik",
+        "bank_name",
+        "bank_city",
+        "bank_account",
+        "correspondent_account",
+        "registration_source",
+        mode="before",
+    )
     def normalize_customer_address_fields(cls, v):
         if v is None:
             return None
@@ -457,6 +480,9 @@ class CustomerExternalReferenceBase(BaseModel):
     source_system: str
     external_customer_id: Optional[int] = None
     external_customer_name: Optional[str] = None
+    external_classification: Dict[str, Any] = Field(default_factory=dict)
+    external_payload: Dict[str, Any] = Field(default_factory=dict)
+    last_synced_at: Optional[datetime] = None
     is_active: bool = True
 
 
@@ -532,6 +558,16 @@ class CustomerResponseShort(BaseModel):
     kpp: Optional[str] = None
     legal_address: Optional[str] = None
     postal_address: Optional[str] = None
+    company_type: Optional[str] = None
+    phone: Optional[str] = None
+    additional_phone: Optional[str] = None
+    vat_rate: Optional[Decimal] = None
+    bank_bik: Optional[str] = None
+    bank_name: Optional[str] = None
+    bank_city: Optional[str] = None
+    bank_account: Optional[str] = None
+    correspondent_account: Optional[str] = None
+    registration_source: Optional[str] = None
     type_prices: TypePrices = TypePrices.WHOLESALE
     email_contact: Optional[EmailStr] = None
     description: Optional[str] = None

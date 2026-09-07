@@ -56,7 +56,26 @@ def format_address(value: Any) -> str:
 
 
 def flatten_remote_customer(customer: dict[str, Any]) -> dict[str, Any]:
-    essential = customer.get("essential") or {}
+    essential = (
+        customer.get("essential")
+        or customer.get("essential_attributes")
+        or {}
+    )
+    contact = (
+        customer.get("contact")
+        or customer.get("contact_attributes")
+        or {}
+    )
+    official_address = (
+        customer.get("official_address")
+        or customer.get("official_address_attributes")
+        or {}
+    )
+    delivery_address = (
+        customer.get("delivery_address")
+        or customer.get("delivery_address_attributes")
+        or {}
+    )
     company_name = clean(essential.get("company_name"))
     full_name = clean(customer.get("compile_name")) or " ".join(
         part
@@ -73,12 +92,33 @@ def flatten_remote_customer(customer: dict[str, Any]) -> dict[str, Any]:
         "email": clean(customer.get("email_org")) or clean(customer.get("email")),
         "inn": normalize_digits(essential.get("inn")),
         "kpp": normalize_digits(essential.get("kpp")),
-        "legal_address": format_address(customer.get("official_address")),
-        "postal_address": format_address(customer.get("delivery_address")),
+        "company_type": clean(essential.get("company_type")),
+        "legal_address": format_address(official_address),
+        "postal_address": format_address(delivery_address),
+        "phone": clean(contact.get("phone") or customer.get("phone")),
+        "additional_phone": clean(
+            contact.get("cell_phone") or customer.get("cell_phone")
+        ),
+        "vat_rate": customer.get("nds"),
+        "bank_bik": normalize_digits(essential.get("bik")),
+        "bank_name": clean(essential.get("bank")),
+        "bank_city": clean(essential.get("city")),
+        "bank_account": clean(essential.get("loro_account")),
+        "correspondent_account": clean(essential.get("korr_schet")),
         "credit_limit": customer.get("credit_limit"),
         "payment_terms_days": customer.get("pay_delay"),
-        "discount_type_id": customer.get("discount_type_id"),
-        "region_id": customer.get("region_id"),
+        "partssoft_classification": {
+            key: customer.get(key)
+            for key in (
+                "ur_type",
+                "discount_type_id",
+                "region_id",
+                "user_id",
+                "send_sms",
+                "send_email",
+            )
+            if customer.get(key) is not None
+        },
     }
 
 

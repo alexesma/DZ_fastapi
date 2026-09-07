@@ -1,5 +1,10 @@
+from decimal import Decimal
 from types import SimpleNamespace
 
+import pytest
+
+from dz_fastapi.models.partner import CustomerExternalReference
+from dz_fastapi.services import partssoft_order_reconciliation as service
 from dz_fastapi.services.partssoft_order_reconciliation import (
     _candidate_score,
     _remote_customer,
@@ -26,13 +31,11 @@ def test_remote_customer_uses_embedded_legal_details():
             },
         }
     )
-    assert customer == {
-        "external_id": 7,
-        "name": "ООО Тест",
-        "email": "office@example.com",
-        "inn": "770123",
-        "kpp": "770101001",
-    }
+    assert customer["external_id"] == 7
+    assert customer["name"] == "ООО Тест"
+    assert customer["email"] == "office@example.com"
+    assert customer["inn"] == "770123"
+    assert customer["kpp"] == "770101001"
 
 
 def test_remote_order_number_uses_client_number_first():
@@ -82,3 +85,90 @@ def test_candidate_score_uses_inn_kpp_and_company_name():
     )
     assert score == 160
     assert basis == ["ИНН", "КПП", "название"]
+
+
+@pytest.mark.asyncio
+async def test_link_partssoft_customer_fills_all_empty_details(
+    test_session,
+    created_customers,
+    monkeypatch,
+):
+    customer = created_customers[0]
+    customer.email_contact = None
+    customer.inn = None
+    customer.kpp = None
+    customer.legal_address = None
+    customer.postal_address = None
+    customer.credit_limit = None
+    customer.payment_terms_days = 0
+    await test_session.commit()
+
+    async def fake_fetch_customer(_external_customer_id):
+        return {
+            "id": 501,
+            "compile_name": "ООО Партнёр",
+            "email_org": "partner@example.com",
+            "ur_type": 0,
+            "discount_type_id": 12,
+            "region_id": 28,
+            "user_id": 4,
+            "send_sms": True,
+            "send_email": True,
+            "nds": 20,
+            "credit_limit": "150000.00",
+            "pay_delay": 14,
+            "essential": {
+                "company_name": "ООО Партнёр",
+                "company_type": "ООО",
+                "inn": "7701234567",
+                "kpp": "770101001",
+                "bik": "044525225",
+                "bank": "ПАО Банк",
+                "city": "Москва",
+                "loro_account": "40702810000000000001",
+                "korr_schet": "30101810400000000225",
+            },
+            "contact": {"phone": "+74950000000", "cell_phone": "+79990000000"},
+            "official_address": {"city": "Москва", "street": "Тверская", "house": "1"},
+            "delivery_address": {"city": "Москва", "street": "Складская", "house": "2"},
+        }
+
+    monkeypatch.setattr(service, "_fetch_customer", fake_fetch_customer)
+    result = await service.link_partssoft_customer(
+        test_session,
+        external_customer_id=501,
+        local_customer_id=customer.id,
+    )
+
+    await test_session.refresh(customer)
+    reference = await test_session.get(
+        CustomerExternalReference,
+        result["reference_id"],
+    )
+    assert customer.inn == "7701234567"
+    assert customer.kpp == "770101001"
+    assert customer.email_contact == "partner@example.com"
+    assert customer.company_type == "ООО"
+    assert customer.phone == "+74950000000"
+    assert customer.additional_phone == "+79990000000"
+    assert customer.legal_address == "Москва, Тверская, 1"
+    assert customer.postal_address == "Москва, Складская, 2"
+    assert customer.credit_limit == Decimal("150000.00")
+    assert customer.payment_terms_days == 14
+    assert customer.vat_rate == Decimal("20.000")
+    assert customer.bank_bik == "044525225"
+    assert customer.bank_name == "ПАО Банк"
+    assert customer.bank_city == "Москва"
+    assert customer.bank_account == "40702810000000000001"
+    assert customer.correspondent_account == "30101810400000000225"
+    assert customer.registration_source == "dragonzap.ru"
+    assert reference.external_classification == {
+        "ur_type": 0,
+        "discount_type_id": 12,
+        "region_id": 28,
+        "user_id": 4,
+        "send_sms": True,
+        "send_email": True,
+    }
+    assert reference.external_payload["id"] == 501
+    assert reference.last_synced_at is not None

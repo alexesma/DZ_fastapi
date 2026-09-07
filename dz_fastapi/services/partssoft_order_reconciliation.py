@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from difflib import SequenceMatcher
 from typing import Any
+from urllib.parse import urlparse
 
 import aiohttp
 from sqlalchemy import select
@@ -19,6 +20,7 @@ from dz_fastapi.core.time import now_moscow
 from dz_fastapi.services.partssoft_reconciliation import (
     PARTS_SOFT_SOURCE,
     CustomerMatcher,
+    flatten_remote_customer,
     normalize_digits,
     normalize_email,
     normalize_name,
@@ -50,6 +52,22 @@ def _money(value: Any) -> str:
         return _text(value)
 
 
+def _decimal(value: Any) -> Decimal | None:
+    if value in (None, ""):
+        return None
+    try:
+        return Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def _integer(value: Any) -> int | None:
+    decimal = _decimal(value)
+    if decimal is None or decimal != decimal.to_integral_value():
+        return None
+    return int(decimal)
+
+
 def _parse_datetime(value: Any) -> datetime | None:
     raw = _text(value)
     if not raw:
@@ -62,14 +80,38 @@ def _parse_datetime(value: Any) -> datetime | None:
 
 def _remote_customer(order: dict[str, Any]) -> dict[str, Any]:
     customer = order.get("customer") or {}
-    essential = customer.get("essential") or {}
-    return {
-        "external_id": customer.get("id") or order.get("customer_id"),
-        "name": essential.get("company_name") or customer.get("compile_name") or "",
-        "email": customer.get("email_org") or customer.get("email") or "",
-        "inn": normalize_digits(essential.get("inn")),
-        "kpp": normalize_digits(essential.get("kpp")),
-    }
+    flattened = flatten_remote_customer(customer)
+    flattened["external_id"] = customer.get("id") or order.get("customer_id")
+    return flattened
+
+
+def _partssoft_registration_source(customer: dict[str, Any]) -> str | None:
+    candidates = [
+        customer.get(key)
+        for key in (
+            "source_site",
+            "registration_source",
+            "site",
+            "domain",
+            "host",
+            "referrer",
+            "referer",
+        )
+    ]
+    candidates.append(os.getenv("PARTSSOFT_DEFAULT_SOURCE_SITE"))
+    candidates.append(
+        os.getenv("V3_BASE_URL") or "https://admin.dragonzap.ru/api/v3"
+    )
+    for candidate in candidates:
+        value = _text(candidate).casefold()
+        if not value:
+            continue
+        host = urlparse(value if "://" in value else f"//{value}").hostname or value
+        if "dragonzap.ru" in host:
+            return "dragonzap.ru"
+        if host == "zap.ru" or host.endswith(".zap.ru"):
+            return "zap.ru"
+    return None
 
 
 def _remote_order_number(order: dict[str, Any]) -> str:
@@ -292,14 +334,36 @@ async def link_partssoft_customer(
         "inn": "inn",
         "kpp": "kpp",
         "email": "email_contact",
+        "company_type": "company_type",
+        "legal_address": "legal_address",
+        "postal_address": "postal_address",
+        "phone": "phone",
+        "additional_phone": "additional_phone",
+        "vat_rate": "vat_rate",
+        "bank_bik": "bank_bik",
+        "bank_name": "bank_name",
+        "bank_city": "bank_city",
+        "bank_account": "bank_account",
+        "correspondent_account": "correspondent_account",
+        "credit_limit": "credit_limit",
+        "payment_terms_days": "payment_terms_days",
     }
     normalizers = {
         "inn": normalize_digits,
         "kpp": normalize_digits,
         "email": normalize_email,
     }
+    converters = {
+        "credit_limit": _decimal,
+        "vat_rate": _decimal,
+        "payment_terms_days": _integer,
+    }
     for remote_field, local_field in field_map.items():
-        remote_value = _text(remote.get(remote_field))
+        raw_remote_value = remote.get(remote_field)
+        converted_remote_value = converters.get(remote_field, lambda value: value)(
+            raw_remote_value
+        )
+        remote_value = _text(converted_remote_value)
         local_value = _text(getattr(customer, local_field, None))
         if remote_value and not local_value:
             if remote_field == "email":
@@ -317,14 +381,30 @@ async def link_partssoft_customer(
                 if email_owner is not None:
                     conflicts.append("email_contact_used_by_another_customer")
                     continue
-            setattr(customer, local_field, remote_value)
+            setattr(customer, local_field, converted_remote_value)
             filled_fields.append(local_field)
-        elif (
-            remote_value
-            and local_value
-            and normalizers[remote_field](remote_value) != normalizers[remote_field](local_value)
+        elif remote_value and local_value and (
+            normalizers.get(remote_field, _normalized_text)(remote_value)
+            != normalizers.get(remote_field, _normalized_text)(local_value)
         ):
             conflicts.append(local_field)
+
+    if (
+        remote.get("name")
+        and customer.name
+        and normalize_name(remote["name"]) != normalize_name(customer.name)
+    ):
+        conflicts.append("name")
+
+    source_site = _partssoft_registration_source(remote_raw)
+    if source_site and not _text(customer.registration_source):
+        customer.registration_source = source_site
+        filled_fields.append("registration_source")
+    elif (
+        source_site
+        and _text(customer.registration_source).casefold() != source_site.casefold()
+    ):
+        conflicts.append("registration_source")
 
     if existing is None:
         existing = CustomerExternalReference(
@@ -334,6 +414,9 @@ async def link_partssoft_customer(
         )
         session.add(existing)
     existing.external_customer_name = remote["name"] or None
+    existing.external_classification = remote.get("partssoft_classification") or {}
+    existing.external_payload = remote_raw
+    existing.last_synced_at = now_moscow()
     existing.is_active = True
     try:
         await session.commit()

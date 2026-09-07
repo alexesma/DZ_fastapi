@@ -397,6 +397,16 @@ class Customer(Client):
     kpp = Column(String(32), nullable=True, index=True)
     legal_address = Column(Text, nullable=True)
     postal_address = Column(Text, nullable=True)
+    company_type = Column(String(128), nullable=True)
+    phone = Column(String(64), nullable=True)
+    additional_phone = Column(String(64), nullable=True)
+    vat_rate = Column(DECIMAL(7, 3), nullable=True)
+    bank_bik = Column(String(32), nullable=True)
+    bank_name = Column(String(255), nullable=True)
+    bank_city = Column(String(255), nullable=True)
+    bank_account = Column(String(64), nullable=True)
+    correspondent_account = Column(String(64), nullable=True)
+    registration_source = Column(String(128), nullable=True, index=True)
     customer_price_lists = relationship("CustomerPriceList", back_populates="customer")
     pricelist_configs = relationship(
         "CustomerPriceListConfig",
@@ -1640,6 +1650,9 @@ class CustomerExternalReference(Base):
     source_system = Column(String(32), nullable=False, index=True)
     external_customer_id = Column(BigInteger, nullable=True, index=True)
     external_customer_name = Column(String(255), nullable=True)
+    external_classification = Column(JSON, default=dict, nullable=False)
+    external_payload = Column(JSON, default=dict, nullable=False)
+    last_synced_at = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=now_moscow)
     updated_at = Column(
