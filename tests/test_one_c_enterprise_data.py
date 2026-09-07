@@ -199,6 +199,25 @@ def test_regenerate_reuses_message_no_by_default(tmp_path):
     assert bumped["message_no"] == 2
 
 
+def test_regenerate_bumps_when_1c_confirmed_previous(tmp_path):
+    """1С не удаляет наш файл, а считает номера: повтор она проигнорирует."""
+    from dz_fastapi.services.one_c_enterprise_data import regenerate_outgoing_message, save_state
+
+    save_state(
+        str(tmp_path),
+        {
+            "node_guid": "our-guid",
+            "sent_no": 1,
+            "received_no": 0,
+            # 1С сообщила, что приняла наше сообщение №1
+            "peer_confirmed_our_no": 1,
+            "peer_node_guid": "peer-guid",
+        },
+    )
+    result = regenerate_outgoing_message(str(tmp_path))
+    assert result["message_no"] == 2, "номер должен вырасти без ручного флага"
+
+
 def test_process_directory_without_messages(tmp_path):
     result = process_exchange_directory(str(tmp_path))
     assert result["response_file"] is None

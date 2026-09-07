@@ -62,13 +62,34 @@ DEFAULT_FORMAT_VERSION = "1.22"
 #
 # Объявлять можно только то, что поддерживает встречная сторона: список ниже
 # сверен с рукопожатием 1С (все четыре типа она принимает).
-SUPPORTED_SENDING: tuple[str, ...] = (
+DEFAULT_SENDING: tuple[str, ...] = (
     "Документ.РеализацияТоваровУслуг",
     "Документ.ПоступлениеТоваровУслуг",
     "Справочник.Контрагенты",
     "Справочник.Номенклатура",
 )
-SUPPORTED_RECEIVING: tuple[str, ...] = ()
+DEFAULT_RECEIVING: tuple[str, ...] = ()
+
+
+def _types_from_env(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
+    """Состав объектов можно переопределить через переменную окружения.
+
+    Нужно при отладке: чтобы попросить у 1С образец документа, приём
+    включается на время, без пересборки и передеплоя образа.
+    Значение — имена через запятую, пустая строка означает «ничего».
+    """
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return tuple(part.strip() for part in raw.split(",") if part.strip())
+
+
+SUPPORTED_SENDING: tuple[str, ...] = _types_from_env(
+    "ONE_C_ED_SENDING", DEFAULT_SENDING
+)
+SUPPORTED_RECEIVING: tuple[str, ...] = _types_from_env(
+    "ONE_C_ED_RECEIVING", DEFAULT_RECEIVING
+)
 
 STATE_FILE_NAME = ".dz_enterprise_data_state.json"
 _MESSAGE_RE = re.compile(
@@ -357,8 +378,14 @@ def regenerate_outgoing_message(
     os.makedirs(directory, exist_ok=True)
     state = load_state(directory)
 
-    if bump_message_no or int(state.get("sent_no", 0)) == 0:
-        state["sent_no"] = int(state.get("sent_no", 0)) + 1
+    sent_no = int(state.get("sent_no", 0))
+    # 1С не удаляет наш файл с FTP, а отслеживает номера сообщений сама:
+    # повторно присланный номер она просто проигнорирует. Поэтому если она
+    # уже подтвердила приём нашего последнего сообщения (сообщила его номер
+    # в своём поле ReceivedNo), следующее обязано быть на единицу больше.
+    already_read = sent_no <= int(state.get("peer_confirmed_our_no", 0))
+    if bump_message_no or sent_no == 0 or already_read:
+        state["sent_no"] = sent_no + 1
 
     # Синтетическое «входящее»: коды узлов постоянны, GUID берём из состояния
     stub = IncomingMessage(
@@ -453,6 +480,10 @@ def process_exchange_directory(
             parsed_handshake_files.append(name)
         if message.message_no > int(state.get("received_no", 0)):
             state["received_no"] = message.message_no
+        # В поле ReceivedNo 1С сообщает, какое НАШЕ сообщение она приняла.
+        # По нему понимаем, нужно ли увеличивать номер следующего исходящего.
+        if message.received_no > int(state.get("peer_confirmed_our_no", 0)):
+            state["peer_confirmed_our_no"] = message.received_no
         if message.peer_node_guid:
             state["peer_node_guid"] = message.peer_node_guid
 
