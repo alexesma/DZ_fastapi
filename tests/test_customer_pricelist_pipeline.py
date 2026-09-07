@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dz_fastapi.models.autopart import AutoPart
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.cross import AutoPartCross
+from dz_fastapi.models.nomenclature import ApplicabilityNode, HonestSignCategory
 from dz_fastapi.models.partner import (
     Customer,
     CustomerPriceList,
@@ -31,6 +32,7 @@ from dz_fastapi.services.process import (
     _apply_final_output_filters,
     _apply_product_labels,
     _apply_source_filters,
+    _attach_catalog_filter_dimensions,
     _collapse_output_records,
     _transform_dragonzap_records,
     customer_pricelist_pipeline,
@@ -259,6 +261,38 @@ def test_source_position_filter_can_include_or_exclude_exact_items():
     source.position_filters = {"type": "include", "autoparts": [2]}
     included = _apply_source_filters(source_df, source)
     assert included["autopart_id"].tolist() == [2]
+
+
+@pytest.mark.asyncio
+async def test_catalog_filter_dimensions_include_applicability_ancestors(
+    test_session: AsyncSession,
+    created_autopart: AutoPart,
+):
+    root = ApplicabilityNode(name="Автомобиль", node_type="vehicle")
+    child = ApplicabilityNode(
+        name="Toyota",
+        node_type="vehicle",
+        parent=root,
+    )
+    honest_sign = HonestSignCategory(name="Шины", code="TYRES")
+    test_session.add_all([root, child, honest_sign])
+    await test_session.flush()
+    created_autopart.applicability_nodes = [child]
+    created_autopart.honest_sign_categories = [honest_sign]
+    test_session.add(created_autopart)
+    await test_session.commit()
+
+    result = await _attach_catalog_filter_dimensions(
+        pd.DataFrame([{"autopart_id": created_autopart.id}]),
+        test_session,
+        {},
+    )
+
+    assert set(result.iloc[0]["__applicability_node_ids"]) == {
+        root.id,
+        child.id,
+    }
+    assert result.iloc[0]["__honest_sign_category_ids"] == (honest_sign.id,)
 
 
 def test_final_filters_use_client_facing_values_and_manual_include_override():

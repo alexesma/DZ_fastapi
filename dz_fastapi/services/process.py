@@ -80,6 +80,11 @@ from dz_fastapi.crud.price_control import crud_customer_pricelist_override
 from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.cross import AutoPartCross
+from dz_fastapi.models.nomenclature import (
+    ApplicabilityNode,
+    autopart_applicability_association,
+    autopart_honest_sign_association,
+)
 from dz_fastapi.models.partner import (
     Customer,
     CustomerPriceList,
@@ -123,6 +128,95 @@ from dz_fastapi.services.utils import (
 from dz_fastapi.services.watchlist import handle_provider_pricelist_watch
 
 logger = logging.getLogger("dz_fastapi")
+
+
+def _uses_catalog_filter_rules(config: CustomerPriceListConfig) -> bool:
+    groups = [
+        config.default_filters,
+        config.own_filters,
+        config.other_filters,
+        *(config.supplier_filters or {}).values(),
+    ]
+    return any(
+        isinstance(rule, dict)
+        and str(rule.get("field") or "").strip().lower()
+        in {"applicability", "honest_sign"}
+        for group in groups
+        if isinstance(group, dict)
+        for rule in (group.get("rules") or [])
+    )
+
+
+async def _attach_catalog_filter_dimensions(
+    df: pd.DataFrame,
+    session: AsyncSession,
+    cache: dict[str, Any],
+) -> pd.DataFrame:
+    """Adds catalog membership ids used by configurable pricelist rules."""
+    if df.empty or "autopart_id" not in df.columns:
+        return df
+    ids = {
+        int(value)
+        for value in pd.to_numeric(df["autopart_id"], errors="coerce").dropna()
+    }
+    loaded: set[int] = cache.setdefault("loaded", set())
+    missing = sorted(ids - loaded)
+    honest: dict[int, set[int]] = cache.setdefault("honest", {})
+    applicability: dict[int, set[int]] = cache.setdefault("applicability", {})
+    if missing:
+        parent_by_id = cache.get("applicability_parents")
+        if parent_by_id is None:
+            parent_by_id = dict(
+                (
+                    await session.execute(
+                        select(ApplicabilityNode.id, ApplicabilityNode.parent_id)
+                    )
+                ).all()
+            )
+            cache["applicability_parents"] = parent_by_id
+        for chunk_start in range(0, len(missing), 5000):
+            chunk = missing[chunk_start:chunk_start + 5000]
+            honest_rows = (
+                await session.execute(
+                    select(
+                        autopart_honest_sign_association.c.autopart_id,
+                        autopart_honest_sign_association.c.honest_sign_category_id,
+                    ).where(
+                        autopart_honest_sign_association.c.autopart_id.in_(chunk)
+                    )
+                )
+            ).all()
+            for autopart_id, category_id in honest_rows:
+                honest.setdefault(int(autopart_id), set()).add(int(category_id))
+
+            applicability_rows = (
+                await session.execute(
+                    select(
+                        autopart_applicability_association.c.autopart_id,
+                        autopart_applicability_association.c.applicability_node_id,
+                    ).where(
+                        autopart_applicability_association.c.autopart_id.in_(chunk)
+                    )
+                )
+            ).all()
+            for autopart_id, node_id in applicability_rows:
+                memberships = applicability.setdefault(int(autopart_id), set())
+                current = int(node_id)
+                visited: set[int] = set()
+                while current and current not in visited:
+                    visited.add(current)
+                    memberships.add(current)
+                    current = int(parent_by_id.get(current) or 0)
+        loaded.update(missing)
+
+    result = df.copy()
+    result["__honest_sign_category_ids"] = result["autopart_id"].map(
+        lambda value: tuple(honest.get(int(value), ())) if pd.notna(value) else ()
+    )
+    result["__applicability_node_ids"] = result["autopart_id"].map(
+        lambda value: tuple(applicability.get(int(value), ())) if pd.notna(value) else ()
+    )
+    return result
 
 DEFAULT_CUSTOMER_PRICELIST_FILE_NAME = "zzap_kross"
 DEFAULT_CUSTOMER_PRICELIST_OUTBOX_EMAIL = (
@@ -3043,6 +3137,8 @@ async def process_customer_pricelist(
     transform_enabled = pipeline_v2 and bool(
         _customer_pricelist_setting(config, "DZ_ORIGINAL_TRANSFORM_ENABLED", False)
     )
+    catalog_filter_rules_enabled = _uses_catalog_filter_rules(config)
+    catalog_filter_cache: dict[str, Any] = {}
     source_pricelist_ids: list[int] = []
     source_filter_summary: list[dict[str, Any]] = []
 
@@ -3054,6 +3150,11 @@ async def process_customer_pricelist(
             if df.empty:
                 continue
             logger.debug(_dataframe_summary(df, "customer_pricelist_source_df"))
+
+            if catalog_filter_rules_enabled:
+                df = await _attach_catalog_filter_dimensions(
+                    df, session, catalog_filter_cache
+                )
 
             df = crud_customer_pricelist.apply_coefficient(df, config, apply_general_markup=True)
             combined_data.append(df)
@@ -3086,6 +3187,11 @@ async def process_customer_pricelist(
                 continue
             source_pricelist_ids.append(int(latest_pl.id))
             logger.debug(_dataframe_summary(df, "customer_pricelist_latest_df"))
+
+            if catalog_filter_rules_enabled:
+                df = await _attach_catalog_filter_dimensions(
+                    df, session, catalog_filter_cache
+                )
 
             source_rows_before = len(df)
             source_settings = source.additional_filters or {}

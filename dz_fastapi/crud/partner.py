@@ -2319,7 +2319,13 @@ class CRUDCustomerPriceList(
                 return base
             merged = dict(base)
             for key, value in override.items():
-                merged[key] = value
+                if key == "rules":
+                    merged[key] = [
+                        *(base.get("rules") or []),
+                        *(value or []),
+                    ]
+                else:
+                    merged[key] = value
             return merged
 
         def _resolve_filters(pid: int | None, own_flag: bool | None) -> dict:
@@ -2368,6 +2374,34 @@ class CRUDCustomerPriceList(
                     position_cfg = {**position_cfg, "autoparts": autoparts}
             if position_cfg:
                 block_df = position_filters(position_filters=position_cfg, df=block_df)
+
+            rule_columns = {
+                "brand": "brand_id",
+                "position": "autopart_id",
+                "applicability": "__applicability_node_ids",
+                "honest_sign": "__honest_sign_category_ids",
+            }
+            for rule in filters_cfg.get("rules") or []:
+                if not isinstance(rule, dict):
+                    continue
+                field = str(rule.get("field") or "").strip().lower()
+                mode = str(rule.get("mode") or "").strip().lower()
+                selected = set(_normalize_list(rule.get("values")))
+                column = rule_columns.get(field)
+                if not column or column not in block_df.columns or not selected:
+                    continue
+                if field in {"brand", "position"}:
+                    matches = pd.to_numeric(
+                        block_df[column], errors="coerce"
+                    ).isin(selected)
+                else:
+                    matches = block_df[column].map(
+                        lambda values: bool(selected.intersection(values or ()))
+                    )
+                if mode == "include":
+                    block_df = block_df[matches]
+                elif mode == "exclude":
+                    block_df = block_df[~matches]
 
             if not ignore_price_quantity_filters:
                 intervals_cfg = filters_cfg.get("price_intervals")

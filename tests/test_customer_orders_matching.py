@@ -115,6 +115,7 @@ def test_source_filters_can_ignore_price_and_quantity_thresholds():
 
     assert filtered.empty
     assert len(ignored) == 1
+    assert float(ignored.iloc[0]["price"]) == 70.0
     assert ignored.iloc[0]["oem_number"] == "SH0113TM3"
 
 
@@ -163,6 +164,66 @@ def test_apply_coefficient_can_ignore_price_and_quantity_thresholds():
     assert filtered.empty
     assert len(ignored) == 1
     assert float(ignored.iloc[0]["price"]) == 70.0
+
+
+def test_pricelist_rules_combine_applicability_and_honest_sign_filters():
+    config = SimpleNamespace(
+        individual_markups={},
+        default_filters={
+            "rules": [
+                {"field": "applicability", "mode": "include", "values": [10]},
+                {"field": "honest_sign", "mode": "exclude", "values": [100]},
+            ]
+        },
+        brand_filters=[],
+        category_filter=[],
+        price_intervals=[],
+        position_filters=[],
+        supplier_quantity_filters=[],
+        additional_filters={},
+        own_filters={},
+        other_filters={},
+        supplier_filters={},
+        general_markup=1,
+    )
+    df = pd.DataFrame(
+        [
+            {
+                "autopart_id": 1,
+                "brand_id": 1,
+                "price": 100,
+                "quantity": 1,
+                "__applicability_node_ids": (10,),
+                "__honest_sign_category_ids": (100,),
+            },
+            {
+                "autopart_id": 2,
+                "brand_id": 1,
+                "price": 100,
+                "quantity": 1,
+                "__applicability_node_ids": (20,),
+                "__honest_sign_category_ids": (200,),
+            },
+            {
+                "autopart_id": 3,
+                "brand_id": 1,
+                "price": 100,
+                "quantity": 1,
+                "__applicability_node_ids": (10,),
+                "__honest_sign_category_ids": (200,),
+            },
+        ]
+    )
+
+    result = crud_customer_pricelist.apply_coefficient(
+        df,
+        config,
+        apply_general_markup=False,
+        provider_id=1,
+        is_own_price=False,
+    )
+
+    assert result["autopart_id"].tolist() == [3]
 
 
 def test_repair_cp1251_mojibake_fixes_garbled_russian_name():
