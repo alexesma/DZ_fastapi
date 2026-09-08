@@ -1455,6 +1455,7 @@ class CustomerPriceListPublicationCandidateOut(BaseModel):
     name: Optional[str] = None
     quantity: int = 0
     price: Optional[float] = None
+    in_current_price: bool = False
 
 
 class CustomerPriceListDraftOut(BaseModel):

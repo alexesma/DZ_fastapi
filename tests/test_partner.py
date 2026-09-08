@@ -2558,6 +2558,59 @@ async def test_customer_publication_rule_replaces_targets_without_duplicate_erro
 
 
 @pytest.mark.asyncio
+async def test_publication_candidate_search_includes_catalog_item_without_current_price(
+    test_session: AsyncSession,
+    created_customers: list[Customer],
+    async_client: AsyncClient,
+):
+    customer = created_customers[0]
+    test_session.add(
+        User(
+            id=1,
+            name="Candidate Search Admin",
+            email="candidate-search-admin@example.com",
+            password_hash="not-used",
+            role=UserRole.ADMIN,
+            status=UserStatus.ACTIVE,
+        )
+    )
+    brand = Brand(name="CATALOG-ONLY-BRAND")
+    test_session.add(brand)
+    await test_session.flush()
+    catalog_item = AutoPart(
+        brand_id=brand.id,
+        oem_number="CATALOG-ONLY-OEM",
+        name="Catalog item without current offer",
+    )
+    config = CustomerPriceListConfig(
+        customer_id=customer.id,
+        name="CATALOG CANDIDATE SEARCH",
+        general_markup=1.0,
+    )
+    test_session.add_all([catalog_item, config])
+    await test_session.commit()
+
+    response = await async_client.get(
+        f"/customers/{customer.id}/pricelist-configs/{config.id}"
+        "/publication-candidates",
+        params={"search": "CATALOG-ONLY-OEM"},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json() == [
+        {
+            "autopart_id": catalog_item.id,
+            "brand": brand.name,
+            "oem": catalog_item.oem_number,
+            "name": catalog_item.name,
+            "quantity": 0,
+            "price": None,
+            "in_current_price": False,
+        }
+    ]
+
+
+@pytest.mark.asyncio
 async def test_customer_pricelist_auto_mode_keeps_required_approval_as_draft(
     test_session: AsyncSession,
     created_customers: list[Customer],

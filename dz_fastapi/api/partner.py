@@ -2750,6 +2750,7 @@ async def search_customer_pricelist_publication_candidates(
     if not config:
         raise HTTPException(status_code=404, detail="Configuration not found")
     latest_pricelist_ids = _latest_own_pricelist_ids_query()
+    restrict_to_selected_source = provider_config_id is not None
     if provider_config_id is not None:
         configured_sources = await crud_customer_pricelist_source.get_by_config_id(
             config_id=config_id,
@@ -2766,36 +2767,47 @@ async def search_customer_pricelist_publication_candidates(
             PriceList.provider_config_id == provider_config_id,
             PriceList.is_active.is_(True),
         )
+    current_prices = (
+        select(
+            PriceListAutoPartAssociation.autopart_id.label("autopart_id"),
+            func.max(PriceListAutoPartAssociation.quantity).label("quantity"),
+            func.min(PriceListAutoPartAssociation.price).label("price"),
+        )
+        .where(PriceListAutoPartAssociation.pricelist_id.in_(latest_pricelist_ids))
+        .group_by(PriceListAutoPartAssociation.autopart_id)
+        .subquery()
+    )
     normalized = preprocess_oem_number(search)
     pattern = f"%{str(search).strip()}%"
-    rows = (
-        await session.execute(
-            select(
-                AutoPart.id,
-                Brand.name,
-                AutoPart.oem_number,
-                AutoPart.name,
-                func.max(PriceListAutoPartAssociation.quantity),
-                func.min(PriceListAutoPartAssociation.price),
-            )
-            .join(Brand, Brand.id == AutoPart.brand_id)
-            .join(
-                PriceListAutoPartAssociation,
-                PriceListAutoPartAssociation.autopart_id == AutoPart.id,
-            )
-            .where(
-                PriceListAutoPartAssociation.pricelist_id.in_(latest_pricelist_ids),
-                or_(
-                    AutoPart.oem_number.ilike(f"%{normalized}%"),
-                    AutoPart.name.ilike(pattern),
-                    Brand.name.ilike(pattern),
-                ),
-            )
-            .group_by(AutoPart.id, Brand.name)
-            .order_by(Brand.name.asc(), AutoPart.oem_number.asc())
-            .limit(limit)
+    stmt = (
+        select(
+            AutoPart.id,
+            Brand.name,
+            AutoPart.oem_number,
+            AutoPart.name,
+            current_prices.c.quantity,
+            current_prices.c.price,
+            current_prices.c.autopart_id.is_not(None),
         )
-    ).all()
+        .join(Brand, Brand.id == AutoPart.brand_id)
+        .outerjoin(current_prices, current_prices.c.autopart_id == AutoPart.id)
+        .where(
+            or_(
+                AutoPart.oem_number.ilike(f"%{normalized}%"),
+                AutoPart.name.ilike(pattern),
+                Brand.name.ilike(pattern),
+            )
+        )
+        .order_by(
+            current_prices.c.autopart_id.is_(None),
+            Brand.name.asc(),
+            AutoPart.oem_number.asc(),
+        )
+        .limit(limit)
+    )
+    if restrict_to_selected_source:
+        stmt = stmt.where(current_prices.c.autopart_id.is_not(None))
+    rows = (await session.execute(stmt)).all()
     return [
         CustomerPriceListPublicationCandidateOut(
             autopart_id=row[0],
@@ -2804,6 +2816,7 @@ async def search_customer_pricelist_publication_candidates(
             name=row[3],
             quantity=int(row[4] or 0),
             price=float(row[5]) if row[5] is not None else None,
+            in_current_price=bool(row[6]),
         )
         for row in rows
     ]
@@ -2837,6 +2850,7 @@ async def list_customer_pricelist_publication_crosses(
             name=item.name,
             quantity=0,
             price=None,
+            in_current_price=False,
         )
         for item in members
     ]
