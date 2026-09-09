@@ -700,7 +700,11 @@ async def build_shipment_formalized_readiness(
             else None
         ),
         "customer_name": (
-            str(getattr(customer, "name", "") or "").strip()
+            str(
+                getattr(customer, "legal_name", None)
+                or getattr(customer, "name", "")
+                or ""
+            ).strip()
             if customer is not None
             else None
         ),
@@ -986,7 +990,11 @@ async def build_customer_return_formalized_readiness(
             else None
         ),
         "customer_name": (
-            str(getattr(customer, "name", "") or "").strip()
+            str(
+                getattr(customer, "legal_name", None)
+                or getattr(customer, "name", "")
+                or ""
+            ).strip()
             if customer is not None
             else None
         ),
@@ -1660,7 +1668,7 @@ def _build_shipment_document_xml(doc: ShipmentDocument) -> bytes:
     if customer is not None:
         customer_el = ET.SubElement(root, "Customer")
         ET.SubElement(customer_el, "Id").text = str(customer.id)
-        ET.SubElement(customer_el, "Name").text = str(customer.name or "")
+        ET.SubElement(customer_el, "Name").text = str(customer.document_name or "")
         if getattr(customer, "email_contact", None):
             ET.SubElement(customer_el, "Email").text = str(
                 customer.email_contact

@@ -22,7 +22,8 @@ def _shipment_stub():
     )
     customer = SimpleNamespace(
         id=5,
-        name='ООО "Ромашка"',
+        name="romashka-login",
+        legal_name='ООО "Ромашка"',
         inn="7701234567",
         kpp="770101001",
         legal_address="г. Москва, ул. Юридическая, д. 1",

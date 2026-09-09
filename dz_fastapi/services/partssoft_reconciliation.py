@@ -89,6 +89,12 @@ def flatten_remote_customer(customer: dict[str, Any]) -> dict[str, Any]:
     return {
         "external_id": customer.get("id"),
         "name": company_name or full_name or clean(customer.get("login_or_email")),
+        "display_name": (
+            clean(customer.get("login_or_email"))
+            or full_name
+            or company_name
+        ),
+        "legal_name": company_name,
         "email": clean(customer.get("email_org")) or clean(customer.get("email")),
         "inn": normalize_digits(essential.get("inn")),
         "kpp": normalize_digits(essential.get("kpp")),
@@ -134,13 +140,15 @@ class CustomerMatcher:
     def __init__(self, local_customers: Iterable[dict[str, Any]]):
         self.rows = {int(row["id"]): row for row in local_customers}
         self.indexes: dict[str, dict[str, set[int]]] = {
-            name: defaultdict(set) for name in ("external_id", "inn_kpp", "inn", "email", "name")
+            name: defaultdict(set)
+            for name in ("external_id", "inn_kpp", "inn", "email", "phone", "name")
         }
         for local_id, row in self.rows.items():
             external_id = clean(row.get("external_id"))
             inn = normalize_digits(row.get("inn"))
             kpp = normalize_digits(row.get("kpp"))
             email = normalize_email(row.get("email"))
+            phone = normalize_digits(row.get("phone"))
             name = normalize_name(row.get("name"))
             if external_id:
                 self.indexes["external_id"][external_id].add(local_id)
@@ -150,6 +158,8 @@ class CustomerMatcher:
                 self.indexes["inn"][inn].add(local_id)
             if email:
                 self.indexes["email"][email].add(local_id)
+            if phone:
+                self.indexes["phone"][phone].add(local_id)
             if name:
                 self.indexes["name"][name].add(local_id)
 
@@ -168,6 +178,7 @@ class CustomerMatcher:
             ),
             ("inn", normalize_digits(remote.get("inn")), "review_match"),
             ("email", normalize_email(remote.get("email")), "review_match"),
+            ("phone", normalize_digits(remote.get("phone")), "review_match"),
             ("name", normalize_name(remote.get("name")), "review_match"),
         )
         for basis, value, classification in checks:

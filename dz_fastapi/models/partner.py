@@ -392,6 +392,7 @@ class ProviderInventoryRoleRule(Base):
 
 class Customer(Client):
     id = Column(Integer, ForeignKey("client.id"), primary_key=True, unique=True)
+    legal_name = Column(String(512), nullable=True)
     email_outgoing_price = Column(String(255), index=True, nullable=True, unique=True)
     inn = Column(String(32), nullable=True, index=True)
     kpp = Column(String(32), nullable=True, index=True)
@@ -407,6 +408,10 @@ class Customer(Client):
     bank_account = Column(String(64), nullable=True)
     correspondent_account = Column(String(64), nullable=True)
     registration_source = Column(String(128), nullable=True, index=True)
+
+    @property
+    def document_name(self) -> str:
+        return str(self.legal_name or self.name or "").strip()
     customer_price_lists = relationship("CustomerPriceList", back_populates="customer")
     pricelist_configs = relationship(
         "CustomerPriceListConfig",
@@ -1115,6 +1120,9 @@ class CustomerOrder(Base):
     order_config_id = Column(Integer, ForeignKey("customerorderconfig.id"), nullable=True)
     external_source = Column(String(32), nullable=True, index=True)
     external_order_id = Column(String(128), nullable=True)
+    import_origin = Column(String(64), nullable=True, index=True)
+    recovered_at = Column(DateTime(timezone=True), nullable=True)
+    external_payload = Column(JSON, nullable=False, default=dict)
     status = Column(
         SAEnum(
             CUSTOMER_ORDER_STATUS,
@@ -1160,6 +1168,11 @@ class CustomerOrder(Base):
 class CustomerOrderItem(Base):
     order_id = Column(Integer, ForeignKey("customerorder.id"), nullable=False)
     external_order_item_id = Column(String(128), nullable=True)
+    external_offer_id = Column(String(128), nullable=True)
+    external_provider_id = Column(String(128), nullable=True)
+    external_warehouse_id = Column(String(128), nullable=True)
+    source_resolution_status = Column(String(32), nullable=True)
+    source_payload = Column(JSON, nullable=False, default=dict)
     row_index = Column(Integer, nullable=True)
     oem = Column(String(255), nullable=False)
     brand = Column(String(255), nullable=False)

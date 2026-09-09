@@ -987,6 +987,7 @@ async def create_customer(
     return CustomerResponse(
         id=customer.id,
         name=customer.name,
+        legal_name=customer.legal_name,
         description=customer.description,
         email_contact=customer.email_contact,
         comment=customer.comment,

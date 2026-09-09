@@ -84,6 +84,7 @@ from dz_fastapi.services.order_timing import (
     get_overdue_supplier_responses,
     is_in_any_order_window,
 )
+from dz_fastapi.services.partssoft_order_reconciliation import sync_partssoft_orders
 from dz_fastapi.services.placed_orders import (
     cleanup_old_tracking_history,
     sync_site_tracking_statuses,
@@ -141,6 +142,13 @@ PROVIDER_PRICELIST_RSS_SOFT_LIMIT_MB = max(
     512,
     int(os.getenv("PROVIDER_PRICELIST_RSS_SOFT_LIMIT_MB", "4500")),
 )
+PARTSSOFT_ORDER_SYNC_MINUTES = max(
+    1,
+    int(os.getenv("PARTSSOFT_ORDER_SYNC_MINUTES", "10")),
+)
+PARTSSOFT_ORDER_SYNC_ENABLED = os.getenv(
+    "PARTSSOFT_ORDER_SYNC_ENABLED", "1"
+).strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _env_int_with_min(
@@ -452,6 +460,19 @@ async def process_provider_pricelist_review_queue_task(app: FastAPI):
         )
 
 
+async def sync_partssoft_orders_task(app: FastAPI):
+    async with tracked_execution(
+        app,
+        trace_type="scheduler_job",
+        job_key="partssoft_order_sync",
+        job_name="Sync Parts-Soft customer orders",
+    ) as trace:
+        async with new_session_from_app(app) as session:
+            result = await sync_partssoft_orders(session, days=1)
+            trace.details.update(result)
+            logger.info("Parts-Soft order sync completed: %s", result)
+
+
 def start_scheduler(app: FastAPI):
     scheduler = AsyncIOScheduler()
     scheduler.configure(
@@ -493,6 +514,18 @@ def start_scheduler(app: FastAPI):
         coalesce=True,
         next_run_time=now_moscow(),
     )
+    if PARTSSOFT_ORDER_SYNC_ENABLED:
+        scheduler.add_job(
+            func=sync_partssoft_orders_task,
+            trigger="interval",
+            args=[app],
+            id="partssoft_order_sync",
+            name="Sync Parts-Soft orders for the last 24 hours",
+            minutes=PARTSSOFT_ORDER_SYNC_MINUTES,
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
 
     # Ночной автозапуск расчёта автозаказа выключен по умолчанию: сейчас
     # используем ручной запуск, а очередь ниже продолжает исполнять такие runs.

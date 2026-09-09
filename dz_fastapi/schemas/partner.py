@@ -198,6 +198,7 @@ class ProviderUpdate(BaseModel):
 
 
 class CustomerBase(ClientBase):
+    legal_name: Optional[str] = Field(default=None, max_length=512)
     email_outgoing_price: Optional[EmailStr] = None
     inn: Optional[str] = Field(default=None, max_length=32)
     kpp: Optional[str] = Field(default=None, max_length=32)
@@ -233,6 +234,7 @@ class CustomerBase(ClientBase):
         return value or None
 
     @field_validator(
+        "legal_name",
         "legal_address",
         "postal_address",
         "company_type",
@@ -553,6 +555,7 @@ class CustomerPriceListResponseShort(BaseModel):
 class CustomerResponseShort(BaseModel):
     id: int
     name: str
+    legal_name: Optional[str] = None
     email_outgoing_price: Optional[EmailStr] = None
     inn: Optional[str] = None
     kpp: Optional[str] = None

@@ -233,6 +233,11 @@ class CustomerOrderItemResponse(BaseModel):
     reject_qty: Optional[int]
     status: CUSTOMER_ORDER_ITEM_STATUS
     supplier_id: Optional[int]
+    external_order_item_id: Optional[str] = None
+    external_offer_id: Optional[str] = None
+    external_provider_id: Optional[str] = None
+    external_warehouse_id: Optional[str] = None
+    source_resolution_status: Optional[str] = None
     autopart_id: Optional[int]
     match_type: Optional[str] = None
     actual_oem: Optional[str] = None
@@ -297,6 +302,10 @@ class CustomerOrderResponse(BaseModel):
     source_uid: Optional[int]
     source_subject: Optional[str]
     source_filename: Optional[str]
+    external_source: Optional[str] = None
+    external_order_id: Optional[str] = None
+    import_origin: Optional[str] = None
+    recovered_at: Optional[datetime] = None
 
     order_number: Optional[str]
     order_date: Optional[date]
@@ -378,6 +387,10 @@ class CustomerOrderSummaryResponse(BaseModel):
     order_number: Optional[str] = None
     received_at: datetime
     status: CUSTOMER_ORDER_STATUS
+    external_source: Optional[str] = None
+    external_order_id: Optional[str] = None
+    import_origin: Optional[str] = None
+    recovered_at: Optional[datetime] = None
     total_sum: float = 0.0
     stock_sum: float = 0.0
     supplier_sum: float = 0.0

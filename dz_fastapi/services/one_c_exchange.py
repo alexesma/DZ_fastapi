@@ -154,7 +154,11 @@ def build_commerceml_sale_xml(
         counterparties = ET.SubElement(doc_el, "Контрагенты")
         counterparty = ET.SubElement(counterparties, "Контрагент")
         customer_id = getattr(customer, "id", None) or 0
-        name = str(getattr(customer, "name", "") or "").strip()
+        name = str(
+            getattr(customer, "legal_name", None)
+            or getattr(customer, "name", "")
+            or ""
+        ).strip()
         ET.SubElement(counterparty, "Ид").text = f"dz-customer-{customer_id}"
         ET.SubElement(counterparty, "Наименование").text = name or "Розничный покупатель"
         ET.SubElement(counterparty, "ПолноеНаименование").text = name or "Розничный покупатель"
@@ -509,7 +513,7 @@ async def build_counterparties_xlsx(session: AsyncSession) -> bytes:
         rows.append(
             {
                 "Тип": "Покупатель",
-                "Наименование": customer.name,
+                "Наименование": customer.document_name,
                 "ИНН": customer.inn or "",
                 "КПП": customer.kpp or "",
                 "Email": customer.email_contact or "",

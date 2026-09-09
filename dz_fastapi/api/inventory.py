@@ -2744,7 +2744,7 @@ def _shipment_to_out(doc: ShipmentDocument) -> ShipmentDocumentOut:
         doc_date=doc.doc_date,
         status=doc.status,
         customer_id=doc.customer_id,
-        customer_name=customer.name if customer else None,
+        customer_name=customer.document_name if customer else None,
         customer_order_id=doc.customer_order_id,
         warehouse_id=doc.warehouse_id,
         warehouse_name=warehouse.name if warehouse else None,
@@ -2769,7 +2769,7 @@ def _shipment_to_list_item(doc: ShipmentDocument) -> ShipmentDocumentListItem:
         doc_date=doc.doc_date,
         status=doc.status,
         customer_id=doc.customer_id,
-        customer_name=customer.name if customer else None,
+        customer_name=customer.document_name if customer else None,
         customer_order_id=doc.customer_order_id,
         warehouse_id=doc.warehouse_id,
         warehouse_name=warehouse.name if warehouse else None,
@@ -3044,7 +3044,7 @@ async def _collect_shipment_profit_report_rows(
         period_start = _shipment_profit_period_start(effective_dt, period)
         current_customer_id = doc.customer_id if group_by_customer else None
         current_customer_name = (
-            doc.customer.name
+            doc.customer.document_name
             if group_by_customer and doc.customer is not None
             else None
         )
@@ -3714,7 +3714,7 @@ def _customer_return_to_out(doc: ReturnFromCustomer) -> ReturnFromCustomerOut:
         doc_date=doc.doc_date,
         status=doc.status,
         customer_id=doc.customer_id,
-        customer_name=customer.name if customer else None,
+        customer_name=customer.document_name if customer else None,
         shipment_document_id=doc.shipment_document_id,
         source_diadoc_outgoing_document_id=(
             doc.source_diadoc_outgoing_document_id
@@ -3759,7 +3759,7 @@ def _customer_return_to_list_item(
         doc_date=doc.doc_date,
         status=doc.status,
         customer_id=doc.customer_id,
-        customer_name=customer.name if customer else None,
+        customer_name=customer.document_name if customer else None,
         shipment_document_id=doc.shipment_document_id,
         warehouse_id=doc.warehouse_id,
         warehouse_name=warehouse.name if warehouse else None,
