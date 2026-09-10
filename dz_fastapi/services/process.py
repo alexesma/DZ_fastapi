@@ -96,6 +96,7 @@ from dz_fastapi.models.partner import (
     PriceListAutoPartAssociation,
     Provider,
     ProviderPriceListConfig,
+    ProviderPricelistReview,
 )
 from dz_fastapi.schemas.autopart import AutoPartResponse
 from dz_fastapi.schemas.partner import (
@@ -137,17 +138,22 @@ class StaleCustomerPricelistSourcesError(HTTPException):
             (
                 f"{row['source_name']}: "
                 + (
-                    f"прайс от {row['pricelist_date']} "
-                    f"({row['age_business_days']} раб. дн.)"
-                    if row.get("pricelist_date")
-                    else "прайс ещё не загружался"
+                    (
+                        f"новый файл {row['pending_review_filename']} "
+                        "ожидает проверки"
+                    )
+                    if row.get("pending_review_id")
+                    else (
+                        f"прайс от {row['pricelist_date']} "
+                        f"({row['age_business_days']} раб. дн.)"
+                        if row.get("pricelist_date")
+                        else "прайс ещё не загружался"
+                    )
                 )
             )
             for row in stale_sources
         )
-        self.message = (
-            "Рассылка отложена: источники прайса устарели. " + details
-        )
+        self.message = "Рассылка отложена: источники прайса не готовы. " + details
         super().__init__(status_code=409, detail=self.message)
 
     def __str__(self) -> str:
@@ -3220,6 +3226,23 @@ async def process_customer_pricelist(
             latest_pl = await crud_pricelist.get_latest_pricelist_by_config(
                 session=session, provider_config_id=source.provider_config_id
             )
+            pending_review = (
+                await session.execute(
+                    select(ProviderPricelistReview)
+                    .where(
+                        ProviderPricelistReview.provider_config_id
+                        == source.provider_config_id,
+                        ProviderPricelistReview.status.in_(
+                            ("pending", "queued", "processing")
+                        ),
+                    )
+                    .order_by(
+                        ProviderPricelistReview.created_at.desc(),
+                        ProviderPricelistReview.id.desc(),
+                    )
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
             source_name = (
                 str(getattr(source.provider_config, "name_price", "") or "").strip()
                 or f"источник #{source.provider_config_id}"
@@ -3238,7 +3261,18 @@ async def process_customer_pricelist(
                 "pricelist_date": source_date.isoformat() if source_date else None,
                 "age_business_days": age_business_days,
                 "max_age_business_days": max_source_age,
+                "pending_review_id": (
+                    int(pending_review.id) if pending_review else None
+                ),
+                "pending_review_status": (
+                    str(pending_review.status) if pending_review else None
+                ),
+                "pending_review_filename": (
+                    str(pending_review.source_filename) if pending_review else None
+                ),
                 "fresh": (
+                    pending_review is None
+                    and
                     age_business_days is not None
                     and age_business_days <= max_source_age
                 ),

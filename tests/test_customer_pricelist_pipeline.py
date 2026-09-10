@@ -23,6 +23,7 @@ from dz_fastapi.models.partner import (
     PriceListAutoPartAssociation,
     Provider,
     ProviderPriceListConfig,
+    ProviderPricelistReview,
 )
 from dz_fastapi.schemas.partner import CustomerPriceListCreate
 from dz_fastapi.services import process as process_service
@@ -766,3 +767,37 @@ async def test_v2_pipeline_transforms_filtered_dragonzap_into_original_draft(
         )
     assert "Рассылка отложена" in str(exc_info.value)
     assert exc_info.value.stale_sources[0]["provider_config_id"] == provider_config.id
+
+    pricelist.date = date.today()
+    review = ProviderPricelistReview(
+        provider_id=provider.id,
+        provider_config_id=provider_config.id,
+        previous_pricelist_id=pricelist.id,
+        source_filename="new-price.xlsx",
+        file_path="uploads/pricelist_reviews/new-price.xlsx",
+        file_extension="xlsx",
+        file_sha256="a" * 64,
+        status="pending",
+        reasons=["Количество позиций изменилось"],
+        metrics={},
+        examples=[],
+    )
+    test_session.add_all([pricelist, review])
+    await test_session.commit()
+
+    with pytest.raises(StaleCustomerPricelistSourcesError) as review_exc:
+        await process_service.process_customer_pricelist(
+            customer=customer,
+            request=CustomerPriceListCreate(
+                customer_id=customer.id,
+                config_id=config.id,
+                items=[],
+            ),
+            session=test_session,
+            include_autoparts_response=False,
+            delivery_mode="draft",
+        )
+    blocked_source = review_exc.value.stale_sources[0]
+    assert blocked_source["pending_review_id"] == review.id
+    assert blocked_source["pending_review_filename"] == "new-price.xlsx"
+    assert "ожидает проверки" in str(review_exc.value)
