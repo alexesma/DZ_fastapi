@@ -486,6 +486,8 @@ class CustomerExternalReferenceBase(BaseModel):
     external_payload: Dict[str, Any] = Field(default_factory=dict)
     last_synced_at: Optional[datetime] = None
     is_active: bool = True
+    is_verified: bool = True
+    match_basis: Optional[str] = None
 
 
 class CustomerExternalReferenceCreate(CustomerExternalReferenceBase):
@@ -497,6 +499,8 @@ class CustomerExternalReferenceUpdate(BaseModel):
     external_customer_id: Optional[int] = None
     external_customer_name: Optional[str] = None
     is_active: Optional[bool] = None
+    is_verified: Optional[bool] = None
+    match_basis: Optional[str] = None
 
 
 class CustomerExternalReferenceOut(CustomerExternalReferenceBase):

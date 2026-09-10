@@ -1173,6 +1173,7 @@ async def get_all_customer(session: AsyncSession = Depends(get_session)):
         customer_data = CustomerResponse(
             id=customer.id,
             name=customer.name,
+            legal_name=customer.legal_name,
             description=customer.description,
             email_contact=customer.email_contact,
             comment=customer.comment,
@@ -1208,6 +1209,7 @@ def build_customer_response_short(customer: Customer) -> CustomerResponseShort:
     return CustomerResponseShort(
         id=customer.id,
         name=customer.name,
+        legal_name=customer.legal_name,
         inn=customer.inn,
         kpp=customer.kpp,
         legal_address=customer.legal_address,
@@ -1276,6 +1278,7 @@ async def build_customer_response_short_aggregated(
     return CustomerResponseShort(
         id=customer.id,
         name=customer.name,
+        legal_name=customer.legal_name,
         inn=customer.inn,
         kpp=customer.kpp,
         legal_address=customer.legal_address,

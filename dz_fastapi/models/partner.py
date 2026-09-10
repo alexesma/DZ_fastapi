@@ -1667,6 +1667,8 @@ class CustomerExternalReference(Base):
     external_payload = Column(JSON, default=dict, nullable=False)
     last_synced_at = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    is_verified = Column(Boolean, default=False, nullable=False)
+    match_basis = Column(String(64), nullable=True)
     created_at = Column(DateTime(timezone=True), default=now_moscow)
     updated_at = Column(
         DateTime(timezone=True),

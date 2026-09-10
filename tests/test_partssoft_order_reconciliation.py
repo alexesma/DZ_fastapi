@@ -2,6 +2,7 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy import select
 
 from dz_fastapi.models.partner import Customer, CustomerExternalReference, CustomerOrder
 from dz_fastapi.models.user import User, UserRole, UserStatus
@@ -179,8 +180,75 @@ async def test_link_partssoft_customer_fills_all_empty_details(
         "send_sms": True,
         "send_email": True,
     }
+    assert reference.is_verified is True
+    assert reference.match_basis == "manual"
     assert reference.external_payload["id"] == 501
     assert reference.last_synced_at is not None
+
+
+@pytest.mark.asyncio
+async def test_automatic_legal_customer_match_requires_confirmation(
+    test_session,
+    created_customers,
+    monkeypatch,
+):
+    customer = created_customers[0]
+    customer.inn = "7701234567"
+    customer.kpp = "770101001"
+    await test_session.commit()
+
+    resolved, result = await service._resolve_sync_customer(
+        test_session,
+        {
+            "customer_id": 777,
+            "customer": {
+                "id": 777,
+                "login_or_email": "wholesale-777",
+                "essential": {
+                    "company_name": "ООО Партнёр",
+                    "inn": "7701234567",
+                    "kpp": "770101001",
+                },
+            },
+        },
+    )
+    await test_session.commit()
+    reference = await test_session.scalar(
+        select(CustomerExternalReference).where(
+            CustomerExternalReference.external_customer_id == 777
+        )
+    )
+
+    assert resolved.id == customer.id
+    assert result == "created"
+    assert reference.customer_id == customer.id
+    assert reference.is_verified is False
+    assert reference.match_basis == "automatic_match"
+    assert reference.external_payload["id"] == 777
+
+    async def fake_fetch_customer(_external_customer_id):
+        return {
+            "id": 777,
+            "login_or_email": "wholesale-777",
+            "essential": {
+                "company_name": "ООО Партнёр",
+                "inn": "7701234567",
+                "kpp": "770101001",
+            },
+        }
+
+    monkeypatch.setattr(service, "_fetch_customer", fake_fetch_customer)
+    corrected_customer = created_customers[1]
+    await service.link_partssoft_customer(
+        test_session,
+        external_customer_id=777,
+        local_customer_id=corrected_customer.id,
+    )
+    await test_session.refresh(reference)
+
+    assert reference.customer_id == corrected_customer.id
+    assert reference.is_verified is True
+    assert reference.match_basis == "manual"
 
 
 @pytest.mark.asyncio
@@ -237,6 +305,13 @@ async def test_sync_imports_retail_order_once_and_preserves_offer_origin(
     assert order.import_origin == "partssoft_recovery"
     assert order.source_subject == "Восстановлен из Parts-Soft"
     assert order.customer.name == "retail-login-701"
+    reference = await test_session.scalar(
+        select(CustomerExternalReference).where(
+            CustomerExternalReference.external_customer_id == 701
+        )
+    )
+    assert reference.is_verified is False
+    assert reference.match_basis == "created_from_partssoft"
     assert len(order.items) == 1
     item = order.items[0]
     assert item.external_offer_id == "4401"

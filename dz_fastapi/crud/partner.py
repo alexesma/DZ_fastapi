@@ -1299,6 +1299,8 @@ class CRUDCustomer(CRUDBase[Customer, CustomerCreate, CustomerUpdate]):
         existing.external_customer_id = obj_in.external_customer_id
         existing.external_customer_name = str(obj_in.external_customer_name or "").strip() or None
         existing.is_active = bool(obj_in.is_active)
+        existing.is_verified = bool(obj_in.is_verified)
+        existing.match_basis = obj_in.match_basis
         await session.commit()
         await session.refresh(existing)
         return existing

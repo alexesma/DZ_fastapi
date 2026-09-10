@@ -355,7 +355,11 @@ async def link_partssoft_customer(
             )
         )
     ).first()
-    if existing is not None and existing.customer_id != customer.id:
+    if (
+        existing is not None
+        and existing.customer_id != customer.id
+        and existing.is_verified
+    ):
         raise ValueError(
             f"Parts-Soft customer is already linked to local customer {existing.customer_id}"
         )
@@ -446,11 +450,15 @@ async def link_partssoft_customer(
             external_customer_id=int(external_customer_id),
         )
         session.add(existing)
+    else:
+        existing.customer_id = customer.id
     existing.external_customer_name = remote["name"] or None
     existing.external_classification = remote.get("partssoft_classification") or {}
     existing.external_payload = remote_raw
     existing.last_synced_at = now_moscow()
     existing.is_active = True
+    existing.is_verified = True
+    existing.match_basis = "manual"
     try:
         await session.commit()
     except IntegrityError as exc:
@@ -548,9 +556,11 @@ async def _resolve_sync_customer(
             CustomerExternalReference.source_system == PARTS_SOFT_SOURCE,
             CustomerExternalReference.external_customer_id == external_id,
             CustomerExternalReference.is_active.is_(True),
+            CustomerExternalReference.is_verified.is_(True),
         )
     )
     customer = await session.get(Customer, reference.customer_id) if reference else None
+    customer_created = False
     if customer is None:
         candidates: list[Customer] = []
         inn = normalize_digits(remote.get("inn"))
@@ -564,7 +574,17 @@ async def _resolve_sync_customer(
                     )
                 ).all()
             )
-        if not candidates and email:
+        if not candidates and inn:
+            same_inn = list(
+                (
+                    await session.scalars(
+                        select(Customer).where(Customer.inn == inn)
+                    )
+                ).all()
+            )
+            if same_inn:
+                return None, "customer_legal_details_conflict"
+        if not candidates and not inn and email:
             candidates = list(
                 (
                     await session.scalars(
@@ -572,7 +592,7 @@ async def _resolve_sync_customer(
                     )
                 ).all()
             )
-        if not candidates and normalize_digits(remote.get("phone")):
+        if not candidates and not inn and normalize_digits(remote.get("phone")):
             phone = normalize_digits(remote.get("phone"))
             all_customers = (await session.scalars(select(Customer))).all()
             candidates = [
@@ -608,17 +628,27 @@ async def _resolve_sync_customer(
         )
         session.add(customer)
         await session.flush()
+        customer_created = True
 
     _fill_customer_from_partssoft(customer, remote)
     if not _text(customer.registration_source):
         customer.registration_source = _partssoft_registration_source(remote_raw)
     if reference is None:
         reference_created = True
-        reference = CustomerExternalReference(
-            customer_id=customer.id,
-            source_system=PARTS_SOFT_SOURCE,
-            external_customer_id=external_id,
+        reference = await session.scalar(
+            select(CustomerExternalReference).where(
+                CustomerExternalReference.source_system == PARTS_SOFT_SOURCE,
+                CustomerExternalReference.external_customer_id == external_id,
+            )
         )
+        if reference is None:
+            reference = CustomerExternalReference(
+                customer_id=customer.id,
+                source_system=PARTS_SOFT_SOURCE,
+                external_customer_id=external_id,
+            )
+        elif not reference.is_verified:
+            reference.customer_id = customer.id
     else:
         reference_created = False
     reference.external_customer_name = remote.get("legal_name") or remote.get("name") or None
@@ -626,6 +656,11 @@ async def _resolve_sync_customer(
     reference.external_payload = remote_raw
     reference.last_synced_at = now_moscow()
     reference.is_active = True
+    if reference_created:
+        reference.is_verified = False
+        reference.match_basis = (
+            "created_from_partssoft" if customer_created else "automatic_match"
+        )
     session.add_all([customer, reference])
     await session.flush()
     return customer, "created" if reference_created else "linked"
@@ -950,6 +985,7 @@ async def reconcile_partssoft_orders(
             select(CustomerExternalReference).where(
                 CustomerExternalReference.source_system == PARTS_SOFT_SOURCE,
                 CustomerExternalReference.is_active.is_(True),
+                CustomerExternalReference.is_verified.is_(True),
             )
         )
     ).all()
