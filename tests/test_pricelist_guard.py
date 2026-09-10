@@ -9,8 +9,10 @@ from dz_fastapi.models.partner import (
 )
 from dz_fastapi.services.pricelist_guard import (
     PricelistAnomalyResult,
+    _build_canonical_brand_name_map,
     _create_pricelist_review,
     _load_previous_price_map,
+    build_candidate_price_map,
     build_review_examples,
     calculate_pricelist_anomaly,
 )
@@ -21,6 +23,27 @@ def _prices(count: int, price: float = 100.0):
         ("BRAND", f"OEM{index}"): price
         for index in range(count)
     }
+
+
+def test_candidate_map_matches_catalog_brand_resolution():
+    canonical_names = _build_canonical_brand_name_map(
+        [
+            (1, "TOYOTA", True),
+            (2, "TOYOTA MOTOR", False),
+            (3, "KNOWN BRAND", False),
+        ],
+        [(1, 2)],
+    )
+    candidate = build_candidate_price_map(
+        [
+            {"brand": "Toyota", "oem_number": "123-45", "price": 100},
+            {"brand": "Toyota Motor", "oem_number": "12345", "price": 90},
+            {"brand": "not in catalog", "oem_number": "999", "price": 50},
+        ],
+        canonical_brand_names=canonical_names,
+    )
+
+    assert candidate == {("TOYOTA", "12345"): 90.0}
 
 
 def test_pricelist_guard_accepts_small_normal_changes():

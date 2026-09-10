@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dz_fastapi.api.validators import normalize_brand_name
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import AutoPart, preprocess_oem_number
-from dz_fastapi.models.brand import Brand
+from dz_fastapi.models.brand import Brand, brand_synonyms
 from dz_fastapi.models.notification import AppNotification, AppNotificationLevel
 from dz_fastapi.models.partner import (
     PriceList,
@@ -66,17 +66,93 @@ def _money_float(value: object) -> float | None:
     return result
 
 
-def build_candidate_price_map(items: list[dict]) -> dict[tuple[str, str], float]:
+def build_candidate_price_map(
+    items: list[dict],
+    canonical_brand_names: dict[str, str] | None = None,
+) -> dict[tuple[str, str], float]:
     result: dict[tuple[str, str], float] = {}
     for item in items:
         key = _normalise_key(item.get("brand"), item.get("oem_number"))
         price = _money_float(item.get("price"))
         if key is None or price is None:
             continue
+        if canonical_brand_names is not None:
+            canonical_brand = canonical_brand_names.get(key[0])
+            if canonical_brand is None:
+                continue
+            key = canonical_brand, key[1]
         current = result.get(key)
         if current is None or price < current:
             result[key] = price
     return result
+
+
+def _build_canonical_brand_name_map(
+    brand_rows: list[tuple[int, str, bool | None]],
+    synonym_rows: list[tuple[int, int]],
+) -> dict[str, str]:
+    """Mirror catalog synonym resolution without per-brand queries."""
+    by_id = {
+        int(brand_id): (str(name), bool(main_brand))
+        for brand_id, name, main_brand in brand_rows
+    }
+    parent = {brand_id: brand_id for brand_id in by_id}
+
+    def find(brand_id: int) -> int:
+        while parent[brand_id] != brand_id:
+            parent[brand_id] = parent[parent[brand_id]]
+            brand_id = parent[brand_id]
+        return brand_id
+
+    def union(left: int, right: int) -> None:
+        if left not in parent or right not in parent:
+            return
+        left_root = find(left)
+        right_root = find(right)
+        if left_root != right_root:
+            parent[right_root] = left_root
+
+    for brand_id, synonym_id in synonym_rows:
+        union(int(brand_id), int(synonym_id))
+
+    components: dict[int, list[int]] = {}
+    for brand_id in by_id:
+        components.setdefault(find(brand_id), []).append(brand_id)
+
+    result: dict[str, str] = {}
+    for members in components.values():
+        main_ids = sorted(
+            brand_id for brand_id in members if by_id[brand_id][1]
+        )
+        canonical_id = main_ids[0] if len(main_ids) == 1 else min(members)
+        for brand_id in members:
+            # Match CRUDBrand._pick_canonical_brand for ambiguous groups.
+            resolved_id = brand_id if len(main_ids) > 1 else canonical_id
+            source_key = _normalise_key(by_id[brand_id][0], "x")
+            canonical_key = _normalise_key(by_id[resolved_id][0], "x")
+            if source_key is not None and canonical_key is not None:
+                result[source_key[0]] = canonical_key[0]
+    return result
+
+
+async def _load_canonical_brand_name_map(
+    session: AsyncSession,
+) -> dict[str, str]:
+    brand_rows = (
+        await session.execute(select(Brand.id, Brand.name, Brand.main_brand))
+    ).all()
+    synonym_rows = (
+        await session.execute(
+            select(
+                brand_synonyms.c.brand_id,
+                brand_synonyms.c.synonym_id,
+            )
+        )
+    ).all()
+    return _build_canonical_brand_name_map(
+        list(brand_rows),
+        list(synonym_rows),
+    )
 
 
 def build_review_examples(
@@ -467,10 +543,21 @@ async def guard_automatic_provider_pricelist(
         session,
         int(provider_config.id),
     )
-    candidate_prices = build_candidate_price_map(items)
+    raw_candidate_prices = build_candidate_price_map(items)
+    canonical_brand_names = await _load_canonical_brand_name_map(session)
+    candidate_prices = build_candidate_price_map(
+        items,
+        canonical_brand_names=canonical_brand_names,
+    )
     result = calculate_pricelist_anomaly(previous_prices, candidate_prices)
     result.metrics["previous_pricelist_id"] = previous_id
     result.metrics["source_filename"] = source_filename
+    result.metrics["candidate_source_positions"] = len(raw_candidate_prices)
+    result.metrics["candidate_catalog_positions"] = len(candidate_prices)
+    result.metrics["excluded_unknown_or_alias_positions"] = max(
+        0,
+        len(raw_candidate_prices) - len(candidate_prices),
+    )
 
     if not result.blocked:
         return result
