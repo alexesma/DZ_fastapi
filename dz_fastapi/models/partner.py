@@ -1017,6 +1017,19 @@ class CustomerPriceListConfig(Base):
     supplier_filters = Column(JSON, default={})  # Индивидуальные фильтры для поставщиков
     schedule_days = Column(JSON, default=[])
     schedule_times = Column(JSON, default=[])
+    max_source_age_business_days = Column(
+        Integer,
+        nullable=False,
+        default=1,
+        server_default="1",
+    )
+    block_stale_sources = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default="true",
+    )
+    last_stale_blocked_at = Column(DateTime(timezone=True), nullable=True)
     emails = Column(JSON, default=[])
     export_file_name = Column(String(255), nullable=True)
     export_file_format = Column(String(16), nullable=False, default="xlsx", server_default="xlsx")

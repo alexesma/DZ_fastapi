@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from types import SimpleNamespace
 
 import pandas as pd
@@ -28,6 +28,7 @@ from dz_fastapi.schemas.partner import CustomerPriceListCreate
 from dz_fastapi.services import process as process_service
 from dz_fastapi.services.process import (
     CUSTOMER_PRICELIST_PIPELINE_DEFAULT,
+    StaleCustomerPricelistSourcesError,
     _apply_customer_publication_rules,
     _apply_final_output_filters,
     _apply_product_labels,
@@ -37,8 +38,15 @@ from dz_fastapi.services.process import (
     _transform_dragonzap_records,
     customer_pricelist_pipeline,
     expand_dz_brands,
+    source_pricelist_business_age,
 )
 from dz_fastapi.services.utils import REGULATORY_COLUMNS, prepare_excel_data_from_records
+
+
+def test_source_pricelist_age_counts_business_days():
+    assert source_pricelist_business_age(date(2026, 9, 9), date(2026, 9, 10)) == 1
+    assert source_pricelist_business_age(date(2026, 9, 8), date(2026, 9, 10)) == 2
+    assert source_pricelist_business_age(date(2026, 9, 4), date(2026, 9, 7)) == 1
 
 
 def test_empty_excel_records_keep_export_columns_for_later_aliases():
@@ -737,3 +745,24 @@ async def test_v2_pipeline_transforms_filtered_dragonzap_into_original_draft(
     )
     assert approve_response.status_code == 409, approve_response.text
     assert "Контроль качества не пройден" in approve_response.json()["detail"]
+
+    pricelist.date = date.today() - timedelta(days=7)
+    config.max_source_age_business_days = 1
+    config.block_stale_sources = True
+    test_session.add_all([pricelist, config])
+    await test_session.commit()
+
+    with pytest.raises(StaleCustomerPricelistSourcesError) as exc_info:
+        await process_service.process_customer_pricelist(
+            customer=customer,
+            request=CustomerPriceListCreate(
+                customer_id=customer.id,
+                config_id=config.id,
+                items=[],
+            ),
+            session=test_session,
+            include_autoparts_response=False,
+            delivery_mode="draft",
+        )
+    assert "Рассылка отложена" in str(exc_info.value)
+    assert exc_info.value.stale_sources[0]["provider_config_id"] == provider_config.id

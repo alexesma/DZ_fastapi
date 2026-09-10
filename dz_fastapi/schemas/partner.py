@@ -1153,6 +1153,8 @@ class CustomerPriceListConfigBase(BaseModel):
     )
     schedule_days: Optional[List[str]] = Field(default_factory=list)
     schedule_times: Optional[List[str]] = Field(default_factory=list)
+    max_source_age_business_days: int = Field(default=1, ge=0, le=30)
+    block_stale_sources: bool = True
     emails: Optional[List[EmailStr]] = Field(default_factory=list)
     outgoing_email_account_id: Optional[int] = Field(default=None, ge=1)
     is_active: Optional[bool] = True
@@ -1214,6 +1216,8 @@ class CustomerPriceListConfigUpdate(BaseModel):
     collapse_duplicates_by_min_price: Optional[bool] = None
     schedule_days: Optional[List[str]] = None
     schedule_times: Optional[List[str]] = None
+    max_source_age_business_days: Optional[int] = Field(default=None, ge=0, le=30)
+    block_stale_sources: Optional[bool] = None
     emails: Optional[List[EmailStr]] = None
     outgoing_email_account_id: Optional[int] = Field(default=None, ge=1)
     is_active: Optional[bool] = None

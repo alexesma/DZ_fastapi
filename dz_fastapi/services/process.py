@@ -130,6 +130,43 @@ from dz_fastapi.services.watchlist import handle_provider_pricelist_watch
 logger = logging.getLogger("dz_fastapi")
 
 
+class StaleCustomerPricelistSourcesError(HTTPException):
+    def __init__(self, stale_sources: list[dict[str, Any]]):
+        self.stale_sources = stale_sources
+        details = "; ".join(
+            (
+                f"{row['source_name']}: "
+                + (
+                    f"прайс от {row['pricelist_date']} "
+                    f"({row['age_business_days']} раб. дн.)"
+                    if row.get("pricelist_date")
+                    else "прайс ещё не загружался"
+                )
+            )
+            for row in stale_sources
+        )
+        self.message = (
+            "Рассылка отложена: источники прайса устарели. " + details
+        )
+        super().__init__(status_code=409, detail=self.message)
+
+    def __str__(self) -> str:
+        return self.message
+
+
+def source_pricelist_business_age(pricelist_date: date, today: date) -> int:
+    """Count weekdays after the source date through today."""
+    if pricelist_date >= today:
+        return 0
+    current = pricelist_date
+    age = 0
+    while current < today:
+        current = date.fromordinal(current.toordinal() + 1)
+        if current.weekday() < 5:
+            age += 1
+    return age
+
+
 def _uses_catalog_filter_rules(config: CustomerPriceListConfig) -> bool:
     groups = [
         config.default_filters,
@@ -3141,6 +3178,7 @@ async def process_customer_pricelist(
     catalog_filter_cache: dict[str, Any] = {}
     source_pricelist_ids: list[int] = []
     source_filter_summary: list[dict[str, Any]] = []
+    source_freshness_summary: list[dict[str, Any]] = []
 
     if request.items:
         for pricelist_id in request.items:
@@ -3170,13 +3208,50 @@ async def process_customer_pricelist(
         dz_expand_enabled = any(
             s.enabled and (s.additional_filters or {}).get("DZ_EXPAND_BRANDS") for s in sources
         )
-        for source in sources:
-            if not source.enabled:
-                continue
-
+        enabled_sources = [source for source in sources if source.enabled]
+        resolved_sources = []
+        max_source_age = max(
+            0,
+            int(getattr(config, "max_source_age_business_days", 1) or 0),
+        )
+        stale_sources: list[dict[str, Any]] = []
+        today = now_moscow().date()
+        for source in enabled_sources:
             latest_pl = await crud_pricelist.get_latest_pricelist_by_config(
                 session=session, provider_config_id=source.provider_config_id
             )
+            source_name = (
+                str(getattr(source.provider_config, "name_price", "") or "").strip()
+                or f"источник #{source.provider_config_id}"
+            )
+            source_date = latest_pl.date if latest_pl else None
+            age_business_days = (
+                source_pricelist_business_age(source_date, today)
+                if source_date is not None
+                else None
+            )
+            freshness = {
+                "source_id": int(source.id),
+                "provider_config_id": int(source.provider_config_id),
+                "source_name": source_name,
+                "pricelist_id": int(latest_pl.id) if latest_pl else None,
+                "pricelist_date": source_date.isoformat() if source_date else None,
+                "age_business_days": age_business_days,
+                "max_age_business_days": max_source_age,
+                "fresh": (
+                    age_business_days is not None
+                    and age_business_days <= max_source_age
+                ),
+            }
+            source_freshness_summary.append(freshness)
+            if not freshness["fresh"]:
+                stale_sources.append(freshness)
+            resolved_sources.append((source, latest_pl))
+
+        if stale_sources and bool(getattr(config, "block_stale_sources", True)):
+            raise StaleCustomerPricelistSourcesError(stale_sources)
+
+        for source, latest_pl in resolved_sources:
             if not latest_pl:
                 continue
 
@@ -3819,6 +3894,7 @@ async def process_customer_pricelist(
             "final_positions": len(df_excel),
             "zzap_mode": bool(_customer_pricelist_setting(config, "ZZAP", False)),
             "dz_expand_brands": bool(dz_expand_enabled),
+            "source_freshness": source_freshness_summary,
             **v2_summary,
         }
     )

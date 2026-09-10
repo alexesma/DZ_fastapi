@@ -92,6 +92,7 @@ from dz_fastapi.services.placed_orders import (
 from dz_fastapi.services.price_control import run_price_control
 from dz_fastapi.services.pricelist_review_queue import process_next_provider_pricelist_review
 from dz_fastapi.services.process import (
+    StaleCustomerPricelistSourcesError,
     customer_pricelist_requires_draft,
     process_customer_pricelist,
     process_provider_pricelist,
@@ -658,30 +659,17 @@ def start_scheduler(app: FastAPI):
     )
 
     # ── 4. Прайсы поставщиков ─────────────────────────────────────────────
-    # Ночной прогон: 01–07 МСК — каждый час (тяжёлый, pandas).
-    # Убираем старты в 22:00, 23:00 и 00:00, чтобы не мешать вечерней работе.
+    # Проверяем почту регулярно: новые прайсы могут прийти после ночного прогона.
+    # Без новых писем тяжёлая обработка не запускается.
     scheduler.add_job(
         func=download_price_provider_task,
         trigger="cron",
         args=[app],
-        id="download_price_provider_night",
-        name="Download price provider — ночь (01–07 МСК)",
-        hour="1-7",
-        minute=0,
+        id="download_price_provider_regular",
+        name="Download price provider — every 15 min",
+        minute="*/15",
         second=0,
         jitter=10,
-        replace_existing=True,
-    )
-    # Дневной однократный лёгкий прогон: 13:00 МСК
-    scheduler.add_job(
-        func=download_price_provider_task,
-        trigger="cron",
-        args=[app],
-        id="download_price_provider_noon",
-        name="Download price provider — полдень (13:00 МСК)",
-        hour=13,
-        minute=0,
-        second=0,
         replace_existing=True,
     )
     # Ночная синхронизация автокроссов Dragonzap/original.
@@ -2135,6 +2123,7 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
 
         success_count = 0
         error_count = 0
+        stale_blocked_count = 0
         memory_samples = []
         stopped_for_memory = False
         for config_id, customer in pending:
@@ -2154,6 +2143,48 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
                     )
                 success_count += 1
             except Exception as exc:
+                stale_blocked = isinstance(exc, StaleCustomerPricelistSourcesError)
+                if stale_blocked:
+                    stale_blocked_count += 1
+                    logger.warning(
+                        "Customer pricelist send postponed for stale sources: "
+                        "config_id=%s details=%s",
+                        config_id,
+                        exc,
+                    )
+                    try:
+                        async with async_session_factory() as err_session:
+                            stale_config = await err_session.get(
+                                CustomerPriceListConfig,
+                                config_id,
+                            )
+                            notify = bool(
+                                stale_config
+                                and (
+                                    stale_config.last_stale_blocked_at is None
+                                    or stale_config.last_stale_blocked_at.date()
+                                    != now_moscow().date()
+                                )
+                            )
+                            if stale_config:
+                                stale_config.last_stale_blocked_at = now_moscow()
+                                err_session.add(stale_config)
+                                await err_session.commit()
+                            if notify:
+                                await _notify_scheduler_issue(
+                                    err_session,
+                                    subject="Рассылка прайса отложена",
+                                    text=f"Конфигурация #{config_id}. {exc}",
+                                )
+                    except Exception as notify_exc:
+                        logger.error(
+                            "Failed to record stale customer pricelist block "
+                            "for config %s: %s",
+                            config_id,
+                            notify_exc,
+                            exc_info=True,
+                        )
+                    continue
                 error_count += 1
                 logger.error(
                     "Error in send_scheduled_customer_pricelists_task " "for config %s: %s",
@@ -2215,10 +2246,13 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
                 break
         trace.details["success_count"] = success_count
         trace.details["error_count"] = error_count
+        trace.details["stale_blocked_count"] = stale_blocked_count
         trace.details["memory_samples"] = memory_samples
         trace.details["stopped_for_memory"] = stopped_for_memory
         if error_count > 0:
             trace.details["__trace_status"] = "error"
+        elif stale_blocked_count > 0:
+            trace.details["__trace_status"] = "needs_review"
 
 
 async def price_control_run_task(app: FastAPI):
@@ -2437,12 +2471,14 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
 def _is_price_check_due(schedule) -> bool:
     if not schedule.enabled:
         return False
-    if not schedule.days or not schedule.times:
-        return True
     now = now_moscow()
     day_key = now.strftime("%a").lower()[:3]
     time_key = now.strftime("%H:%M")
-    return day_key in (schedule.days or []) and time_key in (schedule.times or [])
+    if schedule.days and day_key not in schedule.days:
+        return False
+    if schedule.times and time_key not in schedule.times:
+        return False
+    return True
 
 
 async def download_price_provider_task(app: FastAPI):
