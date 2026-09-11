@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -26,3 +26,14 @@ class AppNotificationListResponse(BaseModel):
 class AppNotificationReadResponse(BaseModel):
     id: int
     read_at: Optional[datetime] = None
+
+
+class PricelistStaleActionRequest(BaseModel):
+    action: Literal["extend_one_day", "snooze_30_minutes"]
+
+
+class PricelistStaleActionResponse(BaseModel):
+    notification_id: int
+    action: str
+    available_at: Optional[datetime] = None
+    override_until: Optional[datetime] = None

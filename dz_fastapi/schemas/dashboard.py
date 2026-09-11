@@ -41,6 +41,37 @@ class SupplierPriceTrendResponse(BaseModel):
     series: list[SupplierPriceTrendSeries] = Field(default_factory=list)
 
 
+class SupplierPricelistHealthSummary(BaseModel):
+    total_active: int = 0
+    fresh: int = 0
+    stale: int = 0
+    extended: int = 0
+    pending_review: int = 0
+    without_pricelist: int = 0
+
+
+class SupplierPricelistHealthItem(BaseModel):
+    provider_config_id: int
+    provider_id: int
+    provider_name: str
+    provider_config_name: Optional[str] = None
+    latest_pricelist_id: Optional[int] = None
+    latest_pricelist_date: Optional[date] = None
+    age_days: Optional[int] = None
+    max_days_without_update: Optional[int] = None
+    stale_override_until: Optional[datetime] = None
+    pending_review_id: Optional[int] = None
+    pending_review_status: Optional[str] = None
+    pending_review_filename: Optional[str] = None
+    status: str
+
+
+class SupplierPricelistHealthResponse(BaseModel):
+    generated_at: datetime
+    summary: SupplierPricelistHealthSummary
+    items: list[SupplierPricelistHealthItem] = Field(default_factory=list)
+
+
 class DashboardDailyOrderRow(BaseModel):
     date: date
     customer_order_count: int = 0

@@ -24,6 +24,7 @@ from dz_fastapi.models.partner import (
     PriceListAutoPartAssociation,
     Provider,
     ProviderPriceListConfig,
+    ProviderPricelistReview,
     SupplierOrder,
     SupplierOrderItem,
 )
@@ -32,6 +33,9 @@ from dz_fastapi.schemas.dashboard import (
     DashboardOrderMarginResponse,
     DashboardSupplierReliabilityResponse,
     InventoryDashboardResponse,
+    SupplierPricelistHealthItem,
+    SupplierPricelistHealthResponse,
+    SupplierPricelistHealthSummary,
     SupplierPriceTrendPoint,
     SupplierPriceTrendResponse,
     SupplierPriceTrendSeries,
@@ -55,6 +59,140 @@ ADDRESSABLE_REJECT_CODES = frozenset(
         "PARTIAL_STOCK",
     }
 )
+
+
+@router.get(
+    "/dashboard/supplier-pricelist-health",
+    tags=["dashboard"],
+    status_code=status.HTTP_200_OK,
+    response_model=SupplierPricelistHealthResponse,
+    dependencies=[Depends(require_admin)],
+)
+async def get_supplier_pricelist_health(
+    session: AsyncSession = Depends(get_session),
+):
+    """Fast overview that remains available if detailed trend analysis is slow."""
+    now = now_moscow()
+    latest_ranked = (
+        select(
+            PriceList.id.label("pricelist_id"),
+            PriceList.provider_config_id.label("provider_config_id"),
+            PriceList.date.label("price_date"),
+            func.row_number()
+            .over(
+                partition_by=PriceList.provider_config_id,
+                order_by=(PriceList.date.desc().nullslast(), PriceList.id.desc()),
+            )
+            .label("rn"),
+        )
+        .where(PriceList.provider_config_id.is_not(None))
+        .subquery()
+    )
+    latest = (
+        select(
+            latest_ranked.c.pricelist_id,
+            latest_ranked.c.provider_config_id,
+            latest_ranked.c.price_date,
+        )
+        .where(latest_ranked.c.rn == 1)
+        .subquery()
+    )
+    config_rows = (
+        await session.execute(
+            select(
+                ProviderPriceListConfig,
+                Provider.id.label("provider_id"),
+                Provider.name.label("provider_name"),
+                latest.c.pricelist_id,
+                latest.c.price_date,
+            )
+            .join(Provider, Provider.id == ProviderPriceListConfig.provider_id)
+            .outerjoin(
+                latest,
+                latest.c.provider_config_id == ProviderPriceListConfig.id,
+            )
+            .where(ProviderPriceListConfig.is_active.is_(True))
+            .order_by(Provider.name.asc(), ProviderPriceListConfig.name_price.asc())
+        )
+    ).all()
+
+    pending_ranked = (
+        select(
+            ProviderPricelistReview.id,
+            ProviderPricelistReview.provider_config_id,
+            ProviderPricelistReview.status,
+            ProviderPricelistReview.source_filename,
+            func.row_number()
+            .over(
+                partition_by=ProviderPricelistReview.provider_config_id,
+                order_by=(
+                    ProviderPricelistReview.created_at.desc(),
+                    ProviderPricelistReview.id.desc(),
+                ),
+            )
+            .label("rn"),
+        )
+        .where(ProviderPricelistReview.status.in_(("pending", "queued", "processing")))
+        .subquery()
+    )
+    pending_map = {
+        int(row.provider_config_id): row
+        for row in (
+            await session.execute(select(pending_ranked).where(pending_ranked.c.rn == 1))
+        ).all()
+    }
+
+    summary = SupplierPricelistHealthSummary(total_active=len(config_rows))
+    items: list[SupplierPricelistHealthItem] = []
+    for config, provider_id, provider_name, pricelist_id, price_date in config_rows:
+        threshold = (
+            3 if config.max_days_without_update is None else int(config.max_days_without_update)
+        )
+        age_days = (now.date() - price_date).days if price_date is not None else None
+        pending = pending_map.get(int(config.id))
+        override_active = bool(
+            config.stale_override_until is not None
+            and config.stale_override_until > now
+        )
+        if pending is not None:
+            health_status = "pending_review"
+            summary.pending_review += 1
+        elif price_date is None:
+            health_status = "without_pricelist"
+            summary.without_pricelist += 1
+        elif override_active:
+            health_status = "extended"
+            summary.extended += 1
+        elif threshold > 0 and age_days is not None and age_days > threshold:
+            health_status = "stale"
+            summary.stale += 1
+        else:
+            health_status = "fresh"
+            summary.fresh += 1
+        items.append(
+            SupplierPricelistHealthItem(
+                provider_config_id=int(config.id),
+                provider_id=int(provider_id),
+                provider_name=str(provider_name),
+                provider_config_name=config.name_price,
+                latest_pricelist_id=int(pricelist_id) if pricelist_id else None,
+                latest_pricelist_date=price_date,
+                age_days=age_days,
+                max_days_without_update=threshold,
+                stale_override_until=config.stale_override_until,
+                pending_review_id=int(pending.id) if pending is not None else None,
+                pending_review_status=str(pending.status) if pending is not None else None,
+                pending_review_filename=(
+                    str(pending.source_filename) if pending is not None else None
+                ),
+                status=health_status,
+            )
+        )
+    return SupplierPricelistHealthResponse(
+        generated_at=now,
+        summary=summary,
+        items=items,
+    )
 
 
 @router.get(
@@ -1073,22 +1211,31 @@ async def get_supplier_price_trends(
     session: AsyncSession = Depends(get_session),
 ):
     start_date = now_moscow().date() - timedelta(days=days - 1)
-    ranked_stmt = select(
-        PriceList.id.label("pricelist_id"),
-        PriceList.provider_config_id.label("provider_config_id"),
-        PriceList.date.label("price_date"),
-        func.row_number()
-        .over(
-            partition_by=PriceList.provider_config_id,
-            order_by=(
-                PriceList.date.desc().nullslast(),
-                PriceList.id.desc(),
-            ),
+    ranked_stmt = (
+        select(
+            PriceList.id.label("pricelist_id"),
+            PriceList.provider_config_id.label("provider_config_id"),
+            PriceList.date.label("price_date"),
+            func.row_number()
+            .over(
+                partition_by=PriceList.provider_config_id,
+                order_by=(
+                    PriceList.date.desc().nullslast(),
+                    PriceList.id.desc(),
+                ),
+            )
+            .label("rn"),
         )
-        .label("rn"),
-    ).where(
-        PriceList.provider_config_id.is_not(None),
-        PriceList.date >= start_date,
+        .select_from(PriceList)
+        .join(
+            ProviderPriceListConfig,
+            ProviderPriceListConfig.id == PriceList.provider_config_id,
+        )
+        .where(
+            PriceList.provider_config_id.is_not(None),
+            ProviderPriceListConfig.is_active.is_(True),
+            PriceList.date >= start_date,
+        )
     )
     if provider_config_ids:
         ranked_stmt = ranked_stmt.where(
@@ -1179,21 +1326,30 @@ async def get_supplier_price_trends(
     # внутри окна days, а не самая ранняя из показанных points_limit точек.
     # Иначе при days=30 и points_limit=8 подпись врала бы: сравнение шло
     # с 8-й с конца загрузкой, а не с началом периода.
-    earliest_ranked_stmt = select(
-        PriceList.id.label("pricelist_id"),
-        PriceList.provider_config_id.label("provider_config_id"),
-        func.row_number()
-        .over(
-            partition_by=PriceList.provider_config_id,
-            order_by=(
-                PriceList.date.asc().nullslast(),
-                PriceList.id.asc(),
-            ),
+    earliest_ranked_stmt = (
+        select(
+            PriceList.id.label("pricelist_id"),
+            PriceList.provider_config_id.label("provider_config_id"),
+            func.row_number()
+            .over(
+                partition_by=PriceList.provider_config_id,
+                order_by=(
+                    PriceList.date.asc().nullslast(),
+                    PriceList.id.asc(),
+                ),
+            )
+            .label("rn"),
         )
-        .label("rn"),
-    ).where(
-        PriceList.provider_config_id.is_not(None),
-        PriceList.date >= start_date,
+        .select_from(PriceList)
+        .join(
+            ProviderPriceListConfig,
+            ProviderPriceListConfig.id == PriceList.provider_config_id,
+        )
+        .where(
+            PriceList.provider_config_id.is_not(None),
+            ProviderPriceListConfig.is_active.is_(True),
+            PriceList.date >= start_date,
+        )
     )
     if provider_config_ids:
         earliest_ranked_stmt = earliest_ranked_stmt.where(

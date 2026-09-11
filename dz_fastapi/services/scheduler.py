@@ -41,12 +41,14 @@ from dz_fastapi.crud.settings import (
     crud_system_metric_snapshot,
 )
 from dz_fastapi.models.inventory import ReserveStatus, StockReserve
+from dz_fastapi.models.notification import AppNotification
 from dz_fastapi.models.partner import (
     CustomerPriceList,
     CustomerPriceListConfig,
     PriceList,
     Provider,
     ProviderPriceListConfig,
+    ProviderPricelistReview,
     SupplierOrderMessage,
 )
 from dz_fastapi.models.price_control import PriceControlConfig
@@ -801,32 +803,20 @@ def start_scheduler(app: FastAPI):
         replace_existing=True,
     )
 
-    # ── 11. Уведомления об устаревших прайсах ─────────────────────────────
-    # Рабочий день 09–18 МСК, каждые 10 мин (guard дедуплицирует на день)
-    scheduler.add_job(
-        func=notify_pricelist_stale_task,
-        trigger="cron",
-        args=[app],
-        id="notify_pricelist_stale",
-        name="Notify stale pricelists",
-        hour="9-18",
-        minute="*/10",
-        second=40,
-        replace_existing=True,
-    )
-
-    # ── 12. Проверка устаревания прайсов поставщиков ──────────────────────
-    # Один раз в день в 09:10 МСК (было каждый час в :10)
+    # ── 11. Проверка устаревания прайсов поставщиков ──────────────────────
+    # Каждые 30 минут в рабочее время. Повтор за тот же день отсекается
+    # last_stale_alert_at, а ручное продление — stale_override_until.
     scheduler.add_job(
         func=check_provider_pricelist_staleness_task,
         trigger="cron",
         args=[app],
         id="check_provider_pricelist_staleness",
         name="Check provider pricelist staleness",
-        hour=9,
-        minute=10,
+        hour="9-18",
+        minute="10,40",
         second=0,
         replace_existing=True,
+        next_run_time=now_moscow(),
     )
 
     # ── 13. Снимок системных метрик ───────────────────────────────────────
@@ -2677,6 +2667,71 @@ async def check_provider_pricelist_staleness_task(app: FastAPI):
     async with async_session_factory() as session:
         try:
             now = now_moscow()
+            pending_reviews = (
+                await session.execute(
+                    select(ProviderPricelistReview)
+                    .options(
+                        selectinload(ProviderPricelistReview.provider),
+                        selectinload(ProviderPricelistReview.provider_config),
+                    )
+                    .where(
+                        ProviderPricelistReview.status == "pending"
+                    )
+                    .order_by(ProviderPricelistReview.created_at.asc())
+                )
+            ).scalars().all()
+            for review in pending_reviews:
+                review_link = (
+                    f"/providers/{review.provider_id}/edit?pricelist_review={review.id}"
+                )
+                has_open_notification = bool(
+                    (
+                        await session.execute(
+                            select(AppNotification.id)
+                            .where(
+                                AppNotification.link == review_link,
+                                AppNotification.read_at.is_(None),
+                            )
+                            .limit(1)
+                        )
+                    ).scalar_one_or_none()
+                )
+                if has_open_notification:
+                    continue
+                provider_name = (
+                    str(getattr(review.provider, "name", "") or "").strip()
+                    or f"Поставщик #{review.provider_id}"
+                )
+                config_name = (
+                    str(
+                        getattr(review.provider_config, "name_price", "") or ""
+                    ).strip()
+                    or f"#{review.provider_config_id}"
+                )
+                await create_admin_notifications(
+                    session=session,
+                    title=f"Прайс заблокирован: {provider_name} / {config_name}",
+                    message=(
+                        f"Файл {review.source_filename} ожидает обязательной "
+                        "проверки. Примите и опубликуйте его либо отклоните "
+                        "с указанием причины."
+                    ),
+                    level="error",
+                    link=review_link,
+                    payload={
+                        "notification_type": "provider_pricelist_review",
+                        "review_id": int(review.id),
+                        "provider_id": int(review.provider_id),
+                        "provider_config_id": int(review.provider_config_id),
+                        "provider_name": provider_name,
+                        "config_name": config_name,
+                        "source_filename": review.source_filename,
+                        "reasons": list(review.reasons or []),
+                        "metrics": dict(review.metrics or {}),
+                        "examples": list(review.examples or []),
+                    },
+                    commit=False,
+                )
             stmt = (
                 select(ProviderPriceListConfig)
                 .options(selectinload(ProviderPriceListConfig.provider))
@@ -2685,8 +2740,17 @@ async def check_provider_pricelist_staleness_task(app: FastAPI):
             configs = (await session.execute(stmt)).scalars().all()
 
             for config in configs:
-                threshold = config.max_days_without_update or 3
+                threshold = (
+                    3
+                    if config.max_days_without_update is None
+                    else int(config.max_days_without_update)
+                )
                 if threshold <= 0:
+                    continue
+                if (
+                    config.stale_override_until is not None
+                    and config.stale_override_until > now
+                ):
                     continue
                 last_price_stmt = (
                     select(PriceList.date)
@@ -2711,6 +2775,35 @@ async def check_provider_pricelist_staleness_task(app: FastAPI):
                         provider_config_id=config.id,
                         days_diff=days_diff,
                         last_price_date=last_date,
+                    )
+                    provider = config.provider
+                    provider_name = (
+                        str(getattr(provider, "name", "") or "").strip()
+                        or f"Поставщик #{config.provider_id}"
+                    )
+                    config_label = config.name_price or f"#{config.id}"
+                    await create_admin_notifications(
+                        session=session,
+                        title=f"Устарел прайс: {provider_name}",
+                        message=(
+                            f"Источник «{config_label}» не обновлялся "
+                            f"{days_diff} дн. Последний прайс: "
+                            f"{last_date.strftime('%d.%m.%Y')}. "
+                            "Выберите действие, чтобы продолжить работу."
+                        ),
+                        level="warning",
+                        link=f"/providers/{config.provider_id}/edit",
+                        payload={
+                            "notification_type": "pricelist_stale_action",
+                            "provider_id": int(config.provider_id),
+                            "provider_name": provider_name,
+                            "provider_config_id": int(config.id),
+                            "provider_config_name": config_label,
+                            "days_diff": int(days_diff),
+                            "last_price_date": last_date.isoformat(),
+                            "max_days_without_update": int(threshold),
+                        },
+                        commit=False,
                     )
                 config.last_stale_alert_at = now
                 session.add(config)
@@ -2777,23 +2870,45 @@ async def notify_pricelist_stale_task(app: FastAPI):
                 seen_keys.add(key)
                 unique_rows.append((alert, config, provider))
 
-            lines = ["Проблемы с обновлением прайсов:"]
             for alert, config, provider in unique_rows:
+                if (
+                    config.stale_override_until is not None
+                    and config.stale_override_until > now
+                ):
+                    continue
                 config_label = config.name_price or f"#{config.id}"
-                lines.append(
-                    f"- {provider.name} ({config_label}) — "
-                    f"{alert.days_diff} дн. Последний: {alert.last_price_date}"
+                await create_admin_notifications(
+                    session=session,
+                    title=f"Устарел прайс: {provider.name}",
+                    message=(
+                        f"Источник «{config_label}» не обновлялся "
+                        f"{alert.days_diff} дн. Последний прайс: "
+                        f"{alert.last_price_date.strftime('%d.%m.%Y')}. "
+                        "Выберите действие, чтобы продолжить работу."
+                    ),
+                    level="warning",
+                    link=f"/providers/{provider.id}/edit",
+                    payload={
+                        "notification_type": "pricelist_stale_action",
+                        "provider_id": int(provider.id),
+                        "provider_name": provider.name,
+                        "provider_config_id": int(config.id),
+                        "provider_config_name": config_label,
+                        "days_diff": int(alert.days_diff),
+                        "last_price_date": alert.last_price_date.isoformat(),
+                        "max_days_without_update": int(
+                            config.max_days_without_update
+                            if config.max_days_without_update is not None
+                            else 3
+                        ),
+                    },
+                    commit=False,
                 )
-            await create_admin_notifications(
-                session=session,
-                title="Проблемы с обновлением прайсов",
-                message="\n".join(lines),
-                level="warning",
-                link="/admin/settings",
-                commit=False,
-            )
             await session.commit()
-            logger.info("Sent stale pricelist notification to admins")
+            logger.info(
+                "Sent actionable stale pricelist notifications to admins: count=%s",
+                len(unique_rows),
+            )
             if setting:
                 await _mark_scheduler_ran(session, setting, now)
         except Exception as e:

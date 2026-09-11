@@ -3226,6 +3226,52 @@ async def process_customer_pricelist(
             latest_pl = await crud_pricelist.get_latest_pricelist_by_config(
                 session=session, provider_config_id=source.provider_config_id
             )
+            filtered_df = None
+            source_rows_before = 0
+            dragonzap_mode = "normal"
+            if latest_pl is not None:
+                filtered_df = await crud_pricelist.fetch_pricelist_dataframe(
+                    latest_pl.id, session
+                )
+                logger.debug(
+                    _dataframe_summary(filtered_df, "customer_pricelist_latest_df")
+                )
+                if catalog_filter_rules_enabled and not filtered_df.empty:
+                    filtered_df = await _attach_catalog_filter_dimensions(
+                        filtered_df, session, catalog_filter_cache
+                    )
+                source_rows_before = len(filtered_df)
+                source_settings = source.additional_filters or {}
+                dragonzap_mode = str(
+                    source_settings.get("DRAGONZAP_MODE") or ""
+                ).strip().lower()
+                if pipeline_v2 and transform_enabled and not dragonzap_mode:
+                    dragonzap_mode = "auto"
+                filtered_df = _apply_source_filters(
+                    filtered_df,
+                    source,
+                    dragonzap_mode=dragonzap_mode or "normal",
+                )
+                source_filter_summary.append(
+                    {
+                        "source_id": int(source.id),
+                        "provider_config_id": int(source.provider_config_id),
+                        "pricelist_id": int(latest_pl.id),
+                        "rows_before": source_rows_before,
+                        "rows_after": len(filtered_df),
+                        "excluded": max(source_rows_before - len(filtered_df), 0),
+                        "transform_only": int(
+                            filtered_df.get(
+                                "__transform_only", pd.Series(dtype=bool)
+                            )
+                            .fillna(False)
+                            .astype(bool)
+                            .sum()
+                        ),
+                        "dragonzap_mode": dragonzap_mode or "normal",
+                    }
+                )
+            participates = filtered_df is None or not filtered_df.empty
             pending_review = (
                 await session.execute(
                     select(ProviderPricelistReview)
@@ -3253,6 +3299,15 @@ async def process_customer_pricelist(
                 if source_date is not None
                 else None
             )
+            stale_override_until = getattr(
+                source.provider_config,
+                "stale_override_until",
+                None,
+            )
+            stale_override_active = bool(
+                stale_override_until is not None
+                and stale_override_until > now_moscow()
+            )
             freshness = {
                 "source_id": int(source.id),
                 "provider_config_id": int(source.provider_config_id),
@@ -3261,6 +3316,16 @@ async def process_customer_pricelist(
                 "pricelist_date": source_date.isoformat() if source_date else None,
                 "age_business_days": age_business_days,
                 "max_age_business_days": max_source_age,
+                "stale_override_until": (
+                    stale_override_until.isoformat()
+                    if stale_override_until is not None
+                    else None
+                ),
+                "stale_override_active": stale_override_active,
+                "participates": participates,
+                "rows_after_source_filters": (
+                    len(filtered_df) if filtered_df is not None else None
+                ),
                 "pending_review_id": (
                     int(pending_review.id) if pending_review else None
                 ),
@@ -3271,66 +3336,29 @@ async def process_customer_pricelist(
                     str(pending_review.source_filename) if pending_review else None
                 ),
                 "fresh": (
-                    pending_review is None
-                    and
-                    age_business_days is not None
-                    and age_business_days <= max_source_age
+                    not participates
+                    or (
+                        pending_review is None
+                        and age_business_days is not None
+                        and (
+                            age_business_days <= max_source_age
+                            or stale_override_active
+                        )
+                    )
                 ),
             }
             source_freshness_summary.append(freshness)
             if not freshness["fresh"]:
                 stale_sources.append(freshness)
-            resolved_sources.append((source, latest_pl))
+            resolved_sources.append((source, latest_pl, filtered_df))
 
         if stale_sources and bool(getattr(config, "block_stale_sources", True)):
             raise StaleCustomerPricelistSourcesError(stale_sources)
 
-        for source, latest_pl in resolved_sources:
-            if not latest_pl:
-                continue
-
-            df = await crud_pricelist.fetch_pricelist_dataframe(
-                latest_pl.id, session
-            )
-            if df.empty:
+        for source, latest_pl, df in resolved_sources:
+            if not latest_pl or df is None or df.empty:
                 continue
             source_pricelist_ids.append(int(latest_pl.id))
-            logger.debug(_dataframe_summary(df, "customer_pricelist_latest_df"))
-
-            if catalog_filter_rules_enabled:
-                df = await _attach_catalog_filter_dimensions(
-                    df, session, catalog_filter_cache
-                )
-
-            source_rows_before = len(df)
-            source_settings = source.additional_filters or {}
-            dragonzap_mode = str(source_settings.get("DRAGONZAP_MODE") or "").strip().lower()
-            if pipeline_v2 and transform_enabled and not dragonzap_mode:
-                dragonzap_mode = "auto"
-            df = _apply_source_filters(
-                df,
-                source,
-                dragonzap_mode=dragonzap_mode or "normal",
-            )
-            source_filter_summary.append(
-                {
-                    "source_id": int(source.id),
-                    "provider_config_id": int(source.provider_config_id),
-                    "pricelist_id": int(latest_pl.id),
-                    "rows_before": source_rows_before,
-                    "rows_after": len(df),
-                    "excluded": max(source_rows_before - len(df), 0),
-                    "transform_only": int(
-                        df.get("__transform_only", pd.Series(dtype=bool))
-                        .fillna(False)
-                        .astype(bool)
-                        .sum()
-                    ),
-                    "dragonzap_mode": dragonzap_mode or "normal",
-                }
-            )
-            if df.empty:
-                continue
 
             df = crud_customer_pricelist.apply_coefficient(df, config, apply_general_markup=False)
             df = _apply_source_markups(df, config, source)

@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 import pandas as pd
 import pytest
+from fastapi import HTTPException
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -801,3 +802,32 @@ async def test_v2_pipeline_transforms_filtered_dragonzap_into_original_draft(
     assert blocked_source["pending_review_id"] == review.id
     assert blocked_source["pending_review_filename"] == "new-price.xlsx"
     assert "ожидает проверки" in str(review_exc.value)
+
+    source = (
+        await test_session.execute(
+            select(CustomerPriceListSource).where(
+                CustomerPriceListSource.customer_config_id == config.id,
+                CustomerPriceListSource.provider_config_id == provider_config.id,
+            )
+        )
+    ).scalar_one()
+    source.max_price = 0
+    test_session.add(source)
+    await test_session.commit()
+
+    # Ожидающий файл не блокирует рассылку, если после фильтров источник
+    # фактически не даёт ни одной позиции в этот клиентский прайс.
+    with pytest.raises(HTTPException) as empty_exc:
+        await process_service.process_customer_pricelist(
+            customer=customer,
+            request=CustomerPriceListCreate(
+                customer_id=customer.id,
+                config_id=config.id,
+                items=[],
+            ),
+            session=test_session,
+            include_autoparts_response=False,
+            delivery_mode="draft",
+        )
+    assert empty_exc.value.status_code == 400
+    assert not isinstance(empty_exc.value, StaleCustomerPricelistSourcesError)

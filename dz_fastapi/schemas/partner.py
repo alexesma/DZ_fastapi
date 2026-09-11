@@ -703,6 +703,7 @@ class ProviderPriceListConfigUpdate(BaseModel):
 class ProviderPriceListConfigResponse(ProviderPriceListConfigBase):
     id: int
     provider_id: int
+    stale_override_until: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -1638,6 +1639,7 @@ class ProviderPriceListConfigOut(BaseModel):
     max_quantity: int | None = None
     exclude_positions: List[Dict[str, str]] = Field(default_factory=list)
     max_days_without_update: int | None = 3
+    stale_override_until: datetime | None = None
     min_delivery_day: int | None = 1
     max_delivery_day: int | None = 3
     is_active: bool = True
