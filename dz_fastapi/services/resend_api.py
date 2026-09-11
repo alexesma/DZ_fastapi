@@ -17,6 +17,15 @@ RESEND_API_BASE_URL = os.getenv(
 RESEND_API_TIMEOUT = int(os.getenv("RESEND_API_TIMEOUT", "20"))
 MAX_RESEND_EMAIL_BYTES = 40 * 1024 * 1024
 
+# Коды, при которых Resend сам просит повторить: перегрузка, ограничение
+# частоты, внутренние сбои. На рассылке прайсов это выглядело так —
+# «HTTP 408 Operation timed out. Please try again later», и одинаковые по
+# объёму прайсы то уходили, то нет. Повтор делается только при наличии
+# ключа идемпотентности: без него письмо можно отправить дважды.
+RESEND_RETRYABLE_STATUSES = frozenset({408, 429, 500, 502, 503, 504})
+RESEND_SEND_ATTEMPTS = 3
+RESEND_RETRY_PAUSES = (1.0, 4.0)
+
 
 def _parse_iso_datetime(value: str | None) -> datetime | None:
     if not value:
@@ -253,6 +262,32 @@ async def fetch_received_emails_for_address(
     return results
 
 
+def _wait_before_resend_retry(
+    attempt: int,
+    idempotency_key: str | None,
+    reason: str,
+) -> bool:
+    """Ждёт перед повтором и говорит, стоит ли он вообще.
+
+    Без ключа идемпотентности повтор не делаем: первый запрос мог дойти
+    до Resend и создать письмо, а ответ потеряться — тогда клиент получит
+    прайс дважды.
+    """
+    if attempt >= RESEND_SEND_ATTEMPTS - 1 or not idempotency_key:
+        return False
+    pause = RESEND_RETRY_PAUSES[min(attempt, len(RESEND_RETRY_PAUSES) - 1)]
+    logger.warning(
+        "Resend: %s; повтор %s из %s через %.0f с с ключом %s",
+        reason,
+        attempt + 2,
+        RESEND_SEND_ATTEMPTS,
+        pause,
+        idempotency_key,
+    )
+    time.sleep(pause)
+    return True
+
+
 def send_email_via_resend(
     *,
     api_key: str | None,
@@ -321,7 +356,7 @@ def send_email_via_resend(
         request_size,
         request_timeout.write,
     )
-    for attempt in range(2):
+    for attempt in range(RESEND_SEND_ATTEMPTS):
         try:
             response = httpx.post(
                 f"{RESEND_API_BASE_URL}/emails",
@@ -331,27 +366,31 @@ def send_email_via_resend(
             )
             response.raise_for_status()
             logger.info(
-                "Email sent via Resend from=%s to=%s id=%s",
+                "Email sent via Resend from=%s to=%s id=%s attempt=%s",
                 from_email,
                 ",".join(to_email),
                 response.json().get("id"),
+                attempt + 1,
             )
             return True
         except httpx.TimeoutException as exc:
-            if attempt == 0 and idempotency_key:
-                logger.warning(
-                    "Resend timed out; retrying safely with idempotency key %s: %s",
-                    idempotency_key,
-                    exc,
-                )
-                time.sleep(1)
+            if _wait_before_resend_retry(
+                attempt, idempotency_key, f"истекло время ожидания ({exc})"
+            ):
                 continue
             logger.error("Failed to send email via Resend: %s", exc)
             return False
         except httpx.HTTPStatusError as exc:
+            status = exc.response.status_code
+            if status in RESEND_RETRYABLE_STATUSES and (
+                _wait_before_resend_retry(
+                    attempt, idempotency_key, f"ответ HTTP {status}"
+                )
+            ):
+                continue
             logger.error(
                 "Failed to send email via Resend: HTTP %s %s",
-                exc.response.status_code,
+                status,
                 exc.response.text[:1000],
             )
             return False
