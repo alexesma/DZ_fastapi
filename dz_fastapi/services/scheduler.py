@@ -96,6 +96,7 @@ from dz_fastapi.services.pricelist_review_queue import process_next_provider_pri
 from dz_fastapi.services.process import (
     StaleCustomerPricelistSourcesError,
     customer_pricelist_requires_draft,
+    describe_stale_customer_pricelist_sources,
     process_customer_pricelist,
     process_provider_pricelist,
 )
@@ -2114,6 +2115,7 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
         success_count = 0
         error_count = 0
         stale_blocked_count = 0
+        stale_excluded_count = 0
         memory_samples = []
         stopped_for_memory = False
         for config_id, customer in pending:
@@ -2125,12 +2127,72 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
             )
             try:
                 async with async_session_factory() as session:
-                    await process_customer_pricelist(
+                    generated_pricelist = await process_customer_pricelist(
                         customer=customer,
                         request=request,
                         session=session,
                         include_autoparts_response=False,
                     )
+                excluded_sources = [
+                    row
+                    for row in (
+                        getattr(generated_pricelist, "generation_summary", {}) or {}
+                    ).get("source_freshness", [])
+                    if row.get("excluded_from_delivery")
+                ]
+                if excluded_sources:
+                    stale_excluded_count += 1
+                    details = describe_stale_customer_pricelist_sources(excluded_sources)
+                    logger.warning(
+                        "Customer pricelist sent without stale sources: "
+                        "config_id=%s details=%s",
+                        config_id,
+                        details,
+                    )
+                    try:
+                        async with async_session_factory() as notice_session:
+                            stale_config = await notice_session.get(
+                                CustomerPriceListConfig,
+                                config_id,
+                            )
+                            notify = bool(
+                                stale_config
+                                and (
+                                    stale_config.last_stale_blocked_at is None
+                                    or stale_config.last_stale_blocked_at.date()
+                                    != now_moscow().date()
+                                )
+                            )
+                            if stale_config:
+                                stale_config.last_stale_blocked_at = now_moscow()
+                                notice_session.add(stale_config)
+                            if notify:
+                                await create_admin_notifications(
+                                    session=notice_session,
+                                    title="Устаревший источник исключён из рассылки",
+                                    message=(
+                                        f"Конфигурация #{config_id}. {details}. "
+                                        "Остальные актуальные источники продолжают рассылаться."
+                                    ),
+                                    level="warning",
+                                    link="/admin/customer-pricelists",
+                                    payload={
+                                        "notification_type": (
+                                            "customer_pricelist_stale_sources_excluded"
+                                        ),
+                                        "customer_pricelist_config_id": int(config_id),
+                                        "sources": excluded_sources,
+                                    },
+                                    commit=False,
+                                )
+                            await notice_session.commit()
+                    except Exception as notify_exc:
+                        logger.error(
+                            "Failed to record excluded stale sources for config %s: %s",
+                            config_id,
+                            notify_exc,
+                            exc_info=True,
+                        )
                 success_count += 1
             except Exception as exc:
                 stale_blocked = isinstance(exc, StaleCustomerPricelistSourcesError)
@@ -2237,11 +2299,12 @@ async def send_scheduled_customer_pricelists_task(app: FastAPI):
         trace.details["success_count"] = success_count
         trace.details["error_count"] = error_count
         trace.details["stale_blocked_count"] = stale_blocked_count
+        trace.details["stale_excluded_count"] = stale_excluded_count
         trace.details["memory_samples"] = memory_samples
         trace.details["stopped_for_memory"] = stopped_for_memory
         if error_count > 0:
             trace.details["__trace_status"] = "error"
-        elif stale_blocked_count > 0:
+        elif stale_blocked_count > 0 or stale_excluded_count > 0:
             trace.details["__trace_status"] = "needs_review"
 
 

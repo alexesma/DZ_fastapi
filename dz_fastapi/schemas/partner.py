@@ -383,6 +383,7 @@ class CustomerPriceListResponse(CustomerPriceListBase):
     generation_status: Optional[str] = None
     generated_at: Optional[datetime] = None
     artifact_filename: Optional[str] = None
+    generation_summary: Dict[str, Any] = Field(default_factory=dict)
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -1155,7 +1156,10 @@ class CustomerPriceListConfigBase(BaseModel):
     schedule_days: Optional[List[str]] = Field(default_factory=list)
     schedule_times: Optional[List[str]] = Field(default_factory=list)
     max_source_age_business_days: int = Field(default=1, ge=0, le=30)
-    block_stale_sources: bool = True
+    block_stale_sources: bool = Field(
+        default=True,
+        description="Exclude stale sources from delivery while keeping fresh sources active",
+    )
     emails: Optional[List[EmailStr]] = Field(default_factory=list)
     outgoing_email_account_id: Optional[int] = Field(default=None, ge=1)
     is_active: Optional[bool] = True

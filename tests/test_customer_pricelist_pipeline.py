@@ -748,26 +748,79 @@ async def test_v2_pipeline_transforms_filtered_dragonzap_into_original_draft(
     assert approve_response.status_code == 409, approve_response.text
     assert "Контроль качества не пройден" in approve_response.json()["detail"]
 
+    fresh_provider_config = ProviderPriceListConfig(
+        provider_id=provider.id,
+        start_row=1,
+        oem_col=0,
+        qty_col=1,
+        price_col=2,
+        name_price="FRESH_PIPELINE_SOURCE",
+        name_mail="FRESH_PIPELINE_SOURCE",
+    )
+    fresh_part = AutoPart(
+        brand_id=geely.id,
+        oem_number="FRESH1064001701",
+        name="Свежая позиция",
+    )
+    test_session.add_all([fresh_provider_config, fresh_part])
+    await test_session.flush()
+    fresh_pricelist = PriceList(
+        date=date.today(),
+        provider_id=provider.id,
+        provider_config_id=fresh_provider_config.id,
+        is_active=True,
+    )
+    fresh_customer_source = CustomerPriceListSource(
+        customer_config_id=config.id,
+        provider_config_id=fresh_provider_config.id,
+        enabled=True,
+        markup=1,
+        brand_filters={},
+        position_filters={},
+        additional_filters={},
+    )
+    test_session.add_all([fresh_pricelist, fresh_customer_source])
+    await test_session.flush()
+    test_session.add(
+        PriceListAutoPartAssociation(
+            pricelist_id=fresh_pricelist.id,
+            autopart_id=fresh_part.id,
+            quantity=8,
+            price=500,
+        )
+    )
+
     pricelist.date = date.today() - timedelta(days=7)
     config.max_source_age_business_days = 1
     config.block_stale_sources = True
     test_session.add_all([pricelist, config])
     await test_session.commit()
 
-    with pytest.raises(StaleCustomerPricelistSourcesError) as exc_info:
-        await process_service.process_customer_pricelist(
-            customer=customer,
-            request=CustomerPriceListCreate(
-                customer_id=customer.id,
-                config_id=config.id,
-                items=[],
-            ),
-            session=test_session,
-            include_autoparts_response=False,
-            delivery_mode="draft",
-        )
-    assert "Рассылка отложена" in str(exc_info.value)
-    assert exc_info.value.stale_sources[0]["provider_config_id"] == provider_config.id
+    stale_filtered_response = await process_service.process_customer_pricelist(
+        customer=customer,
+        request=CustomerPriceListCreate(
+            customer_id=customer.id,
+            config_id=config.id,
+            items=[],
+        ),
+        session=test_session,
+        include_autoparts_response=False,
+        delivery_mode="draft",
+    )
+    stale_filtered = await test_session.get(CustomerPriceList, stale_filtered_response.id)
+    stale_summary = stale_filtered.generation_summary["source_freshness"]
+    stale_row = next(
+        row for row in stale_summary if row["provider_config_id"] == provider_config.id
+    )
+    fresh_row = next(
+        row for row in stale_summary if row["provider_config_id"] == fresh_provider_config.id
+    )
+    assert stale_row["excluded_from_delivery"] is True
+    assert fresh_row["excluded_from_delivery"] is False
+    assert stale_filtered.generation_summary["source_pricelist_ids"] == [fresh_pricelist.id]
+    assert stale_filtered_response.generation_summary["source_pricelist_ids"] == [
+        fresh_pricelist.id
+    ]
 
     pricelist.date = date.today()
     review = ProviderPricelistReview(
@@ -786,22 +839,26 @@ async def test_v2_pipeline_transforms_filtered_dragonzap_into_original_draft(
     test_session.add_all([pricelist, review])
     await test_session.commit()
 
-    with pytest.raises(StaleCustomerPricelistSourcesError) as review_exc:
-        await process_service.process_customer_pricelist(
-            customer=customer,
-            request=CustomerPriceListCreate(
-                customer_id=customer.id,
-                config_id=config.id,
-                items=[],
-            ),
-            session=test_session,
-            include_autoparts_response=False,
-            delivery_mode="draft",
-        )
-    blocked_source = review_exc.value.stale_sources[0]
-    assert blocked_source["pending_review_id"] == review.id
-    assert blocked_source["pending_review_filename"] == "new-price.xlsx"
-    assert "ожидает проверки" in str(review_exc.value)
+    review_filtered_response = await process_service.process_customer_pricelist(
+        customer=customer,
+        request=CustomerPriceListCreate(
+            customer_id=customer.id,
+            config_id=config.id,
+            items=[],
+        ),
+        session=test_session,
+        include_autoparts_response=False,
+        delivery_mode="draft",
+    )
+    review_filtered = await test_session.get(CustomerPriceList, review_filtered_response.id)
+    review_source = next(
+        row
+        for row in review_filtered.generation_summary["source_freshness"]
+        if row["provider_config_id"] == provider_config.id
+    )
+    assert review_source["excluded_from_delivery"] is True
+    assert review_source["pending_review_id"] == review.id
+    assert review_source["pending_review_filename"] == "new-price.xlsx"
 
     source = (
         await test_session.execute(
@@ -812,7 +869,8 @@ async def test_v2_pipeline_transforms_filtered_dragonzap_into_original_draft(
         )
     ).scalar_one()
     source.max_price = 0
-    test_session.add(source)
+    fresh_customer_source.enabled = False
+    test_session.add_all([source, fresh_customer_source])
     await test_session.commit()
 
     # Ожидающий файл не блокирует рассылку, если после фильтров источник

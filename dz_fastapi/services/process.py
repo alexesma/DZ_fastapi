@@ -131,28 +131,36 @@ from dz_fastapi.services.watchlist import handle_provider_pricelist_watch
 logger = logging.getLogger("dz_fastapi")
 
 
-class StaleCustomerPricelistSourcesError(HTTPException):
-    def __init__(self, stale_sources: list[dict[str, Any]]):
-        self.stale_sources = stale_sources
-        details = "; ".join(
-            (
-                f"{row['source_name']}: "
-                + (
-                    (
-                        f"новый файл {row['pending_review_filename']} "
-                        "ожидает проверки"
-                    )
-                    if row.get("pending_review_id")
-                    else (
-                        f"прайс от {row['pricelist_date']} "
-                        f"({row['age_business_days']} раб. дн.)"
-                        if row.get("pricelist_date")
-                        else "прайс ещё не загружался"
-                    )
+def describe_stale_customer_pricelist_sources(
+    stale_sources: list[dict[str, Any]],
+) -> str:
+    return "; ".join(
+        (
+            f"{row['source_name']}: "
+            + (
+                (
+                    f"новый файл {row['pending_review_filename']} "
+                    "ожидает проверки"
+                )
+                if row.get("pending_review_id")
+                else (
+                    f"прайс от {row['pricelist_date']} "
+                    f"({row['age_business_days']} раб. дн.)"
+                    if row.get("pricelist_date")
+                    else "прайс ещё не загружался"
                 )
             )
-            for row in stale_sources
         )
+        for row in stale_sources
+    )
+
+
+class StaleCustomerPricelistSourcesError(HTTPException):
+    """Compatibility error for callers that still explicitly block stale sources."""
+
+    def __init__(self, stale_sources: list[dict[str, Any]]):
+        self.stale_sources = stale_sources
+        details = describe_stale_customer_pricelist_sources(stale_sources)
         self.message = "Рассылка отложена: источники прайса не готовы. " + details
         super().__init__(status_code=409, detail=self.message)
 
@@ -3211,9 +3219,6 @@ async def process_customer_pricelist(
                 status_code=400,
                 detail="No autoparts to include in the pricelist",
             )
-        dz_expand_enabled = any(
-            s.enabled and (s.additional_filters or {}).get("DZ_EXPAND_BRANDS") for s in sources
-        )
         enabled_sources = [source for source in sources if source.enabled]
         resolved_sources = []
         max_source_age = max(
@@ -3347,17 +3352,33 @@ async def process_customer_pricelist(
                     )
                 ),
             }
+            freshness["excluded_from_delivery"] = bool(
+                not freshness["fresh"]
+                and getattr(config, "block_stale_sources", True)
+            )
             source_freshness_summary.append(freshness)
             if not freshness["fresh"]:
                 stale_sources.append(freshness)
-            resolved_sources.append((source, latest_pl, filtered_df))
+            resolved_sources.append((source, latest_pl, filtered_df, freshness))
 
-        if stale_sources and bool(getattr(config, "block_stale_sources", True)):
-            raise StaleCustomerPricelistSourcesError(stale_sources)
+        excluded_stale_sources = [
+            source for source in stale_sources if source["excluded_from_delivery"]
+        ]
+        if excluded_stale_sources:
+            logger.warning(
+                "Stale sources excluded from customer pricelist: config_id=%s "
+                "provider_config_ids=%s",
+                config.id,
+                [source["provider_config_id"] for source in excluded_stale_sources],
+            )
 
-        for source, latest_pl, df in resolved_sources:
+        for source, latest_pl, df, freshness in resolved_sources:
+            if freshness["excluded_from_delivery"]:
+                continue
             if not latest_pl or df is None or df.empty:
                 continue
+            if (source.additional_filters or {}).get("DZ_EXPAND_BRANDS"):
+                dz_expand_enabled = True
             source_pricelist_ids.append(int(latest_pl.id))
 
             df = crud_customer_pricelist.apply_coefficient(df, config, apply_general_markup=False)
@@ -4166,6 +4187,7 @@ async def process_customer_pricelist(
         generation_status=customer_pricelist.generation_status,
         generated_at=customer_pricelist.generated_at,
         artifact_filename=customer_pricelist.artifact_filename,
+        generation_summary=generation_summary,
     )
     return response
 
