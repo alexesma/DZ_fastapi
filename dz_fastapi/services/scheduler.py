@@ -2500,9 +2500,14 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
                 )
                 break
     except asyncio.CancelledError:
+        # Отмену пробрасываем, а не глотаем. Пустой return отдавал
+        # вызывающему None, тот сразу обращался к email_summary.get() и
+        # штатная остановка контейнера превращалась в уведомление
+        # «Ошибка при автоматической загрузке прайсов поставщиков:
+        # 'NoneType' object has no attribute 'get'». Обработчик остановки
+        # у вызывающего уже есть, ему и передаём.
         if getattr(app.state, "is_shutting_down", False):
             logger.info("Отмена обработки писем провайдеров при остановке")
-            return
         raise
     process_end = time.perf_counter()
     logger.info(f"Обработка прайса выполнена " f"за {process_end - process_start:.2f} секунд")
@@ -2627,6 +2632,14 @@ async def download_price_provider_task(app: FastAPI):
                 trace.details["provider_id"] = getattr(provider, "id", None)
                 trace.details["provider_name"] = getattr(provider, "name", None)
                 email_summary = await process_new_provider_emails(session, app)
+                if not email_summary:
+                    # Сводки нет только если обработку прервали. Это не
+                    # ошибка регламента, и уведомлять о ней не нужно.
+                    logger.info(
+                        "Обработка писем провайдеров прервана без сводки"
+                    )
+                    trace.details["interrupted_without_summary"] = True
+                    return
                 trace.details["email_processing_summary"] = email_summary
                 if email_summary.get("stopped_for_memory"):
                     trace.details["__trace_status"] = "error"

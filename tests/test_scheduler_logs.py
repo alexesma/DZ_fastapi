@@ -420,3 +420,71 @@ async def test_should_run_scheduled_job_allows_watchlist_notify_catch_up(
 
     assert should_run is True
     assert resolved_setting is setting
+
+
+@pytest.mark.asyncio
+async def test_shutdown_during_price_download_is_not_reported_as_error(
+    monkeypatch,
+):
+    """Остановка контейнера — не ошибка регламента.
+
+    Отмена внутри обработки писем возвращала вызывающему None, тот шёл в
+    email_summary.get() и падал с «'NoneType' object has no attribute
+    'get'». Деплой посреди прохода (а он идёт 20+ минут при запуске
+    каждые 15) стабильно давал уведомление об ошибке.
+    """
+    import asyncio
+
+    уведомления = []
+
+    async def прерванная_обработка(session, app):
+        raise asyncio.CancelledError()
+
+    async def запомнить_уведомление(**kwargs):
+        уведомления.append(kwargs)
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.scheduler.process_new_provider_emails",
+        прерванная_обработка,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.scheduler._notify_scheduler_issue",
+        запомнить_уведомление,
+    )
+
+    from dz_fastapi.main import app
+
+    app.state.is_shutting_down = True
+    try:
+        await download_price_provider_task(app)
+    finally:
+        app.state.is_shutting_down = False
+
+    assert уведомления == []
+
+
+@pytest.mark.asyncio
+async def test_missing_summary_is_not_reported_as_error(monkeypatch):
+    """Подстраховка: пустая сводка не должна доходить до .get()."""
+    уведомления = []
+
+    async def без_сводки(session, app):
+        return None
+
+    async def запомнить_уведомление(**kwargs):
+        уведомления.append(kwargs)
+
+    monkeypatch.setattr(
+        "dz_fastapi.services.scheduler.process_new_provider_emails",
+        без_сводки,
+    )
+    monkeypatch.setattr(
+        "dz_fastapi.services.scheduler._notify_scheduler_issue",
+        запомнить_уведомление,
+    )
+
+    from dz_fastapi.main import app
+
+    await download_price_provider_task(app)
+
+    assert уведомления == []
