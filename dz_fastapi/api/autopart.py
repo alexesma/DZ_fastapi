@@ -1904,6 +1904,12 @@ async def get_autoparts_catalog(
     q_brand: Optional[str] = Query(
         None, description="Поиск по бренду (от 3 символов)"
     ),
+    partssoft: Optional[bool] = Query(None, description="Фильтр по источнику Parts-Soft"),
+    content: Optional[str] = Query(
+        None,
+        pattern="^(with_photo|with_description|complete|missing_content)$",
+        description="Фильтр наполненности карточки",
+    ),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
@@ -1913,6 +1919,8 @@ async def get_autoparts_catalog(
         q_oem=q_oem,
         q_name=q_name,
         q_brand=q_brand,
+        partssoft=partssoft,
+        content=content,
         offset=offset,
         limit=limit,
     )
@@ -1973,6 +1981,9 @@ async def get_autoparts_catalog(
                 regulatory_source=ap.regulatory_source,
                 applicability=ap.applicability,
                 partssoft_product_id=ap.partssoft_product_id,
+                has_description=bool((ap.description or "").strip()),
+                photo_count=len(ap.photos or []),
+                primary_photo_url=(ap.photos[0].url if ap.photos else None),
                 categories=ap.categories,
                 storage_locations=ap.storage_locations,
                 stock_quantity=stock_map.get(ap.id, 0),

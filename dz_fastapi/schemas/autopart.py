@@ -492,6 +492,9 @@ class AutoPartCatalogItem(BaseModel):
     regulatory_source: Optional[str] = None
     applicability: Optional[str] = None
     partssoft_product_id: Optional[int] = None
+    has_description: bool = False
+    photo_count: int = 0
+    primary_photo_url: Optional[str] = None
     categories: List[str] = Field(default_factory=list)
     storage_locations: List[str] = Field(default_factory=list)
     stock_quantity: int = 0

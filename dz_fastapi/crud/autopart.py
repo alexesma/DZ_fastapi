@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import HTTPException
-from sqlalchemy import and_, func, update
+from sqlalchemy import and_, func, or_, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -436,6 +436,8 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
         q_oem: Optional[str] = None,
         q_name: Optional[str] = None,
         q_brand: Optional[str] = None,
+        partssoft: Optional[bool] = None,
+        content: Optional[str] = None,
         offset: int = 0,
         limit: int = 50,
     ) -> tuple[list[AutoPart], int]:
@@ -453,6 +455,20 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
             where_clauses.append(AutoPart.name.ilike(f"%{q_name.strip()}%"))
         if q_brand and len(q_brand) >= 3:
             where_clauses.append(Brand.name.ilike(f"%{q_brand.strip()}%"))
+        if partssoft is True:
+            where_clauses.append(AutoPart.partssoft_product_id.is_not(None))
+        elif partssoft is False:
+            where_clauses.append(AutoPart.partssoft_product_id.is_(None))
+        has_description = func.length(func.trim(func.coalesce(AutoPart.description, ""))) > 0
+        has_photo = AutoPart.photos.any()
+        if content == "with_photo":
+            where_clauses.append(has_photo)
+        elif content == "with_description":
+            where_clauses.append(has_description)
+        elif content == "complete":
+            where_clauses.extend((has_photo, has_description))
+        elif content == "missing_content":
+            where_clauses.append(or_(~has_photo, ~has_description))
 
         # COUNT (plain SQL, no ORM loading options)
         count_stmt = (
@@ -472,6 +488,7 @@ class CRUDAutopart(CRUDBase[AutoPart, AutoPartCreate, AutoPartUpdate]):
                 selectinload(AutoPart.categories),
                 selectinload(AutoPart.storage_locations),
                 selectinload(AutoPart.brand),
+                selectinload(AutoPart.photos),
             )
         )
         for wc in where_clauses:

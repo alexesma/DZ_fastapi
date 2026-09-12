@@ -1059,7 +1059,9 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                 target_uid.last_uid = max(target_uid.last_uid or 0, source_uid.last_uid or 0)
                 merged_folders = dict(target_uid.folder_last_uids or {})
                 for folder, uid in (source_uid.folder_last_uids or {}).items():
-                    merged_folders[folder] = max(int(merged_folders.get(folder) or 0), int(uid or 0))
+                    merged_folders[folder] = max(
+                        int(merged_folders.get(folder) or 0), int(uid or 0)
+                    )
                 target_uid.folder_last_uids = merged_folders
                 await session.delete(source_uid)
                 await session.flush()
