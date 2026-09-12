@@ -35,6 +35,11 @@ MEDIAN_PRICE_CHANGE_LIMIT = 0.10
 ITEM_PRICE_CHANGE_LIMIT = 0.10
 CHANGED_ITEMS_SHARE_LIMIT = 0.20
 
+# Доля округлённых остатков, выше которой это уже не «поставщик прислал
+# дробные остатки», а перепутанные колонки цены и количества. У Кунцево
+# при такой подмене дробными оказались 10 447 остатков из 10 556 — 99%.
+QUANTITY_ROUNDED_SHARE_LIMIT = 0.10
+
 PRICELIST_ALERT_TITLE_PREFIX = "Прайс заблокирован:"
 PRICELIST_REVIEW_DIR = os.path.join("uploads", "pricelist_reviews")
 
@@ -529,6 +534,31 @@ async def _load_previous_price_map(
     return int(latest_id), prices
 
 
+def describe_rounded_quantities(parse_stats: dict | None) -> str | None:
+    """Текст о массовом округлении остатков, если оно похоже на подмену.
+
+    Дробный остаток сам по себе законен, поэтому загрузку не останавливаем
+    и решение о блокировке оставляем проверке цен. Но когда дробным
+    оказывается каждый десятый остаток и больше, это почти всегда значит,
+    что поставщик переставил колонки цены и количества — и человеку нужно
+    увидеть это числами, а не искать причину месяцами.
+    """
+    if not parse_stats:
+        return None
+    checked = int(parse_stats.get("quantity_rows_checked") or 0)
+    rounded = int(parse_stats.get("rows_quantity_rounded") or 0)
+    if checked <= 0 or rounded <= 0:
+        return None
+    share = rounded / checked
+    if share < QUANTITY_ROUNDED_SHARE_LIMIT:
+        return None
+    return (
+        f"Дробных остатков {rounded} из {checked} ({share:.0%}) — они "
+        "округлены. Возможно, в файле перепутаны колонки цены и "
+        "количества: проверьте настройки колонок конфигурации."
+    )
+
+
 async def guard_automatic_provider_pricelist(
     *,
     session: AsyncSession,
@@ -538,6 +568,7 @@ async def guard_automatic_provider_pricelist(
     source_filename: str | None = None,
     file_content: bytes | None = None,
     file_extension: str | None = None,
+    parse_stats: dict | None = None,
 ) -> PricelistAnomalyResult:
     previous_id, previous_prices = await _load_previous_price_map(
         session,
@@ -558,6 +589,27 @@ async def guard_automatic_provider_pricelist(
         0,
         len(raw_candidate_prices) - len(candidate_prices),
     )
+    if parse_stats:
+        result.metrics["quantity_rows_checked"] = int(
+            parse_stats.get("quantity_rows_checked") or 0
+        )
+        result.metrics["rows_quantity_rounded"] = int(
+            parse_stats.get("rows_quantity_rounded") or 0
+        )
+    rounded_note = describe_rounded_quantities(parse_stats)
+    if rounded_note:
+        # Блокировку не навешиваем: дробные остатки бывают законными.
+        # Но в разборе причин это должно стоять первым — подмена колонок
+        # объясняет и расхождение цен, из-за которого прайс придержан.
+        result.reasons.insert(0, rounded_note)
+        logger.warning(
+            "Provider pricelist quantities rounded: provider_id=%s "
+            "config_id=%s source=%s %s",
+            provider.id,
+            provider_config.id,
+            source_filename,
+            rounded_note,
+        )
 
     if not result.blocked:
         return result

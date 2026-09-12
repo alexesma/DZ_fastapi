@@ -2116,6 +2116,18 @@ def _prepare_pricelist_data(
     data_df["multiplicity"] = data_df["multiplicity"].fillna(1).apply(int)
     data_df["price"] = pd.to_numeric(data_df["price"], errors="coerce")
     data_df.dropna(subset=["quantity", "price"], inplace=True)
+    # Остаток в базе целочисленный (quantity integer NOT NULL), и раньше
+    # дробное значение срывало всю загрузку: запись падала, прайс не
+    # создавался, водяной знак письма не двигался — поставщик молча
+    # выпадал из обновлений до тех пор, пока это не замечали руками.
+    # Кунцево так простояло четыре с половиной месяца.
+    #
+    # Округляем и позицию сохраняем: единичные дробные остатки поставщики
+    # присылают и в норме. Массовая дробность — признак того, что колонки
+    # перепутаны, поэтому её считаем и выносим в статистику.
+    quantity_rows = int(len(data_df))
+    rounded_quantity_rows = int((data_df["quantity"] % 1 != 0).sum())
+    data_df["quantity"] = data_df["quantity"].round().astype("int64")
     MAX_PRICE = 99999999.99
     before_count = len(data_df)
     data_df = data_df[data_df["price"] <= MAX_PRICE]
@@ -2139,6 +2151,13 @@ def _prepare_pricelist_data(
         "rows_removed": int(max(total_rows - clean_rows, 0)),
         "rows_dedup_removed": int(max(clean_rows - dedup_rows, 0)),
         "rows_regulatory": int(len(regulatory_rows)),
+        "rows_quantity_rounded": rounded_quantity_rows,
+        "quantity_rows_checked": quantity_rows,
+        "quantity_rounded_share": (
+            round(rounded_quantity_rows / quantity_rows, 4)
+            if quantity_rows
+            else 0.0
+        ),
     }
     return deduplicated_data, stats, regulatory_rows
 
@@ -2331,6 +2350,7 @@ async def process_provider_pricelist(
             source_filename=source_filename,
             file_content=file_content,
             file_extension=file_extension,
+            parse_stats=stats,
         )
         if anomaly.blocked:
             raise HTTPException(

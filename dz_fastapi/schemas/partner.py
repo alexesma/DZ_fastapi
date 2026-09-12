@@ -337,6 +337,32 @@ class PriceListProcessStats(BaseModel):
     rows_deduplicated: int
     rows_removed: int
     rows_dedup_removed: int
+    # Округлённые остатки: единичные — норма, массовые означают, что у
+    # поставщика перепутаны колонки цены и количества.
+    rows_quantity_rounded: int = 0
+    quantity_rows_checked: int = 0
+    quantity_rounded_share: float = 0.0
+
+
+class ProviderPricelistIntakeProblem(BaseModel):
+    """Почему конфигурация поставщика осталась без прайса.
+
+    Собирается из журнала запусков, чтобы сотрудник видел причину в
+    карточке поставщика, а не искал её запросами к базе.
+    """
+
+    provider_config_id: int
+    config_name: Optional[str] = None
+    outcome: str
+    message: str
+    detected_at: Optional[datetime] = None
+    emails_seen: int = 0
+    emails_matched: int = 0
+    skipped_old_uid: int = 0
+    filename_pattern: Optional[str] = None
+    subject_pattern: Optional[str] = None
+    rounding_warning: Optional[str] = None
+    rounding_detected_at: Optional[datetime] = None
 
 
 class PriceListSummary(BaseModel):

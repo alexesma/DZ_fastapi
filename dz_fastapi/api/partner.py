@@ -120,6 +120,7 @@ from dz_fastapi.schemas.partner import (
     ProviderPriceListConfigOption,
     ProviderPriceListConfigOut,
     ProviderPriceListConfigUpdate,
+    ProviderPricelistIntakeProblem,
     ProviderPricelistReviewApproveIn,
     ProviderPricelistReviewOut,
     ProviderPricelistReviewRejectIn,
@@ -132,6 +133,7 @@ from dz_fastapi.schemas.partner import (
 from dz_fastapi.services.crosses import load_bidirectional_cross_members
 from dz_fastapi.services.email import download_price_provider
 from dz_fastapi.services.inventory_stock import ensure_default_warehouse
+from dz_fastapi.services.monitoring import provider_config_intake_problems
 from dz_fastapi.services.order_timing import get_today_order_windows_status
 from dz_fastapi.services.pricelist_review_queue import (
     mark_pricelist_review_notifications_read as _mark_pricelist_review_notifications_read,
@@ -1589,6 +1591,24 @@ async def get_provider_pricelist_configs(
         ProviderPriceListConfigOut.model_validate(existing_config)
         for existing_config in existing_configs
     ]
+
+
+@router.get(
+    "/providers/{provider_id}/pricelist-intake-problems/",
+    tags=["providers", "pricelist-config"],
+    status_code=status.HTTP_200_OK,
+    summary="Почему конфигурации поставщика остались без прайса",
+    response_model=List[ProviderPricelistIntakeProblem],
+)
+async def get_provider_pricelist_intake_problems(
+    provider_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    provider = await crud_provider.get_by_id(provider_id=provider_id, session=session)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    rows = await provider_config_intake_problems(session, provider_id)
+    return [ProviderPricelistIntakeProblem.model_validate(row) for row in rows]
 
 
 @router.get(

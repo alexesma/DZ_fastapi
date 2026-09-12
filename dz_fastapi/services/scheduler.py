@@ -95,6 +95,7 @@ from dz_fastapi.services.placed_orders import (
     sync_site_tracking_statuses,
 )
 from dz_fastapi.services.price_control import run_price_control
+from dz_fastapi.services.pricelist_guard import describe_rounded_quantities
 from dz_fastapi.services.pricelist_review_queue import process_next_provider_pricelist_review
 from dz_fastapi.services.process import (
     StaleCustomerPricelistSourcesError,
@@ -1220,6 +1221,13 @@ async def _process_one(item, app: FastAPI, sem: asyncio.Semaphore):
                                 "stats": stats,
                             }
                         )
+                        # Массовое округление остатков прайс не блокирует,
+                        # но статус запуска помечаем: иначе подмену колонок
+                        # у поставщика снова придётся искать вручную.
+                        rounded_note = describe_rounded_quantities(stats)
+                        if rounded_note:
+                            trace.details["quantity_rounding_warning"] = rounded_note
+                            trace.details["__trace_status"] = "warning"
                         logger.info(f"Успешно обработан прайс для провайдера {provider.id}")
                         rss_after = _process_rss_mb()
                         if rss_after is not None:
@@ -2426,7 +2434,13 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
     """
     logger.info("Начинаем обработку писем провайдеров...")
     start_time = time.perf_counter()
-    downloaded = await get_emails(session=session)
+    # Исход шага загрузки по каждой конфигурации — он попадает в журнал
+    # запусков. Без этого молчащую конфигурацию невозможно отличить от
+    # той, которой просто не пришло письмо.
+    download_diagnostics: dict = {}
+    downloaded = await get_emails(
+        session=session, diagnostics=download_diagnostics
+    )
 
     email_time = time.perf_counter()
     logger.info(f"get_emails() выполнена за {email_time - start_time:.2f} секунд")
@@ -2442,6 +2456,7 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
             "review_details": [],
             "processing_seconds": 0.0,
             "total_seconds": time.perf_counter() - start_time,
+            "download_diagnostics": download_diagnostics,
         }
     rss_before = _process_rss_mb()
     logger.info(
@@ -2554,6 +2569,7 @@ async def process_new_provider_emails(session: AsyncSession, app: FastAPI):
         "remaining": len(downloaded) - len(processed_items),
         "processing_seconds": process_end - process_start,
         "total_seconds": total_time,
+        "download_diagnostics": download_diagnostics,
     }
 
 

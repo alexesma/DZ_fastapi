@@ -1670,8 +1670,19 @@ async def get_emails(
     email_account: str = EMAIL_NAME,
     email_password: str = EMAIL_PASSWORD,
     main_box: str = "INBOX",
+    diagnostics: dict | None = None,
 ) -> list[tuple[Provider, str]]:
+    """Скачивает прайсы поставщиков из почты.
+
+    В ``diagnostics`` (если передан) складывается исход шага загрузки по
+    каждой конфигурации, у поставщика которой сегодня были письма. Прежде
+    этот шаг не оставлял никакого следа: конфигурация Кунцево четыре с
+    половиной месяца ничего не загружала, и понять, на чём именно письмо
+    отсеивается, можно было только чтением отладочного журнала.
+    """
     downloaded_files = []
+    # config_id -> исход отбора писем для этой конфигурации
+    config_probe: dict[int, dict] = {}
     all_emails = []
     resend_cursors: dict[int, object] = {}
     selected_candidates: dict[
@@ -1830,8 +1841,29 @@ async def get_emails(
 
         for provider_conf in provider_confs:
             logger.debug("Config: %s", provider_conf)
+            probe = config_probe.setdefault(
+                int(provider_conf.id),
+                {
+                    "provider_id": int(provider.id),
+                    "provider": getattr(provider, "name", None),
+                    "config": (
+                        getattr(provider_conf, "name_price", None)
+                        or str(provider_conf.id)
+                    ),
+                    "pattern": (
+                        getattr(provider_conf, "filename_pattern", None)
+                        or getattr(provider_conf, "name_price", None)
+                    ),
+                    "name_mail": getattr(provider_conf, "name_mail", None),
+                    "emails_seen": 0,
+                    "emails_matched": 0,
+                    "skipped_old_uid": 0,
+                },
+            )
+            probe["emails_seen"] += 1
             if not _message_matches_provider_config(msg, provider_conf):
                 continue
+            probe["emails_matched"] += 1
             folder_name = getattr(msg, "folder_name", None)
             cache_key = (provider_conf.id, folder_name)
             if cache_key not in config_last_uid_cache:
@@ -1849,6 +1881,8 @@ async def get_emails(
                     msg.uid,
                     provider_conf.id,
                 )
+                probe["skipped_old_uid"] += 1
+                probe["last_uid"] = last_uid
                 continue
             current = selected_candidates.get(provider_conf.id)
             if current is None or _message_sort_key(msg) > _message_sort_key(
@@ -1868,6 +1902,10 @@ async def get_emails(
                 f"Письмо uid={msg.uid} не удовлетворило условиям загрузки"
             )
     for provider, provider_conf, msg in selected_candidates.values():
+        probe = config_probe.get(int(provider_conf.id))
+        if probe is not None:
+            probe["chosen_uid"] = str(getattr(msg, "uid", "") or "")
+            probe["chosen_subject"] = str(getattr(msg, "subject", "") or "")[:200]
         filepath = await download_new_price_provider(
             msg=msg,
             provider=provider,
@@ -1876,6 +1914,39 @@ async def get_emails(
         )
         if filepath:
             downloaded_files.append((provider, filepath, provider_conf))
+            if probe is not None:
+                probe["outcome"] = "downloaded"
+                probe["file"] = os.path.basename(filepath)
+        elif probe is not None:
+            probe["outcome"] = "download_failed"
+    if diagnostics is not None:
+        for config_id, probe in config_probe.items():
+            if "outcome" in probe:
+                continue
+            if probe["emails_matched"] == 0:
+                probe["outcome"] = "no_matching_email"
+            elif probe["skipped_old_uid"]:
+                probe["outcome"] = "only_already_loaded_emails"
+            else:
+                probe["outcome"] = "not_selected"
+        problems = [
+            {"config_id": config_id, **probe}
+            for config_id, probe in sorted(config_probe.items())
+            if probe.get("outcome") != "downloaded"
+        ]
+        diagnostics["considered_configs"] = len(config_probe)
+        diagnostics["downloaded"] = len(downloaded_files)
+        diagnostics["problems"] = problems
+        if problems:
+            logger.info(
+                "Шаг загрузки: без файла осталось конфигураций %s: %s",
+                len(problems),
+                "; ".join(
+                    f"config_id={row['config_id']} ({row['config']}) "
+                    f"{row['outcome']}"
+                    for row in problems
+                ),
+            )
     if resend_cursors and session is not None:
         for account in accounts:
             if account.id in resend_cursors:

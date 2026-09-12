@@ -317,3 +317,106 @@ async def tracked_execution(
     else:
         status = str(context.details.get("__trace_status") or "success")
         await _finish_execution_trace(context, status=status)
+
+
+# Человеческие формулировки исходов шага загрузки. Сотруднику нужна не
+# метка, а следующее действие: где именно смотреть настройку.
+INTAKE_OUTCOME_TEXT = {
+    "no_matching_email": (
+        "Подходящего письма нет: ни одно вложение не совпало с шаблоном "
+        "имени файла, либо тема письма не содержит нужный текст."
+    ),
+    "only_already_loaded_emails": (
+        "Все подходящие письма уже загружались раньше. Новое письмо не "
+        "приходило, либо его номер ниже отметки последнего загруженного."
+    ),
+    "download_failed": (
+        "Письмо найдено, но вложение не удалось получить. Если в "
+        "конфигурации задана ссылка на файл, вложение не читается вовсе."
+    ),
+    "not_selected": (
+        "Письмо подошло по всем условиям, но не было выбрано для загрузки."
+    ),
+}
+
+
+async def provider_config_intake_problems(
+    session: AsyncSession,
+    provider_id: int,
+    *,
+    lookback_runs: int = 40,
+) -> list[dict[str, Any]]:
+    """Почему конфигурации поставщика остались без прайса.
+
+    Собирается из журнала запусков: шаг загрузки писем складывает исход по
+    каждой конфигурации, а обработка файла — предупреждение о массовом
+    округлении остатков. Без этой сводки молчащую конфигурацию отличить
+    от «письма просто не было» можно только чтением журнала вручную —
+    конфигурация Кунцево так простояла четыре с половиной месяца.
+    """
+    problems: dict[int, dict[str, Any]] = {}
+
+    runs = await crud_execution_trace.list(
+        session=session,
+        job_key="download_price_provider",
+        limit=lookback_runs,
+    )
+    for run in runs:
+        details = dict(getattr(run, "details", None) or {})
+        summary = details.get("email_processing_summary") or {}
+        diagnostics = summary.get("download_diagnostics") or {}
+        for row in diagnostics.get("problems") or []:
+            if int(row.get("provider_id") or 0) != int(provider_id):
+                continue
+            config_id = int(row.get("config_id") or 0)
+            if not config_id or config_id in problems:
+                continue
+            outcome = str(row.get("outcome") or "")
+            problems[config_id] = {
+                "provider_config_id": config_id,
+                "config_name": row.get("config"),
+                "outcome": outcome,
+                "message": INTAKE_OUTCOME_TEXT.get(outcome, outcome),
+                "detected_at": getattr(run, "started_at", None),
+                "emails_seen": int(row.get("emails_seen") or 0),
+                "emails_matched": int(row.get("emails_matched") or 0),
+                "skipped_old_uid": int(row.get("skipped_old_uid") or 0),
+                "filename_pattern": row.get("pattern"),
+                "subject_pattern": row.get("name_mail"),
+                "rounding_warning": None,
+                "rounding_detected_at": None,
+            }
+
+    warnings = await crud_execution_trace.list(
+        session=session,
+        job_key="process_provider_pricelist",
+        provider_id=provider_id,
+        limit=lookback_runs,
+    )
+    for run in warnings:
+        details = dict(getattr(run, "details", None) or {})
+        warning = details.get("quantity_rounding_warning")
+        config_id = int(getattr(run, "provider_config_id", None) or 0)
+        if not warning or not config_id:
+            continue
+        row = problems.get(config_id)
+        if row is None:
+            problems[config_id] = {
+                "provider_config_id": config_id,
+                "config_name": details.get("provider_config_name"),
+                "outcome": "quantity_rounded",
+                "message": str(warning),
+                "detected_at": getattr(run, "started_at", None),
+                "emails_seen": 0,
+                "emails_matched": 0,
+                "skipped_old_uid": 0,
+                "filename_pattern": None,
+                "subject_pattern": None,
+                "rounding_warning": str(warning),
+                "rounding_detected_at": getattr(run, "started_at", None),
+            }
+        elif row.get("rounding_warning") is None:
+            row["rounding_warning"] = str(warning)
+            row["rounding_detected_at"] = getattr(run, "started_at", None)
+
+    return [problems[key] for key in sorted(problems)]

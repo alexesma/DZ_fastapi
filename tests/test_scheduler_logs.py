@@ -88,7 +88,7 @@ def test_customer_pricelist_failed_delivery_is_not_rebuilt_for_same_slot():
 
 @pytest.mark.asyncio
 async def test_scheduler_logs_skip(async_client, test_session, monkeypatch):
-    async def fake_get_emails(session):
+    async def fake_get_emails(session, diagnostics=None):
         return []
 
     monkeypatch.setattr(
@@ -114,7 +114,7 @@ async def test_provider_price_summary_keeps_provider_error_details(
     provider = SimpleNamespace(id=937, name="COSMOPART")
     provider_config = SimpleNamespace(id=41, name_price="Cosmo.xlsx")
 
-    async def fake_get_emails(*, session):
+    async def fake_get_emails(*, session, diagnostics=None):
         return [(provider, "/tmp/Cosmo.xlsx", provider_config)]
 
     async def fake_process_one(item, app, sem):
@@ -156,7 +156,7 @@ async def test_provider_price_summary_separates_review_from_errors(
     provider = SimpleNamespace(id=937, name="COSMOPART")
     provider_config = SimpleNamespace(id=53, name_price="Cosmo CS")
 
-    async def fake_get_emails(*, session):
+    async def fake_get_emails(*, session, diagnostics=None):
         return [(provider, "/tmp/Cosmo CS.xlsx", provider_config)]
 
     async def fake_process_one(item, app, sem):
