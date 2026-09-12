@@ -11,6 +11,7 @@ from dz_fastapi.models.partner import (
     Customer,
     CustomerExternalReference,
     CustomerOrder,
+    PartsSoftOrderSnapshot,
 )
 from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.services import partssoft_order_reconciliation as service
@@ -500,3 +501,88 @@ async def test_partssoft_order_process_does_not_require_email_config(
     assert item.status == CUSTOMER_ORDER_ITEM_STATUS.SUPPLIER
     assert item.ship_qty == 3
     assert item.source_resolution_status == "partssoft_price"
+
+
+@pytest.mark.asyncio
+async def test_reconciliation_reads_saved_seven_day_snapshot(
+    test_session,
+    created_customers,
+    monkeypatch,
+):
+    now = service.now_moscow()
+    customer = created_customers[0]
+    reference = CustomerExternalReference(
+        customer_id=customer.id,
+        source_system="PARTS_SOFT",
+        external_customer_id=1701,
+        is_active=True,
+        is_verified=True,
+        match_basis="manual",
+    )
+    snapshot = PartsSoftOrderSnapshot(
+        external_order_id="9901",
+        order_created_at=now,
+        external_customer_id=1701,
+        payload={
+            "id": 9901,
+            "created_at": now.isoformat(),
+            "customer_id": 1701,
+            "customer": {"id": 1701, "compile_name": customer.name},
+            "order_items": [
+                {"id": 1, "oem": "A-1", "make_name": "BRAND", "qnt": 1}
+            ],
+        },
+        last_seen_at=now,
+    )
+    test_session.add_all([reference, snapshot])
+    await test_session.commit()
+
+    async def fail_fetch(*_args, **_kwargs):
+        raise AssertionError("cached reconciliation must not call Parts-Soft")
+
+    monkeypatch.setattr(service, "_fetch_orders", fail_fetch)
+    result = await service.reconcile_partssoft_orders(test_session)
+
+    assert result["cached"] is True
+    assert result["remote_orders_total"] == 1
+    assert result["orders"][0]["external_order_id"] == "9901"
+
+
+@pytest.mark.asyncio
+async def test_link_can_merge_existing_partssoft_customer_duplicate(
+    test_session,
+    monkeypatch,
+):
+    duplicate = Customer(name="order@cosmopart.ru")
+    target = Customer(name="Космопарт", legal_name="ООО Космопарт")
+    test_session.add_all([duplicate, target])
+    await test_session.flush()
+    order = CustomerOrder(customer_id=duplicate.id, order_number="COSMO-1")
+    reference = CustomerExternalReference(
+        customer_id=duplicate.id,
+        source_system="PARTS_SOFT",
+        external_customer_id=1801,
+        is_active=True,
+        is_verified=True,
+        match_basis="created_from_partssoft",
+    )
+    test_session.add_all([order, reference])
+    await test_session.commit()
+
+    async def fake_fetch_customer(_external_customer_id):
+        return {"id": 1801, "compile_name": "Космопарт"}
+
+    monkeypatch.setattr(service, "_fetch_customer", fake_fetch_customer)
+    result = await service.link_partssoft_customer(
+        test_session,
+        external_customer_id=1801,
+        local_customer_id=target.id,
+        merge_existing_customer=True,
+    )
+
+    assert result["merged_customer_id"] == duplicate.id
+    assert await test_session.get(Customer, duplicate.id) is None
+    await test_session.refresh(order)
+    await test_session.refresh(reference)
+    assert order.customer_id == target.id
+    assert reference.customer_id == target.id

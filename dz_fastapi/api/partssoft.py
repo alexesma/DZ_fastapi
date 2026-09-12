@@ -19,6 +19,7 @@ router = APIRouter(prefix="/integrations/partssoft", tags=["partssoft"])
 
 class PartsSoftCustomerLinkIn(BaseModel):
     local_customer_id: int = Field(gt=0)
+    merge_existing_customer: bool = False
 
 
 @router.get("/customers/candidates")
@@ -54,6 +55,7 @@ async def link_customer(
             session,
             external_customer_id=external_customer_id,
             local_customer_id=payload.local_customer_id,
+            merge_existing_customer=payload.merge_existing_customer,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -79,7 +81,7 @@ async def reconcile_orders(
     session: AsyncSession = Depends(get_session),
 ):
     try:
-        return await reconcile_partssoft_orders(session, days=days)
+        return await reconcile_partssoft_orders(session, days=days, refresh_remote=True)
     except aiohttp.ClientResponseError as exc:
         raise HTTPException(
             status_code=502,
@@ -90,6 +92,21 @@ async def reconcile_orders(
             status_code=502,
             detail="Parts-Soft API is unavailable",
         ) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.get("/orders/reconcile")
+async def cached_reconcile_orders(
+    days: int = Query(default=7, ge=1, le=MAX_RECONCILIATION_DAYS),
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        return await reconcile_partssoft_orders(session, days=days)
+    except aiohttp.ClientResponseError as exc:
+        raise HTTPException(status_code=502, detail=f"Parts-Soft API returned HTTP {exc.status}") from exc
+    except (aiohttp.ClientError, TimeoutError) as exc:
+        raise HTTPException(status_code=502, detail="Parts-Soft API is unavailable") from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 

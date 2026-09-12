@@ -88,6 +88,7 @@ from dz_fastapi.models.partner import (
     CustomerOrder,
     CustomerOrderConfig,
     CustomerOrderItem,
+    PartsSoftOrderSnapshot,
     CustomerPriceList,
     CustomerPriceListAutoPartAssociation,
     CustomerPriceListConfig,

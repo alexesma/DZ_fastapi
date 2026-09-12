@@ -11,7 +11,7 @@ from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import aiohttp
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -24,6 +24,7 @@ from dz_fastapi.core.base import (
     CustomerOrder,
     CustomerOrderItem,
     OrderItem,
+    PartsSoftOrderSnapshot,
     Photo,
 )
 from dz_fastapi.core.time import now_moscow
@@ -262,6 +263,62 @@ async def _fetch_customer(external_customer_id: int) -> dict[str, Any]:
     if not isinstance(customer, dict):
         raise RuntimeError("Unexpected Parts-Soft customer response")
     return customer
+
+
+async def _store_order_snapshots(
+    session: AsyncSession,
+    remote_orders: list[dict[str, Any]],
+) -> None:
+    now = now_moscow()
+    cutoff = now - timedelta(days=MAX_RECONCILIATION_DAYS)
+    external_ids = [value for row in remote_orders if (value := _text(row.get("id")))]
+    existing = {
+        row.external_order_id: row
+        for row in (
+            await session.scalars(
+                select(PartsSoftOrderSnapshot).where(
+                    PartsSoftOrderSnapshot.external_order_id.in_(external_ids)
+                )
+            )
+        ).all()
+    } if external_ids else {}
+    for remote_order in remote_orders:
+        external_order_id = _text(remote_order.get("id"))
+        if not external_order_id:
+            continue
+        remote_customer = _remote_customer(remote_order)
+        snapshot = existing.get(external_order_id)
+        if snapshot is None:
+            snapshot = PartsSoftOrderSnapshot(external_order_id=external_order_id)
+            session.add(snapshot)
+        snapshot.order_created_at = _parse_datetime(remote_order.get("created_at"))
+        snapshot.external_customer_id = _integer(remote_customer.get("external_id"))
+        snapshot.payload = remote_order
+        snapshot.last_seen_at = now
+    await session.execute(
+        delete(PartsSoftOrderSnapshot).where(
+            or_(
+                PartsSoftOrderSnapshot.order_created_at < cutoff,
+                PartsSoftOrderSnapshot.order_created_at.is_(None),
+            )
+        )
+    )
+    await session.commit()
+
+
+async def _load_order_snapshots(
+    session: AsyncSession,
+    *,
+    start: datetime,
+) -> list[dict[str, Any]]:
+    rows = (
+        await session.scalars(
+            select(PartsSoftOrderSnapshot)
+            .where(PartsSoftOrderSnapshot.order_created_at >= start)
+            .order_by(PartsSoftOrderSnapshot.order_created_at.desc())
+        )
+    ).all()
+    return [row.payload for row in rows if isinstance(row.payload, dict)]
 
 
 async def _fetch_products(
@@ -557,6 +614,7 @@ async def link_partssoft_customer(
     *,
     external_customer_id: int,
     local_customer_id: int,
+    merge_existing_customer: bool = False,
 ) -> dict[str, Any]:
     remote_raw = await _fetch_customer(external_customer_id)
     remote = _remote_customer({"customer": remote_raw})
@@ -572,14 +630,25 @@ async def link_partssoft_customer(
             )
         )
     ).first()
-    if (
-        existing is not None
-        and existing.customer_id != customer.id
-        and existing.is_verified
-    ):
-        raise ValueError(
-            f"Parts-Soft customer is already linked to local customer {existing.customer_id}"
-        )
+    merged_customer_id: int | None = None
+    if existing is not None and existing.customer_id != customer.id and existing.is_verified:
+        if not merge_existing_customer:
+            raise ValueError(
+                f"Parts-Soft customer is already linked to local customer {existing.customer_id}. "
+                "Choose duplicate merge to move its data."
+            )
+        merged_customer_id = int(existing.customer_id)
+        try:
+            await _merge_customer_into_target(
+                session,
+                source_customer_id=merged_customer_id,
+                target_customer=customer,
+            )
+        except IntegrityError as exc:
+            await session.rollback()
+            raise ValueError(
+                "Клиентов нельзя объединить автоматически: конфликтуют связанные настройки"
+            ) from exc
 
     filled_fields: list[str] = []
     conflicts: list[str] = []
@@ -689,7 +758,50 @@ async def link_partssoft_customer(
         "local_customer_name": customer.name,
         "filled_fields": filled_fields,
         "conflicting_fields": conflicts,
+        "merged_customer_id": merged_customer_id,
     }
+
+
+async def _merge_customer_into_target(
+    session: AsyncSession,
+    *,
+    source_customer_id: int,
+    target_customer: Customer,
+) -> None:
+    if source_customer_id == target_customer.id:
+        return
+    source = await session.get(Customer, source_customer_id)
+    if source is None:
+        raise LookupError("Duplicate customer not found")
+
+    merge_fields = (
+        "legal_name", "inn", "kpp", "legal_address", "postal_address",
+        "company_type", "phone", "additional_phone", "vat_rate", "bank_bik",
+        "bank_name", "bank_city", "bank_account", "correspondent_account",
+        "registration_source", "credit_limit", "payment_terms_days",
+        "return_window_days", "description", "comment",
+    )
+    for field in merge_fields:
+        if not _text(getattr(target_customer, field, None)) and _text(getattr(source, field, None)):
+            setattr(target_customer, field, getattr(source, field))
+
+    for table in Customer.metadata.tables.values():
+        if table.name in {Customer.__table__.name, Client.__table__.name}:
+            continue
+        for column in table.columns:
+            if any(fk.target_fullname == "customer.id" for fk in column.foreign_keys):
+                await session.execute(
+                    update(table)
+                    .where(column == source_customer_id)
+                    .values({column.name: target_customer.id})
+                )
+    await session.execute(
+        delete(Customer.__table__).where(Customer.__table__.c.id == source_customer_id)
+    )
+    await session.execute(
+        delete(Client.__table__).where(Client.__table__.c.id == source_customer_id)
+    )
+    session.expunge(source)
 
 
 def _item_value(item: dict[str, Any], *keys: str) -> Any:
@@ -1085,6 +1197,12 @@ async def sync_partssoft_orders(
     """Import only orders absent locally; suspected duplicates stay in reconciliation."""
     days = max(1, min(int(days), AUTOMATIC_SYNC_DAYS))
     start, end, remote_orders = await _fetch_orders(days, region_id=None)
+    snapshot_count = await session.scalar(select(func.count(PartsSoftOrderSnapshot.id)))
+    if not snapshot_count:
+        _, _, snapshot_orders = await _fetch_orders(MAX_RECONCILIATION_DAYS, region_id=None)
+        await _store_order_snapshots(session, snapshot_orders)
+    else:
+        await _store_order_snapshots(session, remote_orders)
     counts: Counter[str] = Counter()
     imported_ids: list[int] = []
 
@@ -1209,9 +1327,19 @@ async def reconcile_partssoft_orders(
     session: AsyncSession,
     *,
     days: int = MAX_RECONCILIATION_DAYS,
+    refresh_remote: bool = False,
 ) -> dict[str, Any]:
     days = max(1, min(int(days), MAX_RECONCILIATION_DAYS))
-    start, end, remote_orders = await _fetch_orders(days, region_id=None)
+    end = now_moscow()
+    start = end - timedelta(days=days)
+    if refresh_remote:
+        start, end, remote_orders = await _fetch_orders(days, region_id=None)
+        await _store_order_snapshots(session, remote_orders)
+    else:
+        remote_orders = await _load_order_snapshots(session, start=start)
+        if not remote_orders:
+            start, end, remote_orders = await _fetch_orders(days, region_id=None)
+            await _store_order_snapshots(session, remote_orders)
 
     references = (
         await session.scalars(
@@ -1374,6 +1502,10 @@ async def reconcile_partssoft_orders(
                 "local_customer_id": local_customer_id,
                 "suggested_local_customer_id": customer_match.local_id,
                 "customer_linked": customer_match.classification == "linked",
+                "is_own_site_order": bool(
+                    item_tracking_ids
+                    and classification in {"existing_site_order", "partial_site_match"}
+                ),
                 "customer_match_classification": customer_match.classification,
                 "customer_match_basis": customer_match.basis,
                 "local_order_id": matched_local_order_id,
@@ -1396,6 +1528,7 @@ async def reconcile_partssoft_orders(
 
     return {
         "read_only": True,
+        "cached": not refresh_remote,
         "days": days,
         "date_from": start.isoformat(),
         "date_to": end.isoformat(),
@@ -1407,4 +1540,7 @@ async def reconcile_partssoft_orders(
         "items_total": sum(row["items_count"] for row in results),
         "counts": dict(sorted(counts.items())),
         "orders": results,
+        "cache_updated_at": await session.scalar(
+            select(func.max(PartsSoftOrderSnapshot.last_seen_at))
+        ),
     }

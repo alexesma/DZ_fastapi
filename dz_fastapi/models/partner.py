@@ -1701,6 +1701,14 @@ class CustomerExternalReference(Base):
     )
 
 
+class PartsSoftOrderSnapshot(Base):
+    external_order_id = Column(String(128), nullable=False, unique=True, index=True)
+    order_created_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    external_customer_id = Column(BigInteger, nullable=True, index=True)
+    payload = Column(JSON, default=dict, nullable=False)
+    last_seen_at = Column(DateTime(timezone=True), default=now_moscow, nullable=False)
+
+
 class ProviderAbbreviation(Base):
     abbreviation = Column(String(20), unique=True, nullable=False)
     provider_id = Column(Integer, ForeignKey("provider.id"), nullable=False)
