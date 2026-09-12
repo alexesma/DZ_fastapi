@@ -88,7 +88,6 @@ from dz_fastapi.models.partner import (
     CustomerOrder,
     CustomerOrderConfig,
     CustomerOrderItem,
-    PartsSoftOrderSnapshot,
     CustomerPriceList,
     CustomerPriceListAutoPartAssociation,
     CustomerPriceListConfig,
@@ -101,6 +100,7 @@ from dz_fastapi.models.partner import (
     EmailOutbox,
     Order,
     OrderItem,
+    PartsSoftOrderSnapshot,
     PriceList,
     PriceListAutoPartAssociation,
     PriceListMissingBrand,
@@ -282,4 +282,5 @@ __all__ = [
     "PriceControlRun",
     "PriceControlSource",
     "PriceControlSourceRecommendation",
+    "PartsSoftOrderSnapshot"
 ]

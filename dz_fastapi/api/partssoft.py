@@ -104,7 +104,9 @@ async def cached_reconcile_orders(
     try:
         return await reconcile_partssoft_orders(session, days=days)
     except aiohttp.ClientResponseError as exc:
-        raise HTTPException(status_code=502, detail=f"Parts-Soft API returned HTTP {exc.status}") from exc
+        raise HTTPException(
+            status_code=502, detail=f"Parts-Soft API returned HTTP {exc.status}"
+        ) from exc
     except (aiohttp.ClientError, TimeoutError) as exc:
         raise HTTPException(status_code=502, detail="Parts-Soft API is unavailable") from exc
     except RuntimeError as exc:
