@@ -1029,6 +1029,56 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
                 .where(PriceListStaleAlert.provider_id == source_provider_id)
                 .values(provider_id=target_provider_id)
             )
+
+            # A provider is referenced by operational and historical tables
+            # outside the original price/order flow as well. Move every direct
+            # FK so adding a new provider-related model cannot silently break
+            # merging again (for example AutoPurchaseRunItem.selected_supplier_id).
+            role_rule_table = Provider.metadata.tables["providerinventoryrolerule"]
+            target_role_parts = select(role_rule_table.c.autopart_id).where(
+                role_rule_table.c.provider_id == target_provider_id
+            )
+            await session.execute(
+                delete(role_rule_table).where(
+                    role_rule_table.c.provider_id == source_provider_id,
+                    role_rule_table.c.autopart_id.in_(target_role_parts),
+                )
+            )
+
+            source_uid = await session.scalar(
+                select(ProviderLastEmailUID).where(
+                    ProviderLastEmailUID.provider_id == source_provider_id
+                )
+            )
+            target_uid = await session.scalar(
+                select(ProviderLastEmailUID).where(
+                    ProviderLastEmailUID.provider_id == target_provider_id
+                )
+            )
+            if source_uid is not None and target_uid is not None:
+                target_uid.last_uid = max(target_uid.last_uid or 0, source_uid.last_uid or 0)
+                merged_folders = dict(target_uid.folder_last_uids or {})
+                for folder, uid in (source_uid.folder_last_uids or {}).items():
+                    merged_folders[folder] = max(int(merged_folders.get(folder) or 0), int(uid or 0))
+                target_uid.folder_last_uids = merged_folders
+                await session.delete(source_uid)
+                await session.flush()
+
+            excluded_tables = {
+                Provider.__table__.name,
+                Provider.__table__.metadata.tables["client"].name,
+                ProviderExternalReference.__table__.name,
+            }
+            for table in Provider.metadata.tables.values():
+                if table.name in excluded_tables:
+                    continue
+                for column in table.columns:
+                    if any(fk.target_fullname == "provider.id" for fk in column.foreign_keys):
+                        await session.execute(
+                            update(table)
+                            .where(column == source_provider_id)
+                            .values({column.name: target_provider_id})
+                        )
             # Удалить исходного поставщика
             await session.delete(source_provider)
             await session.commit()
@@ -1039,7 +1089,9 @@ class CRUDProvider(CRUDBase[Provider, ProviderCreate, ProviderUpdate]):
         except SQLAlchemyError as e:
             await session.rollback()
             logger.error(f"Error merging providers: {e}")
-            raise
+            raise ValueError(
+                "Не удалось объединить поставщиков: конфликтуют связанные записи или настройки"
+            ) from e
 
 
 crud_provider = CRUDProvider(Provider)

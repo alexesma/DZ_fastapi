@@ -13,7 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dz_fastapi.api import partner as partner_api
 from dz_fastapi.crud.partner import crud_customer_pricelist, crud_pricelist, crud_provider
 from dz_fastapi.main import app
-from dz_fastapi.models.autopart import AutoPart, AutoPartPriceHistory
+from dz_fastapi.models.autopart import (
+    AutoPart,
+    AutoPartPriceHistory,
+    AutoPurchaseRun,
+    AutoPurchaseRunItem,
+)
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.cross import AutoPartCross
 from dz_fastapi.models.email_account import EmailAccount
@@ -351,6 +356,44 @@ async def test_merge_providers_keeps_distinct_null_external_ids(
         "Alpha quality line",
         "Beta quality line",
     ]
+
+
+@pytest.mark.asyncio
+async def test_merge_providers_moves_autopurchase_supplier_references(
+    test_session: AsyncSession,
+    created_providers: list[Provider],
+    created_pricelist_config: ProviderPriceListConfig,
+):
+    source_provider = created_providers[0]
+    target_provider = created_providers[1]
+    run = AutoPurchaseRun(
+        provider_config_id=created_pricelist_config.id,
+        provider_id=source_provider.id,
+    )
+    test_session.add(run)
+    await test_session.flush()
+    item = AutoPurchaseRunItem(
+        run_id=run.id,
+        selected_supplier_id=source_provider.id,
+        oem_number="TEST-1",
+        decision_status="selected",
+        autopurchase_mode="manual",
+    )
+    test_session.add(item)
+    await test_session.commit()
+
+    merged = await crud_provider.merge_providers(
+        source_provider.id,
+        target_provider.id,
+        test_session,
+    )
+
+    assert merged is True
+    await test_session.refresh(run)
+    await test_session.refresh(item)
+    assert run.provider_id == target_provider.id
+    assert item.selected_supplier_id == target_provider.id
+    assert await test_session.get(Provider, source_provider.id) is None
 
 
 @pytest.mark.asyncio
