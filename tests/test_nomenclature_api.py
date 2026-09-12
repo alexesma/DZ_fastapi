@@ -2,7 +2,9 @@ import pytest
 
 from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.main import app
-from dz_fastapi.models.autopart import Photo
+from dz_fastapi.models.autopart import AutoPart, Photo
+from dz_fastapi.models.cross import AutoPartCross
+from dz_fastapi.models.nomenclature import ApplicabilityNode, autopart_applicability_association
 from dz_fastapi.models.user import User, UserRole, UserStatus
 
 
@@ -104,13 +106,6 @@ async def test_catalog_reports_applicability_and_crosses(
     Раньше наполненность карточки приходилось проверять, открывая каждый
     товар: в таблице не было ни применимости, ни кроссов.
     """
-    from dz_fastapi.models.autopart import AutoPart
-    from dz_fastapi.models.cross import AutoPartCross
-    from dz_fastapi.models.nomenclature import (
-        ApplicabilityNode,
-        autopart_applicability_association,
-    )
-
     деталь = AutoPart(
         brand_id=created_brand.id,
         oem_number='APPL0001',
@@ -190,13 +185,6 @@ async def test_catalog_filters_by_applicability_and_crosses(
     Просматривать наполненность подряд по страницам бессмысленно —
     нужен отбор.
     """
-    from dz_fastapi.models.autopart import AutoPart
-    from dz_fastapi.models.cross import AutoPartCross
-    from dz_fastapi.models.nomenclature import (
-        ApplicabilityNode,
-        autopart_applicability_association,
-    )
-
     с_применимостью = AutoPart(
         brand_id=created_brand.id,
         oem_number='LINKS0001',

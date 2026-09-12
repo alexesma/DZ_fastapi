@@ -1,2 +1,14 @@
 [flake8]
 max-line-length = 100
+# Запуск без аргументов уходил в чужой код: пакеты npm иногда везут с
+# собой .py-файлы (например, flatted/python/flatted.py с bare except), и
+# `flake8` выдавал сто тысяч замечаний к тому, что мы не пишем и не
+# правим. CI это не ловил, потому что перечисляет пути явно.
+#
+# extend-exclude, а не exclude: штатный список исключений flake8
+# (.git, __pycache__ и прочее) при этом сохраняется.
+extend-exclude =
+    dz_frontend,
+    node_modules,
+    .venv,
+    venv
