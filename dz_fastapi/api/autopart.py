@@ -2,8 +2,11 @@ import io
 import logging
 import zipfile
 from io import StringIO
+from pathlib import Path
 from typing import List, Optional
+from uuid import uuid4
 
+import aiofiles
 import pandas as pd
 import plotly.graph_objects as go
 import rarfile
@@ -19,6 +22,7 @@ from fastapi import (
     UploadFile,
     status,
 )
+from PIL import Image
 from plotly.colors import qualitative
 from plotly.subplots import make_subplots
 from pydantic import conint
@@ -39,10 +43,17 @@ from dz_fastapi.analytics.restock_logic import (
 )
 from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.api.validators import change_storage_name
+from dz_fastapi.core.constants import get_max_file_size, get_upload_dir
 from dz_fastapi.core.db import get_session
 from dz_fastapi.crud.autopart import crud_autopart, crud_category, crud_storage, crud_warehouse
 from dz_fastapi.crud.brand import brand_crud, brand_exists
-from dz_fastapi.models.autopart import AutoPart, Category, StorageLocation, preprocess_oem_number
+from dz_fastapi.models.autopart import (
+    AutoPart,
+    Category,
+    Photo,
+    StorageLocation,
+    preprocess_oem_number,
+)
 from dz_fastapi.models.brand import Brand
 from dz_fastapi.models.cross import AutoPartCross
 from dz_fastapi.models.inventory import Warehouse
@@ -70,6 +81,7 @@ from dz_fastapi.schemas.autopart import (
     AutopartOffersResponse,
     AutopartOrderRequest,
     AutopartOwnStockRow,
+    AutoPartPhotoOut,
     AutoPartResponse,
     AutoPartUpdate,
     BulkUpdateResponse,
@@ -2130,6 +2142,7 @@ async def get_autopart_detail(
         partssoft_synced_at=ap.partssoft_synced_at,
         partssoft_payload=ap.partssoft_payload or {},
         photo_urls=[photo.url for photo in (ap.photos or [])],
+        photos=[AutoPartPhotoOut.model_validate(photo) for photo in (ap.photos or [])],
         categories=ap.categories,
         storage_locations=ap.storage_locations,
         crosses=crosses,
@@ -2142,6 +2155,127 @@ async def get_autopart_detail(
             for n in (ap.applicability_nodes or [])
         ],
     )
+
+
+async def _save_autopart_photo_file(
+    autopart_id: int,
+    file: UploadFile,
+    *,
+    max_file_size: int,
+    upload_dir: str,
+) -> str:
+    if file.content_type not in {"image/jpeg", "image/png", "image/webp"}:
+        raise HTTPException(status_code=400, detail="Разрешены изображения JPEG, PNG и WebP")
+    contents = await file.read()
+    if not contents or len(contents) > max_file_size:
+        raise HTTPException(
+            status_code=400,
+            detail="Файл пустой или превышает допустимый размер",
+        )
+    try:
+        with Image.open(io.BytesIO(contents)) as image:
+            image.verify()
+            image_format = (image.format or "").lower()
+    except (OSError, SyntaxError) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Файл не является корректным изображением",
+        ) from exc
+    extension = {"jpeg": ".jpg", "png": ".png", "webp": ".webp"}.get(image_format)
+    if extension is None:
+        raise HTTPException(status_code=400, detail="Формат изображения не поддерживается")
+    relative_dir = Path("autoparts") / str(autopart_id)
+    destination_dir = Path(upload_dir) / relative_dir
+    destination_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"{uuid4().hex}{extension}"
+    async with aiofiles.open(destination_dir / filename, "wb") as target:
+        await target.write(contents)
+    return f"/uploads/{relative_dir.as_posix()}/{filename}"
+
+
+def _suppress_partssoft_photo(autopart: AutoPart, url: str) -> None:
+    if not autopart.partssoft_product_id or url.startswith("/uploads/"):
+        return
+    payload = dict(autopart.partssoft_payload or {})
+    hidden = set(payload.get("_local_hidden_photo_urls") or [])
+    hidden.add(url)
+    payload["_local_hidden_photo_urls"] = sorted(hidden)
+    autopart.partssoft_payload = payload
+
+
+def _delete_local_photo_file(url: str, upload_dir: str) -> None:
+    prefix = "/uploads/autoparts/"
+    if not url.startswith(prefix):
+        return
+    relative = url.removeprefix("/uploads/")
+    path = (Path(upload_dir) / relative).resolve()
+    root = (Path(upload_dir) / "autoparts").resolve()
+    if root in path.parents:
+        path.unlink(missing_ok=True)
+
+
+@router.post("/autoparts/{autopart_id:int}/photos/", response_model=AutoPartPhotoOut)
+async def upload_autopart_photo(
+    autopart_id: int,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session),
+    max_file_size: int = Depends(get_max_file_size),
+    upload_dir: str = Depends(get_upload_dir),
+):
+    autopart = await session.get(AutoPart, autopart_id)
+    if autopart is None:
+        raise HTTPException(status_code=404, detail="Запчасть не найдена")
+    url = await _save_autopart_photo_file(
+        autopart_id, file, max_file_size=max_file_size, upload_dir=upload_dir
+    )
+    photo = Photo(autopart_id=autopart_id, url=url)
+    session.add(photo)
+    await session.commit()
+    await session.refresh(photo)
+    return photo
+
+
+@router.put("/autoparts/{autopart_id:int}/photos/{photo_id:int}", response_model=AutoPartPhotoOut)
+async def replace_autopart_photo(
+    autopart_id: int,
+    photo_id: int,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session),
+    max_file_size: int = Depends(get_max_file_size),
+    upload_dir: str = Depends(get_upload_dir),
+):
+    autopart = await session.get(AutoPart, autopart_id)
+    photo = await session.get(Photo, photo_id)
+    if autopart is None or photo is None or photo.autopart_id != autopart_id:
+        raise HTTPException(status_code=404, detail="Фотография не найдена")
+    old_url = photo.url
+    photo.url = await _save_autopart_photo_file(
+        autopart_id, file, max_file_size=max_file_size, upload_dir=upload_dir
+    )
+    _suppress_partssoft_photo(autopart, old_url)
+    await session.commit()
+    _delete_local_photo_file(old_url, upload_dir)
+    await session.refresh(photo)
+    return photo
+
+
+@router.delete("/autoparts/{autopart_id:int}/photos/{photo_id:int}")
+async def delete_autopart_photo(
+    autopart_id: int,
+    photo_id: int,
+    session: AsyncSession = Depends(get_session),
+    upload_dir: str = Depends(get_upload_dir),
+):
+    autopart = await session.get(AutoPart, autopart_id)
+    photo = await session.get(Photo, photo_id)
+    if autopart is None or photo is None or photo.autopart_id != autopart_id:
+        raise HTTPException(status_code=404, detail="Фотография не найдена")
+    url = photo.url
+    _suppress_partssoft_photo(autopart, url)
+    await session.delete(photo)
+    await session.commit()
+    _delete_local_photo_file(url, upload_dir)
+    return {"deleted": True}
 
 
 @router.patch(

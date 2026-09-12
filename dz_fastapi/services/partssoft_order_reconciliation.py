@@ -26,6 +26,8 @@ from dz_fastapi.core.base import (
     OrderItem,
     PartsSoftOrderSnapshot,
     Photo,
+    Provider,
+    ProviderExternalReference,
 )
 from dz_fastapi.core.time import now_moscow
 from dz_fastapi.models.autopart import (
@@ -265,6 +267,151 @@ async def _fetch_customer(external_customer_id: int) -> dict[str, Any]:
     return customer
 
 
+async def _fetch_customers() -> list[dict[str, Any]]:
+    base_url, username, password = _partssoft_api_settings()
+    rows: list[dict[str, Any]] = []
+    auth = aiohttp.BasicAuth(username, password)
+    async with aiohttp.ClientSession(
+        auth=auth,
+        timeout=aiohttp.ClientTimeout(total=90),
+    ) as client:
+        page = 1
+        while True:
+            async with client.get(
+                f"{base_url}/customers.json",
+                params={"page": page, "per_page": PAGE_SIZE},
+                allow_redirects=False,
+            ) as response:
+                response.raise_for_status()
+                payload = await response.json()
+            page_rows = payload.get("customers") if isinstance(payload, dict) else None
+            if not isinstance(page_rows, list):
+                raise RuntimeError("Unexpected Parts-Soft customers response")
+            rows.extend(row for row in page_rows if isinstance(row, dict))
+            if len(page_rows) < PAGE_SIZE:
+                break
+            page += 1
+    return rows
+
+
+async def _unique_provider_name(
+    session: AsyncSession,
+    preferred: str,
+    external_id: int,
+) -> str:
+    base = (_text(preferred) or f"Поставщик Parts-Soft #{external_id}")[:255]
+    candidate = base
+    suffix = 1
+    while await session.scalar(
+        select(Client.id).where(func.lower(Client.name) == candidate.casefold()).limit(1)
+    ):
+        suffix += 1
+        tail = (
+            f" · Parts-Soft {external_id}"
+            if suffix == 2
+            else f" · Parts-Soft {external_id}-{suffix}"
+        )
+        candidate = f"{base[:255 - len(tail)]}{tail}"
+    return candidate
+
+
+async def sync_partssoft_suppliers(session: AsyncSession) -> dict[str, Any]:
+    remote_suppliers = [row for row in await _fetch_customers() if row.get("is_supplier") is True]
+    references = (
+        await session.scalars(
+            select(ProviderExternalReference).where(
+                ProviderExternalReference.source_system == PARTS_SOFT_SOURCE
+            )
+        )
+    ).all()
+    refs_by_external_id = {
+        int(row.external_supplier_id): row
+        for row in references
+        if row.external_supplier_id is not None
+    }
+    providers = list((await session.scalars(select(Provider))).all())
+    counts: Counter[str] = Counter()
+
+    for remote_raw in remote_suppliers:
+        external_id = _integer(remote_raw.get("id"))
+        if external_id is None:
+            counts["invalid"] += 1
+            continue
+        remote = flatten_remote_customer(remote_raw)
+        reference = refs_by_external_id.get(external_id)
+        provider = await session.get(Provider, reference.provider_id) if reference else None
+        if provider is None:
+            candidates = providers
+            inn = normalize_digits(remote.get("inn"))
+            email = normalize_email(remote.get("email"))
+            name = normalize_name(remote.get("name"))
+            matched = [
+                row for row in candidates if inn and normalize_digits(row.inn) == inn
+            ]
+            if not matched:
+                matched = [
+                    row
+                    for row in candidates
+                    if email
+                    and normalize_email(row.email_contact or row.email_incoming_price)
+                    == email
+                ]
+            if not matched:
+                matched = [
+                    row
+                    for row in candidates
+                    if name and normalize_name(row.name) == name
+                ]
+            if len(matched) > 1:
+                counts["conflicts"] += 1
+                continue
+            provider = matched[0] if matched else None
+        if provider is None:
+            provider = Provider(
+                name=await _unique_provider_name(session, remote.get("name"), external_id),
+                type_prices=TYPE_PRICES.WHOLESALE,
+                inn=remote.get("inn") or None,
+                kpp=remote.get("kpp") or None,
+                payment_terms_days=_integer(remote.get("payment_terms_days")) or 0,
+                is_vat_payer=bool((_decimal(remote.get("vat_rate")) or Decimal(0)) > 0),
+                is_virtual=False,
+            )
+            email = _text(remote.get("email"))
+            if email and provider.is_valid_email(email) and not await session.scalar(
+                select(Client.id).where(func.lower(Client.email_contact) == email.casefold())
+            ):
+                provider.email_contact = email
+            session.add(provider)
+            await session.flush()
+            providers.append(provider)
+            counts["created"] += 1
+        else:
+            if not provider.inn and remote.get("inn"):
+                provider.inn = remote["inn"]
+            if not provider.kpp and remote.get("kpp"):
+                provider.kpp = remote["kpp"]
+            if not provider.payment_terms_days and remote.get("payment_terms_days"):
+                provider.payment_terms_days = _integer(remote["payment_terms_days"]) or 0
+            counts["updated"] += 1
+        if reference is None:
+            reference = ProviderExternalReference(
+                provider_id=provider.id,
+                source_system=PARTS_SOFT_SOURCE,
+                external_supplier_id=external_id,
+            )
+            session.add(reference)
+            refs_by_external_id[external_id] = reference
+        reference.provider_id = provider.id
+        reference.external_supplier_name = remote.get("name") or None
+        reference.is_active = True
+    await session.commit()
+    return {
+        "remote_suppliers_total": len(remote_suppliers),
+        "counts": dict(sorted(counts.items())),
+        "synced_at": now_moscow().isoformat(),
+    }
+
+
 async def _store_order_snapshots(
     session: AsyncSession,
     remote_orders: list[dict[str, Any]],
@@ -493,11 +640,20 @@ async def sync_partssoft_products(
         autopart.partssoft_product_id = external_id
         autopart.partssoft_product_updated_at = _parse_datetime(product.get("updated_at"))
         autopart.partssoft_synced_at = now_moscow()
-        autopart.partssoft_payload = product
+        hidden_photo_urls = set(
+            (autopart.partssoft_payload or {}).get("_local_hidden_photo_urls") or []
+        )
+        stored_payload = dict(product)
+        if hidden_photo_urls:
+            stored_payload["_local_hidden_photo_urls"] = sorted(hidden_photo_urls)
+        autopart.partssoft_payload = stored_payload
         session.add(autopart)
         await session.flush()
 
         for url in _product_photo_urls(product):
+            if url in hidden_photo_urls:
+                counts["photos_hidden"] += 1
+                continue
             photo = photos_by_url.get(url)
             if photo is None:
                 photo = Photo(url=url, autopart_id=autopart.id)

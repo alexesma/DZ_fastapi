@@ -12,6 +12,8 @@ from dz_fastapi.models.partner import (
     CustomerExternalReference,
     CustomerOrder,
     PartsSoftOrderSnapshot,
+    Provider,
+    ProviderExternalReference,
 )
 from dz_fastapi.models.user import User, UserRole, UserStatus
 from dz_fastapi.services import partssoft_order_reconciliation as service
@@ -459,6 +461,58 @@ async def test_partssoft_product_sync_merges_card_and_photos(
         "https://admin.dragonzap.ru/system/product_photo/741717/main.jpg",
         "https://admin.dragonzap.ru/system/image_photo/1503/extra.jpg",
     }
+
+
+@pytest.mark.asyncio
+async def test_partssoft_supplier_sync_filters_matches_and_does_not_duplicate(
+    test_session,
+    monkeypatch,
+):
+    existing = Provider(name="Существующий поставщик", inn="7701001001")
+    test_session.add(existing)
+    await test_session.commit()
+
+    async def fake_fetch_customers():
+        return [
+            {
+                "id": 501,
+                "is_supplier": True,
+                "login_or_email": "existing@example.com",
+                "essential": {
+                    "company_name": "ООО Существующий",
+                    "inn": "7701001001",
+                    "kpp": "770101001",
+                },
+            },
+            {
+                "id": 502,
+                "is_supplier": True,
+                "login_or_email": "new@example.com",
+                "essential": {
+                    "company_name": "ООО Новый поставщик",
+                    "inn": "7702002002",
+                    "kpp": "770201001",
+                },
+            },
+            {"id": 503, "is_supplier": False, "login_or_email": "customer@example.com"},
+        ]
+
+    monkeypatch.setattr(service, "_fetch_customers", fake_fetch_customers)
+
+    first = await service.sync_partssoft_suppliers(test_session)
+    second = await service.sync_partssoft_suppliers(test_session)
+
+    assert first["remote_suppliers_total"] == 2
+    assert first["counts"] == {"created": 1, "updated": 1}
+    assert second["counts"] == {"updated": 2}
+    providers = list((await test_session.scalars(select(Provider))).all())
+    references = list(
+        (await test_session.scalars(select(ProviderExternalReference))).all()
+    )
+    assert len(providers) == 2
+    assert {row.external_supplier_id for row in references} == {501, 502}
+    assert {row.provider_id for row in references} == {row.id for row in providers}
+    assert existing.kpp == "770101001"
 
 
 @pytest.mark.asyncio

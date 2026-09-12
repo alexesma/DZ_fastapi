@@ -6,13 +6,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dz_fastapi.api.deps import get_session, require_admin
 from dz_fastapi.models.autopart import AutoPart
+from dz_fastapi.models.partner import ProviderExternalReference
 from dz_fastapi.services.partssoft_order_reconciliation import (
     MAX_RECONCILIATION_DAYS,
     link_partssoft_customer,
     reconcile_partssoft_orders,
     search_local_customer_candidates,
     sync_partssoft_products,
+    sync_partssoft_suppliers,
 )
+from dz_fastapi.services.partssoft_reconciliation import PARTS_SOFT_SOURCE
 
 router = APIRouter(prefix="/integrations/partssoft", tags=["partssoft"])
 
@@ -20,6 +23,32 @@ router = APIRouter(prefix="/integrations/partssoft", tags=["partssoft"])
 class PartsSoftCustomerLinkIn(BaseModel):
     local_customer_id: int = Field(gt=0)
     merge_existing_customer: bool = False
+
+
+@router.get("/suppliers/status")
+async def supplier_sync_status(session: AsyncSession = Depends(get_session)):
+    total = await session.scalar(
+        select(func.count(ProviderExternalReference.id)).where(
+            ProviderExternalReference.source_system == PARTS_SOFT_SOURCE,
+            ProviderExternalReference.is_active.is_(True),
+        )
+    )
+    return {"suppliers": int(total or 0)}
+
+
+@router.post("/suppliers/sync", dependencies=[Depends(require_admin)])
+async def sync_suppliers(session: AsyncSession = Depends(get_session)):
+    try:
+        return await sync_partssoft_suppliers(session)
+    except aiohttp.ClientResponseError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Parts-Soft API returned HTTP {exc.status}",
+        ) from exc
+    except (aiohttp.ClientError, TimeoutError) as exc:
+        raise HTTPException(status_code=502, detail="Parts-Soft API is unavailable") from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.get("/customers/candidates")

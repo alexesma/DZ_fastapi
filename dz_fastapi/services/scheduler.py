@@ -89,6 +89,7 @@ from dz_fastapi.services.order_timing import (
 from dz_fastapi.services.partssoft_order_reconciliation import (
     sync_partssoft_orders,
     sync_partssoft_products,
+    sync_partssoft_suppliers,
 )
 from dz_fastapi.services.placed_orders import (
     cleanup_old_tracking_history,
@@ -496,9 +497,16 @@ async def sync_partssoft_products_task(app: FastAPI):
         job_name="Sync Parts-Soft product cards",
     ) as trace:
         async with new_session_from_app(app) as session:
-            result = await sync_partssoft_products(session)
-            trace.details.update(result)
-            logger.info("Parts-Soft product sync completed: %s", result)
+            try:
+                supplier_result = await sync_partssoft_suppliers(session)
+                logger.info("Parts-Soft supplier sync completed: %s", supplier_result)
+            except Exception as exc:
+                await session.rollback()
+                supplier_result = {"error": str(exc)}
+                logger.exception("Parts-Soft supplier sync failed")
+            product_result = await sync_partssoft_products(session)
+            trace.details.update({"suppliers": supplier_result, "products": product_result})
+            logger.info("Parts-Soft product sync completed: %s", product_result)
 
 
 def start_scheduler(app: FastAPI):

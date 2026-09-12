@@ -1,4 +1,7 @@
+from io import BytesIO
+
 import pytest
+from PIL import Image
 
 from dz_fastapi.api.deps import get_current_user
 from dz_fastapi.main import app
@@ -93,6 +96,43 @@ async def test_nomenclature_static_autopart_routes_are_not_shadowed(
     assert response.status_code == 200, response.text
     payload = response.json()
     assert payload == [{"id": created_storage.id, "name": created_storage.name}]
+
+
+@pytest.mark.asyncio
+async def test_nomenclature_photo_can_be_added_replaced_and_deleted(
+    async_client,
+    created_autopart,
+):
+    def image_bytes(color):
+        buffer = BytesIO()
+        Image.new("RGB", (12, 8), color=color).save(buffer, format="PNG")
+        return buffer.getvalue()
+
+    created = await async_client.post(
+        f"/autoparts/{created_autopart.id}/photos/",
+        files={"file": ("first.png", image_bytes("red"), "image/png")},
+    )
+    assert created.status_code == 200, created.text
+    photo = created.json()
+    assert photo["url"].startswith(f"/uploads/autoparts/{created_autopart.id}/")
+
+    replaced = await async_client.put(
+        f"/autoparts/{created_autopart.id}/photos/{photo['id']}",
+        files={"file": ("second.png", image_bytes("blue"), "image/png")},
+    )
+    assert replaced.status_code == 200, replaced.text
+    assert replaced.json()["url"] != photo["url"]
+
+    detail = await async_client.get(f"/autoparts/{created_autopart.id}/detail/")
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["photos"] == [replaced.json()]
+
+    deleted = await async_client.delete(
+        f"/autoparts/{created_autopart.id}/photos/{photo['id']}"
+    )
+    assert deleted.status_code == 200, deleted.text
+    detail = await async_client.get(f"/autoparts/{created_autopart.id}/detail/")
+    assert detail.json()["photos"] == []
 
 
 @pytest.mark.asyncio

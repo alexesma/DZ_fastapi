@@ -526,11 +526,18 @@ class AutoPartCatalogResponse(BaseModel):
     limit: int
 
 
+class AutoPartPhotoOut(BaseModel):
+    id: int
+    url: str
+    model_config = ConfigDict(from_attributes=True)
+
+
 # ─── Full detail (with crosses) ─────────────────────────────────────────────
 
 
 class AutoPartDetailResponse(AutoPartResponse):
     brand_name: Optional[str] = None
+    photos: List[AutoPartPhotoOut] = Field(default_factory=list)
     crosses: List[CrossOut] = Field(default_factory=list)
     honest_sign_categories: List[HonestSignCategoryOut] = Field(
         default_factory=list
